@@ -5,6 +5,8 @@ import { blankProject, syncIO, autoAddr, addrFor, sanitizeTag, validateProject, 
 import { genTagFile } from "./codegen.js";
 import { genFor } from "./generate.js";
 import { genPLCopenXML, parseStPou } from "./plcopen.js";
+import { conceptNorm, conceptInstructions } from "./concept.js";
+import { docFDSMd } from "./docs.js";
 import { detectAndParse, buildDevicesFromTags, normAddr } from "./importers.js";
 import { sheetOps, opsToDXF, opsToSVG } from "./drawing.js";
 import { allProjectFiles, docFiles } from "./docs.js";
@@ -165,6 +167,30 @@ test("genFor: PLCopen jen pro CODESYS rodinu", () => {
     assert.ok(!("PLCopen_Import.xml" in genFor(p, "rockwell")));
     assert.ok(!("PLCopen_Import.xml" in genFor(p, "siemens")));
     assert.ok(genFor(p, "codesys")["README.txt"].includes("PLCopen_Import.xml"));
+});
+test("koncept: normalizace, markdown a podmíněný dokument", () => {
+    const prop = conceptNorm({
+        questions: [], note: "srovnání",
+        variants: [{
+                nazev: "Centralizované PLC s pneumatikou", shrnuti: "Jedno CPU, vše v rozvaděči.",
+                architektura: "S7-1500 + centrální I/O", pohony: "pneumatika", bezpecnost: "E-stop + relé",
+                hmi: "7\" panel", odhadIO: { di: 24, do: 16, ai: 4, ao: 2 },
+                doporucenePlatformy: ["siemens", "nesmysl"], rizika: ["takt"], pracnostMD: 12,
+            }],
+    });
+    assert.equal(prop.variants.length, 1);
+    assert.deepEqual(prop.variants[0].doporucenePlatformy, ["siemens"]);
+    assert.equal(prop.variants[0].odhadIO.do, 16);
+    const p = sampleSmall();
+    assert.equal(docFiles(p).length, 8, "bez konceptu 8 dokumentů");
+    p.concept = { ...prop.variants[0], zadani: "zkušební stanice" };
+    const files = docFiles(p);
+    assert.equal(files.length, 9, "s konceptem 9 dokumentů");
+    const km = files.find(f => f.path === "08_koncept_reseni.md");
+    assert.ok(km.body.includes("Centralizované PLC"));
+    assert.ok(km.body.includes("ISO 13849"));
+    assert.ok(docFDSMd(p).includes("Zvolený koncept řešení"));
+    assert.ok(conceptInstructions(p).includes("AKTUÁLNĚ ZVOLENÝ KONCEPT"));
 });
 test("dtFor: analogy INT, binární BOOL", () => {
     assert.equal(dtFor({ dir: "AI" }), "INT");

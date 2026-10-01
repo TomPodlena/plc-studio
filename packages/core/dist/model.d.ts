@@ -45,6 +45,7 @@ export interface ProgramCfg {
     estop: number | "";
     seq: SeqStep[];
 }
+import type { SolutionConcept } from "./concept.js";
 export interface Project {
     meta: {
         name: string;
@@ -55,6 +56,8 @@ export interface Project {
     io: IoEntry[];
     program: ProgramCfg;
     nextId: number;
+    /** Zvolený koncept řešení z AI nadstavby (viz concept.ts); null = zatím nezvolen. */
+    concept?: SolutionConcept | null;
 }
 export interface IoModule {
     dir: Dir;

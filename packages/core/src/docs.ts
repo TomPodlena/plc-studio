@@ -7,6 +7,7 @@ import {
 } from "./model.js";
 import { genFor } from "./generate.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
+import { conceptMd } from "./concept.js";
 
 function dnes(): string { return new Date().toLocaleDateString("cs-CZ"); }
 function estopTxt(prj: Project): string {
@@ -57,7 +58,11 @@ export function docFDSMd(prj: Project): string {
 
 ## 1. Popis stroje a účel
 ${prj.meta.desc || "(doplnit)"}
-
+${prj.concept ? `
+### Zvolený koncept řešení: ${prj.concept.nazev}
+${prj.concept.shrnuti}
+Podrobně viz \`08_koncept_reseni.md\`.
+` : ""}
 ## 2. Cílové řídicí systémy
 ${prj.platforms.map(p => "- " + PLAT[p].name + " — " + PLAT[p].ide + ", " + PLAT[p].cpu + ", jazyk " + PLAT[p].lang).join("\n")}
 
@@ -241,7 +246,9 @@ export function docFiles(prj: Project): DocFile[] {
     docIndexMd(prj), docFDSMd(prj), docIOcsv(prj), svorkyCSV(prj),
     docAlarmCsv(prj), docFATMd(prj), docManualMd(prj), docSWMd(prj),
   ];
-  return DOC_META.map((m, i) => ({ path: m[0], tab: m[1], title: m[2], body: bodies[i] }));
+  const out = DOC_META.map((m, i) => ({ path: m[0], tab: m[1], title: m[2], body: bodies[i] }));
+  if (prj.concept) out.push({ path: "08_koncept_reseni.md", tab: "Koncept", title: "koncept řešení (AI návrh k revizi)", body: conceptMd(prj) });
+  return out;
 }
 
 export interface ProjectFile {

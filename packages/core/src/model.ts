@@ -38,6 +38,8 @@ export interface IoEntry {
 export interface SeqStep { dev: number; act: SeqAct; cond: SeqCond; timeS: number; }
 export interface ProgramCfg { modes: boolean; estop: number | ""; seq: SeqStep[]; }
 
+import type { SolutionConcept } from "./concept.js";
+
 export interface Project {
   meta: { name: string; desc: string };
   platforms: PlatformKey[];
@@ -45,6 +47,8 @@ export interface Project {
   io: IoEntry[];
   program: ProgramCfg;
   nextId: number;
+  /** Zvolený koncept řešení z AI nadstavby (viz concept.ts); null = zatím nezvolen. */
+  concept?: SolutionConcept | null;
 }
 
 export interface IoModule { dir: Dir; idx: number; ch: IoEntry[]; }
@@ -89,6 +93,7 @@ export function blankProject(): Project {
     io: [],
     program: { modes: true, estop: "", seq: [] },
     nextId: 1,
+    concept: null,
   };
 }
 

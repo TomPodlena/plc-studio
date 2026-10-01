@@ -52,6 +52,21 @@ Do core přibyl **PLCopen XML (TC6) export** (`src/plcopen.ts` + `src/generate.t
 3. Volitelné: v kroku Generovat zvýraznit PLCopen_Import.xml jako doporučenou cestu
    (badge „doporučeno") pro tyto tři platformy.
 
+**Dále přibyla AI nadstavba KONCEPTŮ** (`src/concept.ts`, dist přegenerován):
+`conceptInstructions(prj)` + `conceptNorm()` + typ `SolutionConcept` + `conceptMd(prj)`;
+`Project.concept` nese zvolenou variantu; FDS a dokumentace (08_koncept_reseni.md)
+se propisují automaticky. Úkol pro app (apps/web):
+4. Krok „AI návrh" rozdělit na dva režimy (přepínač nahoře):
+   a) **Koncept** — textarea zadání → aiCall s `conceptInstructions(prj)` (nový helper
+      v ai.js vedle aiInstructions) → `conceptNorm` → vykreslit 2–3 varianty jako karty
+      (název, shrnutí, architektura, pohony, bezpečnost, HMI, odhad I/O, platformy,
+      rizika, pracnost) + tlačítko „Zvolit koncept" → uloží `prj.concept = {...variant,
+      zadani: <první zpráva uživatele>}` a předvybere `prj.platforms` dle
+      doporucenePlatformy; konverzace konceptu má vlastní turns (S.aiConcept).
+   b) **Sestava zařízení** — stávající chování; `aiInstructions()` rozšířit, aby při
+      existujícím prj.concept přikládala i koncept jako kontext (JSON.stringify(prj.concept)).
+   Zvolený koncept zobrazit i v kroku Projekt (řádek s názvem + odkaz na dokument).
+
 ## Roadmapa (pořadí)
 
 1. ~~PLCopen XML (TC6) export~~ ✅ hotovo v core (viz handoff výše)

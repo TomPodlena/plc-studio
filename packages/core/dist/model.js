@@ -37,6 +37,7 @@ export function blankProject() {
         io: [],
         program: { modes: true, estop: "", seq: [] },
         nextId: 1,
+        concept: null,
     };
 }
 export function devById(prj, id) {
