@@ -25,6 +25,7 @@ Dokumentace: FDS, I/O list, svorkovnice, seznam alarmů, FAT protokol, návod k 
 ```
 packages/core     jádro (TypeScript, bez závislostí): model, generátory, import, výkresy, dokumentace
 apps/web          demo shell nad jádrem + prototype.html (plné workflow UI z prototypu)
+apps/desktop      desktopová aplikace (Python + tkinter) nad stejným jádrem — viz apps/desktop/README.md
 ```
 
 ## Vývoj
@@ -33,6 +34,7 @@ apps/web          demo shell nad jádrem + prototype.html (plné workflow UI z p
 pnpm -C packages/core build    # tsc → dist
 pnpm -C packages/core test     # node --test (bez externích závislostí)
 pnpm web                       # build + statický server nad apps/web
+apps\desktop\PLCStudio.bat     # desktopová aplikace (Python 3.9+ s tkinter, Node 18+)
 ```
 
 `apps/web/prototype.html` je původní single-file prototyp (claude.ai artifact) s kompletním

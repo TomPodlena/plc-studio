@@ -12,6 +12,10 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
 - `apps/web` — aplikace: statické HTML + ES moduly nad `packages/core/dist` (bez bundleru,
   záměrně — budoucí přechod na Vite/React je OK, ale core zůstává oddělené).
   `prototype.html` = původní single-file prototyp (referenční), `demo.html` = technické demo jádra.
+- `apps/desktop` — desktopová aplikace: Python + tkinter (vizuál nástrojů PearTec), stejné workflow
+  jako web. **Logiku nekopíruje** — volá `packages/core/dist` a `apps/web/src/ai.js` přes trvalý
+  proces Node (`bridge.mjs`, JSON po řádcích); výkresy z jádra kreslí na `tk.Canvas`.
+  Změna v jádře se v desktopu projeví sama, nový krok/prvek UI je potřeba doplnit ve webu i tady.
 - Budoucí: `apps/api` (Node + Postgres, účty/projekty), `apps/worker-openness` (C#, Windows + TIA V21).
 
 ## Příkazy
@@ -20,6 +24,10 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
 pnpm -C packages/core build   # tsc → dist (dist je commitnutý, po změně core přegeneruj a commitni)
 pnpm -C packages/core test    # node --test, 13+ testů, bez závislostí
 npx http-server . -p 8080     # → http://localhost:8080/apps/web/
+# desktop (z apps/desktop; na vývojové stanici pinovat Python311, ne bare `python`):
+python -m plc_studio                       # spuštění; bez konzole PLCStudio.bat
+python -m unittest discover -s tests -v    # most + výkresy + kroky GUI, bez volání API
+python -m plc_studio --smoke               # projde všechny kroky a skončí
 ```
 
 ## Konvence a pravidla

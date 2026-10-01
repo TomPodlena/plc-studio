@@ -3,3 +3,7 @@ apps/**/dist/
 *.log
 .DS_Store
 .env
+__pycache__/
+*.pyc
+# logo PEARTEC se do repa nepřikládá (desktop si ho hledá lokálně)
+apps/desktop/plc_studio/assets/peartec_logo*.png
