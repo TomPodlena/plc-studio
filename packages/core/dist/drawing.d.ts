@@ -1,0 +1,52 @@
+/**
+ * PLC Studio — výkresy: jedna geometrie (ops) renderovaná do SVG (náhled)
+ * i DXF R12 (EPLAN / AutoCAD / LibreCAD).
+ * Konvence: rámeček s mřížkovými referencemi, popisové pole, značení -M1
+ * (IEC 81346), čísla vodičů -W1xx, NC/NO kontakty (IEC 60617).
+ */
+import { Project, IoModule } from "./model.js";
+export type Op = {
+    t: "l";
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    k: string;
+} | {
+    t: "c";
+    cx: number;
+    cy: number;
+    r: number;
+} | {
+    t: "r";
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    k: string;
+} | {
+    t: "t";
+    x: number;
+    y: number;
+    s: string;
+    size: number;
+    anchor: string;
+    k: string;
+};
+export interface SheetOps {
+    W: number;
+    H: number;
+    O: Op[];
+}
+export interface SheetMeta {
+    projectName: string;
+    date: string;
+}
+export declare function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number, total: number, meta?: SheetMeta): SheetOps;
+/** Render ops do SVG; barvy přes CSS proměnné stránky (téma). */
+export declare function opsToSVG(sh: SheetOps, label: string): string;
+/** Render ops do DXF R12 (ENTITIES only; texty bez diakritiky kvůli kódovým stránkám CAD). */
+export declare function opsToDXF(sh: SheetOps): string;
+export declare function sheetSVG(prj: Project, mod: IoModule, xnum: number, page?: number, total?: number, meta?: SheetMeta): string;
+export declare function sheetDXF(prj: Project, mod: IoModule, xnum: number, page?: number, total?: number, meta?: SheetMeta): string;
+export declare function svgBlock(prj: Project, mods: IoModule[]): string;
