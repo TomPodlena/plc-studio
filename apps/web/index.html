@@ -3,37 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PLC Studio — demo jádra</title>
-<style>
-  :root{--bg:#f3f5f6;--surface:#fff;--fg:#15262b;--muted:#5b7077;--line:#d4dde0;--accent:#00707e;--chip:#e3ecee;--warn:#b45309;--code-bg:#0e1b1f;--code-fg:#d7e4e8}
-  body{margin:0;padding:16px 16px 48px;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,sans-serif}
-  .wrap{max-width:1100px;margin:0 auto}
-  h1{font-size:1.3rem}
-  .row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
-  button{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--surface);padding:7px 14px;border-radius:8px;cursor:pointer}
-  button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .cols{display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px}
-  @media(max-width:760px){.cols{grid-template-columns:1fr}}
-  .list{display:flex;flex-direction:column;gap:2px;max-height:600px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px}
-  .list h4{margin:8px 0 3px;font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
-  .list button{text-align:left;font:12px/1.4 ui-monospace,monospace;border:none;background:none;padding:5px 9px;border-radius:6px;font-weight:400}
-  .list button.on{background:var(--chip);color:var(--accent);font-weight:600}
-  pre{background:var(--code-bg);color:var(--code-fg);font:12px/1.5 ui-monospace,monospace;padding:14px;border-radius:10px;overflow:auto;max-height:600px;white-space:pre}
-  .svgbox{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;overflow:auto;max-height:600px}
-  .hint{color:var(--muted);font-size:.85rem}
-</style>
+<title>PLC Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="wrap">
-  <h1>PLC Studio — demo jádra <code>@plc-studio/core</code></h1>
-  <p class="hint">Technické demo: ukázkový projekt → všechny generované soubory (kód, výkresy, dokumentace) z jádra.
-     Plné workflow UI viz <a href="prototype.html">prototype.html</a>; produkční web app je další krok roadmapy.</p>
-  <div class="row" id="samples"></div>
-  <div class="cols">
-    <div class="list" id="list"></div>
-    <div id="pane"></div>
-  </div>
+  <header class="app">
+    <h1>PLC Studio</h1>
+    <span class="badge">AI návrh · schéma · kód · dokumentace</span>
+    <span class="badge">7 platforem</span>
+    <span id="projName"></span>
+  </header>
+  <nav class="stepper" id="stepper" aria-label="Kroky návrhu"></nav>
+  <main id="view"></main>
+  <footer class="bar">
+    <button id="btnPrev">← Zpět</button>
+    <button id="btnNext" class="primary">Pokračovat →</button>
+  </footer>
 </div>
-<script type="module" src="./src/main.js"></script>
+<script type="module" src="src/app.js"></script>
 </body>
 </html>
