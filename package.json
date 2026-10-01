@@ -2,6 +2,7 @@
   "name": "plc-studio",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "description": "PLC Studio — návrh PLC systému od zadání po kód a dokumentaci, multiplatformně (Siemens, Rockwell, Beckhoff, CODESYS, Mitsubishi, Schneider, OMRON)",
   "scripts": {
     "build": "pnpm -C packages/core build",

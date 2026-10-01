@@ -5,26 +5,30 @@
  * (IEC 81346), čísla vodičů -W1xx, NC/NO kontakty (IEC 60617).
  */
 import { Project, IoModule } from "./model.js";
-export type Op = {
+/** `io` = klíč signálu, ke kterému prvek patří (interaktivní náhledy; DXF ho ignoruje). */
+type Ref = {
+    io?: string;
+};
+export type Op = ({
     t: "l";
     x1: number;
     y1: number;
     x2: number;
     y2: number;
     k: string;
-} | {
+} & Ref) | ({
     t: "c";
     cx: number;
     cy: number;
     r: number;
-} | {
+} & Ref) | ({
     t: "r";
     x: number;
     y: number;
     w: number;
     h: number;
     k: string;
-} | {
+} & Ref) | ({
     t: "t";
     x: number;
     y: number;
@@ -32,7 +36,7 @@ export type Op = {
     size: number;
     anchor: string;
     k: string;
-};
+} & Ref);
 export interface SheetOps {
     W: number;
     H: number;
@@ -50,3 +54,4 @@ export declare function opsToDXF(sh: SheetOps): string;
 export declare function sheetSVG(prj: Project, mod: IoModule, xnum: number, page?: number, total?: number, meta?: SheetMeta): string;
 export declare function sheetDXF(prj: Project, mod: IoModule, xnum: number, page?: number, total?: number, meta?: SheetMeta): string;
 export declare function svgBlock(prj: Project, mods: IoModule[]): string;
+export {};

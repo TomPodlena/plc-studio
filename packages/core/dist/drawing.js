@@ -4,16 +4,18 @@
  * Konvence: rámeček s mřížkovými referencemi, popisové pole, značení -M1
  * (IEC 81346), čísla vodičů -W1xx, NC/NO kontakty (IEC 60617).
  */
-import { PLAT, devById, modules, esc, stripDia } from "./model.js";
+import { CLS, PLAT, devById, modules, esc, stripDia } from "./model.js";
 function todayCz() { return new Date().toLocaleDateString("cs-CZ"); }
 export function sheetOps(prj, mod, xnum, page, total, meta) {
     const rows = mod.ch.length, rh = 40, top = 96;
     const W = 980, H = top + rows * rh + 104;
     const O = [];
-    const Ln = (x1, y1, x2, y2, k) => O.push({ t: "l", x1, y1, x2, y2, k: k || "w" });
-    const Ci = (cx, cy, r) => O.push({ t: "c", cx, cy, r });
-    const Re = (x, y, w, h, k) => O.push({ t: "r", x, y, w, h, k: k || "s" });
-    const Tx = (x, y, s, o) => O.push(Object.assign({ t: "t", x, y, s: String(s), size: 11, anchor: "start", k: "t" }, o || {}));
+    let cur; // signál právě kresleného kanálu
+    const ref = () => cur ? { io: cur } : {};
+    const Ln = (x1, y1, x2, y2, k) => O.push({ t: "l", x1, y1, x2, y2, k: k || "w", ...ref() });
+    const Ci = (cx, cy, r) => O.push({ t: "c", cx, cy, r, ...ref() });
+    const Re = (x, y, w, h, k) => O.push({ t: "r", x, y, w, h, k: k || "s", ...ref() });
+    const Tx = (x, y, s, o) => O.push(Object.assign({ t: "t", x, y, s: String(s), size: 11, anchor: "start", k: "t" }, o || {}, ref()));
     const pname = meta?.projectName ?? prj.meta.name;
     const date = meta?.date ?? todayCz();
     /* rámeček s mřížkovými referencemi */
@@ -70,6 +72,7 @@ export function sheetOps(prj, mod, xnum, page, total, meta) {
     }
     /* kanály */
     mod.ch.forEach((e, i) => {
+        cur = e.key;
         const y = top + i * rh + 12;
         const d = devById(prj, e.devId) || { name: "", desc: "" };
         const wn = "-W" + (wBase + i);
@@ -123,6 +126,7 @@ export function sheetOps(prj, mod, xnum, page, total, meta) {
             Tx(400, y + 12, "0/4–20 mA · 0–10 V · " + wn, { k: "m", size: 9 });
         }
     });
+    cur = undefined;
     if (mod.dir === "DI")
         Tx(80, yEnd + 16, "Kontakty: šikmá páka s dorazem = NC (bezpečnostní prvky), bez dorazu = NO — dle sloupce NC v I/O.", { k: "m", size: 9 });
     if (mod.dir === "AI")
@@ -134,14 +138,15 @@ export function opsToSVG(sh, label) {
     const strokeFor = (o) => o.k === "f" ? "var(--line, #999)" : o.k === "r" ? "var(--warn, #b45309)" : o.k === "r0" ? "var(--muted, #777)" : "currentColor";
     let s = "";
     for (const o of sh.O) {
+        const io = o.io ? ' data-io="' + esc(o.io) + '"' : "";
         if (o.t === "l")
-            s += '<line x1="' + o.x1 + '" y1="' + o.y1 + '" x2="' + o.x2 + '" y2="' + o.y2 + '" stroke="' + strokeFor(o) + '" stroke-width="' + ((o.k === "r" || o.k === "r0") ? 2 : (o.k === "f" ? 1 : 1.2)) + '"/>';
+            s += '<line' + io + ' x1="' + o.x1 + '" y1="' + o.y1 + '" x2="' + o.x2 + '" y2="' + o.y2 + '" stroke="' + strokeFor(o) + '" stroke-width="' + ((o.k === "r" || o.k === "r0") ? 2 : (o.k === "f" ? 1 : 1.2)) + '"/>';
         else if (o.t === "c")
-            s += '<circle cx="' + o.cx + '" cy="' + o.cy + '" r="' + o.r + '" fill="none" stroke="currentColor" stroke-width="1.2"/>';
+            s += '<circle' + io + ' cx="' + o.cx + '" cy="' + o.cy + '" r="' + o.r + '" fill="none" stroke="currentColor" stroke-width="1.2"/>';
         else if (o.t === "r")
-            s += '<rect x="' + o.x + '" y="' + o.y + '" width="' + o.w + '" height="' + o.h + '" fill="' + (o.k === "chip" ? "var(--chip, #eee)" : "none") + '" stroke="' + (o.k === "chip" || o.k === "f" ? "var(--line, #999)" : "currentColor") + '" stroke-width="' + (o.k === "f" ? 1 : 1.2) + '"/>';
+            s += '<rect' + io + ' x="' + o.x + '" y="' + o.y + '" width="' + o.w + '" height="' + o.h + '" fill="' + (o.k === "chip" ? "var(--chip, #eee)" : "none") + '" stroke="' + (o.k === "chip" || o.k === "f" ? "var(--line, #999)" : "currentColor") + '" stroke-width="' + (o.k === "f" ? 1 : 1.2) + '"/>';
         else
-            s += '<text x="' + o.x + '" y="' + o.y + '" text-anchor="' + (o.anchor || "start") + '" style="font-family:ui-monospace,monospace;font-size:' + o.size + 'px;fill:' + (o.k === "m" ? "var(--muted, #777)" : "currentColor") + (o.k === "b" ? ";font-weight:600" : "") + '">' + esc(o.s) + '</text>';
+            s += '<text' + io + ' x="' + o.x + '" y="' + o.y + '" text-anchor="' + (o.anchor || "start") + '" style="font-family:ui-monospace,monospace;font-size:' + o.size + 'px;fill:' + (o.k === "m" ? "var(--muted, #777)" : "currentColor") + (o.k === "b" ? ";font-weight:600" : "") + '">' + esc(o.s) + '</text>';
     }
     return '<svg role="img" aria-label="' + esc(label) + '" viewBox="0 0 ' + sh.W + ' ' + sh.H + '" style="max-width:100%;height:auto" width="' + sh.W + '" xmlns="http://www.w3.org/2000/svg">' + s + '</svg>';
 }
@@ -195,8 +200,13 @@ export function svgBlock(prj, mods) {
     const TXT = "font-family:ui-monospace,monospace;font-size:12px;fill:currentColor";
     const MUT = "font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)";
     const sT = (x, y, txt, st, anch) => '<text x="' + x + '" y="' + y + '" style="' + (st || TXT) + '"' + (anch ? ' text-anchor="' + anch + '"' : "") + ">" + esc(txt) + "</text>";
-    const box = (x, y, w, t1, t2, acc) => '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + bh + '" rx="5" fill="' + (acc ? "var(--chip, #eee)" : "none") + '" stroke="' + (acc ? "var(--accent, #00707e)" : "var(--line, #999)") + '"/>' +
-        sT(x + 8, y + 14, t1, TXT + ";font-weight:600") + (t2 ? sT(x + 8, y + 27, String(t2).slice(0, 34), MUT) : "");
+    /* Blok = skupina <g> s odkazem (data-dev / data-mod) a popisem v <title>:
+       prohlížeč z něj udělá bublinu, desktop podle něj blok rozklikne. */
+    const box = (x, y, w, t1, t2, acc, attrs = "", title = "") => "<g" + attrs + ">" + (title ? "<title>" + esc(title) + "</title>" : "") +
+        '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + bh + '" rx="5" fill="' + (acc ? "var(--chip, #eee)" : "none") + '" stroke="' + (acc ? "var(--accent, #00707e)" : "var(--line, #999)") + '"/>' +
+        sT(x + 8, y + 14, t1, TXT + ";font-weight:600") + (t2 ? sT(x + 8, y + 27, String(t2).slice(0, 34), MUT) : "") + "</g>";
+    const devTitle = (d) => d.name + " — " + (d.desc || CLS[d.cls].label) + "\n" + CLS[d.cls].label + "\n" +
+        prj.io.filter(e => e.devId === d.id).map(e => e.dir + "  " + e.tag + "  " + e.addr).join("\n");
     let s = "";
     const plcH = (mods.length + 2) * (bh + g) + 14;
     s += '<rect x="340" y="' + (top - 10) + '" width="300" height="' + plcH + '" rx="8" fill="none" stroke="var(--accent, #00707e)" stroke-width="1.5"/>';
@@ -204,9 +214,11 @@ export function svgBlock(prj, mods) {
     s += sT(640, top - 18, "zdroje signálů →  PLC  → akční členy", MUT, "end");
     s += box(352, yy(0), 276, "PS — zdroj 24 V DC", "napájení modulů a snímačů", false);
     s += box(352, yy(1), 276, "CPU", prj.platforms.map(p => PLAT[p].cpu).join(" · ") || "—", true);
-    mods.forEach((m, i) => { s += box(352, yy(i + 2), 276, m.dir + m.idx + " — " + MODLBL[m.dir], m.ch.length + " kanálů · svorkovnice X" + (i + 1), false); });
-    L.forEach((d, i) => { s += box(20, yy(i), 250, d.name, d.desc, false); });
-    R.forEach((d, i) => { s += box(710, yy(i), 250, d.name, d.desc, false); });
+    mods.forEach((m, i) => {
+        s += box(352, yy(i + 2), 276, m.dir + m.idx + " — " + MODLBL[m.dir], m.ch.length + " kanálů · svorkovnice X" + (i + 1), false, ' data-mod="' + i + '"', m.dir + m.idx + " — " + MODLBL[m.dir] + "\n" + m.ch.map((e, c) => "X" + (i + 1) + ":" + (c + 1) + "  " + e.tag + "  " + e.addr).join("\n"));
+    });
+    L.forEach((d, i) => { s += box(20, yy(i), 250, d.name, d.desc, false, ' data-dev="' + d.id + '" data-side="in"', devTitle(d)); });
+    R.forEach((d, i) => { s += box(710, yy(i), 250, d.name, d.desc, false, ' data-dev="' + d.id + '" data-side="out"', devTitle(d)); });
     for (const e of prj.io) {
         const mi = mods.findIndex(m => m.ch.includes(e));
         if (mi < 0)
@@ -215,15 +227,16 @@ export function svgBlock(prj, mods) {
         const d = devById(prj, e.devId);
         if (!d)
             continue;
+        const ref = ' data-io="' + esc(e.key) + '" data-dev="' + d.id + '" data-mod="' + mi + '"';
         if (e.dir === "DI" || e.dir === "AI") {
             const li = L.indexOf(d);
             if (li >= 0)
-                s += '<line x1="270" y1="' + (yy(li) + bh / 2) + '" x2="352" y2="' + yMod + '" stroke="var(--muted, #777)" stroke-width="1"/>';
+                s += '<line' + ref + ' x1="270" y1="' + (yy(li) + bh / 2) + '" x2="352" y2="' + yMod + '" stroke="var(--muted, #777)" stroke-width="1"/>';
         }
         else {
             const ri = R.indexOf(d);
             if (ri >= 0)
-                s += '<line x1="628" y1="' + yMod + '" x2="710" y2="' + (yy(ri) + bh / 2) + '" stroke="var(--muted, #777)" stroke-width="1"/>';
+                s += '<line' + ref + ' x1="628" y1="' + yMod + '" x2="710" y2="' + (yy(ri) + bh / 2) + '" stroke="var(--muted, #777)" stroke-width="1"/>';
         }
     }
     return '<svg role="img" aria-label="Blokové schéma: zařízení, moduly PLC a signálové cesty" viewBox="0 0 980 ' + H + '" style="max-width:100%;height:auto" width="980" xmlns="http://www.w3.org/2000/svg">' + s + '</svg>';

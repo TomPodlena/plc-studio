@@ -27,6 +27,7 @@ from tkinter import ttk  # noqa: E402
 from plc_studio import ai_client  # noqa: E402
 from plc_studio.app import App  # noqa: E402
 from plc_studio.bridge import BridgeError, CoreBridge  # noqa: E402
+from plc_studio.detail import DevicePanel  # noqa: E402
 from plc_studio.steps.zarizeni import ImportDialog  # noqa: E402
 from plc_studio.svgview import SvgView, parse_svg  # noqa: E402
 from plc_studio.widgets import Table  # noqa: E402
@@ -100,6 +101,24 @@ class BridgeTest(unittest.TestCase):
         with self.assertRaises(BridgeError):
             self.b.call("neexistuje")
 
+    def test_simulation_and_verification_through_bridge(self):
+        p = self.b.call("sampleSmall")
+        scen = self.b.request("scenarios", prj=p)["scenarios"]
+        self.assertEqual(scen[0]["id"], "nominal")
+        self.assertIn("estop", [s["id"] for s in scen])
+        res = self.b.request("simulate", prj=p, opts=scen[0]["opts"])
+        self.assertTrue(res["run"]["ok"])
+        self.assertEqual([s["i"] for s in res["run"]["steps"]], [0, 1, 2, 3, 4])
+        self.assertIn('data-step="4"', res["flow"])
+        self.assertIn("data-plot=", res["timing"])
+        ver = self.b.request("verify", prj=p)
+        self.assertTrue(ver["ok"])
+        self.assertTrue(all(c["scenario"] in {s["id"] for s in ver["scenarios"]}
+                            for c in ver["checks"] if c.get("scenario")))
+        terms = self.b.request("terminals", prj=p)["map"]
+        self.assertEqual(set(terms), {e["key"] for e in p["io"]})
+        self.assertEqual(terms[p["io"][0]["key"]]["svorka"], "X1:1")
+
     def test_bridge_restarts_after_process_death(self):
         self.b._proc.kill()
         self.b._proc.wait()
@@ -107,6 +126,29 @@ class BridgeTest(unittest.TestCase):
 
 
 class SvgTest(unittest.TestCase):
+    def test_parse_reads_links_and_descriptions(self):
+        b = CoreBridge()
+        try:
+            p = b.call("sampleSmall")
+            s = b.request("schema", prj=p)
+        finally:
+            b.close()
+        doc = parse_svg(s["block"])
+        m1 = next(d for d in p["devices"] if d["name"] == "M1")
+        boxes = [m for m in doc["metas"] if m.get("dev") == m1["id"] and "side" in m]
+        self.assertEqual(sorted(m["side"] for m in boxes), ["in", "out"])
+        self.assertTrue(boxes[0]["title"].startswith("M1 — Čerpadlo hydrauliky"))
+        self.assertIn("M1_outRun", boxes[0]["title"])
+        wires = [m for m in doc["metas"] if "io" in m]
+        self.assertEqual(len(wires), len(p["io"]))
+        self.assertTrue(all({"dev", "mod"} <= set(m) for m in wires))
+        # texty a rámeček bloku sdílejí odkaz skupiny <g>
+        idx = doc["metas"].index(boxes[0])
+        self.assertEqual(sorted(it[0] for it in doc["items"] if it[-1] == idx),
+                         ["rect", "text", "text"])
+        sheet = parse_svg(s["sheets"][0]["svg"])
+        self.assertEqual(len([m for m in sheet["metas"] if "io" in m]), 6)   # 6 kanálů DI
+
     def test_parse_resolves_theme_colors(self):
         b = CoreBridge()
         try:
@@ -172,6 +214,14 @@ class GuiTest(unittest.TestCase):
 
     def table(self, index=0):
         return self.find(Table)[index]
+
+    def key(self, widget, sequence):
+        """Stisk klávesy v poli. Fokus se vynucuje — bez něj (zamčená stanice,
+        okno na pozadí) Tk klávesy nikam nedoručí."""
+        widget.focus_force()
+        self.root.update()
+        widget.event_generate(sequence)
+        self.root.update()
 
     # --- testy -----------------------------------------------------------------------
 
@@ -294,16 +344,15 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(tbl._editor.get(), e["cmt"])
         tbl._editor.delete(0, "end")
         tbl._editor.insert(0, "Nový komentář")
-        tbl._editor.event_generate("<Return>")
-        self.root.update()
+        self.key(tbl._editor, "<Return>")
         self.assertIsNone(tbl._editor)
         self.assertEqual(self.app.prj["io"][0]["cmt"], "Nový komentář")
         self.assertEqual(tbl.tv.set(e["key"], "cmt"), "Nový komentář")
 
         dblclick("tag")
         tbl._editor.insert(0, "zahodit_")
-        tbl._editor.event_generate("<Escape>")
-        self.root.update()
+        self.key(tbl._editor, "<Escape>")
+        self.assertIsNone(tbl._editor)
         self.assertEqual(self.app.prj["io"][0]["tag"], e["tag"])
 
         dblclick("dir")                                     # směr upravit nejde
@@ -319,21 +368,265 @@ class GuiTest(unittest.TestCase):
         self.app.load_sample("small")
         self.goto(5)
         views = self.find(SvgView)
-        self.assertEqual(len(views), 2)
+        self.assertEqual(len(views), 3)              # blokové schéma, funkční diagram, zapojení
         for v in views:
             self.assertGreater(len(v.canvas.find_all()), 20)
-        before = len(views[1].canvas.find_all())
+        before = len(views[2].canvas.find_all())
         sheet_combo = self.find(ttk.Combobox)[0]
         sheet_combo.set(sheet_combo.cget("values")[-1])
         self.root.update()
-        self.assertNotEqual(len(views[1].canvas.find_all()), before)
+        self.assertNotEqual(len(views[2].canvas.find_all()), before)
         out = tempfile.mkdtemp()
         with mock.patch("tkinter.filedialog.askdirectory", return_value=out):
             self.click("Uložit všechny výkresy do složky…")
         names = sorted(os.listdir(out))
         self.assertIn("00_blokove_schema.svg", names)
+        self.assertIn("00_funkcni_diagram.svg", names)
         self.assertEqual(sum(n.endswith(".dxf") for n in names), len(sheet_combo.cget("values")))
         self.assertTrue(Path(out, names[1]).read_text(encoding="utf-8").strip())
+
+    # --- interaktivní schémata a odkazy ---------------------------------------------
+
+    def links(self, parent=None):
+        """Odkazy (popisky s ``invoke``) podle textu."""
+        return {str(w.cget("text")): w for w in walk(parent or self.app.view)
+                if isinstance(w, tk.Label) and hasattr(w, "invoke")}
+
+    def canvas_click(self, view, meta_pred, motion_only=False):
+        """Skutečný pohyb / klik myší na prvek výkresu, jehož meta splní predikát."""
+        idx = next(i for i, m in enumerate(view.metas()) if meta_pred(m))
+        c = view.canvas
+        x0, y0, x1, y1 = c.bbox(c.find_withtag(f"m{idx}")[0])   # střed prvního prvku celku
+        x = int((x0 + x1) / 2 - c.canvasx(0))
+        y = int((y0 + y1) / 2 - c.canvasy(0))
+        c.event_generate("<Motion>", x=x, y=y)
+        if not motion_only:
+            c.event_generate("<ButtonPress-1>", x=x, y=y)
+            c.event_generate("<ButtonRelease-1>", x=x, y=y)
+        self.root.update()
+        return idx
+
+    def test_block_diagram_click_opens_device_with_links_to_its_io(self):
+        self.app.load_sample("small")
+        self.goto(5)
+        prj = self.app.prj
+        m1 = next(d for d in prj["devices"] if d["name"] == "M1")
+        view, panel = self.find(SvgView)[0], self.find(DevicePanel)[0]
+        self.assertIsNone(panel.dev_id)
+
+        # najetí myší zvýrazní blok i jeho signálové čáry, klik otevře panel zařízení
+        self.canvas_click(view, lambda m: m.get("dev") == m1["id"] and m.get("side") == "out",
+                          motion_only=True)
+        hot = [m for m, mark in zip(view.metas(), view._marks()) if mark == "hot"]
+        self.assertTrue(hot and all(m.get("dev") == m1["id"] for m in hot))
+        self.assertEqual(sum("io" in m for m in hot), 3)         # běh, porucha, povel
+        self.canvas_click(view, lambda m: m.get("dev") == m1["id"] and m.get("side") == "out")
+        self.assertEqual(panel.dev_id, m1["id"])
+        self.assertEqual(self.app.ui["block_sel"], m1["id"])
+        sel = [m for m, mark in zip(view.metas(), view._marks()) if mark == "sel"]
+        self.assertTrue(all(m.get("dev") == m1["id"] for m in sel) and len(sel) >= 5)
+
+        links = self.links(panel)
+        for tag in ("M1_fbkRunning", "M1_fault", "M1_outRun"):
+            self.assertIn(tag, links)
+        self.assertIn("Krok 2: M1 start → zpětné hlášení", links)
+
+        # tag → krok I/O s vybraným řádkem
+        key = next(e["key"] for e in prj["io"] if e["tag"] == "M1_fault")
+        links["M1_fault"].invoke()
+        self.root.update()
+        self.assertEqual(self.app.step, 4)
+        self.assertEqual(self.table().selected(), key)
+
+        # svorka → list zapojení s tímto signálem (jiný list než výchozí)
+        out_key = next(e["key"] for e in prj["io"] if e["tag"] == "M1_outRun")
+        self.app.open_block(m1["id"])
+        self.root.update()
+        panel = self.find(DevicePanel)[0]
+        self.assertEqual(panel.dev_id, m1["id"])                  # výběr přežil návrat
+        term = next(t for t in self.links(panel) if t.startswith("X2:"))
+        self.links(panel)[term].invoke()
+        self.root.update()
+        self.assertEqual((self.app.step, self.app.ui["schema_tab"]), (5, 2))
+        self.assertEqual(self.app.ui["wire_sel"], out_key)
+        self.assertTrue(self.find(ttk.Combobox)[0].get().startswith("DO1"))
+        sheet = self.find(SvgView)[2]
+        marked = [m for m, mark in zip(sheet.metas(), sheet._marks()) if mark == "sel"]
+        self.assertEqual([m["io"] for m in marked], [out_key])
+
+        # z listu zapojení zpět na zařízení (odkaz v řádku nad výkresem)
+        self.links(sheet.master)["Zařízení ↗"].invoke()
+        self.root.update()
+        self.assertEqual(self.app.step, 3)
+        self.assertEqual(self.table().selected(), str(m1["id"]))
+        self.assertEqual(self.find(DevicePanel)[0].dev_id, m1["id"])
+
+    def test_link_target_row_is_scrolled_into_view(self):
+        """Odkaz na řádek hluboko v tabulce ho musí i ukázat (ne jen vybrat)."""
+        self.app.load_sample("complex")
+        h4 = next(d for d in self.app.prj["devices"] if d["name"] == "H4")   # poslední zařízení
+        key = next(e["key"] for e in self.app.prj["io"] if e["devId"] == h4["id"])
+        self.app.open_io(key)
+        self.root.update()
+        self.assertEqual(self.table().selected(), key)
+        self.assertTrue(self.table().tv.bbox(key), "řádek signálu není ve výřezu")
+        self.app.open_device(h4["id"])
+        self.root.update()
+        self.assertTrue(self.table().tv.bbox(str(h4["id"])), "řádek zařízení není ve výřezu")
+        self.app.open_flow(17)                                   # poslední krok dlouhého diagramu
+        self.root.update()
+        flow = self.find(SvgView)[1]
+        idx = next(i for i, m in enumerate(flow.metas()) if m.get("step") == 17)
+        top = flow.canvas.canvasy(0)
+        box = flow.canvas.bbox(f"m{idx}")
+        self.assertTrue(top <= box[1] and box[3] <= top + flow.canvas.winfo_height(),
+                        "krok není ve výřezu")
+
+    def test_block_diagram_module_click_opens_its_wiring_sheet(self):
+        self.app.load_sample("small")
+        self.goto(5)
+        view = self.find(SvgView)[0]
+        self.canvas_click(view, lambda m: m.get("mod") == 2 and "dev" not in m)
+        nb = self.find(ttk.Notebook)[0]
+        self.assertEqual(nb.index(nb.select()), 2)
+        self.assertTrue(self.find(ttk.Combobox)[0].get().startswith("AI1"))
+
+    def test_flow_diagram_step_click_and_wiring_channel_click(self):
+        self.app.load_sample("small")
+        self.app.open_flow(None)
+        self.root.update()
+        flow, panel = self.find(SvgView)[1], self.find(DevicePanel)[1]
+        self.assertEqual(sum("step" in m for m in flow.metas()), 6)   # klid + 5 kroků
+        self.canvas_click(flow, lambda m: m.get("step") == 1)
+        m1 = next(d for d in self.app.prj["devices"] if d["name"] == "M1")
+        self.assertEqual((self.app.ui["flow_sel"], panel.dev_id), (1, m1["id"]))
+        self.links(panel)["Upravit v programu ↗"].invoke()
+        self.root.update()
+        self.assertEqual((self.app.step, self.app.ui["seq_sel"]), (6, 1))
+
+        self.app.ui["schema_tab"] = 2
+        self.goto(5)
+        sheet = self.find(SvgView)[2]
+        key = next(m["io"] for m in sheet.metas() if "io" in m)
+        self.canvas_click(sheet, lambda m: m.get("io") == key)
+        self.assertEqual(self.app.ui["wire_sel"], key)
+        # stačí kliknout kamkoli do řádku kanálu, ne přesně na čáru
+        other = next(m["io"] for m in sheet.metas() if m.get("io") not in (None, key))
+        idx = next(i for i, m in enumerate(sheet.metas()) if m.get("io") == other)
+        c = sheet.canvas
+        lx0, ly0, lx1, _ly1 = c.bbox(c.find_withtag(f"m{idx}")[0])      # vodič kanálu
+        x, y = int(lx1 + 40 - c.canvasx(0)), int(ly0 + 9 - c.canvasy(0))  # prázdné místo pod ním
+        self.assertEqual(c.find_overlapping(c.canvasx(x) - 2, c.canvasy(y) - 2,
+                                            c.canvasx(x) + 2, c.canvasy(y) + 2), ())
+        self.assertEqual(sheet._meta_at(x, y), idx)
+        self.links(sheet.master)["I/O ↗"].invoke()
+        self.root.update()
+        self.assertEqual((self.app.step, self.table().selected()), (4, key))
+
+    def test_canvas_drag_pans_instead_of_clicking(self):
+        self.app.load_sample("complex")
+        self.goto(5)
+        view = self.find(SvgView)[0]
+        c = view.canvas
+        c.event_generate("<ButtonPress-1>", x=120, y=60)
+        c.event_generate("<B1-Motion>", x=120, y=20)
+        c.event_generate("<ButtonRelease-1>", x=120, y=20)
+        self.root.update()
+        self.assertIsNone(self.app.ui.get("block_sel"))
+        self.assertGreater(c.canvasy(0), 0)
+
+    # --- simulace a ověření --------------------------------------------------------
+
+    def open_sim(self, scenario="nominal", tab=0):
+        self.app.ui["sim_tab"] = tab
+        self.app.open_sim(scenario)
+        self.root.update()
+
+    def test_simulation_playback_follows_the_cycle(self):
+        self.app.load_sample("small")
+        self.open_sim()
+        labels = [str(w.cget("text")) for w in self.find(ttk.Label)]
+        self.assertTrue(any("✔ Cyklus doběhl do konce za 8.09 s. Na konci jsou všechny výstupy "
+                            "vypnuté." in t for t in labels), labels)
+        flow = self.find(SvgView)[0]
+        marks = dict(zip((m.get("step") for m in flow.metas()), flow._marks()))
+        self.assertEqual(marks, {-1: "active", 0: "done", 1: "done", 2: "done", 3: "done", 4: "done"})
+
+        # posuvník času doprostřed výdrže: motor běží, ventil je otevřený
+        scale = self.find(ttk.Scale)[0]
+        self.root.tk.call(scale.cget("command"), 3.0)
+        self.root.update()
+        marks = dict(zip((m.get("step") for m in flow.metas()), flow._marks()))
+        self.assertEqual(marks, {-1: None, 0: "done", 1: "done", 2: "active", 3: None, 4: None})
+        states = next(t for t in self.find(Table) if t.tv.exists("enable"))
+        m1 = next(d for d in self.app.prj["devices"] if d["name"] == "M1")
+        self.assertEqual(states.tv.set(str(m1["id"]), "state"), "běží")
+        self.assertEqual(states.tv.set(str(m1["id"]), "out"), "●")
+
+        # přehrávání posouvá čas a na konci se samo zastaví
+        def playing() -> bool:
+            return any(str(b.cget("text")) == "⏸ Pauza" for b in self.find(ttk.Button))
+
+        next(c for c in self.find(ttk.Combobox) if c.get() == "2×").set("10×")
+        self.click("▶ Spustit")
+        self.assertTrue(playing())
+        deadline = time.time() + 10
+        while playing() and time.time() < deadline:
+            self.root.update()
+            time.sleep(0.01)
+        self.assertFalse(playing())
+        self.assertAlmostEqual(scale.get(), 9.3, delta=0.05)
+        marks = dict(zip((m.get("step") for m in flow.metas()), flow._marks()))
+        self.assertEqual(marks[4], "done")
+
+    def test_simulation_fault_scenario_and_verification_report(self):
+        self.app.load_sample("small")
+        self.open_sim("frozen-1")                     # krok 2: M1 bez zpětného hlášení
+        labels = [str(w.cget("text")) for w in self.find(ttk.Label)]
+        self.assertTrue(any("sekvence stojí v kroku 2" in t and "porucha bloku: M1" in t
+                            and "Y1_outOpen" in t for t in labels), labels)
+        flow = self.find(SvgView)[0]
+        marks = dict(zip((m.get("step") for m in flow.metas()), flow._marks()))
+        self.assertEqual(marks[1], "err")
+
+        self.open_sim("nominal", tab=2)               # záložka Ověření se spočítá sama
+        checks = next(t for t in self.find(Table) if "lvl" in t.tv["columns"])
+        rows = [checks.tv.item(i, "values") for i in checks.tv.get_children()]
+        self.assertEqual(rows[0], ("✔ v pořádku", "Běžný cyklus doběhne do konce"))
+        self.assertTrue(any(r[0] == "⚠ upozornění" and "M1 stop" in r[1] for r in rows))
+        self.assertTrue(any("Výsledek: bez chyb" in str(w.cget("text")) for w in self.find(ttk.Label)))
+        warn = next(i for i in checks.tv.get_children() if "Krok 2" in checks.tv.set(i, "title"))
+        checks.select(warn)
+        self.root.update()
+        self.links()["Přehrát scénář ↗"].invoke()
+        self.root.update()
+        self.assertEqual(self.app.ui["sim_scenario"], "frozen-1")
+        out = str(Path(tempfile.mkdtemp(), "protokol.md"))
+        with mock.patch("tkinter.filedialog.asksaveasfilename", return_value=out):
+            self.click("Uložit protokol (MD)…")
+        self.assertIn("## 2. Běžný cyklus", Path(out).read_text(encoding="utf-8"))
+
+    def test_machine_model_is_saved_in_project_and_can_fail_the_cycle(self):
+        self.app.load_sample("small")
+        self.open_sim()
+        entries = self.find(ttk.Entry)
+        valve = next(e for e in entries if e.get() == "1")
+        valve.delete(0, "end")
+        valve.insert(0, "6")                          # pomalejší válec než timeout bloku (5 s)
+        self.key(valve, "<Return>")
+        self.assertEqual(self.app.prj["sim"], {"motorDelay": 0.5, "valveTravel": 6.0})
+        labels = [str(w.cget("text")) for w in self.find(ttk.Label)]
+        self.assertTrue(any("sekvence stojí v kroku 1" in t and "porucha bloku: Y1" in t
+                            for t in labels), labels)
+        self.open_sim("nominal", tab=2)
+        self.assertTrue(any("NALEZENY CHYBY" in str(w.cget("text")) for w in self.find(ttk.Label)))
+
+    def test_project_without_sequence_has_nothing_to_simulate(self):
+        self.app.load_sample("small")
+        self.app.prj["program"]["seq"] = []
+        self.open_sim()
+        self.assertEqual(self.find(SvgView), [])
+        self.assertTrue(any("není co simulovat" in str(w.cget("text")) for w in self.find(ttk.Label)))
 
     def test_program_sequence_editing(self):
         self.app.load_sample("small")

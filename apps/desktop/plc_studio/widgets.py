@@ -7,6 +7,7 @@ from pathlib import Path
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+from tkinter import font as tkfont
 
 from . import theme
 
@@ -29,6 +30,21 @@ def wrap_label(parent, text: str, style: str = "Dim.TLabel", **pack) -> ttk.Labe
     lbl = ttk.Label(parent, text=text, style=style, justify="left", anchor="w")
     lbl.pack(**({"fill": "x", "anchor": "w"} | pack))
     lbl.bind("<Configure>", lambda e: lbl.configure(wraplength=max(200, e.width - 4)))
+    return lbl
+
+
+def link(parent, text: str, command, *, bg: str = theme.BG, font=theme.FONT_UI) -> tk.Label:
+    """Odkaz — text v barvě akcentu, po najetí podtržený; klik zavolá ``command``."""
+    base = tkfont.Font(font=font)
+    under = tkfont.Font(font=font)
+    under.configure(underline=True)
+    lbl = tk.Label(parent, text=text, bg=bg, fg=theme.ACCENT, font=base, cursor="hand2",
+                   anchor="w", justify="left")
+    lbl._fonts = (base, under)   # reference, ať je Tk neuklidí
+    lbl.bind("<Enter>", lambda _e: lbl.configure(font=under))
+    lbl.bind("<Leave>", lambda _e: lbl.configure(font=base))
+    lbl.bind("<Button-1>", lambda _e: command())
+    lbl.invoke = command         # stejné rozhraní jako tlačítko (testy, klávesnice)
     return lbl
 
 
@@ -110,6 +126,10 @@ class Table(ttk.Frame):
         self.tv.configure(yscrollcommand=ys.set)
         self.tv.grid(row=0, column=0, sticky="nsew")
         ys.grid(row=0, column=1, sticky="ns")
+        # až po přepočtu rozvržení tabulky (ten běží v idle po <Configure>)
+        self.tv.bind("<Configure>", lambda _e: self.tv.after_idle(self._reveal), add="+")
+        self.tv.bind("<MouseWheel>", self._forget_reveal, add="+")
+        ys.bind("<Button-1>", self._forget_reveal, add="+")
         self.tv.tag_configure("dup", foreground=theme.ERR)
         self.tv.tag_configure("dim", foreground=theme.DIM)
         self.tv.tag_configure("group", foreground=theme.PRIMARY, font=theme.FONT_ACCENT)
@@ -132,10 +152,25 @@ class Table(ttk.Frame):
         sel = self.tv.selection()
         return sel[0] if sel else None
 
-    def select(self, iid) -> None:
-        if iid is not None and self.tv.exists(str(iid)):
-            self.tv.selection_set(str(iid))
-            self.tv.see(str(iid))
+    def select(self, iid, *, reveal: bool = True) -> None:
+        """Vybere řádek; ``reveal`` ho i posune do výřezu."""
+        if iid is None or not self.tv.exists(str(iid)):
+            return
+        self.tv.selection_set(str(iid))
+        if not reveal:
+            return
+        # před prvním rozvržením okna see() neví, kolik řádků se vejde — řádek se proto
+        # znovu ukáže, až tabulka dostane skutečnou velikost (viz <Configure> v __init__)
+        self._reveal_iid = str(iid)
+        self._reveal()
+
+    def _reveal(self, _e=None) -> None:
+        iid = getattr(self, "_reveal_iid", None)
+        if iid and self.tv.winfo_exists() and self.tv.exists(iid):
+            self.tv.see(iid)
+
+    def _forget_reveal(self, _e=None) -> None:
+        self._reveal_iid = None      # uživatel roluje sám — výběr už do výřezu nevracet
 
     # --- úprava buněk --------------------------------------------------------------
 

@@ -90,6 +90,7 @@ const OPS = {
     mods.forEach((m, mi) => m.ch.forEach((e, i) => {
       const d = core.devById(prj, e.devId) || {};
       rows.push({
+        key: e.key, devId: e.devId, sheet: mi,
         svorka: "X" + (mi + 1) + ":" + (i + 1), modul: m.dir + m.idx, kanal: i,
         addr: e.addr, tag: e.tag, cmt: (d.name ? d.name + " · " : "") + (e.cmt || ""),
       });
@@ -97,6 +98,7 @@ const OPS = {
     return {
       prj,
       block: mods.length ? core.svgBlock(prj, mods) : "",
+      flow: core.svgFlow(prj, prj.program.seq.length ? core.simulate(prj) : null),
       sheets: mods.map((m, i) => ({
         title: m.dir + m.idx + " — svorkovnice X" + (i + 1),
         base: sheetName(m, i),
@@ -106,6 +108,32 @@ const OPS = {
       rows,
       csv: core.svorkyCSV(prj),
     };
+  },
+
+  /* Svorky signálů: klíč I/O → svorka, modul, kanál a index listu zapojení. */
+  terminals({ prj }) {
+    core.syncIO(prj);
+    const map = {};
+    core.modules(prj).forEach((m, mi) => m.ch.forEach((e, i) => {
+      map[e.key] = { svorka: "X" + (mi + 1) + ":" + (i + 1), modul: m.dir + m.idx, kanal: i, sheet: mi };
+    }));
+    return { prj, map };
+  },
+
+  /* Simulace: seznam scénářů, běh jednoho scénáře (+ diagramy), ověření. */
+  scenarios({ prj }) {
+    core.syncIO(prj);
+    return { prj, scenarios: core.simScenarios(prj) };
+  },
+  simulate({ prj, opts }) {
+    core.syncIO(prj);
+    const run = core.simulate(prj, opts || {});
+    return { run, flow: core.svgFlow(prj, run), timing: core.svgTiming(prj, run) };
+  },
+  verify({ prj }) {
+    core.syncIO(prj);
+    const v = core.verifyProject(prj);
+    return { ok: v.ok, checks: v.checks, scenarios: v.scenarios };
   },
 
   gen({ prj }) {

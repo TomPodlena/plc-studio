@@ -19,7 +19,8 @@ plc_studio/app.py        okno, stav, navigace, ukládání
 plc_studio/steps/*.py    jeden modul na krok (render(app, parent))
 plc_studio/bridge.py     trvalý proces Node ─┐
 bridge.mjs               JSON po řádcích ────┴─► packages/core/dist + apps/web/src/ai.js
-plc_studio/svgview.py    výkresy z jádra (SVG) kreslené na tk.Canvas
+plc_studio/svgview.py    výkresy z jádra (SVG) kreslené na tk.Canvas — klikací, se zvýrazněním
+plc_studio/detail.py     panel zařízení: rozcestník mezi schématy, I/O a programem
 plc_studio/theme.py      paleta a ttk styly (vizuál nástrojů PearTec)
 ```
 
@@ -51,7 +52,33 @@ python -m plc_studio --smoke --shots DIR   # + snímky kroků (Pillow)
 
 Testy nahrazují dialogy i volání AI — nic neposílají na API a zapisují jen do dočasných složek.
 
+## Provázané pohledy
+
+Výkresy z jádra nesou odkazy (`data-dev`, `data-mod`, `data-io`, `data-step`) a popis v `<title>`.
+`svgview.py` je čte a staví na nich interaktivitu: zvýraznění souvisejících prvků při najetí,
+bublinu s popisem, klik (`on_click`) a značky stavu (`marker`).
+
+- **Blokové schéma** — klik na zařízení otevře panel (`detail.py`): popis, vstupy a výstupy,
+  kroky programu. Tag vede do kroku I/O, svorka na list zapojení, krok do funkčního diagramu.
+  Klik na modul PLC otevře jeho list zapojení.
+- **Funkční diagram cyklu** — kroky sekvence, podmínky přechodu a časy z běžného cyklu.
+- **Elektrické zapojení** — klik kamkoli do řádku kanálu ukáže odkazy na zařízení a I/O.
+- Stejné odkazy jsou u vybraného řádku v krocích Zařízení a I/O a ve svorkovnici.
+
+Cíl odkazu se předává přes `app.open_device / open_io / open_block / open_flow / open_wiring /
+open_program / open_sim` — krok si výběr vyzvedne z `app.ui` při vykreslení.
+
+## Simulace a ověření (krok Program)
+
+Simulátor je v jádře (`sim.ts`); `steps/simulace.py` výsledek jen přehrává: aktivní krok na
+funkčním diagramu, stavy bloků, události, časový diagram s kurzorem. Záložka **Ověření programu**
+spustí všechny scénáře (`verifyProject`) a nálezy jdou přehrát. Model stroje (rozběh motoru,
+přestavení ventilu) se ukládá do projektu (`prj.sim`), takže platí i pro protokol v dokumentaci.
+
 ## Rozdíly proti webu
+
+- Klikací schémata, panel zařízení, funkční diagram a přehrávač simulace má jen desktop; web
+  dostal nové soubory v kroku Dokumentace a bubliny ve schématech.
 
 - Projekt se otevírá/ukládá jako soubor; soubory se ukládají dialogem, „vše" do složky.
 - Import je v dialogu (tlačítko v kroku Zařízení); po převzetí importu se smaže sekvence

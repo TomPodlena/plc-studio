@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from .. import theme
+from ..detail import DevicePanel
 from ..widgets import (Table, card, field, note_box, read_text_file, scrolled_text,
                        wrap_label)
 
@@ -29,6 +30,7 @@ def _num(value: str, default: float) -> float:
 
 
 def render(app, parent) -> None:
+    terms = app.terminals()          # srovná I/O se zařízeními a vrátí svorky signálů
     p = app.prj
     labels = {v["label"]: k for k, v in app.CLS.items()}
     body = card(parent, "04", "Návrh zařízení stroje")
@@ -118,6 +120,8 @@ def render(app, parent) -> None:
             app.sync()
             app.save()
             tbl.tv.set(iid, "desc", d["desc"])
+            if panel.dev_id == d["id"]:
+                panel.show(d["id"])
 
     def delete(_e=None) -> None:
         iid = tbl.selected()
@@ -139,13 +143,30 @@ def render(app, parent) -> None:
         wrap_label(body, "Zatím žádná zařízení — přidej je výše, načti ukázku v kroku Projekt, "
                    "nech si je navrhnout v kroku AI návrh, nebo použij Import vpravo dole.",
                    pady=(0, 6))
-    tbl = Table(body, [("name", "Označení", 90, False), ("cls", "Třída", 200, False),
-                       ("desc", "Popis", 380, True), ("opt", "Volby", 300, True)],
+    mid = ttk.Frame(body)
+    mid.pack(fill="both", expand=True)
+    panel = DevicePanel(mid, app, terms, here="zarizeni",
+                        empty="Vyber zařízení v tabulce — zobrazí se jeho vstupy a výstupy "
+                              "s odkazy do kroku I/O, na list zapojení a do programu.")
+    panel.pack(side="right", fill="y", padx=(12, 0))
+    tbl = Table(mid, [("name", "Označení", 80, False), ("cls", "Třída", 170, False),
+                      ("desc", "Popis", 260, True), ("opt", "Volby", 200, True)],
                 height=8, editable=("desc",), on_edit=edit)
-    tbl.pack(fill="both", expand=True)
+    tbl.pack(side="left", fill="both", expand=True)
     for d in p["devices"]:
         tbl.add(d["id"], (d["name"], app.CLS[d["cls"]]["label"], d["desc"], _opts_text(app, d)))
     tbl.tv.bind("<Delete>", delete)
+
+    def on_select(_e=None) -> None:
+        iid = tbl.selected()
+        if iid is not None and iid.isdigit():
+            app.ui["dev_sel"] = int(iid)
+            panel.show(int(iid))
+
+    tbl.tv.bind("<<TreeviewSelect>>", on_select)
+    if app.dev_by_id(app.ui.get("dev_sel")) is not None:
+        tbl.select(app.ui["dev_sel"])
+        panel.show(app.ui["dev_sel"])
 
     ttk.Button(tools, text="Odstranit vybrané", style="Danger.TButton", command=delete
                ).pack(side="left")

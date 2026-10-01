@@ -5,7 +5,9 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
-from ..widgets import Table, card, note_box, wrap_label
+from ..detail import step_text
+from ..widgets import Table, card, link, note_box, wrap_label
+from . import simulace
 
 NO_ESTOP = "— žádný (doplníš ručně) —"
 WAIT = "— čekání (bez zařízení) —"
@@ -18,20 +20,27 @@ def _dev_label(d: dict) -> str:
     return f"{d['name']} – {d['desc']}" if d["desc"] else d["name"]
 
 
-def step_text(app, s: dict) -> str:
-    if s["act"] == "wait":
-        return f"výdrž {s['timeS']:g} s"
-    d = app.dev_by_id(s["dev"])
-    how = f"čas {s['timeS']:g} s" if s["cond"] == "time" else "zpětné hlášení"
-    return f"{d['name'] if d else '?'} {ACT_LABEL.get(s['act'], s['act'])} → {how}"
-
-
 def render(app, parent) -> None:
+    card_body = card(parent, "07", "Logika programu")
+    nb = ttk.Notebook(card_body)
+    nb.pack(fill="both", expand=True)
+    t_logic = ttk.Frame(nb, padding=10)
+    nb.add(t_logic, text="Logika a sekvence")
+    t_sim = ttk.Frame(nb, padding=10)
+    nb.add(t_sim, text="Simulace a ověření")
+    _logic(app, t_logic)
+    simulace.build(app, t_sim)
+    nb.select(min(app.ui.get("prog_tab", 0), 1))
+    nb.bind("<<NotebookTabChanged>>",
+            lambda e: app.ui.__setitem__("prog_tab", nb.index(nb.select()))
+            if e.widget is nb else None)
+
+
+def _logic(app, body) -> None:
     p = app.prj
     prog = p["program"]
     di = [d for d in p["devices"] if d["cls"] == "DI"]
     act = [d for d in p["devices"] if d["cls"] in ("Motor", "Ventil")]
-    body = card(parent, "07", "Logika programu")
 
     # --- centrální uvolnění ---
     top = ttk.Frame(body)
@@ -142,8 +151,20 @@ def render(app, parent) -> None:
         app.save()
         app.render()
 
+    def to_device() -> None:
+        i = sel()
+        steps = app.prj["program"]["seq"]
+        if i is None or steps[i]["act"] == "wait":
+            app.set_status("Vyber krok, který ovládá zařízení.")
+        else:
+            app.open_device(steps[i]["dev"])
+
     ttk.Button(side, text="↑ Nahoru", command=lambda: move(-1)).pack(fill="x")
     ttk.Button(side, text="↓ Dolů", command=lambda: move(1)).pack(fill="x", pady=(4, 0))
     ttk.Button(side, text="× Odstranit", style="Danger.TButton", command=remove
                ).pack(fill="x", pady=(12, 0))
+    ttk.Label(side, text="Vybraný krok:", style="Dim.TLabel").pack(anchor="w", pady=(16, 2))
+    link(side, "Zařízení ↗", to_device).pack(anchor="w")
+    link(side, "Funkční diagram ↗", lambda: app.open_flow(sel())).pack(anchor="w", pady=(2, 0))
     tbl.tv.bind("<Delete>", lambda _e: remove())
+    tbl.tv.bind("<<TreeviewSelect>>", lambda _e: app.ui.__setitem__("seq_sel", sel()))

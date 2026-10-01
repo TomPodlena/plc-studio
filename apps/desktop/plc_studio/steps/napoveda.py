@@ -66,6 +66,32 @@ SECTIONS = [
         "Je to podklad, ne výrobní dokumentace — jištění, průřezy a dispozici řeší projektant "
         "elektro.",
     ]),
+    ("Provázané pohledy — od bloku k signálu a zpět", [
+        "Schémata jsou klikací. V **blokovém schématu** klikni na zařízení: vpravo se ukáže "
+        "jeho popis, vstupy a výstupy a kroky programu, ve kterých vystupuje. Najetím myší se "
+        "zvýrazní signálové cesty zařízení, po chvíli se objeví bublina s popisem.",
+        "• **tag** signálu → řádek v kroku I/O",
+        "• **svorka** (např. X1:7 ↗) → list elektrického zapojení se zvýrazněným kanálem",
+        "• **krok** programu → funkční diagram cyklu, odtud dál do programu nebo simulace",
+        "• klik na **modul PLC** → jeho list zapojení; klik na kanál v listu → odkazy zpět na "
+        "zařízení a I/O",
+        "Stejné odkazy jsou u vybraného řádku v krocích Zařízení a I/O a ve svorkovnici.",
+    ]),
+    ("Funkční diagram a simulace — jak stroj pracuje", [
+        "**Funkční diagram cyklu** (krok Schéma) ukazuje, co stroj dělá krok za krokem: akce, "
+        "podmínku přechodu (zpětné hlášení nebo čas) a časy z běžného cyklu.",
+        "**Simulace** (krok Program → Simulace a ověření) provádí scan po scanu stejnou logiku, "
+        "jakou generuje kód — stavové automaty bloků, timeouty 3 s (motor) a 5 s (ventil), "
+        "sekvenci — proti modelu stroje. Přehrávač ukazuje aktivní krok, stavy zařízení "
+        "a události; časový diagram ukazuje výstupy a zpětná hlášení v čase.",
+        "**Ověření programu** pustí běžný cyklus a poruchové scénáře: výpadek zpětného hlášení "
+        "v každém kroku, poruchu motoru za chodu a nouzové zastavení. Nálezy říkají, kde návrh "
+        "spoléhá na ruční doplnění (např. sekvence nereaguje na poruchu bloku).",
+        "• **Model stroje** (rozběh motoru, přestavení ventilu) nastav podle skutečnosti — "
+        "pomalejší válec než timeout bloku znamená, že cyklus nedoběhne.",
+        "Simulace ověřuje návrh, ne kód přeložený v cílovém IDE, HW konfiguraci ani "
+        "bezpečnostní funkce. Nenahrazuje test v simulátoru platformy a FAT.",
+    ]),
     ("Migrace projektu mezi platformami", [
         "**1)** exportuj tagy/GVL ze zdrojové platformy, **2)** volba Import v kroku Zařízení, "
         "**3)** zkontroluj třídy a adresy, **4)** vyber cílovou platformu a vygeneruj. Přenese "
@@ -86,8 +112,9 @@ SECTIONS = [
         "3. **Platformy** — vyber cílové systémy.",
         "4. **Zařízení** — dolaď sestavu; Import existujícího projektu je vedlejší volba dole.",
         "5. **I/O** — tagy, adresy, NC; kontrola návrhu hlídá duplicity a přenositelnost tagů.",
-        "6. **Schéma** — blokové schéma, elektrické zapojení (SVG/DXF), svorkovnice.",
-        "7. **Program** — E-stop a automatická sekvence.",
+        "6. **Schéma** — klikací blokové schéma, funkční diagram cyklu, elektrické zapojení "
+        "(SVG/DXF), svorkovnice.",
+        "7. **Program** — E-stop a automatická sekvence; simulace procesu a ověření programu.",
         "8. **Generovat** — kód po platformách, README s postupem importu.",
         "9. **Dokumentace** — FDS, FAT a spol. po souborech k uložení.",
     ]),

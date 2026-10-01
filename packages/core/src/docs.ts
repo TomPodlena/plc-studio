@@ -7,6 +7,8 @@ import {
 } from "./model.js";
 import { genFor } from "./codegen.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
+import { simulate, docVerifyMd } from "./sim.js";
+import { svgFlow, svgTiming } from "./flow.js";
 
 function dnes(): string { return new Date().toLocaleDateString("cs-CZ"); }
 function estopTxt(prj: Project): string {
@@ -23,6 +25,7 @@ export const DOC_META: Array<[path: string, tab: string, title: string]> = [
   ["05_testovaci_protokol_FAT.md", "FAT", "testovací protokol (loop check, funkční testy, sekvence)"],
   ["06_navod_k_obsluze.md", "Návod", "kostra návodu k obsluze"],
   ["07_softwarova_dokumentace.md", "SW dok.", "struktura a konvence programu"],
+  ["08_overeni_simulaci.md", "Simulace", "ověření sekvence simulací procesu (běžný cyklus, poruchy, E-stop)"],
 ];
 
 export function docIndexMd(prj: Project): string {
@@ -32,7 +35,7 @@ export function docIndexMd(prj: Project): string {
 
 ## Obsah
 ${DOC_META.map(x => "- `" + x[0] + "` — " + x[2]).join("\n")}
-- schémata — blokové schéma a elektrické zapojení I/O (SVG náhled + DXF pro CAD)
+- schémata — blokové schéma, funkční a časový diagram cyklu, elektrické zapojení I/O (SVG náhled + DXF pro CAD)
 - zdrojové soubory programu pro každou zvolenou platformu včetně postupu importu (README)
 
 ## Dokumenty, které sada NEOBSAHUJE a běžný projekt je vyžaduje (doplnit ručně)
@@ -239,7 +242,7 @@ export interface DocFile { path: string; tab: string; title: string; body: strin
 export function docFiles(prj: Project): DocFile[] {
   const bodies = [
     docIndexMd(prj), docFDSMd(prj), docIOcsv(prj), svorkyCSV(prj),
-    docAlarmCsv(prj), docFATMd(prj), docManualMd(prj), docSWMd(prj),
+    docAlarmCsv(prj), docFATMd(prj), docManualMd(prj), docSWMd(prj), docVerifyMd(prj),
   ];
   return DOC_META.map((m, i) => ({ path: m[0], tab: m[1], title: m[2], body: bodies[i] }));
 }
@@ -255,6 +258,11 @@ export function allProjectFiles(prj: Project): ProjectFile[] {
   for (const f of docFiles(prj)) out.push({ group: "Dokumentace", name: f.path, save: f.path, body: f.body, kind: "text" });
   const mods = modules(prj);
   out.push({ group: "Schémata", name: "blokove_schema.svg", save: "00_blokove_schema.svg", body: svgBlock(prj, mods), kind: "svg" });
+  if (prj.program.seq.length) {
+    const run = simulate(prj);
+    out.push({ group: "Schémata", name: "funkcni_diagram.svg", save: "00_funkcni_diagram.svg", body: svgFlow(prj, run), kind: "svg" });
+    out.push({ group: "Schémata", name: "casovy_diagram.svg", save: "00_casovy_diagram.svg", body: svgTiming(prj, run), kind: "svg" });
+  }
   mods.forEach((m, i) => {
     const base = m.dir + m.idx + "_X" + (i + 1), pre = String(i + 1).padStart(2, "0") + "_";
     out.push({ group: "Schémata", name: base + ".svg", save: pre + base + ".svg", body: sheetSVG(prj, m, i + 1, i + 1, mods.length), kind: "svg" });

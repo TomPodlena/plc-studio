@@ -85,7 +85,6 @@ def render(app, parent) -> None:
     name_lbl.pack(side="left", padx=10)
 
     lst.tv.bind("<<TreeviewSelect>>", on_select)
-    lst.select(min(app.ui.get("doc_sel", 0), len(files) - 1))
-    if not app.ui.get("doc_sel"):
-        lst.tv.yview_moveto(0)   # see() by první skupinu odroloval mimo výřez
+    # první soubor se do výřezu neposouvá — see() by nadpis jeho skupiny odroloval pryč
+    lst.select(min(app.ui.get("doc_sel", 0), len(files) - 1), reveal=bool(app.ui.get("doc_sel")))
     show()

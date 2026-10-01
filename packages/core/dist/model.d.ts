@@ -55,6 +55,11 @@ export interface Project {
     io: IoEntry[];
     program: ProgramCfg;
     nextId: number;
+    /** Model stroje pro simulaci: doba rozběhu motoru a přestavení ventilu [s]. */
+    sim?: {
+        motorDelay?: number;
+        valveTravel?: number;
+    };
 }
 export interface IoModule {
     dir: Dir;

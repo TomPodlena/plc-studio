@@ -218,6 +218,43 @@ class App:
         self.save()
         self.render()
 
+    # --- odkazy mezi kroky -----------------------------------------------------------
+    # Krok si cíl vyzvedne z ``self.ui`` při vykreslení (výběr řádku, záložka…).
+
+    def terminals(self) -> dict:
+        """Svorky signálů: klíč I/O → svorka, modul, kanál, index listu zapojení."""
+        data = self.bridge.request("terminals", prj=self.prj)
+        self.prj = data["prj"]
+        return data["map"]
+
+    def open_device(self, dev_id: int) -> None:
+        self.ui["dev_sel"] = dev_id
+        self.goto(3)
+
+    def open_io(self, key: str) -> None:
+        self.ui["io_sel"] = key
+        self.goto(4)
+
+    def open_block(self, dev_id: int | None = None) -> None:
+        self.ui.update(schema_tab=0, block_sel=dev_id)
+        self.goto(5)
+
+    def open_flow(self, step: int | None = None) -> None:
+        self.ui.update(schema_tab=1, flow_sel=step)
+        self.goto(5)
+
+    def open_wiring(self, key: str) -> None:
+        self.ui.update(schema_tab=2, wire_sel=key)
+        self.goto(5)
+
+    def open_program(self, step: int | None = None) -> None:
+        self.ui.update(prog_tab=0, seq_sel=step)
+        self.goto(6)
+
+    def open_sim(self, scenario: str = "nominal") -> None:
+        self.ui.update(prog_tab=1, sim_scenario=scenario)
+        self.goto(6)
+
     def update_title(self) -> None:
         name = self.prj["meta"]["name"]
         self._proj_lbl.configure(text=f"— {name}" if name else "")

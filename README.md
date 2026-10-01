@@ -17,6 +17,12 @@ Výkresy: blokové schéma + elektrické zapojení I/O dle zvyklostí ECAD (rám
 popisové pole, značení `-M1` dle IEC 81346, čísla vodičů `-W1xx`, NC/NO dle IEC 60617) — SVG náhled + **DXF** export.
 Dokumentace: FDS, I/O list, svorkovnice, seznam alarmů, FAT protokol, návod k obsluze, SW dokumentace.
 
+**Simulace procesu a ověření programu:** jádro umí návrh odsimulovat scan po scanu stejnou logikou,
+jakou generuje kód (stavové automaty bloků, timeouty, sekvence), a projít poruchové scénáře —
+výpadek zpětného hlášení v každém kroku, poruchu motoru, nouzové zastavení. Výstupem je funkční
+diagram cyklu, časový diagram signálů a protokol `08_overeni_simulaci.md`. Ověřuje se návrh, ne kód
+přeložený v cílovém IDE — test v simulátoru platformy a FAT to nenahrazuje.
+
 > ⚠️ Generované výstupy jsou **návrh k revizi**. Bezpečnostní funkce (E-stop, kryty, dvouruční
 > ovládání) musí řešit certifikovaná safety technika dle ISO 13849 / IEC 62061 — nikdy jen program.
 

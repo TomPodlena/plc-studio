@@ -7,7 +7,7 @@ from collections import Counter
 from tkinter import ttk
 
 from .. import theme
-from ..widgets import Table, card, scrolled_text, set_text
+from ..widgets import Table, card, link, scrolled_text, set_text
 
 NC_ON, NC_OFF = "☑", "☐"
 
@@ -77,12 +77,25 @@ def render(app, parent) -> None:
         app.save()
         refresh()
 
+    def with_row(action) -> None:
+        e = by_key(tbl.selected() or "")
+        if e is None:
+            app.set_status("Nejdřív vyber signál v tabulce.")
+        else:
+            action(e)
+
     b_fix.configure(command=fix_tags)
     ttk.Button(tools, text="Přečíslovat adresy od nuly", command=renumber).pack(side="left")
+    ttk.Label(tools, text="Vybraný signál:", style="Dim.TLabel").pack(side="left", padx=(16, 0))
+    link(tools, "Zařízení ↗", lambda: with_row(lambda e: app.open_device(e["devId"]))
+         ).pack(side="left", padx=(8, 0))
+    link(tools, "Zapojení ↗", lambda: with_row(lambda e: app.open_wiring(e["key"]))
+         ).pack(side="left", padx=(12, 0))
+    link(tools, "Blokové schéma ↗", lambda: with_row(lambda e: app.open_block(e["devId"]))
+         ).pack(side="left", padx=(12, 0))
     ttk.Label(tools, style="Dim.TLabel",
-              text="Úprava dvojklikem do buňky (tag, adresa, komentář), NC kliknutím. Adresy "
-                   "v Siemens notaci — pro ostatní platformy se převedou. Duplicity červeně."
-              ).pack(side="left", padx=10)
+              text="Úprava dvojklikem do buňky, NC kliknutím. Adresy v Siemens notaci. "
+                   "Duplicity červeně.").pack(side="right")
 
     def refresh(keep: str | None = None) -> None:
         """Překreslí tabulku, statistiky a kontrolu (bez překreslení celého kroku)."""
@@ -126,4 +139,6 @@ def render(app, parent) -> None:
             b_fix.pack_forget()
             issues_frm.pack_forget()
 
-    refresh()
+    tbl.tv.bind("<<TreeviewSelect>>",
+                lambda _e: app.ui.__setitem__("io_sel", tbl.selected()))
+    refresh(keep=app.ui.get("io_sel"))      # odkaz odjinud vybere svůj signál
