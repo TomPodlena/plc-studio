@@ -1,0 +1,2163 @@
+<title>PLC Studio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: workflow návrhu PLC — stepper nahoře, jeden krok = jedna karta, volná navigace zpět */
+:root{
+  --bg:#f3f5f6; --surface:#ffffff; --fg:#15262b; --muted:#5b7077; --line:#d4dde0;
+  --accent:#00707e; --accent-fg:#ffffff; --code-bg:#0e1b1f; --code-fg:#d7e4e8;
+  --ok:#1a7f37; --warn:#b45309; --err:#b3261e; --chip:#e3ecee;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101a1d; --surface:#17242a; --fg:#dde8eb; --muted:#8fa6ad; --line:#2a3b42;
+    --accent:#35b3c2; --accent-fg:#06272c; --code-bg:#0b1517; --code-fg:#cfe0e4;
+    --ok:#4ec977; --warn:#e0a84a; --err:#ef8b84; --chip:#213237; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101a1d; --surface:#17242a; --fg:#dde8eb; --muted:#8fa6ad; --line:#2a3b42;
+  --accent:#35b3c2; --accent-fg:#06272c; --code-bg:#0b1517; --code-fg:#cfe0e4;
+  --ok:#4ec977; --warn:#e0a84a; --err:#ef8b84; --chip:#213237; color-scheme:dark;
+}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);line-height:1.5;margin:0;padding-inline:16px;padding-block:0 60px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header.app{padding-block:24px 0;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px}
+header.app h1{font-size:1.4rem;font-weight:700;margin:0;letter-spacing:-.01em}
+.badge{font-family:var(--font-mono);font-size:.7rem;background:var(--chip);padding:3px 9px;border-radius:999px;white-space:nowrap}
+#projName{color:var(--muted);font-size:.9rem}
+nav.stepper{display:flex;flex-wrap:wrap;gap:6px}
+nav.stepper button{font-family:var(--font-mono);font-size:.74rem;border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:7px 12px;border-radius:999px;cursor:pointer}
+nav.stepper button.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+nav.stepper button.done{color:var(--accent);border-color:var(--accent)}
+nav.stepper button.helpbtn{margin-left:auto;border-style:dashed}
+nav.stepper button.helpbtn.on{background:var(--accent);color:var(--accent-fg);border-style:solid;border-color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;min-width:0}
+.card h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 12px;font-weight:600}
+.card h2 .n{font-family:var(--font-mono);color:var(--accent);margin-right:8px}
+.card h3{font-size:.95rem;margin:18px 0 8px}
+textarea,input[type=text],input[type=number],select{font-family:var(--font-mono);font-size:.8rem;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;box-sizing:border-box}
+input[type=text],select{font-family:var(--font-body);font-size:.85rem}
+textarea{width:100%;min-height:150px;line-height:1.55;resize:vertical}
+textarea:focus,input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.78rem;color:var(--muted);min-width:0}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:1fr 1fr} .g3{grid-template-columns:repeat(3,1fr)}
+@media (max-width:640px){ .g2,.g3{grid-template-columns:1fr} .card{padding:14px} }
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+button{font-family:var(--font-body);font-size:.85rem;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 16px;border-radius:8px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button.small{font-size:.75rem;padding:4px 10px;font-weight:500}
+button.danger{color:var(--err)}
+button:hover{filter:brightness(1.05)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-size:.8rem;color:var(--muted);margin:8px 0 0}
+.hint code,p code{font-family:var(--font-mono);background:var(--chip);padding:1px 5px;border-radius:4px;font-size:.75rem}
+.note{font-size:.8rem;color:var(--muted);border-left:3px solid var(--accent);padding:2px 0 2px 12px;margin-top:14px}
+.warnbox{font-size:.82rem;border-left:3px solid var(--warn);padding:6px 0 6px 12px;margin-top:14px}
+.errtxt{color:var(--err);font-size:.82rem;margin-top:8px}
+.oktxt{color:var(--ok);font-size:.82rem;margin-top:8px}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.stat{font-family:var(--font-mono);font-size:.74rem;background:var(--chip);border-radius:6px;padding:4px 10px;font-variant-numeric:tabular-nums}
+.stat b{color:var(--accent)}
+.tablewrap{overflow-x:auto;margin-top:8px}
+table{border-collapse:collapse;width:100%;font-size:.83rem}
+th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.mono{font-family:var(--font-mono);font-size:.76rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+td input[type=text]{width:100%;min-width:90px;padding:4px 7px;font-family:var(--font-mono);font-size:.76rem}
+td input.dup{border-color:var(--err);outline:1px solid var(--err)}
+.dirDI{color:var(--ok)} .dirDO{color:var(--warn)} .dirAI,.dirAO{color:var(--accent)}
+.platgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:4px}
+.plat{border:1px solid var(--line);border-radius:9px;padding:12px 14px;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0}
+.plat.on{border-color:var(--accent);outline:2px solid var(--accent)}
+.plat b{font-size:.9rem}
+.plat span{font-size:.75rem;color:var(--muted)}
+.plat .lng{font-family:var(--font-mono);font-size:.68rem;color:var(--accent)}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line)}
+.tabs button{border:none;background:none;border-radius:8px 8px 0 0;padding:8px 13px;font-weight:500;color:var(--muted);font-family:var(--font-mono);font-size:.76rem}
+.tabs button[aria-selected="true"]{color:var(--accent);background:var(--code-bg);font-weight:600}
+.tabs.outer button[aria-selected="true"]{background:var(--chip);color:var(--fg)}
+.codebox{position:relative;min-width:0}
+pre.code{background:var(--code-bg);color:var(--code-fg);font-family:var(--font-mono);font-size:.74rem;line-height:1.55;margin:0;padding:16px;border-radius:0 8px 8px 8px;overflow:auto;max-height:460px;white-space:pre}
+.copybtn{position:absolute;top:10px;right:10px;font-size:.74rem;padding:5px 12px}
+details.help{border:1px solid var(--line);border-radius:9px;margin-top:10px;overflow:hidden}
+details.help summary{cursor:pointer;padding:12px 16px;font-weight:600;font-size:.92rem;list-style:none;display:flex;gap:10px;align-items:baseline}
+details.help summary::before{content:"+";font-family:var(--font-mono);color:var(--accent);font-weight:600}
+details.help[open] summary::before{content:"–"}
+details.help .body{padding:0 16px 14px;font-size:.88rem;max-width:75ch}
+details.help .body p{margin:8px 0}
+details.help .body ul{margin:6px 0;padding-left:20px}
+details.help .body li{margin:3px 0}
+details.help .body table{font-size:.8rem;margin-top:6px}
+.seqrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:8px}
+.seqrow .k{font-family:var(--font-mono);font-size:.72rem;color:var(--accent);min-width:54px}
+.devcard-opts{display:flex;flex-wrap:wrap;gap:10px;font-size:.8rem;color:var(--muted)}
+.devcard-opts label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.docgrid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px;margin-top:12px}
+@media (max-width:760px){ .docgrid{grid-template-columns:1fr} }
+.doclist{display:flex;flex-direction:column;gap:2px;max-height:560px;overflow:auto;min-width:0;align-content:start}
+.doclist h4{margin:10px 0 3px;font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.doclist h4:first-child{margin-top:0}
+.doclist button{text-align:left;font-family:var(--font-mono);font-size:.74rem;padding:6px 10px;border:none;background:none;border-radius:6px;color:var(--fg);font-weight:400;cursor:pointer}
+.doclist button[aria-selected="true"]{background:var(--chip);color:var(--accent);font-weight:600}
+.svgprev{border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;max-height:520px;background:var(--surface)}
+.chat{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.msg{border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.86rem;max-width:72ch;min-width:0}
+.msg.u{align-self:flex-end;background:var(--chip)}
+.msg.a{align-self:flex-start}
+.msg .who{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:3px}
+.stream{font-family:var(--font-mono);font-size:.72rem;color:var(--muted);white-space:pre-wrap;max-height:180px;overflow:auto;border-left:3px solid var(--accent);padding:2px 0 2px 10px;margin-top:10px}
+footer.bar{display:flex;justify-content:space-between;gap:10px;margin-top:4px}
+@media (prefers-reduced-motion:no-preference){ button{transition:filter .12s} }
+</style>
+
+<div class="wrap">
+<header class="app">
+  <h1>PLC Studio</h1>
+  <span class="badge">AI návrh · schéma · kód</span>
+  <span class="badge">7 platforem</span>
+  <span id="projName"></span>
+</header>
+<nav class="stepper" id="stepper" aria-label="Kroky návrhu"></nav>
+<main id="view"></main>
+<footer class="bar">
+  <button id="btnPrev">← Zpět</button>
+  <button id="btnNext" class="primary">Pokračovat →</button>
+</footer>
+</div>
+
+<script>
+"use strict";
+/* ============================================================ definice */
+const PLAT = {
+  siemens:   {name:"Siemens SIMATIC", ide:"TIA Portal V17–V21", cpu:"S7-1200 / S7-1500", lang:"SCL", imp:"externí zdroje .scl + SimaticML XML (Openness)"},
+  rockwell:  {name:"Rockwell Allen-Bradley", ide:"Studio 5000", cpu:"CompactLogix / ControlLogix", lang:"ST", imp:"ST rutiny + CSV import tagů / L5X"},
+  beckhoff:  {name:"Beckhoff", ide:"TwinCAT 3 (XAE)", cpu:"CX / C60xx IPC", lang:"ST", imp:"POU + GVL (vložit do editoru)"},
+  codesys:   {name:"CODESYS", ide:"CODESYS V3.5", cpu:"WAGO, Festo, Eaton…", lang:"ST", imp:"POU + GVL / PLCopen XML"},
+  mitsubishi:{name:"Mitsubishi", ide:"GX Works3", cpu:"MELSEC iQ-F / iQ-R", lang:"ST", imp:"ST program + global labels CSV"},
+  schneider: {name:"Schneider Electric", ide:"EcoStruxure Machine Expert", cpu:"Modicon M241 / M262", lang:"ST", imp:"POU + GVL (báze CODESYS)"},
+  omron:     {name:"OMRON", ide:"Sysmac Studio", cpu:"NX / NJ", lang:"ST", imp:"ST program + tabulka proměnných"}
+};
+const IECPLATS = ["rockwell","beckhoff","codesys","mitsubishi","schneider","omron"];
+const CLS = {
+  Motor:    {prefix:"M", label:"Motor / čerpadlo", opts:{fbk:"zpětné hlášení běhu", fault:"vstup poruchy"}},
+  Ventil:   {prefix:"Y", label:"Ventil / válec", opts:{fbkOpen:"koncák otevřeno", fbkClosed:"koncák zavřeno"}},
+  AnalogIn: {prefix:"B", label:"Analogový vstup", opts:{}},
+  AnalogOut:{prefix:"U", label:"Analogový výstup", opts:{}},
+  DI:       {prefix:"S", label:"Digitální vstup (snímač)", opts:{}},
+  DO:       {prefix:"H", label:"Digitální výstup (signálka…)", opts:{}}
+};
+const STEPS = ["Projekt","AI návrh","Platformy","Zařízení","I/O","Schéma","Program","Generovat","Dokumentace"];
+
+/* ============================================================ stav */
+const BLANK = () => ({
+  meta:{name:"", desc:""},
+  platforms:["siemens"],
+  ai:{turns:[], last:null, draft:""},
+  devices:[],            // {id,name,cls,desc,opt:{},unit,rmin,rmax}
+  io:[],                 // {key,devId,sig,dir,tag,addr,cmt}
+  program:{modes:true, estop:"", seq:[]},   // seq: {dev,act,cond,timeS}
+  imported:{info:"", blocks:[]},
+  step:0, nextId:1
+});
+let P = BLANK();
+function save(){ try{ localStorage.setItem("plcstudio", JSON.stringify(P)); }catch(e){} }
+function load(){ try{ const s = localStorage.getItem("plcstudio"); if(s){ P = Object.assign(BLANK(), JSON.parse(s)); } }catch(e){} }
+
+/* ============================================================ pomůcky */
+const $ = id => document.getElementById(id);
+const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const xmlEsc = esc;
+function stripDia(s){ return s.normalize("NFD").replace(/[̀-ͯ]/g,""); }
+function devById(id){ return P.devices.find(d=>d.id===id); }
+function nextName(cls){
+  const pre = CLS[cls].prefix; let n = 1;
+  while(P.devices.some(d=>d.name===pre+n)) n++;
+  return pre+n;
+}
+
+/* signály odvozené z třídy zařízení */
+function devSignals(d){
+  const o = d.opt||{}; const s = [];
+  if(d.cls==="Motor"){
+    if(o.fbk!==false) s.push(["fbkRunning","DI","běh"]);
+    if(o.fault) s.push(["fault","DI","porucha"]);
+    s.push(["outRun","DO","povel chod"]);
+  } else if(d.cls==="Ventil"){
+    if(o.fbkOpen!==false) s.push(["fbkOpen","DI","otevřeno"]);
+    if(o.fbkClosed) s.push(["fbkClosed","DI","zavřeno"]);
+    s.push(["outOpen","DO","povel otevřít"]);
+  } else if(d.cls==="AnalogIn") s.push(["raw","AI",(d.unit||"")]);
+  else if(d.cls==="AnalogOut") s.push(["raw","AO",(d.unit||"")]);
+  else if(d.cls==="DI") s.push(["in","DI",""]);
+  else if(d.cls==="DO") s.push(["out","DO",""]);
+  return s;
+}
+/* synchronizace I/O tabulky se zařízeními (edity se zachovají) */
+function syncIO(){
+  const fresh = [];
+  for(const d of P.devices){
+    for(const [sig,dir,lbl] of devSignals(d)){
+      const key = d.id+":"+sig;
+      const old = P.io.find(e=>e.key===key);
+      fresh.push(old || {key, devId:d.id, sig, dir, tag:d.name+"_"+sig, addr:"",
+        cmt:(d.desc?d.desc+" – ":"")+lbl,
+        nc: dir==="DI" && /\bNC\b/i.test(d.desc||"")});
+    }
+  }
+  P.io = fresh;
+  autoAddr(false);
+}
+function autoAddr(force){
+  let di=0, dq=0, ai=64, ao=64;
+  const taken = new Set(force?[]:P.io.filter(e=>e.addr).map(e=>e.addr));
+  const next = dir=>{
+    let a;
+    for(;;){
+      if(dir==="DI"){ a="%I"+(di>>3)+"."+(di&7); di++; }
+      else if(dir==="DO"){ a="%Q"+(dq>>3)+"."+(dq&7); dq++; }
+      else if(dir==="AI"){ a="%IW"+ai; ai+=2; }
+      else { a="%QW"+ao; ao+=2; }
+      if(!taken.has(a)) return a;
+    }
+  };
+  for(const e of P.io){ if(force || !e.addr){ e.addr = next(e.dir); taken.add(e.addr); } }
+}
+function addrFor(plat, e){
+  const a = e.addr||"";
+  if(plat==="siemens") return a;
+  if(["beckhoff","codesys","schneider"].includes(plat)){
+    const m = a.match(/^%([IQ])(\d+)\.(\d+)$/);
+    return m ? "%"+m[1]+"X"+m[2]+"."+m[3] : a;
+  }
+  if(plat==="mitsubishi"){
+    const m = a.match(/^%([IQ])(\d+)\.(\d+)$/);
+    if(m) return (m[1]==="I"?"X":"Y")+((+m[2])*8+(+m[3])).toString(16).toUpperCase();
+    return "";
+  }
+  return "";
+}
+function dtFor(e){ return (e.dir==="AI"||e.dir==="AO") ? "INT" : "BOOL"; }
+
+/* ============================================================ import / reverse engineering */
+function detectAndParse(text){
+  const t = text.trim();
+  if(!t) return {fmt:"", tags:[], blocks:[]};
+  if(/<SW\.Tags\.PlcTagTable/i.test(t)) return parseSimaticML(t);
+  if(/<RSLogix5000Content|<Controller[\s>]/i.test(t)) return parseL5X(t);
+  if(/VAR_GLOBAL/i.test(t) || /FUNCTION_BLOCK|PROGRAM\s+\w+|ORGANIZATION_BLOCK/i.test(t)) return parseSTSource(t);
+  if(/^TYPE,SCOPE,NAME/im.test(t) || /^TAG,/im.test(t)) return parseRockwellCSV(t);
+  if(/\t.*\t/.test(t.split(/\r?\n/)[0]||"") && /BOOL|Bit|INT|REAL|WORD/i.test(t)) return parseLabelTable(t);
+  return parsePlainIO(t);
+}
+function normAddr(a){
+  if(!a) return "";
+  a = a.trim().toUpperCase();
+  let m = a.match(/^%([IQ])X?(\d+)\.(\d+)$/); if(m) return "%"+m[1]+m[2]+"."+m[3];
+  m = a.match(/^%([IQ])[WD](\d+)/); if(m) return "%"+m[1]+"W"+m[2];
+  m = a.match(/^X([0-9A-F]+)$/); if(m){ const i=parseInt(m[1],16); return "%I"+(i>>3)+"."+(i&7); }
+  m = a.match(/^Y([0-9A-F]+)$/); if(m){ const i=parseInt(m[1],16); return "%Q"+(i>>3)+"."+(i&7); }
+  return "";
+}
+function guessDir(name, dt, addr){
+  if(/^%I\d+\.\d+$/.test(addr)) return "DI";
+  if(/^%Q\d+\.\d+$/.test(addr)) return "DO";
+  if(/^%IW/.test(addr)) return "AI";
+  if(/^%QW/.test(addr)) return "AO";
+  if(/INT|REAL|WORD|DINT/i.test(dt||"")) return /out|set|sp|cmd/i.test(name)?"AO":"AI";
+  return /out|cmd|povel|run$|open$|lamp|valve|^Y|^H/i.test(name)?"DO":"DI";
+}
+function parseSimaticML(t){
+  const tags = [];
+  try{
+    const doc = new DOMParser().parseFromString(t,"text/xml");
+    const els = doc.getElementsByTagName("SW.Tags.PlcTag");
+    for(const el of els){
+      const get = n => { for(const c of el.getElementsByTagName(n)){ if(c.parentElement && c.parentElement.tagName==="AttributeList") return c.textContent.trim(); } return ""; };
+      const name = get("Name"), dt = get("DataTypeName"), la = get("LogicalAddress");
+      let cmt = ""; const mt = el.getElementsByTagName("Text"); if(mt.length) cmt = mt[0].textContent.trim();
+      if(name) tags.push({tag:name, dt, addr:normAddr(la), cmt});
+    }
+  }catch(e){}
+  return {fmt:"Siemens SimaticML (tabulka tagů)", tags, blocks:[]};
+}
+function parseL5X(t){
+  const tags = [], blocks = [];
+  try{
+    const doc = new DOMParser().parseFromString(t,"text/xml");
+    for(const el of doc.getElementsByTagName("Tag")){
+      const name = el.getAttribute("Name")||"", dt = el.getAttribute("DataType")||"";
+      if(!name || !/^(BOOL|INT|DINT|SINT|REAL)$/i.test(dt)) continue;
+      let cmt=""; const d = el.getElementsByTagName("Description"); if(d.length) cmt = d[0].textContent.trim();
+      tags.push({tag:name, dt, addr:"", cmt});
+    }
+    for(const el of doc.getElementsByTagName("AddOnInstructionDefinition")) blocks.push("AOI "+(el.getAttribute("Name")||""));
+    for(const el of doc.getElementsByTagName("Routine")) blocks.push("Routine "+(el.getAttribute("Name")||""));
+  }catch(e){}
+  return {fmt:"Rockwell L5X", tags, blocks};
+}
+function parseSTSource(t){
+  const tags = [], blocks = [];
+  let m; const reB = /(FUNCTION_BLOCK|PROGRAM|FUNCTION|ORGANIZATION_BLOCK|DATA_BLOCK)\s+"?([A-Za-z_]\w*)"?/g;
+  while((m = reB.exec(t))) blocks.push(m[1]+" "+m[2]);
+  const reG = /VAR_GLOBAL[\s\S]*?END_VAR/gi; let g;
+  while((g = reG.exec(t))){
+    for(const line of g[0].split(/\r?\n/)){
+      const lm = line.match(/^\s*([A-Za-z_]\w*)\s*(?:AT\s*(%[\w.]+))?\s*:\s*([A-Za-z_]\w*)\s*(?::=[^;]*)?;\s*(?:\(\*\s*(.*?)\s*\*\)|\/\/\s*(.*))?/);
+      if(lm && !/^VAR|^END/i.test(lm[1])) tags.push({tag:lm[1], dt:lm[3], addr:normAddr(lm[2]||""), cmt:(lm[4]||lm[5]||"").trim()});
+    }
+  }
+  return {fmt:"ST / SCL zdroj"+(tags.length?" + VAR_GLOBAL":""), tags, blocks};
+}
+function parseRockwellCSV(t){
+  const tags = [];
+  for(const line of t.split(/\r?\n/)){
+    const c = line.split(",");
+    if((c[0]||"").trim().toUpperCase()!=="TAG") continue;
+    const name=(c[2]||"").trim(), cmt=(c[3]||"").replace(/^"|"$/g,"").trim(), dt=(c[4]||"").trim();
+    if(name) tags.push({tag:name, dt, addr:"", cmt});
+  }
+  return {fmt:"Rockwell CSV export tagů", tags, blocks:[]};
+}
+function parseLabelTable(t){
+  const tags = []; const lines = t.split(/\r?\n/).filter(Boolean);
+  for(const line of lines){
+    const c = line.split("\t").map(x=>x.replace(/^"|"$/g,"").trim());
+    if(!c[0] || /^(label name|name|název)/i.test(c[0])) continue;
+    const dt = (c[1]||"").replace(/^Bit$/i,"BOOL").replace(/^Word.*$/i,"INT");
+    const at = c.find(x=>/^[XY][0-9A-F]+$|^%[IQ]/.test(x))||"";
+    const cmt = c.slice(2).find(x=>x && !/^[XY][0-9A-F]+$|^%|^VAR|^FALSE|^TRUE|^Retain/i.test(x))||"";
+    tags.push({tag:c[0], dt, addr:normAddr(at), cmt});
+  }
+  return {fmt:"Tabulka proměnných (Mitsubishi / OMRON)", tags, blocks:[]};
+}
+function parsePlainIO(t){
+  const tags = [];
+  for(const line of t.split(/\r?\n/)){
+    const l = line.trim(); if(!l) continue;
+    const delim = l.includes("\t")?"\t":(l.includes(";")?";":",");
+    const c = l.split(delim).map(x=>x.trim());
+    if(/^tag/i.test(c[0])||/adres/i.test(c[1]||"")) continue;
+    if(c.length<2 || !/^%[IQ]/i.test(c[1]||"")) continue;
+    tags.push({tag:c[0], dt:"", addr:normAddr(c[1]), cmt:c[4]||c[2]||"", dev:c[2]||"", cls:c[3]||""});
+  }
+  return {fmt:"Prostý I/O list (Tag;Adresa;Zařízení;Třída;Komentář)", tags, blocks:[]};
+}
+/* seskupení importovaných tagů do zařízení */
+function buildDevicesFromTags(tags){
+  const groups = {};
+  for(const tg of tags){
+    const dev = tg.dev || (tg.tag.includes("_") ? tg.tag.split("_")[0] : tg.tag);
+    (groups[dev] = groups[dev] || []).push(tg);
+  }
+  const devices = [], io = [];
+  let id = 1;
+  for(const [name, list] of Object.entries(groups)){
+    for(const tg of list) tg._dir = guessDir(tg.tag, tg.dt, tg.addr);
+    let cls = list[0].cls && CLS[list[0].cls] ? list[0].cls : "";
+    if(!cls){
+      if(list.some(t=>t._dir==="AI")) cls="AnalogIn";
+      else if(list.some(t=>t._dir==="AO")) cls="AnalogOut";
+      else if(/^M\d*$/i.test(name) && list.some(t=>t._dir==="DO")) cls="Motor";
+      else if(/^[YV]\d*$/i.test(name) && list.some(t=>t._dir==="DO")) cls="Ventil";
+      else cls = list.every(t=>t._dir==="DO") ? "DO" : "DI";
+    }
+    const desc = (list.find(t=>t.cmt)||{}).cmt||"";
+    const d = {id:id, name, cls, desc:desc.split("–")[0].split("-")[0].trim(), opt:{}, unit:"", rmin:0, rmax:100};
+    if(cls==="Motor"){ d.opt.fbk = list.some(t=>t._dir==="DI"&&/run|chod|fbk/i.test(t.tag)); d.opt.fault = list.some(t=>/fault|flt|por|err/i.test(t.tag)); }
+    if(cls==="Ventil"){ d.opt.fbkOpen = list.some(t=>/open|otv/i.test(t.tag)&&t._dir==="DI"); d.opt.fbkClosed = list.some(t=>/clos|zav/i.test(t.tag)&&t._dir==="DI"); }
+    devices.push(d);
+    /* napojení skutečných tagů na role */
+    for(const [sig,dir] of devSignals(d).map(x=>[x[0],x[1]])){
+      let src = null;
+      if(sig==="fbkRunning") src = list.find(t=>t._dir==="DI"&&/run|chod|fbk/i.test(t.tag));
+      else if(sig==="fault") src = list.find(t=>/fault|flt|por|err/i.test(t.tag));
+      else if(sig==="outRun"||sig==="outOpen"||sig==="out") src = list.find(t=>t._dir==="DO");
+      else if(sig==="fbkOpen") src = list.find(t=>t._dir==="DI"&&/open|otv/i.test(t.tag));
+      else if(sig==="fbkClosed") src = list.find(t=>t._dir==="DI"&&/clos|zav/i.test(t.tag));
+      else if(sig==="raw") src = list.find(t=>t._dir==="AI"||t._dir==="AO");
+      else if(sig==="in") src = list.find(t=>t._dir==="DI");
+      io.push({key:id+":"+sig, devId:id, sig, dir, tag:src?src.tag:name+"_"+sig, addr:src?src.addr:"", cmt:src?src.cmt:""});
+    }
+    id++;
+  }
+  return {devices, io, nextId:id};
+}
+
+/* ============================================================ šablony — Siemens SCL */
+const SCL_MOTOR = `FUNCTION_BLOCK "FB_Motor"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Šablona: motor/čerpadlo se zpětným hlášením běhu
+VAR_INPUT
+    enable : Bool;
+    cmdStart : Bool;
+    cmdStop : Bool;
+    fbkRunning : Bool;
+    fault : Bool;
+END_VAR
+VAR_OUTPUT
+    outRun : Bool;
+    busy : Bool;
+    error : Bool;
+    status : Word;
+END_VAR
+VAR
+    statStep : Int;
+    instTrigStart : R_TRIG;
+    instTrigStop : R_TRIG;
+    instTonFbk : TON;
+END_VAR
+VAR CONSTANT
+    STEP_IDLE : Int := 0;
+    STEP_STARTING : Int := 10;
+    STEP_RUNNING : Int := 20;
+    STEP_ERROR : Int := 90;
+    T_FBK : Time := T#3S;
+END_VAR
+
+BEGIN
+    IF NOT #enable THEN
+        #outRun := FALSE; #busy := FALSE; #error := FALSE;
+        #status := 16#8001; #statStep := #STEP_IDLE;
+        RETURN;
+    END_IF;
+
+    #instTrigStart(CLK := #cmdStart);
+    #instTrigStop(CLK := #cmdStop);
+
+    CASE #statStep OF
+        #STEP_IDLE:
+            #outRun := FALSE;
+            IF #instTrigStart.Q THEN #statStep := #STEP_STARTING; END_IF;
+        #STEP_STARTING:
+            #outRun := TRUE;
+            IF #fbkRunning THEN #statStep := #STEP_RUNNING; END_IF;
+        #STEP_RUNNING:
+            #outRun := TRUE;
+            IF NOT #fbkRunning THEN #statStep := #STEP_ERROR; END_IF;
+            IF #instTrigStop.Q THEN #statStep := #STEP_IDLE; END_IF;
+        #STEP_ERROR:
+            #outRun := FALSE;
+            IF #instTrigStop.Q AND NOT #fault THEN #statStep := #STEP_IDLE; END_IF;
+    END_CASE;
+
+    #instTonFbk(IN := (#statStep = #STEP_STARTING), PT := #T_FBK);
+    IF #instTonFbk.Q OR #fault THEN #statStep := #STEP_ERROR; END_IF;
+
+    #busy := (#statStep = #STEP_STARTING);
+    #error := (#statStep = #STEP_ERROR);
+    IF #error THEN #status := 16#8002; ELSE #status := 16#0000; END_IF;
+END_FUNCTION_BLOCK`;
+
+const SCL_VENTIL = `FUNCTION_BLOCK "FB_Ventil"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Šablona: dvoupolohový ventil/válec s koncovými snímači
+VAR_INPUT
+    enable : Bool;
+    cmdOpen : Bool;
+    cmdClose : Bool;
+    fbkOpen : Bool;
+    fbkClosed : Bool;
+END_VAR
+VAR_OUTPUT
+    outOpen : Bool;
+    busy : Bool;
+    error : Bool;
+    status : Word;
+END_VAR
+VAR
+    statStep : Int;
+    instTrigOpen : R_TRIG;
+    instTrigClose : R_TRIG;
+    instTonTravel : TON;
+END_VAR
+VAR CONSTANT
+    STEP_CLOSED : Int := 0;
+    STEP_OPENING : Int := 10;
+    STEP_OPEN : Int := 20;
+    STEP_CLOSING : Int := 30;
+    STEP_ERROR : Int := 90;
+    T_TRAVEL : Time := T#5S;
+END_VAR
+
+BEGIN
+    IF NOT #enable THEN
+        #outOpen := FALSE; #busy := FALSE; #error := FALSE;
+        #status := 16#8001; #statStep := #STEP_CLOSED;
+        RETURN;
+    END_IF;
+
+    #instTrigOpen(CLK := #cmdOpen);
+    #instTrigClose(CLK := #cmdClose);
+
+    CASE #statStep OF
+        #STEP_CLOSED:
+            #outOpen := FALSE;
+            IF #instTrigOpen.Q THEN #statStep := #STEP_OPENING; END_IF;
+        #STEP_OPENING:
+            #outOpen := TRUE;
+            IF #fbkOpen THEN #statStep := #STEP_OPEN; END_IF;
+        #STEP_OPEN:
+            #outOpen := TRUE;
+            IF #instTrigClose.Q THEN #statStep := #STEP_CLOSING; END_IF;
+        #STEP_CLOSING:
+            #outOpen := FALSE;
+            IF #fbkClosed THEN #statStep := #STEP_CLOSED; END_IF;
+        #STEP_ERROR:
+            #outOpen := FALSE;
+            IF #instTrigClose.Q THEN #statStep := #STEP_CLOSED; END_IF;
+    END_CASE;
+
+    #instTonTravel(IN := (#statStep = #STEP_OPENING) OR (#statStep = #STEP_CLOSING),
+                   PT := #T_TRAVEL);
+    IF #instTonTravel.Q THEN #statStep := #STEP_ERROR; END_IF;
+
+    #busy := (#statStep = #STEP_OPENING) OR (#statStep = #STEP_CLOSING);
+    #error := (#statStep = #STEP_ERROR);
+    IF #error THEN #status := 16#8002; ELSE #status := 16#0000; END_IF;
+END_FUNCTION_BLOCK`;
+
+const SCL_AI = `FUNCTION_BLOCK "FB_AnalogIn"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Šablona: analogový vstup se škálováním a mezemi
+VAR_INPUT
+    rawValue : Int;            // 0..27648
+    scaleMin : Real := 0.0;
+    scaleMax : Real := 100.0;
+    limitHi : Real := 1.0E+6;
+    limitLo : Real := -1.0E+6;
+END_VAR
+VAR_OUTPUT
+    value : Real;
+    alarmHi : Bool;
+    alarmLo : Bool;
+END_VAR
+
+BEGIN
+    #value := NORM_X(MIN := 0, VALUE := #rawValue, MAX := 27648)
+              * (#scaleMax - #scaleMin) + #scaleMin;
+    #alarmHi := #value > #limitHi;
+    #alarmLo := #value < #limitLo;
+END_FUNCTION_BLOCK`;
+
+const SCL_AO = `FUNCTION_BLOCK "FB_AnalogOut"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Šablona: analogový výstup — inženýrské jednotky -> surová hodnota
+VAR_INPUT
+    value : Real;
+    scaleMin : Real := 0.0;
+    scaleMax : Real := 100.0;
+END_VAR
+VAR_OUTPUT
+    rawValue : Int;            // 0..27648
+END_VAR
+
+BEGIN
+    #rawValue := REAL_TO_INT(
+        (#value - #scaleMin) / (#scaleMax - #scaleMin) * 27648.0);
+END_FUNCTION_BLOCK`;
+
+/* ============================================================ šablony — IEC ST (ostatní platformy) */
+const ST_MOTOR = `FUNCTION_BLOCK FB_Motor
+(* Sablona: motor/cerpadlo se zpetnym hlasenim behu *)
+VAR_INPUT
+    enable : BOOL;
+    cmdStart : BOOL;
+    cmdStop : BOOL;
+    fbkRunning : BOOL;
+    fault : BOOL;
+END_VAR
+VAR_OUTPUT
+    outRun : BOOL;
+    busy : BOOL;
+    error : BOOL;
+    status : WORD;
+END_VAR
+VAR
+    statStep : INT;
+    lastStart : BOOL;
+    lastStop : BOOL;
+    trigStart : BOOL;
+    trigStop : BOOL;
+    tonFbk : TON;
+END_VAR
+
+IF NOT enable THEN
+    outRun := FALSE; busy := FALSE; error := FALSE;
+    status := 16#8001; statStep := 0;
+    RETURN;
+END_IF;
+
+(* detekce hran *)
+trigStart := cmdStart AND NOT lastStart;  lastStart := cmdStart;
+trigStop  := cmdStop  AND NOT lastStop;   lastStop  := cmdStop;
+
+CASE statStep OF
+    0: (* IDLE *)
+        outRun := FALSE;
+        IF trigStart THEN statStep := 10; END_IF
+    10: (* STARTING *)
+        outRun := TRUE;
+        IF fbkRunning THEN statStep := 20; END_IF
+    20: (* RUNNING *)
+        outRun := TRUE;
+        IF NOT fbkRunning THEN statStep := 90; END_IF
+        IF trigStop THEN statStep := 0; END_IF
+    90: (* ERROR *)
+        outRun := FALSE;
+        IF trigStop AND NOT fault THEN statStep := 0; END_IF
+END_CASE;
+
+tonFbk(IN := (statStep = 10), PT := T#3S);
+IF tonFbk.Q OR fault THEN statStep := 90; END_IF;
+
+busy := (statStep = 10);
+error := (statStep = 90);
+IF error THEN status := 16#8002; ELSE status := 16#0000; END_IF;
+END_FUNCTION_BLOCK`;
+
+const ST_VENTIL = `FUNCTION_BLOCK FB_Ventil
+(* Sablona: dvoupolohovy ventil/valec s koncovymi snimaci *)
+VAR_INPUT
+    enable : BOOL;
+    cmdOpen : BOOL;
+    cmdClose : BOOL;
+    fbkOpen : BOOL;
+    fbkClosed : BOOL;
+END_VAR
+VAR_OUTPUT
+    outOpen : BOOL;
+    busy : BOOL;
+    error : BOOL;
+    status : WORD;
+END_VAR
+VAR
+    statStep : INT;
+    lastOpen : BOOL;
+    lastClose : BOOL;
+    trigOpen : BOOL;
+    trigClose : BOOL;
+    tonTravel : TON;
+END_VAR
+
+IF NOT enable THEN
+    outOpen := FALSE; busy := FALSE; error := FALSE;
+    status := 16#8001; statStep := 0;
+    RETURN;
+END_IF;
+
+trigOpen  := cmdOpen  AND NOT lastOpen;   lastOpen  := cmdOpen;
+trigClose := cmdClose AND NOT lastClose;  lastClose := cmdClose;
+
+CASE statStep OF
+    0: (* CLOSED *)
+        outOpen := FALSE;
+        IF trigOpen THEN statStep := 10; END_IF
+    10: (* OPENING *)
+        outOpen := TRUE;
+        IF fbkOpen THEN statStep := 20; END_IF
+    20: (* OPEN *)
+        outOpen := TRUE;
+        IF trigClose THEN statStep := 30; END_IF
+    30: (* CLOSING *)
+        outOpen := FALSE;
+        IF fbkClosed THEN statStep := 0; END_IF
+    90: (* ERROR *)
+        outOpen := FALSE;
+        IF trigClose THEN statStep := 0; END_IF
+END_CASE;
+
+tonTravel(IN := (statStep = 10) OR (statStep = 30), PT := T#5S);
+IF tonTravel.Q THEN statStep := 90; END_IF;
+
+busy := (statStep = 10) OR (statStep = 30);
+error := (statStep = 90);
+IF error THEN status := 16#8002; ELSE status := 16#0000; END_IF;
+END_FUNCTION_BLOCK`;
+
+const ST_AI = `FUNCTION_BLOCK FB_AnalogIn
+(* Sablona: analogovy vstup se skalovanim a mezemi.
+   POZOR: surovy rozsah uprav dle platformy (Siemens 27648,
+   Rockwell dle modulu/inz. jednotek, Beckhoff 32767...) *)
+VAR_INPUT
+    rawValue : INT;
+    rawMax : INT := 27648;
+    scaleMin : REAL := 0.0;
+    scaleMax : REAL := 100.0;
+    limitHi : REAL := 1.0E+6;
+    limitLo : REAL := -1.0E+6;
+END_VAR
+VAR_OUTPUT
+    value : REAL;
+    alarmHi : BOOL;
+    alarmLo : BOOL;
+END_VAR
+
+value := INT_TO_REAL(rawValue) / INT_TO_REAL(rawMax)
+         * (scaleMax - scaleMin) + scaleMin;
+alarmHi := value > limitHi;
+alarmLo := value < limitLo;
+END_FUNCTION_BLOCK`;
+
+const ST_AO = `FUNCTION_BLOCK FB_AnalogOut
+(* Sablona: analogovy vystup — inzenyrske jednotky -> surova hodnota *)
+VAR_INPUT
+    value : REAL;
+    rawMax : INT := 27648;
+    scaleMin : REAL := 0.0;
+    scaleMax : REAL := 100.0;
+END_VAR
+VAR_OUTPUT
+    rawValue : INT;
+END_VAR
+
+rawValue := REAL_TO_INT((value - scaleMin) / (scaleMax - scaleMin)
+            * INT_TO_REAL(rawMax));
+END_FUNCTION_BLOCK`;
+
+/* ============================================================ generování */
+function ioOf(dev){ const o={}; for(const e of P.io) if(e.devId===dev.id) o[e.sig]=e; return o; }
+function usedClasses(){ return new Set(P.devices.map(d=>d.cls)); }
+function instName(d){ return "inst"+d.name; }
+
+/* reference na globální tag dle platformy */
+function refFn(plat){
+  if(plat==="siemens") return t=>'"'+t+'"';
+  if(["beckhoff","codesys","schneider"].includes(plat)) return t=>"GVL_IO."+t;
+  return t=>t;
+}
+/* lokální proměnná dle dialektu */
+function locFn(plat){ return plat==="siemens" ? v=>"#"+v : v=>v; }
+
+/* sekvence: latchované povely + přechody */
+function seqVars(){
+  const vars = new Set();
+  for(const s of P.program.seq){
+    const d = devById(s.dev);
+    if(!d) continue;
+    if(d.cls==="Motor") vars.add("seqRun_"+d.name);
+    if(d.cls==="Ventil") vars.add("seqOpen_"+d.name);
+  }
+  return [...vars];
+}
+function seqTimedSteps(){
+  const list = [];
+  P.program.seq.forEach((s,i)=>{ if(s.act==="wait" || s.cond==="time") list.push(10+i*10); });
+  return list;
+}
+function seqBody(plat){
+  const L = locFn(plat), R = refFn(plat);
+  const steps = P.program.seq;
+  if(!steps.length) return "";
+  let b = "";
+  const cmt = plat==="siemens" ? (t)=>"// "+t : (t)=>"(* "+t+" *)";
+  b += "    "+cmt("--- Automatická sekvence (režim AUTO) ---")+"\n";
+  b += "    IF NOT "+L("modeAuto")+" OR NOT "+L("enable")+" THEN\n";
+  b += "        "+L("seqStep")+" := 0;\n";
+  for(const v of seqVars()) b += "        "+L(v)+" := FALSE;\n";
+  b += "    END_IF;\n\n";
+  b += "    CASE "+L("seqStep")+" OF\n";
+  b += "        0: "+cmt("čekání na start")+"\n";
+  b += "            IF "+L("modeAuto")+" AND "+L("cmdAutoStart")+" THEN "+L("seqStep")+" := 10; END_IF"+(plat==="siemens"?";":"")+"\n";
+  steps.forEach((s,i)=>{
+    const n = 10+i*10, next = (i===steps.length-1) ? 0 : 10+(i+1)*10;
+    const d = devById(s.dev);
+    let title = "", action = "", cond = "";
+    if(s.act==="wait"){
+      title = "výdrž "+(s.timeS||1)+" s";
+      cond = L("tonSeq"+n)+".Q";
+    } else if(d && d.cls==="Motor"){
+      title = d.name+" "+(s.act==="start"?"start":"stop");
+      action = "            "+L("seqRun_"+d.name)+" := "+(s.act==="start"?"TRUE":"FALSE")+";\n";
+      const io = ioOf(d);
+      if(s.cond==="time") cond = L("tonSeq"+n)+".Q";
+      else if(io.fbkRunning) cond = (s.act==="start"?"":"NOT ")+R(io.fbkRunning.tag);
+      else cond = "TRUE "+cmt("bez zpětného hlášení");
+    } else if(d && d.cls==="Ventil"){
+      title = d.name+" "+(s.act==="open"?"otevřít":"zavřít");
+      action = "            "+L("seqOpen_"+d.name)+" := "+(s.act==="open"?"TRUE":"FALSE")+";\n";
+      const io = ioOf(d);
+      if(s.cond==="time") cond = L("tonSeq"+n)+".Q";
+      else if(s.act==="open" && io.fbkOpen) cond = R(io.fbkOpen.tag);
+      else if(s.act==="close" && io.fbkClosed) cond = R(io.fbkClosed.tag);
+      else cond = "TRUE "+cmt("bez koncového snímače");
+    } else { title = "krok"; cond = "TRUE"; }
+    b += "        "+n+": "+cmt("Krok "+(i+1)+": "+title)+"\n";
+    b += action;
+    b += "            IF "+cond+" THEN "+L("seqStep")+" := "+next+"; END_IF"+(plat==="siemens"?";":"")+"\n";
+  });
+  b += "    END_CASE;\n\n";
+  for(const n of seqTimedSteps()){
+    const s = P.program.seq[(n-10)/10];
+    b += "    "+L("tonSeq"+n)+"(IN := ("+L("seqStep")+" = "+n+"), PT := T#"+(s.timeS||1)+"S);\n";
+  }
+  return b;
+}
+function seqDecls(plat){
+  const out = [];
+  out.push("    modeAuto : BOOL;      "+(plat==="siemens"?"// TODO: přepínač režimu (HMI)":"(* TODO: prepinac rezimu (HMI) *)"));
+  out.push("    cmdAutoStart : BOOL;  "+(plat==="siemens"?"// TODO: tlačítko start auto":"(* TODO: tlacitko start auto *)"));
+  out.push("    seqStep : INT;");
+  for(const v of seqVars()) out.push("    "+v+" : BOOL;");
+  for(const n of seqTimedSteps()) out.push("    tonSeq"+n+" : TON;");
+  return out.join("\n");
+}
+
+/* zapojení instancí */
+function wiring(plat){
+  const R = refFn(plat), L = locFn(plat);
+  const inst = [], calls = [], free = [];
+  const hasSeq = P.program.seq.length>0;
+  for(const d of P.devices){
+    const io = ioOf(d);
+    const title = d.name+(d.desc?" – "+d.desc:"");
+    const c = plat==="siemens" ? "    // "+title : "    (* "+title+" *)";
+    if(d.cls==="Motor"){
+      inst.push({n:instName(d), t:"FB_Motor"});
+      const auto = hasSeq && seqVars().includes("seqRun_"+d.name);
+      calls.push(c+"\n    "+L(instName(d))+"(enable := "+L("enable")+",\n"+
+        "        cmdStart := "+(auto?L("seqRun_"+d.name):"FALSE")+", "+(plat==="siemens"?"// TODO: + ruční povel z HMI":"(* TODO: + rucni povel z HMI *)")+"\n"+
+        "        cmdStop := "+(auto?"NOT "+L("seqRun_"+d.name):"FALSE")+",\n"+
+        "        fbkRunning := "+(io.fbkRunning?R(io.fbkRunning.tag):"TRUE")+","+(io.fbkRunning?"":" "+(plat==="siemens"?"// bez zpětného hlášení":"(* bez zpetneho hlaseni *)"))+"\n"+
+        "        fault := "+(io.fault?R(io.fault.tag):"FALSE")+",\n"+
+        "        outRun => "+(io.outRun?R(io.outRun.tag):L("tempUnused"))+");");
+    } else if(d.cls==="Ventil"){
+      inst.push({n:instName(d), t:"FB_Ventil"});
+      const auto = hasSeq && seqVars().includes("seqOpen_"+d.name);
+      calls.push(c+"\n    "+L(instName(d))+"(enable := "+L("enable")+",\n"+
+        "        cmdOpen := "+(auto?L("seqOpen_"+d.name):"FALSE")+", "+(plat==="siemens"?"// TODO: + ruční povel":"(* TODO: + rucni povel *)")+"\n"+
+        "        cmdClose := "+(auto?"NOT "+L("seqOpen_"+d.name):"FALSE")+",\n"+
+        "        fbkOpen := "+(io.fbkOpen?R(io.fbkOpen.tag):"TRUE")+",\n"+
+        "        fbkClosed := "+(io.fbkClosed?R(io.fbkClosed.tag):"TRUE")+",\n"+
+        "        outOpen => "+(io.outOpen?R(io.outOpen.tag):L("tempUnused"))+");");
+    } else if(d.cls==="AnalogIn"){
+      inst.push({n:instName(d), t:"FB_AnalogIn"});
+      calls.push(c+"\n    "+L(instName(d))+"(rawValue := "+(io.raw?R(io.raw.tag):"0")+",\n"+
+        "        scaleMin := "+fmtR(d.rmin)+", scaleMax := "+fmtR(d.rmax)+"); "+(plat==="siemens"?"// "+(d.unit||"jednotky dle snímače"):"(* "+stripDia(d.unit||"jednotky dle snimace")+" *)"));
+    } else if(d.cls==="AnalogOut"){
+      inst.push({n:instName(d), t:"FB_AnalogOut"});
+      calls.push(c+"\n    "+L(instName(d))+"(value := 0.0, "+(plat==="siemens"?"// TODO: žádaná hodnota":"(* TODO: zadana hodnota *)")+"\n"+
+        "        scaleMin := "+fmtR(d.rmin)+", scaleMax := "+fmtR(d.rmax)+",\n"+
+        "        rawValue => "+(io.raw?R(io.raw.tag):L("tempUnused2"))+");");
+    } else {
+      for(const e of Object.values(io)) free.push("    "+(plat==="siemens"?"//":"(*")+"   "+(e.addr||"").padEnd(8)+" "+R(e.tag)+"  "+(plat==="siemens"?e.cmt:stripDia(e.cmt)+" *)"));
+    }
+  }
+  return {inst, calls, free};
+}
+function fmtR(v){ const n = Number(v); return Number.isFinite(n) ? (Number.isInteger(n)?n+".0":String(n)) : "0.0"; }
+function enableExpr(plat){
+  const R = refFn(plat);
+  const es = devById(P.program.estop);
+  if(es){ const io = ioOf(es); const e = io.in||Object.values(io)[0];
+    if(e) return R(e.tag)+" "+(plat==="siemens"?"// E-stop NC: TRUE = OK — doplň celý bezpečnostní okruh!":"(* E-stop NC: TRUE = OK - doplnit cely bezpecnostni okruh! *)"); }
+  return "TRUE "+(plat==="siemens"?"// TODO: napojit bezpečnostní okruh!":"(* TODO: napojit bezpecnostni okruh! *)");
+}
+
+/* --- Siemens výstupy --- */
+function genSiemensTagsXml(){
+  let id = 0; const nid = ()=> (id++).toString();
+  let x = '<?xml version="1.0" encoding="utf-8"?>\n<Document>\n  <Engineering version="V21" />\n  <SW.Tags.PlcTagTable ID="'+nid()+'">\n    <AttributeList>\n      <Name>Gen_IO</Name>\n    </AttributeList>\n    <ObjectList>\n';
+  for(const e of P.io){
+    x += '      <SW.Tags.PlcTag ID="'+nid()+'" CompositionName="Tags">\n        <AttributeList>\n          <DataTypeName>'+(e.dir==="AI"||e.dir==="AO"?"Int":"Bool")+'</DataTypeName>\n          <LogicalAddress>'+xmlEsc(e.addr)+'</LogicalAddress>\n          <Name>'+xmlEsc(e.tag)+'</Name>\n        </AttributeList>\n';
+    if(e.cmt) x += '        <ObjectList>\n          <MultilingualText ID="'+nid()+'" CompositionName="Comment">\n            <ObjectList>\n              <MultilingualTextItem ID="'+nid()+'" CompositionName="Items">\n                <AttributeList>\n                  <Culture>cs-CZ</Culture>\n                  <Text>'+xmlEsc(e.cmt)+'</Text>\n                </AttributeList>\n              </MultilingualTextItem>\n            </ObjectList>\n          </MultilingualText>\n        </ObjectList>\n';
+    x += '      </SW.Tags.PlcTag>\n';
+  }
+  return x+'    </ObjectList>\n  </SW.Tags.PlcTagTable>\n</Document>\n';
+}
+function genLibrary(plat){
+  const u = usedClasses(); const parts = [];
+  const hdr = plat==="siemens"
+    ? "// Gen_Library.scl – knihovna šablon (generováno PLC Studio)\n// Import: External source files → Generate blocks from source (PŘED Gen_Main)"
+    : "(* Gen_Library.st - knihovna sablon (generovano PLC Studio) - "+PLAT[plat].name+" *)";
+  parts.push(hdr,"");
+  const T = plat==="siemens" ? {Motor:SCL_MOTOR,Ventil:SCL_VENTIL,AnalogIn:SCL_AI,AnalogOut:SCL_AO}
+                             : {Motor:ST_MOTOR,Ventil:ST_VENTIL,AnalogIn:ST_AI,AnalogOut:ST_AO};
+  for(const c of ["Motor","Ventil","AnalogIn","AnalogOut"]) if(u.has(c)) parts.push(T[c],"");
+  if(parts.length<=2) parts.push(plat==="siemens"?"// (žádné instancované třídy zařízení)":"(* zadne instancovane tridy zarizeni *)");
+  return parts.join("\n");
+}
+function genMainSiemens(){
+  const {inst, calls, free} = wiring("siemens");
+  const hasSeq = P.program.seq.length>0;
+  let v = inst.map(i=>'    '+i.n+' : "'+i.t+'";').join("\n");
+  if(hasSeq) v += (v?"\n":"")+seqDecls("siemens");
+  return `// Gen_Main.scl – strojní blok (multi-instance). Import PO Gen_Library.scl.
+
+FUNCTION_BLOCK "FB_Machine"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    enableIn : Bool;   // centrální uvolnění zvenku (OB1)
+END_VAR
+VAR
+    enable : Bool;
+${v || "    // žádné instance"}
+END_VAR
+VAR_TEMP
+    tempUnused : Bool;
+    tempUnused2 : Int;
+END_VAR
+
+BEGIN
+    #enable := #enableIn;
+
+${seqBody("siemens")}${calls.join("\n\n") || "    ;"}
+
+    // Volné signály (DI/DO) pro vlastní logiku:
+${free.join("\n") || "    //   (žádné)"}
+END_FUNCTION_BLOCK
+
+DATA_BLOCK "InstMachine"
+{ S7_Optimized_Access := 'TRUE' }
+"FB_Machine"
+BEGIN
+END_DATA_BLOCK
+
+(* --- Vložit do OB1 (Main) ---------------------------------
+   "InstMachine"(enableIn := ${enableExpr("siemens").split("//")[0].trim()});
+   ----------------------------------------------------------- *)`;
+}
+/* --- IEC výstupy --- */
+function genGVL(plat){
+  const lines = ["(* GVL_IO - globalni promenne / fyzicke I/O - generovano PLC Studio *)","VAR_GLOBAL"];
+  for(const e of P.io){
+    const at = addrFor(plat,e);
+    lines.push("    "+e.tag+(at?" AT "+at:"")+" : "+dtFor(e)+";"+(e.cmt?" (* "+stripDia(e.cmt)+" *)":""));
+  }
+  lines.push("END_VAR");
+  return lines.join("\n");
+}
+function genMainIEC(plat){
+  const {inst, calls, free} = wiring(plat);
+  const hasSeq = P.program.seq.length>0;
+  let v = inst.map(i=>"    "+i.n+" : "+i.t+";").join("\n");
+  if(hasSeq) v += (v?"\n":"")+seqDecls(plat);
+  return `(* MAIN - hlavni program (generovano PLC Studio) - ${PLAT[plat].name} *)
+PROGRAM MAIN
+VAR
+    enable : BOOL;
+${v || "    (* zadne instance *)"}
+    tempUnused : BOOL;
+    tempUnused2 : INT;
+END_VAR
+
+enable := ${enableExpr(plat)};
+
+${seqBody(plat)}${calls.join("\n\n") || ";"}
+
+(* Volne signaly (DI/DO) pro vlastni logiku: *)
+${free.join("\n") || "(*   zadne *)"}
+END_PROGRAM`;
+}
+function genTagFile(plat){
+  if(plat==="rockwell"){
+    const l = ["TYPE,SCOPE,NAME,DESCRIPTION,DATATYPE,SPECIFIER,ATTRIBUTES"];
+    for(const e of P.io) l.push('TAG,,'+e.tag+',"'+stripDia(e.cmt).replace(/"/g,"'")+'",'+(dtFor(e)==="INT"?"INT":"BOOL")+',,');
+    return {name:"Tags.csv", body:l.join("\n")};
+  }
+  if(plat==="mitsubishi"){
+    const l = ['"Label Name","Data Type","Class","Comment","Assign (Device/Label)"'];
+    for(const e of P.io) l.push('"'+e.tag+'","'+(dtFor(e)==="INT"?"Word [Signed]":"Bit")+'","VAR_GLOBAL","'+stripDia(e.cmt).replace(/"/g,"'")+'","'+addrFor(plat,e)+'"');
+    return {name:"GlobalLabels.csv", body:l.join("\n")};
+  }
+  if(plat==="omron"){
+    const l = ["Name\tData Type\tAT\tRetain\tComment"];
+    for(const e of P.io) l.push(e.tag+"\t"+dtFor(e)+"\t\tFALSE\t"+stripDia(e.cmt));
+    return {name:"Variables.txt", body:l.join("\n")};
+  }
+  return {name:"GVL_IO.st", body:genGVL(plat)};
+}
+function genReadme(plat){
+  const n = P.devices.length, t = P.io.length;
+  const common = `PROJEKT: ${P.meta.name||"(bez názvu)"} · ${t} tagů · ${n} zařízení · generováno ${new Date().toLocaleDateString("cs-CZ")}
+
+SPOLEČNÉ KROKY
+1. Vytvoř projekt v IDE a nakonfiguruj HW (CPU + I/O moduly) — HW konfigurace se negeneruje.
+2. Naimportuj tagy/proměnné (soubor s tagy níže).
+3. Vlož knihovnu šablon (Gen_Library), poté hlavní program (MAIN).
+4. Projdi TODO komentáře: ruční povely z HMI, režim AUTO, rozsahy analogů.
+5. BEZPEČNOST: E-stop v kódu je jen informativní signál. Skutečné bezpečnostní
+   funkce patří do safety relé / F-PLC dle normy (ISO 13849 / IEC 62061) — NIKDY
+   je neřeš jen v běžném programu.
+6. Otestuj v simulátoru platformy před nasazením na stroj.
+`;
+  const spec = {
+    siemens:`SIEMENS TIA PORTAL (V17–V21, S7-1200/1500)
+- Gen_IO.xml: import tabulky tagů přes Openness (hlavička <Engineering version> musí
+  odpovídat verzi Portalu), nebo tagy vlož ručně z Excelu.
+- Gen_Library.scl a Gen_Main.scl: Program blocks → External source files →
+  Add new external file → pravý klik → Generate blocks from source (NEJDŘÍV knihovnu).
+- Vznikne FB_Machine + InstMachine; volání vlož do OB1 (komentář na konci Gen_Main).
+- Doplň diagnostické OB 82/86/121/122, ať CPU nejde do STOP při poruše periferie.
+- Test: PLCSIM / PLCSIM Advanced.`,
+    rockwell:`ROCKWELL STUDIO 5000 (CompactLogix/ControlLogix)
+- Tags.csv: Tools → Import → Tags and Logic Comments (zkontroluj mapování sloupců).
+- Fyzické I/O: v Logix nejsou %I/%Q adresy — vytvoř ALIAS tagy na moduly
+  (např. M1_fbkRunning = alias na Local:1:I.Data.0).
+- Gen_Library.st: vlož FB jako Add-On Instruction (ST) nebo přepiš na AOI.
+- MAIN.st: vlož do ST rutiny v MainProgram.
+- POZOR: TON nahraď instrukcí TONR (struktura FBD_TIMER) a WORD → INT/DINT.
+  Detekce hran je v kódu ruční, funguje beze změny.
+- Test: Logix Echo / emulátor.`,
+    beckhoff:`BECKHOFF TWINCAT 3
+- GVL_IO.st: PLC projekt → Add → Global Variable List, vlož obsah.
+  Adresy %IX/%QX můžeš nechat a nalinkovat v I/O mapování, nebo použít AT %I*.
+- Gen_Library.st: každý FUNCTION_BLOCK vlož jako nový POU (ST).
+- MAIN.st: obsah do MAIN (PRG) a zavolej v PlcTask.
+- Test: lokální runtime na PC (TwinCAT XAR).`,
+    codesys:`CODESYS V3.5 (WAGO, Festo, Eaton…)
+- GVL_IO.st: Application → Add Object → Global Variable List.
+- Gen_Library.st: POU pro každý FB (jazyk ST). Lze i PLCopen XML export/import.
+- MAIN.st: do PLC_PRG a přiřaď do tasku.
+- Adresy %IX/%QX namapuj v konfiguraci sběrnice (EtherCAT/Profinet…).
+- Test: CODESYS Control Win (soft PLC).`,
+    mitsubishi:`MITSUBISHI GX WORKS3 (iQ-F/iQ-R)
+- GlobalLabels.csv: Navigation → Label → Global Label → import CSV
+  (sloupec Assign obsahuje návrh X/Y — ověř dle skutečných modulů).
+- Gen_Library.st: Function Block do knihovny projektu (jazyk ST).
+- MAIN.st: do programu ProgPou (ST). TON = TON z i QDS/standard knihovny.
+- Analogy: suroví hodnota dle modulu (např. 0–16000 u FX5) → uprav rawMax.
+- Test: GX Simulator3.`,
+    schneider:`SCHNEIDER ECOSTRUXURE MACHINE EXPERT (M241/M262)
+- Platforma je postavená na CODESYS — postup shodný: GVL, POU (ST), MAIN do tasku.
+- Adresy %IX/%QX namapuj na embedded I/O / TM3 moduly v konfiguraci.
+- Pro Control Expert (M580) je nutné bloky přenést jako DFB — struktura sedí.
+- Test: simulátor v Machine Expert.`,
+    omron:`OMRON SYSMAC STUDIO (NX/NJ)
+- Variables.txt: zkopíruj do Global Variables (tab-separated sloupce sedí na editor).
+- AT sloupec nech prázdný a namapuj na I/O porty zařízení (EtherCAT) v projektu.
+- Gen_Library.st: Function Block (ST) do POUs → Functions.
+- MAIN.st: do Program0 (ST) a přiřaď do tasku.
+- Test: Simulace přímo v Sysmac Studiu.`
+  };
+  return common+"\n"+spec[plat];
+}
+function genFor(plat){
+  const files = {};
+  if(plat==="siemens"){
+    files["Gen_IO.xml"] = genSiemensTagsXml();
+    files["Gen_Library.scl"] = genLibrary("siemens");
+    files["Gen_Main.scl"] = genMainSiemens();
+  } else {
+    const tf = genTagFile(plat);
+    files[tf.name] = tf.body;
+    files["Gen_Library.st"] = genLibrary(plat);
+    files["MAIN.st"] = genMainIEC(plat);
+  }
+  files["README.txt"] = genReadme(plat);
+  return files;
+}
+
+/* ============================================================ ukázkový projekt */
+function seedAiFromDesign(popis, note){
+  const prop = {questions:[],
+    devices:P.devices.map(d=>({name:d.name, cls:d.cls, desc:d.desc, opt:d.opt||{}, unit:d.unit||"", rmin:d.rmin??0, rmax:d.rmax??100})),
+    estop:(devById(P.program.estop)||{}).name||"",
+    seq:P.program.seq.map(s=>({dev:(devById(s.dev)||{}).name||"", act:s.act, cond:s.cond, timeS:s.timeS})),
+    note};
+  P.ai = {turns:[{role:"user", content:popis},{role:"assistant", content:JSON.stringify(prop)}], last:prop, draft:""};
+}
+function loadSample(){
+  P = BLANK();
+  P.meta = {name:"Hydraulická zkušební stanice (ukázka)", desc:"Ukázkový projekt — čerpadlo, upínací ventil, tlak, teplota, bezpečnostní vstupy. Není to tvůj projekt, slouží k prohlídce workflow."};
+  const mk = (name,cls,desc,opt,unit,rmin,rmax)=>({id:P.nextId++, name, cls, desc, opt:opt||{}, unit:unit||"", rmin:rmin??0, rmax:rmax??100});
+  P.devices = [
+    mk("M1","Motor","Čerpadlo hydrauliky",{fbk:true,fault:true}),
+    mk("Y1","Ventil","Ventil upínání",{fbkOpen:true,fbkClosed:true}),
+    mk("B1","AnalogIn","Tlak hydrauliky",{}, "bar",0,250),
+    mk("B2","AnalogIn","Teplota oleje",{}, "°C",0,100),
+    mk("S1","DI","Nouzové zastavení (NC)"),
+    mk("S2","DI","Krytí zavřeno"),
+    mk("H1","DO","Signálka Připraveno")
+  ];
+  P.io = [];
+  syncIO();
+  P.program = {modes:true, estop:P.devices[4].id, seq:[
+    {dev:P.devices[1].id, act:"open", cond:"fbk", timeS:5},
+    {dev:P.devices[0].id, act:"start", cond:"fbk", timeS:3},
+    {dev:0, act:"wait", cond:"time", timeS:5},
+    {dev:P.devices[0].id, act:"stop", cond:"fbk", timeS:3},
+    {dev:P.devices[1].id, act:"close", cond:"fbk", timeS:5}
+  ]};
+  seedAiFromDesign(
+    "Hydraulická zkušební stanice: čerpadlo hydrauliky se zpětným hlášením běhu a poruchou jističe, upínací ventil s oběma koncáky, měření tlaku 0–250 bar a teploty oleje 0–100 °C, nouzové zastavení, koncák krytu, signálka Připraveno. Automatický cyklus: upnout → spustit čerpadlo → výdrž 5 s → stop → povolit.",
+    "Ukázkový návrh malé stanice — předvyplněno jako příklad práce AI návrháře; dalšími zprávami ho můžeš upřesňovat.");
+  P.step = 0;
+  save(); render();
+}
+
+function loadSample2(){
+  P = BLANK();
+  P.meta = {name:"Lisovací a značicí linka LL-03 (složitý příklad)", desc:"Ukázkový složitější projekt — podavač dílů, manipulátor s vakuem, hydraulický lis se značením a výstupní dopravník. Dvouruční spouštění, světelná závora, dva kryty. Není to tvůj projekt, slouží k prohlídce workflow na větším stroji."};
+  const mk = (name,cls,desc,opt,unit,rmin,rmax)=>({id:P.nextId++, name, cls, desc, opt:opt||{}, unit:unit||"", rmin:rmin??0, rmax:rmax??100});
+  P.devices = [
+    mk("M1","Motor","Vstupní pásový dopravník",{fbk:true,fault:true}),
+    mk("M2","Motor","Výstupní pásový dopravník",{fbk:true,fault:true}),
+    mk("M3","Motor","Vibrační podavač dílů",{fbk:false,fault:false}),
+    mk("M4","Motor","Čerpadlo hydraulického agregátu",{fbk:true,fault:true}),
+    mk("Y1","Ventil","Lisovací válec",{fbkOpen:true,fbkClosed:true}),
+    mk("Y2","Ventil","Upínací válec levý",{fbkOpen:true,fbkClosed:true}),
+    mk("Y3","Ventil","Upínací válec pravý",{fbkOpen:true,fbkClosed:true}),
+    mk("Y4","Ventil","Manipulátor — přesuv do lisu",{fbkOpen:true,fbkClosed:true}),
+    mk("Y5","Ventil","Vakuová přísavka manipulátoru",{fbkOpen:true,fbkClosed:false}),
+    mk("Y6","Ventil","Značicí jednotka (razicí válec)",{fbkOpen:false,fbkClosed:false}),
+    mk("B1","AnalogIn","Tlak hydrauliky",{}, "bar",0,250),
+    mk("B2","AnalogIn","Teplota oleje",{}, "°C",0,100),
+    mk("B3","AnalogIn","Lisovací síla (tenzometr)",{}, "kN",0,400),
+    mk("B4","AnalogIn","Poloha lisu (lineární snímač)",{}, "mm",0,500),
+    mk("B5","AnalogIn","Průtok chlazení",{}, "l/min",0,60),
+    mk("U1","AnalogOut","Proporcionální ventil tlaku",{}, "%",0,100),
+    mk("U2","AnalogOut","Žádaná rychlost dopravníku M2",{}, "%",0,100),
+    mk("S1","DI","Nouzové zastavení (NC)"),
+    mk("S2","DI","Kryt levý zavřen (NC)"),
+    mk("S3","DI","Kryt pravý zavřen (NC)"),
+    mk("S4","DI","Světelná závora volná"),
+    mk("S5","DI","Dvouruční spouštění — tlačítko A"),
+    mk("S6","DI","Dvouruční spouštění — tlačítko B"),
+    mk("S7","DI","Díl v pozici pod manipulátorem"),
+    mk("S8","DI","Zásobník dílů prázdný"),
+    mk("H1","DO","Maják zelená — chod"),
+    mk("H2","DO","Maják červená — porucha"),
+    mk("H3","DO","Houkačka — start cyklu"),
+    mk("H4","DO","Elektromagnetický zámek krytů")
+  ];
+  P.io = [];
+  syncIO();
+  const id = n => (P.devices.find(d=>d.name===n)||{}).id;
+  P.program = {modes:true, estop:id("S1"), seq:[
+    {dev:id("M3"), act:"start", cond:"time", timeS:2},
+    {dev:id("M1"), act:"start", cond:"fbk", timeS:3},
+    {dev:id("Y4"), act:"open",  cond:"fbk", timeS:5},
+    {dev:id("Y5"), act:"open",  cond:"fbk", timeS:2},
+    {dev:id("Y4"), act:"close", cond:"fbk", timeS:5},
+    {dev:id("Y2"), act:"open",  cond:"fbk", timeS:4},
+    {dev:id("Y3"), act:"open",  cond:"fbk", timeS:4},
+    {dev:id("M4"), act:"start", cond:"fbk", timeS:3},
+    {dev:id("Y1"), act:"open",  cond:"fbk", timeS:8},
+    {dev:0,        act:"wait",  cond:"time", timeS:5},
+    {dev:id("Y1"), act:"close", cond:"fbk", timeS:8},
+    {dev:id("M4"), act:"stop",  cond:"fbk", timeS:3},
+    {dev:id("Y6"), act:"open",  cond:"time", timeS:1},
+    {dev:id("Y6"), act:"close", cond:"time", timeS:1},
+    {dev:id("Y2"), act:"close", cond:"fbk", timeS:4},
+    {dev:id("Y3"), act:"close", cond:"fbk", timeS:4},
+    {dev:id("Y5"), act:"close", cond:"time", timeS:1},
+    {dev:id("M2"), act:"start", cond:"fbk", timeS:3}
+  ]};
+  seedAiFromDesign(
+    "Lisovací a značicí linka: vibrační podavač a vstupní pás dodávají díly, manipulátor s vakuovou přísavkou zakládá díl do hydraulického lisu, dva upínací válce, lisovací válec s měřením síly a polohy, značicí jednotka, výstupní pás s řízenou rychlostí. Hydraulický agregát s měřením tlaku, teploty oleje a průtoku chlazení, proporcionální ventil tlaku. Bezpečnost: E-stop, dva kryty, světelná závora, dvouruční spouštění, majáky, houkačka a zámek krytů. Automatický cyklus: podat díl → založit → upnout → lisovat 5 s → označit → uvolnit → odvézt.",
+    "Ukázkový návrh složité linky — předvyplněno jako příklad práce AI návrháře; dalšími zprávami ho můžeš upřesňovat.");
+  P.step = 0;
+  save(); render();
+}
+
+/* ============================================================ UI — kroky */
+function render(){
+  const nav = $("stepper");
+  nav.innerHTML = STEPS.map((s,i)=>'<button class="'+(i===P.step?"on":(stepDone(i)?"done":""))+'" data-i="'+i+'">'+(i+1)+" · "+s+"</button>").join("")
+    + '<button class="helpbtn'+(P.step==="help"?" on":"")+'" data-help>?&nbsp;Nápověda</button>';
+  nav.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ P.step = b.hasAttribute("data-help") ? "help" : +b.dataset.i; save(); render(); }));
+  $("projName").textContent = P.meta.name ? "— "+P.meta.name : "";
+  const num = typeof P.step === "number";
+  $("btnPrev").style.visibility = (num && P.step>0) ? "visible":"hidden";
+  $("btnNext").style.visibility = (num && P.step<STEPS.length-1) ? "visible":"hidden";
+  const r = (P.step==="help") ? rHelp : ([rProjekt,rAI,rPlat,rDev,rIO,rSchema,rProg,rGen,rDocs][P.step] || rProjekt);
+  $("view").innerHTML = "";
+  r($("view"));
+  window.scrollTo({top:0});
+}
+function stepDone(i){
+  if(i===0) return !!P.meta.name;
+  if(i===2) return P.platforms.length>0;
+  if(i===3) return P.devices.length>0;
+  return false;
+}
+function card(el, num, title, inner){
+  const c = document.createElement("section");
+  c.className = "card";
+  c.innerHTML = '<h2><span class="n">'+num+'</span>'+title+'</h2>'+inner;
+  el.appendChild(c);
+  return c;
+}
+
+/* --- 1 Projekt --- */
+function rProjekt(el){
+  const c = card(el,"01","Projekt",`
+  <div class="grid g2">
+    <label class="f">Název projektu / stroje
+      <input type="text" id="pName" value="${esc(P.meta.name)}" placeholder="např. Temperační stanice TS-02">
+    </label>
+    <label class="f">Popis
+      <input type="text" id="pDesc" value="${esc(P.meta.desc)}" placeholder="co stroj dělá, pro koho">
+    </label>
+  </div>
+  <div class="row">
+    <button class="small" id="bSample">Ukázka: malá stanice</button>
+    <button class="small" id="bSample2">Ukázka: složitá linka</button>
+    <button class="small" id="bExport">Export návrhu (JSON)</button>
+    <button class="small" id="bImportJson">Načíst návrh (JSON)</button>
+    <button class="small danger" id="bReset">Nový prázdný projekt</button>
+  </div>
+  <textarea id="jsonBox" hidden style="margin-top:12px;min-height:120px" spellcheck="false" aria-label="JSON návrhu"></textarea>
+  <div class="row" id="jsonRow" hidden>
+    <button class="small" id="bJsonCopy">Kopírovat JSON</button>
+    <button class="small primary" id="bJsonLoad">Načíst z textu</button>
+  </div>
+  <p class="note">Jak nástroj funguje: projdi kroky zleva doprava — návrh se průběžně ukládá v prohlížeči a mezi kroky se můžeš kdykoli vracet a vstupy upřesňovat; generované výstupy se vždy přepočítají. Nejrychlejší start: popiš stroj v kroku <b>AI návrh</b> a nech si sestavu navrhnout. Existující projekt lze převzít vedlejší volbou <b>Import</b> dole v kroku Zařízení. Pokud s PLC začínáš, otevři <b>Nápovědu</b> (tlačítko vpravo v liště kroků).</p>`);
+  c.querySelector("#pName").addEventListener("input",e=>{ P.meta.name=e.target.value; save(); $("projName").textContent = P.meta.name?"— "+P.meta.name:""; });
+  c.querySelector("#pDesc").addEventListener("input",e=>{ P.meta.desc=e.target.value; save(); });
+  c.querySelector("#bSample").addEventListener("click", loadSample);
+  c.querySelector("#bSample2").addEventListener("click", loadSample2);
+  c.querySelector("#bReset").addEventListener("click", ()=>{ P = BLANK(); save(); render(); });
+  const jb = c.querySelector("#jsonBox"), jr = c.querySelector("#jsonRow");
+  c.querySelector("#bExport").addEventListener("click", ()=>{ jb.hidden=false; jr.hidden=false; jb.value = JSON.stringify(P,null,1); });
+  c.querySelector("#bImportJson").addEventListener("click", ()=>{ jb.hidden=false; jr.hidden=false; jb.value=""; jb.placeholder="Vlož dříve exportovaný JSON návrhu…"; jb.focus(); });
+  c.querySelector("#bJsonCopy").addEventListener("click", ()=>copyText(jb.value, c.querySelector("#bJsonCopy")));
+  c.querySelector("#bJsonLoad").addEventListener("click", ()=>{ try{ P = Object.assign(BLANK(), JSON.parse(jb.value)); save(); render(); }catch(e){ alertRow(c,"Neplatný JSON."); } });
+}
+function alertRow(c,msg){ let d=c.querySelector(".errtxt"); if(!d){ d=document.createElement("div"); d.className="errtxt"; c.appendChild(d);} d.textContent=msg; }
+
+/* --- Import (reverse engineering) — vedlejší volba v kroku Zařízení --- */
+let lastParse = null;
+function importBlock(el){
+  const c = document.createElement("details");
+  c.className = "help";
+  c.innerHTML = `<summary>Vedlejší volba: Import existujícího projektu (reverse engineering)</summary><div class="body">
+  <p class="hint" style="margin-top:0;max-width:75ch">Vlož export z existujícího projektu a PLC Studio z něj zpětně sestaví zařízení a I/O. Pak můžeš návrh upřesnit a vygenerovat program — klidně pro <b>jinou platformu</b> (migrace). Podporované formáty (poznají se automaticky):</p>
+  <ul class="hint" style="margin-top:6px">
+    <li><b>Siemens</b> — SimaticML XML tabulky tagů (Openness export), <code>.scl</code> zdroje</li>
+    <li><b>Rockwell</b> — L5X export, CSV export tagů</li>
+    <li><b>Beckhoff / CODESYS / Schneider</b> — GVL / ST zdroje (<code>VAR_GLOBAL … END_VAR</code>)</li>
+    <li><b>Mitsubishi / OMRON</b> — tabulky labelů/proměnných (CSV / tab)</li>
+    <li>prostý I/O list <code>Tag;Adresa;Zařízení;Třída;Komentář</code></li>
+  </ul>
+  <div class="row">
+    <input type="file" id="impFile" multiple style="font-size:.8rem">
+  </div>
+  <textarea id="impText" placeholder="…nebo sem vlož obsah souboru (XML / ST / CSV)" spellcheck="false" aria-label="Import"></textarea>
+  <div class="row">
+    <button class="primary" id="bAnalyze">Analyzovat</button>
+    <span class="hint" style="margin:0">Analýza nic nepřepíše — nejdřív uvidíš náhled.</span>
+  </div>
+  <div id="impResult"></div>
+  <p class="warnbox"><b>Co se přenese:</b> tagy, adresy, komentáře, odhad zařízení a jejich tříd. <b>Co se nepřenese:</b> logika bloků (ta se jen zinventarizuje), HW konfigurace, safety program a komunikace — logiku generuje PLC Studio znovu ze šablon.</p>
+  ${P.imported.info?'<p class="hint">Naposledy importováno: '+esc(P.imported.info)+'</p>':''}
+  </div>`;
+  el.appendChild(c);
+  c.querySelector("#impFile").addEventListener("change", async e=>{
+    let txt = "";
+    for(const f of e.target.files){ try{ txt += await f.text()+"\n"; }catch(err){} }
+    c.querySelector("#impText").value = txt;
+  });
+  c.querySelector("#bAnalyze").addEventListener("click", ()=>{
+    const res = detectAndParse(c.querySelector("#impText").value);
+    lastParse = res;
+    const box = c.querySelector("#impResult");
+    if(!res.tags.length && !res.blocks.length){ box.innerHTML = '<div class="errtxt">Formát se nepodařilo rozpoznat nebo neobsahuje žádné tagy.</div>'; return; }
+    const built = buildDevicesFromTags(res.tags);
+    lastParse.built = built;
+    let html = '<div class="oktxt">Rozpoznaný formát: <b>'+esc(res.fmt)+'</b> · '+res.tags.length+' tagů · '+built.devices.length+' zařízení</div>';
+    if(res.blocks.length) html += '<p class="hint">Nalezené bloky (jen inventář, logika se negeneruje z nich): '+res.blocks.slice(0,12).map(esc).join(", ")+(res.blocks.length>12?" …":"")+'</p>';
+    html += '<div class="tablewrap"><table><thead><tr><th>Zařízení</th><th>Třída</th><th>Tagy</th></tr></thead><tbody>';
+    for(const d of built.devices){
+      const tags = built.io.filter(e=>e.devId===d.id).map(e=>e.tag);
+      html += '<tr><td class="mono"><b>'+esc(d.name)+'</b></td><td>'+esc(d.cls)+'</td><td class="mono" style="white-space:normal">'+tags.map(esc).join(", ")+'</td></tr>';
+    }
+    html += '</tbody></table></div><div class="row"><button class="primary" id="bApply">Převzít do návrhu (nahradí současná zařízení)</button></div>';
+    box.innerHTML = html;
+    box.querySelector("#bApply").addEventListener("click", ()=>{
+      P.devices = built.devices; P.io = built.io; P.nextId = built.nextId;
+      P.imported = {info:res.fmt+" · "+res.tags.length+" tagů", blocks:res.blocks};
+      autoAddr(false);
+      save(); render();
+    });
+  });
+}
+
+/* --- 2 AI návrh --- */
+let sampleFn; // undefined = zjišťuje se, null = nedostupné, funkce = připraveno
+let aiBusy = false, aiCtl = null;
+function aiInstr(){
+  return 'Jsi zkušený návrhář průmyslové automatizace v nástroji PLC Studio. Z popisu stroje od uživatele navrhni sestavu zařízení pro řízení PLC.\n'
+  +'Dostupné třídy zařízení (jiné neexistují):\n'
+  +'- "Motor" (názvy M1, M2…): pohon/čerpadlo/dopravník; volby opt.fbk = zpětné hlášení běhu, opt.fault = vstup poruchy\n'
+  +'- "Ventil" (Y1…): dvoupolohový ventil nebo pneumatický/hydraulický válec; volby opt.fbkOpen, opt.fbkClosed = koncové snímače\n'
+  +'- "AnalogIn" (B1…): analogové měření; pole unit (jednotka), rmin, rmax (rozsah snímače)\n'
+  +'- "AnalogOut" (U1…): analogový výstup (měnič, proporcionální ventil); unit, rmin, rmax\n'
+  +'- "DI" (S1…): samostatný digitální vstup — tlačítko, světelná závora, koncák krytu, E-stop\n'
+  +'- "DO" (H1…): samostatný digitální výstup — signálka, houkačka, zámek\n'
+  +'Pravidla: vždy přidej E-stop jako DI (typicky S1 "Nouzové zastavení (NC)") a jeho název vrať v "estop"; bezpečnostní logiku NEnavrhuj, jen signál. Popisy piš česky a stručně. U analogů odhadni rozumný rozsah a jednotku.\n'
+  +'Pokud z popisu plyne automatický cyklus, navrhni i sekvenci "seq": pole kroků {"dev":"M1","act":"start|stop|open|close|wait","cond":"fbk|time","timeS":číslo}; krok "wait" má dev:"", cond:"time".\n'
+  +'Chybí-li ZÁSADNÍ informace (typ pohonů, počet os/válců, co se měří…), polož NEJVÝŠE 3 konkrétní otázky v "questions" a "devices" nech prázdné. Jinak "questions" nech prázdné a navrhni kompletní sestavu. Při upřesnění od uživatele vrať vždy CELOU aktualizovanou sestavu.\n'
+  +'Odpověz POUZE jedním JSON objektem: {"questions":["…"],"devices":[{"name":"M1","cls":"Motor","desc":"…","opt":{"fbk":true,"fault":false},"unit":"","rmin":0,"rmax":100}],"estop":"S1","seq":[],"note":"stručné shrnutí návrhu a nejistot"}';
+}
+function aiNorm(r){
+  const out = {questions:[], devices:[], estop:"", seq:[], note:""};
+  if(!r || typeof r!=="object") return out;
+  out.questions = Array.isArray(r.questions) ? r.questions.map(String).slice(0,3) : [];
+  out.devices = (Array.isArray(r.devices)?r.devices:[]).filter(d=>d && CLS[d.cls]).map(d=>({
+    name:String(d.name||"").trim(), cls:d.cls, desc:String(d.desc||"").trim(),
+    opt:(d.opt&&typeof d.opt==="object")?d.opt:{}, unit:String(d.unit||""), rmin:Number(d.rmin)||0, rmax:(Number(d.rmax)||Number(d.rmax)===0)?Number(d.rmax):100
+  }));
+  out.estop = String(r.estop||"");
+  out.seq = (Array.isArray(r.seq)?r.seq:[]).map(s=>({dev:String(s.dev||""), act:String(s.act||""), cond:s.cond==="time"?"time":"fbk", timeS:Number(s.timeS)||3}));
+  out.note = String(r.note||"");
+  return out;
+}
+function aiApply(){
+  const pr = P.ai.last; if(!pr || !pr.devices.length) return;
+  P.devices = []; P.io = []; P.nextId = 1;
+  const byName = {};
+  for(const d of pr.devices){
+    const name = d.name || nextName(d.cls);
+    const nd = {id:P.nextId++, name, cls:d.cls, desc:d.desc, opt:d.opt, unit:d.unit, rmin:d.rmin, rmax:d.rmax};
+    P.devices.push(nd); byName[name] = nd;
+  }
+  syncIO();
+  P.program.estop = (byName[pr.estop]||{}).id || "";
+  P.program.seq = pr.seq
+    .map(s=>({dev:(byName[s.dev]||{}).id||0, act:["start","stop","open","close","wait"].includes(s.act)?s.act:"wait", cond:s.cond, timeS:s.timeS}))
+    .filter(s=>s.act==="wait" || s.dev);
+  P.step = 3; save(); render();
+}
+function aiTurnView(t){
+  if(t.role==="user") return '<div class="msg u"><span class="who">Ty</span>'+esc(t.content)+'</div>';
+  let r = null; try{ r = aiNorm(JSON.parse(t.content)); }catch(e){}
+  if(!r) return '<div class="msg a"><span class="who">AI</span>'+esc(t.content.slice(0,300))+'</div>';
+  let h = '<div class="msg a"><span class="who">AI návrhář</span>';
+  if(r.questions.length) h += '<b>Potřebuji upřesnit:</b><ul style="margin:4px 0;padding-left:18px">'+r.questions.map(q=>'<li>'+esc(q)+'</li>').join("")+'</ul>';
+  if(r.devices.length) h += 'Navrženo <b>'+r.devices.length+' zařízení</b>'+(r.seq.length?' a sekvence o '+r.seq.length+' krocích':'')+'.';
+  if(r.note) h += '<div class="hint" style="margin-top:4px">'+esc(r.note)+'</div>';
+  return h+'</div>';
+}
+const AI_EXAMPLE = "Jednoúčelový lis na zalisování pouzder. Hydraulický agregát s čerpadlem, lisovací válec s koncáky, upínací ventil, měření tlaku do 250 bar a teploty oleje, světelná závora, kryt s koncákem, signalizace stavu. Automatický cyklus: upnout → lisovat 5 s → povolit.";
+function rAI(el){
+  const c = card(el,"02","AI návrh systému",`
+  <p class="hint" style="margin-top:0;max-width:75ch">Popiš stroj vlastními slovy — co dělá, jaké má pohony, válce, co se měří a hlídá. AI navrhne sestavu zařízení, případně se nejdřív doptá na detaily. Návrh pak převezmeš a dál ho ručně doladíš v krocích Zařízení a Program.</p>
+  <div class="chat" id="aiChat">${P.ai.turns.map(aiTurnView).join("")}</div>
+  <textarea id="aiInput" style="margin-top:12px;min-height:90px" placeholder="Popiš stroj… (nebo klikni na Vložit příklad)">${esc(P.ai.draft||"")}</textarea>
+  <div class="row">
+    <button class="primary" id="aiSend" ${aiBusy?"disabled":""}>${P.ai.turns.length?"Odeslat upřesnění":"Navrhnout zařízení"}</button>
+    <button class="small" id="aiExample" ${P.ai.turns.length?"hidden":""}>Vložit příklad</button>
+    <button class="small" id="aiStop" ${aiBusy?"":"hidden"}>Stop</button>
+    <button class="small danger" id="aiClear" ${P.ai.turns.length?"":"hidden"}>Nová konverzace</button>
+    <span class="hint" style="margin:0" id="aiStatus"></span>
+  </div>
+  <div class="stream" id="aiStream" hidden></div>
+  <div id="aiProposal"></div>`);
+  const status = c.querySelector("#aiStatus"), ta = c.querySelector("#aiInput");
+  if(sampleFn === undefined) status.textContent = "Připojuji AI…";
+  else if(sampleFn === null) status.textContent = "AI není v tomto zobrazení dostupné — zařízení navrhni ručně v kroku Zařízení.";
+  ta.addEventListener("input", ()=>{ P.ai.draft = ta.value; save(); });
+  /* náhled posledního návrhu */
+  const pr = P.ai.last;
+  if(pr && pr.devices.length){
+    let rows = pr.devices.map(d=>'<tr><td class="mono"><b>'+esc(d.name)+'</b></td><td>'+CLS[d.cls].label+'</td><td style="font-size:.8rem">'+esc(d.desc)+'</td><td style="font-size:.76rem;color:var(--muted)">'+esc(Object.entries(d.opt).filter(([,v])=>v).map(([k])=>k).join(", ")+(d.cls.startsWith("Analog")?(" "+d.unit+" "+d.rmin+"–"+d.rmax):""))+'</td></tr>').join("");
+    c.querySelector("#aiProposal").innerHTML =
+      '<h3>Navržená sestava</h3><div class="tablewrap"><table><thead><tr><th>Označení</th><th>Třída</th><th>Popis</th><th>Volby</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+      (pr.seq.length?'<p class="hint">Sekvence: '+esc(pr.seq.map((s,i)=>(i+1)+". "+(s.act==="wait"?("výdrž "+s.timeS+" s"):(s.dev+" "+s.act))).join(" → "))+'</p>':'')+
+      '<div class="row"><button class="primary" id="aiApplyBtn">Převzít návrh (nahradí zařízení)</button><span class="hint" style="margin:0">Nesedí? Napiš upřesnění a odešli znovu.</span></div>';
+    c.querySelector("#aiApplyBtn").addEventListener("click", aiApply);
+  }
+  c.querySelector("#aiClear").addEventListener("click", ()=>{ P.ai = {turns:[], last:null, draft:""}; save(); render(); });
+  c.querySelector("#aiExample").addEventListener("click", ()=>{ ta.value = AI_EXAMPLE; P.ai.draft = AI_EXAMPLE; save(); ta.focus(); status.textContent = ""; });
+  c.querySelector("#aiStop").addEventListener("click", ()=>{ if(aiCtl) aiCtl.abort(); });
+  c.querySelector("#aiSend").addEventListener("click", async ()=>{
+    const msg = ta.value.trim();
+    if(aiBusy) return;
+    if(!msg){ status.textContent = "Nejdřív popiš stroj do pole výše (nebo klikni na Vložit příklad)."; ta.focus(); return; }
+    if(sampleFn === undefined){
+      status.textContent = "Připojuji AI…";
+      try{ sampleFn = (window.claude && typeof window.claude.use === "function") ? await window.claude.use("sample") : null; }
+      catch(e){ sampleFn = null; }
+    }
+    if(!sampleFn){ status.textContent = "AI není v tomto zobrazení dostupné — zařízení navrhni ručně v kroku Zařízení."; return; }
+    aiBusy = true;
+    c.querySelector("#aiSend").disabled = true; c.querySelector("#aiStop").hidden = false;
+    const sBox = c.querySelector("#aiStream"); sBox.hidden = false; sBox.textContent = "Přemýšlím…";
+    status.textContent = "";
+    P.ai.turns.push({role:"user", content:msg}); P.ai.draft = ""; save();
+    aiCtl = new AbortController();
+    try{
+      const res = await sampleFn.json([{role:"user", content:aiInstr()}, ...P.ai.turns],
+        {cache:false, signal:aiCtl.signal, onText:({text})=>{ sBox.textContent = text; }});
+      P.ai.turns.push({role:"assistant", content:JSON.stringify(res)});
+      const pr2 = aiNorm(res);
+      if(pr2.devices.length) P.ai.last = pr2;
+      save();
+    }catch(e){
+      P.ai.turns.pop(); // vrátit neodeslanou otázku do pole
+      P.ai.draft = msg; save();
+      const msgs = {not_granted:"Použití AI nebylo povoleno.", sampling_disabled:"AI není pro tento účet dostupné.", rate_limited:"Příliš mnoho dotazů — zkus to za chvíli.", refused:"AI tento dotaz odmítlo — přeformuluj ho.", invalid_json:"Odpověď se nepodařilo přečíst — zkus to znovu.", cancelled:""};
+      status.textContent = (e && e.code in msgs) ? msgs[e.code] : "Nepodařilo se získat odpověď — zkus to znovu.";
+    }finally{
+      aiBusy = false; aiCtl = null; render();
+    }
+  });
+}
+
+/* --- 3 Platformy --- */
+function rPlat(el){
+  const c = card(el,"03","Cílové platformy",`
+  <p class="hint" style="margin-top:0">Vyber jednu nebo víc platforem — program se vygeneruje pro každou zvlášť. Logika je stejná (IEC 61131-3 ST), liší se dialekt, soubor s tagy a postup importu.</p>
+  <div class="platgrid">${Object.entries(PLAT).map(([k,p])=>`
+    <div class="plat ${P.platforms.includes(k)?"on":""}" data-k="${k}" role="button" tabindex="0" aria-pressed="${P.platforms.includes(k)}">
+      <b>${p.name}</b><span>${p.ide} · ${p.cpu}</span><span class="lng">${p.lang} · ${p.imp}</span>
+    </div>`).join("")}
+  </div>`);
+  c.querySelectorAll(".plat").forEach(d=>{
+    const toggle = ()=>{
+      const k = d.dataset.k;
+      P.platforms = P.platforms.includes(k) ? P.platforms.filter(x=>x!==k) : [...P.platforms,k];
+      save(); render();
+    };
+    d.addEventListener("click",toggle);
+    d.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(); }});
+  });
+}
+
+/* --- 4 Zařízení --- */
+function rDev(el){
+  const c = card(el,"04","Návrh zařízení stroje",`
+  <div class="grid g3">
+    <label class="f">Třída
+      <select id="dCls">${Object.entries(CLS).map(([k,v])=>'<option value="'+k+'">'+v.label+'</option>').join("")}</select>
+    </label>
+    <label class="f">Označení
+      <input type="text" id="dName" value="${esc(nextName("Motor"))}">
+    </label>
+    <label class="f">Popis
+      <input type="text" id="dDesc" placeholder="např. Čerpadlo hydrauliky">
+    </label>
+  </div>
+  <div class="row" id="dOpts"></div>
+  <div class="row">
+    <button class="primary" id="bAdd">Přidat zařízení</button>
+  </div>
+  <div id="dList"></div>
+  <p class="note">Třídy Motor / Ventil / Analog dostanou hotový funkční blok (stavový automat, timeouty, status). Třídy DI/DO jsou volné signály pro vlastní logiku. Vše jde později upravit — I/O tabulka i program se přepočítají.</p>`);
+  const clsSel = c.querySelector("#dCls"), nameIn = c.querySelector("#dName"), optRow = c.querySelector("#dOpts");
+  const renderOpts = ()=>{
+    const k = clsSel.value; const o = CLS[k].opts;
+    let html = Object.entries(o).map(([ok,ol])=>'<label style="display:flex;gap:5px;align-items:center;font-size:.8rem"><input type="checkbox" id="opt_'+ok+'" '+(ok==="fbk"||ok==="fbkOpen"?"checked":"")+'> '+ol+'</label>').join("");
+    if(k==="AnalogIn"||k==="AnalogOut") html += '<label class="f" style="flex-direction:row;gap:6px;align-items:center">jednotka <input type="text" id="dUnit" style="width:70px" placeholder="bar"></label>'+
+      '<label class="f" style="flex-direction:row;gap:6px;align-items:center">rozsah <input type="number" id="dMin" value="0" style="width:80px"> až <input type="number" id="dMax" value="100" style="width:80px"></label>';
+    optRow.innerHTML = html || '<span class="hint" style="margin:0">— bez voleb</span>';
+  };
+  clsSel.addEventListener("change", ()=>{ nameIn.value = nextName(clsSel.value); renderOpts(); });
+  renderOpts();
+  c.querySelector("#bAdd").addEventListener("click", ()=>{
+    const k = clsSel.value;
+    const opt = {};
+    for(const ok of Object.keys(CLS[k].opts)){ const cb = c.querySelector("#opt_"+ok); if(cb) opt[ok] = cb.checked; }
+    const d = {id:P.nextId++, name:nameIn.value.trim()||nextName(k), cls:k, desc:c.querySelector("#dDesc").value.trim(), opt,
+      unit:(c.querySelector("#dUnit")||{}).value||"", rmin:+((c.querySelector("#dMin")||{}).value||0), rmax:+((c.querySelector("#dMax")||{}).value||100)};
+    P.devices.push(d); syncIO(); save(); render();
+  });
+  /* seznam */
+  const list = c.querySelector("#dList");
+  if(P.devices.length){
+    let html = '<div class="tablewrap"><table><thead><tr><th>Označení</th><th>Třída</th><th>Popis</th><th>Volby</th><th></th></tr></thead><tbody>';
+    for(const d of P.devices){
+      const opts = Object.entries(d.opt||{}).filter(([,v])=>v).map(([k])=>CLS[d.cls].opts[k]).join(", ") + (d.cls.startsWith("Analog") ? ((d.unit?" "+d.unit:"")+" "+d.rmin+"–"+d.rmax):"");
+      html += '<tr><td class="mono"><b>'+esc(d.name)+'</b></td><td>'+CLS[d.cls].label+'</td>'+
+        '<td><input type="text" data-id="'+d.id+'" data-f="desc" value="'+esc(d.desc)+'"></td>'+
+        '<td style="font-size:.76rem;color:var(--muted)">'+esc(opts||"—")+'</td>'+
+        '<td><button class="small danger" data-del="'+d.id+'">×</button></td></tr>';
+    }
+    list.innerHTML = html+'</tbody></table></div>';
+    list.querySelectorAll("input[data-f=desc]").forEach(i=>i.addEventListener("change",e=>{ const d=devById(+e.target.dataset.id); if(d){ d.desc=e.target.value; syncIO(); save(); } }));
+    list.querySelectorAll("button[data-del]").forEach(b=>b.addEventListener("click",()=>{ P.devices = P.devices.filter(d=>d.id!==+b.dataset.del); P.program.seq = P.program.seq.filter(s=>s.act==="wait"||devById(s.dev)); if(P.program.estop && !devById(P.program.estop)) P.program.estop=""; syncIO(); save(); render(); }));
+  } else list.innerHTML = '<p class="hint">Zatím žádná zařízení — přidej je výše, načti ukázku v kroku Projekt, nebo použij Import níže.</p>';
+  importBlock(el);
+}
+
+/* --- 5 I/O --- */
+function rIO(el){
+  syncIO();
+  const dup = {};
+  for(const e of P.io){ if(e.addr) dup[e.addr]=(dup[e.addr]||0)+1; dup["t:"+e.tag]=(dup["t:"+e.tag]||0)+1; }
+  let rows = "";
+  for(const e of P.io){
+    const d = devById(e.devId);
+    rows += '<tr><td class="mono">'+esc(d?d.name:"?")+'</td>'+
+      '<td class="mono dir'+e.dir+'">'+e.dir+'</td>'+
+      '<td><input type="text" data-k="'+e.key+'" data-f="tag" value="'+esc(e.tag)+'" class="'+(dup["t:"+e.tag]>1?"dup":"")+'"></td>'+
+      '<td><input type="text" data-k="'+e.key+'" data-f="addr" value="'+esc(e.addr)+'" class="'+(e.addr&&dup[e.addr]>1?"dup":"")+'" style="min-width:70px"></td>'+
+      '<td style="text-align:center">'+(e.dir==="DI"?'<input type="checkbox" data-k="'+e.key+'" data-f="nc" '+(e.nc?"checked":"")+' aria-label="NC">':'—')+'</td>'+
+      '<td><input type="text" data-k="'+e.key+'" data-f="cmt" value="'+esc(e.cmt)+'" style="min-width:160px"></td></tr>';
+  }
+  const c = card(el,"05","I/O mapování",`
+  <div class="stats">
+    <span class="stat">tagů <b>${P.io.length}</b></span>
+    ${["DI","DO","AI","AO"].map(d=>'<span class="stat">'+d+' <b>'+P.io.filter(e=>e.dir===d).length+'</b></span>').join("")}
+  </div>
+  <div class="tablewrap"><table><thead><tr><th>Zařízení</th><th>Směr</th><th>Tag</th><th>Adresa</th><th>NC</th><th>Komentář</th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="hint">žádná zařízení</td></tr>'}</tbody></table></div>
+  <div class="row"><button class="small" id="bRenum">Přečíslovat adresy od nuly</button><span class="hint" style="margin:0">Adresy v Siemens notaci (%I0.0, %IW64) — pro ostatní platformy se převedou automaticky. NC = rozpínací kontakt (bezpečnostní prvky) — promítne se do elektrického schématu. Duplicity červeně.</span></div>`);
+  c.querySelectorAll("input[data-k]").forEach(i=>i.addEventListener("change",e=>{
+    const en = P.io.find(x=>x.key===e.target.dataset.k);
+    if(!en) return;
+    if(e.target.type==="checkbox") en.nc = e.target.checked;
+    else en[e.target.dataset.f] = e.target.value.trim();
+    save(); render();
+  }));
+  c.querySelector("#bRenum").addEventListener("click",()=>{ for(const e of P.io) e.addr=""; autoAddr(true); save(); render(); });
+}
+
+/* --- 5 Schéma (blokové + elektrické) --- */
+function addrOrd(e){ const m=(e.addr||"").match(/%[IQ](W)?(\d+)(?:\.(\d+))?/); return m ? (m[1] ? 100000+(+m[2]) : (+m[2])*8+(+(m[3]||0))) : 999999; }
+function modules(){
+  const per = {DI:16, DO:16, AI:8, AO:4};
+  const mods = [];
+  for(const dir of ["DI","DO","AI","AO"]){
+    const list = P.io.filter(e=>e.dir===dir).sort((a,b)=>addrOrd(a)-addrOrd(b));
+    let idx = 1;
+    for(let i=0;i<list.length;i+=per[dir]) mods.push({dir, idx:idx++, ch:list.slice(i,i+per[dir])});
+  }
+  return mods;
+}
+const SVTXT = 'font-family:var(--font-mono);font-size:12px;fill:currentColor';
+const SVMUT = 'font-family:var(--font-mono);font-size:10.5px;fill:var(--muted)';
+function sT(x,y,txt,st,anch){ return '<text x="'+x+'" y="'+y+'" style="'+(st||SVTXT)+'"'+(anch?' text-anchor="'+anch+'"':'')+'>'+esc(txt)+'</text>'; }
+const MODLBL = {DI:"digitální vstupy", DO:"digitální výstupy", AI:"analogové vstupy", AO:"analogové výstupy"};
+
+function svgBlock(mods){
+  const hasIn = d=>P.io.some(e=>e.devId===d.id&&(e.dir==="DI"||e.dir==="AI"));
+  const hasOut = d=>P.io.some(e=>e.devId===d.id&&(e.dir==="DO"||e.dir==="AO"));
+  const L = P.devices.filter(hasIn), R = P.devices.filter(hasOut);
+  const bh=34, g=10, top=56;
+  const rows = Math.max(L.length, R.length, mods.length+2);
+  const H = top + rows*(bh+g) + 20;
+  const yy = i=>top+i*(bh+g);
+  const box=(x,y,w,t1,t2,acc)=>
+    '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+bh+'" rx="5" fill="'+(acc?'var(--chip)':'none')+'" stroke="'+(acc?'var(--accent)':'var(--line)')+'"/>'+
+    sT(x+8,y+14,t1,SVTXT+';font-weight:600')+(t2?sT(x+8,y+27,String(t2).slice(0,34),SVMUT):'');
+  let s = '';
+  const plcH = (mods.length+2)*(bh+g)+14;
+  s += '<rect x="340" y="'+(top-10)+'" width="300" height="'+plcH+'" rx="8" fill="none" stroke="var(--accent)" stroke-width="1.5"/>';
+  s += sT(350, top-18, "PLC", SVTXT+';font-weight:700;fill:var(--accent)');
+  s += sT(640, top-18, "zdroje signálů →  PLC  → akční členy", SVMUT, "end");
+  s += box(352, yy(0), 276, "PS — zdroj 24 V DC", "napájení modulů a snímačů", false);
+  s += box(352, yy(1), 276, "CPU", P.platforms.map(p=>PLAT[p].cpu).join(" · ")||"—", true);
+  mods.forEach((m,i)=>{ s += box(352, yy(i+2), 276, m.dir+m.idx+" — "+MODLBL[m.dir], m.ch.length+" kanálů · svorkovnice X"+(i+1), false); });
+  L.forEach((d,i)=>{ s += box(20, yy(i), 250, d.name, d.desc); });
+  R.forEach((d,i)=>{ s += box(710, yy(i), 250, d.name, d.desc); });
+  for(const e of P.io){
+    const mi = mods.findIndex(m=>m.ch.includes(e)); if(mi<0) continue;
+    const yMod = yy(mi+2)+bh/2;
+    const d = devById(e.devId); if(!d) continue;
+    if(e.dir==="DI"||e.dir==="AI"){ const li = L.indexOf(d); if(li>=0) s += '<line x1="270" y1="'+(yy(li)+bh/2)+'" x2="352" y2="'+yMod+'" stroke="var(--muted)" stroke-width="1"/>'; }
+    else { const ri = R.indexOf(d); if(ri>=0) s += '<line x1="628" y1="'+yMod+'" x2="710" y2="'+(yy(ri)+bh/2)+'" stroke="var(--muted)" stroke-width="1"/>'; }
+  }
+  return '<svg role="img" aria-label="Blokové schéma: zařízení, moduly PLC a signálové cesty" viewBox="0 0 980 '+H+'" style="max-width:100%;height:auto" width="980" xmlns="http://www.w3.org/2000/svg">'+s+'</svg>';
+}
+
+/* Listy zapojení: jedna geometrie (ops) -> SVG náhled i DXF export (EPLAN/AutoCAD) */
+function sheetOps(mod, xnum, page, total){
+  const rows = mod.ch.length, rh = 40, top = 96;
+  const W = 980, H = top + rows*rh + 104;
+  const O = [];
+  const Ln=(x1,y1,x2,y2,k)=>O.push({t:"l",x1,y1,x2,y2,k:k||"w"});
+  const Ci=(cx,cy,r)=>O.push({t:"c",cx,cy,r});
+  const Re=(x,y,w,h,k)=>O.push({t:"r",x,y,w,h,k:k||"s"});
+  const Tx=(x,y,s,o)=>O.push(Object.assign({t:"t",x,y,s:String(s),size:11,anchor:"start",k:"t"},o||{}));
+  /* rámeček s mřížkovými referencemi */
+  Re(8,8,W-16,H-16,"f"); Re(26,26,W-52,H-52,"f");
+  for(let i=1;i<8;i++){ const x=26+(W-52)/8*i; Ln(x,8,x,26,"f"); Ln(x,H-26,x,H-8,"f"); }
+  for(let i=0;i<8;i++) Tx(26+(W-52)/8*(i+0.5), 20, i+1, {anchor:"middle",k:"m",size:9});
+  const nR = Math.max(2, Math.round((H-52)/140));
+  for(let i=1;i<nR;i++){ const y=26+(H-52)/nR*i; Ln(8,y,26,y,"f"); Ln(W-26,y,W-8,y,"f"); }
+  for(let i=0;i<nR;i++) Tx(17, 26+(H-52)/nR*(i+0.5)+3, String.fromCharCode(65+i), {anchor:"middle",k:"m",size:9});
+  /* popisové pole */
+  const tx=W-26-420, ty=H-26-52;
+  Re(tx,ty,420,52,"f"); Ln(tx,ty+26,tx+420,ty+26,"f"); Ln(tx+180,ty,tx+180,ty+52,"f"); Ln(tx+330,ty,tx+330,ty+52,"f");
+  Tx(tx+7,ty+10,"Projekt",{k:"m",size:8});      Tx(tx+7,ty+22,(P.meta.name||"—").slice(0,32),{k:"b",size:9});
+  Tx(tx+187,ty+10,"Výkres",{k:"m",size:8});     Tx(tx+187,ty+22,"Zapojení "+mod.dir+mod.idx+" · X"+xnum,{size:9});
+  Tx(tx+337,ty+10,"List",{k:"m",size:8});       Tx(tx+337,ty+22,page+" / "+total,{size:9});
+  Tx(tx+7,ty+36,"Kreslil",{k:"m",size:8});      Tx(tx+7,ty+48,"PLC Studio (návrh k revizi)",{size:9});
+  Tx(tx+187,ty+36,"Datum",{k:"m",size:8});      Tx(tx+187,ty+48,dnes(),{size:9});
+  Tx(tx+337,ty+36,"Rev",{k:"m",size:8});        Tx(tx+337,ty+48,"0.1",{size:9});
+  /* potenciály a karta PLC */
+  const yEnd = top + rows*rh - 12;
+  const wBase = {DI:101, DO:201, AI:301, AO:401}[mod.dir];
+  const isIn = (mod.dir==="DI"||mod.dir==="AI");
+  if(isIn){
+    Ln(80, top-28, 80, yEnd, "r"); Tx(80, top-36, "L+ (24 V DC)", {anchor:"middle",k:"b",size:10});
+    Re(710, top-28, 200, rows*rh+8, "chip"); Tx(810, top-36, "PLC · "+mod.dir+mod.idx, {anchor:"middle",k:"b",size:10});
+  } else {
+    Re(46, top-28, 200, rows*rh+8, "chip"); Tx(146, top-36, "PLC · "+mod.dir+mod.idx, {anchor:"middle",k:"b",size:10});
+    Ln(886, top-28, 886, yEnd, "r0"); Tx(886, top-36, "M (0 V)", {anchor:"middle",k:"b",size:10});
+  }
+  /* kanály */
+  mod.ch.forEach((e,i)=>{
+    const y = top + i*rh + 12;
+    const d = devById(e.devId)||{};
+    const wn = "-W"+(wBase+i);
+    if(mod.dir==="DI"){
+      Ln(80,y,300,y);
+      Ln(300,y,324,y-13,"s");                       // pohyblivý kontakt (IEC 60617)
+      if(e.nc) Ln(324,y,324,y-11,"s");              // doraz = rozpínací kontakt
+      Ln(324,y,678,y);
+      Tx(298,y-17,"-"+(d.name||""),{k:"b",size:10}); Tx(340,y-6,e.tag,{size:10});
+      Tx(140,y-6,(d.desc||e.cmt||"").slice(0,25),{k:"m",size:9});
+      Tx(500,y+12,wn,{k:"m",size:9});
+      Ci(686,y,4); Tx(670,y+14,"X"+xnum+":"+(i+1),{anchor:"end",k:"m",size:9});
+      Tx(720,y+3,mod.dir+" "+i+"  "+e.addr,{k:"m",size:9});
+    } else if(mod.dir==="AI"){
+      Ln(80,y,262,y);
+      Re(262,y-12,96,24); Tx(310,y+3,"-"+(d.name||"B?"),{anchor:"middle",k:"b",size:10});
+      Ln(358,y,678,y);
+      Tx(140,y-6,(d.desc||"").slice(0,17),{k:"m",size:9});
+      Tx(380,y-6,e.tag,{size:10}); Tx(380,y+12,"4–20 mA · "+wn,{k:"m",size:9});
+      Ci(686,y,4); Tx(670,y+14,"X"+xnum+":"+(i+1),{anchor:"end",k:"m",size:9});
+      Tx(720,y+3,"AI "+i+"  "+e.addr,{k:"m",size:9});
+    } else if(mod.dir==="DO"){
+      Tx(54,y+3,"DO "+i+"  "+e.addr,{k:"m",size:9});
+      Ci(254,y,4); Tx(266,y+14,"X"+xnum+":"+(i+1),{k:"m",size:9});
+      Ln(258,y,560,y);
+      Re(560,y-9,26,18);                             // cívka/zátěž (IEC: obdélník)
+      Tx(573,y-14,"-"+(d.name||""),{anchor:"middle",k:"b",size:10});
+      Ln(586,y,886,y);
+      Tx(276,y-6,e.tag,{size:10}); Tx(430,y+12,wn,{k:"m",size:9});
+      Tx(610,y+14,(d.desc||e.cmt||"").slice(0,24),{k:"m",size:9});
+    } else {
+      Tx(54,y+3,"AO "+i+"  "+e.addr,{k:"m",size:9});
+      Ci(254,y,4); Tx(266,y+14,"X"+xnum+":"+(i+1),{k:"m",size:9});
+      Ln(258,y,540,y);
+      Re(540,y-12,116,24); Tx(598,y+3,"-"+(d.name||"U?"),{anchor:"middle",k:"b",size:10});
+      Ln(656,y,886,y);
+      Tx(276,y-6,e.tag,{size:10}); Tx(400,y+12,"0/4–20 mA · 0–10 V · "+wn,{k:"m",size:9});
+    }
+  });
+  if(mod.dir==="DI") Tx(80, yEnd+16, "Kontakty: šikmá páka s dorazem = NC (bezpečnostní prvky), bez dorazu = NO — dle sloupce NC v kroku I/O.", {k:"m",size:9});
+  if(mod.dir==="AI") Tx(80, yEnd+16, "Dvouvodičové zapojení 4–20 mA; pro 0–10 V třívodičově (L+, signál, M).", {k:"m",size:9});
+  return {W,H,O};
+}
+function opsToSVG(sh, label){
+  const strokeFor = o => o.k==="f" ? "var(--line)" : o.k==="r" ? "var(--warn)" : o.k==="r0" ? "var(--muted)" : "currentColor";
+  let s = "";
+  for(const o of sh.O){
+    if(o.t==="l") s += '<line x1="'+o.x1+'" y1="'+o.y1+'" x2="'+o.x2+'" y2="'+o.y2+'" stroke="'+strokeFor(o)+'" stroke-width="'+((o.k==="r"||o.k==="r0")?2:(o.k==="f"?1:1.2))+'"/>';
+    else if(o.t==="c") s += '<circle cx="'+o.cx+'" cy="'+o.cy+'" r="'+o.r+'" fill="none" stroke="currentColor" stroke-width="1.2"/>';
+    else if(o.t==="r") s += '<rect x="'+o.x+'" y="'+o.y+'" width="'+o.w+'" height="'+o.h+'" fill="'+(o.k==="chip"?"var(--chip)":"none")+'" stroke="'+(o.k==="chip"||o.k==="f"?"var(--line)":"currentColor")+'" stroke-width="'+(o.k==="f"?1:1.2)+'"/>';
+    else s += '<text x="'+o.x+'" y="'+o.y+'" text-anchor="'+(o.anchor||"start")+'" style="font-family:var(--font-mono);font-size:'+o.size+'px;fill:'+(o.k==="m"?"var(--muted)":"currentColor")+(o.k==="b"?";font-weight:600":"")+'">'+esc(o.s)+'</text>';
+  }
+  return '<svg role="img" aria-label="'+esc(label)+'" viewBox="0 0 '+sh.W+' '+sh.H+'" style="max-width:100%;height:auto" width="'+sh.W+'" xmlns="http://www.w3.org/2000/svg">'+s+'</svg>';
+}
+function opsToDXF(sh){
+  const H = sh.H, out = [];
+  const layer = k => k==="f" ? "RAMECEK" : (k==="r"||k==="r0") ? "POTENCIALY" : (k==="chip") ? "PLC" : "SCHEMA";
+  out.push("0","SECTION","2","ENTITIES");
+  for(const o of sh.O){
+    if(o.t==="l") out.push("0","LINE","8",layer(o.k),"10",o.x1,"20",H-o.y1,"30",0,"11",o.x2,"21",H-o.y2,"31",0);
+    else if(o.t==="c") out.push("0","CIRCLE","8","SCHEMA","10",o.cx,"20",H-o.cy,"30",0,"40",o.r);
+    else if(o.t==="r"){
+      const p = [[o.x,o.y],[o.x+o.w,o.y],[o.x+o.w,o.y+o.h],[o.x,o.y+o.h],[o.x,o.y]];
+      for(let i=0;i<4;i++) out.push("0","LINE","8",layer(o.k),"10",p[i][0],"20",H-p[i][1],"30",0,"11",p[i+1][0],"21",H-p[i+1][1],"31",0);
+    } else {
+      const txt = stripDia(String(o.s));
+      let x = o.x; const w = txt.length*o.size*0.62;
+      if(o.anchor==="middle") x -= w/2; else if(o.anchor==="end") x -= w;
+      out.push("0","TEXT","8","TEXT","10",x,"20",H-o.y,"30",0,"40",o.size*0.8,"1",txt);
+    }
+  }
+  out.push("0","ENDSEC","0","EOF");
+  return out.join("\n");
+}
+function sheet(mod, xnum, page, total){
+  const tot = total || modules().length;
+  return opsToSVG(sheetOps(mod, xnum, page||xnum, tot), "Zapojení modulu "+mod.dir+mod.idx+" (svorkovnice X"+xnum+")");
+}
+function sheetDXF(mod, xnum, page, total){
+  const tot = total || modules().length;
+  return opsToDXF(sheetOps(mod, xnum, page||xnum, tot));
+}
+
+function svorkyCSV(mods){
+  const l = ["Svorka;Modul;Kanál;Adresa;Tag;Komentář"];
+  mods.forEach((m,mi)=>m.ch.forEach((e,i)=>l.push("X"+(mi+1)+":"+(i+1)+";"+m.dir+m.idx+";"+i+";"+e.addr+";"+e.tag+";"+(e.cmt||""))));
+  return l.join("\n");
+}
+let svgStore = [];
+function rSchema(el){
+  syncIO();
+  if(!P.io.length){ card(el,"06","Schéma","<p class='hint'>Nejdřív přidej zařízení (krok 4), nebo si je nech navrhnout v kroku AI návrh.</p>"); return; }
+  const mods = modules();
+  svgStore = [];
+  const bd = svgBlock(mods); svgStore.push(bd);
+  card(el,"06","Blokové schéma systému",
+    '<div class="tablewrap"><figure style="margin:0">'+bd+'<figcaption class="hint">Zdroje signálů → moduly PLC → akční členy; čáry = jednotlivé signály, moduly navrženy z počtu I/O (DI16 / DO16 / AI8 / AO4).</figcaption></figure></div>'+
+    '<div class="row"><button class="small" data-svg="0">Kopírovat SVG</button></div>');
+  let inner = "";
+  mods.forEach((m,i)=>{
+    const s = sheet(m,i+1); svgStore.push(s);
+    inner += '<h3>'+m.dir+m.idx+' — '+MODLBL[m.dir]+' (svorkovnice X'+(i+1)+')</h3>'+
+      '<div class="tablewrap"><figure style="margin:0">'+s+'</figure></div>'+
+      '<div class="row"><button class="small" data-svg="'+(svgStore.length-1)+'">Kopírovat SVG</button></div>';
+  });
+  card(el,"·","Elektrické zapojení I/O", inner+
+    '<p class="warnbox"><b>Pozor:</b> NC/NO kontakty se kreslí podle sloupce NC v kroku I/O; čísla vodičů -W1xx dle potenciálových řad. Jištění, průřezy, relé na výstupech s větší zátěží a stínění analogů doplní projektant elektro — toto je podklad, ne výrobní dokumentace. Každý list je v kroku Dokumentace i jako <b>DXF</b> pro EPLAN/AutoCAD.</p>');
+  let rowsHtml = "";
+  mods.forEach((m,mi)=>m.ch.forEach((e,i)=>{
+    const d = devById(e.devId)||{};
+    rowsHtml += '<tr><td class="mono"><b>X'+(mi+1)+':'+(i+1)+'</b></td><td class="mono">'+m.dir+m.idx+'</td><td class="mono">'+i+'</td><td class="mono">'+esc(e.addr)+'</td><td class="mono">'+esc(e.tag)+'</td><td style="color:var(--muted);font-size:.78rem">'+esc((d.name?d.name+" · ":"")+(e.cmt||""))+'</td></tr>';
+  }));
+  const c3 = card(el,"·","Svorkovnice",
+    '<div class="tablewrap"><table><thead><tr><th>Svorka</th><th>Modul</th><th>Kanál</th><th>Adresa</th><th>Tag</th><th>Zařízení / komentář</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'+
+    '<div class="row"><button class="small" id="bCsv">Kopírovat svorkovnici (CSV)</button><span class="hint" style="margin:0">Podklad pro projektanta elektro (EPLAN apod.).</span></div>');
+  c3.querySelector("#bCsv").addEventListener("click",()=>copyText(svorkyCSV(mods), c3.querySelector("#bCsv")));
+  el.querySelectorAll("[data-svg]").forEach(b=>b.addEventListener("click",()=>copyText(svgStore[+b.dataset.svg], b)));
+}
+
+/* --- 6 Program --- */
+function rProg(el){
+  const diDevs = P.devices.filter(d=>d.cls==="DI");
+  const actDevs = P.devices.filter(d=>d.cls==="Motor"||d.cls==="Ventil");
+  const c = card(el,"07","Logika programu",`
+  <div class="grid g2">
+    <label class="f">Centrální uvolnění (E-stop / bezpečnostní vstup)
+      <select id="pEstop"><option value="">— žádný (doplníš ručně) —</option>${diDevs.map(d=>'<option value="'+d.id+'" '+(P.program.estop===d.id?"selected":"")+'>'+esc(d.name+" – "+d.desc)+'</option>').join("")}</select>
+    </label>
+    <div class="f" style="justify-content:end"><span class="hint" style="margin:0">Signál se zapojí do <code>enable</code> všech bloků. Skutečnou bezpečnost řeší safety technika, ne program — viz Nápověda.</span></div>
+  </div>
+  <h3>Automatická sekvence (volitelné)</h3>
+  <p class="hint" style="margin-top:0">Kroky se provedou po řadě v režimu AUTO; z nich se vygeneruje stavový automat (CASE) v hlavním bloku. Přechod = zpětné hlášení zařízení, nebo čas.</p>
+  <div id="seqList"></div>
+  <div class="row">
+    <select id="sDev">${actDevs.map(d=>'<option value="'+d.id+'">'+esc(d.name+" – "+d.desc)+'</option>').join("")}<option value="0">— čekání (bez zařízení) —</option></select>
+    <select id="sAct"></select>
+    <select id="sCond"><option value="fbk">přechod: zpětné hlášení</option><option value="time">přechod: čas</option></select>
+    <input type="number" id="sTime" value="3" min="1" style="width:70px" aria-label="čas s"> s
+    <button class="primary small" id="bAddStep">Přidat krok</button>
+  </div>`);
+  const sDev = c.querySelector("#sDev"), sAct = c.querySelector("#sAct");
+  const refreshActs = ()=>{
+    const d = devById(+sDev.value);
+    sAct.innerHTML = !d ? '<option value="wait">čekat</option>' :
+      d.cls==="Motor" ? '<option value="start">start</option><option value="stop">stop</option>'
+                      : '<option value="open">otevřít</option><option value="close">zavřít</option>';
+  };
+  sDev.addEventListener("change", refreshActs); refreshActs();
+  c.querySelector("#pEstop").addEventListener("change",e=>{ P.program.estop = +e.target.value||""; save(); });
+  c.querySelector("#bAddStep").addEventListener("click",()=>{
+    const d = devById(+sDev.value);
+    P.program.seq.push({dev:d?d.id:0, act:d?sAct.value:"wait", cond:d?c.querySelector("#sCond").value:"time", timeS:+c.querySelector("#sTime").value||1});
+    save(); render();
+  });
+  const list = c.querySelector("#seqList");
+  if(P.program.seq.length){
+    list.innerHTML = P.program.seq.map((s,i)=>{
+      const d = devById(s.dev);
+      const txt = s.act==="wait" ? "výdrž "+s.timeS+" s" : (d?d.name:"?")+" "+({start:"start",stop:"stop",open:"otevřít",close:"zavřít"}[s.act]||s.act)+" → "+(s.cond==="time"?("čas "+s.timeS+" s"):"zpětné hlášení");
+      return '<div class="seqrow"><span class="k">Krok '+(i+1)+'</span><span style="flex:1;font-size:.86rem">'+esc(txt)+'</span>'+
+        '<button class="small" data-up="'+i+'" '+(i===0?"disabled":"")+'>↑</button><button class="small" data-dn="'+i+'" '+(i===P.program.seq.length-1?"disabled":"")+'>↓</button><button class="small danger" data-rm="'+i+'">×</button></div>';
+    }).join("");
+    list.querySelectorAll("[data-up]").forEach(b=>b.addEventListener("click",()=>{ const i=+b.dataset.up; [P.program.seq[i-1],P.program.seq[i]]=[P.program.seq[i],P.program.seq[i-1]]; save(); render(); }));
+    list.querySelectorAll("[data-dn]").forEach(b=>b.addEventListener("click",()=>{ const i=+b.dataset.dn; [P.program.seq[i+1],P.program.seq[i]]=[P.program.seq[i],P.program.seq[i+1]]; save(); render(); }));
+    list.querySelectorAll("[data-rm]").forEach(b=>b.addEventListener("click",()=>{ P.program.seq.splice(+b.dataset.rm,1); save(); render(); }));
+  } else list.innerHTML = '<p class="hint">Bez sekvence se vygenerují jen instance zařízení s TODO povely pro ruční režim.</p>';
+}
+
+/* --- 7 Generovat --- */
+let genCache = null, outerTab = 0, innerTab = 0;
+function rGen(el){
+  syncIO();
+  if(!P.devices.length){ card(el,"08","Generování","<p class='hint'>Nejdřív přidej zařízení (krok 4), nech si je navrhnout v kroku AI návrh, nebo použij volbu Import.</p>"); return; }
+  if(!P.platforms.length){ card(el,"08","Generování","<p class='hint'>Vyber aspoň jednu platformu (krok 3).</p>"); return; }
+  genCache = {};
+  for(const p of P.platforms) genCache[p] = genFor(p);
+  const plats = P.platforms;
+  if(outerTab>=plats.length) outerTab=0;
+  const files = Object.keys(genCache[plats[outerTab]]);
+  if(innerTab>=files.length) innerTab=0;
+  const c = card(el,"08","Generované zdroje",`
+  <div class="tabs outer" role="tablist">${plats.map((p,i)=>'<button role="tab" aria-selected="'+(i===outerTab)+'" data-o="'+i+'">'+PLAT[p].name+'</button>').join("")}</div>
+  <div class="tabs" role="tablist" style="margin-top:8px">${files.map((f,i)=>'<button role="tab" aria-selected="'+(i===innerTab)+'" data-f="'+i+'">'+f+'</button>').join("")}</div>
+  <div class="codebox"><pre class="code" id="genCode"></pre><button class="copybtn" id="bCopyGen">Kopírovat</button></div>
+  <p class="note">Soubor zkopíruj a ulož jako UTF-8 pod názvem záložky. Postup importu pro danou platformu je v záložce <b>README.txt</b>. Výstup je výchozí kostra — TODO komentáře označují místa k doplnění.</p>`);
+  const show = ()=>{ c.querySelector("#genCode").textContent = genCache[plats[outerTab]][Object.keys(genCache[plats[outerTab]])[innerTab]]; };
+  show();
+  c.querySelectorAll("[data-o]").forEach(b=>b.addEventListener("click",()=>{ outerTab=+b.dataset.o; innerTab=0; render(); }));
+  c.querySelectorAll("[data-f]").forEach(b=>b.addEventListener("click",()=>{ innerTab=+b.dataset.f; c.querySelectorAll("[data-f]").forEach(x=>x.setAttribute("aria-selected", x===b)); show(); }));
+  c.querySelector("#bCopyGen").addEventListener("click",()=>copyText(genCache[plats[outerTab]][Object.keys(genCache[plats[outerTab]])[innerTab]], c.querySelector("#bCopyGen")));
+}
+function copyText(txt, btn){
+  const done = ()=>{ const t = btn.textContent; btn.textContent = "Zkopírováno"; setTimeout(()=>btn.textContent=t,1500); };
+  try{ navigator.clipboard.writeText(txt).then(done).catch(()=>{}); }catch(e){}
+}
+
+/* --- 9 Dokumentace --- */
+let downloadsFn; // undefined = zjišťuje se, null = nedostupné
+let docTab = 0;
+function dnes(){ return new Date().toLocaleDateString("cs-CZ"); }
+function safeName(s){ return stripDia(String(s||"")).replace(/[^A-Za-z0-9_-]+/g,"_").replace(/^_+|_+$/g,"") || "plc-projekt"; }
+function estopTxt(){ const d = devById(P.program.estop); return d ? d.name+" – "+d.desc : "(doplnit)"; }
+
+const DOC_META = [
+  ["00_prehled_dokumentace.md","Přehled","obsah balíku a checklist chybějících dokumentů"],
+  ["01_funkcni_specifikace_FDS.md","FDS","funkční specifikace"],
+  ["02_io_list.csv","I/O list","kompletní I/O list"],
+  ["03_svorkovnice.csv","Svorkovnice","svorkovnice pro projektanta elektro"],
+  ["04_seznam_alarmu.csv","Alarmy","seznam alarmů s reakcemi a kvitací"],
+  ["05_testovaci_protokol_FAT.md","FAT","testovací protokol (loop check, funkční testy, sekvence)"],
+  ["06_navod_k_obsluze.md","Návod","kostra návodu k obsluze"],
+  ["07_softwarova_dokumentace.md","SW dok.","struktura a konvence programu"]
+];
+function docIndexMd(){
+  return `# Přehled dokumentace projektu
+
+**Projekt:** ${P.meta.name||"—"} · generováno ${dnes()} nástrojem PLC Studio
+
+## Obsah balíku
+${DOC_META.map(x=>"- `"+x[0]+"` — "+x[2]).join("\n")}
+- schémata — blokové schéma a elektrické zapojení I/O (SVG soubory)
+- zdrojové soubory programu pro každou zvolenou platformu (s předponou platformy) včetně postupu importu (README)
+
+## Dokumenty, které balík NEOBSAHUJE a běžný projekt je vyžaduje (doplnit ručně)
+- URS / FRS (požadavky zákazníka a funkční požadavky)
+- Posouzení rizik a validace bezpečnostních funkcí (ISO 13849 / IEC 62061)
+- Kusovník (BOM) a výkresy rozvaděče, as-built elektrodokumentace
+- Síťová topologie a IP plán, specifikace HMI/SCADA
+- SAT protokol, IQ/OQ (dle odvětví), zálohy programů, prohlášení o shodě (CE)
+
+Vygenerované dokumenty jsou výchozí návrh k revizi — před předáním zákazníkovi je zkontroluj a doplň.`;
+}
+function docFDSMd(){
+  const mods = modules();
+  let s = `# Funkční specifikace (FDS)
+
+| | |
+|---|---|
+| **Projekt** | ${P.meta.name||"—"} |
+| **Datum** | ${dnes()} |
+| **Revize** | 0.1 — návrh (PLC Studio) |
+
+## 1. Popis stroje a účel
+${P.meta.desc||"(doplnit)"}
+
+## 2. Cílové řídicí systémy
+${P.platforms.map(p=>"- "+PLAT[p].name+" — "+PLAT[p].ide+", "+PLAT[p].cpu+", jazyk "+PLAT[p].lang).join("\n")}
+
+## 3. Zařízení
+| Označení | Třída | Popis | Parametry |
+|---|---|---|---|
+`;
+  for(const d of P.devices){
+    const par = d.cls.startsWith("Analog") ? ((d.unit||"")+" "+d.rmin+"–"+d.rmax)
+      : Object.entries(d.opt||{}).filter(([,v])=>v).map(([k])=>(CLS[d.cls].opts[k]||k)).join(", ");
+    s += `| ${d.name} | ${CLS[d.cls].label} | ${d.desc||""} | ${par||"—"} |\n`;
+  }
+  s += `
+## 4. I/O bilance a moduly
+${["DI","DO","AI","AO"].map(dd=>dd+": "+P.io.filter(e=>e.dir===dd).length).join(" · ")}
+Navržené moduly: ${mods.map((m,i)=>m.dir+m.idx+" (svorkovnice X"+(i+1)+", "+m.ch.length+" kanálů)").join(", ")||"—"}
+
+## 5. Režimy a ovládání
+- **RUČNĚ** — povely na jednotlivá zařízení z HMI (specifikace HMI: doplnit)
+- **AUTO** — automatická sekvence dle kap. 6; start podmíněn centrálním uvolněním
+- **Centrální uvolnění** — ${estopTxt()}; podmínky doplnit (kryty, tlak vzduchu…)
+
+## 6. Automatická sekvence
+${P.program.seq.length ? P.program.seq.map((sq,i)=>{const d=devById(sq.dev);const akce=sq.act==="wait"?("výdrž "+sq.timeS+" s"):((d?d.name+" ("+(d.desc||"")+")":"?")+" — "+({start:"start",stop:"stop",open:"otevřít",close:"zavřít"}[sq.act]||sq.act));return (i+1)+". "+akce+" · přechod: "+(sq.cond==="time"?("čas "+sq.timeS+" s"):"zpětné hlášení");}).join("\n") : "(bez automatické sekvence — pouze ruční režim)"}
+
+## 7. Chování při poruše
+Každé typové zařízení hlídá zpětná hlášení s timeoutem a hlásí status: \`16#0000\` OK, \`16#8001\` blokováno (enable), \`16#8002\` porucha. Porucha zastaví zařízení; kvitace povelem stop/zavřít po odstranění příčiny. Porucha kteréhokoli zařízení v AUTO zastaví sekvenci (doplnit strategii: dokončit krok / okamžitě).
+
+## 8. Bezpečnost
+Bezpečnostní funkce (nouzové zastavení, kryty, dvouruční ovládání) realizuje certifikovaná bezpečnostní technika dle posouzení rizik (ISO 13849 / IEC 62061) — nejsou předmětem tohoto programu. Signály v PLC slouží pouze k blokování technologie a diagnostice.
+
+## 9. Mimo rozsah tohoto dokumentu
+URS/FRS, posouzení rizik, HMI/SCADA specifikace, komunikace s nadřazenými systémy, recepty.`;
+  return s;
+}
+function docIOcsv(){
+  const l = ["Tag;Adresa;Směr;Datový typ;Zařízení;Komentář"];
+  for(const e of P.io){ const d = devById(e.devId)||{}; l.push([e.tag,e.addr,e.dir,dtFor(e),d.name||"",e.cmt||""].join(";")); }
+  return l.join("\n");
+}
+function docAlarmCsv(){
+  const l = ["Kód;Zařízení;Alarm;Příčina;Reakce systému;Kvitace"];
+  for(const d of P.devices){
+    if(d.cls==="Motor"){
+      l.push(`A_${d.name}_START;${d.name};Timeout rozběhu;Nepřišlo zpětné hlášení běhu do 3 s;Stop zařízení, stop sekvence;Povel STOP po odstranění příčiny`);
+      if(d.opt.fault) l.push(`A_${d.name}_FAULT;${d.name};Externí porucha;Jistič/měnič hlásí poruchu;Stop zařízení;Povel STOP po odstranění příčiny`);
+      if(d.opt.fbk!==false) l.push(`A_${d.name}_RUN;${d.name};Ztráta hlášení běhu;Výpadek za chodu;Stop zařízení;Povel STOP`);
+    } else if(d.cls==="Ventil"){
+      l.push(`A_${d.name}_TRAVEL;${d.name};Timeout přestavení;Koncová poloha nedosažena do 5 s;Stop sekvence;Povel ZAVŘÍT`);
+    } else if(d.cls==="AnalogIn"){
+      l.push(`A_${d.name}_HI;${d.name};Překročena horní mez;Hodnota > limitHi (${d.unit||""});Dle technologie (doplnit);Automaticky po návratu`);
+      l.push(`A_${d.name}_LO;${d.name};Podkročena dolní mez;Hodnota < limitLo (${d.unit||""});Dle technologie (doplnit);Automaticky po návratu`);
+    }
+  }
+  return l.join("\n");
+}
+function docFATMd(){
+  const mods = modules();
+  let s = `# Testovací protokol FAT
+
+**Projekt:** ${P.meta.name||"—"} · **Datum testu:** ………… · **Testoval:** ………… · **Za zákazníka:** …………
+
+Zaškrtni ☐→☑. Neshody zapiš do tabulky na konci. SAT = stejný rozsah po instalaci u zákazníka + skutečné akční členy a technologie.
+
+## 1. Kontrola I/O smyček (loop check)
+| Svorka | Adresa | Tag | Postup | OK |
+|---|---|---|---|---|
+`;
+  mods.forEach((m,mi)=>m.ch.forEach((e,i)=>{
+    const how = e.dir==="DI" ? "Sepnout snímač/kontakt, ověřit v PLC" :
+                e.dir==="DO" ? "Vynutit výstup z PLC, ověřit akční člen" :
+                e.dir==="AI" ? "Zdroj signálu (kalibrátor), ověřit hodnotu a škálování" :
+                               "Vynutit hodnotu, změřit výstup";
+    s += `| X${mi+1}:${i+1} | ${e.addr} | ${e.tag} | ${how} | ☐ |\n`;
+  }));
+  s += `\n## 2. Funkční testy zařízení\n`;
+  for(const d of P.devices){
+    if(d.cls==="Motor") s += `**${d.name} — ${d.desc}**\n- Start → běží, hlášení běhu do 3 s ☐\n- Stop → zastaví ☐\n- Simulace ztráty hlášení za chodu → porucha, výstup vypnut ☐\n${d.opt.fault?"- Simulace externí poruchy → porucha ☐\n":""}- Kvitace poruchy ☐\n\n`;
+    else if(d.cls==="Ventil") s += `**${d.name} — ${d.desc}**\n- Otevřít → dosažena poloha otevřeno ☐\n- Zavřít → dosažena poloha zavřeno ☐\n- Simulace nedojetí → timeout, porucha ☐\n- Kvitace ☐\n\n`;
+    else if(d.cls==="AnalogIn") s += `**${d.name} — ${d.desc}** (${d.unit||""} ${d.rmin}–${d.rmax})\n- Porovnání se skutečnou/kalibrovanou hodnotou ve 3 bodech ☐\n- Test mezí Hi/Lo ☐\n\n`;
+  }
+  if(P.program.seq.length){
+    s += `## 3. Test automatické sekvence\n| Krok | Očekávané chování | OK |\n|---|---|---|\n`;
+    P.program.seq.forEach((sq,i)=>{ const d=devById(sq.dev);
+      s += `| ${i+1} | ${sq.act==="wait"?("výdrž "+sq.timeS+" s"):((d?d.name:"?")+" "+sq.act)} → přechod ${sq.cond==="time"?"po čase":"na zpětné hlášení"} | ☐ |\n`; });
+    s += `| — | Přerušení centrálního uvolnění uprostřed cyklu → vše bezpečně zastaveno | ☐ |\n| — | Opakovaný start po kvitaci → cyklus od začátku | ☐ |\n`;
+  }
+  s += `\n## 4. Neshody\n| č. | Popis | Závažnost | Vyřešeno |\n|---|---|---|---|\n| | | | |\n\n**Výsledek FAT:** VYHOVĚL / VYHOVĚL S VÝHRADAMI / NEVYHOVĚL\n\nPodpisy: …………………………`;
+  return s;
+}
+function docManualMd(){
+  return `# Návod k obsluze — ${P.meta.name||"stroj"}
+
+Revize 0.1 (${dnes()}) — kostra k doplnění; před předáním doplnit fotografie, ovládací panel a kontakty.
+
+## 1. Popis stroje
+${P.meta.desc||"(doplnit)"}
+
+## 2. Ovládací prvky
+(doplnit: hlavní vypínač, panel HMI, tlačítka, signalizace — ${P.devices.filter(d=>d.cls==="DO").map(d=>d.name+" "+d.desc).join(", ")||"—"})
+
+## 3. Uvedení do chodu
+1. Zapnout hlavní vypínač, zkontrolovat signalizaci.
+2. Odblokovat nouzové zastavení (${estopTxt()}), zavřít kryty.
+3. Zvolit režim RUČNĚ/AUTO.
+4. V režimu AUTO spustit cyklus tlačítkem start.
+
+## 4. Zastavení
+- Provozní: tlačítko stop / dokončení cyklu.
+- Nouzové: tlačítko nouzového zastavení — POUZE v nebezpečí; po použití nutná kvitace.
+
+## 5. Poruchy a jejich odstranění
+Seznam alarmů: viz \`04_seznam_alarmu.csv\`. Obecný postup: odstranit příčinu → kvitovat → znovu spustit. Opakuje-li se porucha, kontaktovat údržbu.
+
+## 6. Údržba
+(doplnit intervaly: mazání, kontrola snímačů, dotažení svorek, kalibrace analogů — doporučeno 1× ročně)
+
+## 7. Bezpečnostní upozornění
+Zásahy do elektrické výzbroje smí provádět jen osoba s odpovídající kvalifikací. Bezpečnostní prvky nesmí být vyřazovány.`;
+}
+function docSWMd(){
+  const u = usedClasses();
+  return `# Softwarová dokumentace programu PLC
+
+**Projekt:** ${P.meta.name||"—"} · generováno ${dnes()}
+
+## 1. Struktura programu
+- **Knihovna typových bloků** (\`Gen_Library\`): ${["Motor","Ventil","AnalogIn","AnalogOut"].filter(c=>u.has(c)).map(c=>"FB_"+c).join(", ")||"—"}
+- **Strojní blok** \`FB_Machine\` / \`MAIN\`: multi-instance všech zařízení + stavový automat sekvence
+- Volání: 1 instance strojního bloku v cyklickém programu (OB1 / PlcTask / MainTask)
+
+## 2. Typové bloky
+| Blok | Funkce | Stavový automat | Timeout |
+|---|---|---|---|
+| FB_Motor | start/stop se zpětným hlášením | IDLE→STARTING→RUNNING→ERROR | rozběh 3 s |
+| FB_Ventil | otevřít/zavřít s koncáky | CLOSED→OPENING→OPEN→CLOSING→ERROR | přestavení 5 s |
+| FB_AnalogIn | škálování + meze | — | — |
+| FB_AnalogOut | jednotky → surová hodnota | — | — |
+
+## 3. Instance
+${P.devices.map(d=>"- inst"+d.name+" : FB_"+(d.cls==="DI"||d.cls==="DO"?"(volný signál)":d.cls)+" — "+(d.desc||"")).join("\n")}
+
+## 4. Statusová slova
+\`16#0000\` OK · \`16#8001\` blokováno (enable=FALSE) · \`16#8002\` porucha. Rozšíření kódů doplnit dle projektu.
+
+## 5. Konvence
+Symbolické adresování, bez M-flagů; tagy \`<Zařízení>_<signál>\`; hrany uvnitř FB; každý čekací stav má timeout do ERROR. Dle Siemens Programming Styleguide (ID 81318674) / IEC 61131-3.
+
+## 6. Verze a zálohy
+| Verze | Datum | Autor | Změna |
+|---|---|---|---|
+| 0.1 | ${dnes()} | PLC Studio | první generování |`;
+}
+function docFiles(){
+  const bodies = [docIndexMd(), docFDSMd(), docIOcsv(), svorkyCSV(modules()), docAlarmCsv(), docFATMd(), docManualMd(), docSWMd()];
+  return DOC_META.map((m,i)=>({path:m[0], tab:m[1], title:m[2], body:bodies[i]}));
+}
+function allProjectFiles(){
+  const out = [];
+  for(const f of docFiles()) out.push({group:"Dokumentace", name:f.path, save:f.path, body:f.body, kind:"text"});
+  const mods = modules();
+  out.push({group:"Schémata", name:"blokove_schema.svg", save:"00_blokove_schema.svg", body:svgBlock(mods), kind:"svg"});
+  mods.forEach((m,i)=>{
+    const base = m.dir+m.idx+"_X"+(i+1), pre = String(i+1).padStart(2,"0")+"_";
+    out.push({group:"Schémata", name:base+".svg", save:pre+base+".svg", body:sheet(m,i+1,i+1,mods.length), kind:"svg"});
+    out.push({group:"Schémata", name:base+".dxf", save:pre+base+".dxf", body:sheetDXF(m,i+1,i+1,mods.length), kind:"dxf", prev:sheet(m,i+1,i+1,mods.length)});
+  });
+  for(const p of P.platforms){
+    const files = genFor(p);
+    for(const [n,b] of Object.entries(files)) out.push({group:"PLC — "+PLAT[p].name, name:n, save:p+"_"+n, body:b, kind:"text"});
+  }
+  return out;
+}
+function rDocs(el){
+  syncIO();
+  if(!P.devices.length){ card(el,"09","Dokumentace","<p class='hint'>Nejdřív navrhni zařízení (kroky 2–4).</p>"); return; }
+  const files = allProjectFiles();
+  if(docTab>=files.length) docTab = 0;
+  const groups = [...new Set(files.map(f=>f.group))];
+  let listHtml = "";
+  for(const g of groups){
+    listHtml += '<h4>'+esc(g)+'</h4>';
+    files.forEach((f,i)=>{ if(f.group===g) listHtml += '<button data-d="'+i+'" aria-selected="'+(i===docTab)+'">'+esc(f.name)+'</button>'; });
+  }
+  const c = card(el,"09","Dokumentace projektu",`
+  <p class="hint" style="margin-top:0;max-width:78ch">Z návrhu se generuje dokumentace běžného automatizačního projektu: funkční specifikace (FDS), I/O list, svorkovnice, seznam alarmů, testovací protokol FAT, kostra návodu k obsluze, SW dokumentace, schémata a zdrojové kódy zvolených platforem. Vyber soubor vlevo, prohlédni ho a ulož, kam potřebuješ. Vše je návrh k revizi; co sada nepokrývá, vypisuje Přehled.</p>
+  <div class="docgrid">
+    <div class="doclist" role="tablist">${listHtml}</div>
+    <div style="min-width:0">
+      <div class="row" style="margin:0 0 10px">
+        <button class="primary" id="bDocSave">Stáhnout soubor</button>
+        <button class="small" id="bDocCopy">Kopírovat</button>
+        <span class="hint" style="margin:0;font-family:var(--font-mono);font-size:.72rem" id="docName"></span>
+        <span class="hint" style="margin:0" id="docStatus"></span>
+      </div>
+      <div id="docPane"></div>
+    </div>
+  </div>
+  <p class="note">Každý soubor se ukládá jednotlivě — prohlížeč se zeptá na potvrzení a místo uložení. Soubory platforem se ukládají s předponou platformy (např. <code>siemens_Gen_Main.scl</code>), ať se v jednom adresáři nepletou.</p>`);
+  const pane = c.querySelector("#docPane"), nameEl = c.querySelector("#docName"), status = c.querySelector("#docStatus");
+  const show = ()=>{
+    const f = files[docTab];
+    nameEl.textContent = "→ "+f.save;
+    status.textContent = "";
+    if(f.kind==="svg"){ pane.innerHTML = '<div class="svgprev">'+f.body+'</div>'; }
+    else if(f.kind==="dxf"){ pane.innerHTML = '<p class="hint" style="margin:0 0 8px">Náhled výkresu — uloží se jako DXF pro EPLAN / AutoCAD / LibreCAD.</p><div class="svgprev">'+f.prev+'</div>'; }
+    else { pane.innerHTML = '<div class="codebox"><pre class="code" style="border-radius:8px;max-height:520px"></pre></div>'; pane.querySelector("pre").textContent = f.body; }
+    c.querySelectorAll("[data-d]").forEach(b=>b.setAttribute("aria-selected", String(+b.dataset.d===docTab)));
+  };
+  show();
+  c.querySelectorAll("[data-d]").forEach(b=>b.addEventListener("click",()=>{ docTab=+b.dataset.d; show(); }));
+  c.querySelector("#bDocCopy").addEventListener("click",()=>copyText(files[docTab].body, c.querySelector("#bDocCopy")));
+  c.querySelector("#bDocSave").addEventListener("click", async ()=>{
+    if(downloadsFn === undefined){
+      status.textContent = "Připojuji stahování…";
+      try{ downloadsFn = (window.claude && window.claude.use) ? await window.claude.use("downloads") : null; }catch(e){ downloadsFn = null; }
+    }
+    if(!downloadsFn){ status.textContent = "Stahování není v tomto zobrazení dostupné — použij Kopírovat."; return; }
+    try{ status.textContent = ""; await downloadsFn.save({filename:files[docTab].save, data:files[docTab].body}); status.textContent = "Uloženo."; setTimeout(()=>{ if(status.textContent==="Uloženo.") status.textContent=""; },2000); }
+    catch(e){ if(e && e.code!=="cancelled") status.textContent = "Uložení se nepodařilo."; }
+  });
+}
+
+/* --- Nápověda (mimo kroky) --- */
+function rHelp(el){
+  const H = (t,b)=>'<details class="help"><summary>'+t+'</summary><div class="body">'+b+'</div></details>';
+  const c = document.createElement("section");
+  c.className = "card";
+  c.innerHTML = '<h2><span class="n">?</span>Škola PLC — nápověda pro začátečníky</h2>'
+  + H("Co je PLC a jak funguje", `
+    <p>PLC (programovatelný logický automat) je průmyslový počítač, který řídí stroj: čte vstupy (tlačítka, snímače), vyhodnotí program a nastaví výstupy (stykače, ventily, signálky). Na rozdíl od běžného PC je stavěný na nepřetržitý provoz, rušení a teploty v rozvaděči.</p>
+    <p><b>Scan cyklus</b> — srdce každého PLC: <b>1)</b> načti všechny fyzické vstupy do paměti, <b>2)</b> vykonej celý program odshora dolů, <b>3)</b> zapiš výsledky na fyzické výstupy. To se opakuje typicky každých 1–10 ms. Důsledky: program nikdy „nečeká" uvnitř (žádné nekonečné smyčky!), a stav, který má přežít do dalšího cyklu, musí být uložený v proměnné.</p>
+    <p>Typický projekt = <b>HW konfigurace</b> (CPU + I/O karty) + <b>tagy/proměnné</b> (pojmenované signály) + <b>program</b> (bloky).</p>`)
+  + H("Vstupy a výstupy (DI / DO / AI / AO)", `
+    <ul>
+      <li><b>DI</b> — digitální vstup, 24 V DC: tlačítko, koncák, čidlo. Jen 0/1.</li>
+      <li><b>DO</b> — digitální výstup: cívka stykače, ventil, signálka. Pozor na proudovou zatížitelnost — větší zátěž přes relé/stykač.</li>
+      <li><b>AI</b> — analogový vstup: 0–10 V nebo 4–20 mA (tlak, teplota…). V programu přijde „surové číslo" (Siemens 0–27648), které se škáluje na fyzikální jednotky — přesně to dělá generovaný FB_AnalogIn. Výhoda 4–20 mA: přerušený vodič poznáš (0 mA = porucha).</li>
+      <li><b>AO</b> — analogový výstup: žádaná hodnota pro frekvenční měnič, proporcionální ventil.</li>
+    </ul>
+    <p><b>NC vs. NO:</b> bezpečnostní signály (E-stop, koncáky krytů) se zapojují jako NC (rozpínací) — drát TRUE = v pořádku. Přerušený vodič se pak projeví jako zastavení, ne jako „vše OK". Proto v generovaném kódu E-stop = TRUE znamená „můžeš jet".</p>`)
+  + H("Jazyky IEC 61131-3 — kterým psát", `
+    <ul>
+      <li><b>LAD (ladder)</b> — „žebříček" z kontaktů a cívek. Čte ho i údržba u stroje; ideální na jednoduché blokování a bezpečnostní podmínky.</li>
+      <li><b>FBD</b> — grafické bloky; oblíbené na analogovou/signálovou logiku.</li>
+      <li><b>ST / SCL</b> — textový jazyk podobný Pascalu. Nejlepší na výpočty, stavové automaty, práci s daty. <b>Tímto jazykem generuje PLC Studio</b> — je přenositelný mezi platformami.</li>
+      <li><b>SFC / GRAPH</b> — sekvenční diagramy (kroky a přechody) na velké sekvence.</li>
+      <li><b>IL/STL</b> — historický „assembler", dnes jen údržba starého kódu.</li>
+    </ul>
+    <p>Dobrá praxe: logika strojů v ST, zásahové/bezpečnostní podmínky v LAD, ať je údržba přečte.</p>`)
+  + H("Stavební bloky programu (FB, FC, DB, instance)", `
+    <ul>
+      <li><b>FC (funkce)</b> — bez paměti; výpočty, převody. Stejné vstupy → stejný výsledek.</li>
+      <li><b>FB (funkční blok)</b> — má vlastní paměť (<i>instanci</i>). Jeden FB_Motor, deset motorů = deset instancí; každá si pamatuje svůj stav. Tohle je základ znovupoužitelnosti.</li>
+      <li><b>DB / globální proměnné</b> — datové úložiště (recepty, HMI data).</li>
+      <li><b>UDT / struktury</b> — vlastní datové typy, např. „stav motoru" = run+error+status pohromadě.</li>
+      <li><b>OB / task</b> — vstupní body: cyklický program, časové přerušení, reakce na chybu (u Siemens OB82/86/121/122 — bez nich jde CPU při poruše periferie do STOP!).</li>
+    </ul>
+    <p>Pravidlo: <b>žádné magické bity a absolutní adresy v logice</b> — všechno symbolicky přes tagy, zařízení jako instance FB. Přesně tak staví program generátor.</p>`)
+  + H("Stavové automaty a časovače — vzor, který generátor používá", `
+    <p>Každé zařízení i sekvence je <b>stavový automat</b>: proměnná „krok" + CASE. V každém kroku se dělá jedna věc a hlídá se podmínka přechodu. Výhody: čitelné, laditelné (vidíš číslo kroku), každý čekací krok může mít timeout do chybového stavu.</p>
+    <p>Kostra: <code>CASE statStep OF 0: klid … 10: rozběh (timeout!) … 20: běh … 90: porucha END_CASE</code>. Chybový krok drží zařízení vypnuté, odchod jen kvitací.</p>
+    <p><b>Časovače:</b> TON (zpožděné sepnutí) je nejčastější — „když podmínka trvá X s". <b>Detekce hrany</b> (reakce na stisk, ne držení): R_TRIG, nebo ručně <code>trig := sig AND NOT lastSig; lastSig := sig;</code> — generovaný kód používá obojí.</p>`)
+  + H("Bezpečnost — co NIKDY neřešit jen programem", `
+    <p>Nouzové zastavení, blokování krytů, dvouruční ovládání a podobné funkce jsou <b>bezpečnostní funkce</b> podle ISO 13849 / IEC 62061. Musí je zajistit certifikovaná technika: bezpečnostní relé, nebo safety PLC (Siemens F-CPU, Pilz, Sick…), se správnou kategorií/PL dle posouzení rizik stroje.</p>
+    <p>Běžný program s bezpečnostním signálem jen <i>pracuje</i> (zastaví sekvenci, zobrazí hlášku) — nesmí být jediné, co člověka chrání. Generované <code>enable</code> je proto jen informativní vrstva nad skutečným safety okruhem. U nás v EU je to součást posouzení shody stroje (CE, směrnice o strojních zařízeních / nařízení 2023/1230).</p>`)
+  + H("Přehled platforem", `
+    <div class="tablewrap"><table><thead><tr><th>Výrobce</th><th>IDE</th><th>Typické CPU</th><th>Jazyk zde</th><th>Import z PLC Studio</th></tr></thead><tbody>
+    ${Object.values(PLAT).map(p=>'<tr><td><b>'+p.name+'</b></td><td>'+p.ide+'</td><td>'+p.cpu+'</td><td class="mono">'+p.lang+'</td><td style="font-size:.78rem">'+p.imp+'</td></tr>').join("")}
+    </tbody></table></div>
+    <p>Všechny vycházejí z IEC 61131-3, takže ST logika je přenositelná s malými úpravami (časovače u Rockwellu, datové typy, adresace I/O). Hlavní rozdíly jsou v IDE, HW konfiguraci a komunikacích (Profinet vs. EtherNet/IP vs. EtherCAT vs. CC-Link).</p>`)
+  + H("Blokové a elektrické schéma — jak je číst", `
+    <p><b>Blokové schéma</b> (krok 5) ukazuje architekturu systému: vlevo zdroje signálů (snímače, zpětná hlášení), uprostřed sestava PLC — zdroj 24 V, CPU a I/O moduly navržené automaticky z počtu signálů (DI16, DO16, AI8, AO4) — vpravo akční členy. Každá čára je jeden signál.</p>
+    <p><b>Elektrické zapojení</b> kreslí každý kanál modulu: u DI vede +24 V přes kontakt zařízení na vstupní svorku; u DO jde výstupní svorka přes zátěž (cívka, signálka) na 0 V; analogy jako proudová smyčka 4–20 mA (dvouvodič) nebo 0–10 V (třívodič). Svorky jsou číslované X1:1, X1:2… po modulech — tabulka <b>Svorkovnice</b> jde zkopírovat jako CSV pro projektanta.</p>
+    <p>Pozor: je to <i>podklad</i>, ne výrobní dokumentace — kontakty jsou obecně NO (bezpečnostní prvky se zapojují NC), chybí jištění, stínění, průřezy vodičů a rozvaděčová dispozice. To patří do rukou projektanta elektro (EPLAN apod.).</p>`)
+  + H("Migrace projektu mezi platformami", `
+    <p>Postup v PLC Studio: <b>1)</b> exportuj ze zdrojové platformy tagy/GVL (u Siemens tabulku tagů přes Openness, u Rockwellu L5X/CSV…), <b>2)</b> volba Import v kroku Zařízení — nástroj sestaví zařízení a I/O, <b>3)</b> zkontroluj třídy zařízení a adresy, <b>4)</b> vyber cílovou platformu a vygeneruj.</p>
+    <p><b>Co se přenese dobře:</b> struktura zařízení, tagy, komentáře, logika typových zařízení (znovu vygenerovaná ze šablon). <b>Co je vždy ruční práce:</b> HW konfigurace, komunikace, safety, vizualizace/HMI a specifická procesní logika — tu je potřeba přepsat podle inventáře bloků z importu.</p>`)
+  + H("Slovníček", `
+    <ul>
+      <li><b>Tag / proměnná</b> — pojmenovaný signál nebo paměťové místo.</li>
+      <li><b>Instance</b> — paměť jednoho konkrétního použití FB.</li>
+      <li><b>Scan</b> — jeden průchod programu (vstupy→logika→výstupy).</li>
+      <li><b>Interlock</b> — blokovací podmínka („nespouštěj, dokud…").</li>
+      <li><b>HMI</b> — operátorský panel / vizualizace.</li>
+      <li><b>Retain</b> — proměnná přežívající vypnutí napájení.</li>
+      <li><b>Watchdog</b> — hlídání maximální doby cyklu.</li>
+      <li><b>Openness / L5X / PLCopen XML</b> — formáty a API pro strojovou výměnu projektů; přes ně se automatizuje import.</li>
+      <li><b>PLCSIM, Logix Echo, GX Simulator…</b> — simulátory CPU pro testy bez hardwaru.</li>
+    </ul>`)
+  + H("Jak pracovat s tímto nástrojem", `
+    <ol style="padding-left:20px">
+      <li><b>Projekt</b> — pojmenuj; nebo si načti ukázku a projdi ji.</li>
+      <li><b>AI návrh</b> — popiš stroj vlastními slovy, AI navrhne zařízení a sekvenci (případně se doptá) a návrh převezmeš.</li>
+      <li><b>Platformy</b> — vyber cílové systémy (klidně víc najednou).</li>
+      <li><b>Zařízení</b> — doladíš sestavu ručně; existující projekt lze převzít vedlejší volbou Import dole.</li>
+      <li><b>I/O</b> — zkontroluj tagy a adresy, přečísluj podle skutečného zapojení.</li>
+      <li><b>Schéma</b> — blokové schéma systému, elektrické zapojení I/O a svorkovnice.</li>
+      <li><b>Program</b> — vyber E-stop a naklikej automatickou sekvenci.</li>
+      <li><b>Generovat</b> — zkopíruj soubory, README říká přesný postup importu.</li>
+      <li><b>Dokumentace</b> — stáhni kompletní balík projektu (FDS, I/O list, alarmy, FAT protokol, návod, schémata, kódy) jako ZIP.</li>
+    </ol>
+    <p>Kdykoli se vrať a změň vstupy — výstupy se přegenerují. Návrh zůstává uložený v tomto prohlížeči; přes Export JSON (krok Projekt) si ho přeneseš či zazálohuješ.</p>`);
+  el.appendChild(c);
+}
+
+/* ============================================================ start */
+$("btnPrev").addEventListener("click",()=>{ if(typeof P.step==="number" && P.step>0){ P.step--; save(); render(); }});
+$("btnNext").addEventListener("click",()=>{ if(typeof P.step==="number" && P.step<STEPS.length-1){ P.step++; save(); render(); }});
+try{
+  if(window.claude && typeof window.claude.use === "function"){
+    window.claude.use("sample").then(f=>{ sampleFn = f; if(P.step===1) render(); }).catch(()=>{ sampleFn = null; if(P.step===1) render(); });
+    window.claude.use("downloads").then(f=>{ downloadsFn = f; if(P.step===8) render(); }).catch(()=>{ downloadsFn = null; });
+  } else { sampleFn = null; downloadsFn = null; }
+}catch(e){ sampleFn = null; downloadsFn = null; }
+load();
+if(!P.devices.length && !P.meta.name) loadSample();
+else render();
+</script>

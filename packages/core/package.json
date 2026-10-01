@@ -1,0 +1,15 @@
+{
+  "name": "@plc-studio/core",
+  "version": "0.1.0",
+  "description": "PLC Studio — jádro: datový model, generátory kódu (SCL/ST), import projektů, výkresy (SVG/DXF), dokumentace",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": { ".": "./dist/index.js" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/core.test.js"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
