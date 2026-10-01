@@ -38,9 +38,23 @@ npx http-server . -p 8080     # → http://localhost:8080/apps/web/
   s klíčem uživatele; v produkci přes backend.
 - Commity: česky bez diakritiky, stručný popis změn.
 
+## Aktuální handoff pro lokální Claude Code (2026-10-01)
+
+Do core přibyl **PLCopen XML (TC6) export** (`src/plcopen.ts` + `src/generate.ts`,
+`genFor` se přestěhoval z codegen.ts do generate.ts; dist je přegenerovaný a commitnutý).
+`genFor()` teď pro codesys/beckhoff/schneider vrací navíc `PLCopen_Import.xml` —
+**web app ho zobrazí automaticky** (Generovat i Dokumentace iterují přes soubory).
+Úkoly k převzetí v app:
+1. `git pull`, proklikat krok Generovat (CODESYS/Beckhoff/Schneider) — ověřit, že se
+   PLCopen_Import.xml zobrazuje, stahuje a README zmiňuje import jedním souborem.
+2. Ideálně ověřit reálný import souboru do CODESYS V3.5 / TwinCAT (Project → Import
+   PLCopenXML) na ukázkové lince; nálezy zapsat sem do CLAUDE.md.
+3. Volitelné: v kroku Generovat zvýraznit PLCopen_Import.xml jako doporučenou cestu
+   (badge „doporučeno") pro tyto tři platformy.
+
 ## Roadmapa (pořadí)
 
-1. PLCopen XML (TC6) export — CODESYS/TwinCAT/Machine Expert jedním importovatelným souborem
+1. ~~PLCopen XML (TC6) export~~ ✅ hotovo v core (viz handoff výše)
 2. apps/api: účty, projekty v DB, CZ/EN, platby (Stripe)
 3. AI přes backend; AI z fotky P&ID
 4. Openness worker (import+kompilace do TIA na klik)

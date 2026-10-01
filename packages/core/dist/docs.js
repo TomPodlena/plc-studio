@@ -3,7 +3,7 @@
  * (FDS, I/O list, svorkovnice, alarmy, FAT, návod, SW dokumentace, přehled).
  */
 import { CLS, PLAT, devById, modules, dtFor, usedClasses, } from "./model.js";
-import { genFor } from "./codegen.js";
+import { genFor } from "./generate.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
 function dnes() { return new Date().toLocaleDateString("cs-CZ"); }
 function estopTxt(prj) {

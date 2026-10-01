@@ -1,5 +1,7 @@
 export * from "./model.js";
 export * from "./codegen.js";
+export * from "./generate.js";
+export * from "./plcopen.js";
 export * from "./importers.js";
 export * from "./drawing.js";
 export * from "./docs.js";

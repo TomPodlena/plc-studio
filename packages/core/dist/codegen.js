@@ -678,13 +678,19 @@ SPOLEČNÉ KROKY
   Detekce hran je v kódu ruční, funguje beze změny.
 - Test: Logix Echo / emulátor.`,
         beckhoff: `BECKHOFF TWINCAT 3
-- GVL_IO.st: PLC projekt → Add → Global Variable List, vlož obsah.
+- NEJRYCHLEJI: PLCopen_Import.xml — PLC projekt → pravý klik → Import PLCopenXML
+  (naimportuje FB knihovnu, MAIN i GVL_IO najednou; import je aditivní,
+  duplicitní názvy POU smaž předem).
+- Ruční cesta: GVL_IO.st: PLC projekt → Add → Global Variable List, vlož obsah.
   Adresy %IX/%QX můžeš nechat a nalinkovat v I/O mapování, nebo použít AT %I*.
 - Gen_Library.st: každý FUNCTION_BLOCK vlož jako nový POU (ST).
 - MAIN.st: obsah do MAIN (PRG) a zavolej v PlcTask.
 - Test: lokální runtime na PC (TwinCAT XAR).`,
         codesys: `CODESYS V3.5 (WAGO, Festo, Eaton…)
-- GVL_IO.st: Application → Add Object → Global Variable List.
+- NEJRYCHLEJI: PLCopen_Import.xml — Project → Import PLCopenXML
+  (FB knihovna, MAIN i GVL_IO jedním souborem; import je aditivní,
+  duplicitní názvy POU hlásí chybu).
+- Ruční cesta: GVL_IO.st: Application → Add Object → Global Variable List.
 - Gen_Library.st: POU pro každý FB (jazyk ST). Lze i PLCopen XML export/import.
 - MAIN.st: do PLC_PRG a přiřaď do tasku.
 - Adresy %IX/%QX namapuj v konfiguraci sběrnice (EtherCAT/Profinet…).
@@ -698,7 +704,8 @@ SPOLEČNÉ KROKY
 - Analogy: surová hodnota dle modulu (např. 0–16000 u FX5) → uprav rawMax.
 - Test: GX Simulator3.`,
         schneider: `SCHNEIDER ECOSTRUXURE MACHINE EXPERT (M241/M262)
-- Platforma je postavená na CODESYS — postup shodný: GVL, POU (ST), MAIN do tasku.
+- NEJRYCHLEJI: PLCopen_Import.xml — Import PLCopenXML (báze CODESYS, viz výše).
+- Platforma je postavená na CODESYS — ruční postup shodný: GVL, POU (ST), MAIN do tasku.
 - Adresy %IX/%QX namapuj na embedded I/O / TM3 moduly v konfiguraci.
 - Pro Control Expert (M580) je nutné bloky přenést jako DFB — struktura sedí.
 - Test: simulátor v Machine Expert.`,
@@ -711,21 +718,4 @@ SPOLEČNÉ KROKY
     };
     return common + "\n" + spec[plat];
 }
-/** Všechny generované soubory programu pro jednu platformu. */
-export function genFor(prj, plat) {
-    const files = {};
-    if (plat === "siemens") {
-        files["Gen_Tags.tsv"] = genSiemensTagsTSV(prj);
-        files["Gen_IO.xml"] = genSiemensTagsXml(prj);
-        files["Gen_Library.scl"] = genLibrary(prj, "siemens");
-        files["Gen_Main.scl"] = genMainSiemens(prj);
-    }
-    else {
-        const tf = genTagFile(prj, plat);
-        files[tf.name] = tf.body;
-        files["Gen_Library.st"] = genLibrary(prj, plat);
-        files["MAIN.st"] = genMainIEC(prj, plat);
-    }
-    files["README.txt"] = genReadme(prj, plat);
-    return files;
-}
+/* genFor žije v generate.ts (skládá codegen + plcopen bez kruhových importů). */

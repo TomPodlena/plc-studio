@@ -42,6 +42,4 @@ export declare function genTagFile(prj: Project, plat: PlatformKey): {
     body: string;
 };
 export declare function genReadme(prj: Project, plat: PlatformKey): string;
-/** Všechny generované soubory programu pro jednu platformu. */
-export declare function genFor(prj: Project, plat: PlatformKey): Record<string, string>;
 export {};

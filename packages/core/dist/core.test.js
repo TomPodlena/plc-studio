@@ -2,7 +2,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { blankProject, syncIO, autoAddr, addrFor, sanitizeTag, validateProject, modules, dtFor, } from "./model.js";
-import { genFor, genTagFile } from "./codegen.js";
+import { genTagFile } from "./codegen.js";
+import { genFor } from "./generate.js";
+import { genPLCopenXML, parseStPou } from "./plcopen.js";
 import { detectAndParse, buildDevicesFromTags, normAddr } from "./importers.js";
 import { sheetOps, opsToDXF, opsToSVG } from "./drawing.js";
 import { allProjectFiles, docFiles } from "./docs.js";
@@ -123,6 +125,46 @@ test("dokumentace: 8 dokumentů + schémata + soubory platforem", () => {
         assert.ok(!dup.has(f.save), "duplicitní save: " + f.save);
         dup.add(f.save);
     }
+});
+test("PLCopen XML: POU, GVL s adresami, MAIN instance, escapování", () => {
+    const p = sampleComplex();
+    const xml = genPLCopenXML(p, "codesys");
+    assert.ok(xml.startsWith('<?xml version="1.0"'));
+    assert.ok(xml.includes('xmlns="http://www.plcopen.org/xml/tc6_0200"'));
+    for (const pou of ["FB_Motor", "FB_Ventil", "FB_AnalogIn", "FB_AnalogOut"]) {
+        assert.ok(xml.includes('<pou name="' + pou + '" pouType="functionBlock">'), pou);
+    }
+    assert.ok(xml.includes('<pou name="MAIN" pouType="program">'));
+    assert.ok(xml.includes('<pouInstance name="MAIN" typeName="MAIN" />'));
+    assert.ok(xml.includes('<globalVars name="GVL_IO">'));
+    assert.ok(xml.includes('address="%IX0.0"'));
+    assert.ok(xml.includes('<derived name="TON" />'));
+    assert.ok(xml.includes('<derived name="FB_Motor" />'), "instance v MAIN");
+    assert.ok(!/&(?!amp;|lt;|gt;|quot;|#)/.test(xml), "žádné neescapované &");
+    // tělo ST je v xhtml a bez deklarací
+    const body = xml.split("<ST>")[1];
+    assert.ok(body.includes("CASE statStep OF"));
+    assert.ok(!body.split("</ST>")[0].includes("VAR_INPUT"));
+});
+test("parseStPou: interface a tělo z šablony i z MAIN", () => {
+    const p = sampleSmall();
+    const mainSrc = genFor(p, "codesys")["MAIN.st"];
+    const main = parseStPou(mainSrc);
+    assert.equal(main.kind, "program");
+    assert.equal(main.name, "MAIN");
+    assert.ok(main.locals.some(v => v.name === "instM1" && v.type === "FB_Motor"));
+    assert.ok(main.locals.some(v => v.type === "TON"));
+    assert.ok(main.body.includes("instM1("));
+    assert.ok(!main.body.includes("END_PROGRAM"));
+});
+test("genFor: PLCopen jen pro CODESYS rodinu", () => {
+    const p = sampleSmall();
+    assert.ok("PLCopen_Import.xml" in genFor(p, "codesys"));
+    assert.ok("PLCopen_Import.xml" in genFor(p, "beckhoff"));
+    assert.ok("PLCopen_Import.xml" in genFor(p, "schneider"));
+    assert.ok(!("PLCopen_Import.xml" in genFor(p, "rockwell")));
+    assert.ok(!("PLCopen_Import.xml" in genFor(p, "siemens")));
+    assert.ok(genFor(p, "codesys")["README.txt"].includes("PLCopen_Import.xml"));
 });
 test("dtFor: analogy INT, binární BOOL", () => {
     assert.equal(dtFor({ dir: "AI" }), "INT");

@@ -5,7 +5,7 @@
 import {
   Project, CLS, PLAT, devById, modules, dtFor, usedClasses,
 } from "./model.js";
-import { genFor } from "./codegen.js";
+import { genFor } from "./generate.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
 
 function dnes(): string { return new Date().toLocaleDateString("cs-CZ"); }
