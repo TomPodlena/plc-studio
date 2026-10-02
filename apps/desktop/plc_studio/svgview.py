@@ -20,6 +20,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import theme
+from .i18n import _
 
 # CSS proměnné webového tématu → paleta desktopu
 _VARS = {
@@ -41,6 +42,8 @@ MARKS = {
     "active": (theme.WARN, 2, "#FFEFC2"),
     "done": (theme.ACCENT, 1, "#E3F1E8"),
     "err": (theme.ERR, 2, theme.DANGER_BG),
+    "on": (theme.ACCENT, 2, "#D5EFE0"),        # živá simulace: běží / otevřeno / signál TRUE
+    "off": ("#9FB0A6", 1, "#ECEFED"),          # blokováno (enable = FALSE)
 }
 
 
@@ -178,12 +181,23 @@ class SvgView(ttk.Frame):
         bar.pack(fill="x", pady=(0, 4))
         ttk.Button(bar, text="−", width=3, command=lambda: self.zoom(1 / 1.2)).pack(side="left")
         ttk.Button(bar, text="+", width=3, command=lambda: self.zoom(1.2)).pack(side="left", padx=(4, 0))
-        ttk.Button(bar, text="Na šířku", command=self.fit_width).pack(side="left", padx=(4, 0))
+        ttk.Button(bar, text=_("Na šířku"), command=self.fit_width).pack(side="left", padx=(4, 0))
         ttk.Button(bar, text="100 %", command=lambda: self.set_scale(1.0)).pack(side="left", padx=(4, 0))
         self._zoom_lbl = ttk.Label(bar, text="", style="Dim.TLabel")
         self._zoom_lbl.pack(side="left", padx=10)
-        ttk.Label(bar, text=("klik = odkaz · " if on_click else "") + "Ctrl+kolečko = zoom",
-                  style="Dim.TLabel").pack(side="right")
+        hint = ttk.Label(bar, text=(_("klik = odkaz") + " · " if on_click else "")
+                         + _("Ctrl+kolečko = zoom"), style="Dim.TLabel")
+        hint.pack(side="right")
+
+        def fit_hint(e) -> None:
+            """V úzkém panelu nápovědu schovat celou, ať nevisí useknutá."""
+            need = sum(w.winfo_reqwidth() + 10 for w in bar.winfo_children())
+            if need > e.width:
+                hint.pack_forget()
+            elif not hint.winfo_manager():
+                hint.pack(side="right")
+
+        bar.bind("<Configure>", fit_hint)
 
         body = ttk.Frame(self)
         body.pack(fill="both", expand=True)
@@ -425,19 +439,21 @@ class SvgView(ttk.Frame):
             mark = MARKS.get(marks[idx]) if idx >= 0 and marks[idx] else None
             tags = (f"m{idx}",) if idx >= 0 else ()
             if kind == "line":
-                _, x1, y1, x2, y2, stroke, width, _ = it
+                _k, x1, y1, x2, y2, stroke, width, _i = it
                 if mark:
                     stroke, width = mark[0], max(width, mark[1])
                 c.create_line(x1 * s, y1 * s, x2 * s, y2 * s, fill=stroke,
                               width=max(1, round(width * s)), tags=tags)
             elif kind == "circle":
-                _, cx, cy, r, stroke, fill, width, _ = it
+                _k, cx, cy, r, stroke, fill, width, _i = it
                 if mark:
                     stroke = mark[0]
+                    if marks[idx] == "on":
+                        fill = mark[0]                  # kontrolka svítí plnou barvou
                 c.create_oval((cx - r) * s, (cy - r) * s, (cx + r) * s, (cy + r) * s,
                               outline=stroke, fill=fill, width=max(1, round(width * s)), tags=tags)
             elif kind == "rect":
-                _, x, y, w, h, stroke, fill, width, _ = it
+                _k, x, y, w, h, stroke, fill, width, _i = it
                 hollow = fill in ("", theme.FIELD)
                 if mark and hollow:
                     stroke, width, fill = mark[0], max(width, mark[1]), mark[2]
@@ -449,7 +465,7 @@ class SvgView(ttk.Frame):
                                    fill=fill, width=max(1, round(width * s)) if stroke else 0,
                                    tags=tags)
             else:
-                _, x, y, txt, size, bold, anchor, fill, _ = it
+                _k, x, y, txt, size, bold, anchor, fill, _i = it
                 px = max(5, round(size * s))
                 font = ("Consolas", -px, "bold") if bold else ("Consolas", -px)
                 tk_anchor = {"start": "sw", "middle": "s", "end": "se"}.get(anchor, "sw")

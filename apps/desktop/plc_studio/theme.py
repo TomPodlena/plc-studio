@@ -91,6 +91,7 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
                     font=("Consolas", 10, "bold"), padding=(6, 1))
     style.configure("Err.TLabel", background=BG, foreground=ERR, font=FONT_UI)
     style.configure("Ok.TLabel", background=BG, foreground=ACCENT, font=FONT_UI)
+    style.configure("Link.TLabel", background=BG, foreground=ACCENT, font=FONT_UI + ("underline",))
     style.configure("Stat.TLabel", background=FIELD, foreground=FG, font=FONT_UI,
                     padding=(8, 3))
 
@@ -110,17 +111,18 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
                     bordercolor="#E7B9B4", lightcolor=DANGER_BG, darkcolor=DANGER_BG)
     style.map("Danger.TButton", background=[("active", "#EFC8C3")])
 
-    # Lišta kroků: běžný / hotový / aktuální krok.
+    # Lišta kroků: běžný / hotový / aktuální krok. Vodorovná vycpávka je úzká, ať se
+    # lišta (9 kroků + Nápověda) vejde i do nejmenšího okna 1100 px v němčině.
     style.configure("Step.TButton", background=BG, foreground=FG, bordercolor=BORDER,
-                    lightcolor=BG, darkcolor=BG, padding=(9, 5))
+                    lightcolor=BG, darkcolor=BG, padding=(6, 5))
     style.map("Step.TButton", background=[("active", FIELD)])
     style.configure("StepDone.TButton", background=TREE_SEL, foreground=PRIMARY,
                     bordercolor=BORDER, lightcolor=TREE_SEL, darkcolor=TREE_SEL,
-                    padding=(9, 5))
+                    padding=(6, 5))
     style.map("StepDone.TButton", background=[("active", "#C6E0D1")])
     style.configure("StepOn.TButton", background=PRIMARY, foreground="#FFFFFF",
                     bordercolor=PRIMARY, lightcolor=PRIMARY, darkcolor=PRIMARY,
-                    font=FONT_ACCENT, padding=(9, 5))
+                    font=FONT_ACCENT, padding=(6, 5))
     style.map("StepOn.TButton", background=[("active", PRIMARY)])
 
     # Přepínače záložek (platforma / soubor) — Radiobutton ve stylu tlačítka.
@@ -130,8 +132,21 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
               background=[("selected", ACCENT), ("active", BTN_ACTIVE)],
               foreground=[("selected", ACCENT_FG)])
 
+    # Úzký přepínač v řádku tabulky (vstupy živé simulace): „stroj" zeleně, vnucená
+    # hodnota 0 / 1 oranžově, ať je na první pohled vidět, co neřídí stroj.
+    for name, sel in (("Seg.Toolbutton", ACCENT), ("SegForce.Toolbutton", WARN)):
+        style.configure(name, background=BTN, foreground=FG, padding=(6, 1),
+                        bordercolor=BORDER, font=FONT_DIM)
+        style.map(name, background=[("selected", sel), ("active", BTN_ACTIVE)],
+                  foreground=[("selected", ACCENT_FG)])
+
     style.configure("TCheckbutton", background=BG, foreground=FG)
-    style.map("TCheckbutton", background=[("active", BG)], foreground=[("active", FG)])
+    style.map("TCheckbutton", background=[("active", BG)],
+              foreground=[("disabled", DIM), ("active", FG)])
+    # zalamovaný přepínač pro úzké panely (živá simulace — zásahy do zařízení)
+    style.configure("Wrap.TCheckbutton", background=BG, foreground=FG, wraplength=290)
+    style.map("Wrap.TCheckbutton", background=[("active", BG)],
+              foreground=[("disabled", DIM), ("active", FG)])
 
     style.configure("TEntry", fieldbackground=FIELD, foreground=FG, bordercolor=BORDER,
                     lightcolor=BORDER, darkcolor=BORDER, insertcolor=FG, padding=3)
@@ -168,8 +183,10 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
     style.map("TNotebook.Tab", background=[("selected", BG)],
               foreground=[("selected", PRIMARY)])
 
-    style.configure("TScrollbar", background=BTN, troughcolor=BG, bordercolor=BG,
-                    arrowcolor=DIM)
+    # jezdec posuvníku musí být vidět i na bílém pozadí (BTN na bílé téměř splývá)
+    style.configure("TScrollbar", background=BORDER, troughcolor=FIELD, bordercolor=BORDER,
+                    lightcolor=BORDER, darkcolor=BORDER, gripcount=0, arrowcolor=DIM)
+    style.map("TScrollbar", background=[("active", "#B5CCBD"), ("pressed", "#B5CCBD")])
     style.configure("TSeparator", background=BORDER)
     return style
 

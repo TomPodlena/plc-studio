@@ -3,15 +3,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   blankProject, syncIO, autoAddr, addrFor, sanitizeTag, validateProject,
-  modules, dtFor, ioOf, IoEntry,
+  modules, dtFor, ioOf, IoEntry, PLAT, enableInputs,
 } from "./model.js";
-import { genFor, genTagFile, genMainSiemens, genMainIEC, seqBody, ST_MOTOR, ST_VENTIL, SCL_MOTOR, SCL_VENTIL } from "./codegen.js";
+import { genFor, genTagFile, genMainSiemens, genMainIEC, seqBody, parseFbTemplate, ST_MOTOR, ST_VENTIL, SCL_MOTOR, SCL_VENTIL, TPL_COMMENTS, templateComments, trComments, timeLit } from "./codegen.js";
+import { LANGS, Lang, fill, getLang, setLang, tr, trx, withLang } from "./i18n.js";
 import { detectAndParse, buildDevicesFromTags, normAddr } from "./importers.js";
 import { sheetOps, opsToDXF, opsToSVG, svgBlock } from "./drawing.js";
-import { simulate, verifyProject, stepCondText, T_MOTOR_FBK, T_VALVE_TRAVEL } from "./sim.js";
-import { svgFlow, svgTiming } from "./flow.js";
+import { simulate, Simulator, Checkpoints, verifyProject, docVerifyMd, stepCondText, T_MOTOR_FBK, T_VALVE_TRAVEL, DI_DELAY } from "./sim.js";
+import { svgFlow, svgTiming, svgMachine } from "./flow.js";
 import { allProjectFiles, docFiles } from "./docs.js";
 import { sampleSmall, sampleComplex } from "./samples.js";
+import { buildBom, bomCsv, bomMd } from "./bom.js";
 
 test("syncIO přiřadí unikátní adresy a NC podle popisu", () => {
   const p = sampleSmall();
@@ -180,23 +182,135 @@ test("simulace: běžný cyklus malé stanice doběhne a vypne výstupy", () => 
   assert.ok(on.length > 0 && on[0].t > r.steps[1].tStart && on[on.length - 1].t <= r.steps[3].tEnd!, "motor běží jen mezi kroky start a stop");
 });
 
-test("simulace: výpadek zpětného hlášení → porucha bloku po timeoutu, sekvence stojí", () => {
+test("generátor: ruční povely, hlídání kroků, porucha stroje a kvitace na všech platformách", () => {
+  const p = sampleSmall();
+  for (const plat of ["siemens", "rockwell", "beckhoff", "codesys", "mitsubishi", "schneider", "omron"] as const) {
+    const files = genFor(p, plat);
+    const main = files[plat === "siemens" ? "Gen_Main.scl" : "MAIN.st"];
+    const lib = files[plat === "siemens" ? "Gen_Library.scl" : "Gen_Library.st"];
+    const L = (v: string) => plat === "siemens" ? "#" + v : v;
+    const R = (t: string) => plat === "siemens" ? '"' + t + '"' : (plat === "beckhoff" || plat === "codesys" || plat === "schneider") ? "GVL_IO." + t : t;
+    for (const v of ["modeAuto", "cmdAutoStart", "cmdAck", "machineFault", "manRun_M1", "manOpen_Y1", "faultStep", "tonSeq10"]) {
+      assert.ok(new RegExp("^\\s+" + v + " : ", "m").test(main), plat + ": deklarace " + v);
+    }
+    // sekvence: reset při poruše, start jen bez poruchy, hlídání kroku na zpětné hlášení
+    assert.ok(main.includes("IF NOT " + L("modeAuto") + " OR NOT " + L("enable") + " OR " + L("machineFault") + " THEN"), plat);
+    assert.ok(main.includes("IF " + L("modeAuto") + " AND " + L("enable") + " AND NOT " + L("machineFault") + " AND " + L("cmdAutoStart") + " THEN " + L("seqStep") + " := 10;"), plat);
+    assert.ok(main.includes("IF " + R("Y1_fbkOpen") + " THEN " + L("seqStep") + " := 20;\n            ELSIF " + L("tonSeq10") + ".Q THEN " + L("machineFault") + " := TRUE; " + L("faultStep") + " := 10;"), plat);
+    assert.ok(main.includes(L("tonSeq10") + "(IN := (" + L("seqStep") + " = 10), PT := T#5S);"), plat);
+    assert.ok(main.includes("IF " + L("tonSeq30") + ".Q THEN " + L("seqStep") + " := 40; END_IF"), plat + ": výdrž beze změny");
+    // instance: povel = sekvence NEBO ruční v ručním režimu; kvitace do bloku
+    const cmd = L("seqRun_M1") + " OR (" + L("manRun_M1") + " AND NOT " + L("modeAuto") + ")";
+    assert.ok(main.includes("cmdStart := " + cmd + ",\n        cmdStop := NOT (" + cmd + "),\n        reset := " + L("cmdAck") + ","), plat);
+    assert.ok(main.includes("cmdOpen := " + L("seqOpen_Y1") + " OR (" + L("manOpen_Y1") + " AND NOT " + L("modeAuto") + "),"), plat);
+    // porucha stroje za instancemi
+    const err = L("instM1") + ".error OR " + L("instY1") + ".error";
+    assert.ok(main.includes("IF " + err + " THEN " + L("machineFault") + " := TRUE; END_IF;\n    IF " + L("cmdAck") + " AND NOT (" + err + ") THEN " + L("machineFault") + " := FALSE; " + L("faultStep") + " := 0; END_IF;"), plat);
+    assert.ok(main.indexOf(L("instY1") + "(enable") < main.indexOf("machineFault := FALSE") || plat === "siemens" && main.indexOf("#instY1(enable") < main.indexOf("#machineFault := FALSE"), plat + ": kvitace až za voláním bloků");
+    // šablony bloků: vstup reset, stop během rozběhu, obrat ventilu, dva časovače
+    assert.ok(/reset : B(OOL|ool);/.test(lib), plat + ": vstup reset");
+    assert.ok(!/TODO: \+ ru[čc]n/.test(main), plat + ": žádné TODO místo ručního povelu");
+    assert.ok(files["README.txt"].includes("cmdAck") && files["README.txt"].includes("manRun_*"), plat);
+  }
+  assert.ok(/10: \(\* STARTING \*\)\s+outRun := TRUE;\s+IF fbkRunning THEN statStep := 20; END_IF\s+IF trigStop THEN statStep := 0; END_IF/.test(ST_MOTOR), "stop během rozběhu");
+  assert.ok(ST_MOTOR.includes("IF trigReset AND NOT fault THEN statStep := 0; END_IF"));
+  assert.ok(/10: \(\* OPENING \*\)[\s\S]*?IF trigClose THEN statStep := 30; END_IF\s+20:/.test(ST_VENTIL), "zavření během otevírání");
+  assert.ok(ST_VENTIL.includes("tonOpen(IN := (statStep = 10), PT := T#5S);") && ST_VENTIL.includes("tonClose(IN := (statStep = 30), PT := T#5S);"));
+  assert.ok(SCL_MOTOR.includes("IF #instTrigReset.Q AND NOT #fault THEN") && SCL_VENTIL.includes("#instTonClose(IN := (#statStep = #STEP_CLOSING)"));
+
+  // bez sekvence: jen ruční povely (bez režimů), kvitace a porucha zůstávají
+  const q = sampleSmall();
+  q.program.seq = [];
+  const main = genFor(q, "codesys")["MAIN.st"];
+  assert.ok(main.includes("cmdStart := manRun_M1,\n        cmdStop := NOT (manRun_M1),\n        reset := cmdAck,"));
+  assert.ok(!main.includes("modeAuto") && !main.includes("seqStep"));
+  assert.ok(main.includes("IF cmdAck AND NOT (instM1.error OR instY1.error) THEN machineFault := FALSE; END_IF;"));
+});
+
+test("Unitronics: plochý ST pro UniLogic — bez FB, stav v globálních tazích, vše deklarováno", () => {
+  assert.equal(PLAT.unitronics.ide, "UniLogic");
+  const KEYWORDS = new Set(["IF", "THEN", "ELSE", "ELSIF", "END_IF", "CASE", "OF", "END_CASE", "AND", "OR", "NOT", "TRUE", "FALSE", "TO_REAL", "TO_INT", "IN", "PT", "Q"]);
+  for (const mk of [sampleSmall, sampleComplex]) {
+    const p = mk();
+    const files = genFor(p, "unitronics");
+    assert.deepEqual(Object.keys(files), ["Tags.csv", "Machine.st", "README.txt"]);
+    const st = files["Machine.st"];
+    // UniLogic ST = funkce bez paměti: žádné FB, deklarace ani RETURN; čisté ASCII
+    for (const bad of [/FUNCTION_BLOCK/, /END_VAR/, /\bRETURN\b/, /GVL_IO\./, /16#/, /INT_TO_REAL/, /\binst\w+\(enable/, /[^\x00-\x7F]/]) {
+      assert.ok(!bad.test(st), "nesmí obsahovat " + bad);
+    }
+    const count = (re: RegExp) => (st.match(re) || []).length;
+    assert.equal(count(/\bIF\b/g), count(/\bEND_IF;/g), "párování IF / END_IF;");
+    assert.equal(count(/\bEND_IF\b/g), count(/\bEND_IF;/g), "každé END_IF končí středníkem");
+    assert.equal(count(/\bCASE\b/g), count(/\bEND_CASE;/g));
+    // každý použitý identifikátor je v seznamu tagů k založení
+    const tags = new Set(files["Tags.csv"].split("\n").slice(1).map(l => l.split(",")[0].replace(/"/g, "")));
+    const code = st.replace(/\(\*[\s\S]*?\*\)/g, " ").replace(/T#[\w.]+/g, " ").replace(/\b\d[\d.]*(?:E[+-]?\d+)?\b/gi, " ");
+    const unknown = [...new Set(code.match(/[A-Za-z_]\w*/g) || [])].filter(w => !KEYWORDS.has(w) && !tags.has(w));
+    assert.deepEqual(unknown, [], "nedeklarované tagy");
+    assert.equal(tags.size, files["Tags.csv"].split("\n").length - 1, "tagy jsou unikátní");
+    assert.ok(!/[^\x00-\x7F]/.test(files["Tags.csv"]), "seznam tagů je čisté ASCII");
+    assert.ok(files["README.txt"].includes("NEOVĚŘENO PŘEKLADEM") && files["README.txt"].includes("Add Structured Text Function"));
+  }
+  const p = sampleSmall();
+  p.platforms = ["unitronics"];
+  const st = genFor(p, "unitronics")["Machine.st"];
+  for (const want of [
+    "enable := S1_in",
+    "instM1_cmdStart := seqRun_M1 OR (manRun_M1 AND NOT modeAuto);",
+    "instM1_cmdStop := NOT (seqRun_M1 OR (manRun_M1 AND NOT modeAuto));",
+    "instM1_reset := cmdAck;",
+    "IF NOT instM1_enable THEN",
+    "instM1_status := 32769; instM1_statStep := 0;\n    ELSE",
+    "instM1_tonFbk(IN := (instM1_statStep = 10), PT := T#3S);",
+    "IF instM1_trigReset AND NOT instM1_fault THEN instM1_statStep := 0; END_IF;",
+    "M1_outRun := instM1_outRun;",
+    "instY1_tonClose(IN := (instY1_statStep = 30), PT := T#5S);",
+    "instB1_value := TO_REAL(instB1_rawValue) / TO_REAL(instB1_rawMax)",
+    "instB1_scaleMax := 250.0;",
+    "IF Y1_fbkOpen THEN seqStep := 20;",
+    "IF instM1_error OR instY1_error THEN machineFault := TRUE; END_IF;",
+  ]) assert.ok(st.includes(want), "chybí: " + want);
+  const tags = genFor(p, "unitronics")["Tags.csv"];
+  for (const row of ['"M1_outRun","BIT","I/O DO","%Q0.0"', '"B1_raw","INT16","I/O AI","%IW64"', '"seqStep","INT16","Program"', '"instY1_tonOpen","TON"', '"tonSeq10","TON"', '"instM1_status","UINT16"']) {
+    assert.ok(tags.includes(row), "chybí řádek " + row);
+  }
+  assert.ok(allProjectFiles(p).some(f => f.save === "unitronics_Machine.st" && f.group === "PLC — Unitronics"));
+  // šablona se rozepisuje ze stejného zdroje jako u ostatních platforem
+  const { vars, body } = parseFbTemplate(ST_VENTIL);
+  assert.deepEqual(vars.filter(v => v.kind === "in").map(v => v.name), ["enable", "cmdOpen", "cmdClose", "reset", "fbkOpen", "fbkClosed"]);
+  assert.ok(body.startsWith("IF NOT enable THEN") && body.endsWith("END_IF;"));
+});
+
+test("simulace: výpadek zpětného hlášení → porucha stroje, sekvence do klidu, výstupy vypnuty", () => {
   const p = sampleSmall();
   const m1 = p.devices.find(d => d.name === "M1")!;
   const nominal = simulate(p);
   const at = nominal.steps[1].tStart;
   const r = simulate(p, { faults: [{ kind: "frozen", dev: m1.id, at }], maxTime: at + 6 });
   assert.equal(r.ok, false);
-  assert.equal(r.stalledStep, 1);
-  assert.equal(r.errors.length, 1);
-  assert.equal(r.errors[0].dev, m1.id);
-  assert.ok(Math.abs(r.errors[0].t - at - T_MOTOR_FBK) < 0.05, "porucha v čase " + r.errors[0].t);
-  assert.equal(r.frames[r.frames.length - 1].io[ioOf(p, m1).outRun.key], false, "blok v poruše motor vypne");
-  // slepený stykač při stopu: žádná porucha, sekvence jen stojí
+  assert.equal(r.faulted, true);
+  assert.equal(r.faultStep, 1);
+  assert.ok(Math.abs(r.faultT! - at - 3) < 0.05, "hlídací čas kroku 3 s: porucha v čase " + r.faultT);
+  assert.ok(r.faultCause.startsWith("timeout kroku 2 (M1 start"), r.faultCause);
+  assert.equal(r.stalledStep, null, "sekvence nezůstane viset v kroku");
+  assert.equal(r.frames[r.frames.length - 1].step, -1);
+  assert.deepEqual(r.outputsOn, [], "po poruše je vypnutý i upínací ventil");
+  assert.equal(r.fault, true, "porucha drží do kvitace");
+  // slepený stykač při stopu: blok poruchu nehlásí, zachytí ji hlídací čas kroku
   const at2 = nominal.steps[3].tStart;
   const r2 = simulate(p, { faults: [{ kind: "frozen", dev: m1.id, at: at2 }], maxTime: at2 + 8 });
   assert.equal(r2.errors.length, 0);
-  assert.equal(r2.stalledStep, 3);
+  assert.equal(r2.faultStep, 3);
+  assert.ok(Math.abs(r2.faultT! - at2 - 3) < 0.05);
+  assert.deepEqual(r2.outputsOn, []);
+  // ztráta hlášení běhu za chodu: chyba bloku → porucha stroje
+  const r3 = simulate(p, { faults: [{ kind: "frozen", dev: m1.id, at: 0 }, { kind: "fault", dev: m1.id, at: nominal.steps[2].tStart + 1 }], maxTime: 12 });
+  assert.equal(r3.faulted, true);
+  const r4 = simulate(p, { faults: [{ kind: "fault", dev: m1.id, at: nominal.steps[2].tStart + 1 }], maxTime: 12 });
+  assert.equal(r4.faultCause, "chyba bloku M1");
+  assert.equal(r4.errors[0].dev, m1.id);
+  assert.deepEqual(r4.outputsOn, []);
 });
 
 test("simulace: E-stop vypne výstupy do jednoho scanu a cyklus se sám neobnoví", () => {
@@ -210,6 +324,164 @@ test("simulace: E-stop vypne výstupy do jednoho scanu a cyklus se sám neobnov�
   }
   assert.equal(r.finished, false);
   assert.ok(r.frames.some(f => f.t >= 11 && f.enable), "po uvolnění je enable zpět");
+  // start držený během E-stopu sekvenci nespustí (dříve se krok 1 „proklikával")
+  const s = new Simulator(p);
+  s.controls.estop = true;
+  s.controls.start = true;
+  s.run(1);
+  assert.equal(s.seqIndex, -1);
+});
+
+test("živá simulace: START, E-stop, porucha a kvitace, ruční režim", () => {
+  const p = sampleSmall();
+  const tag = (t: string) => p.io.find(e => e.tag === t)!.key;
+  const y1 = p.devices.find(d => d.name === "Y1")!, m1 = p.devices.find(d => d.name === "M1")!;
+  const sim = new Simulator(p);
+  sim.run(1);
+  assert.equal(sim.seqIndex, -1, "bez startu stroj stojí");
+  sim.pressStart();
+  sim.run(2);
+  assert.equal(sim.seqIndex, 2, "po 2 s je sekvence ve výdrži");
+  assert.deepEqual(sim.outputsOn().sort(), [tag("M1_outRun"), tag("Y1_outOpen")].sort());
+  assert.equal(sim.frame().dev[y1.id].pos, 1, "válec vysunutý");
+
+  sim.controls.estop = true;                       // E-stop: výstupy dolů, sekvence do klidu
+  sim.run(0.05);
+  assert.deepEqual(sim.outputsOn(), []);
+  assert.equal(sim.frame().enable, false);
+  assert.equal(sim.seqIndex, -1);
+  sim.controls.estop = false;
+  sim.run(2);
+  assert.equal(sim.seqIndex, -1, "po uvolnění se cyklus sám neobnoví");
+  assert.equal(sim.cycles, 0);
+
+  sim.pressStart();                                // nový start: celý cyklus
+  sim.run(10);
+  assert.equal(sim.cycles, 1);
+  assert.equal(sim.lastCycleTime, simulate(p).cycleTime, "krokování dává stejný cyklus jako dávková simulace");
+
+  sim.pressStart();                                // zaseknutý válec → hlídací čas kroku → porucha stroje
+  sim.run(0.5);
+  sim.controls.frozen = [y1.id];
+  sim.run(6);
+  assert.equal(sim.frame().fault, true);
+  assert.equal(sim.frame().faultStep, 0);
+  assert.equal(sim.seqIndex, -1, "sekvence se vrátila do klidu");
+  assert.deepEqual(sim.outputsOn(), []);
+  sim.pressStart();                                // bez kvitace start nezabere
+  sim.run(1);
+  assert.equal(sim.seqIndex, -1);
+  sim.run(5);                                      // válec se nevrátil → blok hlásí poruchu zavírání
+  assert.equal(sim.frame().dev[y1.id].error, true);
+  sim.pressAck();                                  // závada trvá: kvitace blok uvolní, ale…
+  sim.controls.frozen = [];
+  sim.run(2);
+  assert.equal(sim.frame().dev[y1.id].error, false);
+  assert.equal(sim.frame().fault, false, "po odstranění závady kvitace poruchu zruší");
+  sim.pressStart();
+  sim.run(10);
+  assert.equal(sim.cycles, 2, "po kvitaci proběhne nový cyklus");
+
+  sim.controls.man[y1.id] = true;                  // ruční povel v AUTO je neúčinný
+  sim.run(1);
+  assert.deepEqual(sim.outputsOn(), []);
+  sim.controls.modeAuto = false;                   // ruční režim: povel platí, start ne
+  sim.run(1.5);
+  assert.deepEqual(sim.outputsOn(), [tag("Y1_outOpen")]);
+  assert.equal(sim.frame().dev[y1.id].label, "otevřeno");
+  sim.pressStart();
+  sim.run(0.5);
+  assert.equal(sim.seqIndex, -1, "bez režimu AUTO start nezabere");
+  sim.controls.man[y1.id] = false;
+  sim.controls.man[m1.id] = true;
+  sim.controls.frozen = [m1.id];                   // ruční chod bez zpětného hlášení → porucha bloku
+  sim.run(4);
+  assert.equal(sim.frame().dev[m1.id].error, true);
+  assert.equal(sim.frame().fault, true);
+  assert.equal(sim.frame().faultStep, null, "porucha bloku nemá krok sekvence");
+  sim.controls.frozen = [];
+  sim.run(1);
+  assert.equal(sim.frame().dev[m1.id].error, true, "porucha bloku drží do kvitace");
+  sim.pressAck();
+  sim.run(0.5);
+  assert.equal(sim.frame().dev[m1.id].error, false);
+  assert.equal(sim.frame().fault, false);
+  assert.deepEqual(sim.outputsOn(), [], "po kvitaci se motor sám znovu nerozběhne (povel potřebuje novou hranu)");
+
+  const s2 = tag("S2_in");                         // vstup snímače jde přepnout ručně (S2 = kryt)
+  assert.equal(sim.frame().io[s2], true, "blokovací vstup je v klidu TRUE (kryt zavřen)");
+  sim.controls.di[s2] = false;
+  sim.controls.di[tag("M1_fbkRunning")] = true;    // zpětné hlášení bloku přepsat nejde
+  sim.controls.ai[tag("B1_raw")] = 27648;          // analogový vstup jde nastavit
+  sim.run(0.02);
+  assert.equal(sim.frame().io[s2], false);
+  assert.equal(sim.frame().enable, false, "otevřený kryt vypne enable");
+  assert.equal(sim.frame().io[tag("M1_fbkRunning")], false);
+  assert.equal(sim.frame().io[tag("B1_raw")], 27648);
+});
+
+test("živá simulace: vnucený vstup přebije model stroje a po uvolnění se vrátí k jeho stavu", () => {
+  const p = sampleSmall();
+  const tag = (t: string) => p.io.find(e => e.tag === t)!.key;
+  const y1 = p.devices.find(d => d.name === "Y1")!, m1 = p.devices.find(d => d.name === "M1")!;
+  const sim = new Simulator(p);
+  const io = (t: string) => sim.frame().io[tag(t)];
+  const msgs = () => sim.events.map(e => e.msg);
+
+  sim.controls.force[tag("Y1_fbkOpen")] = true;    // „otevřeno" bez pohybu válce
+  sim.applyInputs();
+  assert.equal(io("Y1_fbkOpen"), true, "zásah je vidět i při zastaveném čase");
+  sim.pressStart();
+  sim.run(0.1);
+  assert.equal(sim.seqIndex, 1, "program vnucenému hlášení věří — krok 1 hned potvrzen");
+  assert.ok(sim.frame().dev[y1.id].pos < 1, "válec přitom teprve jede");
+  /* vnucení zrušené dřív, než válec dojede: koncák „otevřeno" v držené poloze odpadne → porucha */
+  const early = sim.clone();
+  delete early.controls.force[tag("Y1_fbkOpen")];
+  early.run(0.02);
+  assert.equal(early.frame().io[tag("Y1_fbkOpen")], false, "po uvolnění platí stav stroje");
+  assert.equal(early.frame().dev[y1.id].error, true, "ventil hlídá drženou polohu");
+  sim.run(1.2);                                    // válec dojel — teď uvolnění nic nezmění
+  delete sim.controls.force[tag("Y1_fbkOpen")];
+  sim.run(0.02);
+  assert.equal(io("Y1_fbkOpen"), true);
+  assert.equal(sim.frame().fault, false);
+  assert.ok(msgs().includes("Y1_fbkOpen: vstup vnucen na TRUE"));
+  assert.ok(msgs().includes("Y1_fbkOpen: vnucení vstupu zrušeno"));
+
+  sim.run(2);                                      // výdrž: motor běží
+  assert.equal(sim.seqIndex, 2);
+  assert.equal(io("M1_fbkRunning"), true);
+  sim.controls.force[tag("M1_fbkRunning")] = false; // ztráta zpětného hlášení za chodu
+  sim.run(0.05);
+  assert.equal(sim.frame().dev[m1.id].error, true);
+  assert.equal(sim.frame().fault, true);
+  assert.deepEqual(sim.outputsOn(), [], "porucha bloku vypne povely sekvence");
+  sim.controls.force = {};
+  sim.pressAck();
+  sim.run(2);
+  assert.equal(sim.frame().fault, false);
+  assert.equal(io("Y1_fbkClosed"), true, "stroj se pod vnucenou hodnotou hýbal dál");
+
+  sim.controls.force[tag("S1_in")] = false;        // vstup E-stopu: FALSE = rozpojený okruh
+  sim.controls.force[tag("B1_raw")] = 99999;       // analog se ořízne na rozsah modulu
+  sim.run(0.02);
+  assert.equal(sim.frame().enable, false);
+  assert.equal(io("B1_raw"), 27648);
+  sim.controls.force = {};
+  sim.run(0.02);
+  assert.equal(sim.frame().enable, true);
+  assert.equal(io("B1_raw"), 13824);
+});
+
+test("blokové schéma stroje: blok pro každé zařízení, kontrolka pro každý signál", () => {
+  const p = sampleSmall();
+  const svg = svgMachine(p);
+  for (const d of p.devices) assert.ok(svg.includes('<g data-dev="' + d.id + '">'), d.name);
+  assert.equal((svg.match(/<g data-io=/g) || []).length, p.io.length);
+  assert.equal((svg.match(/<circle /g) || []).length, p.io.length);
+  assert.ok(svg.includes("E-stop → enable") && svg.includes("kroky 2, 4"));
+  assert.ok(svgMachine(blankProject()).includes("nemá žádná zařízení"));
 });
 
 test("ověření: nálezy pro složitou linku a pro krok bez potvrzení", () => {
@@ -232,6 +504,169 @@ test("ověření: nálezy pro složitou linku a pro krok bez potvrzení", () => 
   assert.equal(verifyProject(q).nominal, null);
 });
 
+test("ověření: matice stavů — každý krok × každý zásah, vyhodnocení proti konceptu", () => {
+  const p = sampleComplex();
+  const v = verifyProject(p);
+  const m = v.matrix;
+  assert.deepEqual(m.cols.map(c => c.id).slice(0, 6), ["estop", "lock-" + p.devices.find(d => d.name === "S2")!.id,
+    "lock-" + p.devices.find(d => d.name === "S3")!.id, "lock-" + p.devices.find(d => d.name === "S4")!.id, "manual", "fbk"]);
+  assert.equal(m.rows.length, p.program.seq.length + 2, "klid + ruční režim + každý krok");
+  assert.equal(m.failed, 0);
+  assert.ok(m.total > 120, "složitá linka: přes 120 kombinací");
+  for (const r of m.rows) {
+    for (const id of r.step === -2 ? ["estop"] : ["estop", "manual"]) assert.equal(r.cells[id].ok, true, r.title + " / " + id);
+    for (const c of Object.values(r.cells)) if (c.ok !== null) assert.ok(c.scenario && c.scenario.opts.faults!.length, "buňka jde přehrát");
+  }
+  const step2 = m.rows.find(r => r.step === 1)!;           // M1 start: hlídání hlášení 3 s
+  assert.equal(step2.cells.fbk.text, "✔ 3 s");
+  assert.equal(m.rows[0].cells.fbk.ok, null, "v klidu není co zamrazit");
+  assert.ok(v.checks.some(c => c.level === "ok" && /Všechny stavy odpovídají konceptu \(\d+ kombinací\)/.test(c.title)));
+  /* koncept: vstupy, které program nečte, a výstupy, které neovládá */
+  assert.ok(v.checks.some(c => c.level === "warn" && /^Koncept stroje není v programu pokrytý celý/.test(c.title)));
+  for (const n of ["S5", "S6", "S7", "S8"]) assert.ok(v.checks.some(c => c.title.startsWith("Vstup " + n + " ") && /nečte/.test(c.title)), n);
+  for (const n of ["H1", "H4"]) assert.ok(v.checks.some(c => c.title.startsWith("Výstup " + n + " ") && /neovládá/.test(c.title)), n);
+  assert.ok(v.checks.some(c => /Blokování S4 není rozpínací/.test(c.title)));
+  assert.ok(!v.checks.some(c => /Vstup S2 /.test(c.title)), "blokování program čte");
+  /* zásahy jdou přehrát i dávkovou simulací */
+  const lock = step2.cells["lock-" + p.devices.find(d => d.name === "S4")!.id].scenario!;
+  const r = simulate(p, lock.opts);
+  assert.ok(r.events.some(e => e.msg.startsWith("Blokování S4 rozpojeno")));
+  const man = simulate(p, step2.cells.manual.scenario!.opts);
+  assert.ok(!man.finished && man.outputsOn.length === 0, "vypnutí AUTO zastaví sekvenci");
+  /* protokol obsahuje matici */
+  const md = docVerifyMd(p);
+  assert.ok(md.includes("## 3. Matice stavů") && md.includes("| Krok 2: M1 start |") && md.includes("Všech " + m.total + " kombinací odpovídá konceptu."));
+  /* cache: druhé volání vrátí týž výsledek */
+  assert.equal(verifyProject(p), v);
+});
+
+test("časové literály: celé sekundy i desetinné časy kroků", () => {
+  assert.equal(timeLit(5), "T#5S");
+  assert.equal(timeLit(1.5), "T#1S500MS");
+  assert.equal(timeLit(0.25), "T#250MS");
+  const p = sampleSmall();
+  p.program.seq[2].timeS = 1.5;                    // výdrž 1,5 s
+  for (const plat of Object.keys(PLAT) as Array<keyof typeof PLAT>) {
+    const all = Object.values(genFor(p, plat)).join("\n");
+    assert.ok(all.includes("PT := T#1S500MS") || all.includes("PT := T#1S500MS)"), plat);
+    assert.ok(!all.includes("T#1.5S"), plat);
+  }
+  assert.equal(simulate(p).ok, true);
+});
+
+test("ventil hlídá drženou polohu; matice: ztráta polohy, ruční režim; druhý cyklus", () => {
+  for (const tpl of [SCL_VENTIL, ST_VENTIL]) assert.ok(/NOT #?fbkOpen THEN #?statStep := (#STEP_ERROR|90)/.test(tpl), "šablona hlídá ztrátu polohy");
+  const p = sampleSmall();
+  const tag = (t: string) => p.io.find(e => e.tag === t)!.key;
+  const sim = new Simulator(p);
+  sim.pressStart();
+  sim.run(3);                                       // výdrž: Y1 drží otevřeno
+  assert.equal(sim.frame().dev[p.devices.find(d => d.name === "Y1")!.id].label, "otevřeno");
+  sim.controls.force[tag("Y1_fbkOpen")] = false;     // upnutí povolilo
+  sim.run(0.05);
+  assert.equal(sim.frame().fault, true);
+  assert.deepEqual(sim.outputsOn(), []);
+  const v = verifyProject(p);
+  assert.ok(v.matrix.cols.some(c => c.id === "lostv"));
+  const man = v.matrix.rows.find(r => r.step === -2)!;
+  assert.equal(man.title, "Ruční režim");
+  assert.equal(man.cells.estop.ok, true);
+  assert.equal(v.matrix.rows.find(r => r.step === 2)!.cells.lostv.ok, true, "výdrž: ztráta polohy Y1 → porucha");
+  assert.ok(v.checks.some(c => c.level === "ok" && /^Druhý cyklus proběhne stejně \(8\.09 s\)/.test(c.title)));
+  const q = sampleComplex();                        // M1–M3 zůstávají v chodu → druhý cyklus je jiný
+  assert.ok(verifyProject(q).checks.some(c => c.level === "warn" && /^Druhý cyklus trvá jinak/.test(c.title)));
+  assert.ok(docFiles(p).find(f => f.path === "04_seznam_alarmu.csv")!.body.includes("A_Y1_POS"));
+});
+
+test("čekání na FALSE na začátku cyklu opravdu čeká a hlídací čas jde vyzkoušet", () => {
+  const p = sampleSmall();
+  p.devices.push({ id: p.nextId++, name: "S3", cls: "DI", desc: "Bedna na odpad plná", opt: {}, unit: "", rmin: 0, rmax: 100 });
+  syncIO(p);
+  const s3 = p.devices.find(d => d.name === "S3")!;
+  p.program.seq.unshift({ dev: s3.id, act: "waitOff", cond: "fbk", timeS: 5 });
+  const run = simulate(p);
+  assert.ok(run.ok, "cyklus doběhne");
+  const first = run.steps.find(s => s.i === 0)!;
+  assert.ok(first.tEnd! - first.tStart >= DI_DELAY - 1e-6, "krok čeká na proces, neprojde hned");
+  const sim = new Simulator(p);
+  sim.controls.modeAuto = true;
+  sim.controls.frozen = [s3.id];                       // bedna zůstane plná
+  sim.pressStart();
+  sim.run(7);
+  assert.equal(sim.frame().fault, true, "vypršení hlídacího času = porucha stroje");
+  assert.equal(verifyProject(p).matrix.failed, 0);
+});
+
+test("funkce stroje: čekání na vstup, meze analogů, žádaná hodnota, vazby výstupů, takt", () => {
+  const p = sampleSmall();
+  const dev = (n: string) => p.devices.find(d => d.name === n)!;
+  const tag = (t: string) => p.io.find(e => e.tag === t)!.key;
+  const add = (name: string, cls: "DI" | "DO" | "AnalogOut", desc: string, extra: object = {}) => {
+    p.devices.push({ id: p.nextId++, name, cls, desc, opt: {}, unit: cls === "AnalogOut" ? "%" : "", rmin: 0, rmax: 100, ...extra });
+  };
+  add("S3", "DI", "Díl v upínači");
+  add("H2", "DO", "Maják porucha", { role: "fault" });
+  add("U1", "AnalogOut", "Tlak čerpadla", { setpoint: 70 });
+  syncIO(p);
+  dev("B1").limHi = 200; dev("B1").limLo = 50;           // tlak hydrauliky 0–250 bar
+  dev("H1").role = "ready";
+  p.meta.takt = 12;
+  p.program.seq.unshift({ dev: dev("S3").id, act: "waitOn", cond: "fbk", timeS: 10 });
+  p.program.seq.push({ dev: dev("S3").id, act: "waitOff", cond: "fbk", timeS: 10 });
+
+  for (const plat of Object.keys(PLAT) as Array<keyof typeof PLAT>) {
+    const all = Object.values(genFor(p, plat)).join("\n");
+    assert.ok(/limitHi := 200\.0/.test(all) || /instB1_limitHi := 200\.0/.test(all), plat + ": mez B1");
+    assert.ok(/alarmHi/.test(all) && /(H2_out"? := "?#?machineFault|H2_out := machineFault)/.test(all), plat + ": porucha z mezí, maják");
+    assert.ok(/70\.0/.test(all), plat + ": žádaná hodnota U1");
+    assert.ok(/IF "?S3_in"? THEN/.test(all) || /IF GVL_IO\.S3_in THEN/.test(all), plat + ": čekání na S3");
+    assert.ok(!/TODO: [^\n]*žádaná hodnota/i.test(all), plat);
+  }
+  const run = simulate(p);
+  assert.ok(run.ok, "cyklus s čekáním na díl doběhne");
+  assert.ok(run.cycleTime! > simulate(sampleSmall()).cycleTime!, "čekání na díl prodlouží cyklus");
+  const sim = new Simulator(p);
+  sim.run(0.1);
+  assert.equal(sim.frame().io[tag("H1_out")], true, "připraveno ke startu");
+  sim.controls.force[tag("B1_raw")] = 27648;             // 250 bar > 200
+  sim.run(0.05);
+  assert.equal(sim.frame().fault, true, "překročení meze = porucha stroje");
+  assert.equal(sim.frame().io[tag("H2_out")], true, "maják porucha svítí");
+  assert.ok(sim.events.some(e => e.msg.startsWith("B1 nad mezí")));
+  delete sim.controls.force[tag("B1_raw")];
+  sim.pressAck();
+  sim.run(0.5);
+  assert.equal(sim.frame().fault, false);
+
+  const v = verifyProject(p);
+  const m = v.matrix;
+  assert.equal(m.failed, 0);
+  assert.ok(m.cols.some(c => c.id === "limit"));
+  const lim = m.rows.flatMap(r => r.cells.limit && r.cells.limit.ok ? [r.cells.limit.text] : []).join(" ");
+  assert.ok(lim.includes("B1↑") && lim.includes("B1↓"), "obě meze vyzkoušené: " + lim);
+  assert.ok(m.rows.some(r => r.cells.estop.text === "✔ ×3"), "zásah ve třech okamžicích kroku");
+  assert.ok(v.checks.some(c => c.level === "ok" && /^Cyklus [\d.]+ s splňuje takt 12 s/.test(c.title)));
+  assert.ok(!v.checks.some(c => /S3 .*nečte|H[12] .*neovládá|U1 .*není zadána|B1 .*se jen zobrazuje/.test(c.title)), "koncept zná nové funkce");
+  p.meta.takt = 5;
+  assert.ok(verifyProject(p).checks.some(c => c.level === "error" && /^Takt 5 s překročen/.test(c.title)));
+  p.program.seq[1].timeS = 1.2;                           // Y1 otevřít trvá ~1 s
+  assert.ok(verifyProject(p).checks.some(c => c.level === "warn" && /malá rezerva hlídacího času/.test(c.title)));
+});
+
+test("simulace z kontrolního bodu je shodná se simulací od začátku", () => {
+  const p = sampleComplex();
+  const cps = new Checkpoints(p);
+  const v = verifyProject(p);
+  const cells = v.matrix.rows.flatMap(r => Object.values(r.cells)).filter(c => c.scenario).map(c => c.scenario!);
+  const pick = [...v.scenarios.filter(s => s.id !== "nominal"), ...cells.filter((_x, i) => i % 7 === 0)];
+  assert.ok(pick.length > 25);
+  const strip = (r: ReturnType<typeof simulate>) => JSON.stringify({
+    f: r.frames.map(fr => [fr.t, fr.step, fr.fault, fr.enable, fr.io]), e: r.events, s: r.steps, o: r.outputsOn,
+    ff: [r.faulted, r.faultT, r.faultCause, r.faultStep, r.fault, r.finished, r.cycleTime, r.stalledStep, r.tEnd],
+  });
+  for (const sc of pick) assert.equal(strip(cps.run(sc.opts)), strip(simulate(p, sc.opts)), sc.id);
+});
+
 test("diagramy funkce: kroky s odkazy, časový diagram se signály", () => {
   const p = sampleSmall();
   const run = simulate(p);
@@ -246,10 +681,36 @@ test("diagramy funkce: kroky s odkazy, časový diagram se signály", () => {
   assert.ok(svgFlow(empty).includes("nemá automatickou sekvenci"));
 });
 
-test("dokumentace: 9 dokumentů + schémata + soubory platforem", () => {
+test("kusovník: položky ze zařízení, PLC moduly platformy, volby uživatele", () => {
+  const p = sampleComplex();
+  p.platforms = ["codesys"];
+  const b = buildBom(p);
+  assert.equal(b.plat, "codesys");
+  const by = (tag: string, cat: string) => b.lines.find(l => l.tag === tag && l.cat === cat);
+  for (const d of p.devices.filter(d => d.cls === "Motor")) {
+    const n = d.name.replace(/^\D+/, "");
+    assert.ok(by("-" + d.name, "motor") || by("-" + d.name, "gearmotor") || by("-" + d.name, "pump"), d.name);
+    assert.ok(by("-Q" + n, "motor_protection") && by("-K" + n, "contactor"), d.name + ": jištění a stykač");
+  }
+  assert.equal(by("-A2", "plc_di")!.qty, modules(p).filter(m => m.dir === "DI").length);
+  assert.ok(by("-S1", "estop_button")!.safety, "E-stop jako HW s výhradou");
+  assert.ok(b.lines.filter(l => l.safety).every(l => /13849/.test(l.note)));
+  assert.ok(by("-K0", "safety_relay"));
+  assert.deepEqual(b.lines.map(l => l.pos), b.lines.map((_, i) => i + 1));
+  p.bom = { plat: "siemens", lines: { "-M1:gearmotor": { brand: "Vlastní", type: "XY 0,55 kW", qty: 2 } } };
+  const b2 = buildBom(p);
+  assert.equal(b2.plat, "siemens");
+  const m1 = b2.lines.find(l => l.id === "-M1:gearmotor")!;
+  assert.equal(m1.brand, "Vlastní"); assert.equal(m1.qty, 2); assert.equal(m1.type, "XY 0,55 kW");
+  const csv = bomCsv(p);
+  assert.equal(csv.trim().split(/\r?\n/).length, b2.lines.length + 1);
+  assert.ok(bomMd(p).includes("návrh k revizi"));
+});
+
+test("dokumentace: 11 dokumentů + schémata + soubory platforem", () => {
   const p = sampleComplex();
   p.platforms = ["siemens", "codesys"];
-  assert.equal(docFiles(p).length, 9);
+  assert.equal(docFiles(p).length, 11);
   const all = allProjectFiles(p);
   assert.ok(all.some(f => f.name === "blokove_schema.svg"));
   assert.ok(all.some(f => f.name === "funkcni_diagram.svg") && all.some(f => f.name === "casovy_diagram.svg"));
@@ -272,4 +733,115 @@ test("blankProject je prázdný a konzistentní", () => {
   syncIO(p);
   assert.equal(p.io.length, 0);
   assert.equal(validateProject(p).length, 0);
+});
+
+test("blokování: kryty a závora jsou v enable kódu všech platforem a v simulaci zastaví stroj", () => {
+  const p = sampleComplex();
+  const tag = (t: string) => p.io.find(e => e.tag === t)!.key;
+  assert.deepEqual(enableInputs(p).map(x => x.io.tag), ["S1_in", "S2_in", "S3_in", "S4_in"]);
+  for (const plat of Object.keys(PLAT) as Array<keyof typeof PLAT>) {
+    const files = genFor(p, plat);
+    const main = files["Gen_Main.scl"] || files["MAIN.st"] || files["Machine.st"];
+    assert.ok(/S1_in"? AND ("|GVL_IO\.)?S2_in"? AND ("|GVL_IO\.)?S3_in"? AND ("|GVL_IO\.)?S4_in/.test(main), plat + ": enable = E-stop AND blokování");
+    const from = main.lastIndexOf("(DI/DO)");
+    const freePart = main.slice(from, main.indexOf("END_", from) > 0 ? main.indexOf("END_", from) : undefined);
+    assert.ok(!/S2_in|S4_in/.test(freePart), plat + ": blokování už není mezi volnými signály");
+    assert.ok(freePart.includes("S7_in"), plat + ": ostatní volné signály zůstaly");
+  }
+  const sim = new Simulator(p);
+  assert.equal(sim.frame().enable, true, "kryty v klidu zavřené, závora volná");
+  sim.pressStart();
+  sim.run(4);
+  assert.ok(sim.seqIndex >= 1 && sim.outputsOn().length > 0);
+  sim.controls.di[tag("S2_in")] = false;           // otevřený kryt za chodu
+  sim.run(0.05);
+  assert.equal(sim.frame().enable, false);
+  assert.deepEqual(sim.outputsOn(), [], "výstupy bloků vypnuté");
+  assert.equal(sim.seqIndex, -1, "sekvence v klidu");
+  assert.ok(sim.events.some(e => e.msg.startsWith("Blokování S2 rozpojeno")));
+  sim.controls.di[tag("S2_in")] = true;            // kryt zavřen: stroj stojí do nového startu
+  sim.run(2);
+  assert.equal(sim.seqIndex, -1);
+  assert.ok(sim.events.some(e => e.msg.startsWith("Blokování S2 obnoveno")));
+  sim.controls.force[tag("S4_in")] = false;        // přerušená závora (vnucený vstup) — start nezabere
+  sim.pressStart();
+  sim.run(1);
+  assert.equal(sim.seqIndex, -1);
+  const v = verifyProject(p);
+  for (const d of ["S2", "S3", "S4"]) {
+    assert.ok(v.checks.some(c => c.level === "ok" && c.title.startsWith("Rozpojení blokování " + d + " zastaví stroj")), d);
+  }
+  assert.ok(docFiles(p).find(f => f.path === "04_seznam_alarmu.csv")!.body.includes("A_S4_OPEN"));
+});
+
+/* ------------------------------------------------------------ vícejazyčnost */
+
+test("i18n: čeština je výchozí a klíčem je český text; chybějící překlad vrací češtinu", () => {
+  assert.equal(getLang(), "cs");
+  assert.deepEqual(Object.keys(LANGS), ["cs", "en", "de", "es", "zh"]);
+  assert.equal(tr("Krok {n}: {title}", { n: 2, title: "M1 start" }), "Krok 2: M1 start");
+  assert.equal(fill("{a} a {b}", { a: 1 }), "1 a {b}", "neznámý zástupný znak zůstane");
+  assert.equal(setLang("xx"), "cs", "neznámý jazyk = čeština");
+  withLang("en", () => {
+    assert.equal(getLang(), "en");
+    assert.equal(tr("text, který v katalogu není"), "text, který v katalogu není");
+    assert.ok(tr("Zařízení") !== "Zařízení", "katalog EN je načtený");
+  });
+  assert.equal(getLang(), "cs", "withLang vrátí původní jazyk");
+  const en = withLang("en", () => tr("Zařízení"));
+  withLang("zh", () => {
+    assert.equal(trx("Zařízení"), en, "technické výstupy jsou při čínštině anglicky");
+    assert.ok(/[一-鿿]/.test(tr("Zařízení")), "texty UI čínsky");
+  });
+});
+
+test("i18n: komentáře šablon bloků jsou v seznamu klíčů a překládají se až ve výstupu", () => {
+  assert.deepEqual(templateComments().filter(c => !TPL_COMMENTS.includes(c)), []);
+  assert.equal(trComments(ST_MOTOR), ST_MOTOR, "česky beze změny");
+  withLang("en", () => {
+    const lib = genFor(sampleSmall(), "codesys")["Gen_Library.st"];
+    assert.ok(lib.includes("FUNCTION_BLOCK FB_Motor") && lib.includes("END_FUNCTION_BLOCK"));
+    assert.ok(!/[ěščřžýáíéůúďťň]/i.test(lib), "komentáře knihovny jsou přeložené");
+  });
+});
+
+test("i18n: výstupy ve všech jazycích — bez češtiny, bez nevyplněných zástupných znaků, technika v latince", () => {
+  const CZ = /[ěščřžůďťňĚŠČŘŽŮĎŤŇ]/;
+  for (const l of Object.keys(LANGS) as Lang[]) withLang(l, () => {
+    for (const mk of [sampleSmall, sampleComplex]) {
+      /* obsah projektu (názvy a popisy zařízení) se nepřekládá a jde i do komentářů kódu —
+         pro čínštinu proto ukázka s anglickým obsahem, ať se testují jen texty generátoru */
+      const p = l === "zh" ? withLang("en", mk) : mk();
+      p.platforms = Object.keys(PLAT) as typeof p.platforms;
+      const files = allProjectFiles(p);
+      assert.ok(files.length > 40, l);
+      for (const f of files) {
+        const where = l + " / " + f.save;
+        if (f.kind === "dxf") assert.ok(!/[^\x00-\x7F]/.test(f.body), where + ": DXF musí být ASCII");
+        if (/^unitronics_(Machine\.st|Tags\.csv)$/.test(f.save)) assert.ok(!/[^\x00-\x7F]/.test(f.body), where + ": Unitronics musí být ASCII");
+        if (f.kind === "text" && /\.(md|txt|csv)$/.test(f.save)) {
+          const left = f.body.match(/\{[a-z][A-Za-z]*\}/);
+          assert.ok(!left, where + ": nevyplněný zástupný znak " + (left && left[0]));
+        }
+        if (l !== "cs") {
+          /* kusovník: vlastní jména dodavatelů (firmy, města) se nepřekládají — jako obsah projektu */
+          const body = f.save.startsWith("09_kusovnik")
+            ? buildBom(p).lines.reduce((t, ln) => ln.supplier ? t.split(ln.supplier).join("") : t, f.body) : f.body;
+          const m = body.match(CZ);
+          assert.ok(!m, where + ": nepřeložený český text kolem „" + (m ? body.slice(Math.max(0, m.index! - 40), m.index! + 40) : "") + "“");
+        }
+        if (l === "zh" && (f.kind === "dxf" || /\.(scl|st)$/.test(f.save))) {
+          assert.ok(!/[一-鿿]/.test(f.body), where + ": kód a výkresy jsou při čínštině anglicky");
+        }
+      }
+      const sim = new Simulator(p);
+      sim.pressStart();
+      sim.run(3);
+      sim.controls.estop = true;
+      sim.run(0.1);
+      const text = sim.events.map(e => e.msg).join("\n") + verifyProject(p).checks.map(c => c.title + " " + c.detail).join("\n");
+      if (l !== "cs") assert.ok(!CZ.test(text), l + ": hlášení simulace a nálezy ověření jsou přeložené");
+    }
+  });
+  assert.equal(getLang(), "cs");
 });

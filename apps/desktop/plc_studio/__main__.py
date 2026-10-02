@@ -18,6 +18,7 @@ from tkinter import messagebox
 from . import theme
 from .app import STEPS, App
 from .bridge import BridgeError
+from .i18n import _
 
 
 def grab_window(win, path: Path) -> None:
@@ -81,9 +82,10 @@ def _smoke(app: App, shots: Path | None) -> int:
         """Záložky kroku, které se mají projít: (přípona snímku, nastavení UI)."""
         if step == 5 and app.prj["io"]:
             return [(f"_{t}", {"schema_tab": t}) for t in range(4)]
-        if step == 6 and app.prj["program"]["seq"]:
-            return [("_0", {"prog_tab": 0})] + [
-                (f"_1{t}", {"prog_tab": 1, "sim_tab": t}) for t in range(3)]
+        if step == 6:
+            scen = range(3) if app.prj["program"]["seq"] else [0]
+            return [("_0", {"prog_tab": 0}), ("_1", {"prog_tab": 1})] + [
+                (f"_2{t}", {"prog_tab": 2, "sim_tab": t}) for t in scen]
         return [("", {})]
 
     def walk(label: str) -> None:
@@ -127,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         app = App(root)
     except BridgeError as exc:
         root.withdraw()
-        messagebox.showerror("PLC Studio nejde spustit", str(exc))
+        messagebox.showerror(_("PLC Studio nejde spustit"), str(exc))
         return 2
     if args.smoke:
         return _smoke(app, Path(args.shots) if args.shots else None)

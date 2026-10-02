@@ -15,15 +15,27 @@ from tkinter import ttk
 
 from .. import ai_client, theme
 from ..bridge import BridgeError
+from ..i18n import N_, _
 from ..widgets import Table, card, scrolled_text, wrap_label
+from .program import ACT_LABEL
+from .zarizeni import _opts_text
 
 ERRORS = {
-    "no_key": "Doplň API klíč v Nastavení AI.",
-    "bad_key": "API klíč byl odmítnut (401).",
-    "rate_limited": "Příliš mnoho dotazů — zkus to za chvíli.",
-    "invalid_json": "Odpověď se nepodařilo přečíst — zkus to znovu.",
+    "no_key": N_("Doplň API klíč v Nastavení AI."),
+    "bad_key": N_("API klíč byl odmítnut (401)."),
+    "rate_limited": N_("Příliš mnoho dotazů — zkus to za chvíli."),
+    "invalid_json": N_("Odpověď se nepodařilo přečíst — zkus to znovu."),
 }
-ACTS = ("start", "stop", "open", "close", "wait")
+ACTS = ("start", "stop", "open", "close", "wait", "waitOn", "waitOff")
+WAIT_ACTS = ("waitOn", "waitOff")          # čekání na digitální vstup (TRUE / FALSE)
+DO_ROLES = ("run", "fault", "ready", "stopped", "lock", "auto")   # klíče DO_ROLES z jádra
+EXTRA = {"AnalogIn": ("limHi", "limLo"), "AnalogOut": ("setpoint",)}
+
+
+def _is_num(v) -> bool:
+    """Konečné číslo (bool ani NaN se nepočítá)."""
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v \
+        and v not in (float("inf"), float("-inf"))
 
 
 def apply_proposal(app) -> None:
@@ -38,20 +50,35 @@ def apply_proposal(app) -> None:
         name = d["name"] or app.core("nextName", p, d["cls"])
         nd = {"id": p["nextId"], "name": name, "cls": d["cls"], "desc": d["desc"],
               "opt": d["opt"], "unit": d["unit"], "rmin": d["rmin"], "rmax": d["rmax"]}
+        # meze měření, žádaná hodnota a role výstupu (aiNorm je pustí jen u správné třídy)
+        for key in EXTRA.get(d["cls"], ()):
+            if _is_num(d.get(key)):
+                nd[key] = d[key]
+        if d["cls"] == "DO" and d.get("role") in DO_ROLES:
+            nd["role"] = d["role"]
         p["nextId"] += 1
         p["devices"].append(nd)
         by_name[name] = nd
     app.sync()
     p = app.prj
     p["program"]["estop"] = by_name.get(pr["estop"], {}).get("id", "")
+    p["program"]["interlocks"] = [by_name[n]["id"] for n in pr.get("interlocks", [])
+                                  if n in by_name and by_name[n]["cls"] == "DI"]
     seq = []
     for s in pr["seq"]:
-        step = {"dev": by_name.get(s["dev"], {}).get("id", 0),
-                "act": s["act"] if s["act"] in ACTS else "wait",
-                "cond": s["cond"], "timeS": s["timeS"]}
+        act = s["act"] if s["act"] in ACTS else "wait"
+        dev = by_name.get(s["dev"])
+        wait_di = act in WAIT_ACTS
+        # čekání jen na zařízení třídy DI; přechod je vždy zpětné hlášení (stav vstupu)
+        dev_id = dev["id"] if dev and act != "wait" and (not wait_di or dev["cls"] == "DI") else 0
+        step = {"dev": dev_id, "act": act,
+                "cond": "fbk" if wait_di else s["cond"], "timeS": s["timeS"]}
         if step["act"] == "wait" or step["dev"]:
             seq.append(step)
     p["program"]["seq"] = seq
+    takt = pr.get("takt")
+    if _is_num(takt) and takt > 0:
+        p["meta"]["takt"] = takt
     app.step = 3
     app.save()
     app.render()
@@ -60,80 +87,160 @@ def apply_proposal(app) -> None:
 def _turn_lines(app, turn: dict) -> list[tuple[str, str]]:
     """Jedna zpráva konverzace → řádky ``(text, značka)`` pro okno chatu."""
     if turn["role"] == "user":
-        return [("Ty\n", "who"), (turn["content"] + "\n\n", "user")]
+        return [(_("Ty") + "\n", "who"), (turn["content"] + "\n\n", "user")]
     try:
         r = app.bridge.ai("aiNorm", json.loads(turn["content"]))
     except (ValueError, BridgeError):
         return [("AI\n", "who"), (turn["content"][:300] + "\n\n", "ai")]
-    out = [("AI návrhář\n", "who")]
+    out = [(_("AI návrhář") + "\n", "who")]
     if r["questions"]:
-        out.append(("Potřebuji upřesnit:\n", "bold"))
+        out.append((_("Potřebuji upřesnit:") + "\n", "bold"))
         out += [(f"  • {q}\n", "ai") for q in r["questions"]]
     if r["devices"]:
-        seq = f" a sekvence o {len(r['seq'])} krocích" if r["seq"] else ""
-        out.append((f"Navrženo {len(r['devices'])} zařízení{seq}.\n", "ai"))
+        if r["seq"]:
+            text = _("Navrženo {n} zařízení a sekvence o {k} krocích.",
+                     n=len(r["devices"]), k=len(r["seq"]))
+        else:
+            text = _("Navrženo {n} zařízení.", n=len(r["devices"]))
+        out.append((text + "\n", "ai"))
     if r["note"]:
         out.append((r["note"] + "\n", "hint"))
     out.append(("\n", "ai"))
     return out
 
 
+def _safe_list(key: str) -> tuple[bool, object]:
+    try:
+        return True, ai_client.list_models(key)
+    except ai_client.AiError as exc:
+        # bez podrobností dřív ukázal jen kód („network“)
+        return False, exc.detail or (_(ERRORS[exc.code]) if exc.code in ERRORS
+                                     else _("Nepodařilo se spojit s API."))
+    except Exception as exc:  # noqa: BLE001 — tlačítko by zůstalo navždy neaktivní
+        return False, f"{type(exc).__name__}: {exc}"
+
+
 def render(app, parent) -> None:
     ui = app.ui.setdefault("ai", {"busy": False, "token": 0, "status": ""})
     ai = app.ai
-    body = card(parent, "02", "AI návrh systému")
-    wrap_label(body, "Popiš stroj vlastními slovy — co dělá, jaké má pohony, válce, co se měří "
-               "a hlídá. AI navrhne sestavu zařízení, případně se nejdřív doptá na detaily. "
-               "Návrh převezmeš a doladíš v dalších krocích; AI zná i tvou aktuální sestavu, "
-               "takže můžeš kdykoli psát jen úpravy.")
+    body = card(parent, "02", _("AI návrh systému"))
+    wrap_label(body, _(
+        "Popiš stroj vlastními slovy — co dělá, jaké má pohony, válce, co se měří "
+        "a hlídá. AI navrhne sestavu zařízení, případně se nejdřív doptá na detaily. "
+        "Návrh převezmeš a doladíš v dalších krocích; AI zná i tvou aktuální sestavu, "
+        "takže můžeš kdykoli psát jen úpravy."))
 
     # --- nastavení ---
     cfg = ttk.Frame(body)
     cfg.pack(fill="x", pady=(8, 6))
-    ttk.Label(cfg, text="Anthropic API klíč:").pack(side="left")
+    ttk.Label(cfg, text=_("Anthropic API klíč:")).pack(side="left")
     var_key = tk.StringVar(value=app.settings.get("ai_key", ""))
     ttk.Entry(cfg, textvariable=var_key, show="•", width=34).pack(side="left", padx=(6, 14))
-    ttk.Label(cfg, text="Model:").pack(side="left")
-    var_model = tk.StringVar(value=app.settings.get("ai_model") or ai_client.DEFAULT_MODEL)
-    ttk.Combobox(cfg, textvariable=var_model, values=ai_client.MODELS, state="readonly",
-                 width=26).pack(side="left", padx=(6, 14))
-    ttk.Label(cfg, text="klíč z console.anthropic.com; ukládá se jen na tomto počítači, "
-                        "dotazy jsou placené", style="Dim.TLabel").pack(side="left")
+    ttk.Label(cfg, text=_("klíč z console.anthropic.com; ukládá se jen na tomto počítači, "
+                          "dotazy jsou placené"), style="Dim.TLabel").pack(side="left")
 
-    def save_cfg(*_):
+    # --- výběr modelu: známé + načtené pro klíč (GET /v1/models, neúčtuje se) + vlastní ID ---
+    mrow = ttk.Frame(body)
+    mrow.pack(fill="x", pady=(0, 6))
+    ttk.Label(mrow, text=_("Model:")).pack(side="left")
+    var_model = tk.StringVar(value=app.settings.get("ai_model") or ai_client.DEFAULT_MODEL)
+
+    def model_values() -> list[str]:
+        got = [m for m in app.settings.get("ai_models") or [] if m not in ai_client.MODELS]
+        return ai_client.MODELS + got
+
+    cb_model = ttk.Combobox(mrow, textvariable=var_model, values=model_values(), width=30)
+    cb_model.pack(side="left", padx=(6, 8))
+    lbl_model = ttk.Label(mrow, text="", style="Dim.TLabel")
+
+    def show_label(*_a):
+        mid = var_model.get().strip()
+        known = ai_client.model_label(mid)
+        avail = app.settings.get("ai_models") or []
+        txt = _(known) if known else _("vlastní ID modelu")
+        if avail and mid not in avail:
+            txt += " · " + _("pro tento klíč není v seznamu dostupných")
+        lbl_model.configure(text=txt)
+
+    def fetch_models():
+        key = var_key.get().strip()
+        if not key:
+            lbl_model.configure(text=_("Nejdřív zadej API klíč."))
+            return
+        btn_fetch.state(["disabled"])
+        lbl_model.configure(text=_("Načítám dostupné modely…"))
+        box: queue.Queue = queue.Queue()
+        threading.Thread(target=lambda: box.put(_safe_list(key)), daemon=True).start()
+
+        def poll():
+            if box.empty():
+                mrow.after(150, poll)
+                return
+            ok, res = box.get()
+            if not mrow.winfo_exists():
+                return
+            btn_fetch.state(["!disabled"])
+            if ok:
+                app.settings["ai_models"] = res
+                app.save_settings()
+                cb_model.configure(values=model_values())
+                show_label()
+                lbl_model.configure(text=lbl_model.cget("text") + " · "
+                                    + _("dostupných modelů: {n}", n=len(res)))
+            else:
+                lbl_model.configure(text=_("Seznam modelů nejde načíst: {err}", err=res))
+        poll()
+
+    btn_fetch = ttk.Button(mrow, text=_("Načíst dostupné modely"), command=fetch_models)
+    btn_fetch.pack(side="left", padx=(0, 10))
+    lbl_model.pack(side="left")
+    show_label()
+
+    def save_cfg(*_a):
         app.settings["ai_key"] = var_key.get().strip()
-        app.settings["ai_model"] = var_model.get()
+        app.settings["ai_model"] = var_model.get().strip() or ai_client.DEFAULT_MODEL
         app.save_settings()
 
     var_key.trace_add("write", save_cfg)
     var_model.trace_add("write", save_cfg)
+    var_model.trace_add("write", show_label)
+    cfg._vars = (var_key, var_model)  # StringVar nesmí zaniknout s funkcí (prázdné pole)
 
     # --- návrh (dole, ať ho vstup nevytlačí) ---
     pr = ai.get("last")
     if pr and pr["devices"]:
         prop = ttk.Frame(body)
         prop.pack(side="bottom", fill="x", pady=(10, 0))
-        ttk.Label(prop, text="Navržená sestava", style="Section.TLabel").pack(anchor="w")
-        tbl = Table(prop, [("name", "Označení", 90, False), ("cls", "Třída", 190, False),
-                           ("desc", "Popis", 360, True), ("opt", "Volby", 240, True)],
+        ttk.Label(prop, text=_("Navržená sestava"), style="Section.TLabel").pack(anchor="w")
+        tbl = Table(prop, [("name", _("Označení"), 90, False), ("cls", _("Třída"), 190, False),
+                           ("desc", _("Popis"), 360, True), ("opt", _("Volby"), 240, True)],
                     height=min(5, len(pr["devices"])))
         tbl.pack(fill="x", pady=(4, 0))
+        # v nízkém okně by plná tabulka vytlačila konverzaci (balí se poslední) — zmenšit ji
+        rows = min(5, len(pr["devices"]))
+        body.bind("<Configure>", lambda e: tbl.tv.configure(
+            height=rows if e.height >= 600 else min(rows, 2)), add="+")
         for i, d in enumerate(pr["devices"]):
-            opts = ", ".join(k for k, v in d["opt"].items() if v)
-            if d["cls"].startswith("Analog"):
-                opts = f"{opts} {d['unit']} {d['rmin']:g}–{d['rmax']:g}".strip()
-            tbl.add(i, (d["name"], app.CLS[d["cls"]]["label"], d["desc"], opts))
+            # volby, meze a role stejně jako v kroku Zařízení (přeložené popisky, ne klíče)
+            tbl.add(i, (d["name"], app.CLS[d["cls"]]["label"], d["desc"], _opts_text(app, d)))
         if pr["seq"]:
-            steps = " → ".join(
-                f"{i + 1}. " + (f"výdrž {s['timeS']:g} s" if s["act"] == "wait"
-                                else f"{s['dev']} {s['act']}")
-                for i, s in enumerate(pr["seq"]))
-            wrap_label(prop, "Sekvence: " + steps, pady=(4, 0))
+            def step_txt(s: dict) -> str:
+                if s["act"] == "wait":
+                    return _("výdrž {t} s", t=f"{s['timeS']:g}")
+                if s["act"] == "waitOn":
+                    return _("čekat na {dev}", dev=s["dev"])
+                if s["act"] == "waitOff":
+                    return _("čekat na {dev} = FALSE", dev=s["dev"])
+                act = _(ACT_LABEL[s["act"]]) if s["act"] in ACT_LABEL else s["act"]
+                return f"{s['dev']} {act}"
+
+            steps = " → ".join(f"{i + 1}. " + step_txt(s) for i, s in enumerate(pr["seq"]))
+            wrap_label(prop, _("Sekvence: {steps}", steps=steps), pady=(4, 0))
         row = ttk.Frame(prop)
         row.pack(fill="x", pady=(6, 0))
-        ttk.Button(row, text="Převzít návrh (nahradí zařízení)", style="Accent.TButton",
+        ttk.Button(row, text=_("Převzít návrh (nahradí zařízení)"), style="Accent.TButton",
                    command=lambda: apply_proposal(app)).pack(side="left")
-        ttk.Label(row, text="Nesedí? Napiš upřesnění a odešli znovu.",
+        ttk.Label(row, text=_("Nesedí? Napiš upřesnění a odešli znovu."),
                   style="Dim.TLabel").pack(side="left", padx=10)
 
     # --- tlačítka a vstup (nad návrhem) ---
@@ -142,6 +249,8 @@ def render(app, parent) -> None:
     in_frm, txt_in = scrolled_text(body, height=3)
     in_frm.pack(side="bottom", fill="x", pady=(8, 0))
     txt_in.insert("1.0", ai.get("draft") or "")
+    body.bind("<Configure>", lambda e: txt_in.configure(height=3 if e.height >= 600 else 2),
+              add="+")                    # nízké okno: víc místa pro konverzaci
 
     def on_draft(_e=None):
         ai["draft"] = txt_in.get("1.0", "end-1c")
@@ -157,12 +266,12 @@ def render(app, parent) -> None:
         if ui["busy"]:
             return
         if not msg:
-            status.configure(text="Nejdřív popiš stroj (nebo klikni na Vložit příklad).")
+            status.configure(text=_("Nejdřív popiš stroj (nebo klikni na Vložit příklad)."))
             txt_in.focus_set()
             return
         key = app.settings.get("ai_key", "")
         if not key:
-            status.configure(text="Doplň API klíč v nastavení výše.")
+            status.configure(text=_("Doplň API klíč v nastavení výše."))
             return
         ui["busy"] = True
         ui["token"] += 1
@@ -180,6 +289,8 @@ def render(app, parent) -> None:
                 box.put(("ok", ai_client.call(key, model, messages)))
             except ai_client.AiError as exc:
                 box.put(("err", exc))
+            except Exception as exc:  # noqa: BLE001 — jinak by dotaz navždy „přemýšlel“
+                box.put(("err", ai_client.AiError("api_error", f"{type(exc).__name__}: {exc}")))
 
         threading.Thread(target=work, daemon=True).start()
         # nejdřív překreslit do stavu „Přemýšlím…", výsledek vyzvednout až potom —
@@ -206,16 +317,16 @@ def render(app, parent) -> None:
         status.configure(text="")
 
     b_send = ttk.Button(btns, style="Accent.TButton", command=send,
-                        text="Odeslat upřesnění" if ai["turns"] else "Navrhnout zařízení")
+                        text=_("Odeslat upřesnění") if ai["turns"] else _("Navrhnout zařízení"))
     b_send.pack(side="left")
     if ui["busy"]:
         b_send.state(["disabled"])
-        ttk.Button(btns, text="Stop", command=stop).pack(side="left", padx=(6, 0))
-        ttk.Label(btns, text="Přemýšlím…", style="Section.TLabel").pack(side="left", padx=10)
+        ttk.Button(btns, text=_("Stop"), command=stop).pack(side="left", padx=(6, 0))
+        ttk.Label(btns, text=_("Přemýšlím…"), style="Section.TLabel").pack(side="left", padx=10)
     if not ai["turns"]:
-        ttk.Button(btns, text="Vložit příklad", command=example).pack(side="left", padx=(6, 0))
+        ttk.Button(btns, text=_("Vložit příklad"), command=example).pack(side="left", padx=(6, 0))
     elif not ui["busy"]:
-        ttk.Button(btns, text="Nová konverzace", style="Danger.TButton", command=clear
+        ttk.Button(btns, text=_("Nová konverzace"), style="Danger.TButton", command=clear
                    ).pack(side="left", padx=(6, 0))
     status.pack(side="left", padx=10)
 
@@ -232,7 +343,7 @@ def render(app, parent) -> None:
             for text, tag in _turn_lines(app, turn):
                 chat.insert("end", text, tag)
     else:
-        chat.insert("end", "Konverzace je prázdná — napiš popis stroje níže.", "hint")
+        chat.insert("end", _("Konverzace je prázdná — napiš popis stroje níže."), "hint")
     chat.configure(state="disabled")
     chat.see("end")
 
@@ -262,7 +373,8 @@ def _poll(app, ui: dict, token: int, box: queue.Queue) -> None:
         try:
             res = app.bridge.ai("extractJson", value)
         except BridgeError as exc:
-            _abort(app, ui, ERRORS.get(exc.code, f"Nepodařilo se získat odpověď: {exc}"))
+            _abort(app, ui, _(ERRORS[exc.code]) if exc.code in ERRORS
+                   else _("Nepodařilo se získat odpověď: {detail}", detail=exc))
             return
         app.ai["turns"].append({"role": "assistant",
                                 "content": json.dumps(res, ensure_ascii=False)})
@@ -274,9 +386,12 @@ def _poll(app, ui: dict, token: int, box: queue.Queue) -> None:
         if app.step == 1:
             app.render()
         else:
-            app.set_status("AI návrhář odpověděl — viz krok AI návrh.")
+            app.set_status(_("AI návrhář odpověděl — viz krok AI návrh."))
     else:
-        text = ERRORS.get(value.code) or (
-            "Nepodařilo se získat odpověď" + (f": {value.detail}" if value.detail
-                                               else " — zkus to znovu."))
+        if value.code in ERRORS:
+            text = _(ERRORS[value.code])
+        elif value.detail:
+            text = _("Nepodařilo se získat odpověď: {detail}", detail=value.detail)
+        else:
+            text = _("Nepodařilo se získat odpověď — zkus to znovu.")
         _abort(app, ui, text)

@@ -13,6 +13,8 @@ import subprocess
 import threading
 from pathlib import Path
 
+from .i18n import _
+
 BRIDGE_JS = Path(__file__).resolve().parent.parent / "bridge.mjs"
 
 
@@ -46,16 +48,17 @@ class CoreBridge:
         self._id = 0
         self._log_file = log_file
         self._log = None
+        self.lang = "cs"        # jazyk jádra; po restartu procesu se nastaví znovu
 
     # --- životní cyklus ------------------------------------------------------
 
     def start(self) -> None:
         node = find_node()
         if not node:
-            raise BridgeError("Nenašel jsem Node.js (node.exe). PLC Studio potřebuje "
-                              "Node 18+ — nainstaluj ho z nodejs.org.")
+            raise BridgeError(_("Nenašel jsem Node.js (node.exe). PLC Studio potřebuje "
+                                "Node 18+ — nainstaluj ho z nodejs.org."))
         if not BRIDGE_JS.exists():
-            raise BridgeError(f"Chybí soubor mostu: {BRIDGE_JS}")
+            raise BridgeError(_("Chybí soubor mostu: {path}", path=BRIDGE_JS))
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # bez blikající konzole
         if self._log_file is not None and self._log is None:
             self._log = open(self._log_file, "a", encoding="utf-8")
@@ -91,23 +94,32 @@ class CoreBridge:
             if self._proc is None or self._proc.poll() is not None:
                 self._stop()
                 self.start()
-            self._id += 1
-            line = json.dumps({"id": self._id, "op": op, **payload})
-            try:
-                self._proc.stdin.write(line + "\n")
-                self._proc.stdin.flush()
-                raw = self._proc.stdout.readline()
-            except OSError as exc:
-                self._stop()
-                raise BridgeError(f"Spojení s jádrem se přerušilo: {exc}") from exc
-            if not raw:
-                self._stop()
-                raise BridgeError("Jádro (Node) neodpovědělo — proces skončil.")
+                if self.lang != "cs" and op != "init":     # nový proces začíná česky
+                    self._exchange("init", {"lang": self.lang})
+            if op == "init":
+                self.lang = payload.get("lang") or "cs"
+            raw = self._exchange(op, payload)
         resp = json.loads(raw)
         if not resp.get("ok"):
-            raise BridgeError(resp.get("error") or "Neznámá chyba jádra.",
+            raise BridgeError(resp.get("error") or _("Neznámá chyba jádra."),
                               resp.get("code") or "")
         return resp.get("result")
+
+    def _exchange(self, op: str, payload: dict) -> str:
+        """Jeden požadavek → jedna odpověď (surový řádek JSON); volat se zámkem."""
+        self._id += 1
+        line = json.dumps({"id": self._id, "op": op, **payload})
+        try:
+            self._proc.stdin.write(line + "\n")
+            self._proc.stdin.flush()
+            raw = self._proc.stdout.readline()
+        except OSError as exc:
+            self._stop()
+            raise BridgeError(_("Spojení s jádrem se přerušilo: {exc}", exc=exc)) from exc
+        if not raw:
+            self._stop()
+            raise BridgeError(_("Jádro (Node) neodpovědělo — proces skončil."))
+        return raw
 
     def call(self, fn: str, *args):
         """Zavolá funkci jádra a vrátí její návratovou hodnotu."""

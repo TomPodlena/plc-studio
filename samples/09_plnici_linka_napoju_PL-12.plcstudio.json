@@ -1,0 +1,1913 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Plnicí a balicí linka nápojů PL-12 (velmi složitý příklad)",
+   "desc": "Kompletní linka na vratné skleněné lahve 0,5 l: depaletizace (zdvih palety, odběr proložky vakuem, shrnutí vrstvy), myčka lahví (louhová lázeň s parním ohřevem, oplach), dopravník čistých lahví, izobarický plnič (CO2 předpětí, vakuum, produkt), uzavírač korunek, osušení dmychadlem, etiketovačka s lepidlem, inspekce s vyřazovačem, balička do kartonů s lepením víka, paletizér s vrstvicí deskou a ovíječka. Takt cyklu: rozběh linky od výstupu ke vstupu, ohřev louhu, zpracování jedné vrstvy po stanicích, ovinutí palety a doběh linky od vstupu k výstupu. Snímače procesu jsou podmínkami kroků s hlídacím časem: přítomnost palety, lahví a kartonů v pozici, potvrzení operací (vrstva shrnuta, etiketa nalepena, karton zalepen, kód šarže OK, inspekce OK) a stavy zásobníků a dopravníků (konec materiálu, zahlcení) — co nepřijde včas, je porucha linky. Procesní měření mají meze (teplota a koncentrace louhu, tlaky, vakuum, teplota lepidla, hmotnost palety…). Maják zelená = chod, žlutá = připraveno, červená + houkačka = porucha; kryty plniče a dveře paletizéru jsou během cyklu zamčené. Ochrany: smyčka nouzových tlačítek, kryty a dveře všech stanic, světelné závory na vstupu a výstupu palet a u ovíječky, tlak vzduchu a páry jako blokování.",
+   "takt": 130
+  },
+  "platforms": [
+   "siemens"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "M1",
+    "cls": "Motor",
+    "desc": "Dopravník plných palet (vstup)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 2,
+    "name": "M2",
+    "cls": "Motor",
+    "desc": "Dopravník prázdných palet",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 3,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Zdvih palety depaletizéru",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 4,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Vakuový odběr proložky",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 5,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Shrnovací hlava vrstvy lahví",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 6,
+    "name": "M3",
+    "cls": "Motor",
+    "desc": "Hlavní pohon myčky lahví",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 7,
+    "name": "M4",
+    "cls": "Motor",
+    "desc": "Oběhové čerpadlo louhu",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 8,
+    "name": "M5",
+    "cls": "Motor",
+    "desc": "Čerpadlo oplachové vody",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 9,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Ventil páry — ohřev louhu",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 10,
+    "name": "Y5",
+    "cls": "Ventil",
+    "desc": "Ventil čerstvé oplachové vody",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 11,
+    "name": "M6",
+    "cls": "Motor",
+    "desc": "Dopravník čistých lahví (myčka → plnič)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 12,
+    "name": "M7",
+    "cls": "Motor",
+    "desc": "Hlavní pohon plniče (karusel)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 13,
+    "name": "M8",
+    "cls": "Motor",
+    "desc": "Vakuová pumpa plniče",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 14,
+    "name": "Y6",
+    "cls": "Ventil",
+    "desc": "Ventil CO2 — předpětí kotle",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 15,
+    "name": "Y7",
+    "cls": "Ventil",
+    "desc": "Zdvih plnicích ventilů",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 16,
+    "name": "Y8",
+    "cls": "Ventil",
+    "desc": "Ventil přívodu produktu do kotle",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 17,
+    "name": "M9",
+    "cls": "Motor",
+    "desc": "Pohon uzavírače korunek",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 18,
+    "name": "Y9",
+    "cls": "Ventil",
+    "desc": "Zdvih uzavíracích hlav",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 19,
+    "name": "M10",
+    "cls": "Motor",
+    "desc": "Dmychadlo osušení lahví",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 20,
+    "name": "M11",
+    "cls": "Motor",
+    "desc": "Pohon etiketovačky",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 21,
+    "name": "M12",
+    "cls": "Motor",
+    "desc": "Čerpadlo lepidla etiketovačky",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 22,
+    "name": "Y10",
+    "cls": "Ventil",
+    "desc": "Přítlak etiketovacích kartáčů",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 23,
+    "name": "M13",
+    "cls": "Motor",
+    "desc": "Dopravník plných lahví (inspekce → balička)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 24,
+    "name": "Y11",
+    "cls": "Ventil",
+    "desc": "Vyřazovač vadných lahví",
+    "opt": {
+     "fbkOpen": false,
+     "fbkClosed": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 25,
+    "name": "M14",
+    "cls": "Motor",
+    "desc": "Hlavní pohon baličky",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 26,
+    "name": "M15",
+    "cls": "Motor",
+    "desc": "Dopravník kartonů",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 27,
+    "name": "Y12",
+    "cls": "Ventil",
+    "desc": "Vkládací hlava baličky",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 28,
+    "name": "Y13",
+    "cls": "Ventil",
+    "desc": "Lepení víka kartonu (tavné lepidlo)",
+    "opt": {
+     "fbkOpen": false,
+     "fbkClosed": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 29,
+    "name": "Y14",
+    "cls": "Ventil",
+    "desc": "Podavač prázdné palety paletizéru",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 30,
+    "name": "Y15",
+    "cls": "Ventil",
+    "desc": "Vrstvicí deska paletizéru",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 31,
+    "name": "Y16",
+    "cls": "Ventil",
+    "desc": "Zdvih paletizéru",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 32,
+    "name": "M16",
+    "cls": "Motor",
+    "desc": "Otočný stůl ovíječky",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 33,
+    "name": "M17",
+    "cls": "Motor",
+    "desc": "Dopravník hotových palet (výstup)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 34,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Teplota louhové lázně",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 100,
+    "limLo": 70,
+    "limHi": 90
+   },
+   {
+    "id": 35,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Koncentrace louhu (vodivost)",
+    "opt": {},
+    "unit": "mS/cm",
+    "rmin": 0,
+    "rmax": 200,
+    "limLo": 60,
+    "limHi": 140
+   },
+   {
+    "id": 36,
+    "name": "B3",
+    "cls": "AnalogIn",
+    "desc": "Hladina louhové lázně",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "limLo": 40,
+    "limHi": 95
+   },
+   {
+    "id": 37,
+    "name": "B4",
+    "cls": "AnalogIn",
+    "desc": "Tlak oplachové vody",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 6,
+    "limLo": 1.5,
+    "limHi": 4.5
+   },
+   {
+    "id": 38,
+    "name": "B5",
+    "cls": "AnalogIn",
+    "desc": "Teplota oplachové vody",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 100,
+    "limLo": 20,
+    "limHi": 60
+   },
+   {
+    "id": 39,
+    "name": "B6",
+    "cls": "AnalogIn",
+    "desc": "Vodivost posledního oplachu",
+    "opt": {},
+    "unit": "µS/cm",
+    "rmin": 0,
+    "rmax": 1000,
+    "limHi": 500
+   },
+   {
+    "id": 40,
+    "name": "B7",
+    "cls": "AnalogIn",
+    "desc": "Tlak páry",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 2,
+    "limHi": 6
+   },
+   {
+    "id": 41,
+    "name": "B8",
+    "cls": "AnalogIn",
+    "desc": "Hladina v kotli plniče",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "limLo": 30,
+    "limHi": 90
+   },
+   {
+    "id": 42,
+    "name": "B9",
+    "cls": "AnalogIn",
+    "desc": "Tlak CO2 v kotli plniče",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 6,
+    "limLo": 2,
+    "limHi": 5
+   },
+   {
+    "id": 43,
+    "name": "B10",
+    "cls": "AnalogIn",
+    "desc": "Vakuum plniče",
+    "opt": {},
+    "unit": "mbar",
+    "rmin": -1000,
+    "rmax": 0,
+    "limHi": -600
+   },
+   {
+    "id": 44,
+    "name": "B11",
+    "cls": "AnalogIn",
+    "desc": "Teplota produktu",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 30,
+    "limLo": 2,
+    "limHi": 18
+   },
+   {
+    "id": 45,
+    "name": "B12",
+    "cls": "AnalogIn",
+    "desc": "Rychlost plniče (enkodér)",
+    "opt": {},
+    "unit": "lahví/h",
+    "rmin": 0,
+    "rmax": 40000,
+    "limHi": 36000
+   },
+   {
+    "id": 46,
+    "name": "B13",
+    "cls": "AnalogIn",
+    "desc": "Moment uzavírání",
+    "opt": {},
+    "unit": "Ncm",
+    "rmin": 0,
+    "rmax": 500,
+    "limHi": 400
+   },
+   {
+    "id": 47,
+    "name": "B14",
+    "cls": "AnalogIn",
+    "desc": "Teplota lepidla etiketovačky",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 200,
+    "limLo": 140,
+    "limHi": 180
+   },
+   {
+    "id": 48,
+    "name": "B15",
+    "cls": "AnalogIn",
+    "desc": "Hladina lepidla",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "limLo": 15
+   },
+   {
+    "id": 49,
+    "name": "B16",
+    "cls": "AnalogIn",
+    "desc": "Hmotnost palety (váha výstupu)",
+    "opt": {},
+    "unit": "kg",
+    "rmin": 0,
+    "rmax": 1500,
+    "limHi": 1200
+   },
+   {
+    "id": 50,
+    "name": "B17",
+    "cls": "AnalogIn",
+    "desc": "Tlak stlačeného vzduchu",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 5,
+    "limHi": 8
+   },
+   {
+    "id": 51,
+    "name": "U1",
+    "cls": "AnalogOut",
+    "desc": "Žádaná rychlost plniče",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "setpoint": 80
+   },
+   {
+    "id": 52,
+    "name": "U2",
+    "cls": "AnalogOut",
+    "desc": "Žádaná rychlost dopravníků lahví",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "setpoint": 75
+   },
+   {
+    "id": 53,
+    "name": "U3",
+    "cls": "AnalogOut",
+    "desc": "Předpětí ovíjecí fólie",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "setpoint": 60
+   },
+   {
+    "id": 54,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení — smyčka tlačítek linky (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 55,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Kryt depaletizéru zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 56,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Světelná závora vstupu palet volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 57,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Světelná závora prázdných palet volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 58,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Dveře myčky zavřeny (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 59,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Kryt plniče přední zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 60,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "Kryt plniče zadní zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 61,
+    "name": "S8",
+    "cls": "DI",
+    "desc": "Kryt uzavírače zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 62,
+    "name": "S9",
+    "cls": "DI",
+    "desc": "Kryt dmychadla zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 63,
+    "name": "S10",
+    "cls": "DI",
+    "desc": "Kryt etiketovačky zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 64,
+    "name": "S11",
+    "cls": "DI",
+    "desc": "Kryt inspekce zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 65,
+    "name": "S12",
+    "cls": "DI",
+    "desc": "Kryt baličky zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 66,
+    "name": "S13",
+    "cls": "DI",
+    "desc": "Dveře paletizéru zavřeny (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 67,
+    "name": "S14",
+    "cls": "DI",
+    "desc": "Světelná závora výstupu palet volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 68,
+    "name": "S15",
+    "cls": "DI",
+    "desc": "Světelná závora ovíječky volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 69,
+    "name": "S16",
+    "cls": "DI",
+    "desc": "Tlak vzduchu v pořádku — presostat (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 70,
+    "name": "S17",
+    "cls": "DI",
+    "desc": "Tlak páry v pořádku — presostat (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 71,
+    "name": "S18",
+    "cls": "DI",
+    "desc": "Paleta v pozici depaletizace",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 72,
+    "name": "S19",
+    "cls": "DI",
+    "desc": "Zásobník proložek plný",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 73,
+    "name": "S20",
+    "cls": "DI",
+    "desc": "Vrstva shrnuta na stůl",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 74,
+    "name": "S21",
+    "cls": "DI",
+    "desc": "Zásobník prázdných palet plný",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 75,
+    "name": "S22",
+    "cls": "DI",
+    "desc": "Hladina louhu nad minimem",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 76,
+    "name": "S23",
+    "cls": "DI",
+    "desc": "Lahev zaseknutá na vstupu myčky",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 77,
+    "name": "S24",
+    "cls": "DI",
+    "desc": "Zahlcení výstupu myčky",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 78,
+    "name": "S25",
+    "cls": "DI",
+    "desc": "Zahlcení dopravníku čistých lahví",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 79,
+    "name": "S26",
+    "cls": "DI",
+    "desc": "Mezera v proudu lahví před plničem",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 80,
+    "name": "S27",
+    "cls": "DI",
+    "desc": "Lahev v plnicí hvězdici",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 81,
+    "name": "S28",
+    "cls": "DI",
+    "desc": "Hladina v kotli plniče — pracovní",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 82,
+    "name": "S29",
+    "cls": "DI",
+    "desc": "Zásobník korunek pod minimem",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 83,
+    "name": "S30",
+    "cls": "DI",
+    "desc": "Lahev v uzavírací hvězdici",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 84,
+    "name": "S31",
+    "cls": "DI",
+    "desc": "Lahev před etiketovačkou",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 85,
+    "name": "S32",
+    "cls": "DI",
+    "desc": "Role etiket — konec",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 86,
+    "name": "S33",
+    "cls": "DI",
+    "desc": "Etiketa nalepena",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 87,
+    "name": "S34",
+    "cls": "DI",
+    "desc": "Inspekce — výška hladiny OK",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 88,
+    "name": "S35",
+    "cls": "DI",
+    "desc": "Inspekce — korunka OK",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 89,
+    "name": "S36",
+    "cls": "DI",
+    "desc": "Lahev v pozici vyřazovače",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 90,
+    "name": "S37",
+    "cls": "DI",
+    "desc": "Stůl vyřazených lahví plný",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 91,
+    "name": "S38",
+    "cls": "DI",
+    "desc": "Čtečka kódu šarže OK",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 92,
+    "name": "S39",
+    "cls": "DI",
+    "desc": "Zahlcení dopravníku před baličkou",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 93,
+    "name": "S40",
+    "cls": "DI",
+    "desc": "Zásobník kartonů pod minimem",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 94,
+    "name": "S41",
+    "cls": "DI",
+    "desc": "Karton v pozici vkládání",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 95,
+    "name": "S42",
+    "cls": "DI",
+    "desc": "Karton zalepen — kontrola",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 96,
+    "name": "S43",
+    "cls": "DI",
+    "desc": "Zahlcení dopravníku kartonů",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 97,
+    "name": "S44",
+    "cls": "DI",
+    "desc": "Vrstva kartonů připravena",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 98,
+    "name": "S45",
+    "cls": "DI",
+    "desc": "Prázdná paleta v pozici paletizéru",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 99,
+    "name": "S46",
+    "cls": "DI",
+    "desc": "Paleta plná (počet vrstev)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 100,
+    "name": "S47",
+    "cls": "DI",
+    "desc": "Paleta na ovíjecím stole",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 101,
+    "name": "S48",
+    "cls": "DI",
+    "desc": "Ovíjecí fólie — konec role",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 102,
+    "name": "S49",
+    "cls": "DI",
+    "desc": "Hotová paleta na výstupu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 103,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — linka v chodu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run"
+   },
+   {
+    "id": 104,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready"
+   },
+   {
+    "id": 105,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault"
+   },
+   {
+    "id": 106,
+    "name": "H4",
+    "cls": "DO",
+    "desc": "Houkačka poruchy",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault"
+   },
+   {
+    "id": 107,
+    "name": "H5",
+    "cls": "DO",
+    "desc": "Zámek krytů plniče (zamčeno během cyklu)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "lock"
+   },
+   {
+    "id": 108,
+    "name": "H6",
+    "cls": "DO",
+    "desc": "Zámek dveří paletizéru (zamčeno během cyklu)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "lock"
+   },
+   {
+    "id": 109,
+    "name": "H7",
+    "cls": "DO",
+    "desc": "Inkjet — uvolnění tisku kódu šarže (linka v chodu)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run"
+   },
+   {
+    "id": 110,
+    "name": "H8",
+    "cls": "DO",
+    "desc": "Signálka na pultu — linka zastavena (E-stop / blokování)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "stopped"
+   },
+   {
+    "id": 111,
+    "name": "H9",
+    "cls": "DO",
+    "desc": "Uvolnění ohřevu tavného lepidla baličky (režim AUTO)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "auto"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 54,
+   "interlocks": [
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70
+   ],
+   "seq": [
+    {
+     "dev": 33,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 26,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 25,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 23,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 21,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 20,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 19,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 17,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 75,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 9,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 10
+    },
+    {
+     "dev": 8,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 6,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 76,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 2,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 74,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 1,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 71,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 3,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 72,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 4,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 2
+    },
+    {
+     "dev": 4,
+     "act": "close",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 5,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 73,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 5,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 3,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 15
+    },
+    {
+     "dev": 9,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 77,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 78,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 79,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 14,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 16,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 81,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 80,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 15,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 8
+    },
+    {
+     "dev": 15,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 16,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 14,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 82,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 83,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 18,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 2
+    },
+    {
+     "dev": 18,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 85,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 84,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 22,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 3
+    },
+    {
+     "dev": 86,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 22,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 87,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 88,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 91,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 90,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 89,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 24,
+     "act": "open",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 24,
+     "act": "close",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 92,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 93,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 94,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 27,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 27,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 28,
+     "act": "open",
+     "cond": "time",
+     "timeS": 2
+    },
+    {
+     "dev": 28,
+     "act": "close",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 95,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 96,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 97,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 29,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 98,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 30,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 31,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 30,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 31,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 99,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 29,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 100,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 101,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 32,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 20
+    },
+    {
+     "dev": 32,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 1,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 2,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 6,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 17,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 19,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 20,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 21,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 23,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 25,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 26,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 102,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 33,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    }
+   ]
+  },
+  "nextId": 112
+ }
+}

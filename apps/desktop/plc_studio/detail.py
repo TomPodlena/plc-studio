@@ -12,19 +12,27 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import theme
+from .i18n import N_, _
 from .widgets import link
 
 DIR_COLOR = {"DI": "#1F6FB2", "DO": theme.ACCENT, "AI": "#7A4FB5", "AO": theme.WARN}
-ACT = {"start": "start", "stop": "stop", "open": "otevřít", "close": "zavřít"}
+ACT = {"start": N_("start"), "stop": N_("stop"), "open": N_("otevřít"), "close": N_("zavřít")}
 
 
 def step_text(app, s: dict) -> str:
     """Krok sekvence slovy: akce a podmínka přechodu."""
     if s["act"] == "wait":
-        return f"výdrž {s['timeS']:g} s"
+        return _("výdrž {t} s", t=f"{s['timeS']:g}")
     d = app.dev_by_id(s["dev"])
-    how = f"čas {s['timeS']:g} s" if s["cond"] == "time" else "zpětné hlášení"
-    return f"{d['name'] if d else '?'} {ACT.get(s['act'], s['act'])} → {how}"
+    if s["act"] in ("waitOn", "waitOff"):
+        name = d["name"] if d else "?"
+        what = _("čekat na {dev}", dev=name) if s["act"] == "waitOn" else _("čekat na {dev} = FALSE", dev=name)
+        return what + " → " + _("hlídací čas {t} s", t=f"{s['timeS']:g}")
+    # u přechodu na zpětné hlášení je čas kroku hlídací (po něm porucha stroje)
+    how = (_("čas {t} s", t=f"{s['timeS']:g}") if s["cond"] == "time"
+           else _("zpětné hlášení (do {t} s)", t=f"{s['timeS']:g}"))
+    act = _(ACT[s["act"]]) if s["act"] in ACT else s["act"]
+    return f"{d['name'] if d else '?'} {act} → {how}"
 
 
 class DevicePanel(ttk.Frame):
@@ -32,9 +40,11 @@ class DevicePanel(ttk.Frame):
     sám na sebe se nezobrazuje. ``terms`` = svorky signálů z mostu."""
 
     def __init__(self, parent, app, terms: dict, *, here: str = "", width: int = 350,
-                 empty: str = "Klikni na blok ve schématu — zobrazí se popis zařízení "
-                              "s odkazy na jeho vstupy, výstupy a kroky programu."):
+                 empty: str | None = None):
         super().__init__(parent, width=width)
+        if empty is None:               # volající předává text už přeložený
+            empty = _("Klikni na blok ve schématu — zobrazí se popis zařízení "
+                      "s odkazy na jeho vstupy, výstupy a kroky programu.")
         self.app, self.terms, self.here, self.empty = app, terms, here, empty
         self.dev_id: int | None = None
         self._inner_w = width - 18          # místo na posuvník
@@ -103,17 +113,18 @@ class DevicePanel(ttk.Frame):
 
         if step is not None:
             if step < 0:
-                ttk.Label(self.body,text="Krok 0 · Klid", style="CardTitle.TLabel").pack(anchor="w")
-                self._wrap("Sekvence čeká na režim AUTO a povel start. Při ztrátě enable "
-                           "(E-stop) se sem vrací a bloky vypnou výstupy.", pady=(2, 0))
+                ttk.Label(self.body,text=_("Krok 0 · Klid"), style="CardTitle.TLabel").pack(anchor="w")
+                self._wrap(_("Sekvence čeká na režim AUTO a povel start. Při ztrátě enable "
+                             "(E-stop) se sem vrací a bloky vypnou výstupy."), pady=(2, 0))
             elif step < len(seq):
-                ttk.Label(self.body,text=f"Krok {step + 1}", style="CardTitle.TLabel").pack(anchor="w")
+                ttk.Label(self.body,text=_("Krok {n}", n=step + 1), style="CardTitle.TLabel"
+                          ).pack(anchor="w")
                 self._wrap(step_text(app, seq[step]), pady=(2, 0))
             row = ttk.Frame(self.body)
             row.pack(anchor="w", pady=(4, 0))
             if step >= 0:
-                link(row, "Upravit v programu ↗", lambda: app.open_program(step)).pack(side="left")
-            link(row, "Simulace ↗", lambda: app.open_sim()).pack(side="left", padx=(12, 0))
+                link(row, _("Upravit v programu") + " ↗", lambda: app.open_program(step)).pack(side="left")
+            link(row, _("Simulace") + " ↗", lambda: app.open_sim()).pack(side="left", padx=(12, 0))
             if d is not None:
                 ttk.Separator(self.body,orient="horizontal").pack(fill="x", pady=(10, 8))
 
@@ -125,22 +136,24 @@ class DevicePanel(ttk.Frame):
         cls = app.CLS[d["cls"]]
         ttk.Label(self.body,text=f"{d['name']} · {cls['label']}", style="CardTitle.TLabel"
                   ).pack(anchor="w")
-        self._wrap(d["desc"] or "(bez popisu)", pady=(2, 0))
+        self._wrap(d["desc"] or _("(bez popisu)"), pady=(2, 0))
         opts = [cls["opts"].get(k, k) for k, v in (d.get("opt") or {}).items() if v]
         if d["cls"].startswith("Analog"):
-            opts.append(f"rozsah {d['rmin']:g}–{d['rmax']:g} {d.get('unit') or ''}".strip())
+            opts.append(_("rozsah {min}–{max} {unit}", min=f"{d['rmin']:g}", max=f"{d['rmax']:g}",
+                          unit=d.get("unit") or "").strip())
         if opts:
             self._wrap(", ".join(opts), "Dim.TLabel", pady=(2, 0))
 
         row = ttk.Frame(self.body)
         row.pack(anchor="w", pady=(6, 0))
-        targets = [("zarizeni", "Zařízení ↗", lambda: app.open_device(d["id"])),
-                   ("blok", "Blokové schéma ↗", lambda: app.open_block(d["id"]))]
+        targets = [("zarizeni", _("Zařízení") + " ↗", lambda: app.open_device(d["id"])),
+                   ("blok", _("Blokové schéma") + " ↗", lambda: app.open_block(d["id"])),
+                   ("live", _("Živá simulace") + " ↗", lambda: app.open_live(d["id"]))]
         for i, (where, text, cmd) in enumerate(t for t in targets if t[0] != self.here):
             link(row, text, cmd).pack(side="left", padx=(12 if i else 0, 0))
 
         # --- vstupy a výstupy ---
-        self._section("Vstupy a výstupy")
+        self._section(_("Vstupy a výstupy"))
         ios = [e for e in app.prj["io"] if e["devId"] == d["id"]]
         for e in ios:
             hot = e["key"] == io_key
@@ -159,32 +172,33 @@ class DevicePanel(ttk.Frame):
                      font=("Consolas", 10)).pack(side="right")
             tk.Label(line, text=e["addr"], bg=bg, fg=theme.FG, font=("Consolas", 10)
                      ).pack(side="right", padx=(0, 10))
-            note = e["cmt"] + (" · NC (rozpínací)" if e.get("nc") else "")
+            note = e["cmt"] + (" · " + _("NC (rozpínací)") if e.get("nc") else "")
             tk.Label(box, text=note, bg=bg, fg=theme.DIM, font=theme.FONT_DIM, anchor="w",
                      justify="left", wraplength=self._inner_w - 40
                      ).pack(fill="x", padx=(28, 0))
         if not ios:
-            self._wrap("Zařízení nemá žádné signály.", "Dim.TLabel")
+            self._wrap(_("Zařízení nemá žádné signály."), "Dim.TLabel")
         else:
-            self._wrap("tag → krok I/O · svorka → list zapojení", "Dim.TLabel", pady=(4, 0))
+            self._wrap(_("tag → krok I/O · svorka → list zapojení"), "Dim.TLabel", pady=(4, 0))
 
         # --- v programu ---
-        self._section("V programu")
+        self._section(_("V programu"))
         used = False
         if app.prj["program"]["estop"] == d["id"]:
             used = True
-            link(self.body, "Centrální uvolnění (E-stop) → enable všech bloků ↗",
+            link(self.body, _("Centrální uvolnění (E-stop) → enable všech bloků") + " ↗",
                  lambda: app.open_program(None)).pack(anchor="w")
         for i, s in enumerate(seq):
             if s["act"] != "wait" and s["dev"] == d["id"]:
                 used = True
                 row = tk.Frame(self.body, bg=theme.TREE_SEL if i == step else theme.BG)
                 row.pack(fill="x", pady=1)
-                link(row, f"Krok {i + 1}: {step_text(app, s)}",
+                link(row, _("Krok {n}: {text}", n=i + 1, text=step_text(app, s)),
                      lambda i=i: app.open_flow(i), bg=row.cget("bg")).pack(side="left")
         if not used:
-            kind = ("volný signál pro vlastní logiku" if d["cls"] in ("DI", "DO")
-                    else "blok čeká na ruční povel (TODO v generovaném kódu)")
-            self._wrap(f"Není v automatické sekvenci — {kind}.", "Dim.TLabel")
+            self._wrap(_("Není v automatické sekvenci — volný signál pro vlastní logiku.")
+                       if d["cls"] in ("DI", "DO") else
+                       _("Není v automatické sekvenci — blok čeká na ruční povel "
+                         "(TODO v generovaném kódu)."), "Dim.TLabel")
         elif self.here != "flow":
-            self._wrap("krok → funkční diagram cyklu", "Dim.TLabel", pady=(4, 0))
+            self._wrap(_("krok → funkční diagram cyklu"), "Dim.TLabel", pady=(4, 0))

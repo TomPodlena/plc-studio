@@ -1,0 +1,779 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Lakovací linka s předúpravou LK-06 (složitý příklad)",
+   "desc": "Převěsy s díly jedou podvěsným dopravníkem přes tunel předúpravy (postřik alkalickým odmašťováním, oplach demi vodou, ofuk), sušárnu ohřívanou teplonosným olejem, lakovací kabinu s přívodem a odsáváním vzduchu, reciprokátorem a automatickými pistolemi, vytvrzovací pec a chladicí zónu. Cyklus začne, když obsluha naloží převěs v nakládací poloze, a provede ho všemi zónami: zóny se zapínají postupně podle polohy převěsu, nanášení začne až při chodu odsávání a přívodu, nezaneseném filtru kabiny, barvě nad minimem a převěsu na vstupu kabiny. Měří se teploty lázně, sušárny, pece a dílu, pH a vodivost, průtoky postřiku a barvy, tlak barvy a podtlak kabiny — překročení mezí je porucha linky (maják červená + houkačka). Dveře kabiny (zámek během cyklu), oplocení dopravníku, tlak vzduchu, hladina lázně, teplotní pojistka pece a požární hlásič blokují chod; hořlavé prostředí a požární ochrana se řeší samostatnými bezpečnostními systémy (zde jen informativně).",
+   "takt": 65
+  },
+  "platforms": [
+   "siemens"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "M1",
+    "cls": "Motor",
+    "desc": "Pohon podvěsného dopravníku převěsů",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 2,
+    "name": "M2",
+    "cls": "Motor",
+    "desc": "Čerpadlo postřiku — odmašťování",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 3,
+    "name": "M3",
+    "cls": "Motor",
+    "desc": "Čerpadlo postřiku — oplach demi vodou",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 4,
+    "name": "M4",
+    "cls": "Motor",
+    "desc": "Oběhový ventilátor sušárny",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 5,
+    "name": "M5",
+    "cls": "Motor",
+    "desc": "Odsávací ventilátor lakovací kabiny",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 6,
+    "name": "M6",
+    "cls": "Motor",
+    "desc": "Přívodní ventilátor lakovací kabiny",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 7,
+    "name": "M7",
+    "cls": "Motor",
+    "desc": "Reciprokátor pistolí (zdvih)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 8,
+    "name": "M8",
+    "cls": "Motor",
+    "desc": "Čerpadlo barvy",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 9,
+    "name": "M9",
+    "cls": "Motor",
+    "desc": "Oběhový ventilátor vytvrzovací pece",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 10,
+    "name": "M10",
+    "cls": "Motor",
+    "desc": "Ventilátor chladicí zóny",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 11,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Ventil teplonosného oleje — sušárna",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 12,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Ventil teplonosného oleje — vytvrzovací pec",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 13,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Ofuk převěsu stlačeným vzduchem",
+    "opt": {
+     "fbkOpen": false,
+     "fbkClosed": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 14,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Ventil přívodu barvy k pistolím",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 15,
+    "name": "Y5",
+    "cls": "Ventil",
+    "desc": "Spoušť automatických pistolí",
+    "opt": {
+     "fbkOpen": false,
+     "fbkClosed": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 16,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Teplota odmašťovací lázně",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 100,
+    "limLo": 45,
+    "limHi": 70
+   },
+   {
+    "id": 17,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "pH odmašťovací lázně",
+    "opt": {},
+    "unit": "pH",
+    "rmin": 0,
+    "rmax": 14,
+    "limLo": 9,
+    "limHi": 12
+   },
+   {
+    "id": 18,
+    "name": "B3",
+    "cls": "AnalogIn",
+    "desc": "Průtok postřiku odmašťování",
+    "opt": {},
+    "unit": "l/min",
+    "rmin": 0,
+    "rmax": 400,
+    "limLo": 120,
+    "limHi": 320
+   },
+   {
+    "id": 19,
+    "name": "B4",
+    "cls": "AnalogIn",
+    "desc": "Průtok postřiku oplachu",
+    "opt": {},
+    "unit": "l/min",
+    "rmin": 0,
+    "rmax": 400,
+    "limLo": 80,
+    "limHi": 300
+   },
+   {
+    "id": 20,
+    "name": "B5",
+    "cls": "AnalogIn",
+    "desc": "Vodivost oplachové vody",
+    "opt": {},
+    "unit": "µS/cm",
+    "rmin": 0,
+    "rmax": 2000,
+    "limHi": 100
+   },
+   {
+    "id": 21,
+    "name": "B6",
+    "cls": "AnalogIn",
+    "desc": "Teplota sušárny",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 200,
+    "limLo": 90,
+    "limHi": 140
+   },
+   {
+    "id": 22,
+    "name": "B7",
+    "cls": "AnalogIn",
+    "desc": "Podtlak lakovací kabiny",
+    "opt": {},
+    "unit": "Pa",
+    "rmin": 0,
+    "rmax": 200,
+    "limLo": 20,
+    "limHi": 120
+   },
+   {
+    "id": 23,
+    "name": "B8",
+    "cls": "AnalogIn",
+    "desc": "Tlak barvy",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 2,
+    "limHi": 6
+   },
+   {
+    "id": 24,
+    "name": "B9",
+    "cls": "AnalogIn",
+    "desc": "Průtok barvy",
+    "opt": {},
+    "unit": "ml/min",
+    "rmin": 0,
+    "rmax": 1000,
+    "limLo": 100,
+    "limHi": 600
+   },
+   {
+    "id": 25,
+    "name": "B10",
+    "cls": "AnalogIn",
+    "desc": "Teplota vytvrzovací pece",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 250,
+    "limLo": 160,
+    "limHi": 220
+   },
+   {
+    "id": 26,
+    "name": "B11",
+    "cls": "AnalogIn",
+    "desc": "Teplota dílu na výstupu chlazení",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 100,
+    "limHi": 40
+   },
+   {
+    "id": 27,
+    "name": "U1",
+    "cls": "AnalogOut",
+    "desc": "Poloha ventilu topení sušárny",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "setpoint": 60
+   },
+   {
+    "id": 28,
+    "name": "U2",
+    "cls": "AnalogOut",
+    "desc": "Poloha ventilu topení pece",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "setpoint": 70
+   },
+   {
+    "id": 29,
+    "name": "U3",
+    "cls": "AnalogOut",
+    "desc": "Otáčky odsávání kabiny (měnič)",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "setpoint": 80
+   },
+   {
+    "id": 30,
+    "name": "U4",
+    "cls": "AnalogOut",
+    "desc": "Tlak rozprašovacího vzduchu",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "setpoint": 50
+   },
+   {
+    "id": 31,
+    "name": "U5",
+    "cls": "AnalogOut",
+    "desc": "Rychlost dopravníku převěsů (měnič)",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "setpoint": 60
+   },
+   {
+    "id": 32,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 33,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Dveře lakovací kabiny zavřeny (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 34,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Oplocení dopravníku zavřeno (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 35,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Tlak vzduchu v pořádku (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 36,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Hladina odmašťovací lázně v pořádku (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 37,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Teplotní pojistka pece v pořádku (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 38,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "Požární hlásič kabiny v klidu (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 39,
+    "name": "S8",
+    "cls": "DI",
+    "desc": "Převěs naložen v nakládací poloze",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 40,
+    "name": "S9",
+    "cls": "DI",
+    "desc": "Převěs na vstupu kabiny",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 41,
+    "name": "S10",
+    "cls": "DI",
+    "desc": "Nádrž barvy pod minimální hladinou",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 42,
+    "name": "S11",
+    "cls": "DI",
+    "desc": "Filtr kabiny zanesen (tlakový spínač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 43,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — chod",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run"
+   },
+   {
+    "id": 44,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault"
+   },
+   {
+    "id": 45,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready"
+   },
+   {
+    "id": 46,
+    "name": "H4",
+    "cls": "DO",
+    "desc": "Houkačka — porucha linky",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault"
+   },
+   {
+    "id": 47,
+    "name": "H5",
+    "cls": "DO",
+    "desc": "Zámek dveří lakovací kabiny (zamčeno během cyklu)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "lock"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 32,
+   "interlocks": [
+    33,
+    34,
+    35,
+    36,
+    37,
+    38
+   ],
+   "seq": [
+    {
+     "dev": 39,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 120
+    },
+    {
+     "dev": 1,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 2,
+     "act": "start",
+     "cond": "time",
+     "timeS": 6
+    },
+    {
+     "dev": 2,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 3,
+     "act": "start",
+     "cond": "time",
+     "timeS": 4
+    },
+    {
+     "dev": 3,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "open",
+     "cond": "time",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "close",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 11,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 4,
+     "act": "start",
+     "cond": "time",
+     "timeS": 6
+    },
+    {
+     "dev": 4,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 5,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 6,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 42,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 41,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 8,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 14,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 40,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 7,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 15,
+     "act": "open",
+     "cond": "time",
+     "timeS": 8
+    },
+    {
+     "dev": 15,
+     "act": "close",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 7,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 14,
+     "act": "close",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 8,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 6,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 5,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 9,
+     "act": "start",
+     "cond": "time",
+     "timeS": 10
+    },
+    {
+     "dev": 9,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 10,
+     "act": "start",
+     "cond": "time",
+     "timeS": 5
+    },
+    {
+     "dev": 10,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 1,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    }
+   ]
+  },
+  "nextId": 48
+ }
+}

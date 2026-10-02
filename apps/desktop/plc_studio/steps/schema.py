@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from ..detail import DevicePanel
+from ..i18n import _
 from ..svgview import SvgView
 from ..widgets import Table, card, link, note_box, save_file, save_many, wrap_label
 
@@ -17,10 +18,10 @@ TAB_BLOCK, TAB_FLOW, TAB_WIRING, TAB_TERMS = range(4)
 def render(app, parent) -> None:
     data = app.bridge.request("schema", prj=app.prj)
     app.prj = data["prj"]
-    body = card(parent, "06", "Schéma")
+    body = card(parent, "06", _("Schéma"))
     if not app.prj["io"]:
-        wrap_label(body, "Nejdřív přidej zařízení (krok 4), nebo si je nech navrhnout "
-                   "v kroku AI návrh.")
+        wrap_label(body, _("Nejdřív přidej zařízení (krok 4), nebo si je nech navrhnout "
+                           "v kroku AI návrh."))
         return
     sheets, rows = data["sheets"], data["rows"]
     terms = {r["key"]: r for r in rows}
@@ -31,18 +32,19 @@ def render(app, parent) -> None:
 
     # ------------------------------------------------------------ blokové schéma
     t1 = ttk.Frame(nb, padding=10)
-    nb.add(t1, text="Blokové schéma systému")
+    nb.add(t1, text=_("Blokové schéma systému"))
     row = ttk.Frame(t1)
     row.pack(side="bottom", fill="x", pady=(8, 0))
-    ttk.Button(row, text="Uložit SVG…",
+    ttk.Button(row, text=_("Uložit SVG…"),
                command=lambda: save_file(app, "00_blokove_schema.svg", data["block"])
                ).pack(side="left")
-    ttk.Button(row, text="Kopírovat SVG", command=lambda: app.copy(data["block"])
+    ttk.Button(row, text=_("Kopírovat SVG"), command=lambda: app.copy(data["block"])
                ).pack(side="left", padx=(6, 0))
-    ttk.Label(row, style="Dim.TLabel",
-              text="Zdroje signálů → moduly PLC → akční členy. Klik na zařízení = popis "
-                   "a odkazy vpravo, klik na modul = jeho list zapojení."
-              ).pack(side="left", padx=10)
+    ttk.Button(row, text=_("Živá simulace ↗"),
+               command=lambda: app.open_live(ui.get("block_sel"))).pack(side="left", padx=(6, 0))
+    wrap_label(row, _("Zdroje signálů → moduly PLC → akční členy. Klik na zařízení = popis "
+                      "a odkazy vpravo, klik na modul = jeho list zapojení."),
+               side="left", padx=10, expand=True)
     panel_block = DevicePanel(t1, app, terms, here="blok")
     panel_block.pack(side="right", fill="y", padx=(12, 0))
 
@@ -78,21 +80,20 @@ def render(app, parent) -> None:
 
     # ------------------------------------------------------------ funkční diagram
     t2 = ttk.Frame(nb, padding=10)
-    nb.add(t2, text="Funkční diagram cyklu")
+    nb.add(t2, text=_("Funkční diagram cyklu"))
     row2 = ttk.Frame(t2)
     row2.pack(side="bottom", fill="x", pady=(8, 0))
-    ttk.Button(row2, text="Uložit SVG…",
+    ttk.Button(row2, text=_("Uložit SVG…"),
                command=lambda: save_file(app, "00_funkcni_diagram.svg", data["flow"])
                ).pack(side="left")
-    ttk.Button(row2, text="Simulace a ověření ↗", command=app.open_sim
+    ttk.Button(row2, text=_("Simulace a ověření ↗"), command=app.open_sim
                ).pack(side="left", padx=(6, 0))
-    ttk.Label(row2, style="Dim.TLabel",
-              text="Jak stroj pracuje: kroky automatického cyklu a podmínky přechodu; časy "
-                   "jsou z běžného cyklu simulace. Klik na krok = zařízení a odkazy."
-              ).pack(side="left", padx=10)
+    wrap_label(row2, _("Jak stroj pracuje: kroky automatického cyklu a podmínky přechodu; časy "
+                       "jsou z běžného cyklu simulace. Klik na krok = zařízení a odkazy."),
+               side="left", padx=10, expand=True)
     panel_flow = DevicePanel(t2, app, terms, here="flow",
-                             empty="Klikni na krok v diagramu — zobrazí se zařízení, které "
-                                   "krok ovládá, s odkazy na jeho signály a na program.")
+                             empty=_("Klikni na krok v diagramu — zobrazí se zařízení, které "
+                                     "krok ovládá, s odkazy na jeho signály a na program."))
     panel_flow.pack(side="right", fill="y", padx=(12, 0))
 
     def click_flow(meta: dict) -> None:
@@ -117,10 +118,10 @@ def render(app, parent) -> None:
 
     # ------------------------------------------------------------ elektrické zapojení
     t3 = ttk.Frame(nb, padding=10)
-    nb.add(t3, text="Elektrické zapojení I/O")
+    nb.add(t3, text=_("Elektrické zapojení I/O"))
     top = ttk.Frame(t3)
     top.pack(fill="x", pady=(0, 6))
-    ttk.Label(top, text="List:").pack(side="left")
+    ttk.Label(top, text=_("List:")).pack(side="left")
     titles = [s["title"] for s in sheets]
     if ui.get("wire_sel") in terms:                       # odkaz na signál → jeho list
         ui["sheet"] = terms[ui["wire_sel"]]["sheet"]
@@ -130,10 +131,10 @@ def render(app, parent) -> None:
     ttk.Combobox(top, textvariable=var_sheet, values=titles, state="readonly", width=30
                  ).pack(side="left", padx=(6, 12))
     cur = lambda: sheets[titles.index(var_sheet.get())]  # noqa: E731
-    ttk.Button(top, text="Uložit SVG…",
+    ttk.Button(top, text=_("Uložit SVG…"),
                command=lambda: save_file(app, cur()["base"] + ".svg", cur()["svg"])
                ).pack(side="left")
-    ttk.Button(top, text="Uložit DXF…",
+    ttk.Button(top, text=_("Uložit DXF…"),
                command=lambda: save_file(app, cur()["base"] + ".dxf", cur()["dxf"])
                ).pack(side="left", padx=(6, 0))
 
@@ -143,16 +144,17 @@ def render(app, parent) -> None:
             files.append(("00_funkcni_diagram.svg", data["flow"]))
         for s in sheets:
             files += [(s["base"] + ".svg", s["svg"]), (s["base"] + ".dxf", s["dxf"])]
-        save_many(app, files, "výkresy")
+        save_many(app, files, _("výkresy"))
 
-    ttk.Button(top, text="Uložit všechny výkresy do složky…", command=save_all
+    ttk.Button(top, text=_("Uložit všechny výkresy do složky…"), command=save_all
                ).pack(side="left", padx=(6, 0))
     info = ttk.Frame(t3)
     info.pack(fill="x", pady=(0, 6))
-    note_box(t3, "Pozor: NC/NO kontakty dle sloupce NC v kroku I/O; čísla vodičů -W1xx dle "
-             "potenciálových řad. Jištění, průřezy, relé na výstupech s větší zátěží a stínění "
-             "analogů doplní projektant elektro — toto je podklad, ne výrobní dokumentace. "
-             "DXF otevře EPLAN / AutoCAD / LibreCAD.", warn=True, side="bottom")
+    note_box(t3, _(
+        "Pozor: NC/NO kontakty dle sloupce NC v kroku I/O; čísla vodičů -W1xx dle "
+        "potenciálových řad. Jištění, průřezy, relé na výstupech s větší zátěží a stínění "
+        "analogů doplní projektant elektro — toto je podklad, ne výrobní dokumentace. "
+        "DXF otevře EPLAN / AutoCAD / LibreCAD."), warn=True, side="bottom")
 
     def show_info() -> None:
         """Řádek s odkazy pro vybraný signál na listu."""
@@ -160,14 +162,16 @@ def render(app, parent) -> None:
             w.destroy()
         r = terms.get(ui.get("wire_sel"))
         if r is None:
-            ttk.Label(info, text="Klik na kanál = odkazy na zařízení a řádek v I/O.",
+            ttk.Label(info, text=_("Klik na kanál = odkazy na zařízení a řádek v I/O."),
                       style="Dim.TLabel").pack(side="left")
             return
         ttk.Label(info, text=f"{r['svorka']} · {r['tag']} · {r['addr']} — {r['cmt']}",
                   style="Section.TLabel").pack(side="left")
-        link(info, "Zařízení ↗", lambda: app.open_device(r["devId"])).pack(side="left", padx=(14, 0))
-        link(info, "I/O ↗", lambda: app.open_io(r["key"])).pack(side="left", padx=(12, 0))
-        link(info, "Blokové schéma ↗", lambda: app.open_block(r["devId"])).pack(side="left", padx=(12, 0))
+        link(info, _("Zařízení ↗"), lambda: app.open_device(r["devId"])
+             ).pack(side="left", padx=(14, 0))
+        link(info, _("I/O ↗"), lambda: app.open_io(r["key"])).pack(side="left", padx=(12, 0))
+        link(info, _("Blokové schéma ↗"), lambda: app.open_block(r["devId"])
+             ).pack(side="left", padx=(12, 0))
 
     def click_wire(meta: dict) -> None:
         if "io" in meta:
@@ -180,7 +184,7 @@ def render(app, parent) -> None:
                          and m.get("io") == ui.get("wire_sel") else None)
     view_sheet.pack(fill="both", expand=True)
 
-    def show_sheet(*_) -> None:
+    def show_sheet(*_a) -> None:
         ui["sheet"] = titles.index(var_sheet.get())
         view_sheet.show(cur()["svg"])
         show_info()
@@ -195,14 +199,15 @@ def render(app, parent) -> None:
 
     # ------------------------------------------------------------ svorkovnice
     t4 = ttk.Frame(nb, padding=10)
-    nb.add(t4, text="Svorkovnice")
+    nb.add(t4, text=_("Svorkovnice"))
     row4 = ttk.Frame(t4)
     row4.pack(side="bottom", fill="x", pady=(8, 0))
-    ttk.Button(row4, text="Uložit svorkovnici (CSV)…",
+    ttk.Button(row4, text=_("Uložit svorkovnici (CSV)…"),
                command=lambda: save_file(app, "03_svorkovnice.csv", data["csv"])).pack(side="left")
-    tbl = Table(t4, [("svorka", "Svorka", 80, False), ("modul", "Modul", 70, False),
-                     ("kanal", "Kanál", 60, False), ("addr", "Adresa", 90, False),
-                     ("tag", "Tag", 220, True), ("cmt", "Zařízení / komentář", 420, True)],
+    tbl = Table(t4, [("svorka", _("Svorka"), 80, False), ("modul", _("Modul"), 70, False),
+                     ("kanal", _("Kanál"), 60, False), ("addr", _("Adresa"), 90, False),
+                     ("tag", _("Tag"), 220, True),
+                     ("cmt", _("Zařízení / komentář"), 420, True)],
                 height=12)
     tbl.pack(fill="both", expand=True)
     for r in rows:
@@ -211,16 +216,16 @@ def render(app, parent) -> None:
     def with_row(action) -> None:
         r = terms.get(tbl.selected())
         if r is None:
-            app.set_status("Nejdřív vyber svorku v tabulce.")
+            app.set_status(_("Nejdřív vyber svorku v tabulce."))
         else:
             action(r)
 
-    ttk.Label(row4, text="Vybraná svorka:", style="Dim.TLabel").pack(side="left", padx=(16, 0))
-    link(row4, "Zapojení ↗", lambda: with_row(lambda r: app.open_wiring(r["key"]))
+    ttk.Label(row4, text=_("Vybraná svorka:"), style="Dim.TLabel").pack(side="left", padx=(16, 0))
+    link(row4, _("Zapojení ↗"), lambda: with_row(lambda r: app.open_wiring(r["key"]))
          ).pack(side="left", padx=(8, 0))
-    link(row4, "I/O ↗", lambda: with_row(lambda r: app.open_io(r["key"]))
+    link(row4, _("I/O ↗"), lambda: with_row(lambda r: app.open_io(r["key"]))
          ).pack(side="left", padx=(12, 0))
-    link(row4, "Zařízení ↗", lambda: with_row(lambda r: app.open_device(r["devId"]))
+    link(row4, _("Zařízení ↗"), lambda: with_row(lambda r: app.open_device(r["devId"]))
          ).pack(side="left", padx=(12, 0))
     tbl.tv.bind("<Double-1>", lambda _e: with_row(lambda r: app.open_wiring(r["key"])))
 

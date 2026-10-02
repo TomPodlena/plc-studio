@@ -1,8 +1,12 @@
 /**
  * PLC Studio — generování projektové dokumentace
  * (FDS, I/O list, svorkovnice, alarmy, FAT, návod, SW dokumentace, přehled).
+ *
+ * Texty jdou přes `tr()` po přirozených jednotkách (nadpis, odstavec, odrážka, řádek
+ * hlavičky tabulky, věta v buňce); struktura Markdownu / CSV zůstává mimo klíče.
  */
 import { Project } from "./model.js";
+/** Názvy souborů se nepřekládají; záložka a popis jsou klíče překladu (překlad v `docFiles`). */
 export declare const DOC_META: Array<[path: string, tab: string, title: string]>;
 export declare function docIndexMd(prj: Project): string;
 export declare function docFDSMd(prj: Project): string;

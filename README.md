@@ -12,6 +12,7 @@ Workflow: **zadání (AI návrh) → zařízení → I/O → schémata → progr
 | Mitsubishi | GX Works3 | ST + global labels CSV |
 | Schneider | Machine Expert | ST POU + GVL |
 | OMRON | Sysmac Studio | ST + tabulka proměnných |
+| Unitronics | UniLogic (UniStream) | plochý ST k vložení do ST funkce + seznam tagů k založení — **neověřeno překladem** |
 
 Výkresy: blokové schéma + elektrické zapojení I/O dle zvyklostí ECAD (rámeček s referencemi,
 popisové pole, značení `-M1` dle IEC 81346, čísla vodičů `-W1xx`, NC/NO dle IEC 60617) — SVG náhled + **DXF** export.
@@ -22,6 +23,17 @@ jakou generuje kód (stavové automaty bloků, timeouty, sekvence), a projít po
 výpadek zpětného hlášení v každém kroku, poruchu motoru, nouzové zastavení. Výstupem je funkční
 diagram cyklu, časový diagram signálů a protokol `08_overeni_simulaci.md`. Ověřuje se návrh, ne kód
 přeložený v cílovém IDE — test v simulátoru platformy a FAT to nenahrazuje.
+
+**Příklady:** složka `samples/` obsahuje 12 příkladových strojů (pás s vyhazovačem, míchací nádrž, nýtovací lis,
+úpravna vody, paletizační buňka, lakovací linka, transferová lisovna, montážní linka s otočným stolem, plnicí linka
+nápojů, výrobní hala se 143 zařízeními) — otevřou se přes „Otevřít projekt…" a všechny procházejí generováním
+a ověřením simulací (`node scripts/check_samples.mjs`).
+
+**Jazyky:** čeština, angličtina, němčina, španělština a čínština — přepínač v hlavičce webu i desktopu
+mění jazyk rozhraní i generovaných výstupů (dokumentace, README, hlášení simulace, diagramy). Komentáře
+v generovaném kódu a texty výkresů zůstávají v latince: při čínštině jsou anglicky. Obsah projektu
+(názvy a popisy zařízení) se nepřekládá. Překlady jsou strojové s oborovým slovníkem — před předáním
+zákazníkovi je vhodné nechat je projít rodilým mluvčím. Postup pro vývojáře viz `CLAUDE.md`.
 
 > ⚠️ Generované výstupy jsou **návrh k revizi**. Bezpečnostní funkce (E-stop, kryty, dvouruční
 > ovládání) musí řešit certifikovaná safety technika dle ISO 13849 / IEC 62061 — nikdy jen program.
@@ -48,7 +60,7 @@ workflow UI včetně AI návrháře — referenční implementace pro port do pr
 
 ## Roadmapa (MVP → produkt)
 
-1. **Hotovo v core:** generátory pro 7 platforem, P1 opravy správnosti (Rockwell CSV hlavička,
+1. **Hotovo v core:** generátory pro 8 platforem, P1 opravy správnosti (Rockwell CSV hlavička,
    Siemens TSV tagů, škálování bez NORM_X), validace + sanitizace tagů, výkresy SVG/DXF,
    import (SimaticML, L5X, GVL/ST, CSV/tab), dokumentace, 2 ukázkové projekty, testy.
 2. Web app (React + Vite) — port workflow UI z prototypu nad `@plc-studio/core`.
@@ -63,3 +75,8 @@ workflow UI včetně AI návrháře — referenční implementace pro port do pr
 - Rockwell CSV: formát s `remark` hlavičkou a verzí `0.3` dle dokumentace Studio 5000.
 - GX Works3 labels CSV: formát se liší dle verze/lokalizace — před nasazením srovnat
   s exportem z cílové instalace (viz README generované k platformě).
+- Unitronics UniLogic: ST funkce nemají vlastní paměť a import tagů bere jen soubory, které
+  UniLogic sám vyexportoval — generuje se proto plochý ST (bloky zařízení rozepsané do jedné
+  funkce, stav v globálních tazích `instX_*`) a `Tags.csv` jako seznam k ručnímu založení.
+  Časovače `TON` a literály `T#` v ST až od vydání UniLogic z května 2026. Výstup nebyl
+  přeložen v UniLogic. Vision/Samba (VisiLogic) umí jen Ladder — ST slouží jako předloha.

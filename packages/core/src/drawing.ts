@@ -5,6 +5,10 @@
  * (IEC 81346), čísla vodičů -W1xx, NC/NO kontakty (IEC 60617).
  */
 import { Project, IoModule, Device, CLS, PLAT, devById, modules, esc, stripDia } from "./model.js";
+import { trx, N_, today } from "./i18n.js";
+
+/* Texty výkresů jdou přes `trx()` — stejná geometrie se píše i do DXF R12, proto musí
+   zůstat v latince (při čínštině angličtina). Značení dle norem se nepřekládá. */
 
 /** `io` = klíč signálu, ke kterému prvek patří (interaktivní náhledy; DXF ho ignoruje). */
 type Ref = { io?: string };
@@ -18,7 +22,14 @@ export interface SheetOps { W: number; H: number; O: Op[]; }
 
 export interface SheetMeta { projectName: string; date: string; }
 
-function todayCz(): string { return new Date().toLocaleDateString("cs-CZ"); }
+function todayCz(): string { return today(true); }
+
+/** Text pro DXF R12: bez diakritiky a jen ASCII — typografické znaky nahradí nejbližší ASCII. */
+function dxfText(s: string): string {
+  return stripDia(s).replace(/[—–]/g, "-").replace(/[·•]/g, "|").replace(/…/g, "...").replace(/×/g, "x")
+    .replace(/°/g, "deg").replace(/[„“”«»]/g, '"').replace(/[‚‘’]/g, "'").replace(/→/g, "->")
+    .replace(/[^\x00-\x7F]/g, "?");
+}
 
 export function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number, total: number, meta?: SheetMeta): SheetOps {
   const rows = mod.ch.length, rh = 40, top = 96;
@@ -46,12 +57,12 @@ export function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number
   /* popisové pole */
   const tx = W - 26 - 420, ty = H - 26 - 52;
   Re(tx, ty, 420, 52, "f"); Ln(tx, ty + 26, tx + 420, ty + 26, "f"); Ln(tx + 180, ty, tx + 180, ty + 52, "f"); Ln(tx + 330, ty, tx + 330, ty + 52, "f");
-  Tx(tx + 7, ty + 10, "Projekt", { k: "m", size: 8 }); Tx(tx + 7, ty + 22, (pname || "—").slice(0, 32), { k: "b", size: 9 });
-  Tx(tx + 187, ty + 10, "Výkres", { k: "m", size: 8 }); Tx(tx + 187, ty + 22, "Zapojení " + mod.dir + mod.idx + " · X" + xnum, { size: 9 });
-  Tx(tx + 337, ty + 10, "List", { k: "m", size: 8 }); Tx(tx + 337, ty + 22, page + " / " + total, { size: 9 });
-  Tx(tx + 7, ty + 36, "Kreslil", { k: "m", size: 8 }); Tx(tx + 7, ty + 48, "PLC Studio (návrh k revizi)", { size: 9 });
-  Tx(tx + 187, ty + 36, "Datum", { k: "m", size: 8 }); Tx(tx + 187, ty + 48, date, { size: 9 });
-  Tx(tx + 337, ty + 36, "Rev", { k: "m", size: 8 }); Tx(tx + 337, ty + 48, "0.1", { size: 9 });
+  Tx(tx + 7, ty + 10, trx("Projekt"), { k: "m", size: 8 }); Tx(tx + 7, ty + 22, (pname || "—").slice(0, 32), { k: "b", size: 9 });
+  Tx(tx + 187, ty + 10, trx("Výkres"), { k: "m", size: 8 }); Tx(tx + 187, ty + 22, trx("Zapojení {mod}", { mod: mod.dir + mod.idx }) + " · X" + xnum, { size: 9 });
+  Tx(tx + 337, ty + 10, trx("List"), { k: "m", size: 8 }); Tx(tx + 337, ty + 22, page + " / " + total, { size: 9 });
+  Tx(tx + 7, ty + 36, trx("Kreslil"), { k: "m", size: 8 }); Tx(tx + 7, ty + 48, trx("PLC Studio (návrh k revizi)"), { size: 9 });
+  Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 }); Tx(tx + 187, ty + 48, date, { size: 9 });
+  Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 }); Tx(tx + 337, ty + 48, "0.1", { size: 9 });
 
   /* potenciály a karta PLC */
   const yEnd = top + rows * rh - 12;
@@ -108,8 +119,8 @@ export function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number
     }
   });
   cur = undefined;
-  if (mod.dir === "DI") Tx(80, yEnd + 16, "Kontakty: šikmá páka s dorazem = NC (bezpečnostní prvky), bez dorazu = NO — dle sloupce NC v I/O.", { k: "m", size: 9 });
-  if (mod.dir === "AI") Tx(80, yEnd + 16, "Dvouvodičové zapojení 4–20 mA; pro 0–10 V třívodičově (L+, signál, M).", { k: "m", size: 9 });
+  if (mod.dir === "DI") Tx(80, yEnd + 16, trx("Kontakty: šikmá páka s dorazem = NC (bezpečnostní prvky), bez dorazu = NO — dle sloupce NC v I/O."), { k: "m", size: 9 });
+  if (mod.dir === "AI") Tx(80, yEnd + 16, trx("Dvouvodičové zapojení 4–20 mA; pro 0–10 V třívodičově (L+, signál, M)."), { k: "m", size: 9 });
   return { W, H, O };
 }
 
@@ -140,7 +151,7 @@ export function opsToDXF(sh: SheetOps): string {
       const p = [[o.x, o.y], [o.x + o.w, o.y], [o.x + o.w, o.y + o.h], [o.x, o.y + o.h], [o.x, o.y]];
       for (let i = 0; i < 4; i++) out.push("0", "LINE", "8", layer(o.k), "10", p[i][0], "20", H - p[i][1], "30", 0, "11", p[i + 1][0], "21", H - p[i + 1][1], "31", 0);
     } else {
-      const txt = stripDia(String(o.s));
+      const txt = dxfText(String(o.s));
       let x = o.x; const w = txt.length * o.size * 0.62;
       if (o.anchor === "middle") x -= w / 2; else if (o.anchor === "end") x -= w;
       out.push("0", "TEXT", "8", "TEXT", "10", x, "20", H - o.y, "30", 0, "40", o.size * 0.8, "1", txt);
@@ -152,7 +163,7 @@ export function opsToDXF(sh: SheetOps): string {
 
 export function sheetSVG(prj: Project, mod: IoModule, xnum: number, page?: number, total?: number, meta?: SheetMeta): string {
   const tot = total ?? modules(prj).length;
-  return opsToSVG(sheetOps(prj, mod, xnum, page ?? xnum, tot, meta), "Zapojení modulu " + mod.dir + mod.idx + " (svorkovnice X" + xnum + ")");
+  return opsToSVG(sheetOps(prj, mod, xnum, page ?? xnum, tot, meta), trx("Zapojení modulu {mod} (svorkovnice X{x})", { mod: mod.dir + mod.idx, x: xnum }));
 }
 export function sheetDXF(prj: Project, mod: IoModule, xnum: number, page?: number, total?: number, meta?: SheetMeta): string {
   const tot = total ?? modules(prj).length;
@@ -161,7 +172,8 @@ export function sheetDXF(prj: Project, mod: IoModule, xnum: number, page?: numbe
 
 /* ------------------------------------------------------- blokové schéma */
 
-const MODLBL: Record<string, string> = { DI: "digitální vstupy", DO: "digitální výstupy", AI: "analogové vstupy", AO: "analogové výstupy" };
+/** Popisy modulů — klíče překladu, překládají se až při kreslení (`trx(MODLBL[dir])`). */
+const MODLBL: Record<string, string> = { DI: N_("digitální vstupy"), DO: N_("digitální výstupy"), AI: N_("analogové vstupy"), AO: N_("analogové výstupy") };
 
 export function svgBlock(prj: Project, mods: IoModule[]): string {
   const hasIn = (d: { id: number }) => prj.io.some(e => e.devId === d.id && (e.dir === "DI" || e.dir === "AI"));
@@ -181,18 +193,19 @@ export function svgBlock(prj: Project, mods: IoModule[]): string {
     "<g" + attrs + ">" + (title ? "<title>" + esc(title) + "</title>" : "") +
     '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + bh + '" rx="5" fill="' + (acc ? "var(--chip, #eee)" : "none") + '" stroke="' + (acc ? "var(--accent, #00707e)" : "var(--line, #999)") + '"/>' +
     sT(x + 8, y + 14, t1, TXT + ";font-weight:600") + (t2 ? sT(x + 8, y + 27, String(t2).slice(0, 34), MUT) : "") + "</g>";
-  const devTitle = (d: Device) => d.name + " — " + (d.desc || CLS[d.cls].label) + "\n" + CLS[d.cls].label + "\n" +
+  const devTitle = (d: Device) => d.name + " — " + (d.desc || trx(CLS[d.cls].label)) + "\n" + trx(CLS[d.cls].label) + "\n" +
     prj.io.filter(e => e.devId === d.id).map(e => e.dir + "  " + e.tag + "  " + e.addr).join("\n");
   let s = "";
   const plcH = (mods.length + 2) * (bh + g) + 14;
   s += '<rect x="340" y="' + (top - 10) + '" width="300" height="' + plcH + '" rx="8" fill="none" stroke="var(--accent, #00707e)" stroke-width="1.5"/>';
   s += sT(350, top - 18, "PLC", TXT + ";font-weight:700;fill:var(--accent, #00707e)");
-  s += sT(640, top - 18, "zdroje signálů →  PLC  → akční členy", MUT, "end");
-  s += box(352, yy(0), 276, "PS — zdroj 24 V DC", "napájení modulů a snímačů", false);
+  s += sT(640, top - 18, trx("zdroje signálů →  PLC  → akční členy"), MUT, "end");
+  s += box(352, yy(0), 276, trx("PS — zdroj 24 V DC"), trx("napájení modulů a snímačů"), false);
   s += box(352, yy(1), 276, "CPU", prj.platforms.map(p => PLAT[p].cpu).join(" · ") || "—", true);
   mods.forEach((m, i) => {
-    s += box(352, yy(i + 2), 276, m.dir + m.idx + " — " + MODLBL[m.dir], m.ch.length + " kanálů · svorkovnice X" + (i + 1), false,
-      ' data-mod="' + i + '"', m.dir + m.idx + " — " + MODLBL[m.dir] + "\n" + m.ch.map((e, c) => "X" + (i + 1) + ":" + (c + 1) + "  " + e.tag + "  " + e.addr).join("\n"));
+    const lbl = m.dir + m.idx + " — " + trx(MODLBL[m.dir]);
+    s += box(352, yy(i + 2), 276, lbl, trx("{n} kanálů · svorkovnice X{x}", { n: m.ch.length, x: i + 1 }), false,
+      ' data-mod="' + i + '"', lbl + "\n" + m.ch.map((e, c) => "X" + (i + 1) + ":" + (c + 1) + "  " + e.tag + "  " + e.addr).join("\n"));
   });
   L.forEach((d, i) => { s += box(20, yy(i), 250, d.name, d.desc, false, ' data-dev="' + d.id + '" data-side="in"', devTitle(d)); });
   R.forEach((d, i) => { s += box(710, yy(i), 250, d.name, d.desc, false, ' data-dev="' + d.id + '" data-side="out"', devTitle(d)); });
@@ -209,5 +222,5 @@ export function svgBlock(prj: Project, mods: IoModule[]): string {
       if (ri >= 0) s += '<line' + ref + ' x1="628" y1="' + yMod + '" x2="710" y2="' + (yy(ri) + bh / 2) + '" stroke="var(--muted, #777)" stroke-width="1"/>';
     }
   }
-  return '<svg role="img" aria-label="Blokové schéma: zařízení, moduly PLC a signálové cesty" viewBox="0 0 980 ' + H + '" style="max-width:100%;height:auto" width="980" xmlns="http://www.w3.org/2000/svg">' + s + '</svg>';
+  return '<svg role="img" aria-label="' + esc(trx("Blokové schéma: zařízení, moduly PLC a signálové cesty")) + '" viewBox="0 0 980 ' + H + '" style="max-width:100%;height:auto" width="980" xmlns="http://www.w3.org/2000/svg">' + s + '</svg>';
 }

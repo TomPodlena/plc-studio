@@ -1,11 +1,10 @@
-/**
- * PLC Studio — datový model návrhu a odvozování I/O.
- * Čistý TypeScript bez závislostí; logika přenesená z prototypu (artifact v8).
- */
-export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron";
+export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics";
 export type DeviceClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "DI" | "DO";
 export type Dir = "DI" | "DO" | "AI" | "AO";
-export type SeqAct = "start" | "stop" | "open" | "close" | "wait";
+/** Akce kroku: povel motoru / ventilu, výdrž, nebo čekání na digitální vstup (DI = TRUE / FALSE). */
+export type SeqAct = "start" | "stop" | "open" | "close" | "wait" | "waitOn" | "waitOff";
+/** Vazba digitálního výstupu na stav stroje (generuje se do programu i do simulace). */
+export type DoRole = "run" | "fault" | "ready" | "stopped" | "lock" | "auto";
 export type SeqCond = "fbk" | "time";
 export interface PlatformInfo {
     name: string;
@@ -23,6 +22,13 @@ export interface Device {
     unit: string;
     rmin: number;
     rmax: number;
+    /** AnalogIn: meze v jednotkách; překročení = porucha stroje (alarm A_<dev>_HI / _LO). */
+    limHi?: number;
+    limLo?: number;
+    /** AnalogOut: žádaná hodnota v jednotkách (konstanta zapisovaná programem). */
+    setpoint?: number;
+    /** DO: vazba výstupu na stav stroje (maják chod/porucha, zámek krytů…). */
+    role?: DoRole;
 }
 export interface IoEntry {
     key: string;
@@ -44,11 +50,19 @@ export interface ProgramCfg {
     modes: boolean;
     estop: number | "";
     seq: SeqStep[];
+    /**
+     * Blokovací vstupy (kryty, světelná závora, tlak vzduchu…): DI zařízení, která jsou spolu
+     * s E-stopem součástí `enable` — FALSE zastaví stroj (výstupy vypnout, sekvence do kroku 0).
+     * Funkční blokování v běžném programu, NE bezpečnostní funkce. Starší projekty pole nemají.
+     */
+    interlocks?: number[];
 }
 export interface Project {
+    /** `takt` = požadovaná doba cyklu [s]; ověření ji porovná se simulovaným cyklem. */
     meta: {
         name: string;
         desc: string;
+        takt?: number;
     };
     platforms: PlatformKey[];
     devices: Device[];
@@ -60,6 +74,21 @@ export interface Project {
         motorDelay?: number;
         valveTravel?: number;
     };
+    /** Kusovník: platforma HW, značka po kategoriích, úpravy řádků (klíč = `BomLine.id`). */
+    bom?: BomCfg;
+}
+export interface BomLineCfg {
+    brand?: string;
+    type?: string;
+    orderCode?: string;
+    supplier?: string;
+    qty?: number;
+    note?: string;
+}
+export interface BomCfg {
+    plat?: PlatformKey;
+    brand?: Record<string, string>;
+    lines?: Record<string, BomLineCfg>;
 }
 export interface IoModule {
     dir: Dir;
@@ -67,12 +96,24 @@ export interface IoModule {
     ch: IoEntry[];
 }
 export declare const PLAT: Record<PlatformKey, PlatformInfo>;
+/** Tabulka platforem s texty v nastaveném jazyce (`PLAT` drží české klíče překladu). */
+export declare function platInfo(): Record<PlatformKey, PlatformInfo>;
 export declare const IECPLATS: PlatformKey[];
 export declare const CLS: Record<DeviceClass, {
     prefix: string;
     label: string;
     opts: Record<string, string>;
 }>;
+/** Třídy zařízení s texty v nastaveném jazyce (`CLS` drží české klíče překladu). */
+export declare function clsInfo(): Record<DeviceClass, {
+    prefix: string;
+    label: string;
+    opts: Record<string, string>;
+}>;
+/** Vazby výstupů na stav stroje — popisky (klíče překladu) pro výběr v UI. */
+export declare const DO_ROLES: Record<DoRole, string>;
+/** Čeká krok na digitální vstup? */
+export declare function isDiWait(s: SeqStep): boolean;
 export declare function stripDia(s: string): string;
 export declare function esc(s: unknown): string;
 export declare const xmlEsc: typeof esc;
@@ -80,10 +121,27 @@ export declare function blankProject(): Project;
 export declare function devById(prj: Project, id: number | ""): Device | undefined;
 export declare function nextName(prj: Project, cls: DeviceClass): string;
 export declare function instName(d: Device): string;
+/** Výraz role výstupu (proměnné strojního bloku přes `L`); `hasSeq` = projekt má sekvenci. */
+export declare function roleExpr(role: DoRole, hasSeq: boolean, L: (v: string) => string): string;
+/** Blokovací zařízení programu: existující DI, bez E-stopu, bez duplicit, v pořadí projektu. */
+export declare function interlockDevs(prj: Project): Device[];
+/**
+ * Vstupy, ze kterých se skládá `enable` (AND): E-stop a blokovací vstupy.
+ * TRUE = v pořádku; FALSE kteréhokoli zastaví stroj. Generátor i simulátor berou odsud.
+ */
+export declare function enableInputs(prj: Project): Array<{
+    dev: Device;
+    io: IoEntry;
+    estop: boolean;
+}>;
 export declare function usedClasses(prj: Project): Set<DeviceClass>;
 export declare function ioOf(prj: Project, dev: Device): Record<string, IoEntry>;
 export declare function devSignals(d: Device): Array<[sig: string, dir: Dir, label: string]>;
-/** Synchronizuje I/O tabulku se zařízeními; existující řádky (edity) zachová. */
+/**
+ * Synchronizuje I/O tabulku se zařízeními; existující řádky (edity) zachová.
+ * Komentář nového signálu vzniká v jazyce nastaveném v okamžiku vytvoření — je to obsah
+ * projektu, při přepnutí jazyka se nepřekládá.
+ */
 export declare function syncIO(prj: Project): void;
 /** Doplní (force=true: přepíše) adresy v Siemens notaci. */
 export declare function autoAddr(prj: Project, force: boolean): void;

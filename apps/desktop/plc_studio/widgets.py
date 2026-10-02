@@ -10,6 +10,7 @@ from tkinter import filedialog, messagebox, ttk
 from tkinter import font as tkfont
 
 from . import theme
+from .i18n import N_, _
 
 
 def card(parent, num: str, title: str, *, expand: bool = True) -> ttk.Frame:
@@ -119,9 +120,17 @@ class Table(ttk.Frame):
         self.tv = ttk.Treeview(self, columns=self._keys, height=height,
                                show="tree headings" if tree else "headings",
                                selectmode="browse")
+        # pevné sloupce se rozšíří podle nadpisu a obsahu (delší překlady — němčina),
+        # roztahovací dělí zbytek místa
+        head_font = tkfont.Font(font=theme.FONT_DIM)
+        self._cell_font = tkfont.Font(font=theme.FONT_UI)
+        self._fixed: dict[str, int] = {}
         for key, title, width, stretch in columns:
+            width = max(width, head_font.measure(title) + 20)
             self.tv.heading(key, text=title, anchor="w")
             self.tv.column(key, width=width, minwidth=40, stretch=stretch, anchor="w")
+            if not stretch:
+                self._fixed[key] = width
         ys = ttk.Scrollbar(self, orient="vertical", command=self.tv.yview)
         self.tv.configure(yscrollcommand=ys.set)
         self.tv.grid(row=0, column=0, sticky="nsew")
@@ -145,6 +154,12 @@ class Table(ttk.Frame):
         self.tv.delete(*self.tv.get_children())
 
     def add(self, iid, values, tags=(), parent: str = "", text: str = "", open_: bool = True):
+        for key, value in zip(self._keys, values):
+            if key in self._fixed and value not in ("", None):
+                need = min(self._cell_font.measure(str(value)) + 16, 320)
+                if need > self._fixed[key]:
+                    self._fixed[key] = need
+                    self.tv.column(key, width=need)
         return self.tv.insert(parent, "end", iid=str(iid), values=values, tags=tags,
                               text=text, open=open_)
 
@@ -227,10 +242,11 @@ class Table(ttk.Frame):
 # --- soubory -----------------------------------------------------------------
 
 _FILETYPES = {
-    "svg": ("Výkres SVG", "*.svg"), "dxf": ("Výkres DXF", "*.dxf"),
-    "csv": ("Tabulka CSV", "*.csv"), "md": ("Markdown", "*.md"),
-    "xml": ("XML", "*.xml"), "json": ("JSON", "*.json"), "scl": ("SCL zdroj", "*.scl"),
-    "st": ("Structured Text", "*.st"), "txt": ("Text", "*.txt"), "tsv": ("Tabulka TSV", "*.tsv"),
+    "svg": (N_("Výkres SVG"), "*.svg"), "dxf": (N_("Výkres DXF"), "*.dxf"),
+    "csv": (N_("Tabulka CSV"), "*.csv"), "md": ("Markdown", "*.md"),
+    "xml": ("XML", "*.xml"), "json": ("JSON", "*.json"), "scl": (N_("SCL zdroj"), "*.scl"),
+    "st": ("Structured Text", "*.st"), "txt": (N_("Text"), "*.txt"),
+    "tsv": (N_("Tabulka TSV"), "*.tsv"),
 }
 
 
@@ -243,46 +259,50 @@ def write_text(path: str | Path, body: str) -> None:
 def save_file(app, name: str, body: str) -> bool:
     """Dialog „Uložit jako" pro jeden soubor; vrací, zda se uložilo."""
     ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
-    types = [_FILETYPES[ext]] if ext in _FILETYPES else []
+    # popis typu se překládá až tady (tabulka vzniká při importu, kdy jazyk ještě není znám)
+    types = [(_(_FILETYPES[ext][0]), _FILETYPES[ext][1])] if ext in _FILETYPES else []
     path = filedialog.asksaveasfilename(
-        parent=app.root, title="Uložit soubor", initialfile=name,
+        parent=app.root, title=_("Uložit soubor"), initialfile=name,
         initialdir=app.settings.get("last_dir") or None,
         defaultextension="." + ext if ext else "",
-        filetypes=types + [("Všechny soubory", "*.*")])
+        filetypes=types + [(_("Všechny soubory"), "*.*")])
     if not path:
         return False
     try:
         write_text(path, body)
     except OSError as exc:
-        messagebox.showerror("Uložení se nezdařilo", str(exc), parent=app.root)
+        messagebox.showerror(_("Uložení se nezdařilo"), str(exc), parent=app.root)
         return False
     app.settings["last_dir"] = str(Path(path).parent)
-    app.set_status(f"Uloženo: {path}")
+    app.set_status(_("Uloženo: {path}", path=path))
     return True
 
 
-def save_many(app, files: list[tuple[str, str]], what: str = "soubory") -> bool:
-    """Uloží víc souborů do zvolené složky; na přepis existujících se zeptá."""
+def save_many(app, files: list[tuple[str, str]], what: str | None = None) -> bool:
+    """Uloží víc souborů do zvolené složky; na přepis existujících se zeptá.
+
+    ``what`` (4. pád, např. „výkresy") předává volající už přeložené."""
     folder = filedialog.askdirectory(
-        parent=app.root, title=f"Složka pro {what}", mustexist=True,
+        parent=app.root, title=_("Složka pro {what}", what=what or _("soubory")), mustexist=True,
         initialdir=app.settings.get("last_dir") or None)
     if not folder:
         return False
     target = Path(folder)
-    existing = [n for n, _ in files if (target / n).exists()]
+    existing = [n for n, _body in files if (target / n).exists()]
     if existing and not messagebox.askyesno(
-            "Přepsat soubory?",
-            f"Ve složce už existuje {len(existing)} z {len(files)} souborů "
-            f"(např. {existing[0]}).\nPřepsat je?", parent=app.root):
+            _("Přepsat soubory?"),
+            _("Ve složce už existuje {n} z {total} souborů (např. {name}).",
+              n=len(existing), total=len(files), name=existing[0])
+            + "\n" + _("Přepsat je?"), parent=app.root):
         return False
     try:
         for name, body in files:
             write_text(target / name, body)
     except OSError as exc:
-        messagebox.showerror("Uložení se nezdařilo", str(exc), parent=app.root)
+        messagebox.showerror(_("Uložení se nezdařilo"), str(exc), parent=app.root)
         return False
     app.settings["last_dir"] = str(target)
-    app.set_status(f"Uloženo {len(files)} souborů do {target}")
+    app.set_status(_("Uloženo {n} souborů do {target}", n=len(files), target=target))
     return True
 
 

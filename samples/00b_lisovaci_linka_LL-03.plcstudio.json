@@ -1,0 +1,980 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Lisovací a značicí linka LL-03 (složitý příklad)",
+   "desc": "Podavač dílů, manipulátor s vakuem, hydraulický lis se značením a výstupní dopravník. Cyklus: kontrola zásoby dílů, podání dílu vibračním podavačem a vstupním pásem do pozice (snímač), manipulátor díl přenese do lisu, oboustranné upnutí, obsluha potvrdí lisování dvouručním ovládáním (v programu jen informativně, bezpečnost řeší safety technika), lisování s výdrží, značení, uvolnění, manipulátor odloží hotový díl na výstupní pás, který ho odveze. Měření tlaku, teploty, síly, polohy a průtoku chlazení hlídané mezemi; proporcionální ventil tlaku a rychlost výstupního pásu mají pevné žádané hodnoty. Maják chod/porucha, houkačka poruchy, zámek krytů během cyklu; nouzové zastavení, dva kryty a světelná závora v blokování.",
+   "takt": 35
+  },
+  "platforms": [
+   "siemens"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "M1",
+    "cls": "Motor",
+    "desc": "Vstupní pásový dopravník",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 2,
+    "name": "M2",
+    "cls": "Motor",
+    "desc": "Výstupní pásový dopravník",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 3,
+    "name": "M3",
+    "cls": "Motor",
+    "desc": "Vibrační podavač dílů",
+    "opt": {
+     "fbk": false,
+     "fault": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 4,
+    "name": "M4",
+    "cls": "Motor",
+    "desc": "Čerpadlo hydraulického agregátu",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 5,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Lisovací válec",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 6,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Upínací válec levý",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 7,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Upínací válec pravý",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 8,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Manipulátor — přesuv do lisu",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 9,
+    "name": "Y5",
+    "cls": "Ventil",
+    "desc": "Vakuová přísavka manipulátoru",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 10,
+    "name": "Y6",
+    "cls": "Ventil",
+    "desc": "Značicí jednotka (razicí válec)",
+    "opt": {
+     "fbkOpen": false,
+     "fbkClosed": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 11,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Tlak hydrauliky",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 250,
+    "limHi": 220
+   },
+   {
+    "id": 12,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Teplota oleje",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 100,
+    "limLo": 10,
+    "limHi": 60
+   },
+   {
+    "id": 13,
+    "name": "B3",
+    "cls": "AnalogIn",
+    "desc": "Lisovací síla (tenzometr)",
+    "opt": {},
+    "unit": "kN",
+    "rmin": 0,
+    "rmax": 400,
+    "limHi": 350
+   },
+   {
+    "id": 14,
+    "name": "B4",
+    "cls": "AnalogIn",
+    "desc": "Poloha lisu (lineární snímač)",
+    "opt": {},
+    "unit": "mm",
+    "rmin": 0,
+    "rmax": 500,
+    "limHi": 460
+   },
+   {
+    "id": 15,
+    "name": "B5",
+    "cls": "AnalogIn",
+    "desc": "Průtok chlazení",
+    "opt": {},
+    "unit": "l/min",
+    "rmin": 0,
+    "rmax": 60,
+    "limLo": 5
+   },
+   {
+    "id": 16,
+    "name": "U1",
+    "cls": "AnalogOut",
+    "desc": "Proporcionální ventil tlaku",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "setpoint": 70
+   },
+   {
+    "id": 17,
+    "name": "U2",
+    "cls": "AnalogOut",
+    "desc": "Žádaná rychlost dopravníku M2",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "setpoint": 60
+   },
+   {
+    "id": 18,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 19,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Kryt levý zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 20,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Kryt pravý zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 21,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Světelná závora volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 22,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Dvouruční spouštění — tlačítko A",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 23,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Dvouruční spouštění — tlačítko B",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 24,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "Díl v pozici pod manipulátorem",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 25,
+    "name": "S8",
+    "cls": "DI",
+    "desc": "Zásobník dílů — zásoba OK (snímač minima)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 26,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — chod",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run"
+   },
+   {
+    "id": 27,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault"
+   },
+   {
+    "id": 28,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Houkačka — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault"
+   },
+   {
+    "id": 29,
+    "name": "H4",
+    "cls": "DO",
+    "desc": "Elektromagnetický zámek krytů (zamčeno během cyklu)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "lock"
+   }
+  ],
+  "io": [
+   {
+    "key": "1:fbkRunning",
+    "devId": 1,
+    "sig": "fbkRunning",
+    "dir": "DI",
+    "tag": "M1_fbkRunning",
+    "addr": "%I0.0",
+    "cmt": "Vstupní pásový dopravník – běh",
+    "nc": false
+   },
+   {
+    "key": "1:fault",
+    "devId": 1,
+    "sig": "fault",
+    "dir": "DI",
+    "tag": "M1_fault",
+    "addr": "%I0.1",
+    "cmt": "Vstupní pásový dopravník – porucha",
+    "nc": false
+   },
+   {
+    "key": "1:outRun",
+    "devId": 1,
+    "sig": "outRun",
+    "dir": "DO",
+    "tag": "M1_outRun",
+    "addr": "%Q0.0",
+    "cmt": "Vstupní pásový dopravník – povel chod",
+    "nc": false
+   },
+   {
+    "key": "2:fbkRunning",
+    "devId": 2,
+    "sig": "fbkRunning",
+    "dir": "DI",
+    "tag": "M2_fbkRunning",
+    "addr": "%I0.2",
+    "cmt": "Výstupní pásový dopravník – běh",
+    "nc": false
+   },
+   {
+    "key": "2:fault",
+    "devId": 2,
+    "sig": "fault",
+    "dir": "DI",
+    "tag": "M2_fault",
+    "addr": "%I0.3",
+    "cmt": "Výstupní pásový dopravník – porucha",
+    "nc": false
+   },
+   {
+    "key": "2:outRun",
+    "devId": 2,
+    "sig": "outRun",
+    "dir": "DO",
+    "tag": "M2_outRun",
+    "addr": "%Q0.1",
+    "cmt": "Výstupní pásový dopravník – povel chod",
+    "nc": false
+   },
+   {
+    "key": "3:outRun",
+    "devId": 3,
+    "sig": "outRun",
+    "dir": "DO",
+    "tag": "M3_outRun",
+    "addr": "%Q0.2",
+    "cmt": "Vibrační podavač dílů – povel chod",
+    "nc": false
+   },
+   {
+    "key": "4:fbkRunning",
+    "devId": 4,
+    "sig": "fbkRunning",
+    "dir": "DI",
+    "tag": "M4_fbkRunning",
+    "addr": "%I0.4",
+    "cmt": "Čerpadlo hydraulického agregátu – běh",
+    "nc": false
+   },
+   {
+    "key": "4:fault",
+    "devId": 4,
+    "sig": "fault",
+    "dir": "DI",
+    "tag": "M4_fault",
+    "addr": "%I0.5",
+    "cmt": "Čerpadlo hydraulického agregátu – porucha",
+    "nc": false
+   },
+   {
+    "key": "4:outRun",
+    "devId": 4,
+    "sig": "outRun",
+    "dir": "DO",
+    "tag": "M4_outRun",
+    "addr": "%Q0.3",
+    "cmt": "Čerpadlo hydraulického agregátu – povel chod",
+    "nc": false
+   },
+   {
+    "key": "5:fbkOpen",
+    "devId": 5,
+    "sig": "fbkOpen",
+    "dir": "DI",
+    "tag": "Y1_fbkOpen",
+    "addr": "%I0.6",
+    "cmt": "Lisovací válec – otevřeno",
+    "nc": false
+   },
+   {
+    "key": "5:fbkClosed",
+    "devId": 5,
+    "sig": "fbkClosed",
+    "dir": "DI",
+    "tag": "Y1_fbkClosed",
+    "addr": "%I0.7",
+    "cmt": "Lisovací válec – zavřeno",
+    "nc": false
+   },
+   {
+    "key": "5:outOpen",
+    "devId": 5,
+    "sig": "outOpen",
+    "dir": "DO",
+    "tag": "Y1_outOpen",
+    "addr": "%Q0.4",
+    "cmt": "Lisovací válec – povel otevřít",
+    "nc": false
+   },
+   {
+    "key": "6:fbkOpen",
+    "devId": 6,
+    "sig": "fbkOpen",
+    "dir": "DI",
+    "tag": "Y2_fbkOpen",
+    "addr": "%I1.0",
+    "cmt": "Upínací válec levý – otevřeno",
+    "nc": false
+   },
+   {
+    "key": "6:fbkClosed",
+    "devId": 6,
+    "sig": "fbkClosed",
+    "dir": "DI",
+    "tag": "Y2_fbkClosed",
+    "addr": "%I1.1",
+    "cmt": "Upínací válec levý – zavřeno",
+    "nc": false
+   },
+   {
+    "key": "6:outOpen",
+    "devId": 6,
+    "sig": "outOpen",
+    "dir": "DO",
+    "tag": "Y2_outOpen",
+    "addr": "%Q0.5",
+    "cmt": "Upínací válec levý – povel otevřít",
+    "nc": false
+   },
+   {
+    "key": "7:fbkOpen",
+    "devId": 7,
+    "sig": "fbkOpen",
+    "dir": "DI",
+    "tag": "Y3_fbkOpen",
+    "addr": "%I1.2",
+    "cmt": "Upínací válec pravý – otevřeno",
+    "nc": false
+   },
+   {
+    "key": "7:fbkClosed",
+    "devId": 7,
+    "sig": "fbkClosed",
+    "dir": "DI",
+    "tag": "Y3_fbkClosed",
+    "addr": "%I1.3",
+    "cmt": "Upínací válec pravý – zavřeno",
+    "nc": false
+   },
+   {
+    "key": "7:outOpen",
+    "devId": 7,
+    "sig": "outOpen",
+    "dir": "DO",
+    "tag": "Y3_outOpen",
+    "addr": "%Q0.6",
+    "cmt": "Upínací válec pravý – povel otevřít",
+    "nc": false
+   },
+   {
+    "key": "8:fbkOpen",
+    "devId": 8,
+    "sig": "fbkOpen",
+    "dir": "DI",
+    "tag": "Y4_fbkOpen",
+    "addr": "%I1.4",
+    "cmt": "Manipulátor — přesuv do lisu – otevřeno",
+    "nc": false
+   },
+   {
+    "key": "8:fbkClosed",
+    "devId": 8,
+    "sig": "fbkClosed",
+    "dir": "DI",
+    "tag": "Y4_fbkClosed",
+    "addr": "%I1.5",
+    "cmt": "Manipulátor — přesuv do lisu – zavřeno",
+    "nc": false
+   },
+   {
+    "key": "8:outOpen",
+    "devId": 8,
+    "sig": "outOpen",
+    "dir": "DO",
+    "tag": "Y4_outOpen",
+    "addr": "%Q0.7",
+    "cmt": "Manipulátor — přesuv do lisu – povel otevřít",
+    "nc": false
+   },
+   {
+    "key": "9:fbkOpen",
+    "devId": 9,
+    "sig": "fbkOpen",
+    "dir": "DI",
+    "tag": "Y5_fbkOpen",
+    "addr": "%I1.6",
+    "cmt": "Vakuová přísavka manipulátoru – otevřeno",
+    "nc": false
+   },
+   {
+    "key": "9:outOpen",
+    "devId": 9,
+    "sig": "outOpen",
+    "dir": "DO",
+    "tag": "Y5_outOpen",
+    "addr": "%Q1.0",
+    "cmt": "Vakuová přísavka manipulátoru – povel otevřít",
+    "nc": false
+   },
+   {
+    "key": "10:outOpen",
+    "devId": 10,
+    "sig": "outOpen",
+    "dir": "DO",
+    "tag": "Y6_outOpen",
+    "addr": "%Q1.1",
+    "cmt": "Značicí jednotka (razicí válec) – povel otevřít",
+    "nc": false
+   },
+   {
+    "key": "11:raw",
+    "devId": 11,
+    "sig": "raw",
+    "dir": "AI",
+    "tag": "B1_raw",
+    "addr": "%IW64",
+    "cmt": "Tlak hydrauliky – bar",
+    "nc": false
+   },
+   {
+    "key": "12:raw",
+    "devId": 12,
+    "sig": "raw",
+    "dir": "AI",
+    "tag": "B2_raw",
+    "addr": "%IW66",
+    "cmt": "Teplota oleje – °C",
+    "nc": false
+   },
+   {
+    "key": "13:raw",
+    "devId": 13,
+    "sig": "raw",
+    "dir": "AI",
+    "tag": "B3_raw",
+    "addr": "%IW68",
+    "cmt": "Lisovací síla (tenzometr) – kN",
+    "nc": false
+   },
+   {
+    "key": "14:raw",
+    "devId": 14,
+    "sig": "raw",
+    "dir": "AI",
+    "tag": "B4_raw",
+    "addr": "%IW70",
+    "cmt": "Poloha lisu (lineární snímač) – mm",
+    "nc": false
+   },
+   {
+    "key": "15:raw",
+    "devId": 15,
+    "sig": "raw",
+    "dir": "AI",
+    "tag": "B5_raw",
+    "addr": "%IW72",
+    "cmt": "Průtok chlazení – l/min",
+    "nc": false
+   },
+   {
+    "key": "16:raw",
+    "devId": 16,
+    "sig": "raw",
+    "dir": "AO",
+    "tag": "U1_raw",
+    "addr": "%QW64",
+    "cmt": "Proporcionální ventil tlaku – %",
+    "nc": false
+   },
+   {
+    "key": "17:raw",
+    "devId": 17,
+    "sig": "raw",
+    "dir": "AO",
+    "tag": "U2_raw",
+    "addr": "%QW66",
+    "cmt": "Žádaná rychlost dopravníku M2 – %",
+    "nc": false
+   },
+   {
+    "key": "18:in",
+    "devId": 18,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S1_in",
+    "addr": "%I1.7",
+    "cmt": "Nouzové zastavení (NC) – ",
+    "nc": true
+   },
+   {
+    "key": "19:in",
+    "devId": 19,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S2_in",
+    "addr": "%I2.0",
+    "cmt": "Kryt levý zavřen (NC) – ",
+    "nc": true
+   },
+   {
+    "key": "20:in",
+    "devId": 20,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S3_in",
+    "addr": "%I2.1",
+    "cmt": "Kryt pravý zavřen (NC) – ",
+    "nc": true
+   },
+   {
+    "key": "21:in",
+    "devId": 21,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S4_in",
+    "addr": "%I2.2",
+    "cmt": "Světelná závora volná (NC) – ",
+    "nc": true
+   },
+   {
+    "key": "22:in",
+    "devId": 22,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S5_in",
+    "addr": "%I2.3",
+    "cmt": "Dvouruční spouštění — tlačítko A – ",
+    "nc": false
+   },
+   {
+    "key": "23:in",
+    "devId": 23,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S6_in",
+    "addr": "%I2.4",
+    "cmt": "Dvouruční spouštění — tlačítko B – ",
+    "nc": false
+   },
+   {
+    "key": "24:in",
+    "devId": 24,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S7_in",
+    "addr": "%I2.5",
+    "cmt": "Díl v pozici pod manipulátorem – ",
+    "nc": false
+   },
+   {
+    "key": "25:in",
+    "devId": 25,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S8_in",
+    "addr": "%I2.6",
+    "cmt": "Zásobník dílů — zásoba OK (snímač minima) – ",
+    "nc": false
+   },
+   {
+    "key": "26:out",
+    "devId": 26,
+    "sig": "out",
+    "dir": "DO",
+    "tag": "H1_out",
+    "addr": "%Q1.2",
+    "cmt": "Maják zelená — chod – ",
+    "nc": false
+   },
+   {
+    "key": "27:out",
+    "devId": 27,
+    "sig": "out",
+    "dir": "DO",
+    "tag": "H2_out",
+    "addr": "%Q1.3",
+    "cmt": "Maják červená — porucha – ",
+    "nc": false
+   },
+   {
+    "key": "28:out",
+    "devId": 28,
+    "sig": "out",
+    "dir": "DO",
+    "tag": "H3_out",
+    "addr": "%Q1.4",
+    "cmt": "Houkačka — porucha – ",
+    "nc": false
+   },
+   {
+    "key": "29:out",
+    "devId": 29,
+    "sig": "out",
+    "dir": "DO",
+    "tag": "H4_out",
+    "addr": "%Q1.5",
+    "cmt": "Elektromagnetický zámek krytů (zamčeno během cyklu) – ",
+    "nc": false
+   }
+  ],
+  "program": {
+   "modes": true,
+   "estop": 18,
+   "interlocks": [
+    19,
+    20,
+    21
+   ],
+   "seq": [
+    {
+     "dev": 25,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 3,
+     "act": "start",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 1,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 24,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 1,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 3,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 9,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 9,
+     "act": "close",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 8,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 6,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 7,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 4,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 22,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 23,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 5,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 5
+    },
+    {
+     "dev": 5,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 4,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "open",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 10,
+     "act": "close",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 6,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 7,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 8,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 9,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 9,
+     "act": "close",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 2,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 3
+    },
+    {
+     "dev": 2,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    }
+   ]
+  },
+  "nextId": 30
+ }
+}

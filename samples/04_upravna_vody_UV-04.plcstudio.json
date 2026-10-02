@@ -1,0 +1,317 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Čerpací stanice a úpravna vody ÚV-04 (střední příklad)",
+   "desc": "Čerpadlo P1 (M1) čerpá surovou vodu ze studny přes tlakový pískový filtr do akumulační nádrže; P1 se rozbíhá proti zavřenému výtlačnému šoupátku Y1, které se otevírá až po rozběhu a před zastavením se zase zavírá (ochrana proti hydraulickému rázu). Po filtrační dávce následuje zpětný proplach filtru: šoupátko odtoku filtrátu Y2 se zavře, otevře se odpad Y4 a přívod proplachové vody Y3 a proplachové čerpadlo P2 (M2) žene vodu z akumulace filtrem zespodu. Na konci cyklu jsou obě čerpadla vypnutá a všechna šoupátka zavřená. Ochrany: chod nasucho (minimální hladina studny), havarijní hladina akumulace (přepad), tlakový spínač maxima výtlaku a nouzové zastavení. Měření mají alarmové meze (maximum tlaku výtlaku a průtoku, minimum hladiny studny, maximum hladiny akumulace, zanesení filtru) — překročení zastaví stanici jako porucha; P1 běží na pevnou žádanou hodnotu měniče, signálka H1 hlásí poruchu stanice.",
+   "takt": 65
+  },
+  "platforms": [
+   "siemens"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "M1",
+    "cls": "Motor",
+    "desc": "Čerpadlo P1 — surová voda ze studny",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 2,
+    "name": "M2",
+    "cls": "Motor",
+    "desc": "Čerpadlo P2 — proplach filtru",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 3,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Výtlačné šoupátko P1 (elektropohon)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 4,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Šoupátko odtoku filtrátu do akumulace",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 5,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Šoupátko přívodu proplachové vody",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 6,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Šoupátko odpadu proplachu do kanalizace",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 7,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Tlak ve výtlaku P1",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limHi": 6.0
+   },
+   {
+    "id": 8,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Průtok filtrátu do akumulace",
+    "opt": {},
+    "unit": "m3/h",
+    "rmin": 0,
+    "rmax": 60,
+    "limHi": 50
+   },
+   {
+    "id": 9,
+    "name": "B3",
+    "cls": "AnalogIn",
+    "desc": "Hladina ve studni",
+    "opt": {},
+    "unit": "m",
+    "rmin": 0,
+    "rmax": 20,
+    "limLo": 2.0
+   },
+   {
+    "id": 10,
+    "name": "B4",
+    "cls": "AnalogIn",
+    "desc": "Hladina v akumulační nádrži",
+    "opt": {},
+    "unit": "m",
+    "rmin": 0,
+    "rmax": 5,
+    "limHi": 4.5
+   },
+   {
+    "id": 11,
+    "name": "B5",
+    "cls": "AnalogIn",
+    "desc": "Tlaková ztráta filtru (diferenční tlak)",
+    "opt": {},
+    "unit": "kPa",
+    "rmin": 0,
+    "rmax": 100,
+    "limHi": 60
+   },
+   {
+    "id": 12,
+    "name": "U1",
+    "cls": "AnalogOut",
+    "desc": "Frekvenční měnič P1 — žádané otáčky",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "setpoint": 80
+   },
+   {
+    "id": 13,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 14,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Hladina studny nad minimem — ochrana proti chodu nasucho (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 15,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Akumulace pod havarijní hladinou přepadu (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 16,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Tlak výtlaku pod maximem — tlakový spínač (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 17,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Dveře rozvaděče a strojovny zavřeny (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 18,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Signálka porucha stanice",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 13,
+   "interlocks": [
+    14,
+    15,
+    16,
+    17
+   ],
+   "seq": [
+    {
+     "dev": 4,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 1,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 3,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 30
+    },
+    {
+     "dev": 3,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 1,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 4,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 6,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 5,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 2,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 20
+    },
+    {
+     "dev": 2,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 5,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 6,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    }
+   ]
+  },
+  "nextId": 19
+ }
+}

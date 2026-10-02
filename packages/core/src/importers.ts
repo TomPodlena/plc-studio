@@ -7,6 +7,7 @@
  * s polyfillem (např. linkedom) předaným přes setDOMParser().
  */
 import { Device, IoEntry, DeviceClass, Dir, CLS, devSignals } from "./model.js";
+import { tr } from "./i18n.js";
 
 export interface ImportedTag { tag: string; dt: string; addr: string; cmt: string; dev?: string; cls?: string; _dir?: Dir; }
 export interface ParseResult { fmt: string; tags: ImportedTag[]; blocks: string[]; }
@@ -65,7 +66,7 @@ export function parseSimaticML(t: string): ParseResult {
       if (name) tags.push({ tag: name, dt, addr: normAddr(la), cmt });
     }
   } catch { /* vadné XML — vrátíme prázdno */ }
-  return { fmt: "Siemens SimaticML (tabulka tagů)", tags, blocks: [] };
+  return { fmt: tr("Siemens SimaticML (tabulka tagů)"), tags, blocks: [] };
 }
 
 export function parseL5X(t: string): ParseResult {
@@ -99,7 +100,7 @@ export function parseSTSource(t: string): ParseResult {
       if (lm && !/^VAR|^END/i.test(lm[1])) tags.push({ tag: lm[1], dt: lm[3], addr: normAddr(lm[2] || ""), cmt: (lm[4] || lm[5] || "").trim() });
     }
   }
-  return { fmt: "ST / SCL zdroj" + (tags.length ? " + VAR_GLOBAL" : ""), tags, blocks };
+  return { fmt: tags.length ? tr("ST / SCL zdroj + VAR_GLOBAL") : tr("ST / SCL zdroj"), tags, blocks };
 }
 
 export function parseRockwellCSV(t: string): ParseResult {
@@ -111,7 +112,7 @@ export function parseRockwellCSV(t: string): ParseResult {
     const name = unq(c[2] || ""), cmt = unq(c[3] || ""), dt = unq(c[4] || "");
     if (name) tags.push({ tag: name, dt, addr: "", cmt });
   }
-  return { fmt: "Rockwell CSV export tagů", tags, blocks: [] };
+  return { fmt: tr("Rockwell CSV export tagů"), tags, blocks: [] };
 }
 
 export function parseLabelTable(t: string): ParseResult {
@@ -124,7 +125,7 @@ export function parseLabelTable(t: string): ParseResult {
     const cmt = c.slice(2).find(x => !!x && !/^[XY][0-9A-F]+$|^%|^VAR|^FALSE|^TRUE|^Retain/i.test(x)) || "";
     tags.push({ tag: c[0], dt, addr: normAddr(at), cmt });
   }
-  return { fmt: "Tabulka proměnných (Mitsubishi / OMRON)", tags, blocks: [] };
+  return { fmt: tr("Tabulka proměnných (Mitsubishi / OMRON)"), tags, blocks: [] };
 }
 
 export function parsePlainIO(t: string): ParseResult {
@@ -137,7 +138,7 @@ export function parsePlainIO(t: string): ParseResult {
     if (c.length < 2 || !/^%[IQ]/i.test(c[1] || "")) continue;
     tags.push({ tag: c[0], dt: "", addr: normAddr(c[1]), cmt: c[4] || c[2] || "", dev: c[2] || "", cls: c[3] || "" });
   }
-  return { fmt: "Prostý I/O list (Tag;Adresa;Zařízení;Třída;Komentář)", tags, blocks: [] };
+  return { fmt: tr("Prostý I/O list (Tag;Adresa;Zařízení;Třída;Komentář)"), tags, blocks: [] };
 }
 
 /** Seskupí importované tagy do zařízení a namapuje role signálů. */

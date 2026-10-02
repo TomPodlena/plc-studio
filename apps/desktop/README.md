@@ -10,7 +10,7 @@ Program → Generovat → Dokumentace, plus Nápověda.
 - nebo z příkazové řádky: `python -m plc_studio` v adresáři `apps/desktop`.
 
 Potřebuje **Python 3.9+ s tkinter** a **Node 18+** (jádro běží v Node). Žádné balíčky
-se neinstalují; Pillow je volitelný (logo v hlavičce, generování ikony, snímky při `--smoke`).
+se neinstalují; Pillow je volitelný (generování ikony, snímky při `--smoke`; logo v hlavičce zatím není).
 
 ## Jak to drží pohromadě
 
@@ -21,6 +21,7 @@ plc_studio/bridge.py     trvalý proces Node ─┐
 bridge.mjs               JSON po řádcích ────┴─► packages/core/dist + apps/web/src/ai.js
 plc_studio/svgview.py    výkresy z jádra (SVG) kreslené na tk.Canvas — klikací, se zvýrazněním
 plc_studio/detail.py     panel zařízení: rozcestník mezi schématy, I/O a programem
+plc_studio/mimic.py      grafické schéma systému pro živou simulaci (vodiče, animace funkce)
 plc_studio/theme.py      paleta a ttk styly (vizuál nástrojů PearTec)
 ```
 
@@ -68,7 +69,30 @@ bublinu s popisem, klik (`on_click`) a značky stavu (`marker`).
 Cíl odkazu se předává přes `app.open_device / open_io / open_block / open_flow / open_wiring /
 open_program / open_sim` — krok si výběr vyzvedne z `app.ui` při vykreslení.
 
-## Simulace a ověření (krok Program)
+## Živá simulace (krok Program)
+
+`steps/ziva.py`: systém řízený tlačítky, ve dvou pohledech — grafické schéma (`mimic.py`:
+symboly zařízení propojené vodiči s kanály modulů PLC, animovaná funkce) a bloky zařízení
+(`svgMachine` z jádra). Simulátor (`Simulator` v `sim.ts`) žije v procesu mostu — operace
+`live.start` ho založí, `live.step` posune čas a převezme stav tlačítek. Aplikace ho krokuje
+v reálném čase (50 ms × rychlost).
+
+Tlačítka odpovídají proměnným generovaného programu: `modeAuto`, `cmdAutoStart`, `cmdAck`,
+centrální uvolnění a ruční povely `manRun_*` / `manOpen_*`. Zásahy do zařízení (zamrzlé hlášení,
+vstup poruchy, volný vstup, analogová hodnota) simulují stroj. Dávková `simulate()` běží nad
+stejnou třídou, takže živá simulace a scénáře nemohou dávat různé výsledky.
+
+Vstupy se ovládají **přímo ve schématu** (`mimic.py`, `on_force` / `on_analog`): popisek každého
+digitálního vstupu zařízení je tlačítko (klik = přepnout a vnutit, `↺` = zpět stroji, „Uvolnit vše"
+v liště), analogový snímač má otočný potenciometr (tažení, kolečko, dvojklik = polovina rozsahu).
+Vnucení jde do `SimControls.force` — hodnota přebije model stroje i ostatní zásahy, model pod ní
+běží dál a po uvolnění se vstup vrátí k jeho stavu; potenciometr nastavuje `SimControls.ai`.
+
+`mimic.py` staví statickou kresbu jednou (a znovu při změně měřítka) a v `update()` jen přebarvuje
+a posouvá prvky podle snímku: barva a „tok" vodiče podle hodnoty signálu, píst válce podle polohy
+z modelu stroje (`frame.dev[id].pos`), rotor motoru, páka kontaktu, kontrolka, sloupec měření.
+
+## Scénáře a ověření (krok Program)
 
 Simulátor je v jádře (`sim.ts`); `steps/simulace.py` výsledek jen přehrává: aktivní krok na
 funkčním diagramu, stavy bloků, události, časový diagram s kurzorem. Záložka **Ověření programu**

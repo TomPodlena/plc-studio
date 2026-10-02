@@ -2,10 +2,10 @@
 
 Pořadí odpovídá liště kroků v ``app.STEPS`` (a webové aplikaci)."""
 
-from . import (ai_navrh, dokumentace, generovat, io, napoveda, platformy, program,
-               projekt, schema, zarizeni)
+from . import (ai_navrh, dokumentace, generovat, io, kusovnik, napoveda, platformy,
+               program, projekt, schema, zarizeni)
 
 RENDERERS = [projekt.render, ai_navrh.render, platformy.render, zarizeni.render,
              io.render, schema.render, program.render, generovat.render,
-             dokumentace.render]
+             dokumentace.render, kusovnik.render]
 render_help = napoveda.render

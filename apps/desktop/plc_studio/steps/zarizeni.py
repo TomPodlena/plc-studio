@@ -7,6 +7,8 @@ from tkinter import filedialog, messagebox, ttk
 
 from .. import theme
 from ..detail import DevicePanel
+from ..i18n import N_, _
+from ..project import parse_num
 from ..widgets import (Table, card, field, note_box, read_text_file, scrolled_text,
                        wrap_label)
 
@@ -19,21 +21,97 @@ def _opts_text(app, d: dict) -> str:
     if d["cls"].startswith("Analog"):
         unit = f" {d['unit']}" if d.get("unit") else ""
         txt = f"{txt}{unit} {d['rmin']:g}–{d['rmax']:g}".strip()
+    extra = []
+    if d.get("limLo") is not None:
+        extra.append(_("min {v}", v=f"{d['limLo']:g}"))
+    if d.get("limHi") is not None:
+        extra.append(_("max {v}", v=f"{d['limHi']:g}"))
+    if d.get("setpoint") is not None:
+        extra.append(_("žádaná {v}", v=f"{d['setpoint']:g}"))
+    if d.get("role"):
+        extra.append(app.DO_ROLES.get(d["role"], d["role"]))
+    if extra:
+        txt = (txt + " · " if txt else "") + ", ".join(extra)
     return txt or "—"
 
 
+PARAM_LABEL = {"limLo": N_("mez min"), "limHi": N_("mez max"), "setpoint": N_("žádaná hodnota")}
+
+
+def _opt_num(value: str, key: str = ""):
+    """Volitelné číslo z pole (prázdné = nezadáno); neplatné → ``ValueError`` s popiskem pole."""
+    if not value.strip():
+        return None
+    v = parse_num(value)
+    if v is None:
+        raise ValueError(_(PARAM_LABEL.get(key, key)))
+    return v
+
+
+def param_fields(app, parent, cls: str, d: dict | None = None) -> dict:
+    """Pole pro meze (AnalogIn), žádanou hodnotu (AnalogOut) a roli výstupu (DO).
+    Vrací proměnné; `read(vars)` z nich udělá slovník parametrů."""
+    out: dict = {}
+    d = d or {}
+
+    def num_field(key: str, label: str) -> None:
+        ttk.Label(parent, text=label).pack(side="left")
+        var = tk.StringVar(value="" if d.get(key) is None else f"{d[key]:g}")
+        ttk.Entry(parent, textvariable=var, width=8).pack(side="left", padx=(6, 14))
+        out[key] = var
+
+    if cls == "AnalogIn":
+        num_field("limLo", _(PARAM_LABEL["limLo"]))
+        num_field("limHi", _(PARAM_LABEL["limHi"]))
+    elif cls == "AnalogOut":
+        num_field("setpoint", _(PARAM_LABEL["setpoint"]))
+    elif cls == "DO":
+        ttk.Label(parent, text=_("vazba na stav stroje")).pack(side="left")
+        keys = ["", *app.DO_ROLES]
+        names = [_("— bez vazby —"), *app.DO_ROLES.values()]
+        cb = ttk.Combobox(parent, values=names, state="readonly", width=max(len(n) for n in names) + 1)
+        cb.current(keys.index(d.get("role") or "") if (d.get("role") or "") in keys else 0)
+        cb.pack(side="left", padx=(6, 14))
+        out["role"] = (cb, keys)
+    return out
+
+
+def read_params(vars_: dict) -> dict:
+    """Parametry z polí; neplatné číslo nebo min ≥ max → ``ValueError`` (text pro uživatele)."""
+    res: dict = {}
+    for key, v in vars_.items():
+        if key == "role":
+            cb, keys = v
+            res["role"] = keys[max(cb.current(), 0)] or None
+        else:
+            try:
+                res[key] = _opt_num(v.get(), key)
+            except ValueError as exc:
+                raise ValueError(_("Neplatné číslo v poli „{field}“.", field=exc)) from exc
+    if res.get("limLo") is not None and res.get("limHi") is not None \
+            and res["limLo"] >= res["limHi"]:
+        raise ValueError(_("Mez min musí být menší než mez max."))
+    return res
+
+
+def apply_params(d: dict, params: dict) -> None:
+    for key, v in params.items():
+        if v is None:
+            d.pop(key, None)
+        else:
+            d[key] = v
+
+
 def _num(value: str, default: float) -> float:
-    try:
-        return float(value.replace(",", "."))
-    except ValueError:
-        return default
+    v = parse_num(value)
+    return default if v is None else v
 
 
 def render(app, parent) -> None:
     terms = app.terminals()          # srovná I/O se zařízeními a vrátí svorky signálů
     p = app.prj
     labels = {v["label"]: k for k, v in app.CLS.items()}
-    body = card(parent, "04", "Návrh zařízení stroje")
+    body = card(parent, "04", _("Návrh zařízení stroje"))
 
     # --- formulář nového zařízení ---
     form = ttk.Frame(body)
@@ -43,16 +121,17 @@ def render(app, parent) -> None:
     var_cls = tk.StringVar(value=app.CLS["Motor"]["label"])
     var_name = tk.StringVar(value=app.core("nextName", p, "Motor"))
     var_desc = tk.StringVar()
-    field(form, "Třída", lambda b: ttk.Combobox(b, textvariable=var_cls, state="readonly",
-                                                 values=list(labels)), col=0)
-    field(form, "Označení", lambda b: ttk.Entry(b, textvariable=var_name), col=1)
-    ent_desc = field(form, "Popis (např. Čerpadlo hydrauliky)",
+    field(form, _("Třída"), lambda b: ttk.Combobox(b, textvariable=var_cls, state="readonly",
+                                                    values=list(labels)), col=0)
+    field(form, _("Označení"), lambda b: ttk.Entry(b, textvariable=var_name), col=1)
+    ent_desc = field(form, _("Popis (např. Čerpadlo hydrauliky)"),
                      lambda b: ttk.Entry(b, textvariable=var_desc), col=2)
 
     opt_row = ttk.Frame(body)
     opt_row.pack(fill="x")
     opt_vars: dict[str, tk.BooleanVar] = {}
     var_unit, var_min, var_max = tk.StringVar(), tk.StringVar(value="0"), tk.StringVar(value="100")
+    new_params: dict = {}
 
     def render_opts() -> None:
         for w in opt_row.winfo_children():
@@ -63,54 +142,72 @@ def render(app, parent) -> None:
             opt_vars[ok] = tk.BooleanVar(value=ok in DEFAULT_ON)
             ttk.Checkbutton(opt_row, text=olabel, variable=opt_vars[ok]).pack(side="left", padx=(0, 14))
         if key.startswith("Analog"):
-            ttk.Label(opt_row, text="jednotka").pack(side="left")
+            ttk.Label(opt_row, text=_("jednotka")).pack(side="left")
             ttk.Entry(opt_row, textvariable=var_unit, width=8).pack(side="left", padx=(6, 14))
-            ttk.Label(opt_row, text="rozsah").pack(side="left")
+            ttk.Label(opt_row, text=_("rozsah")).pack(side="left")
             ttk.Entry(opt_row, textvariable=var_min, width=8).pack(side="left", padx=6)
-            ttk.Label(opt_row, text="až").pack(side="left")
-            ttk.Entry(opt_row, textvariable=var_max, width=8).pack(side="left", padx=6)
-        elif not opt_vars:
-            ttk.Label(opt_row, text="— bez voleb", style="Dim.TLabel").pack(side="left")
+            ttk.Label(opt_row, text=_("až")).pack(side="left")
+            ttk.Entry(opt_row, textvariable=var_max, width=8).pack(side="left", padx=(6, 14))
+        new_params.clear()
+        new_params.update(param_fields(app, opt_row, key))
+        if not opt_vars and not key.startswith("Analog") and not new_params:
+            ttk.Label(opt_row, text=_("— bez voleb"), style="Dim.TLabel").pack(side="left")
 
     def on_cls(_e=None) -> None:
+        app.ui["dev_cls"] = labels[var_cls.get()]       # zvolená třída přežije překreslení
         var_name.set(app.core("nextName", app.prj, labels[var_cls.get()]))
         render_opts()
 
-    var_cls.trace_add("write", lambda *_: on_cls())
+    var_cls.trace_add("write", lambda *_a: on_cls())
     render_opts()
 
     def add() -> None:
         prj = app.prj
         key = labels[var_cls.get()]
         analog = key.startswith("Analog")
+        rmin = _num(var_min.get(), 0) if analog else 0
+        rmax = _num(var_max.get(), 100) if analog else 100
+        try:
+            if analog and (parse_num(var_min.get()) is None or parse_num(var_max.get()) is None):
+                raise ValueError(_("Neplatné číslo v poli „{field}“.", field=_("rozsah")))
+            if rmax <= rmin:
+                raise ValueError(_("Rozsah měření: horní mez musí být větší než dolní."))
+            params = read_params(new_params)
+        except ValueError as exc:
+            app.set_status(str(exc))
+            return
         prj["devices"].append({
             "id": prj["nextId"],
             "name": var_name.get().strip() or app.core("nextName", prj, key),
             "cls": key, "desc": var_desc.get().strip(),
             "opt": {k: v.get() for k, v in opt_vars.items()},
             "unit": var_unit.get().strip() if analog else "",
-            "rmin": _num(var_min.get(), 0) if analog else 0,
-            "rmax": _num(var_max.get(), 100) if analog else 100,
+            "rmin": rmin, "rmax": rmax,
         })
+        apply_params(prj["devices"][-1], params)
         prj["nextId"] += 1
         app.sync()
         app.save()
-        app.ui["dev_cls"] = var_cls.get()
+        app.ui["dev_cls"] = key              # klíč třídy, ne popisek (ten závisí na jazyce)
         app.render()
 
     add_row = ttk.Frame(body)
     add_row.pack(fill="x", pady=(8, 10))
-    ttk.Button(add_row, text="Přidat zařízení", style="Accent.TButton", command=add).pack(side="left")
+    ttk.Button(add_row, text=_("Přidat zařízení"), style="Accent.TButton", command=add
+               ).pack(side="left")
     ent_desc.bind("<Return>", lambda _e: add())
-    if app.ui.get("dev_cls") in labels:      # po přidání zůstaň u stejné třídy
-        var_cls.set(app.ui["dev_cls"])
+    if app.ui.get("dev_cls") in app.CLS:     # po přidání zůstaň u stejné třídy
+        var_cls.set(app.CLS[app.ui["dev_cls"]]["label"])
 
     # --- spodní část (pack zdola, ať tabulku nevytlačí) ---
-    note_box(body, "Třídy Motor / Ventil / Analog dostanou hotový funkční blok (stavový automat, "
-             "timeouty, status). Třídy DI/DO jsou volné signály pro vlastní logiku. "
-             "Popis upravíš dvojklikem do buňky.", side="bottom")
+    note_box(body, _(
+        "Třídy Motor / Ventil / Analog dostanou hotový funkční blok (stavový automat, "
+        "timeouty, status). Třídy DI/DO jsou volné signály pro vlastní logiku. "
+        "Popis upravíš dvojklikem do buňky."), side="bottom")
     tools = ttk.Frame(body)
     tools.pack(side="bottom", fill="x", pady=(6, 0))
+    params_row = ttk.Frame(body)                    # parametry vybraného zařízení
+    params_row.pack(side="bottom", fill="x", pady=(6, 0))
 
     # --- seznam zařízení ---
     def edit(iid: str, _key: str, value: str) -> None:
@@ -126,13 +223,14 @@ def render(app, parent) -> None:
     def delete(_e=None) -> None:
         iid = tbl.selected()
         if iid is None or not iid.isdigit():
-            app.set_status("Nejdřív vyber zařízení v tabulce.")
+            app.set_status(_("Nejdřív vyber zařízení v tabulce."))
             return
         prj = app.prj
         prj["devices"] = [d for d in prj["devices"] if d["id"] != int(iid)]
         ids = {d["id"] for d in prj["devices"]}
         prog = prj["program"]
         prog["seq"] = [s for s in prog["seq"] if s["act"] == "wait" or s["dev"] in ids]
+        prog["interlocks"] = [i for i in prog.get("interlocks") or [] if i in ids]
         if prog["estop"] and prog["estop"] not in ids:
             prog["estop"] = ""
         app.sync()
@@ -140,39 +238,62 @@ def render(app, parent) -> None:
         app.render()
 
     if not p["devices"]:
-        wrap_label(body, "Zatím žádná zařízení — přidej je výše, načti ukázku v kroku Projekt, "
-                   "nech si je navrhnout v kroku AI návrh, nebo použij Import vpravo dole.",
-                   pady=(0, 6))
+        wrap_label(body, _("Zatím žádná zařízení — přidej je výše, načti ukázku v kroku Projekt, "
+                           "nech si je navrhnout v kroku AI návrh, nebo použij Import vpravo "
+                           "dole."), pady=(0, 6))
     mid = ttk.Frame(body)
     mid.pack(fill="both", expand=True)
     panel = DevicePanel(mid, app, terms, here="zarizeni",
-                        empty="Vyber zařízení v tabulce — zobrazí se jeho vstupy a výstupy "
-                              "s odkazy do kroku I/O, na list zapojení a do programu.")
+                        empty=_("Vyber zařízení v tabulce — zobrazí se jeho vstupy a výstupy "
+                                "s odkazy do kroku I/O, na list zapojení a do programu."))
     panel.pack(side="right", fill="y", padx=(12, 0))
-    tbl = Table(mid, [("name", "Označení", 80, False), ("cls", "Třída", 170, False),
-                      ("desc", "Popis", 260, True), ("opt", "Volby", 200, True)],
+    tbl = Table(mid, [("name", _("Označení"), 80, False), ("cls", _("Třída"), 170, False),
+                      ("desc", _("Popis"), 260, True), ("opt", _("Volby"), 200, True)],
                 height=8, editable=("desc",), on_edit=edit)
     tbl.pack(side="left", fill="both", expand=True)
     for d in p["devices"]:
         tbl.add(d["id"], (d["name"], app.CLS[d["cls"]]["label"], d["desc"], _opts_text(app, d)))
     tbl.tv.bind("<Delete>", delete)
 
+    def show_params(d: dict | None) -> None:
+        for w in params_row.winfo_children():
+            w.destroy()
+        if d is None or d["cls"] not in ("AnalogIn", "AnalogOut", "DO"):
+            return
+        ttk.Label(params_row, text=_("{dev}:", dev=d["name"]), font=theme.FONT_ACCENT).pack(side="left", padx=(0, 8))
+        vars_ = param_fields(app, params_row, d["cls"], d)
+
+        def save_params() -> None:
+            try:
+                params = read_params(vars_)
+            except ValueError as exc:       # neplatné číslo mez dřív tiše smazalo
+                app.set_status(str(exc))
+                return
+            apply_params(d, params)
+            app.save()
+            tbl.tv.set(str(d["id"]), "opt", _opts_text(app, d))
+            app.set_status(_("Parametry {dev} uloženy.", dev=d["name"]))
+
+        ttk.Button(params_row, text=_("Uložit parametry"), command=save_params).pack(side="left")
+
     def on_select(_e=None) -> None:
         iid = tbl.selected()
         if iid is not None and iid.isdigit():
             app.ui["dev_sel"] = int(iid)
             panel.show(int(iid))
+            show_params(app.dev_by_id(int(iid)))
 
     tbl.tv.bind("<<TreeviewSelect>>", on_select)
     if app.dev_by_id(app.ui.get("dev_sel")) is not None:
         tbl.select(app.ui["dev_sel"])
         panel.show(app.ui["dev_sel"])
+        show_params(app.dev_by_id(app.ui["dev_sel"]))
 
-    ttk.Button(tools, text="Odstranit vybrané", style="Danger.TButton", command=delete
+    ttk.Button(tools, text=_("Odstranit vybrané"), style="Danger.TButton", command=delete
                ).pack(side="left")
-    ttk.Label(tools, text=f"zařízení: {len(p['devices'])}", style="Dim.TLabel"
+    ttk.Label(tools, text=_("zařízení: {n}", n=len(p["devices"])), style="Dim.TLabel"
               ).pack(side="left", padx=10)
-    ttk.Button(tools, text="Import existujícího projektu…",
+    ttk.Button(tools, text=_("Import existujícího projektu…"),
                command=lambda: ImportDialog(app)).pack(side="right")
 
 
@@ -183,7 +304,7 @@ class ImportDialog:
         self.app = app
         self.built: dict | None = None
         win = self.win = tk.Toplevel(app.root)
-        theme.setup_window(win, "Import existujícího projektu",
+        theme.setup_window(win, _("Import existujícího projektu"),
                            topmost=bool(app.settings.get("topmost")))
         win.transient(app.root)
         win.geometry("860x680")
@@ -191,36 +312,38 @@ class ImportDialog:
         frm = ttk.Frame(win)
         frm.pack(fill="both", expand=True, padx=16, pady=14)
 
-        ttk.Label(frm, text="Import existujícího projektu (reverse engineering)",
+        ttk.Label(frm, text=_("Import existujícího projektu (reverse engineering)"),
                   style="Header.TLabel").pack(anchor="w")
-        wrap_label(frm, "Vlož export z existujícího projektu a PLC Studio z něj zpětně sestaví "
-                   "zařízení a I/O — klidně pro migraci na jinou platformu. Formáty se poznají "
-                   "automaticky: SimaticML XML, Rockwell L5X/CSV, GVL/ST, tabulky labelů "
-                   "(CSV/tab), prostý I/O list  Tag;Adresa;Zařízení;Třída;Komentář.",
-                   pady=(2, 8))
+        wrap_label(frm, _(
+            "Vlož export z existujícího projektu a PLC Studio z něj zpětně sestaví "
+            "zařízení a I/O — klidně pro migraci na jinou platformu. Formáty se poznají "
+            "automaticky: SimaticML XML, Rockwell L5X/CSV, GVL/ST, tabulky labelů "
+            "(CSV/tab), prostý I/O list  Tag;Adresa;Zařízení;Třída;Komentář."),
+            pady=(2, 8))
 
         row = ttk.Frame(frm)
         row.pack(fill="x")
-        ttk.Button(row, text="Načíst soubory…", command=self._pick).pack(side="left")
-        ttk.Button(row, text="Analyzovat", style="Accent.TButton", command=self._analyze
+        ttk.Button(row, text=_("Načíst soubory…"), command=self._pick).pack(side="left")
+        ttk.Button(row, text=_("Analyzovat"), style="Accent.TButton", command=self._analyze
                    ).pack(side="left", padx=(6, 0))
-        ttk.Label(row, text="Analýza nic nepřepíše — nejdřív uvidíš náhled.",
+        ttk.Label(row, text=_("Analýza nic nepřepíše — nejdřív uvidíš náhled."),
                   style="Dim.TLabel").pack(side="left", padx=10)
 
         # zdola: varování, tlačítka, náhled
-        note_box(frm, "Co se přenese: tagy, adresy, komentáře, odhad zařízení a tříd. "
-                 "Co ne: logika bloků (jen inventář), HW konfigurace, safety a komunikace — "
-                 "logiku generuje PLC Studio znovu ze šablon.", warn=True, side="bottom")
+        note_box(frm, _(
+            "Co se přenese: tagy, adresy, komentáře, odhad zařízení a tříd. "
+            "Co ne: logika bloků (jen inventář), HW konfigurace, safety a komunikace — "
+            "logiku generuje PLC Studio znovu ze šablon."), warn=True, side="bottom")
         btns = ttk.Frame(frm)
         btns.pack(side="bottom", fill="x", pady=(8, 0))
-        self.b_apply = ttk.Button(btns, text="Převzít do návrhu (nahradí současná zařízení)",
+        self.b_apply = ttk.Button(btns, text=_("Převzít do návrhu (nahradí současná zařízení)"),
                                   style="Accent.TButton", command=self._apply)
         self.b_apply.pack(side="left")
         self.b_apply.state(["disabled"])
-        ttk.Button(btns, text="Zavřít", command=win.destroy).pack(side="right")
+        ttk.Button(btns, text=_("Zavřít"), command=win.destroy).pack(side="right")
 
-        self.tbl = Table(frm, [("name", "Zařízení", 100, False), ("cls", "Třída", 110, False),
-                               ("tags", "Tagy", 520, True)], height=7)
+        self.tbl = Table(frm, [("name", _("Zařízení"), 100, False), ("cls", _("Třída"), 110, False),
+                               ("tags", _("Tagy"), 520, True)], height=7)
         self.tbl.pack(side="bottom", fill="x", pady=(4, 0))
         self.info = ttk.Label(frm, text="", style="Dim.TLabel", justify="left")
         self.info.pack(side="bottom", anchor="w", pady=(8, 0))
@@ -232,10 +355,10 @@ class ImportDialog:
 
     def _pick(self) -> None:
         paths = filedialog.askopenfilenames(
-            parent=self.win, title="Exporty z PLC projektu",
+            parent=self.win, title=_("Exporty z PLC projektu"),
             initialdir=self.app.settings.get("last_dir") or None,
-            filetypes=[("Exporty PLC", "*.xml *.l5x *.csv *.tsv *.txt *.st *.scl *.gvl *.TcGVL"),
-                       ("Všechny soubory", "*.*")])
+            filetypes=[(_("Exporty PLC"), "*.xml *.l5x *.csv *.tsv *.txt *.st *.scl *.gvl *.TcGVL"),
+                       (_("Všechny soubory"), "*.*")])
         if not paths:
             return
         chunks = []
@@ -243,7 +366,7 @@ class ImportDialog:
             try:
                 chunks.append(read_text_file(path))
             except OSError as exc:
-                messagebox.showerror("Soubor nejde načíst", f"{path}\n{exc}", parent=self.win)
+                messagebox.showerror(_("Soubor nejde načíst"), f"{path}\n{exc}", parent=self.win)
         self.txt.delete("1.0", "end")
         self.txt.insert("1.0", "\n".join(chunks))
 
@@ -254,14 +377,16 @@ class ImportDialog:
         self.built = None
         self.b_apply.state(["disabled"])
         if not res["tags"] and not res["blocks"]:
-            self.info.configure(style="Err.TLabel", text="Formát se nepodařilo rozpoznat "
-                                "nebo neobsahuje žádné tagy.")
+            self.info.configure(style="Err.TLabel", text=_("Formát se nepodařilo rozpoznat "
+                                                           "nebo neobsahuje žádné tagy."))
             return
-        text = (f"Rozpoznaný formát: {res['fmt']} · {len(res['tags'])} tagů · "
-                f"{len(built['devices'])} zařízení")
+        text = " · ".join((_("Rozpoznaný formát: {fmt}", fmt=res["fmt"]),
+                           _("{n} tagů", n=len(res["tags"])),
+                           _("{n} zařízení", n=len(built["devices"]))))
         if res["blocks"]:
             more = " …" if len(res["blocks"]) > 12 else ""
-            text += "\nNalezené bloky (jen inventář): " + ", ".join(res["blocks"][:12]) + more
+            text += "\n" + _("Nalezené bloky (jen inventář): {blocks}",
+                             blocks=", ".join(res["blocks"][:12]) + more)
         self.info.configure(style="Ok.TLabel", text=text)
         for d in built["devices"]:
             tags = ", ".join(e["tag"] for e in built["io"] if e["devId"] == d["id"])
@@ -272,14 +397,14 @@ class ImportDialog:
 
     def _apply(self) -> None:
         app, built = self.app, self.built
-        if not built or not app.confirm_replace("Import"):
+        if not built or not app.confirm_replace(_("Import")):
             return
         prj = app.prj
         prj["devices"], prj["io"], prj["nextId"] = built["devices"], built["io"], built["nextId"]
         # zařízení jsou nová (id od 1) — stará sekvence a E-stop by mířily jinam
-        prj["program"]["seq"], prj["program"]["estop"] = [], ""
+        prj["program"]["seq"], prj["program"]["estop"], prj["program"]["interlocks"] = [], "", []
         app.prj = app.bridge.mutate("autoAddr", prj, False)
         app.save()
         self.win.destroy()
         app.render()
-        app.set_status(f"Import převzat: {len(built['devices'])} zařízení.")
+        app.set_status(_("Import převzat: {n} zařízení.", n=len(built["devices"])))

@@ -1,0 +1,128 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Pásový dopravník s vyhazovačem (jednoduchý příklad)",
+   "desc": "Pás doveze díl k vyhazovači a zastaví, jakmile ho optický snímač uvidí (hlídací čas 30 s — díl nedojel = porucha). Pneumatický válec díl shodí do přepravky; snímač musí díl přestat vidět (jinak porucha — díl zůstal na pásu) a válec se vrátí do zadní polohy (oba koncáky). Signálka svítí, dokud cyklus běží. Ochrany: nouzové zastavení a kryt dopravníku v blokování.",
+   "takt": 5
+  },
+  "platforms": [
+   "siemens"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "M1",
+    "cls": "Motor",
+    "desc": "Pásový dopravník (motor s převodovkou)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 2,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Vyhazovací válec do přepravky",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 3,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 4,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Kryt dopravníku zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 5,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Díl před vyhazovačem (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 6,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Signálka chod dopravníku",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 3,
+   "interlocks": [
+    4
+   ],
+   "seq": [
+    {
+     "dev": 1,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 1,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 2,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 5,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 2,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    }
+   ]
+  },
+  "nextId": 7
+ }
+}
