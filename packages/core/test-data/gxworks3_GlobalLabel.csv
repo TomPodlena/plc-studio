@@ -1,0 +1,14 @@
+Global Label Setting
+GlobalLabel
+Label Name	Data Type		Class	Assign (Device/Label)	Initial Value	Constant	English(Display Target)	Remark
+EmgStop	Bit		VAR_GLOBAL	X0			Emergency stop OK
+Conveyor_Run	Bit		VAR_GLOBAL	Y0			Conveyor contactor
+Conveyor_RunFB	Bit		VAR_GLOBAL	X1			Conveyor running feedback
+Conveyor_Trip	Bit		VAR_GLOBAL	X2			Conveyor thermal trip
+Pusher_Extend	Bit		VAR_GLOBAL	Y1			Pusher cylinder solenoid
+Pusher_Extended	Bit		VAR_GLOBAL	X3			Pusher extended
+Pusher_Retracted	Bit		VAR_GLOBAL	X4			Pusher retracted
+Box_Sensor	Bit		VAR_GLOBAL	X10			Box at pusher
+Level_AI	Word [Signed]		VAR_GLOBAL				Hopper level (from buffer memory)
+Count_Work	Word [Signed]		VAR_GLOBAL	D100			Work counter
+MAX_COUNT	Word [Signed]		VAR_GLOBAL_CONSTANT			100

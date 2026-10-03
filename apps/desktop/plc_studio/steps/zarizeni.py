@@ -1,16 +1,15 @@
-"""Krok 4 — Návrh zařízení stroje (+ vedlejší volba Import existujícího projektu)."""
+"""Krok 4 — Návrh zařízení stroje (+ vedlejší volba Import stávajícího zařízení)."""
 
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import ttk
 
 from .. import theme
 from ..detail import DevicePanel
 from ..i18n import N_, _
 from ..project import parse_num
-from ..widgets import (Table, card, field, note_box, read_text_file, scrolled_text,
-                       wrap_label)
+from ..widgets import Table, card, field, note_box, wrap_label
 
 DEFAULT_ON = ("fbk", "fbkOpen")  # volby zapnuté už při založení zařízení
 
@@ -293,118 +292,12 @@ def render(app, parent) -> None:
                ).pack(side="left")
     ttk.Label(tools, text=_("zařízení: {n}", n=len(p["devices"])), style="Dim.TLabel"
               ).pack(side="left", padx=10)
-    ttk.Button(tools, text=_("Import existujícího projektu…"),
-               command=lambda: ImportDialog(app)).pack(side="right")
+    ttk.Button(tools, text=_("Import stávajícího zařízení…"),
+               command=lambda: _open_import(app)).pack(side="right")
 
 
-class ImportDialog:
-    """Vedlejší volba: reverse engineering existujícího projektu z exportů."""
+def _open_import(app) -> None:
+    """Vedlejší volba: průvodce importem stávajícího zařízení (i vložení textu exportu)."""
+    from ..importer import open_wizard      # líně: importer sahá na moduly kroků
+    open_wizard(app)
 
-    def __init__(self, app):
-        self.app = app
-        self.built: dict | None = None
-        win = self.win = tk.Toplevel(app.root)
-        theme.setup_window(win, _("Import existujícího projektu"),
-                           topmost=bool(app.settings.get("topmost")))
-        win.transient(app.root)
-        win.geometry("860x680")
-        win.minsize(700, 520)
-        frm = ttk.Frame(win)
-        frm.pack(fill="both", expand=True, padx=16, pady=14)
-
-        ttk.Label(frm, text=_("Import existujícího projektu (reverse engineering)"),
-                  style="Header.TLabel").pack(anchor="w")
-        wrap_label(frm, _(
-            "Vlož export z existujícího projektu a PLC Studio z něj zpětně sestaví "
-            "zařízení a I/O — klidně pro migraci na jinou platformu. Formáty se poznají "
-            "automaticky: SimaticML XML, Rockwell L5X/CSV, GVL/ST, tabulky labelů "
-            "(CSV/tab), prostý I/O list  Tag;Adresa;Zařízení;Třída;Komentář."),
-            pady=(2, 8))
-
-        row = ttk.Frame(frm)
-        row.pack(fill="x")
-        ttk.Button(row, text=_("Načíst soubory…"), command=self._pick).pack(side="left")
-        ttk.Button(row, text=_("Analyzovat"), style="Accent.TButton", command=self._analyze
-                   ).pack(side="left", padx=(6, 0))
-        ttk.Label(row, text=_("Analýza nic nepřepíše — nejdřív uvidíš náhled."),
-                  style="Dim.TLabel").pack(side="left", padx=10)
-
-        # zdola: varování, tlačítka, náhled
-        note_box(frm, _(
-            "Co se přenese: tagy, adresy, komentáře, odhad zařízení a tříd. "
-            "Co ne: logika bloků (jen inventář), HW konfigurace, safety a komunikace — "
-            "logiku generuje PLC Studio znovu ze šablon."), warn=True, side="bottom")
-        btns = ttk.Frame(frm)
-        btns.pack(side="bottom", fill="x", pady=(8, 0))
-        self.b_apply = ttk.Button(btns, text=_("Převzít do návrhu (nahradí současná zařízení)"),
-                                  style="Accent.TButton", command=self._apply)
-        self.b_apply.pack(side="left")
-        self.b_apply.state(["disabled"])
-        ttk.Button(btns, text=_("Zavřít"), command=win.destroy).pack(side="right")
-
-        self.tbl = Table(frm, [("name", _("Zařízení"), 100, False), ("cls", _("Třída"), 110, False),
-                               ("tags", _("Tagy"), 520, True)], height=7)
-        self.tbl.pack(side="bottom", fill="x", pady=(4, 0))
-        self.info = ttk.Label(frm, text="", style="Dim.TLabel", justify="left")
-        self.info.pack(side="bottom", anchor="w", pady=(8, 0))
-        self.info.bind("<Configure>", lambda e: self.info.configure(wraplength=max(200, e.width)))
-
-        t_frm, self.txt = scrolled_text(frm, mono=True, height=8)
-        t_frm.pack(fill="both", expand=True, pady=(8, 0))
-        win.grab_set()
-
-    def _pick(self) -> None:
-        paths = filedialog.askopenfilenames(
-            parent=self.win, title=_("Exporty z PLC projektu"),
-            initialdir=self.app.settings.get("last_dir") or None,
-            filetypes=[(_("Exporty PLC"), "*.xml *.l5x *.csv *.tsv *.txt *.st *.scl *.gvl *.TcGVL"),
-                       (_("Všechny soubory"), "*.*")])
-        if not paths:
-            return
-        chunks = []
-        for path in paths:
-            try:
-                chunks.append(read_text_file(path))
-            except OSError as exc:
-                messagebox.showerror(_("Soubor nejde načíst"), f"{path}\n{exc}", parent=self.win)
-        self.txt.delete("1.0", "end")
-        self.txt.insert("1.0", "\n".join(chunks))
-
-    def _analyze(self) -> None:
-        data = self.app.bridge.request("import", text=self.txt.get("1.0", "end-1c"))
-        res, built = data["res"], data["built"]
-        self.tbl.clear()
-        self.built = None
-        self.b_apply.state(["disabled"])
-        if not res["tags"] and not res["blocks"]:
-            self.info.configure(style="Err.TLabel", text=_("Formát se nepodařilo rozpoznat "
-                                                           "nebo neobsahuje žádné tagy."))
-            return
-        text = " · ".join((_("Rozpoznaný formát: {fmt}", fmt=res["fmt"]),
-                           _("{n} tagů", n=len(res["tags"])),
-                           _("{n} zařízení", n=len(built["devices"]))))
-        if res["blocks"]:
-            more = " …" if len(res["blocks"]) > 12 else ""
-            text += "\n" + _("Nalezené bloky (jen inventář): {blocks}",
-                             blocks=", ".join(res["blocks"][:12]) + more)
-        self.info.configure(style="Ok.TLabel", text=text)
-        for d in built["devices"]:
-            tags = ", ".join(e["tag"] for e in built["io"] if e["devId"] == d["id"])
-            self.tbl.add(d["id"], (d["name"], d["cls"], tags))
-        if built["devices"]:
-            self.built = built
-            self.b_apply.state(["!disabled"])
-
-    def _apply(self) -> None:
-        app, built = self.app, self.built
-        if not built or not app.confirm_replace(_("Import")):
-            return
-        prj = app.prj
-        prj["devices"], prj["io"], prj["nextId"] = built["devices"], built["io"], built["nextId"]
-        # zařízení jsou nová (id od 1) — stará sekvence a E-stop by mířily jinam
-        prj["program"]["seq"], prj["program"]["estop"], prj["program"]["interlocks"] = [], "", []
-        app.prj = app.bridge.mutate("autoAddr", prj, False)
-        app.save()
-        self.win.destroy()
-        app.render()
-        app.set_status(_("Import převzat: {n} zařízení.", n=len(built["devices"])))

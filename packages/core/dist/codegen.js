@@ -830,6 +830,7 @@ END_DATA_BLOCK
 
 (* --- ${trx("Vložit do OB1 (Main)")} ---------------------------------
    "InstMachine"(enableIn := ${enableExpr(prj, "siemens").split("//")[0].trim()});
+   // ${enableExpr(prj, "siemens").split("//").slice(1).join("//").trim()}
    ----------------------------------------------------------- *)`;
 }
 /* ----------------------------------------------------------- soubory: IEC */

@@ -15,6 +15,11 @@ import { buildBom, bomCsv, bomMd } from "./bom.js";
 import { genPLCopenXML, parseStPou, splitLibrary } from "./plcopen.js";
 import { conceptNorm, conceptInstructions } from "./concept.js";
 import { docFDSMd, CONCEPT_FILE } from "./docs.js";
+import { extractFiles, inferProject, mergeProposals, splitTag, parseTimeLit } from "./reverse.js";
+import { canonAddr, parseXml, xmlAll } from "./importers.js";
+import { seqCond } from "./codegen.js";
+import { interlockDevs } from "./model.js";
+import { readFileSync } from "node:fs";
 test("syncIO přiřadí unikátní adresy a NC podle popisu", () => {
     const p = sampleSmall();
     const addrs = p.io.map(e => e.addr);
@@ -1048,4 +1053,419 @@ test("koncept: normalizace, markdown a podmíněný dokument", () => {
         assert.ok(conceptInstructions(p).includes("English"));
     });
     assert.equal(blankProject().concept, null);
+});
+/* ================================================= import stávajícího zařízení (reverse.ts) */
+const PLATS_ALL = ["siemens", "rockwell", "beckhoff", "codesys", "mitsubishi", "schneider", "omron", "unitronics"];
+const SAMPLE_DIR = new URL("../../../samples/", import.meta.url);
+const TEST_DATA = new URL("../test-data/", import.meta.url);
+function loadSample(prefix) {
+    const name = ["00a_hydraulicka_stanice", "03_nytovaci_lis_NL-1", "07_transferova_lisovna_TL-07", "10_vyrobni_hala_linka_rozdelovacu"]
+        .find(n => n.startsWith(prefix));
+    const j = JSON.parse(readFileSync(new URL(name + ".plcstudio.json", SAMPLE_DIR), "utf8"));
+    const p = j.prj || j;
+    syncIO(p);
+    return p;
+}
+const filesOf = (o) => Object.entries(o).map(([name, text]) => ({ name, text }));
+const clonePrj = (p) => JSON.parse(JSON.stringify(p));
+/** Srovnatelný obraz projektu: zařízení (jméno, třída, volby, rozsahy, meze, role), I/O, E-stop, blokování, sekvence. */
+function rtView(p) {
+    const dn = (id) => (p.devices.find(d => d.id === id) || { name: "" }).name;
+    return {
+        devs: p.devices.map(d => {
+            const o = d.opt || {};
+            const opt = d.cls === "Motor" ? { fbk: o.fbk !== false, fault: !!o.fault } : d.cls === "Ventil" ? { fbkOpen: o.fbkOpen !== false, fbkClosed: !!o.fbkClosed } : {};
+            const an = d.cls === "AnalogIn" || d.cls === "AnalogOut";
+            return JSON.stringify({ name: d.name, cls: d.cls, opt, rng: an ? [d.rmin, d.rmax] : null, lim: d.cls === "AnalogIn" ? [d.limLo ?? null, d.limHi ?? null] : null,
+                sp: d.cls === "AnalogOut" ? d.setpoint ?? null : null, role: d.cls === "DO" ? d.role ?? null : null });
+        }),
+        io: p.io.map(e => dn(e.devId) + "." + e.sig + "=" + e.tag + "@" + e.addr + ":" + e.dir),
+        estop: dn(p.program.estop),
+        locks: interlockDevs(p).map(d => d.name),
+        seq: p.program.seq.map(s => { const k = seqCond(p, s).kind; return [s.act === "wait" ? "" : dn(s.dev), s.act, k, k === "none" ? null : s.timeS].join("/"); }),
+    };
+}
+test("import: round-trip vlastních výstupů — 8 platforem × ukázky a příklady", () => {
+    const projects = [["sampleSmall", sampleSmall()], ["sampleComplex", sampleComplex()],
+        ...["00a", "03", "07", "10"].map(n => [n, loadSample(n)])];
+    projects.forEach(([name, p], pi) => {
+        const want = rtView(p);
+        for (const plat of PLATS_ALL) {
+            const ex = extractFiles(filesOf(genFor(p, plat)));
+            assert.equal(ex.platform, plat, name + "/" + plat + ": platforma");
+            assert.equal(ex.unparsed.length, 0, name + "/" + plat + ": vše přečteno");
+            const r = inferProject(ex);
+            assert.deepEqual(rtView(r.prj), want, name + "/" + plat);
+            assert.deepEqual(validateProject(r.prj).filter(i => i.level === "error"), [], name + "/" + plat + ": validace");
+            assert.deepEqual(r.conflicts, [], name + "/" + plat + ": bez rozporů");
+            /* náš formát: zařízení, kroky, E-stop (i Siemens — poznámka pod voláním v OB1) a blokování přesně */
+            for (const [k, e] of Object.entries(r.evidence))
+                if (/^(dev|seq|lock):|^estop$/.test(k))
+                    assert.equal(e.conf, "sure", name + "/" + plat + " " + k);
+            assert.ok(r.evidence["dev:" + r.prj.devices[0].name].src[0].file, "evidence má zdroj");
+            /* ověření simulací: každý projekt na jiné platformě (výsledek je pro všechny platformy tentýž) */
+            if (PLATS_ALL[pi % PLATS_ALL.length] === plat)
+                assert.equal(verifyProject(r.prj).ok, true, name + "/" + plat + ": ověření simulací");
+        }
+    });
+});
+test("import: round-trip v dalších jazycích (komentáře generátoru přeložené)", () => {
+    for (const l of ["en", "de", "es", "zh"])
+        withLang(l, () => {
+            const p = sampleComplex();
+            p.devices.find(d => d.name === "H1").role = "lock"; // run × lock: stejný výraz, rozliší až komentář
+            p.devices.find(d => d.name === "H2").role = "fault";
+            p.devices.find(d => d.name === "B1").limHi = 220;
+            p.devices.find(d => d.name === "U1").setpoint = 35.5;
+            const want = rtView(p);
+            for (const plat of PLATS_ALL)
+                assert.deepEqual(rtView(inferProject(extractFiles(filesOf(genFor(p, plat)))).prj), want, l + "/" + plat);
+        });
+});
+test("import: adresy — přesně tam, kde je výstup nese; jinak doplněné a hlášené", () => {
+    const p = sampleSmall();
+    const set = { M1_fbkRunning: "%I4.3", M1_outRun: "%Q2.6", B1_raw: "%IW80", Y1_fbkClosed: "%I1.7" };
+    for (const e of p.io)
+        if (set[e.tag])
+            e.addr = set[e.tag];
+    const all = Object.keys(set);
+    const carry = {
+        siemens: all, rockwell: all, codesys: all, schneider: all, unitronics: all,
+        mitsubishi: ["M1_fbkRunning", "M1_outRun", "Y1_fbkClosed"], beckhoff: [], omron: [],
+    };
+    for (const plat of PLATS_ALL) {
+        const r = inferProject(extractFiles(filesOf(genFor(p, plat))));
+        for (const t of carry[plat])
+            assert.equal(r.prj.io.find(e => e.tag === t).addr, set[t], plat + " " + t);
+        const lost = all.filter(t => !carry[plat].includes(t));
+        for (const t of lost)
+            assert.equal(r.evidence["io:" + t].conf, "guess", plat + " " + t + ": adresa odhadem");
+        if (lost.length)
+            assert.ok(r.missing.some(m => m.includes("Adresy I/O chybí")), plat + ": hlášení chybějících adres");
+        assert.deepEqual(validateProject(r.prj).filter(i => i.level === "error"), [], plat);
+    }
+});
+test("import: kanonické adresy (inverze addrFor) a pomocné parsery", () => {
+    assert.equal(canonAddr("%IX1.3", "codesys"), "%I1.3");
+    assert.equal(canonAddr("%IW32", "codesys"), "%IW64", "CODESYS %IW = index slova");
+    assert.equal(canonAddr("%IW64", "siemens"), "%IW64");
+    assert.equal(canonAddr("%E0.1"), "%I0.1", "německá mnemonika TIA");
+    assert.equal(canonAddr("%AW66"), "%QW66");
+    assert.equal(canonAddr("Q0.2"), "%Q0.2");
+    assert.equal(canonAddr("PIW256"), "%IW256");
+    assert.equal(canonAddr("X13", "mitsubishi"), "%I1.3", "FX5 osmičkově");
+    assert.equal(canonAddr("X1F"), "%I3.7", "hexadecimálně (iQ-R)");
+    assert.equal(canonAddr("Y7"), "%Q0.7");
+    assert.equal(canonAddr("%I*"), "");
+    for (const e of sampleComplex().io)
+        for (const plat of ["siemens", "codesys", "mitsubishi"]) {
+            const a = addrFor(plat, e);
+            if (a)
+                assert.equal(canonAddr(a, plat), e.addr, plat + " " + e.tag);
+        }
+    assert.equal(parseTimeLit("T#1S500MS"), 1.5);
+    assert.equal(parseTimeLit("t#2m"), 120);
+    assert.equal(parseTimeLit("TIME#250ms"), 0.25);
+    assert.deepEqual(splitTag("M1_fbkRunning"), { dev: "M1", sig: "fbkRunning", sure: true });
+    assert.equal(splitTag("Pump1Fbk", "DI").dev, "Pump1");
+    assert.equal(splitTag("Pump1Fbk", "DI").sig, "fbkRunning");
+    assert.equal(splitTag("M1_Ein", "DO").sig, "outRun");
+    assert.equal(splitTag("Y1_Open", "DO").sig, "outOpen");
+    assert.equal(splitTag("Motor_Run", "DO").dev, "Motor");
+    assert.equal(splitTag("xValve2_Opened", "DI").dev, "Valve2", "maďarská notace pryč");
+    const x = parseXml('<a x="1&amp;2"><b><![CDATA[<raw>]]></b><b>t&lt;</b></a>');
+    assert.deepEqual(xmlAll(x, "b").map(n => n.text), ["<raw>", "t<"]);
+    assert.equal(xmlAll(x, "a")[0].attrs.x, "1&2");
+});
+test("import: TIA Portal — SimaticML tabulka tagů a export tabulky do CSV (německá mnemonika)", () => {
+    const xml = readFileSync(new URL("tia_PLC_tags.xml", TEST_DATA), "utf8");
+    const ex = extractFiles([{ name: "tia_PLC_tags.xml", text: xml }]);
+    assert.equal(ex.platform, "siemens");
+    assert.equal(ex.signals.length, 7, "%M merker se nepočítá mezi I/O");
+    const r = inferProject(ex);
+    const d = (n) => r.prj.devices.find(x => x.name === n);
+    assert.equal(d("Pump1").cls, "Motor");
+    assert.deepEqual([d("Pump1").opt.fbk, d("Pump1").opt.fault], [true, true]);
+    assert.equal(d("Y1").cls, "Ventil");
+    assert.equal(d("PT101").cls, "AnalogIn");
+    assert.deepEqual([d("PT101").rmin, d("PT101").rmax, d("PT101").unit], [0, 10, "bar"], "rozsah z komentáře");
+    assert.equal(r.prj.io.find(e => e.tag === "Pump1_Trip").sig, "fault");
+    assert.equal(r.prj.program.estop, d("EStop_OK").id, "E-stop podle popisu (bez programu odhadem)");
+    assert.equal(r.evidence.estop.conf, "guess");
+    assert.equal(r.evidence["dev:Pump1"].conf, "guess");
+    assert.equal(r.evidence["io:Pump1_Run"].src[0].file, "tia_PLC_tags.xml");
+    assert.ok(r.evidence["io:Pump1_Run"].src[0].line > 1);
+    assert.ok(r.missing.length >= 2, "chybí program a takt");
+    assert.deepEqual(validateProject(r.prj).filter(i => i.level === "error"), []);
+    const csv = readFileSync(new URL("tia_PLCTags_de.csv", TEST_DATA), "utf8");
+    const r2 = inferProject(extractFiles([{ name: "PLCTags.csv", text: csv }]));
+    const m1 = r2.prj.devices.find(x => x.name === "M1");
+    assert.equal(m1.cls, "Motor");
+    assert.equal(r2.prj.io.find(e => e.tag === "M1_Ein").addr, "%Q0.0", "%A → %Q");
+    assert.equal(r2.prj.io.find(e => e.tag === "M1_RM").sig, "fbkRunning");
+    assert.equal(r2.prj.io.find(e => e.tag === "Druck_Ist").addr, "%IW64", "%EW → %IW");
+    assert.ok(!r2.prj.io.some(e => e.tag === "Merker_Takt"), "merker ne");
+    assert.equal(r2.prj.devices.find(x => x.name === "Schutztuer_zu").cls, "DI", "„zu“ bez výstupu není ventil");
+    assert.equal(r2.prj.program.estop, r2.prj.devices.find(x => x.name === "NotHalt_OK").id);
+    /* dva podklady ke stejnému označení (I/O list + tabulka tagů): jedno Y1 a rozpor, ne Y1_Open / Y1_Opened navíc */
+    const cz = readFileSync(new URL("io_list_cz.csv", TEST_DATA), "utf8");
+    const r3 = inferProject(extractFiles([{ name: "IO_list.csv", text: cz }, { name: "tia_PLC_tags.xml", text: xml }]));
+    assert.deepEqual(r3.prj.devices.filter(d => /^Y1/.test(d.name)).map(d => d.name + ":" + d.cls), ["Y1:Ventil"]);
+    assert.ok(r3.conflicts.some(c => c.what === "dev:Y1"), "rozpor rolí Y1");
+    assert.deepEqual(validateProject(r3.prj).filter(i => i.level === "error"), []);
+});
+test("import: Rockwell L5X z Logix — aliasy na moduly 1769, AOI, TONR, sekvence z CASE (odhadem)", () => {
+    const l5x = readFileSync(new URL("logix_Station10.L5X", TEST_DATA), "utf8");
+    const ex = extractFiles([{ name: "Station10.L5X", text: l5x }]);
+    assert.equal(ex.platform, "rockwell");
+    assert.equal(ex.signals.length, 11, "jen aliasy na I/O, ne interní tagy");
+    assert.ok(ex.pous.some(p => p.name === "Motor_AOI" && p.kind === "functionBlock"));
+    assert.ok(ex.pous.some(p => p.name === "Sequence" && p.lang === "ST"));
+    assert.ok(ex.pous.some(p => p.name === "MainRoutine" && p.lang === "LD"));
+    const r = inferProject(ex);
+    const p = r.prj, d = (n) => p.devices.find(x => x.name === n);
+    assert.equal(d("Conv1").cls, "Motor", "instance AOI Motor_AOI");
+    assert.equal(p.io.find(e => e.sig === "fault" && e.devId === d("Conv1").id).tag, "Conv1_OL", "parametr Overload → porucha");
+    assert.equal(p.io.find(e => e.tag === "Conv1_Run").sig, "outRun", "výstup Out → povel");
+    assert.equal(d("Clamp").cls, "Ventil");
+    assert.deepEqual([d("Clamp").opt.fbkOpen, d("Clamp").opt.fbkClosed], [true, true]);
+    assert.equal(p.io.find(e => e.tag === "EStop_OK").addr, "%I0.0");
+    assert.equal(p.io.find(e => e.tag === "Conv1_Run").addr, "%Q0.0");
+    assert.equal(p.io.find(e => e.tag === "PT101").addr, "%IW64");
+    assert.equal(p.program.estop, d("EStop_OK").id, "E-stop z výrazu Enable");
+    assert.deepEqual(p.program.interlocks, [d("Door_Closed").id], "kryt jako blokování");
+    const seq = p.program.seq.map(s => [s.act === "wait" ? "" : p.devices.find(x => x.id === s.dev).name, s.act, s.timeS]);
+    assert.deepEqual(seq.map(s => s.slice(0, 2)), [["Part_Present", "waitOn"], ["Clamp", "open"], ["Conv1", "start"], ["", "wait"], ["Conv1", "stop"], ["Clamp", "close"]]);
+    assert.equal(seq[3][2], 4, "TONR PRE 4000 ms");
+    assert.ok(Object.keys(r.evidence).filter(k => k.startsWith("seq:")).every(k => r.evidence[k].conf === "guess"), "cizí sekvence = odhad");
+    assert.ok(r.evidence["seq:1"].src[0].line > 1 && r.evidence["seq:1"].src[0].quote.includes("20:"));
+    assert.deepEqual(validateProject(p).filter(i => i.level === "error"), []);
+});
+test("import: GX Works3 globální návěští, Excel I/O list (česky) a Sysmac", () => {
+    const gx = readFileSync(new URL("gxworks3_GlobalLabel.csv", TEST_DATA), "utf8");
+    const ex = extractFiles([{ name: "GlobalLabel.csv", text: gx }]);
+    assert.equal(ex.platform, "mitsubishi");
+    assert.ok(!ex.signals.some(s => s.tag === "MAX_COUNT" || s.tag === "Count_Work"), "konstanty a datové registry ne");
+    const r = inferProject(ex);
+    const tag = (t) => r.prj.io.find(e => e.tag === t);
+    assert.equal(tag("Box_Sensor").addr, "%I1.0", "X10 = osmý vstup (FX5 osmičkově)");
+    assert.equal(tag("Conveyor_Trip").sig, "fault");
+    assert.equal(tag("Pusher_Retracted").sig, "fbkClosed");
+    assert.equal(tag("Level_AI").dir, "AI");
+    assert.equal(r.evidence["io:Level_AI"].conf, "guess", "analog bez adresy");
+    assert.equal(r.prj.devices.find(d => d.name === "Conveyor").desc, "Conveyor contactor");
+    const cz = readFileSync(new URL("io_list_cz.csv", TEST_DATA), "utf8");
+    const r2 = inferProject(extractFiles([{ name: "IO_list.csv", text: cz }]));
+    const d = (n) => r2.prj.devices.find(x => x.name === n);
+    assert.deepEqual(r2.prj.devices.map(x => x.name + ":" + x.cls), ["M1:Motor", "Y1:Ventil", "S1:DI", "S2:DI", "B1:AnalogIn", "H1:DO"]);
+    assert.equal(r2.prj.io.find(e => e.tag === "M1_porucha").sig, "fault");
+    assert.equal(r2.prj.io.find(e => e.tag === "Y1_zavreno").sig, "fbkClosed");
+    assert.equal(r2.prj.io.find(e => e.tag === "B1").addr, "%IW64");
+    assert.deepEqual([d("B1").rmin, d("B1").rmax, d("B1").unit], [0, 2000, "mm"]);
+    assert.equal(r2.prj.program.estop, d("S1").id);
+    assert.equal(d("S1").desc, "Nouzové zastavení (NC)");
+    assert.equal(r2.prj.io.find(e => e.tag === "S1").nc, true);
+    /* Sysmac: Name, Data Type, Initial Value, AT, Retain, Constant, Network Publish, Comment */
+    const sys = "Conv_Run\tBOOL\t\t\tFALSE\tFALSE\tDo not publish\tConveyor contactor\nConv_Fbk\tBOOL\t\t\tFALSE\tFALSE\tDo not publish\tConveyor running\nLevel\tINT\t\t\tFALSE\tFALSE\tDo not publish\tLevel 0-100 %";
+    const ex3 = extractFiles([{ name: "Variables.txt", text: sys }]);
+    assert.equal(ex3.platform, "omron");
+    const r3 = inferProject(ex3);
+    assert.equal(r3.prj.devices.find(x => x.name === "Conv").cls, "Motor");
+    assert.equal(r3.prj.io.find(e => e.tag === "Conv_Run").cmt, "Conveyor contactor");
+});
+test("import: cizí CODESYS (GVL + PRG) a TIA SCL — instance, uvolnění, sekvence odhadem", () => {
+    const gvl = `{attribute 'qualified_only'}
+VAR_GLOBAL
+    xEStop AT %IX0.0 : BOOL;         // Emergency stop OK (NC)
+    xGuard AT %IX0.1 : BOOL;         // Guard closed
+    xPump1_Fbk AT %IX0.2 : BOOL;     // Pump 1 running
+    xPump1_Trip AT %IX0.3 : BOOL;    // Pump 1 thermal trip
+    xTankFull AT %IX0.4 : BOOL;      // Tank full
+    xValve2_Opened AT %IX0.5 : BOOL; // Drain valve open
+    xPump1_Run AT %QX0.0 : BOOL;     // Pump 1 contactor
+    xValve2_Open AT %QX0.1 : BOOL;   (* Drain valve solenoid *)
+    iLevel AT %IW3 : INT;            // Tank level 0..2000 mm
+END_VAR`;
+    const prg = `PROGRAM PLC_PRG
+VAR
+    fbPump1 : FB_Pump;
+    iStep : INT;
+    tFill : TON;
+    xEnable : BOOL;
+    xStart : BOOL;
+END_VAR
+xEnable := GVL.xEStop AND GVL.xGuard;
+CASE iStep OF
+    0: IF xEnable AND xStart THEN iStep := 10; END_IF
+    10: GVL.xValve2_Open := TRUE;
+        IF GVL.xValve2_Opened THEN iStep := 20; END_IF
+    20: fbPump1.xStart := TRUE;
+        IF GVL.xTankFull THEN iStep := 30; END_IF
+    30: fbPump1.xStart := FALSE; GVL.xValve2_Open := FALSE;
+        IF tFill.Q THEN iStep := 0; END_IF
+END_CASE
+tFill(IN := iStep = 30, PT := T#3S);
+fbPump1(xFbk := GVL.xPump1_Fbk, xTrip := GVL.xPump1_Trip, xOut => GVL.xPump1_Run);
+END_PROGRAM`;
+    const ex = extractFiles([{ name: "GVL.st", text: gvl }, { name: "PLC_PRG.st", text: prg }]);
+    assert.equal(ex.platform, "codesys");
+    const r = inferProject(ex);
+    const p = r.prj, d = (n) => p.devices.find(x => x.name === n);
+    assert.equal(p.io.find(e => e.tag === "iLevel").addr, "%IW6", "%IW3 (slovo) → %IW6");
+    assert.equal(d("Pump1").cls, "Motor");
+    assert.deepEqual([d("Pump1").opt.fbk, d("Pump1").opt.fault], [true, true]);
+    assert.equal(p.io.find(e => e.tag === "xPump1_Run").sig, "outRun");
+    assert.equal(d("Valve2").cls, "Ventil");
+    assert.equal(p.program.estop, d("xEStop").id);
+    assert.deepEqual(p.program.interlocks, [d("xGuard").id]);
+    const seq = p.program.seq.map(s => (s.act === "wait" ? "" : p.devices.find(x => x.id === s.dev).name) + "/" + s.act + "/" + s.cond);
+    assert.deepEqual(seq, ["Valve2/open/fbk", "Pump1/start/fbk", "xTankFull/waitOn/fbk", "Pump1/stop/fbk", "Valve2/close/time"]);
+    assert.equal(p.program.seq[4].timeS, 3);
+    assert.deepEqual(validateProject(p).filter(i => i.level === "error"), []);
+    const tsv = "Name\tData Type\tLogical Address\tComment\nConv_RunFB\tBool\t%I0.0\tConveyor running\nConv_MSS\tBool\t%I0.1\tConveyor motor protection\nConv_K1\tBool\t%Q0.0\tConveyor contactor\nEmergency_OK\tBool\t%I0.2\tE-Stop";
+    const scl = `FUNCTION_BLOCK "FB_Station"
+{ S7_Optimized_Access := 'TRUE' }
+VAR
+   Conveyor : "FB_Conveyor";
+   Step : Int;
+END_VAR
+BEGIN
+   #Conveyor(Start := #Step = 20,
+             RunFeedback := "Conv_RunFB",
+             MotorProtection := "Conv_MSS",
+             Contactor => "Conv_K1");
+END_FUNCTION_BLOCK`;
+    const r2 = inferProject(extractFiles([{ name: "tags.tsv", text: tsv }, { name: "FB_Station.scl", text: scl }]));
+    const c = r2.prj.devices.find(x => x.name === "Conveyor");
+    assert.equal(c.cls, "Motor", "typ FB_Conveyor");
+    assert.equal(r2.prj.io.find(e => e.tag === "Conv_MSS").sig, "fault", "MotorProtection → porucha");
+    assert.equal(r2.prj.io.find(e => e.tag === "Conv_K1").devId, c.id);
+    assert.equal(r2.evidence["dev:Conveyor"].conf, "guess");
+});
+test("import: neznámé a binární soubory jdou AI vrstvě; mergeProposals — přesné má přednost", () => {
+    const ex = extractFiles([
+        { name: "schema.pdf", mime: "application/pdf", size: 120000 },
+        { name: "stitek.jpg", mime: "image/jpeg" },
+        { name: "popis.txt", text: "Stroj plní lahve. Po vložení palety se spustí dopravník a čeká se na čidlo." },
+    ]);
+    assert.equal(ex.unparsed.length, 3);
+    assert.ok(ex.files.every(f => !f.ok));
+    assert.ok(inferProject(ex).missing.some(m => m.includes("schema.pdf")));
+    const a = inferProject(extractFiles([{ name: "GlobalLabel.csv", text: readFileSync(new URL("gxworks3_GlobalLabel.csv", TEST_DATA), "utf8") }]));
+    assert.equal(a.prj.program.seq.length, 0);
+    /* AI: doplní sekvenci, nové zařízení a mez; adresu Conveyor_Run hlásí jinak (rozpor) */
+    const b = { prj: clonePrj(a.prj), evidence: {}, conflicts: [], missing: [] };
+    const bp = b.prj;
+    const conv = bp.devices.find(d => d.name === "Conveyor"), push = bp.devices.find(d => d.name === "Pusher");
+    bp.io.find(e => e.tag === "Conveyor_Run").addr = "%Q3.0";
+    bp.devices.find(d => d.name === "Level").limHi = 1800;
+    bp.devices.push({ id: 99, name: "H9", cls: "DO", desc: "Maják", opt: {}, unit: "", rmin: 0, rmax: 100, role: "fault" });
+    syncIO(bp);
+    bp.program.seq = [{ dev: push.id, act: "open", cond: "fbk", timeS: 3 }, { dev: conv.id, act: "start", cond: "fbk", timeS: 3 }];
+    bp.meta.takt = 12;
+    b.evidence = { "seq:0": { conf: "guess", src: [{ file: "popis.pdf", page: 2 }] }, "dev:H9": { conf: "guess", src: [{ file: "schema.pdf", page: 4 }] },
+        "io:Conveyor_Run": { conf: "guess", src: [{ file: "schema.pdf", page: 3 }] } };
+    b.missing = ["Typ snímače hladiny ze schématu nečitelný."];
+    const m = mergeProposals(a, b);
+    assert.equal(m.prj.io.find(e => e.tag === "Conveyor_Run").addr, "%Q0.0", "přesná adresa zůstává");
+    assert.ok(m.conflicts.some(c => c.what === "io:Conveyor_Run"), "rozpor adres hlášen");
+    assert.ok(m.prj.devices.some(d => d.name === "H9" && d.role === "fault"), "AI doplní zařízení");
+    assert.ok(m.prj.io.some(e => e.tag === "H9_out"), "i jeho signál");
+    assert.equal(m.prj.devices.find(d => d.name === "Level").limHi, 1800, "AI doplní mez");
+    assert.equal(m.prj.program.seq.length, 2);
+    assert.equal(m.prj.program.seq[0].dev, m.prj.devices.find(d => d.name === "Pusher").id);
+    assert.equal(m.prj.meta.takt, 12);
+    assert.equal(m.evidence["dev:H9"].src[0].page, 4);
+    assert.equal(m.evidence["seq:0"].src[0].file, "popis.pdf");
+    assert.ok(!m.missing.some(x => /Takt|Sekvence|Program/.test(x)), "sekvence a takt už nechybí");
+    assert.ok(m.missing.includes("Typ snímače hladiny ze schématu nečitelný."), "missing z AI zůstává");
+    /* adresy, které AI vrstva jen doplnila (bez evidence), nejsou adresy od AI → žádné falešné rozpory */
+    const b2 = { prj: clonePrj(a.prj), evidence: {}, conflicts: [], missing: [] };
+    for (const e of b2.prj.io)
+        e.addr = "";
+    autoAddr(b2.prj, true);
+    b2.prj.io.reverse().forEach((e, i, arr) => { if (i < arr.length / 2) {
+        const t = e.addr;
+        e.addr = arr[arr.length - 1 - i].addr;
+        arr[arr.length - 1 - i].addr = t;
+    } });
+    const m2 = mergeProposals(a, b2);
+    assert.deepEqual(m2.conflicts.filter(c => c.what.startsWith("io:")), [], "bez falešných rozporů adres");
+    assert.deepEqual(m2.prj.io.map(e => e.addr), a.prj.io.map(e => e.addr));
+    assert.deepEqual(validateProject(m.prj).filter(i => i.level === "error"), []);
+});
+/* reálné výňatky (licence a zdroje v test-data/real/README.md) */
+const REAL = new URL("../test-data/real/", import.meta.url);
+const realFile = (n) => ({ name: n, text: readFileSync(new URL(n, REAL), "utf8") });
+test("import: reálné — PLCopen SFC (taveren, balicí stroj) → sekvence s evidencí", () => {
+    const ex = extractFiles([realFile("taveren_packaging_sfc.plc.xml")]);
+    assert.ok(ex.files[0].ok && /SFC/.test(ex.files[0].note || ""));
+    const r = inferProject(ex), p = r.prj;
+    assert.equal(p.devices.length, 9);
+    const d = (n) => p.devices.find(x => x.name === n);
+    assert.equal(d("conveyor").cls, "Motor");
+    assert.equal(d("product_valve").cls, "Ventil");
+    assert.equal(d("start_button").cls, "DI");
+    assert.equal(d("red_light").cls, "DO", "akce kroku = výstup");
+    const seq = p.program.seq.map(s => (s.dev ? p.devices.find(x => x.id === s.dev).name : "") + "/" + s.act);
+    assert.equal(seq.length, 9);
+    for (const st of ["conveyor/start", "product_sensor/waitOn", "product_valve/open", "product_valve/close"])
+        assert.ok(seq.includes(st), st);
+    assert.ok(seq.indexOf("conveyor/start") < seq.indexOf("product_valve/open"), "pořadí kroků SFC");
+    for (let i = 0; i < seq.length; i++) {
+        assert.equal(r.evidence["seq:" + i].conf, "guess");
+        assert.ok(/SFC/.test(r.evidence["seq:" + i].src[0].quote || ""), "zdroj = krok SFC");
+    }
+    assert.deepEqual(validateProject(p).filter(i => i.level === "error"), []);
+});
+test("import: reálné — L5X s konvencí I_/O_ (Apache-2.0) a výňatek BNL s AOI ve FBD (BSD-3)", () => {
+    const r = inferProject(extractFiles([realFile("assembly_inspection_ladder.L5X")]));
+    const p = r.prj, d = (n) => p.devices.find(x => x.name === n);
+    assert.equal(p.io.length, 14, "jen I_/O_ tagy, ne stavové S_ / C_");
+    assert.equal(p.devices.length, 13);
+    assert.equal(d("Clamp").cls, "Ventil", "cívka + potvrzení upnutí");
+    assert.deepEqual(p.io.filter(e => e.devId === d("Clamp").id).map(e => e.tag).sort(), ["I_ClampConfirm", "O_ClampSolenoid"]);
+    assert.equal(d("Conveyor").cls, "Motor");
+    assert.equal(d("LightCurtainClear").cls, "DI");
+    assert.equal(p.program.estop, d("EStopOk").id);
+    assert.ok(r.missing.some(m => /S_StartLatched|C_ClampRequest/.test(m)), "vnitřní tagy v missing, ne jako zařízení");
+    const r2 = inferProject(extractFiles([realFile("bnl_vacuum_excerpt.L5X")]));
+    const v = r2.prj.devices.find(x => x.name === "IDA_VA_BC1_GV2_D_1");
+    assert.equal(v.cls, "Ventil", "instance GV_HNDL (FBD) = ventil");
+    const sig = (s) => r2.prj.io.find(e => e.devId === v.id && e.sig === s).tag;
+    assert.deepEqual([sig("fbkOpen"), sig("fbkClosed"), sig("outOpen")], ["IDA_VA_BC1_GV2_D_1_Opn", "IDA_VA_BC1_GV2_D_1_Cls", "IDA_VA_BC1_GV2_D_1_Coil"]);
+    assert.match(r2.evidence["dev:IDA_VA_BC1_GV2_D_1"].note || "", /GV_HNDL/);
+    assert.equal(r2.prj.devices.length, 2);
+    assert.ok(r2.prj.io.find(e => e.tag === "IDA_VA_BC1_GV2_D_1_Opn").addr !== r2.prj.io.find(e => e.tag === "IDA_VA_BC1_CCG1_1_Sts").addr, "moduly Drop_FOE:3 a Local:1 se nepřekrývají");
+    assert.deepEqual(validateProject(r2.prj).filter(i => i.level === "error"), []);
+});
+test("import: reálné — TwinCAT GVL s TcLinkTo (SLAC crixs, BSD-3): instance = zařízení, svorky EtherCAT", () => {
+    const ex = extractFiles([realFile("crixs_vac_excerpt.TcGVL")]);
+    assert.equal(ex.platform, "beckhoff");
+    assert.equal(ex.signals.length, 8);
+    const r = inferProject(ex), p = r.prj, d = (n) => p.devices.find(x => x.name === n);
+    assert.deepEqual(p.devices.map(x => x.name + ":" + x.cls), ["CRIX_VGC_01:Ventil", "CRIX_VVC_10:Ventil", "CRIX_PTM_01:Motor", "CRIX_GPI_01:AnalogIn"]);
+    assert.deepEqual([d("CRIX_VGC_01").opt.fbkOpen, d("CRIX_VGC_01").opt.fbkClosed], [true, true]);
+    assert.deepEqual([d("CRIX_PTM_01").opt.fbk, d("CRIX_PTM_01").opt.fault], [true, true]);
+    const e = p.io.find(x => x.devId === d("CRIX_VGC_01").id && x.sig === "fbkOpen");
+    assert.match(e.cmt, /CRIX:VGC:01.*E41 \(EL1004\)/, "popis z pytmc + svorka a kanál");
+    assert.equal(p.io.find(x => x.devId === d("CRIX_GPI_01").id).dir, "AI", "EL3174 = analogový vstup");
+    assert.deepEqual(validateProject(p).filter(i => i.level === "error"), []);
+});
+test("import: binární projekty IDE se ohlásí s doporučeným exportem", () => {
+    const ex = extractFiles([{ name: "_01_VE_K.ACD", size: 1131210 }, { name: "station.zap15" }, { name: "a.gxw" }]);
+    assert.equal(ex.unparsed.length, 3);
+    assert.ok(ex.files.every(f => !f.ok && f.note), "u každého doporučení exportu");
+    assert.match(ex.files[0].note || "", /L5X/);
+});
+test("import: texty hlášení jsou přeložené", () => {
+    const cz = readFileSync(new URL("io_list_cz.csv", TEST_DATA), "utf8");
+    const csMissing = inferProject(extractFiles([{ name: "x.pdf", mime: "application/pdf" }, { name: "IO.csv", text: cz }])).missing;
+    for (const l of ["en", "de", "es", "zh"])
+        withLang(l, () => {
+            const r = inferProject(extractFiles([{ name: "x.pdf", mime: "application/pdf" }, { name: "IO.csv", text: cz }]));
+            assert.equal(r.missing.length, csMissing.length, l);
+            r.missing.forEach((m, i) => assert.ok(m !== csMissing[i], l + ": " + m));
+            assert.ok(extractFiles([{ name: "x.pdf", mime: "application/pdf" }]).files[0].fmt !== "dokument / obrázek (zpracuje AI)", l);
+        });
 });

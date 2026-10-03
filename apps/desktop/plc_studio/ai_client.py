@@ -37,16 +37,123 @@ def _headers(key: str) -> dict:
             "anthropic-version": "2023-06-01"}
 
 
-def call(key: str, model: str, messages: list[dict], timeout: float = 120) -> str:
-    """Pošle konverzaci a vrátí surový text odpovědi."""
+def call(key: str, model: str, messages: list[dict], timeout: float = 120,
+         max_tokens: int = 4000) -> str:
+    """Pošle konverzaci a vrátí surový text odpovědi.
+
+    Obsah zprávy smí být text, nebo seznam bloků Messages API (``text``, ``document``
+    s PDF, ``image``) — viz ``call_full`` a ``file_block``."""
+    return call_full(key, model, messages, timeout, max_tokens, strict=False)["text"]
+
+
+def call_full(key: str, model: str, messages: list[dict], timeout: float = 120,
+              max_tokens: int = 4000, strict: bool = True) -> dict:
+    """Jako ``call``, ale vrací ``{"text", "usage", "stop_reason"}``.
+
+    Chybové kódy navíc proti ``call``: ``too_large`` (413), ``truncated`` (odpověď
+    přesáhla max_tokens), ``refusal`` (model dotaz odmítl) — jen se ``strict`` —
+    a ``bad_request`` (neplatný blok)."""
     if not key:
         raise AiError("no_key")
-    body = json.dumps({"model": model or DEFAULT_MODEL, "max_tokens": 4000,
+    for m in messages:
+        _check_content(m.get("content"))
+    body = json.dumps({"model": model or DEFAULT_MODEL, "max_tokens": int(max_tokens),
                        "messages": messages}).encode("utf-8")
     req = urllib.request.Request(API_URL, data=body, method="POST", headers=_headers(key))
     data = _send(req, timeout)
-    return "\n".join(b.get("text", "") for b in data.get("content") or []
+    text = "\n".join(b.get("text", "") for b in data.get("content") or []
                      if b.get("type") == "text")
+    stop = data.get("stop_reason") or ""
+    if strict and stop == "refusal":
+        raise AiError("refusal")
+    if strict and stop == "max_tokens":
+        raise AiError("truncated", text)
+    return {"text": text, "usage": data.get("usage") or {}, "stop_reason": stop}
+
+
+# --- obsah zpráv jako bloky (AI import podkladů: PDF, obrázky) ---------------------
+
+IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+               ".gif": "image/gif", ".webp": "image/webp"}
+PDF_TYPE = "application/pdf"
+# soubory, které se čtou jako text (ostatní neznámé se posílají binárně a AI vrstva je odmítne)
+TEXT_EXT = {".txt", ".csv", ".tsv", ".md", ".json", ".xml", ".st", ".scl", ".awl", ".l5x",
+            ".gvl", ".exp", ".log", ".ini", ".html", ".htm", ".pou", ".typ", ".db", ".udt",
+            ".tcgvl", ".tcpou", ".tcdut", ".tcio"}
+# čas na jeden dotaz importu (velké PDF a dlouhá odpověď)
+IMPORT_TIMEOUT = 600
+# výstup jednoho dotazu importu (= IMPORT_MAX_TOKENS v apps/web/src/import_ai.js)
+IMPORT_MAX_TOKENS = 32000
+
+
+def _check_content(content) -> None:
+    """Obsah zprávy: řetězec, nebo seznam bloků text / document (PDF base64) / image (base64)."""
+    if isinstance(content, str):
+        return
+    if not isinstance(content, list) or not content:
+        raise AiError("bad_request", "content")
+    for b in content:
+        t = b.get("type") if isinstance(b, dict) else None
+        if t == "text" and isinstance(b.get("text"), str):
+            continue
+        src = b.get("source") if isinstance(b, dict) else None
+        if t in ("document", "image") and isinstance(src, dict) and src.get("type") == "base64" \
+                and isinstance(src.get("data"), str) and src.get("data"):
+            mt = src.get("media_type")
+            if (t == "document" and mt == PDF_TYPE) or (t == "image" and mt in IMAGE_TYPES.values()):
+                continue
+        raise AiError("bad_request", str(t))
+
+
+def input_file(path) -> dict:
+    """Vstupní soubor pro most (``import.extract`` / ``import.messages``).
+
+    Textové soubory jako ``text`` (UTF-8, jinak cp1250), binární (PDF, obrázky…) jako
+    ``data`` v base64 — AI vrstva z nich staví bloky document / image."""
+    import base64
+    from pathlib import Path
+    p = Path(path)
+    raw = p.read_bytes()
+    ext = p.suffix.lower()
+    out = {"name": p.name, "size": len(raw)}
+    if ext == ".pdf":
+        out["mime"] = PDF_TYPE
+    elif ext in IMAGE_TYPES:
+        out["mime"] = IMAGE_TYPES[ext]
+    elif raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        # UTF-16 s BOM — tak exportuje např. GX Works3 nebo Excel („Unicode text“)
+        out["text"] = raw.decode("utf-16", errors="replace")
+        return out
+    elif ext not in TEXT_EXT and ext and b"\x00" not in raw[:4096]:
+        # neznámá přípona, ale obsah je čistý UTF-8 text (export s vlastní příponou)
+        try:
+            out["text"] = raw.decode("utf-8-sig")
+            return out
+        except UnicodeDecodeError:
+            pass
+    elif ext in TEXT_EXT or not ext:
+        for enc in ("utf-8-sig", "cp1250", "latin-1"):
+            try:
+                out["text"] = raw.decode(enc)
+                return out
+            except UnicodeDecodeError:
+                continue
+    out["data"] = base64.b64encode(raw).decode("ascii")
+    return out
+
+
+def file_block(path) -> dict:
+    """Blok Messages API ze souboru: PDF → ``document``, obrázek → ``image`` (base64)."""
+    f = input_file(path)
+    if f.get("mime") == PDF_TYPE:
+        return {"type": "document", "source": {"type": "base64", "media_type": PDF_TYPE,
+                                                "data": f["data"]}}
+    if f.get("mime") in IMAGE_TYPES.values():
+        return {"type": "image", "source": {"type": "base64", "media_type": f["mime"],
+                                             "data": f["data"]}}
+    if "text" in f:
+        return {"type": "text", "text": f["text"]}
+    raise AiError("bad_request", f["name"])
 
 
 def list_models(key: str, timeout: float = 20) -> list[str]:
@@ -68,7 +175,8 @@ def _send(req: urllib.request.Request, timeout: float) -> dict:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        code = {401: "bad_key", 429: "rate_limited"}.get(exc.code, "api_error")
+        code = {400: "bad_request", 401: "bad_key", 413: "too_large",
+                429: "rate_limited"}.get(exc.code, "api_error")
         detail = ""
         try:
             detail = (json.loads(exc.read().decode("utf-8")).get("error") or {}).get("message", "")

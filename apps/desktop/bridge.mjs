@@ -5,6 +5,7 @@
 import { createInterface } from "node:readline";
 import * as core from "../../packages/core/dist/index.js";
 import * as ai from "../web/src/ai.js";
+import * as importAi from "../web/src/import_ai.js";
 
 /* ---------------------------------------------------------------- mini DOM
    Importéry SimaticML a L5X potřebují DOMParser, který v Node není. Stačí jim
@@ -225,6 +226,31 @@ const OPS = {
     const res = core.detectAndParse(text || "");
     const built = core.buildDevicesFromTags(res.tags);
     return { res, built };
+  },
+
+  /* Import stávajícího zařízení. Desktop čte soubory sám: textové posílá jako `text`,
+     binární (PDF, obrázky) jako `data` v base64. Jádro dostane jen text — binární obsah
+     do přesného parseru nepatří a skončí v `ex.unparsed` pro AI. */
+  "import.extract"({ files = [], base = null }) {
+    const ex = core.extractFiles(files.map(({ data, ...f }) => f));
+    return { ex, proposal: core.inferProject(ex, base || undefined) };
+  },
+  /* Odhad tokenů a ceny AI části (nic se neposílá). */
+  "import.estimate"({ files = [], model, ex = null, prj = null, code = true }) {
+    return importAi.estimateImport(files, model || ai.AI_DEFAULT_MODEL, { ex, prj, code });
+  },
+  /* Zprávy jednoho dotazu pro Messages API; API volá desktop (ai_client.call_blocks). */
+  "import.messages"({ ex, files = [], part = 0, prev = null, prj = null, model, code = true }) {
+    return importAi.buildImportMessages(ex, files, { part, prev, prj, model: model || ai.AI_DEFAULT_MODEL, code });
+  },
+  /* Ceník modelu (USD za 1M tokenů vstupu / výstupu) — skutečná cena podle `usage` odpovědí. */
+  "import.model"({ model }) {
+    return { ...importAi.modelInfo(model || ai.AI_DEFAULT_MODEL), priceDate: importAi.IMPORT_PRICES_DATE };
+  },
+  /* Odpověď AI → ImportProposal; s `exact` (návrh z přesných dat) i sloučený návrh. */
+  "import.norm"({ raw, ex = null, files = [], exact = null }) {
+    const proposal = importAi.importNorm(raw, ex, files.map(({ data, ...f }) => f));
+    return { proposal, merged: exact ? core.mergeProposals(exact, proposal) : null };
   },
 };
 

@@ -186,12 +186,20 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
                     bordercolor=BORDER)
     style.map("TNotebook.Tab", background=[("selected", BG)],
               foreground=[("selected", PRIMARY)])
+    # úzké záložky pro okna s mnoha záložkami (revize importu: 7 záložek v 1100 px, němčina)
+    style.configure("Compact.TNotebook", background=BG, bordercolor=BORDER, tabmargins=(0, 4, 0, 0))
+    style.configure("Compact.TNotebook.Tab", background=BTN, foreground=FG, padding=(8, 4),
+                    bordercolor=BORDER)
+    style.map("Compact.TNotebook.Tab", background=[("selected", BG)],
+              foreground=[("selected", PRIMARY)])
 
     # jezdec posuvníku musí být vidět i na bílém pozadí (BTN na bílé téměř splývá)
     style.configure("TScrollbar", background=BORDER, troughcolor=FIELD, bordercolor=BORDER,
                     lightcolor=BORDER, darkcolor=BORDER, gripcount=0, arrowcolor=DIM)
     style.map("TScrollbar", background=[("active", "#B5CCBD"), ("pressed", "#B5CCBD")])
     style.configure("TSeparator", background=BORDER)
+    style.configure("Horizontal.TProgressbar", background=ACCENT, troughcolor=FIELD,
+                    bordercolor=BORDER, lightcolor=ACCENT, darkcolor=ACCENT)
     return style
 
 

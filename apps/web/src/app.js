@@ -2,6 +2,7 @@
 import { blankProject, sampleComplex, PLAT, LANGS, tr, N_, setLang, getLang } from "../../../packages/core/dist/index.js";
 import { seedFromProject, SAMPLE_DESC } from "./ai.js";
 import { makeSteps } from "./steps.js";
+import { makeImportWizard } from "./import_wizard.js";
 import { $, normProject, normAi } from "./util.js";
 
 const LS_KEY = "plcstudio.state";
@@ -51,7 +52,10 @@ function stepDone(i) {
   return false;
 }
 
-const steps = makeSteps({ S, save, render });
+/* Průvodce importem stávajícího zařízení (modální okno nad kroky; vstup z kroku Projekt a Zařízení). */
+let wizard = null;
+const steps = makeSteps({ S, save, render, openImport: () => wizard && wizard.open() });
+wizard = makeImportWizard({ S, save, render });
 const RENDERERS = [steps.rProjekt, steps.rAI, steps.rPlat, steps.rDev, steps.rIO, steps.rSchema, steps.rProg, steps.rGen, steps.rDocs, steps.rBom];
 
 /* Statické texty hlavičky a patičky (v index.html jsou česky jako výchozí). */
@@ -78,7 +82,16 @@ function render() {
   $("btnNext").style.visibility = (num && S.step < STEPS.length - 1) ? "visible" : "hidden";
   const r = (S.step === "help") ? steps.rHelp : (RENDERERS[S.step] || steps.rProjekt);
   $("view").innerHTML = "";
+  /* jednorázová zpráva (výsledek importu) — jen v kroku, pro který vznikla; jinam se nepřenáší */
+  if (S.notice && S.notice.step !== S.step) S.notice = null;
+  if (S.notice) {
+    const n = document.createElement("div");
+    n.className = "notice " + S.notice.level; n.id = "notice"; n.setAttribute("role", "status");
+    n.textContent = S.notice.text;
+    $("view").appendChild(n);
+  }
   r($("view"));
+  wizard.render();
   window.scrollTo({ top: 0 });
 }
 
