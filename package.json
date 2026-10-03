@@ -7,7 +7,7 @@
   "scripts": {
     "build": "pnpm -C packages/core build",
     "test": "pnpm -C packages/core test",
-    "web": "pnpm -C packages/core build && npx serve apps/web"
+    "web": "pnpm -C packages/core build && npx http-server . -p 8080 -o /apps/web/"
   },
   "packageManager": "pnpm@9"
 }

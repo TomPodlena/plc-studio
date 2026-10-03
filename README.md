@@ -1,22 +1,31 @@
 # PLC Studio
 
 Návrh PLC systému od zadání po kód a dokumentaci — pro malé integrátory, strojírny a údržby.
-Workflow: **zadání (AI návrh) → zařízení → I/O → schémata → program → generování kódu → dokumentace projektu**, multiplatformně:
+Workflow: **zadání (AI návrh) → zařízení → I/O → schémata → program (simulace a ověření) → generování kódu → dokumentace → kusovník**, multiplatformně:
 
 | Platforma | IDE | Výstup |
 |---|---|---|
 | Siemens SIMATIC | TIA Portal V17–V21 | SCL external sources, SimaticML XML, TSV tagů |
-| Rockwell Allen-Bradley | Studio 5000 | ST + CSV import tagů (remark hlavička + 0.3) |
-| Beckhoff | TwinCAT 3 | ST POU + GVL |
-| CODESYS | V3.5 | ST POU + GVL |
+| Rockwell Allen-Bradley | Studio 5000 | **L5X** (Add-On Instructions + tagy + rutina ST v dialektu Logix, import jedním krokem) + Tags.csv |
+| Beckhoff | TwinCAT 3 | **PLCopen XML** (import jedním souborem) + ST POU + GVL (AT %I* pro linkování) |
+| CODESYS | V3.5 | **PLCopen XML** + ST POU + GVL |
 | Mitsubishi | GX Works3 | ST + global labels CSV |
-| Schneider | Machine Expert | ST POU + GVL |
+| Schneider | Machine Expert | **PLCopen XML** + ST POU + GVL |
 | OMRON | Sysmac Studio | ST + tabulka proměnných |
 | Unitronics | UniLogic (UniStream) | plochý ST k vložení do ST funkce + seznam tagů k založení — **neověřeno překladem** |
 
 Výkresy: blokové schéma + elektrické zapojení I/O dle zvyklostí ECAD (rámeček s referencemi,
 popisové pole, značení `-M1` dle IEC 81346, čísla vodičů `-W1xx`, NC/NO dle IEC 60617) — SVG náhled + **DXF** export.
-Dokumentace: FDS, I/O list, svorkovnice, seznam alarmů, FAT protokol, návod k obsluze, SW dokumentace.
+Dokumentace: FDS, I/O list, svorkovnice, seznam alarmů, FAT protokol, návod k obsluze, SW dokumentace,
+protokol ověření simulací, kusovník (MD + CSV pro Excel), koncept řešení (když je zvolen).
+
+**Kusovník komponent:** z návrhu vznikne kusovník s označením dle IEC 81346 (PLC a moduly platformy, díly
+každého zařízení, rozvaděč) a s typickými značkami, typy a dodavateli z katalogu (rešerše českého trhu se
+zdroji, `data/catalog/`); verze PRO na něj naváže stavbou zařízení v CADu.
+
+**Verifikace generovaného kódu:** výstupy všech platforem jsou ověřené proti manuálům výrobců, parserem
+TwinCAT ST (blark) a schématem PLCopen TC6; skutečný import do IDE ověřený není — README každé platformy
+uvádí nejkratší test.
 
 **Simulace procesu a ověření programu:** jádro umí návrh odsimulovat scan po scanu stejnou logikou,
 jakou generuje kód (stavové automaty bloků, timeouty, sekvence), a projít poruchové scénáře —
@@ -26,7 +35,7 @@ přeložený v cílovém IDE — test v simulátoru platformy a FAT to nenahrazu
 
 **Příklady:** složka `samples/` obsahuje 12 příkladových strojů (pás s vyhazovačem, míchací nádrž, nýtovací lis,
 úpravna vody, paletizační buňka, lakovací linka, transferová lisovna, montážní linka s otočným stolem, plnicí linka
-nápojů, výrobní hala se 143 zařízeními) — otevřou se přes „Otevřít projekt…" a všechny procházejí generováním
+nápojů, výrobní hala se 125 zařízeními a 120 kroky) — otevřou se přes „Otevřít projekt…" a všechny procházejí generováním
 a ověřením simulací (`node scripts/check_samples.mjs`).
 
 **Jazyky:** čeština, angličtina, němčina, španělština a čínština — přepínač v hlavičce webu i desktopu
@@ -42,7 +51,7 @@ zákazníkovi je vhodné nechat je projít rodilým mluvčím. Postup pro vývoj
 
 ```
 packages/core     jádro (TypeScript, bez závislostí): model, generátory, import, výkresy, dokumentace
-apps/web          demo shell nad jádrem + prototype.html (plné workflow UI z prototypu)
+apps/web          webová aplikace (statické HTML + ES moduly nad packages/core/dist, bez build kroku)
 apps/desktop      desktopová aplikace (Python + tkinter) nad stejným jádrem — viz apps/desktop/README.md
 ```
 
@@ -51,28 +60,27 @@ apps/desktop      desktopová aplikace (Python + tkinter) nad stejným jádrem �
 ```bash
 pnpm -C packages/core build    # tsc → dist
 pnpm -C packages/core test     # node --test (bez externích závislostí)
-pnpm web                       # build + statický server nad apps/web
+pnpm web                       # build + statický server z kořene → http://localhost:8080/apps/web/
 apps\desktop\PLCStudio.bat     # desktopová aplikace (Python 3.9+ s tkinter, Node 18+)
 ```
 
-`apps/web/prototype.html` je původní single-file prototyp (claude.ai artifact) s kompletním
-workflow UI včetně AI návrháře — referenční implementace pro port do produkční aplikace.
+`apps/web/prototype.html` je původní single-file prototyp (claude.ai artifact) — historický, workflow
+už plně převzala webová aplikace (`index.html`) a desktop; logika v něm je zastaralá (7 platforem).
 
 ## Roadmapa (MVP → produkt)
 
-1. **Hotovo v core:** generátory pro 8 platforem, P1 opravy správnosti (Rockwell CSV hlavička,
-   Siemens TSV tagů, škálování bez NORM_X), validace + sanitizace tagů, výkresy SVG/DXF,
-   import (SimaticML, L5X, GVL/ST, CSV/tab), dokumentace, 2 ukázkové projekty, testy.
-2. Web app (React + Vite) — port workflow UI z prototypu nad `@plc-studio/core`.
-3. API + účty + projekty v DB (Node/Fastify + Postgres), CZ/EN, platby.
-4. PLCopen XML export (CODESYS/TwinCAT/Machine Expert jedním souborem).
-5. AI návrhář přes server (Anthropic API), AI z fotky P&ID.
-6. Openness worker (C#/.NET, Windows + TIA V21): import a kompilace na klik.
-7. Firemní knihovny šablon FB, HMI/UDT vrstva.
+1. **Hotovo:** generátory pro 8 platforem ověřené proti manuálům (L5X pro Rockwell, PLCopen XML pro
+   CODESYS rodinu), simulace a ověření (matice stavů, časové hledisko), web + desktop, 5 jazyků,
+   kusovník s katalogem, 12 příkladů, výkresy SVG/DXF, dokumentace, koncepty řešení v jádře.
+2. **Rozpracováno:** import stávajícího zařízení (exporty a programy z PLC zpětně, schémata a fotky přes AI).
+3. UI konceptů řešení; IEC 61131-10 XML pro GX Works3 / Sysmac.
+4. API + účty + projekty v DB (Node/Fastify + Postgres), platby; AI přes server.
+5. Openness worker (C#/.NET, Windows + TIA V21): import a kompilace na klik.
+6. Verze PRO: stavba zařízení v CADu (Cimatron) z kusovníku; firemní knihovny šablon FB, HMI/UDT vrstva.
 
 ## Stav znalostí k importům
 
-- Rockwell CSV: formát s `remark` hlavičkou a verzí `0.3` dle dokumentace Studio 5000.
+- Rockwell: hlavní cesta L5X (Import Program); Tags.csv s `remark` hlavičkou a verzí `0.3` dle RM014 jako náhradní cesta.
 - GX Works3 labels CSV: formát se liší dle verze/lokalizace — před nasazením srovnat
   s exportem z cílové instalace (viz README generované k platformě).
 - Unitronics UniLogic: ST funkce nemají vlastní paměť a import tagů bere jen soubory, které

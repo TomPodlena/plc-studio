@@ -14,7 +14,7 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
   Jádro musí běžet v prohlížeči i Node — žádné závislosti nepřidávat.
 - `apps/web` — aplikace: statické HTML + ES moduly nad `packages/core/dist` (bez bundleru,
   záměrně — budoucí přechod na Vite/React je OK, ale core zůstává oddělené).
-  `prototype.html` = původní single-file prototyp (referenční), `demo.html` = technické demo jádra.
+  `prototype.html` = původní single-file prototyp (historický, zastaralý), `demo.html` = technické demo jádra.
 - `apps/desktop` — desktopová aplikace: Python + tkinter (vizuál nástrojů PearTec), stejné workflow
   jako web. **Logiku nekopíruje** — volá `packages/core/dist` a `apps/web/src/ai.js` přes trvalý
   proces Node (`bridge.mjs`, JSON po řádcích); výkresy z jádra kreslí na `tk.Canvas`.
@@ -29,7 +29,7 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
 
 ```bash
 pnpm -C packages/core build   # tsc → dist (dist je commitnutý, po změně core přegeneruj a commitni)
-pnpm -C packages/core test    # node --test, 29+ testů, bez závislostí
+pnpm -C packages/core test    # node --test, 45+ testů, bez závislostí
 npx -y -p typescript tsc -p packages/core/tsconfig.json   # build bez pnpm (ověřeno: tsc 7 dává shodný dist)
 npx http-server . -p 8080     # → http://localhost:8080/apps/web/
 # desktop (z apps/desktop; na vývojové stanici pinovat Python311, ne bare `python`):
@@ -72,8 +72,8 @@ node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s
 
 ## Příklady a ověření simulací
 
-- `samples/*.plcstudio.json` — 12 příkladových strojů od pásu se 6 zařízeními po výrobní halu se 143
-  zařízeními a 85 kroky (formát = uložený projekt desktopu / export webu). Každý musí projít
+- `samples/*.plcstudio.json` — 12 příkladových strojů od pásu se 6 zařízeními po výrobní halu se 125
+  zařízeními a 120 kroky (formát = uložený projekt desktopu / export webu). Každý musí projít
   `check_samples.mjs`: validace, kód pro všech 8 platforem (párování IF/CASE/FB, ASCII u Unitronics
   a DXF, deklarované identifikátory), dokumentace, ověření bez nálezu `error` a matice bez ✖.
 - `verifyProject()`: běžný cyklus, poruchové scénáře, **kontrola konceptu** (vstupy, které program
