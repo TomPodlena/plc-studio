@@ -56,7 +56,7 @@ backend:
   name: github
   repo: TomPodlena/plc-studio
   branch: main
-  base_url: https://sveltia-cms-auth.PLACEHOLDER_UCET.workers.dev
+  base_url: https://sveltia-cms-auth.podlena-t.workers.dev
 
 media_folder: apps/site/assets/img
 public_folder: /assets/img

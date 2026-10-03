@@ -27,7 +27,7 @@ not_found_handling = "404-page"
 [[d1_databases]]
 binding = "DB"
 database_name = "plcdesk"
-database_id = "PLACEHOLDER_ID_Z_wrangler_d1_create_plcdesk"
+database_id = "18d078cf-4b47-484c-97be-6923ea8f4cd5"
 
 # ---- R2: instalacky (volitelne, POZDEJI) ----
 # R2 ma 10 GB zdarma, ale zapnuti R2 vyzaduje platebni kartu v uctu Cloudflare.
@@ -39,7 +39,7 @@ database_id = "PLACEHOLDER_ID_Z_wrangler_d1_create_plcdesk"
 [vars]
 APP_NAME = "PLCdesk"
 # Adresa webu - JEDINE misto pro Worker; musi sedet s "url" v content/site.json.
-PUBLIC_SITE = "https://plcdesk.PLACEHOLDER_UCET.workers.dev"
+PUBLIC_SITE = "https://plcdesk.podlena-t.workers.dev"
 # "direct" = free tarif bez vlastni domeny: zadne e-maily, odkaz ke stazeni se ukaze na strance.
 # "resend" = az bude domena a overeny odesilatel v Resend (MAIL_FROM + secret RESEND_API_KEY).
 MAIL_MODE = "direct"
