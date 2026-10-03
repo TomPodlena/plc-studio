@@ -161,7 +161,7 @@ node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s
   z protokolu `08_overeni_simulaci.md` neodstraňovat.
 - Schémata (SVG) nesou odkazy `data-dev` / `data-mod` / `data-io` / `data-step` a popis v `<title>`;
   DXF je ignoruje. Interaktivní náhledy na nich stojí — při úpravě výkresů je zachovat.
-- Rockwell CSV: povinná hlavička `remark,…` + řádek `0.3`; žádný WORD (→ INT). GX Works3 CSV
+- Rockwell: hlavní výstup je L5X (`logix.ts`: AOI ze šablon přes `lxDialect`, TONR/FBD_TIMER s PRE v ms, WORD → DINT, analogy REAL 0–100 %, kontrola `logixProblems`); Tags.csv jako náhradní cesta — povinná hlavička `remark,…` + řádek `0.3`, ASCII popisy s escapováním `$`, aliasy na body modulů 5069. GX Works3 CSV
   formát je verzově vrtkavý — před změnou srovnat s reálným exportem.
 - AI návrhář: protokol = JSON {questions, devices, estop, seq, note}; instrukce v `apps/web/src/ai.js`
   (`aiInstructions()` — posílá i aktuální sestavu). Ve webu zatím přímé volání Anthropic API
