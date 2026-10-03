@@ -12,6 +12,10 @@ Program → Generovat → Dokumentace, plus Nápověda.
 Potřebuje **Python 3.9+ s tkinter** a **Node 18+** (jádro běží v Node). Žádné balíčky
 se neinstalují; Pillow je volitelný (generování ikony, snímky při `--smoke`; logo v hlavičce zatím není).
 
+Přenosná verze bez instalace (Python + Node přibalené, ZIP ~45 MB):
+`python scripts/build_portable.py [--out SLOŽKA]` (spouštět Pythonem, který se má přibalit — Python311).
+Most hledá Node v pořadí `PLCDESK_NODE` → `<kořen>/runtime/node/node.exe` → PATH → obvyklá místa instalace.
+
 ## Jak to drží pohromadě
 
 ```

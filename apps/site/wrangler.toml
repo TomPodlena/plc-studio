@@ -49,8 +49,8 @@ MAIL_SIGNATURE = "PLCdesk"
 # Soubor ke stazeni (bez R2): odkaz na asset v GitHub Releases, napr.
 #   https://github.com/<ucet>/<repo>/releases/download/v0.1.0/PLCdesk-0.1.0-portable.zip
 # Prazdne = "soubor zatim neni k dispozici" (503), dokud neni prvni verze.
-DOWNLOAD_URL = ""
-RELEASE_VERSION = "0.0.0"
+DOWNLOAD_URL = "https://github.com/TomPodlena/plc-studio/releases/download/v0.1.0/PLCdesk-0.1.0-portable.zip"
+RELEASE_VERSION = "0.1.0"
 # Platby: "stripe" | "paddle" | "" (prazdne = platby vypnute, oba webhooky 404).
 # Musi sedet s "payments.provider" v content/site.json (tlacitka na strance Cenik).
 PAYMENT_PROVIDER = ""

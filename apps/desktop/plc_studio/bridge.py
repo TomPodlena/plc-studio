@@ -27,7 +27,15 @@ class BridgeError(RuntimeError):
 
 
 def find_node() -> str | None:
-    """Cesta k ``node`` — PATH, jinak obvyklá místa instalace na Windows."""
+    """Cesta k ``node``: proměnná ``PLCDESK_NODE``, přibalený runtime přenosné
+    verze (``<kořen>/runtime/node/node.exe``), PATH, obvyklá místa instalace."""
+    env = os.environ.get("PLCDESK_NODE")
+    if env and Path(env).is_file():
+        return env
+    # přenosná verze: <kořen>/app/apps/desktop/bridge.mjs → <kořen>/runtime/node
+    portable = BRIDGE_JS.parents[3] / "runtime" / "node" / "node.exe"
+    if portable.is_file():
+        return str(portable)
     exe = shutil.which("node")
     if exe:
         return exe
