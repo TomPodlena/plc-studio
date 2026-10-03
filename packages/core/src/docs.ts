@@ -1,5 +1,5 @@
 /**
- * PLC Studio — generování projektové dokumentace
+ * PLCdesk — generování projektové dokumentace
  * (FDS, I/O list, svorkovnice, alarmy, FAT, návod, SW dokumentace, přehled).
  *
  * Texty jdou přes `tr()` po přirozených jednotkách (nadpis, odstavec, odrážka, řádek
@@ -15,6 +15,8 @@ import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
 import { conceptMd } from "./concept.js";
 import { simulate, docVerifyMd, stepWatchdog, stepTitle, stepCondText } from "./sim.js";
 import { svgFlow, svgTiming, svgMachine } from "./flow.js";
+import { approvalItems, approvalStamp, approvalsMd, designView, APPROVAL_FILE, type ApprovalGroup, type ApprovalItem } from "./approval.js";
+import { commissioningPlan, commissioningMd, commissioningCsv, COMMISSION_FILE_MD, COMMISSION_FILE_CSV } from "./commission.js";
 
 function dnes(): string { return today(); }
 function estopTxt(prj: Project): string {
@@ -65,13 +67,51 @@ export const DOC_META: Array<[path: string, tab: string, title: string]> = [
   ["08_overeni_simulaci.md", N_("Simulace"), N_("ověření sekvence simulací procesu (běžný cyklus, poruchy, E-stop)")],
   ["09_kusovnik.md", N_("Kusovník"), N_("kusovník komponent se značkami a dodavateli")],
   ["09_kusovnik.csv", N_("Kusovník CSV"), N_("kusovník pro Excel / poptávku")],
+  [APPROVAL_FILE, N_("Schválení"), N_("schválení položek návrhu: stav, kdo, kdy, poznámka")],
+  [COMMISSION_FILE_MD, N_("Oživení"), N_("plán a protokol oživení po fázích")],
+  [COMMISSION_FILE_CSV, N_("Oživení CSV"), N_("protokol oživení k tisku a vyplnění")],
 ];
+
+/**
+ * Razítko stavu schválení v dokumentech: které skupiny položek dokument pokrývá
+ * ([] = všechny povinné). Dokumenty, které tu nejsou, razítko nenesou (CSV, koncept);
+ * 11 a 12 ho mají ve vlastním těle.
+ */
+const DOC_STAMP: Record<string, ApprovalGroup[]> = {
+  "00_prehled_dokumentace.md": [],
+  "01_funkcni_specifikace_FDS.md": ["design", "program"],
+  "05_testovaci_protokol_FAT.md": ["design", "program"],
+  "06_navod_k_obsluze.md": ["design", "program"],
+  "07_softwarova_dokumentace.md": ["program"],
+  "08_overeni_simulaci.md": ["verify"],
+  "09_kusovnik.md": ["design"],
+};
+
+/**
+ * Protokol ověření nad návrhem (`designView`): cache ověření je tak společná se schvalováním
+ * a změna názvu projektu, schválení nebo výsledků oživení ověření znovu nespouští. Návrh nemá
+ * název projektu — do hlavičky se dosadí zpět.
+ */
+function verifyDocMd(prj: Project): string {
+  const body = docVerifyMd(designView(prj));
+  const head = (name: string) => tr("**Projekt:** {name} · generováno nástrojem PLCdesk", { name });
+  return body.replace(head("—"), head(prj.meta.name || "—"));
+}
+
+/** Vloží razítko (řádek Markdownu) pod nadpis dokumentu. */
+function stampBody(body: string, md: string): string {
+  if (!md) return body;
+  const lines = body.split("\n");
+  if (!lines[0].startsWith("# ")) return md + "\n\n" + body;
+  lines.splice(1, 0, "", md);
+  return lines.join("\n");
+}
 
 export function docIndexMd(prj: Project): string {
   return [
     "# " + tr("Přehled dokumentace projektu"),
     "",
-    tr("**Projekt:** {name} · generováno {date} nástrojem PLC Studio", { name: prj.meta.name || "—", date: dnes() }),
+    tr("**Projekt:** {name} · generováno {date} nástrojem PLCdesk", { name: prj.meta.name || "—", date: dnes() }),
     "",
     "## " + tr("Obsah"),
     DOC_META.map(x => "- `" + x[0] + "` — " + tr(x[2])).join("\n"),
@@ -98,7 +138,7 @@ export function docFDSMd(prj: Project): string {
     "|---|---|",
     "| **" + tr("Projekt") + "** | " + (prj.meta.name || "—") + " |",
     "| **" + tr("Datum") + "** | " + dnes() + " |",
-    "| **" + tr("Revize") + "** | " + tr("0.1 — návrh (PLC Studio)") + " |",
+    "| **" + tr("Revize") + "** | " + tr("0.1 — návrh (PLCdesk)") + " |",
     "",
     "## " + tr("1. Popis stroje a účel"),
     prj.meta.desc || tr("(doplnit)"),
@@ -348,21 +388,45 @@ export function docSWMd(prj: Project): string {
     "## " + tr("6. Verze a zálohy"),
     tr("| Verze | Datum | Autor | Změna |"),
     "|---|---|---|---|",
-    "| 0.1 | " + dnes() + " | PLC Studio | " + tr("první generování") + " |",
+    "| 0.1 | " + dnes() + " | PLCdesk | " + tr("první generování") + " |",
   ].join("\n");
 }
 
 export interface DocFile { path: string; tab: string; title: string; body: string; }
-export function docFiles(prj: Project): DocFile[] {
+export function docFiles(prj: Project, items: ApprovalItem[] = approvalItems(prj)): DocFile[] {
+  const plan = commissioningPlan(prj);
   const bodies = [
     docIndexMd(prj), docFDSMd(prj), docIOcsv(prj), svorkyCSV(prj),
-    docAlarmCsv(prj), docFATMd(prj), docManualMd(prj), docSWMd(prj), docVerifyMd(prj),
+    docAlarmCsv(prj), docFATMd(prj), docManualMd(prj), docSWMd(prj),
+    verifyDocMd(prj),
     bomMd(prj), bomCsv(prj),
+    approvalsMd(prj, items), commissioningMd(prj, plan), commissioningCsv(prj, plan),
   ];
-  const out = DOC_META.map((m, i) => ({ path: m[0], tab: tr(m[1]), title: tr(m[2]), body: bodies[i] }));
+  const out = DOC_META.map((m, i) => {
+    const g = DOC_STAMP[m[0]];
+    return { path: m[0], tab: tr(m[1]), title: tr(m[2]), body: g ? stampBody(bodies[i], approvalStamp(prj, g, items).md) : bodies[i] };
+  });
   /* koncept řešení (AI nadstavba) jen když je zvolený */
   if (prj.concept) out.push({ path: CONCEPT_FILE, tab: tr("Koncept"), title: tr("koncept řešení (AI návrh k revizi)"), body: conceptMd(prj) });
+  for (const p of docProviders) if (p.docs) out.push(...p.docs(prj, items));
   return out;
+}
+
+/**
+ * Další moduly (bezpečnostní funkce…) přidávají dokumenty (`docs`) a soubory sady projektu
+ * (`files`: schémata, programy) bez zásahu do tohoto souboru. Stejné `name` nahradí dřívější
+ * zdroj; vrací funkci pro odhlášení.
+ */
+export interface DocProvider {
+  docs?: (prj: Project, items: ApprovalItem[]) => DocFile[];
+  files?: (prj: Project, items: ApprovalItem[]) => ProjectFile[];
+}
+const docProviders: Array<DocProvider & { name: string }> = [];
+export function registerDocProvider(name: string, p: DocProvider): () => void {
+  const at = docProviders.findIndex(x => x.name === name);
+  const rec = { ...p, name };
+  if (at >= 0) docProviders[at] = rec; else docProviders.push(rec);
+  return () => { const i = docProviders.indexOf(rec); if (i >= 0) docProviders.splice(i, 1); };
 }
 
 /** Dokument konceptu řešení — číslo za pevnou sadou 00–09. */
@@ -377,7 +441,8 @@ export interface ProjectFile {
 export function allProjectFiles(prj: Project): ProjectFile[] {
   const out: ProjectFile[] = [];
   const gDocs = tr("Dokumentace"), gSch = tr("Schémata");
-  for (const f of docFiles(prj)) out.push({ group: gDocs, name: f.path, save: f.path, body: f.body, kind: "text" });
+  const items = approvalItems(prj);
+  for (const f of docFiles(prj, items)) out.push({ group: gDocs, name: f.path, save: f.path, body: f.body, kind: "text" });
   const mods = modules(prj);
   out.push({ group: gSch, name: "blokove_schema.svg", save: "00_blokove_schema.svg", body: svgBlock(prj, mods), kind: "svg" });
   out.push({ group: gSch, name: "schema_stroje.svg", save: "00_schema_stroje.svg", body: svgMachine(prj), kind: "svg" });
@@ -391,9 +456,12 @@ export function allProjectFiles(prj: Project): ProjectFile[] {
     out.push({ group: gSch, name: base + ".svg", save: pre + base + ".svg", body: sheetSVG(prj, m, i + 1, i + 1, mods.length), kind: "svg" });
     out.push({ group: gSch, name: base + ".dxf", save: pre + base + ".dxf", body: sheetDXF(prj, m, i + 1, i + 1, mods.length), kind: "dxf", prev: sheetSVG(prj, m, i + 1, i + 1, mods.length) });
   });
+  for (const p of docProviders) if (p.files) out.push(...p.files(prj, items));
   for (const p of prj.platforms) {
     const files = genFor(prj, p);
-    for (const [n, b] of Object.entries(files)) out.push({ group: tr("PLC — {name}", { name: PLAT[p].name }), name: n, save: p + "_" + n, body: b, kind: "text" });
+    /* README platformy nese razítko stavu programu (zdrojové soubory se nemění) */
+    const stamp = approvalStamp(prj, ["design", "program", "verify"], items).text;
+    for (const [n, b] of Object.entries(files)) out.push({ group: tr("PLC — {name}", { name: PLAT[p].name }), name: n, save: p + "_" + n, body: n === "README.txt" && stamp ? stamp + "\n\n" + b : b, kind: "text" });
   }
   return out;
 }

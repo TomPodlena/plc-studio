@@ -1,0 +1,37 @@
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">{{page.eyebrow}}</p>
+    <h1>{{page.h1}}</h1>
+    <p class="lead measure">{{page.lead}}</p>
+  </div>
+</section>
+
+<section class="sec sec-tight">
+  <div class="wrap">
+    <div class="plans">
+      {{#each page.plans}}
+      <article class="plan plan-{{@i}}">
+        <h2>{{.name}}</h2>
+        <p class="price">{{.price}} <small>{{.unit}}</small></p>
+        <ul class="ticks">{{.points|li}}</ul>
+        <a class="btn plan-cta" data-plan="{{.id}}" href="{{BLOCK.url_stazeni}}">{{.cta}}</a>
+      </article>
+      {{/each}}
+    </div>
+    <p class="fine">{{page.vat}}</p>
+    <p class="order-note">{{page.order_terms}} <a href="{{BLOCK.url_podminky}}">{{nav.podminky}}</a> · <a href="{{BLOCK.url_soukromi}}">{{nav.soukromi}}</a></p>
+    <div class="box measure">
+      <p>{{page.unlock}}</p>
+      <p><a class="btn btn-ghost" href="{{BLOCK.url_kontakt}}">{{page.unlock_cta}}</a></p>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-tint">
+  <div class="wrap measure-wrap">
+    <h2>{{page.faq_title}}</h2>
+    {{#each page.faq}}
+    <details class="faq"><summary>{{.q}}</summary><p>{{.a}}</p></details>
+    {{/each}}
+  </div>
+</section>

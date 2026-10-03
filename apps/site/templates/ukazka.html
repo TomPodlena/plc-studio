@@ -1,0 +1,39 @@
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">{{page.eyebrow}}</p>
+    <h1>{{page.h1}}</h1>
+    <p class="lead measure">{{page.lead}}</p>
+    <div class="cta-row">
+      <a class="btn" href="{{page.pdf}}" download>{{page.pdf_cta}}</a>
+    </div>
+    <p class="fine measure">{{page.pdf_note}}</p>
+  </div>
+</section>
+
+<section class="sec sec-tight">
+  <div class="wrap">
+    <h2>{{page.contents_title}}</h2>
+    <div class="grid-4">
+      {{#each page.contents}}
+      <article class="card"><h3>{{.name}}</h3><p>{{.desc}}</p></article>
+      {{/each}}
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-tint">
+  <div class="wrap figs">
+    <figure class="fig fig-wide">
+      <img src="/assets/img/ukazka-blokove.svg" alt="{{page.fig_block}}" loading="lazy" width="1200" height="800">
+      <figcaption>{{page.fig_block}}</figcaption>
+    </figure>
+    <figure class="fig">
+      <img src="/assets/img/ukazka-di1.svg" alt="{{page.fig_sheet}}" loading="lazy" width="1200" height="800">
+      <figcaption>{{page.fig_sheet}}</figcaption>
+    </figure>
+    <figure class="fig">
+      <img src="/assets/img/ukazka-bezpecnost.svg" alt="{{page.fig_safety}}" loading="lazy" width="1200" height="800">
+      <figcaption>{{page.fig_safety}}</figcaption>
+    </figure>
+  </div>
+</section>

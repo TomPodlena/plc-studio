@@ -1,0 +1,46 @@
+<section class="page-head">
+  <div class="wrap split split-top">
+    <div>
+      <p class="eyebrow">{{page.eyebrow}}</p>
+      <h1>{{page.h1}}</h1>
+      <p class="lead">{{page.lead}}</p>
+
+      <div class="box box-ok" data-token-box hidden>
+        <h2>{{page.token_title}}</h2>
+        <p>{{page.token_body}}</p>
+        <p><a class="btn" href="#">{{page.token_cta}}</a></p>
+      </div>
+
+      <form class="form" data-lead novalidate
+            data-sending="{{page.f_sending}}" data-ok="{{page.f_ok}}" data-ok-direct="{{page.f_ok_direct}}"
+            data-token-cta="{{page.token_cta}}" data-consent="{{page.f_consent_err}}" data-err="{{page.f_err}}" data-net="{{page.f_net}}">
+        <input type="hidden" name="lang" value="{{meta.lang}}">
+        <div class="hp" aria-hidden="true">
+          <label for="web">{{page.f_hp}}</label>
+          <input id="web" name="web" type="text" tabindex="-1" autocomplete="off">
+        </div>
+        <label for="email">{{page.f_email}}</label>
+        <div class="form-row">
+          <input id="email" name="email" type="email" placeholder="{{page.f_placeholder}}" autocomplete="email" required>
+          <button class="btn" type="submit">{{page.f_submit}}</button>
+        </div>
+        <label class="consent"><input type="checkbox" name="consent" required> <span>{{page.f_consent}} <a href="{{BLOCK.url_podminky}}">{{nav.podminky}}</a></span></label>
+        <div class="cf-turnstile" data-sitekey="{{BLOCK.turnstile_sitekey}}" data-language="{{meta.lang}}" data-size="flexible"></div>
+        <p class="form-msg" role="status" aria-live="polite"></p>
+        <p class="fine">{{page.f_note}} <a href="{{BLOCK.url_soukromi}}">{{nav.soukromi}}</a></p>
+      </form>
+      <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    </div>
+
+    <div class="side">
+      <div class="box">
+        <h2>{{page.req_title}}</h2>
+        <ul class="ticks">{{page.req|li}}</ul>
+      </div>
+      <div class="box">
+        <h2>{{page.next_title}}</h2>
+        <ol class="nums">{{page.next|li}}</ol>
+      </div>
+    </div>
+  </div>
+</section>

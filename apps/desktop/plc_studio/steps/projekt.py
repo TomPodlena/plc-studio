@@ -170,4 +170,4 @@ def render(app, parent) -> None:
         "z exportů PLC, I/O listů a schémat tlačítkem Načíst stávající zařízení. "
         "Pokud s PLC začínáš, otevři Nápovědu "
         "(tlačítko vpravo v liště kroků). Soubor projektu (.plcstudio.json) je "
-        "zaměnitelný s exportem z webové verze PLC Studia."), pady=(16, 0))
+        "zaměnitelný s exportem z webové verze PLCdesk."), pady=(16, 0))

@@ -99,6 +99,17 @@ export function bomPlatform(prj) {
         return p;
     return (prj.platforms && prj.platforms[0]) || "siemens";
 }
+const bomProviders = [];
+/** Přihlásí zdroj dalších řádků kusovníku (`drop` = id řádků, které nahrazuje). Vrací odhlášení. */
+export function registerBomProvider(fn, name) {
+    const at = bomProviders.findIndex(p => p.name === name);
+    if (at >= 0)
+        bomProviders[at] = { name, fn };
+    else
+        bomProviders.push({ name, fn });
+    return () => { const i = bomProviders.findIndex(p => p.name === name && p.fn === fn); if (i >= 0)
+        bomProviders.splice(i, 1); };
+}
 /** Sestaví kusovník. Výsledek je deterministický (stejný projekt → stejné řádky). */
 export function buildBom(prj) {
     const plat = bomPlatform(prj);
@@ -175,11 +186,24 @@ export function buildBom(prj) {
     add("-X1", "terminal_block", Math.ceil(prj.io.length * 1.2) + 10, tr("Svorky I/O a napájení"));
     add("-W1xx", "cable_sensor", sensors, tr("Připojení snímačů"));
     add("+1", "cabinet", 1, tr("Rozvaděč stroje"), { note: tr("velikost podle počtu modulů a stykačů") });
+    /* --- řádky dalších modulů (bezpečnostní funkce…) */
+    for (const p of bomProviders) {
+        const r = p.fn(prj, plat);
+        for (const id of r.drop || []) {
+            const i = raw.findIndex(x => x.id === id);
+            if (i >= 0)
+                raw.splice(i, 1);
+        }
+        for (const e of r.add)
+            if (e.qty > 0 && !raw.some(x => x.id === e.tag + ":" + e.cat))
+                raw.push({ id: e.tag + ":" + e.cat, tag: e.tag, cat: e.cat, qty: e.qty, unit: tr("ks"), desc: e.desc, note: e.note || "", safety: e.safety, devId: e.devId, item: e.item, preset: e.preset });
+    }
     /* --- značky z katalogu a volby uživatele */
     const lines = raw.map((r, i) => {
         const key = catKey(r.cat, plat);
         const brands = brandsFor(r.cat, plat);
-        const pickName = cfg.lines?.[r.id]?.brand ?? cfg.brand?.[key];
+        const pre = r.preset;
+        const pickName = cfg.lines?.[r.id]?.brand ?? cfg.brand?.[key] ?? (pre?.brand && !brands.length ? pre.brand : undefined);
         /* bez volby uživatele: značka shodná s platformou PLC (Schneider → stykače Schneider), jinak první */
         const platBrand = PLAT[plat].name.split(" ")[0].toLowerCase();
         /* volba mimo katalog (vlastní značka) = žádná data z katalogu, jen to, co zadal uživatel */
@@ -189,18 +213,21 @@ export function buildBom(prj) {
         const custom = pickName !== undefined && !b;
         const over = cfg.lines?.[r.id] || {};
         const sup = (b?.suppliers?.[0] ? tr(b.suppliers[0]) : "") || (custom ? "" : tr(suppliersFor(key)[0]?.name || ""));
+        /* typ od modulu (bez katalogu kategorie), dokud uživatel nezvolí jinou značku */
+        const usePre = !!pre && custom && pickName === pre.brand;
+        const { preset: _pre, item: ownItem, ...rest } = r;
         return {
-            ...r,
+            ...rest,
             pos: i + 1,
-            item: tr(CAT_LABEL[r.cat] || r.cat),
+            item: ownItem || tr(CAT_LABEL[r.cat] || r.cat),
             qty: Number.isFinite(over.qty) && over.qty >= 0 ? over.qty : r.qty,
             brand: custom ? pickName : b?.brand ?? "",
-            type: over.type ?? (b?.typical ? tr(b.typical) : (b?.series || []).map(x => tr(x)).join(" / ")),
-            orderCode: over.orderCode ?? b?.orderCode ?? "",
+            type: over.type ?? (usePre ? pre.type || "" : b?.typical ? tr(b.typical) : (b?.series || []).map(x => tr(x)).join(" / ")),
+            orderCode: over.orderCode ?? (usePre ? pre.orderCode || "" : b?.orderCode ?? ""),
             supplier: over.supplier ?? sup,
             note: [r.note, over.note].filter(Boolean).join("; "),
             optId: b ? brandOptId(b) : "",
-            src: b?.src || "",
+            src: usePre ? pre.src || "" : b?.src || "",
             ...(Number.isFinite(over.qty) && over.qty === 0 ? { excluded: true } : {}),
         };
     }).filter(l => l.qty > 0 || l.excluded);
@@ -227,7 +254,7 @@ export function bomMd(prj) {
     const out = [
         "# " + tr("Kusovník komponent") + " — " + (prj.meta.name || ""),
         "",
-        tr("Platforma řízení: **{plat}**. Značky a typy jsou typické volby z katalogu PLC Studia — podklad k poptávce, ne projekt elektro. Dimenzování a bezpečnostní prvky podle posouzení rizik ověří projektant (návrh k revizi).", { plat: PLAT[plat].name }),
+        tr("Platforma řízení: **{plat}**. Značky a typy jsou typické volby z katalogu PLCdesk — podklad k poptávce, ne projekt elektro. Dimenzování a bezpečnostní prvky podle posouzení rizik ověří projektant (návrh k revizi).", { plat: PLAT[plat].name }),
         "",
         "| # | " + [tr("Označení"), tr("Položka"), tr("Popis"), tr("Ks"), tr("Výrobce"), tr("Typ"), tr("Objednací kód"), tr("Dodavatel")].join(" | ") + " |",
         "|---|---|---|---|---:|---|---|---|---|",

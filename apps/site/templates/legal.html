@@ -1,0 +1,27 @@
+<section class="page-head">
+  <div class="wrap measure-wrap legal">
+    <p class="eyebrow">{{page.eyebrow}}</p>
+    <h1>{{page.h1}}</h1>
+    <div class="pending" role="note">
+      <span class="stamp stamp-stale">{{ui.pending_legal}}</span>
+      <p>{{ui.legal_draft}}</p>
+    </div>
+    <dl class="spec legal-meta">
+      <div class="spec-row"><dt>{{ui.legal_effective}}</dt><dd>{{site.legal_effective}}</dd></div>
+      <div class="spec-row"><dt>{{ui.legal_operator}}</dt><dd>{{site.operator.name}}, {{ui.legal_id}} {{site.operator.id}}, {{site.operator.address}}</dd></div>
+      <div class="spec-row"><dt>{{ui.legal_contact}}</dt><dd><a href="mailto:{{site.email}}">{{site.email}}</a></dd></div>
+    </dl>
+    <p class="lead">{{page.lead}}</p>
+    <nav class="toc" aria-label="{{ui.legal_toc}}">
+      {{#each page.sections}}
+      <a href="#{{.id}}">{{@n}}. {{.h}}</a>
+      {{/each}}
+    </nav>
+    {{#each page.sections}}
+    <section class="legal-sec" id="{{.id}}">
+      <h2><span class="feature-n">{{@n}}</span>{{.h}}</h2>
+      {{.body|p}}
+    </section>
+    {{/each}}
+  </div>
+</section>

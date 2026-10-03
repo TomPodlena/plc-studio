@@ -1,4 +1,4 @@
-/* PLC Studio — most mezi desktopovou aplikací (Python/tkinter) a jádrem.
+/* PLCdesk — most mezi desktopovou aplikací (Python/tkinter) a jádrem.
    Běží jako trvalý proces: na stdin čte požadavky (jeden JSON na řádek),
    na stdout vrací odpovědi (jeden JSON na řádek). Veškerá logika zůstává
    v packages/core — desktop je jen další UI nad stejným jádrem. */
@@ -6,6 +6,10 @@ import { createInterface } from "node:readline";
 import * as core from "../../packages/core/dist/index.js";
 import * as ai from "../web/src/ai.js";
 import * as importAi from "../web/src/import_ai.js";
+import * as safety from "../web/src/safety_view.js";
+
+/* Bezpečnostní modul (položky ke schválení, kroky validace, dokumenty, kusovník) — jako ve webu. */
+core.registerSafetyModule();
 
 /* ---------------------------------------------------------------- mini DOM
    Importéry SimaticML a L5X potřebují DOMParser, který v Node není. Stačí jim
@@ -74,6 +78,9 @@ function liveState() {
 
 /* ---------------------------------------------------------------- operace */
 const sheetName =(m, i) => String(i + 1).padStart(2, "0") + "_" + m.dir + m.idx + "_X" + (i + 1);
+
+/** Do kolika zařízení se ověření simulací pro odznak spočítá hned (zlomek sekundy). */
+const BADGE_LIVE_DEVICES = 30;
 
 const OPS = {
   /* Konstanty jádra v jazyce `lang` (výchozí čeština) a katalog překladů pro okno.
@@ -209,6 +216,83 @@ const OPS = {
     return liveState();
   },
 
+  /* Hromadné schválení vybraných položek (výslovná akce uživatele po potvrzení). */
+  "approval.many"({ prj, keys = [], by = "", note = "" }) {
+    core.syncIO(prj);
+    const r = core.approveMany(prj, keys, by, note || undefined);
+    return { prj, ...r };
+  },
+  /* Návrh ladění: nový projekt + seznam změn a dotčených položek (nic se neschvaluje). */
+  "approval.tune"({ prj, id }) {
+    core.syncIO(prj);
+    const r = core.applyTuningResult(prj, id);
+    return { prj: r.prj, title: r.title, changes: r.changes, affects: r.affects };
+  },
+  /* Schválení: položky se stavem a záznamem, souhrn, osiřelé záznamy, návrhy ladění
+     (bez funkce `apply` — uplatní se přes call applyTuning) a dokument 11_schvaleni.md. */
+  approval({ prj }) {
+    core.syncIO(prj);
+    const items = core.approvalItems(prj);
+    const s = core.approvalSummary(prj, items);
+    const rec = prj.approvals || {};
+    return {
+      prj,
+      groups: Object.fromEntries(Object.entries(core.APPROVAL_GROUPS).map(([k, v]) => [k, core.tr(v)])),
+      items: items.map(i => {
+        const st = core.approvalStatus(prj, i);
+        return { ...i, status: st, statusLabel: core.approvalStatusLabel(st), rec: rec[i.key] || null };
+      }),
+      summary: { total: s.total, approved: s.approved, stale: s.stale, rejected: s.rejected, pending: s.pending,
+        ok: s.ok, blocking: s.blocking.map(i => i.key) },
+      orphans: core.approvalOrphans(prj, items).map(k => ({ key: k, rec: rec[k], statusLabel: core.approvalStatusLabel(rec[k].state) })),
+      tuning: core.tuningProposals(prj).map(({ apply, ...t }) => ({ ...t, canApply: typeof apply === "function" })),
+      file: core.APPROVAL_FILE, md: core.approvalsMd(prj, items),
+    };
+  },
+  /* Odznak v hlavičce a značky v liště kroků: počty bez seznamů a dokumentů. */
+  /* Levně: u velkého stroje bez spočítaného ověření simulací (desítky sekund) se ověření
+     nespouští — položky, které na něm závisí, jsou „čeká na ověření“ (`partial`). Malý projekt
+     se ověří hned (zlomek sekundy). */
+  "approval.badge"({ prj }) {
+    core.syncIO(prj);
+    const cheap = prj.devices.length > BADGE_LIVE_DEVICES && !core.isVerified(prj);
+    const items = core.approvalItems(prj, { cheap });
+    const s = core.approvalSummary(prj, items);
+    const safety = items.filter(i => i.group === "safety");
+    return {
+      pending: s.pending, stale: s.stale, unverified: s.unverified, partial: s.partial, ok: s.ok,
+      safetyOk: safety.length > 0 && safety.every(i => core.approvalStatus(prj, i) === "approved"),
+      commissionDone: s.partial ? null : core.commissioningSummary(prj).done,
+    };
+  },
+  /* Oživení: plán po fázích, výsledky, souhrn a protokol (MD + CSV). */
+  commission({ prj }) {
+    core.syncIO(prj);
+    const plan = core.commissioningPlan(prj);
+    const s = core.commissioningSummary(prj, plan);
+    return {
+      prj, plan,
+      phases: Object.fromEntries(Object.entries(core.COMMISSION_PHASES).map(([k, v]) => [k, core.tr(v)])),
+      summary: { total: s.total, ok: s.ok, nok: s.nok, na: s.na, open: s.open, done: s.done },
+      files: { md: core.COMMISSION_FILE_MD, csv: core.COMMISSION_FILE_CSV },
+      md: core.commissioningMd(prj, plan), csv: core.commissioningCsv(prj, plan),
+    };
+  },
+
+  /* Bezpečnost: návrh funkcí, položky ke schválení, program pro cíl `target`, výkres okruhu
+     (pohled sdílený s webem — apps/web/src/safety_view.js). */
+  safety({ prj, target = null }) {
+    const view = safety.safetyView(prj, { target: target || undefined });
+    return { prj, view };
+  },
+  /* Úprava návrhu bezpečnosti (prj.safety): setFnCfg / resetFnCfg / setSafetyParam / addSafetyFn /
+     removeSafetyFn. Nic se tím neschvaluje. */
+  "safety.edit"({ prj, fn, args = [] }) {
+    if (!["setFnCfg", "resetFnCfg", "setSafetyParam", "addSafetyFn", "removeSafetyFn"].includes(fn)) throw new Error(core.tr("Neznámá úprava bezpečnosti: {fn}", { fn }));
+    const result = safety[fn](prj, ...args);
+    return { prj, result: typeof result === "string" ? result : null };
+  },
+
   gen({ prj }) {
     core.syncIO(prj);
     const out = {};
@@ -239,17 +323,27 @@ const OPS = {
   "import.estimate"({ files = [], model, ex = null, prj = null, code = true }) {
     return importAi.estimateImport(files, model || ai.AI_DEFAULT_MODEL, { ex, prj, code });
   },
-  /* Zprávy jednoho dotazu pro Messages API; API volá desktop (ai_client.call_blocks). */
-  "import.messages"({ ex, files = [], part = 0, prev = null, prj = null, model, code = true }) {
-    return importAi.buildImportMessages(ex, files, { part, prev, prj, model: model || ai.AI_DEFAULT_MODEL, code });
+  /* Zprávy jednoho dotazu pro Messages API; API volá desktop (ai_client.call_full).
+     Postup části: known = složený výsledek předchozích částí (po celou část stejný),
+     cont = texty dosavadních odpovědí této části (navazující odpovědi, když AI vrátí
+     "more": true); cache = označit podklady pro cache (výchozí při pokračování). */
+  "import.messages"({ ex, files = [], part = 0, known = null, prev = null, prj = null, model, code = true, cont = [], cache = null }) {
+    return importAi.buildImportMessages(ex, files, { part, known: known || prev, prj, model: model || ai.AI_DEFAULT_MODEL, code, cont, cache });
+  },
+  /* Odpověď (text nebo JSON) přidá ke složenému výsledku; `more` = AI chce pokračovat. */
+  "import.combine"({ acc = null, raw }) {
+    const patch = typeof raw === "string" ? ai.extractJson(raw) : raw;
+    return { acc: importAi.combineRaw(acc, patch), more: !!(patch && patch.more === true) };
   },
   /* Ceník modelu (USD za 1M tokenů vstupu / výstupu) — skutečná cena podle `usage` odpovědí. */
   "import.model"({ model }) {
     return { ...importAi.modelInfo(model || ai.AI_DEFAULT_MODEL), priceDate: importAi.IMPORT_PRICES_DATE };
   },
-  /* Odpověď AI → ImportProposal; s `exact` (návrh z přesných dat) i sloučený návrh. */
-  "import.norm"({ raw, ex = null, files = [], exact = null }) {
-    const proposal = importAi.importNorm(raw, ex, files.map(({ data, ...f }) => f));
+  /* Složený výsledek AI → ImportProposal (doplněk se složí s přesným návrhem `prj`, jinak
+     `exact.prj`); s `exact` i sloučený návrh (mergeProposals). */
+  "import.norm"({ raw, ex = null, files = [], exact = null, prj = null }) {
+    const base = prj || (exact && exact.prj) || null;
+    const proposal = importAi.importNorm(raw, ex, files.map(({ data, ...f }) => f), { base });
     return { proposal, merged: exact ? core.mergeProposals(exact, proposal) : null };
   },
 };

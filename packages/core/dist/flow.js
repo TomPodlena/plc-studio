@@ -1,5 +1,5 @@
 /**
- * PLC Studio — diagramy funkce stroje:
+ * PLCdesk — diagramy funkce stroje:
  *  - funkční diagram cyklu (kroky sekvence a podmínky přechodu, styl GRAFCET),
  *  - časový diagram signálů z výsledku simulace.
  * Prvky nesou odkazy data-step / data-dev / data-io pro interaktivní náhledy.

@@ -23,7 +23,7 @@ export function aiInstructions(prj) {
   /* Prompt je česky v každém jazyce UI; cizí jazyk jen přidá na konec pokyn, jak psát texty pro uživatele. */
   const l = getLang();
   const langNote = l === "cs" ? "" : '\nTexty určené uživateli (otázky "questions", poznámka "note", popisy zařízení "desc") piš v jazyce „' + LANGS[l] + '" — tento pokyn má přednost před pokynem psát popisy česky; označení zařízení, tagy a klíče JSON zůstávají beze změny.';
-  return "Jsi zkušený návrhář průmyslové automatizace v nástroji PLC Studio. Z popisu stroje od uživatele navrhni sestavu zařízení pro řízení PLC.\n"
+  return "Jsi zkušený návrhář průmyslové automatizace v nástroji PLCdesk. Z popisu stroje od uživatele navrhni sestavu zařízení pro řízení PLC.\n"
     + "Dostupné třídy zařízení (jiné neexistují):\n"
     + '- "Motor" (názvy M1, M2…): pohon/čerpadlo/dopravník; volby opt.fbk = zpětné hlášení běhu, opt.fault = vstup poruchy\n'
     + '- "Ventil" (Y1…): dvoupolohový ventil nebo pneumatický/hydraulický válec; volby opt.fbkOpen, opt.fbkClosed\n'

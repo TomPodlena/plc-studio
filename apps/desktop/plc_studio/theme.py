@@ -1,4 +1,4 @@
-"""Vizuální standard okna PLC Studia — paleta, ttk styly, chrome okna.
+"""Vizuální standard okna PLCdesk — paleta, ttk styly, chrome okna.
 
 Paleta i idiomy jsou převzaté ze sdíleného ``theme.py`` nástrojů PearTec
 (Report Studio, Simulation Hub): bílé pozadí, tmavě zelené nadpisy, zelené
@@ -43,7 +43,7 @@ FONT_MONO = ("Consolas", 10)
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 ICON_FILE = ASSETS_DIR / "plc_studio.ico"
-APP_ID = "PearTec.PLCStudio"
+APP_ID = "PearTec.PLCdesk"
 
 _logo_cache: dict[int, tk.PhotoImage] = {}
 
@@ -111,18 +111,19 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
                     bordercolor="#E7B9B4", lightcolor=DANGER_BG, darkcolor=DANGER_BG)
     style.map("Danger.TButton", background=[("active", "#EFC8C3")])
 
-    # Lišta kroků: běžný / hotový / aktuální krok. Vodorovná vycpávka je úzká, ať se
-    # lišta (9 kroků + Nápověda) vejde i do nejmenšího okna 1100 px v němčině.
+    # Lišta kroků: běžný / hotový / aktuální krok. Vodorovná vycpávka je úzká a tlačítka
+    # nemají minimální šířku (width=0), ať se lišta (13 kroků + Nápověda) vejde i do
+    # nejmenšího okna 1100 px v němčině — popisky podle místa zkracuje App._fit_nav.
     style.configure("Step.TButton", background=BG, foreground=FG, bordercolor=BORDER,
-                    lightcolor=BG, darkcolor=BG, padding=(6, 5))
+                    lightcolor=BG, darkcolor=BG, padding=(6, 5), width=0)
     style.map("Step.TButton", background=[("active", FIELD)])
     style.configure("StepDone.TButton", background=TREE_SEL, foreground=PRIMARY,
                     bordercolor=BORDER, lightcolor=TREE_SEL, darkcolor=TREE_SEL,
-                    padding=(6, 5))
+                    padding=(6, 5), width=0)
     style.map("StepDone.TButton", background=[("active", "#C6E0D1")])
     style.configure("StepOn.TButton", background=PRIMARY, foreground="#FFFFFF",
                     bordercolor=PRIMARY, lightcolor=PRIMARY, darkcolor=PRIMARY,
-                    font=FONT_ACCENT, padding=(6, 5))
+                    font=FONT_ACCENT, padding=(6, 5), width=0)
     style.map("StepOn.TButton", background=[("active", PRIMARY)])
     # štítek aktivního filtru (klik = zrušit)
     style.configure("Chip.TButton", background=TREE_SEL, foreground=PRIMARY, bordercolor=BORDER,

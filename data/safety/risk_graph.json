@@ -1,0 +1,337 @@
+{
+  "meta": {
+    "created": "2026-10-03",
+    "topic": "Stanovení požadované úrovně vlastností PLr – graf rizik ISO 13849-1 (Annex A), vztah PL ↔ PFH ↔ SIL, metoda IEC 62061 (Se, Fr, Pr, Av)",
+    "disclaimer": "návrh k revizi, nenahrazuje normu",
+    "note": "Normy ISO 13849-1 a IEC 62061 jsou placené; údaje jsou převzaty z veřejných výkladů (IFA/DGUV, Rockwell, Siemens, Pilz aj.). IFA Report 2/2017 popisuje 3. vydání ISO 13849-1:2015; změny 4. vydání ISO 13849-1:2023 jsou z článku IFA/DGUV a dalších zdrojů. Čísla stran u IFA Report 2/2017 odkazují na tištěné stránky PDF.",
+    "sources_list": [
+      {"id": "IFA_2_2017", "title": "IFA Report 2/2017e: Functional safety of machine controls – Application of EN ISO 13849 (DGUV/IFA, popisuje EN ISO 13849-1:2015)", "url": "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf", "landing_page": "https://www.dguv.de/ifa/publikationen/reports-download/reports-2017/ifa-report-2-2017/index-2.jsp"},
+      {"id": "DGUV_2023", "title": "Fourth edition of EN ISO 13849-1 – Most important new features in 2023 at a glance (Hauke, Bömer, Büllesbach, IFA; DGUV Webcode p022540)", "url": "https://publikationen.dguv.de/widgets/pdf/download/article/4894"},
+      {"id": "ROCKWELL_SAFEBOOK5", "title": "Rockwell Automation – Machinery Safebook 5 (SAFEBK-RM002), obsahuje graf rizik ISO 13849-1:2015 a formulář IEC 62061", "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf"},
+      {"id": "SIEMENS_HELP", "title": "Siemens – Help on the Application of ISO 13849-1 (12/2021, TIA Selection Tool)", "url": "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf"},
+      {"id": "PILZ_13849", "title": "Pilz – EN ISO 13849-1 Basis for Performance Level (včetně změn 2023 a tabulky faktorů parametru P)", "url": "https://www.pilz.com/en-GB/support/law-standards-norms/functional-safety/en-iso-13849-1"},
+      {"id": "KIDMAN_13849_2023", "title": "M. Kidman: Changes to ISO 13849-1:2023 (LinkedIn článek, obrázek © SICK Ltd)", "url": "https://www.linkedin.com/pulse/changes-iso-138492023-martin-kidman-ph-d-"},
+      {"id": "INTERVENTION_PREVENTION", "title": "Intervention Prévention – ISO 13849-1:2023 changes course", "url": "https://www.interventionprevention.com/en/iso-13849-1-2023/"},
+      {"id": "IBF", "title": "IBF Solutions – New EN ISO 13849-1:2023 (Safexpert)", "url": "https://www.ibf-solutions.com/en/seminars-and-news/news/new-en-iso-13849-12023"},
+      {"id": "GT_ENG_PLR", "title": "Gt-Engineering – Determination of the required PL (PLr) according to ISO 13849-1", "url": "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13849-1-performance-level-estimation/determination-of-the-required-pl-plr-according-to-iso-13849-1/"},
+      {"id": "GT_ENG_SILR", "title": "Gt-Engineering – Determination of the required SIL (SILr) according to IEC 62061", "url": "https://www.gt-engineering.it/en/technical-standards/en-iec-standards/iec-62061-functional-safety-of-machineries469677178/determination-of-the-required-sil-silr-according-to-iec-62061/"},
+      {"id": "KIDMAN_62061_2021", "title": "M. Kidman: The New Matrix Assignment Table in EN IEC 62061:2021 (LinkedIn)", "url": "https://www.linkedin.com/pulse/new-risk-graph-en-iec-620612021-martin-kidman-ph-d-"},
+      {"id": "CTB", "title": "CTB – Performance Level and SIL explained (obsahuje odchylnou tabulku PFH, viz discrepancies)", "url": "https://www.ctb.co.at/en/knowledge/safety-performance-level-sil-iec-13849-62061/"}
+    ]
+  },
+
+  "risk_graph_iso13849": {
+    "description": "Graf rizik z informativní přílohy A ISO 13849-1. Hodnotí se pro každou bezpečnostní funkci zvlášť, bez zohlednění snížení rizika, které má tato funkce teprve přinést. Technická opatření nezávislá na řídicím systému (pevný kryt, jiné bezpečnostní funkce) se smějí považovat za účinná.",
+    "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf"
+    ],
+    "source_pages": {"IFA_2_2017": "kap. 5.4.1, s. 32–34", "ROCKWELL_SAFEBOOK5": "s. 32 (obrázek grafu)"},
+    "verified": true,
+    "requires_user_approval": true,
+    "approval_note": "Volbu S, F, P (a případné snížení PLr) musí pro konkrétní stroj a bezpečnostní funkci potvrdit uživatel; aplikace může volbu jen navrhnout a zdůvodnit. Pokud existuje norma typu C pro daný stroj, má její PLr přednost (Annex A je informativní).",
+    "type_c_precedence": {
+      "text": "Informativní příloha A se použije k určení PLr, pokud PLr nestanoví výrobková norma (typ C).",
+      "sources": ["https://publikationen.dguv.de/widgets/pdf/download/article/4894"],
+      "verified": true
+    },
+    "parameters": {
+      "S": {
+        "name": "Závažnost zranění (severity of injury)",
+        "values": {
+          "S1": {"label": "lehké (obvykle vratné) zranění", "label_en": "slight (normally reversible injury)", "examples": "pohmožděniny, tržné rány bez komplikací (podle výkladů)"},
+          "S2": {"label": "vážné (obvykle nevratné) zranění nebo smrt", "label_en": "serious (normally irreversible injury or death)"}
+        },
+        "criteria": "Pro rozlišení S1/S2 se berou v úvahu obvyklé následky úrazů a běžný průběh hojení.",
+        "sources": [
+          "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+          "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13849-1-performance-level-estimation/determination-of-the-required-pl-plr-according-to-iso-13849-1/"
+        ],
+        "verified": true,
+        "note": "Příklad „pohmožděniny, tržné rány bez komplikací“ pro S1 uvádí výklady na webu (výsledek vyhledávání), v IFA Report 2/2017 jsem ho neověřil – brát jako ilustraci.",
+        "requires_user_approval": true
+      },
+      "F": {
+        "name": "Četnost a/nebo doba vystavení nebezpečí (frequency and/or exposure time)",
+        "values": {
+          "F1": {"label": "zřídka až méně často a/nebo krátká doba vystavení", "label_en": "seldom-to-less-often and/or exposure time is short"},
+          "F2": {"label": "často až trvale a/nebo dlouhá doba vystavení", "label_en": "frequent-to-continuous and/or exposure time is long"}
+        },
+        "criteria": {
+          "F2_if": "zásahy obsluhy do nebezpečného prostoru častěji než 1× za 15 minut",
+          "F1_if": "ve všech ostatních případech, pokud souhrnná doba vystavení nepřekročí 1/20 celkové doby provozu stroje",
+          "averaging": "Uvažuje se průměrná doba vystavení vztažená k celkové době používání stroje; vystavení stejné nebo různých osob se posuzuje stejně.",
+          "examples": "Ručně zakládaný lis, kde obsluha cyklicky sahá mezi nástroje → F2. Obráběcí centrum seřizované 1× ročně a pak automatické → F1.",
+          "machine_readable": {"F2_min_interventions_per_hour_exclusive": 4, "F1_max_exposure_fraction": 0.05}
+        },
+        "sources": [
+          "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+          "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13849-1-performance-level-estimation/determination-of-the-required-pl-plr-according-to-iso-13849-1/"
+        ],
+        "verified": true,
+        "note": "Kritéria 15 min a 1/20 jsou ověřena pro ISO 13849-1:2015 (IFA Report 2/2017, s. 33). Pro vydání 2023 Intervention Prévention uvádí, že A.3.2 doplnilo „kvantitativní pojmy“ k četnosti vystavení, ale konkrétní znění 2023 se mi z veřejných zdrojů ověřit nepodařilo (viz discrepancies). Převod na „4 zásahy za hodinu“ je jen přepočet 15 min.",
+        "requires_user_approval": true
+      },
+      "P": {
+        "name": "Možnost vyhnout se nebezpečí nebo omezit škodu (possibility of avoiding the hazard or limiting harm)",
+        "values": {
+          "P1": {"label": "možné za určitých podmínek", "label_en": "possible under specific conditions"},
+          "P2": {"label": "sotva možné", "label_en": "scarcely possible"}
+        },
+        "criteria_2015": {
+          "text": "Rozhodují fyzikální vlastnosti stroje, kvalifikace obsluhy a její možná reakce. Seřizování za chodu při omezené rychlosti a malém zrychlení s dostatkem volného prostoru → P1. Pokud lze rychle dosáhnout vysokých rychlostí a obsluha nemá reálnou šanci uniknout → P2. Uvažuje se jen omezení nebezpečí fyzikálně možnými prostředky, ne řídicími prvky (ty mohou selhat).",
+          "sources": ["https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"],
+          "verified": true
+        },
+        "criteria_2023_table_A1": {
+          "text": "ISO 13849-1:2023 přidává do přílohy A tabulku pěti faktorů; ke každému se určí stupeň A, B nebo C a z jejich počtu se odvodí P1/P2.",
+          "factors": [
+            {"factor": "Stroj používá", "A": "odborník (specialist)", "B": "laik (layperson)", "C": null},
+            {"factor": "Rychlost části stroje, která může způsobit nebezpečnou událost", "A": "nízká nebo velmi nízká", "B": "střední", "C": "vysoká"},
+            {"factor": "Fyzická možnost vyhnout se nebezpečí", "A": "možná v ≥ 50 % případů", "B": "možná v < 50 % případů", "C": "nemožná"},
+            {"factor": "Možnost rozpoznat/vnímat nebezpečí", "A": "možná v ≥ 50 % případů", "B": "možná jen v < 50 % případů", "C": "nemožná"},
+            {"factor": "Složitost činností", "A": "nízká složitost nebo žádná interakce", "B": "střední až vysoká složitost", "C": null}
+          ],
+          "decision_rule": [
+            {"if": "zvoleno alespoň jednou C NEBO alespoň třikrát B", "then": "P2"},
+            {"if": "žádné C A právě dvakrát B", "then": "P1 nebo P2 podle konkrétní situace (rozhodne uživatel)"},
+            {"if": "žádné C A B nula- nebo jednou", "then": "P1"}
+          ],
+          "dguv_interpretation": "Tři faktory (rychlost vzniku nebezpečné situace, prostorová možnost vyhnout se, vnímatelnost nebezpečí) samy o sobě stačí k volbě P2, jsou-li nepříznivé; zbylé dva (obsluha odborníkem, složitost obsluhy) odůvodní P2 jen v kombinaci s dalšími nepříznivými faktory.",
+          "sources": [
+            "https://www.pilz.com/en-GB/support/law-standards-norms/functional-safety/en-iso-13849-1",
+            "https://publikationen.dguv.de/widgets/pdf/download/article/4894",
+            "https://www.ibf-solutions.com/en/seminars-and-news/news/new-en-iso-13849-12023"
+          ],
+          "verified": true,
+          "note": "Tabulka faktorů a rozhodovací pravidlo převzaty z webu Pilz (stav 10/2026); popis DGUV je s nimi v souladu (jen faktory rychlost, prostor a vnímatelnost mají stupeň C). Doslovné znění normy jsem neviděl.",
+          "requires_user_approval": true
+        },
+        "requires_user_approval": true
+      }
+    },
+    "probability_of_hazardous_event": {
+      "edition_2015": {
+        "text": "Pravděpodobnost výskytu nebezpečné události se v 3. vydání hodnotila spolu s parametrem P. Pokud lze pravděpodobnost výskytu odůvodněně označit za „nízkou“ (spolehlivostní data provozního řízení, historie úrazů na srovnatelných strojích se stejnými riziky, koncepcí a ochranami), smí se PLr snížit o jednu úroveň, nikdy však pod PL a. Snížené PLr nesmí být nižší než u strojů použitých ke srovnání.",
+        "sources": ["https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"],
+        "source_pages": "s. 33–34",
+        "verified": true
+      },
+      "edition_2023": {
+        "text": "Parametr P a „pravděpodobnost výskytu nebezpečné události“ se už neslučují. Pravděpodobnost výskytu se zmiňuje jen okrajově a pro jistotu se standardně předpokládá vysoká (100 %). Lze-li ji odhadnout jako nízkou, smí se PLr z grafu snížit o jednu úroveň; nové je, že toto rozhodnutí musí být zdůvodněno a dokumentováno. 4. vydání už neuvádí, jak pravděpodobnost výskytu určit – pro informaci lze použít jen 3. vydání (ISO 12100 k tomu mnoho neříká).",
+        "sources": [
+          "https://publikationen.dguv.de/widgets/pdf/download/article/4894",
+          "https://www.linkedin.com/pulse/changes-iso-138492023-martin-kidman-ph-d-"
+        ],
+        "verified": true,
+        "requires_user_approval": true,
+        "approval_note": "Snížení PLr o jednu úroveň je výhradně rozhodnutím uživatele s písemným zdůvodněním; aplikace ho nesmí provést automaticky."
+      },
+      "machine_readable": {"max_reduction_levels": 1, "floor": "a", "default_probability": "high", "justification_required": true}
+    },
+    "plr_table": [
+      {"S": "S1", "F": "F1", "P": "P1", "PLr": "a"},
+      {"S": "S1", "F": "F1", "P": "P2", "PLr": "b"},
+      {"S": "S1", "F": "F2", "P": "P1", "PLr": "b"},
+      {"S": "S1", "F": "F2", "P": "P2", "PLr": "c"},
+      {"S": "S2", "F": "F1", "P": "P1", "PLr": "c"},
+      {"S": "S2", "F": "F1", "P": "P2", "PLr": "d"},
+      {"S": "S2", "F": "F2", "P": "P1", "PLr": "d"},
+      {"S": "S2", "F": "F2", "P": "P2", "PLr": "e"}
+    ],
+    "plr_table_meta": {
+      "ordering": "PL e > PL d > PL c > PL b > PL a (vyšší písmeno = vyšší požadavek)",
+      "sources": [
+        "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf",
+        "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+      ],
+      "verified": true,
+      "note": "Ověřeno odečtem z obrázku grafu v Rockwell Safebook 5, s. 32 (ISO 13849-1:2015); IFA Report 2/2017 obr. 5.9 a příklad S2/F2/P2 → PLr e (s. 37). Pro vydání 2023 DGUV uvádí v příloze A jen dvě významné změny (oddělení pravděpodobnosti výskytu od P a nová pomůcka pro P) – že se samotné přiřazení PLr nezměnilo, je z toho odvozeno, doslovné znění 2023 jsem neověřil.",
+      "requires_user_approval": true
+    }
+  },
+
+  "pl_pfh": {
+    "description": "Úroveň vlastností PL a odpovídající rozsah průměrné pravděpodobnosti (od 2023: průměrné frekvence) nebezpečné poruchy za hodinu PFH (dříve PFHD).",
+    "table": [
+      {"PL": "a", "pfh_min": 1e-5, "pfh_max_exclusive": 1e-4},
+      {"PL": "b", "pfh_min": 3e-6, "pfh_max_exclusive": 1e-5},
+      {"PL": "c", "pfh_min": 1e-6, "pfh_max_exclusive": 3e-6},
+      {"PL": "d", "pfh_min": 1e-7, "pfh_max_exclusive": 1e-6},
+      {"PL": "e", "pfh_min": 1e-8, "pfh_max_exclusive": 1e-7}
+    ],
+    "unit": "1/h",
+    "naming_2023": "Ve vydání 2023 se „probability of dangerous failure per hour“ přejmenovala na „average frequency of a dangerous failure per hour“ a zkratka je opět PFH (bez indexu D), jako v normách IEC; technicky beze změny.",
+    "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf",
+      "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf",
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4894"
+    ],
+    "source_pages": {"IFA_2_2017": "tab. 6.1, s. 40", "ROCKWELL_SAFEBOOK5": "s. 66", "SIEMENS_HELP": "tab. 1-1, s. 3"},
+    "verified": true,
+    "additional_rule": {
+      "text": "PL bezpečnostní funkce: součet PFH subsystémů a zároveň nejvýše nejnižší PL subsystému.",
+      "sources": ["https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf"],
+      "verified": true
+    },
+    "scope_note": {
+      "text": "ISO 13849-1 platí jen pro režim vysokého nebo trvalého vyžádání (častěji než 1× ročně); pro nízké vyžádání odkazuje 4. vydání na IEC 61508.",
+      "sources": ["https://publikationen.dguv.de/widgets/pdf/download/article/4894"],
+      "verified": true
+    }
+  },
+
+  "pl_sil": {
+    "description": "Přibližná korespondence PL (ISO 13849-1) a SIL (IEC 62061 / IEC 61508, režim vysokého vyžádání). Rockwell výslovně upozorňuje, že tabulka je jen orientační a nesmí se používat k převodu.",
+    "table": [
+      {"PL": "a", "SIL": null, "note": "bez odpovídajícího SIL"},
+      {"PL": "b", "SIL": 1},
+      {"PL": "c", "SIL": 1},
+      {"PL": "d", "SIL": 2},
+      {"PL": "e", "SIL": 3}
+    ],
+    "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf",
+      "https://www.ctb.co.at/en/knowledge/safety-performance-level-sil-iec-13849-62061/"
+    ],
+    "source_pages": {"ROCKWELL_SAFEBOOK5": "s. 65–66"},
+    "verified": true,
+    "note": "Integrace subsystémů s SIL do ISO 13849-1:2023 se týká jen subsystémů pro vysoké/trvalé vyžádání navržených podle Route 1H (IEC 61508-2) – DGUV_2023.",
+    "integration_sources": ["https://publikationen.dguv.de/widgets/pdf/download/article/4894"]
+  },
+
+  "iec62061_method": {
+    "description": "Metoda IEC 62061 (příloha A): závažnost Se a třída Cl = Fr + Pr + Av; z matice Se × Cl se odečte požadovaný SIL nebo „OM“ (jiná opatření). Uvedeno podle formuláře v Rockwell Safebook 5, který odpovídá 1. vydání IEC 62061:2005.",
+    "edition_shown": "IEC 62061:2005 (podle Safebook 5); vydání 2021 matici upravilo – viz discrepancies",
+    "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf",
+      "https://www.gt-engineering.it/en/technical-standards/en-iec-standards/iec-62061-functional-safety-of-machineries469677178/determination-of-the-required-sil-silr-according-to-iec-62061/"
+    ],
+    "source_pages": {"ROCKWELL_SAFEBOOK5": "s. 32 (formulář)"},
+    "verified": true,
+    "requires_user_approval": true,
+    "Se": [
+      {"value": 4, "label": "smrt, ztráta oka nebo paže (nevratné vážné)"},
+      {"value": 3, "label": "trvalé následky, např. ztráta prstů"},
+      {"value": 2, "label": "vratné, vyžaduje lékařské ošetření"},
+      {"value": 1, "label": "vratné, stačí první pomoc"}
+    ],
+    "Fr": [
+      {"value": 5, "label": "≤ 1 h"},
+      {"value": 5, "label": "> 1 h až ≤ 1 den"},
+      {"value": 4, "label": "> 1 den až ≤ 2 týdny"},
+      {"value": 3, "label": "> 2 týdny až ≤ 1 rok"},
+      {"value": 2, "label": "> 1 rok"}
+    ],
+    "Fr_note": "Interval mezi vystaveními; Safebook neuvádí podmínku délky pobytu – v normě se podle výkladů hodnotí i doba vystavení (Gt-Engineering: „frequency of presence and average duration of exposure“), konkrétní pravidlo neověřeno.",
+    "Pr": [
+      {"value": 5, "label": "častá (common) / velmi vysoká"},
+      {"value": 4, "label": "pravděpodobná (likely)"},
+      {"value": 3, "label": "možná (possible)"},
+      {"value": 2, "label": "zřídka (rarely)"},
+      {"value": 1, "label": "zanedbatelná (negligible)"}
+    ],
+    "Av": [
+      {"value": 5, "label": "nemožné (impossible)"},
+      {"value": 3, "label": "možné (possible)"},
+      {"value": 1, "label": "pravděpodobné (likely)"}
+    ],
+    "matrix_2005": {
+      "columns_Cl": ["3-4", "5-7", "8-10", "11-13", "14-15"],
+      "rows": [
+        {"Se": 4, "result": ["SIL 2", "SIL 2", "SIL 2", "SIL 3", "SIL 3"]},
+        {"Se": 3, "result": [null, "OM", "SIL 1", "SIL 2", "SIL 3"]},
+        {"Se": 2, "result": [null, null, "OM", "SIL 1", "SIL 2"]},
+        {"Se": 1, "result": [null, null, null, "OM", "SIL 1"]}
+      ],
+      "legend": "SIL = bezpečnostní opatření vyžadováno; OM = doporučena jiná opatření (other measures); null = bez požadavku",
+      "verified": true,
+      "note": "Odečteno z obrázku formuláře v Safebook 5, s. 32 (vizuálně zkontrolováno)."
+    },
+    "edition_2021": {
+      "text": "IEC 62061:2021 matici aktualizovala a doplnila odkazy na PLr (přímá vazba SIL ↔ PL). U Se 4 je při nejnižších třídách Cl nově SIL 1 místo SIL 2.",
+      "sources": ["https://www.linkedin.com/pulse/new-risk-graph-en-iec-620612021-martin-kidman-ph-d-"],
+      "verified": false,
+      "note": "Kidman píše o „2 nejnižších skóre“, jiný výsledek vyhledávání jen o třídách 3 a 4 – který sloupec(e) přesně se změnil, jsem z veřejného zdroje neověřil. Matici 2021 před použitím ověřit v normě."
+    }
+  },
+
+  "discrepancies": [
+    {
+      "topic": "Snížení PLr o jednu úroveň při nízké pravděpodobnosti výskytu",
+      "detail": "Kidman (LinkedIn) a Intervention Prévention podávají snížení jako novinku ISO 13849-1:2023. IFA Report 2/2017 ale ukazuje, že snížení o jednu úroveň (ne pod PL a) bylo možné už v 3. vydání 2015. Podle DGUV je u 2023 novinkou jen povinnost rozhodnutí zdůvodnit a dokumentovat a to, že výchozí předpoklad je vysoká pravděpodobnost (100 %).",
+      "sources": [
+        "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+        "https://publikationen.dguv.de/widgets/pdf/download/article/4894",
+        "https://www.linkedin.com/pulse/changes-iso-138492023-martin-kidman-ph-d-"
+      ],
+      "resolution": "Přednost má výklad IFA/DGUV (autoři jsou členy normalizační skupiny)."
+    },
+    {
+      "topic": "Pravděpodobnost výskytu ve vydání 2023",
+      "detail": "Kidman: oddíl o pravděpodobnosti výskytu „byl odstraněn“. DGUV: „zmiňuje se jen okrajově“, standardně se předpokládá vysoká. Jiný výklad (výsledek vyhledávání) uvádí přesun poznámky z A.1 do A.2. Věcně se shodují: metodika určení pravděpodobnosti už v normě není.",
+      "sources": [
+        "https://publikationen.dguv.de/widgets/pdf/download/article/4894",
+        "https://www.linkedin.com/pulse/changes-iso-138492023-martin-kidman-ph-d-"
+      ]
+    },
+    {
+      "topic": "Faktory parametru P",
+      "detail": "Pilz v úvodním textu vyjmenovává faktory „rychlost vzniku nebezpečí, možnost uniknout, praktické zkušenosti s procesem, obsluha odborníky/laiky, obsluha s dohledem/bez dohledu“ (odpovídá spíše výčtu z vydání 2015), ale v tabulce pro 2023 uvádí jiných pět faktorů (uživatel, rychlost, fyzická možnost vyhnout se, vnímatelnost, složitost). DGUV potvrzuje variantu z tabulky.",
+      "sources": [
+        "https://www.pilz.com/en-GB/support/law-standards-norms/functional-safety/en-iso-13849-1",
+        "https://publikationen.dguv.de/widgets/pdf/download/article/4894"
+      ],
+      "resolution": "Pro 2023 použít tabulku pěti faktorů (A/B/C)."
+    },
+    {
+      "topic": "Kritéria parametru F ve vydání 2023",
+      "detail": "Kritéria >1× za 15 min a 1/20 doby provozu jsou doložena pro vydání 2015 (IFA). Intervention Prévention uvádí, že 2023 doplnilo do A.3.2 kvantitativní pojmy, ale bez konkrétních hodnot; DGUV změnu F mezi významnými změnami přílohy A neuvádí. Znění 2023 neověřeno.",
+      "sources": [
+        "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+        "https://www.interventionprevention.com/en/iso-13849-1-2023/",
+        "https://publikationen.dguv.de/widgets/pdf/download/article/4894"
+      ],
+      "verified": false
+    },
+    {
+      "topic": "Tabulka PL ↔ PFH na webu CTB",
+      "detail": "CTB uvádí horní meze PL b < 3·10⁻⁵/h a PL c < 10⁻⁵/h. IFA, Rockwell i Siemens shodně uvádějí PL b: 3·10⁻⁶ až < 10⁻⁵ a PL c: 10⁻⁶ až < 3·10⁻⁶. Údaje CTB jsou zřejmě chybné, nepoužívat.",
+      "sources": [
+        "https://www.ctb.co.at/en/knowledge/safety-performance-level-sil-iec-13849-62061/",
+        "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+        "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf"
+      ]
+    },
+    {
+      "topic": "Korespondence PL ↔ SIL",
+      "detail": "Rockwell uvádí, že tabulka je jen přibližná a nesmí se používat k převodu (PL b i c → SIL 1). CTB uvádí totéž přiřazení bez výhrady.",
+      "sources": [
+        "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf",
+        "https://www.ctb.co.at/en/knowledge/safety-performance-level-sil-iec-13849-62061/"
+      ]
+    },
+    {
+      "topic": "Matice IEC 62061: 2005 vs. 2021",
+      "detail": "Safebook 5 ukazuje matici z vydání 2005 (Se 4 vždy aspoň SIL 2). Podle Kidmana vydání 2021 umožňuje u Se 4 pro nejnižší třídy SIL 1 a doplňuje PLr. Přesný rozsah změny neověřen.",
+      "sources": [
+        "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf",
+        "https://www.linkedin.com/pulse/new-risk-graph-en-iec-620612021-martin-kidman-ph-d-"
+      ],
+      "verified": false
+    },
+    {
+      "topic": "Platnost vydání",
+      "detail": "Pilz: EN ISO 13849-1:2023 zveřejněna v OJEU v květnu 2024, EN ISO 13849-1:2015 se stahuje po přechodném období do 15. 5. 2027; směrnici 2006/42/ES ale 20. 1. 2027 nahrazuje nařízení (EU) 2023/1230, takže přechodné období je prakticky kratší.",
+      "sources": ["https://www.pilz.com/en-GB/support/law-standards-norms/functional-safety/en-iso-13849-1"],
+      "verified": true
+    }
+  ],
+
+  "not_verified": [
+    "Doslovné znění přílohy A ISO 13849-1:2023 (kritéria F, tabulka A.1) – jen přes výklady Pilz/DGUV/IBF.",
+    "Matice IEC 62061:2021 (přesné buňky).",
+    "Příklad S1 = pohmožděniny/tržné rány – jen z výsledků vyhledávání, ne z IFA."
+  ]
+}

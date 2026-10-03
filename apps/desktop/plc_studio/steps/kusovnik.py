@@ -60,7 +60,7 @@ def render(app, parent) -> None:
     wrap_label(body, _(
         "Z návrhu vznikne kusovník: PLC a I/O moduly zvolené platformy, ke každému zařízení "
         "jeho komponenty (motor → jistič motoru a stykač, válec → rozváděč a snímače polohy…) "
-        "a rozvaděč. Značky, typy a dodavatele nabízí katalog PLC Studia (stav k {date}); "
+        "a rozvaděč. Značky, typy a dodavatele nabízí katalog PLCdesk (stav k {date}); "
         "u řádku nebo celé kategorie je můžeš změnit nebo zadat vlastní.", date=data["date"]))
     note_box(body, _(
         "Kusovník je podklad k poptávce, ne projekt elektro: dimenzování (výkony, jištění, "

@@ -1,0 +1,470 @@
+{
+  "meta": {
+    "created": "2026-10-03",
+    "topic": "Kategorie B, 1, 2, 3, 4 podle ISO 13849-1, třídy MTTFD a DCavg, CCF, zjednodušené určení PL (sloupcový graf), převod B10D → MTTFD, typické hodnoty komponent, kategorie zastavení podle EN 60204-1 a funkce pohonů IEC 61800-5-2, DC typických diagnostických opatření",
+    "disclaimer": "návrh k revizi, nenahrazuje normu",
+    "note": "Normy jsou placené; údaje jsou z veřejných výkladů. IFA Report 2/2017 a Siemens (12/2021) popisují ISO 13849-1:2015; změny vydání 2023 podle článku IFA/DGUV. Typické hodnoty z normy (tabulka C.1) jsou konzervativní a použijí se jen tehdy, když údaj neuvádí výrobce – údaj výrobce má vždy přednost.",
+    "sources_list": [
+      {"id": "IFA_2_2017", "title": "IFA Report 2/2017e: Functional safety of machine controls – Application of EN ISO 13849 (DGUV/IFA, k EN ISO 13849-1:2015)", "url": "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf", "landing_page": "https://www.dguv.de/ifa/publikationen/reports-download/reports-2017/ifa-report-2-2017/index-2.jsp"},
+      {"id": "DGUV_2023", "title": "Fourth edition of EN ISO 13849-1 – Most important new features in 2023 at a glance (IFA/DGUV)", "url": "https://publikationen.dguv.de/widgets/pdf/download/article/4894"},
+      {"id": "SIEMENS_HELP", "title": "Siemens – Help on the Application of ISO 13849-1 (12/2021), obsahuje tab. 6 (2015), tab. C.1, příklady z tab. E.1", "url": "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf"},
+      {"id": "ROCKWELL_SAFEBOOK5", "title": "Rockwell Automation – Machinery Safebook 5 (SAFEBK-RM002)", "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf"},
+      {"id": "SE_FAQ", "title": "Schneider Electric FAQ – What are the 3 stop categories according to EN60204-1?", "url": "https://www.se.com/us/en/faqs/FA122781/"},
+      {"id": "MS101_STOP", "title": "Machinery Safety 101 – Understanding Stop Categories for Machinery Stopping Functions", "url": "https://machinerysafety101.com/2010/09/27/emergency-stop-categories/"}
+    ]
+  },
+
+  "categories": {
+    "description": "Kategorie = strukturní požadavek na subsystém (SRP/CS) – odolnost proti poruchám a chování při poruše. Od ISO 13849-1:2023 se kategorie přiřazuje subsystému; jedna bezpečnostní funkce může kombinovat subsystémy různých kategorií i subsystémy s SIL.",
+    "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf",
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4894"
+    ],
+    "source_pages": {"IFA_2_2017": "tab. 6.2, s. 50–52; s. 62 (max. PL)", "SIEMENS_HELP": "tab. 1-3, s. 4–5"},
+    "verified": true,
+    "items": [
+      {
+        "category": "B",
+        "structure": "jednokanálová, bez testování",
+        "requirements": "Návrh, výběr, montáž a kombinace podle příslušných norem tak, aby odolaly očekávaným vlivům; použít základní bezpečnostní principy.",
+        "fault_behaviour": "Výskyt poruchy může vést ke ztrátě bezpečnostní funkce.",
+        "principle": "především výběr komponent",
+        "mttfd_each_channel": ["low", "medium"],
+        "dcavg": "none",
+        "ccf": "not_relevant",
+        "max_pl": "b"
+      },
+      {
+        "category": "1",
+        "structure": "jednokanálová, bez testování, osvědčené (well-tried) komponenty",
+        "requirements": "Požadavky B + osvědčené komponenty a osvědčené bezpečnostní principy. Složité (např. elektronické programovatelné) komponenty nejsou osvědčené komponenty.",
+        "fault_behaviour": "Porucha může vést ke ztrátě bezpečnostní funkce, ale pravděpodobnost je nižší než u kategorie B.",
+        "principle": "především výběr komponent",
+        "mttfd_each_channel": ["high"],
+        "dcavg": "none",
+        "ccf": "not_relevant",
+        "max_pl": "c"
+      },
+      {
+        "category": "2",
+        "structure": "jednokanálová s testováním (funkční kanál I-L-O + testovací zařízení TE a jeho výstup OTE)",
+        "requirements": "Požadavky B + osvědčené principy; bezpečnostní funkce se testuje ve vhodných intervalech řídicím systémem (2015). Ve vydání 2023 je hlavním znakem detekce poruch ve funkčním kanálu – pro každou jeho část (vstup, logika, výstup) aspoň DC „low“ (60 %).",
+        "test_conditions": {
+          "test_rate": "test aspoň 100× častěji než průměrné vyžádání bezpečnostní funkce, nebo test okamžitě při vyžádání, pokud detekce + uvedení do bezpečného stavu proběhnou dřív, než nastane nebezpečí; výjimečně 25× (viz příloha K) s nárůstem pravděpodobnosti poruchy cca o 10 %",
+          "test_channel_mttfd": "MTTFD testovacího kanálu (vč. OTE) aspoň polovina MTTFD funkčního kanálu; od 2023 platí obecně pro kategorii 2, ne jen pro zjednodušenou metodu",
+          "on_fault": "OTE musí vyvolat bezpečný stav udržovaný do odstranění poruchy (vždy při PLr d); do PLr c, kde to není proveditelné (např. svařené kontakty posledního spínacího prvku), může stačit jen varování",
+          "test_timing": "při spuštění stroje a před vznikem nebezpečné situace (začátek cyklu, start pohybů) a/nebo periodicky"
+        },
+        "fault_behaviour": "Porucha může vést ke ztrátě bezpečnostní funkce mezi testy; ztráta je testem odhalena.",
+        "principle": "především struktura",
+        "mttfd_each_channel": ["low", "medium", "high"],
+        "dcavg": "at_least_low",
+        "ccf": "min_65_points",
+        "max_pl": "d"
+      },
+      {
+        "category": "3",
+        "structure": "dvoukanálová (redundance) s křížovou kontrolou, kde je to rozumně proveditelné",
+        "requirements": "Požadavky B + osvědčené principy; jediná porucha nevede ke ztrátě bezpečnostní funkce a kdykoli je to rozumně proveditelné, je jediná porucha detekována.",
+        "fault_behaviour": "Při jediné poruše je bezpečnostní funkce vždy vykonána. Některé, ale ne všechny poruchy jsou detekovány. Hromadění nedetekovaných poruch může vést ke ztrátě funkce.",
+        "principle": "především struktura",
+        "mttfd_each_channel": ["low", "medium", "high"],
+        "dcavg": "at_least_low",
+        "ccf": "min_65_points",
+        "max_pl": "e"
+      },
+      {
+        "category": "4",
+        "structure": "dvoukanálová s vysokou diagnostikou",
+        "requirements": "Požadavky B + osvědčené principy; jediná porucha nevede ke ztrátě funkce a je detekována při nebo před dalším vyžádáním; není-li to možné, nesmí ke ztrátě funkce vést ani hromadění nedetekovaných poruch.",
+        "note_2023": "Nová poznámka (6.1.3.2.6): nedetekované poruchy s velmi nízkou pravděpodobností (teoreticky možné, prakticky irelevantní) se do hromadění poruch nemusí započítat, pokud je to zdokumentováno a ověřeno; pro výpočet PFH se vyžaduje DC 99 %.",
+        "fault_behaviour": "Při jediné poruše je funkce vždy vykonána; poruchy jsou detekovány včas, aby se zabránilo ztrátě funkce.",
+        "principle": "především struktura",
+        "mttfd_each_channel": ["high"],
+        "dcavg": "high",
+        "ccf": "min_65_points",
+        "max_pl": "e"
+      }
+    ],
+    "max_pl_rule": {
+      "text": "Kategorie B max. PL b; kategorie 1 max. PL c; kategorie 2 max. PL d; kategorie 3 a 4 až PL e. Omezení platí i při výpočtu PFH jinými metodami.",
+      "sources": ["https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"],
+      "verified": true
+    },
+    "fault_exclusion_2023": {
+      "text": "PL e subsystému nesmí být založena pouze na vyloučení poruch (dříve jen v ISO/TR 23849).",
+      "sources": ["https://publikationen.dguv.de/widgets/pdf/download/article/4894"],
+      "verified": true,
+      "requires_user_approval": true
+    }
+  },
+
+  "mttfd_classes": {
+    "description": "Třídy MTTFD jednoho kanálu (po symetrizaci kanálů).",
+    "table": [
+      {"class": "not_suitable", "label": "nevhodné", "min_years": 0, "max_years_exclusive": 3},
+      {"class": "low", "label": "nízká", "min_years": 3, "max_years_exclusive": 10},
+      {"class": "medium", "label": "střední", "min_years": 10, "max_years_exclusive": 30},
+      {"class": "high", "label": "vysoká", "min_years": 30, "max_years_inclusive": 100}
+    ],
+    "capping": {
+      "cap_years_default": 100,
+      "cap_years_category_4": 2500,
+      "text": "Hodnoty nad 100 let se na úrovni kanálu omezují na 100 let; jen v kategorii 4 je strop 2 500 let (zavedeno ve 3. vydání 2015). Strop se uplatňuje až na úrovni kanálu, jednotlivé komponenty mohou mít vyšší hodnoty. Hodnoty 100–2 500 let patří rovněž do třídy „high“.",
+      "verified": true
+    },
+    "symmetrization_formula": {
+      "formula": "MTTFD = 2/3 · [MTTFD,C1 + MTTFD,C2 − 1 / (1/MTTFD,C1 + 1/MTTFD,C2)]",
+      "text": "Pro dva nesymetrické kanály; výsledek je nejméně 2/3 lepší hodnoty. Před symetrizací se kanály omezí stropem.",
+      "verified": true
+    },
+    "block_sum": {
+      "formula": "1/MTTFD = Σ 1/MTTFD,i  (tj. λD = Σ λD,i)",
+      "verified": true
+    },
+    "data_source_hierarchy": {
+      "text": "1) údaje výrobce, 2) typické hodnoty z normy (tab. C.1 / dobrá inženýrská praxe), 3) velmi konzervativní náhradní hodnota 10 let na komponentu. Od 2023 přibyla možnost spolehlivých provozních dat ze shodných aplikací, pokud chybí údaj výrobce a nelze použít přílohu C. Při metodě počítání součástek se bez dalších informací bere MTTFD = 2 × MTTF (polovina poruch nebezpečná).",
+      "sources": [
+        "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+        "https://publikationen.dguv.de/widgets/pdf/download/article/4894"
+      ],
+      "verified": true
+    },
+    "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf"
+    ],
+    "source_pages": {"IFA_2_2017": "tab. 6.3, s. 57; příloha D, s. 266–267", "SIEMENS_HELP": "tab. 3-1, s. 8"},
+    "verified": true
+  },
+
+  "dc_classes": {
+    "description": "Třídy diagnostického pokrytí DC / DCavg. Ve zjednodušené metodě se DCavg zaokrouhluje dolů na nejbližší klíčovou hodnotu 0 / 60 / 90 / 99 % (SISTEMA standardně počítá s mezihodnotami).",
+    "table": [
+      {"class": "none", "label": "žádné", "min_percent": 0, "max_percent_exclusive": 60, "key_value": 0},
+      {"class": "low", "label": "nízké", "min_percent": 60, "max_percent_exclusive": 90, "key_value": 60},
+      {"class": "medium", "label": "střední", "min_percent": 90, "max_percent_exclusive": 99, "key_value": 90},
+      {"class": "high", "label": "vysoké", "min_percent": 99, "max_percent_inclusive": 100, "key_value": 99}
+    ],
+    "dc_definition": "DC = Σ λDD / Σ λD = Σ λDD / (Σ λDD + Σ λDU)",
+    "dcavg_formula": "DCavg = (DC1/MTTFD1 + … + DCN/MTTFDN) / (1/MTTFD1 + … + 1/MTTFDN)",
+    "logic_requirement": "Je-li pro programovatelnou/složitou logiku požadováno DC > 60 %, musí být pro proměnnou paměť, neproměnnou paměť a procesor aspoň jedno opatření s DC ≥ 60 %.",
+    "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf"
+    ],
+    "source_pages": {"IFA_2_2017": "tab. 6.4, s. 60; příloha E, s. 285–286", "SIEMENS_HELP": "tab. 2-1, s. 6"},
+    "verified": true
+  },
+
+  "ccf": {
+    "description": "Opatření proti poruchám se společnou příčinou (CCF). Body se přidělují buď celé, nebo vůbec; maximum 100 bodů; požadavek ≥ 65 bodů jen pro kategorie 2, 3 a 4. Ve sloupcovém grafu odpovídá 65 bodů beta-faktoru 2 %.",
+    "min_points": 65,
+    "applies_to_categories": ["2", "3", "4"],
+    "measures": [
+      {"measure": "Fyzické oddělení signálových cest různých kanálů", "points": 15},
+      {"measure": "Diverzita technologie, návrhu nebo fyzikálních principů kanálů", "points": 20},
+      {"measure": "Ochrana proti možnému přetížení", "points": 15},
+      {"measure": "Použití osvědčených komponent", "points": 5},
+      {"measure": "FMEA při vývoji pro identifikaci možných CCF", "points": 5},
+      {"measure": "Školení konstruktérů/údržby o CCF a jejich předcházení", "points": 5},
+      {"measure": "Ochrana proti CCF vlivem znečištění (mechanika, tekutinové systémy) a elektromagnetického rušení (elektrické systémy)", "points": 25},
+      {"measure": "Ochrana proti CCF vlivem nepříznivých podmínek prostředí", "points": 10}
+    ],
+    "note_2023": "Ve vydání 2023 jsou opatření jen v tab. F.1, podrobněji popsána v F.3; CCF se hodnotí obvykle na úrovni subsystému, s ohledem na předvídatelné poruchy a nesprávné použití, a hodnocení se dokumentuje. Ochranu lze zajistit i na úrovni systému (externí ochrany, filtry, stínění).",
+    "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4894"
+    ],
+    "source_pages": {"IFA_2_2017": "kap. 6.2.15, s. 60–61"},
+    "verified": true,
+    "requires_user_approval": true,
+    "approval_note": "Splnění jednotlivých opatření (a tedy součet bodů) musí potvrdit uživatel; aplikace nemůže skutečný stav stroje ověřit."
+  },
+
+  "simplified_pl_table": {
+    "description": "Zjednodušené určení PL ze sloupcového grafu (ISO 13849-1:2015 obr. 5 / tab. 6; v IFA obr. 6.10). Hodnota = dosažená PL podle kategorie, třídy DCavg a třídy MTTFD každého kanálu; null = kombinace není přípustná (n.a.). Pro kategorie 2–4 musí být splněna opatření proti CCF.",
+    "table": [
+      {"category": "B", "dcavg": "none",   "mttfd_low": "a",  "mttfd_medium": "b",  "mttfd_high": null},
+      {"category": "1", "dcavg": "none",   "mttfd_low": null, "mttfd_medium": null, "mttfd_high": "c"},
+      {"category": "2", "dcavg": "low",    "mttfd_low": "a",  "mttfd_medium": "b",  "mttfd_high": "c"},
+      {"category": "2", "dcavg": "medium", "mttfd_low": "b",  "mttfd_medium": "c",  "mttfd_high": "d"},
+      {"category": "3", "dcavg": "low",    "mttfd_low": "b",  "mttfd_medium": "c",  "mttfd_high": "d"},
+      {"category": "3", "dcavg": "medium", "mttfd_low": "c",  "mttfd_medium": "d",  "mttfd_high": "d"},
+      {"category": "4", "dcavg": "high",   "mttfd_low": null, "mttfd_medium": null, "mttfd_high": "e"}
+    ],
+    "assumptions": [
+      "doba používání (mission time) 20 let, konstantní intenzity poruch během ní; při opotřebení (T10D < 20 let) preventivní výměna",
+      "kategorie 2: dostatečná četnost testů a testovací kanál aspoň poloviční spolehlivosti funkčního kanálu",
+      "MTTFD kanálu omezeno na 100 let (kat. 4: 2 500 let)",
+      "kromě kvantitativní části je nutné splnit i kvalitativní požadavky (systematické poruchy, software)"
+    ],
+    "note_2023": "Ve vydání 2023 byla tabulka 6 (tabulková podoba sloupcového grafu) z normy odstraněna; sloupcový graf zůstává (nyní obr. 12). Hodnoty tabulky odpovídají sloupcovému grafu; podrobné hodnoty PFH podle MTTFD jsou v příloze K normy nebo v SISTEMA.",
+    "sources": [
+      "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf",
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4894"
+    ],
+    "source_pages": {"SIEMENS_HELP": "tab. 1-2, s. 3", "IFA_2_2017": "obr. 6.10, s. 61–62"},
+    "verified": true,
+    "note": "Tabulka převzata ze Siemens (tab. 1-2 = tab. 6 ISO 13849-1:2015) a souhlasí s popisem sloupcového grafu v IFA (sloupce Kat. B/none, 1/none, 2/low, 2/medium, 3/low, 3/medium, 4/high; max. PL dle kategorie)."
+  },
+
+  "alternative_method_without_mttfd": {
+    "description": "Zjednodušený odhad PFH bez výpočtu MTTFD (ISO 13849-1:2015, 4.5.5, tab. 7; v IFA tab. 6.5) – pro výstupní část (výkonové prvky) mechanické, hydraulické, pneumatické nebo smíšené technologie, když nejsou k dispozici spolehlivostní data.",
+    "table_2015": [
+      {"PL": "b", "pfh": 5.0e-6, "categories": {"B": "recommended", "1": "optional", "2": "optional", "3": "optional", "4": "optional"}},
+      {"PL": "c", "pfh": 1.7e-6, "categories": {"B": null, "1": "recommended", "2": "recommended", "3": "optional", "4": "optional"}},
+      {"PL": "d", "pfh": 2.9e-7, "categories": {"B": null, "1": null, "2": null, "3": "recommended", "4": "optional"}},
+      {"PL": "e", "pfh": 4.7e-8, "categories": {"B": null, "1": null, "2": null, "3": null, "4": "recommended"}}
+    ],
+    "legend": "recommended = doporučená kategorie; optional = volitelná; null = nepřípustná",
+    "conditions_2015": "Kat. 1: osvědčené komponenty a principy. Kat. 2: MTTFD testovacího kanálu ≥ 10 let, dostatečná četnost testů (ne jen 25×). Kat. 2–4: osvědčené nebo „proven-in-use“ komponenty. Kat. 2 a 3: CCF a DC každé komponenty aspoň „low“. Kat. 4: CCF a DC „high“ každé komponenty.",
+    "changes_2023": "Metoda rozšířena i na vstupní část a logiku, ale smí se použít jen, když nelze použít metodu dobré inženýrské praxe (příloha C.2). V kat. 2–4 jen osvědčené komponenty (proven-in-use vypuštěno). Pro logiku: odhad MTTFD kanálu 10 let (kat. B, 2, 3), 30 let (kat. 1); pro kat. 4 nepřípustné; maximum PL c.",
+    "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4894"
+    ],
+    "source_pages": {"IFA_2_2017": "kap. 6.2.17, tab. 6.5, s. 62–63"},
+    "verified": true,
+    "note": "Hodnota „maximum PL c“ se podle DGUV týká nové metody pro logickou část; zda platí i pro vstup/výstup, z článku jednoznačně neplyne."
+  },
+
+  "b10d_to_mttfd": {
+    "formulas": {
+      "nop": "nop = dop · hop · 3600 / tcycle",
+      "mttfd": "MTTFD = B10D / (0,1 · nop)",
+      "t10d": "T10D = B10D / nop",
+      "b10d_from_b10_2015": "B10D = 2 · B10 (předpoklad 50 % nebezpečných poruch, pokud není jiná informace)",
+      "b10d_from_b10_2023": "B10D = B10 / RDF (RDF = podíl nebezpečných poruch, je-li znám); T10D je však omezeno na max. 2 · T10, pokud je RDF < 50 %"
+    },
+    "variables": {
+      "dop": "průměrný počet provozních dní za rok [d/rok]",
+      "hop": "průměrný počet provozních hodin za den [h/d]",
+      "tcycle": "průměrná doba mezi začátky dvou po sobě jdoucích sepnutí komponenty [s/cyklus]",
+      "nop": "průměrný počet sepnutí za rok [cyklů/rok]",
+      "B10D": "počet cyklů, do kterého 10 % komponent selže nebezpečně",
+      "T10D": "doba, za kterou 10 % komponent selže nebezpečně [roky]"
+    },
+    "limitations": [
+      "Aproximace konstantní intenzitou poruch je konzervativní a platná jen do dosažení T10D; komponentu je nutné nejpozději po T10D preventivně vyměnit (informace pro uživatele stroje).",
+      "Je-li T10D kratší než doba používání (typicky 20 let), sloupcový graf platí jen s preventivní výměnou.",
+      "Výrobce musí potvrdit použití základních (a pro kat. 1–4 osvědčených) bezpečnostních principů a uvést podmínky použití; konstruktér a provozovatel je musí dodržet.",
+      "nop odhadnout pro konkrétní aplikaci, případně nejhorší případ."
+    ],
+    "machine_readable_example": {"dop": 220, "hop": 16, "tcycle_s": 60, "nop": 211200, "B10D": 1300000, "T10D_years": 6.16, "MTTFD_years": 61.6, "note": "ilustrační přepočet podle vzorců (stykač při jmenovité zátěži, 1 sepnutí za minutu, 2 směny, 220 dní) – nejde o údaj ze zdroje"},
+    "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4894",
+      "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf"
+    ],
+    "source_pages": {"IFA_2_2017": "příloha D.2.4, s. 271–273 (vzorce D.2–D.5)", "SIEMENS_HELP": "s. 8"},
+    "verified": true,
+    "requires_user_approval": true,
+    "approval_note": "dop, hop a tcycle zadává/potvrzuje uživatel pro konkrétní stroj; B10D má mít přednostně od výrobce."
+  },
+
+  "typical_component_values": {
+    "description": "Typické hodnoty podle ISO 13849-1:2015 tab. C.1 (metoda dobré inženýrské praxe). Platí jen při splnění podmínek (výrobce potvrdí základní/osvědčené principy, konstruktér a provozovatel je dodrží); údaj výrobce má přednost. „Malá zátěž“ = např. 20 % jmenovité.",
+    "items": [
+      {"component": "Mechanické komponenty", "mttfd_years": 150, "b10d": null},
+      {"component": "Hydraulické komponenty, nop ≥ 1 000 000 cyklů/rok", "mttfd_years": 150, "b10d": null},
+      {"component": "Hydraulické komponenty, 500 000 ≤ nop < 1 000 000 cyklů/rok", "mttfd_years": 300, "b10d": null},
+      {"component": "Hydraulické komponenty, 250 000 ≤ nop < 500 000 cyklů/rok", "mttfd_years": 600, "b10d": null},
+      {"component": "Hydraulické komponenty, nop < 250 000 cyklů/rok", "mttfd_years": 1200, "b10d": null},
+      {"component": "Pneumatické komponenty (např. ventil)", "mttfd_years": null, "b10d": 20000000},
+      {"component": "Relé a pomocné stykače – malá zátěž", "mttfd_years": null, "b10d": 20000000},
+      {"component": "Relé a pomocné stykače – jmenovitá zátěž", "mttfd_years": null, "b10d": 400000},
+      {"component": "Bezdotykové (proximity) spínače – malá zátěž", "mttfd_years": null, "b10d": 20000000},
+      {"component": "Bezdotykové (proximity) spínače – jmenovitá zátěž", "mttfd_years": null, "b10d": 400000},
+      {"component": "Stykače – malá zátěž", "mttfd_years": null, "b10d": 20000000},
+      {"component": "Stykače – jmenovitá zátěž", "mttfd_years": null, "b10d": 1300000, "note": "ve vydání 2006/2012 2 000 000; snížení dané podílem 75 % nebezpečných poruch podle IEC 60947-4-1 tab. K.2"},
+      {"component": "Polohové spínače (s nuceným rozpínáním, je-li možné vyloučení poruchy)", "mttfd_years": null, "b10d": 20000000},
+      {"component": "Polohové spínače se samostatným ovladačem, s jištěním (guard locking)", "mttfd_years": null, "b10d": 2000000},
+      {"component": "Tlačítka nouzového zastavení (podle IEC 60947-5-5 / ISO 13850)", "mttfd_years": null, "b10d": 100000, "note": "Každý kontaktní prvek včetně mechanického ovládání lze brát jako jeden kanál; podle počtu kontaktů a detekce poruch v navazující části kat. 1 nebo 3/4; vyloučení poruchy podle ISO 13849-2 tab. D.8 jen v odůvodněných případech"},
+      {"component": "Tlačítka / povolovací spínače (enabling switches, IEC 60947-5-8)", "mttfd_years": null, "b10d": 100000}
+    ],
+    "footnote": "Hodnoty u polohových spínačů, nouzového zastavení a tlačítek platí, je-li možné vyloučit poruchu nuceného rozpínání (IEC 60947-5-1, příloha K).",
+    "sources": [
+      "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf",
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ],
+    "source_pages": {"SIEMENS_HELP": "tab. 3-2 (= ISO 13849-1 tab. C.1), s. 9", "IFA_2_2017": "tab. D.2, s. 270; D.2.5, s. 273–274"},
+    "verified": true,
+    "ifa_extensions": {
+      "description": "IFA Report 2/2017 (tab. D.2) uvádí navíc hodnoty pro polohové spínače a tlačítka bez možnosti vyloučení poruchy nuceného rozpínání (zapínací i rozpínací kontakty):",
+      "items": [
+        {"component": "Polohové spínače a tlačítka – odporová zátěž a předimenzování kontaktů (≤ 10 % max. zátěže)", "b10d": 1000000},
+        {"component": "Polohové spínače a tlačítka – předimenzování kontaktů podle ISO 13849-2 tab. D.2", "b10d": 100000}
+      ],
+      "sources": ["https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"],
+      "verified": true,
+      "note": "Jde o rozšíření IFA (dobrá inženýrská praxe), v tab. C.1 normy podle Siemens tyto řádky nejsou."
+    },
+    "contactor_from_datasheet": {
+      "text": "Neuvádí-li výrobce B10D, ale jen mechanickou a elektrickou životnost, vezme se nižší z obou (obvykle elektrická, závislá na zátěži) jako odhad B10 a B10D = 2 · B10.",
+      "sources": ["https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"],
+      "verified": true,
+      "requires_user_approval": true
+    },
+    "light_curtain_and_encapsulated_subsystems": {
+      "text": "Světelná závora, bezpečnostní PLC a podobné zapouzdřené subsystémy: výrobce uvádí PL, PFH (PFHD) a kategorii; do výpočtu vstupují jen PFH a PL (kategorie je informativní) při dodržení podmínek použití od výrobce. Typická hodnota z normy pro ně neexistuje – vždy datový list výrobce.",
+      "sources": ["https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"],
+      "source_pages": "kap. 6.2.9, s. 54–55",
+      "verified": true,
+      "requires_user_approval": true
+    },
+    "requires_user_approval": true,
+    "approval_note": "Typické hodnoty jsou jen výchozí návrh; uživatel má doplnit nebo potvrdit hodnotu z datového listu výrobce a zatížení (malá/jmenovitá)."
+  },
+
+  "stop_categories_en60204": {
+    "description": "Kategorie zastavení podle EN/IEC 60204-1 (odlišné od kategorií ISO 13849-1).",
+    "items": [
+      {"stop_category": 0, "definition": "Zastavení okamžitým odpojením napájení pohonů (neřízené zastavení). Brzdění vyžadující energii není účinné; lze použít mechanickou brzdu, která energii nepotřebuje. Má přednost před kategoriemi 1 a 2.", "drive_function_iec61800_5_2": "STO (Safe Torque Off)"},
+      {"stop_category": 1, "definition": "Řízené zastavení s energií dostupnou pohonům k dosažení zastavení; po zastavení se energie odpojí.", "drive_function_iec61800_5_2": "SS1 (Safe Stop 1) – SS1-r: sledování brzdné rampy a STO po zastavení; SS1-t: STO po uplynutí času"},
+      {"stop_category": 2, "definition": "Řízené zastavení, při kterém energie pohonům zůstává.", "drive_function_iec61800_5_2": "SS2 (Safe Stop 2) – SS2-r: sledování rampy a SOS (Safe Operating Stop) po zastavení; SS2-t: SOS po uplynutí času"}
+    ],
+    "clause": "IEC 60204-1, čl. 9.2.2 (kategorie zastavení); nouzové zastavení čl. 9.2.3.4.2 (vydání 2016)",
+    "clause_verified": false,
+    "clause_note": "Čísla článků jsem ověřil jen z výsledků vyhledávání (souhrn), ne z textu normy.",
+    "rules": [
+      {"rule": "Kategorie zastavení se volí pro každou funkci zastavení na základě posouzení rizik; funkce zastavení mají přednost před souvisejícími funkcemi startu. Pro funkce zastavení bezpečnostní části řízení se používá kategorie 0 nebo 1.", "sources": ["https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf"], "verified": true},
+      {"rule": "Nouzové zastavení musí fungovat jako zastavení kategorie 0 nebo 1 (podle posouzení rizik), musí být iniciováno jediným lidským úkonem a mít přednost před všemi ostatními funkcemi a režimy. Kategorie 2 pro nouzové zastavení není přípustná.", "sources": ["https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf", "https://machinerysafety101.com/2010/09/27/emergency-stop-categories/", "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"], "verified": true},
+      {"rule": "Nouzové zastavení je doplňkové ochranné opatření (ISO 12100, 6.3.5), ne náhrada ochranných opatření; jeho úroveň vlastností se určí posouzením rizik (IEC 60204-1, 9.4).", "sources": ["https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"], "verified": true}
+    ],
+    "machine_readable": {"emergency_stop_allowed_categories": [0, 1], "drive_function_map": {"0": "STO", "1": "SS1", "2": "SS2"}},
+    "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf",
+      "https://www.se.com/us/en/faqs/FA122781/",
+      "https://machinerysafety101.com/2010/09/27/emergency-stop-categories/"
+    ],
+    "source_pages": {"IFA_2_2017": "tab. 5.1 a 5.2, s. 29–30 (IEC 61800-5-2:2016)", "ROCKWELL_SAFEBOOK5": "s. 39"},
+    "verified": true,
+    "requires_user_approval": true,
+    "approval_note": "Volbu kategorie zastavení (0/1/2) pro každou funkci zastavení a pro nouzové zastavení (0 nebo 1) potvrzuje uživatel na základě posouzení rizik. Připomínka pro PLCdesk: generovaný program safety logiku nevytváří – E-stop je v něm jen informativní signál."
+  },
+
+  "dc_measures": {
+    "description": "DC typických diagnostických opatření (ISO 13849-1:2015 příloha E, tab. E.1; v IFA tab. E.2). I = vstup, L = logika, O = výstup.",
+    "items": [
+      {"measure": "Cyklický testovací podnět dynamickou změnou vstupních signálů", "applies": ["I"], "dc_percent": 90},
+      {"measure": "Kontrola věrohodnosti, např. rozpínací + spínací kontakt mechanicky vázané", "applies": ["I"], "dc_percent": 99},
+      {"measure": "Křížová kontrola vstupů / výstupů bez dynamického testu", "applies": ["I", "O"], "dc_percent_min": 0, "dc_percent_max": 99, "note": "závisí na tom, jak často aplikace mění signál"},
+      {"measure": "Sledování výstupů jedním kanálem bez dynamického testu", "applies": ["O"], "dc_percent_min": 0, "dc_percent_max": 99, "note": "závisí na četnosti změny signálu"},
+      {"measure": "Křížová kontrola vstupů / výstupů s dynamickým testem, bez detekce zkratů (vícenásobné I/O)", "applies": ["I", "O"], "dc_percent": 90},
+      {"measure": "Křížová kontrola signálů a mezivýsledků v logice + časové a logické sledování běhu programu + detekce statických poruch a zkratů", "applies": ["I", "O"], "dc_percent": 99},
+      {"measure": "Nepřímé sledování (tlakový spínač, elektrické sledování polohy pohonu místo řídicího prvku)", "applies": ["I", "L", "O"], "dc_percent_min": 90, "dc_percent_max": 99, "note": "závisí na aplikaci"},
+      {"measure": "Přímé sledování (elektrické sledování polohy řídicích ventilů, sledování elektromechanických prvků mechanicky vázanými kontakty – např. EDM stykače přes zrcadlový/vázaný rozpínací kontakt)", "applies": ["I", "L", "O"], "dc_percent": 99},
+      {"measure": "Detekce poruch procesem", "applies": ["I", "L", "O"], "dc_percent_min": 0, "dc_percent_max": 99, "note": "jen pokud se komponenta účastní výrobního procesu; samotné nestačí pro PLr e"},
+      {"measure": "Sledování některých vlastností snímače (doba odezvy, rozsah analogového signálu)", "applies": ["I"], "dc_percent": 60},
+      {"measure": "Sledování běhu programu – jednoduché časové (watchdog)", "applies": ["L"], "dc_percent": 60},
+      {"measure": "Sledování běhu programu – časové a logické", "applies": ["L"], "dc_percent": 90},
+      {"measure": "Autotesty při spuštění (latentní poruchy)", "applies": ["L"], "dc_percent": 90},
+      {"measure": "Kontrola sledovacího zařízení (watchdog) hlavním kanálem při startu / při vyžádání", "applies": ["L"], "dc_percent": 90},
+      {"measure": "Dynamický princip (všechny prvky logiky mění stav ON-OFF-ON při vyžádání; blokovací obvody relé/pneumatiky)", "applies": ["L"], "dc_percent": 99},
+      {"measure": "Neproměnná paměť: podpis jednoho slova (8 bit)", "applies": ["L"], "dc_percent": 90},
+      {"measure": "Neproměnná paměť: podpis dvojslova (16 bit)", "applies": ["L"], "dc_percent": 99},
+      {"measure": "Proměnná paměť: RAM test redundantními daty a křížovým porovnáním", "applies": ["L"], "dc_percent": 60},
+      {"measure": "Proměnná paměť: kontrola čtení a zápisu používaných buněk", "applies": ["L"], "dc_percent": 60},
+      {"measure": "Proměnná paměť: modifikovaný Hammingův kód nebo RAM self-test (galpat, Abraham)", "applies": ["L"], "dc_percent": 99},
+      {"measure": "Procesor: softwarový self-test", "applies": ["L"], "dc_percent_min": 60, "dc_percent_max": 90},
+      {"measure": "Procesor: kódované zpracování", "applies": ["L"], "dc_percent_min": 90, "dc_percent_max": 99},
+      {"measure": "Redundantní vypínací cesta se sledováním akčních členů logikou nebo testovacím zařízením", "applies": ["O"], "dc_percent": 99}
+    ],
+    "boundary_conditions": [
+      "Detekce poruchy má smysl jen tehdy, když se včas vyvolá bezpečný stav; např. detekovaný svařený stykač bez možnosti včas zastavit pohyb = DC 0 %.",
+      "U kaskádovaných (sériově zapojených) polohových spínačů může docházet k maskování poruch – DC je nutné snížit.",
+      "Test kategorie 2 musí proběhnout před dalším vyžádáním (min. 100× častěji, výjimečně 25×).",
+      "Minimální četnost testů elektromechanických výstupů (ISO 14119 a doporučení notifikovaných osob): kat. 3/4 PL e aspoň 1× měsíčně, kat. 3 PL d aspoň 1× za 12 měsíců.",
+      "Účinnost testu vyžaduje nezávislost testujícího a testovaného (odolnost proti jediné poruše a CCF)."
+    ],
+    "changes_2023": [
+      "DC se v konkrétní aplikaci má zásadně určovat na základě FMEA.",
+      "U sledování výstupů a křížové kontroly bez dynamického testu může být DC omezeno četností testu danou aplikací: DC 99 % jen při testu aspoň 1× měsíčně, test méně často než 1× ročně = DC 0 %.",
+      "U detekce poruch procesem lze efektivní DC omezit poměrem diagnostické četnosti procesu k četnosti vyžádání až na 60 %.",
+      "Více opatření na jedné komponentě lze kombinovat k vyššímu DC; tím lze překonat omezení, že detekce procesem sama nestačí pro PLr e.",
+      "Tabulka příkladů opatření je ve vydání 2023 označena E.1 (DGUV ji uvádí pod nadpisem „Annex D: Diagnostic coverage“ – číslování přílohy viz discrepancies)."
+    ],
+    "sources": [
+      "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf",
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4894"
+    ],
+    "source_pages": {"SIEMENS_HELP": "tab. 2-2 a 2-3, s. 6–7", "IFA_2_2017": "tab. E.2, s. 286–289; kap. 6.2.14, s. 57–59"},
+    "verified": true,
+    "requires_user_approval": true,
+    "approval_note": "Přiřazení DC konkrétnímu zapojení (zejm. rozsahy 0–99 % a 90–99 %) musí potvrdit uživatel; aplikace má navrhovat dolní hodnotu rozsahu, dokud není doloženo víc."
+  },
+
+  "discrepancies": [
+    {
+      "topic": "B10D stykače při jmenovité zátěži",
+      "detail": "ISO 13849-1:2006/2012: 2 000 000 cyklů; ISO 13849-1:2015 (tab. C.1): 1 300 000 cyklů (podíl nebezpečných poruch 75 % podle IEC 60947-4-1 tab. K.2 místo 50 %). Starší výklady a nástroje mohou uvádět 2 000 000.",
+      "sources": [
+        "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+        "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf"
+      ],
+      "resolution": "Používat 1 300 000 (2015); hodnota v ISO 13849-1:2023 tab. C.1 neověřena."
+    },
+    {
+      "topic": "Tlačítka a polohové spínače bez vyloučení poruchy nuceného rozpínání",
+      "detail": "Tab. C.1 normy (podle Siemens) uvádí pro tlačítka/povolovací spínače B10D = 100 000 (s poznámkou o vyloučení poruchy nuceného rozpínání). IFA Report 2/2017 navíc rozlišuje 1 000 000 cyklů (odporová zátěž, kontakty zatížené ≤ 10 %) a 100 000 cyklů (předimenzování podle ISO 13849-2 tab. D.2) – rozšíření IFA.",
+      "sources": [
+        "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf",
+        "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+      ]
+    },
+    {
+      "topic": "Hydraulické komponenty",
+      "detail": "Vydání 2006/2012: paušálně MTTFD 150 let; vydání 2015: odstupňováno 150 / 300 / 600 / 1 200 let podle nop (IFA).",
+      "sources": ["https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"]
+    },
+    {
+      "topic": "Převod B10 → B10D",
+      "detail": "Do 2015: B10D = 2 · B10 (50 % nebezpečných poruch). Od 2023: B10D = B10/RDF, je-li RDF znám, ale T10D max. 2 · T10 při RDF < 50 %.",
+      "sources": ["https://publikationen.dguv.de/widgets/pdf/download/article/4894"]
+    },
+    {
+      "topic": "DCavg pro kategorie 2 a 3",
+      "detail": "IFA (tab. 6.2): „alespoň nízké“. Siemens (tab. 1-3, odpovídá tab. 10 normy 2015) u kat. 2: „Low to medium“. Sloupcový graf má pro kat. 2 a 3 jen sloupce low a medium, takže věcně ve shodě; DCavg „high“ v kat. 2/3 ve zjednodušené metodě nepřináší vyšší PL (u kat. 2 strop PL d).",
+      "sources": [
+        "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+        "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf"
+      ]
+    },
+    {
+      "topic": "Tabulka 6 (sloupcový graf v tabulce)",
+      "detail": "ISO 13849-1:2015 tabulku obsahuje (Siemens ji cituje), ve vydání 2023 byla odstraněna (DGUV); sloupcový graf zůstává jako obr. 12.",
+      "sources": [
+        "https://publikationen.dguv.de/widgets/pdf/download/article/4894",
+        "https://assets.new.siemens.com/siemens/assets/api/uuid:23ce849b-fca0-4402-b88b-91adef4139e8/hilfetexte-iso-en-211221.pdf"
+      ]
+    },
+    {
+      "topic": "Číslování přílohy o DC ve vydání 2023",
+      "detail": "Článek DGUV má nadpis „Annex D: Diagnostic coverage“, ale v textu odkazuje na „Table E.1“. Ve vydání 2015 je DC v příloze E. Které číslo přílohy platí ve vydání 2023, neověřeno.",
+      "sources": ["https://publikationen.dguv.de/widgets/pdf/download/article/4894"],
+      "verified": false
+    },
+    {
+      "topic": "Kategorie zastavení pro nouzové zastavení",
+      "detail": "Některé starší webové texty (výsledek vyhledávání, motorcontrolwarehouse.co.uk) uvádějí, že jako nouzové zastavení je přípustná jen kategorie 0. IEC 60204-1 i ISO 13850 podle Rockwell a Machinery Safety 101 připouštějí kategorii 0 nebo 1; IFA uvádí pro nouzové zastavení STO nebo SS1.",
+      "sources": [
+        "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/safebk-rm002_-en-p.pdf",
+        "https://machinerysafety101.com/2010/09/27/emergency-stop-categories/",
+        "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+      ],
+      "resolution": "Platí kategorie 0 nebo 1."
+    }
+  ],
+
+  "not_verified": [
+    "Tabulka C.1 ve znění ISO 13849-1:2023 – veřejně dostupné výklady citují znění 2015; DGUV změny hodnot tab. C.1 neuvádí (jen nový převod B10/RDF).",
+    "Doslovné číslování článků IEC 60204-1 (9.2.2, 9.2.3.4.2) – jen z výsledků vyhledávání.",
+    "Sick Guide for Safe Machinery – PDF na sick.com vrací 404, nepoužit; Schmersal a Euchner jsem nedohledal ve formě s tabulkami hodnot.",
+    "Číslo přílohy o DC ve vydání 2023 (D vs. E)."
+  ]
+}

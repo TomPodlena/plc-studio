@@ -1,4 +1,4 @@
-# PLC Studio - vytvori zastupce na plose, ktery spousti aplikaci z TETO slozky.
+# PLCdesk - vytvori zastupce na plose, ktery spousti aplikaci z TETO slozky.
 # Po presunu repozitare staci skript pustit znovu.
 #   powershell -ExecutionPolicy Bypass -File make_shortcut.ps1
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -14,12 +14,12 @@ if (-not $pyw -or -not (Test-Path $pyw)) {
     exit 1
 }
 
-$lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'PLC Studio.lnk'
+$lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'PLCdesk.lnk'
 $sc = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
 $sc.TargetPath = $pyw
 $sc.Arguments = '"' + (Join-Path $here 'PLCStudio.pyw') + '"'
 $sc.WorkingDirectory = $here
 $sc.IconLocation = (Join-Path $here 'plc_studio\assets\plc_studio.ico') + ',0'
-$sc.Description = 'PLC Studio - navrh PLC systemu od zadani po kod a dokumentaci'
+$sc.Description = 'PLCdesk - navrh PLC systemu od zadani po kod a dokumentaci'
 $sc.Save()
 Write-Output "Zastupce vytvoren: $lnk -> $pyw"

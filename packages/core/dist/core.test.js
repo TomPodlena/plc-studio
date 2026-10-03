@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { blankProject, syncIO, autoAddr, addrFor, sanitizeTag, validateProject, modules, dtFor, ioOf, PLAT, enableInputs, } from "./model.js";
 import { genFor, genTagFile, seqBody, parseFbTemplate, ST_MOTOR, ST_VENTIL, SCL_MOTOR, SCL_VENTIL, TPL_COMMENTS, templateComments, trComments, timeLit } from "./codegen.js";
 import { logixProblems } from "./logix.js";
-import { LANGS, fill, getLang, setLang, tr, trx, withLang } from "./i18n.js";
+import { LANGS, fill, getLang, setLang, tr, trx, withLang, formatDate, formatDateTime } from "./i18n.js";
 import { detectAndParse, buildDevicesFromTags, normAddr } from "./importers.js";
 import { sheetOps, opsToDXF, opsToSVG, svgBlock } from "./drawing.js";
 import { simulate, Simulator, Checkpoints, verifyProject, docVerifyMd, stepCondText, T_MOTOR_FBK, T_VALVE_TRAVEL, DI_DELAY } from "./sim.js";
@@ -88,7 +88,7 @@ test("Rockwell Tags.csv: hlavička, ASCII, atributy, escapování $, REAL analog
     assert.ok(f.body.includes('ALIAS,,M1_fbkRunning,') && f.body.includes('"Local:1:I.Pt00.Data"'), "alias DI na bod modulu 5069");
     assert.ok(f.body.includes('ALIAS,,B1_raw,') && /B1_raw,.*"Local:3:I\.Ch00\.Data","\(RADIX := Float/.test(f.body), "analog = REAL kanál");
     assert.ok(/remark,"I\/O .*1: 5069-IB16 \(DI 0-15\), 2: 5069-OB16 \(DO 0-15\), 3: 5069-IF8/.test(f.body), "předpoklad osazení slotů v remark");
-    assert.ok(f.body.includes('TAG,PLCStudio,tonSeq10,"","FBD_TIMER"') && f.body.includes('TAG,PLCStudio,instM1,"","FB_Motor"'), "programové tagy se SCOPE");
+    assert.ok(f.body.includes('TAG,PLCdesk,tonSeq10,"","FBD_TIMER"') && f.body.includes('TAG,PLCdesk,instM1,"","FB_Motor"'), "programové tagy se SCOPE");
     for (const l of lines.slice(hdr + 2))
         assert.ok(/,"\([^"]*ExternalAccess := Read\/Write\)"$/.test(l), "vyplněné ATTRIBUTES: " + l);
     /* adresa, kterou nejde převést → běžný tag (REAL / BOOL) */
@@ -117,13 +117,13 @@ test("Rockwell: L5X (AOI + tagy + rutina ST) je well-formed a bez konstrukcí, k
     syncIO(weird);
     for (const p of [sampleSmall(), sampleComplex(), weird]) {
         const files = genFor(p, "rockwell");
-        assert.deepEqual(Object.keys(files), ["PLCStudio_Program.L5X", "MainRoutine.st", "Tags.csv", "README.txt"]);
-        const x = files["PLCStudio_Program.L5X"], st = files["MainRoutine.st"];
+        assert.deepEqual(Object.keys(files), ["PLCdesk_Program.L5X", "MainRoutine.st", "Tags.csv", "README.txt"]);
+        const x = files["PLCdesk_Program.L5X"], st = files["MainRoutine.st"];
         assert.ok(tagsBalanced(x), "párování značek");
         assert.deepEqual(logixProblems(files), [], "kontrola Logix");
         assert.ok(x.startsWith('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'));
         assert.match(x, /<RSLogix5000Content [^>]*TargetType="Program"[^>]*ContainsContext="true"/);
-        assert.match(x, /<Program Use="Target" Name="PLCStudio"[^>]*MainRoutineName="MainRoutine"/);
+        assert.match(x, /<Program Use="Target" Name="PLCdesk"[^>]*MainRoutineName="MainRoutine"/);
         assert.ok(!/[^\x00-\x7F]/.test(x) && !/[^\x00-\x7F]/.test(st), "ASCII");
         /* rutina a AOI: jen Logix ST */
         const rout = [...x.matchAll(/<Line Number="\d+">((?:<!\[CDATA\[[\s\S]*?\]\]>)+)<\/Line>/g)]
@@ -163,7 +163,7 @@ test("Rockwell: rutina je zrcadlo IEC generátoru (pořadí, časovače za CASE,
     assert.ok(st.indexOf("FB_Ventil(instY1)") < st.indexOf("IF cmdAck AND NOT (" + err + ") THEN machineFault := 0; faultStep := 0; END_IF;"), "kvitace za bloky");
     assert.ok(!/tempUnused/.test(st));
     /* šablona → AOI: RETURN jako ELSE, TONR a DINT status */
-    const x = genFor(p, "rockwell")["PLCStudio_Program.L5X"];
+    const x = genFor(p, "rockwell")["PLCdesk_Program.L5X"];
     assert.match(x, /<Parameter Name="status" TagType="Base" DataType="DINT" Usage="Output"/);
     assert.match(x, /<LocalTag Name="tonFbk" DataType="FBD_TIMER"/);
     assert.ok(x.includes("<![CDATA[    tonFbk.PRE := 3000; tonFbk.TimerEnable := (statStep = 10); TONR(tonFbk);]]>"));
@@ -829,10 +829,10 @@ test("kusovník: položky ze zařízení, PLC moduly platformy, volby uživatele
     assert.equal(csv.trim().split(/\r?\n/).length, b2.lines.length + 1);
     assert.ok(bomMd(p).includes("návrh k revizi"));
 });
-test("dokumentace: 11 dokumentů + schémata + soubory platforem", () => {
+test("dokumentace: 14 dokumentů + schémata + soubory platforem", () => {
     const p = sampleComplex();
     p.platforms = ["siemens", "codesys"];
-    assert.equal(docFiles(p).length, 11);
+    assert.equal(docFiles(p).length, 14, "00–09 + schválení + protokol oživení MD a CSV");
     const all = allProjectFiles(p);
     assert.ok(all.some(f => f.name === "blokove_schema.svg"));
     assert.ok(all.some(f => f.name === "funkcni_diagram.svg") && all.some(f => f.name === "casovy_diagram.svg"));
@@ -1038,7 +1038,7 @@ test("koncept: normalizace, markdown a podmíněný dokument", () => {
     assert.equal(prop.variants[0].odhadIO.do, 16);
     const p = sampleSmall();
     const n = docFiles(p).length;
-    assert.equal(n, 11, "bez konceptu 11 dokumentů");
+    assert.equal(n, 14, "bez konceptu 14 dokumentů");
     p.concept = { ...prop.variants[0], zadani: "zkušební stanice" };
     const files = docFiles(p);
     assert.equal(files.length, n + 1, "s konceptem o dokument víc");
@@ -1468,4 +1468,790 @@ test("import: texty hlášení jsou přeložené", () => {
             r.missing.forEach((m, i) => assert.ok(m !== csMissing[i], l + ": " + m));
             assert.ok(extractFiles([{ name: "x.pdf", mime: "application/pdf" }]).files[0].fmt !== "dokument / obrázek (zpracuje AI)", l);
         });
+});
+/* ================================================= schvalování, ladění a oživení (approval.ts, commission.ts) */
+import { approvalItems, approvalStatus, approvalSummary, approve, reject, resetApproval, approvalStamp, approvalsMd, canonicalJson, contentHash, registerApprovalProvider, approvalProviders, tuningProposals, applyTuning, APPROVAL_FILE, } from "./approval.js";
+import { commissioningPlan, commissioningMd, commissioningCsv, commissioningSummary, setCommissionResult, registerCommissioningProvider, COMMISSION_PHASES, COMMISSION_FILE_MD, COMMISSION_FILE_CSV, } from "./commission.js";
+const itemMap = (p) => new Map(approvalItems(p).map(i => [i.key, i]));
+const statusOf = (p, key) => approvalStatus(p, itemMap(p).get(key));
+/** Schválí všechny povinné položky (v testu jedním jménem a pevným datem). */
+function approveAll(p, by = "Jan Novák") {
+    for (const it of approvalItems(p))
+        if (it.required)
+            approve(p, it.key, by, "", "2026-10-03T10:00:00.000Z");
+}
+test("schvalování: položky návrhu a deterministické otisky nezávislé na jazyku", () => {
+    const p = sampleSmall();
+    const items = approvalItems(p);
+    const keys = items.map(i => i.key);
+    for (const k of ["dev:M1", "dev:Y1", "dev:B1", "dev:S1", "dev:H1", "io", "seq", "interlocks", "limits", "verify", "safety:external", "commission:plan", "commission:close"])
+        assert.ok(keys.includes(k), k);
+    assert.equal(new Set(keys).size, keys.length, "klíče jedinečné");
+    for (const i of items) {
+        assert.match(i.hash, /^[0-9a-f]{16}$/, i.key);
+        assert.ok(i.title && i.summary, i.key);
+    }
+    assert.ok(items.filter(i => i.group === "tuning").every(i => !i.required && i.key.startsWith("tuning:")));
+    /* deterministické: kopie projektu a jiný jazyk dají stejné otisky */
+    const again = itemMap(clonePrj(p));
+    for (const i of items)
+        assert.equal(again.get(i.key).hash, i.hash, "kopie: " + i.key);
+    const en = withLang("en", () => itemMap(p));
+    for (const i of items)
+        assert.equal(en.get(i.key).hash, i.hash, "jazyk: " + i.key);
+    assert.ok(en.get("seq").title !== items.find(i => i.key === "seq").title, "titulky přeložené");
+    /* kanonický JSON: pořadí klíčů nehraje roli */
+    assert.equal(canonicalJson({ b: 1, a: [1, { d: 2, c: undefined }] }), canonicalJson({ a: [1, { d: 2 }], b: 1 }));
+    assert.equal(contentHash({ a: 1, b: 2 }), contentHash({ b: 2, a: 1 }));
+    assert.notEqual(contentHash({ a: 1 }), contentHash({ a: 2 }));
+});
+test("schvalování: změna obsahu zneplatní, kosmetická změna ne", () => {
+    const p = sampleSmall();
+    approveAll(p);
+    const s0 = approvalSummary(p);
+    assert.ok(s0.ok, "všechny povinné schválené");
+    assert.equal(s0.blocking.length, 0);
+    assert.ok(s0.approved >= 13 && s0.stale === 0);
+    /* kosmetika: popisy zařízení, komentáře I/O, popis projektu */
+    const q = clonePrj(p);
+    q.devices.find(d => d.name === "M1").desc = "Hlavní čerpadlo — přejmenováno";
+    for (const e of q.io)
+        e.cmt = e.cmt + " (upraveno)";
+    q.meta.desc = "jiný popis";
+    for (const it of approvalItems(q))
+        if (it.required)
+            assert.equal(approvalStatus(q, it), "approved", "kosmetika nezneplatní " + it.key);
+    /* změna času kroku: sekvence a hlídací časy změněné po schválení, zařízení ne */
+    const r = clonePrj(p);
+    r.program.seq[1].timeS = 4;
+    assert.equal(statusOf(r, "seq"), "stale");
+    assert.equal(statusOf(r, "limits"), "stale");
+    assert.equal(statusOf(r, "dev:M1"), "approved");
+    assert.equal(statusOf(r, "io"), "approved");
+    const sr = approvalSummary(r);
+    assert.ok(!sr.ok && sr.stale >= 2 && sr.blocking.some(i => i.key === "seq"));
+    /* volby zařízení, NC, meze, takt */
+    const t = clonePrj(p);
+    t.devices.find(d => d.name === "M1").opt.fault = false;
+    assert.equal(statusOf(t, "dev:M1"), "stale");
+    assert.equal(statusOf(t, "dev:Y1"), "approved");
+    const u = clonePrj(p);
+    u.io.find(e => e.tag === "S2_in").nc = true;
+    assert.equal(statusOf(u, "io"), "stale");
+    assert.equal(statusOf(u, "interlocks"), "stale");
+    const w = clonePrj(p);
+    w.devices.find(d => d.name === "B1").limHi = 200;
+    assert.equal(statusOf(w, "dev:B1"), "stale");
+    w.meta.takt = 10;
+    assert.equal(statusOf(w, "limits"), "stale");
+    assert.equal(statusOf(w, "seq"), "approved", "takt není součástí sekvence");
+});
+test("schvalování: approve / reject / reset a souhrn", () => {
+    const p = sampleSmall();
+    const s0 = approvalSummary(p);
+    assert.equal(s0.approved, 0);
+    assert.equal(s0.pending, s0.total);
+    assert.ok(!s0.ok && s0.blocking.every(i => i.required));
+    assert.equal(statusOf(p, "seq"), "missing");
+    approve(p, "seq", "Jan Novák", "sekvence odsouhlasena s technologem", "2026-10-03T08:00:00.000Z");
+    assert.deepEqual({ ...p.approvals.seq, hash: "" }, { state: "approved", by: "Jan Novák", at: "2026-10-03T08:00:00.000Z", note: "sekvence odsouhlasena s technologem", hash: "" });
+    assert.equal(statusOf(p, "seq"), "approved");
+    reject(p, "io", "Eva Malá", "adresy podle skutečného rozvaděče");
+    assert.equal(statusOf(p, "io"), "rejected");
+    const s1 = approvalSummary(p);
+    assert.equal(s1.approved, 1);
+    assert.equal(s1.rejected, 1);
+    assert.equal(s1.pending, s1.total - 2);
+    assert.ok(s1.blocking.some(i => i.key === "io") && !s1.blocking.some(i => i.key === "seq"));
+    /* po zamítnutí upravený obsah = nový návrh k rozhodnutí */
+    p.io[0].addr = "%I9.0";
+    assert.equal(statusOf(p, "io"), "proposed");
+    resetApproval(p, "seq");
+    assert.equal(statusOf(p, "seq"), "missing");
+    assert.throws(() => approve(p, "seq", "  "), /name/);
+    assert.throws(() => approve(p, "neexistuje", "Jan"), /unknown/);
+    assert.throws(() => approve(p, "commission:close", "Jan"), /not ready/, "uzavření oživení až po všech krocích");
+    /* nic se neschvaluje samo */
+    const fresh = sampleComplex();
+    approvalItems(fresh);
+    tuningProposals(fresh);
+    commissioningPlan(fresh);
+    assert.equal(fresh.approvals, undefined);
+});
+test("ladění: rezerva hlídacího času — návrh, čisté apply, kontrola zmizí", () => {
+    const p = sampleSmall();
+    const d = simulate(p).steps.find(r => r.i === 0);
+    const dur = d.tEnd - d.tStart;
+    p.program.seq[0].timeS = Math.round(dur / 0.9 * 100) / 100; // rezerva ~10 %
+    const has = (q) => verifyProject(q).checks.some(c => c.step === 0 && /malá rezerva hlídacího času/.test(c.title));
+    assert.ok(has(p), "ověření hlásí malou rezervu");
+    const props = tuningProposals(p);
+    const wd = props.find(t => t.id === "wd-0");
+    assert.ok(wd && wd.kind === "watchdog" && wd.apply && wd.approvalKey === "tuning:wd-0");
+    assert.ok(itemMap(p).has("tuning:wd-0"), "návrh je položka ke schválení");
+    const before = JSON.stringify(p);
+    const q = wd.apply(p);
+    assert.equal(JSON.stringify(p), before, "apply nemění vstupní projekt");
+    assert.ok(q !== p && q.program.seq[0].timeS >= dur / 0.7, "hlídací čas s rezervou ≥ 30 %");
+    assert.ok(!has(q), "po uplatnění kontrola zmizí");
+    assert.ok(!tuningProposals(q).some(t => t.id === "wd-0"));
+    assert.ok(verifyProject(q).ok);
+    assert.equal(q.approvals, undefined, "uplatnění nic neschvaluje");
+    /* meze analogu z rozsahu */
+    const lim = props.find(t => t.id === "limits-B1");
+    const r = applyTuning(p, "limits-B1");
+    const b1 = r.devices.find(x => x.name === "B1");
+    assert.ok(lim.apply && b1.limLo > b1.rmin && b1.limHi < b1.rmax && b1.limLo < b1.limHi);
+    assert.ok(!verifyProject(r).checks.some(c => /B1 .*se jen zobrazuje/.test(c.title)));
+    assert.ok(verifyProject(r).ok, "meze nezpůsobí poruchu běžného cyklu");
+    /* popisné návrhy bez apply; takt */
+    assert.ok(props.some(t => t.id === "unused-out-H1" && !t.apply));
+    const s = sampleSmall();
+    s.meta.takt = 6;
+    const tk = tuningProposals(s).find(t => t.id === "takt");
+    assert.ok(tk && /Takt 6 s nesplněn/.test(tk.title) && tk.apply);
+    const s2 = tk.apply(s);
+    assert.ok(verifyProject(s2).checks.some(c => c.level === "ok" && /splňuje takt 6 s/.test(c.title)), "zkrácená výdrž splní takt");
+});
+test("oživení: plán pro ukázky a příklady — každý I/O signál, pohony, sekvence, fáze", () => {
+    const projects = [["small", sampleSmall()], ["complex", sampleComplex()],
+        ["00a", loadSample("00a")], ["03", loadSample("03")], ["07", loadSample("07")]];
+    for (const [name, p] of projects) {
+        const plan = commissioningPlan(p);
+        const ids = plan.map(s => s.id);
+        assert.equal(new Set(ids).size, ids.length, name + ": id jedinečná");
+        for (let i = 1; i < plan.length; i++)
+            assert.ok(plan[i].phase >= plan[i - 1].phase, name + ": řazení po fázích");
+        for (const s of plan)
+            assert.ok(COMMISSION_PHASES[s.phase] && s.title && s.how && s.expect, name + ": " + s.id);
+        for (const e of p.io) {
+            const d = p.devices.find(x => x.id === e.devId);
+            const st = plan.find(s => s.id === "io:" + d.name + "." + e.sig);
+            assert.ok(st && st.phase === 2 && st.signals.includes(e.tag), name + ": smyčkový test " + e.tag);
+        }
+        for (const d of p.devices) {
+            if (d.cls === "Motor")
+                assert.ok(ids.includes("drv:" + d.name + ":dir") && ids.includes("man:" + d.name), name + ": motor " + d.name);
+            if (d.cls === "Ventil")
+                assert.ok(ids.includes("drv:" + d.name + ":travel") && ids.includes("man:" + d.name), name + ": ventil " + d.name);
+            if (d.cls === "AnalogIn")
+                assert.ok(ids.includes("ana:" + d.name + ":scale"), name + ": analog " + d.name);
+        }
+        assert.equal(plan.filter(s => s.phase === 7 && /^seq:\d+:/.test(s.id)).length, p.program.seq.length, name + ": krok plánu pro každý krok sekvence");
+        if (p.program.seq.length) {
+            for (let ph = 1; ph <= 10; ph++)
+                assert.ok(plan.some(s => s.phase === ph), name + ": fáze " + ph);
+            assert.equal(plan.some(s => s.id === "flt:estop"), !!p.devices.find(d => d.id === p.program.estop), name + ": E-stop v poruchových stavech");
+        }
+        assert.ok(ids.includes("safety:validation"), name + ": bezpečnostní validace jako otevřený bod");
+    }
+});
+test("oživení: výsledky, protokol MD a CSV, uzavření", () => {
+    const p = sampleSmall();
+    const plan = commissioningPlan(p);
+    setCommissionResult(p, "p1:visual", "ok", "Petr Dvořák", { at: "2026-10-05T09:00:00.000Z" });
+    setCommissionResult(p, "drv:M1:fbk", "ok", "Petr Dvořák", { measured: "0,8 s", at: "2026-10-05T09:30:00.000Z" });
+    setCommissionResult(p, "io:S2.in", "nok", "Petr Dvořák", { note: "prohozené vodiče na X1:6" });
+    assert.throws(() => setCommissionResult(p, "nic", "ok", "Petr"), /unknown/);
+    const sum = commissioningSummary(p);
+    assert.equal(sum.ok, 2);
+    assert.equal(sum.nok, 1);
+    assert.equal(sum.open, plan.length - 3);
+    assert.ok(!sum.done);
+    const md = commissioningMd(p);
+    assert.ok(md.startsWith("# Protokol oživení"));
+    assert.ok(md.includes("NESCHVÁLENO"), "razítko");
+    assert.ok(md.includes("`drv:M1:fbk`") && md.includes("0,8 s") && md.includes("**OK**"));
+    assert.ok(/- \*\*NOK\*\* `io:S2\.in`.*prohozené vodiče/.test(md), "otevřené body");
+    for (const ph of [1, 2, 3, 5, 7, 8, 10])
+        assert.ok(md.includes("## " + ph + ". "), "fáze " + ph);
+    const csv = commissioningCsv(p).split("\n");
+    assert.equal(csv.length, plan.length + 1);
+    const cols = (l) => l.replace(/"([^"]|"")*"/g, "x").split(";").length;
+    for (const l of csv)
+        assert.equal(cols(l), 11, l);
+    assert.ok(csv.some(l => l.includes("io:S2.in") && l.includes(";NOK;")));
+    /* všechny kroky OK / N/A → uzavření jde schválit */
+    for (const s of plan)
+        if (s.id !== "p1:pe")
+            setCommissionResult(p, s.id, "ok", "Petr Dvořák", {}, plan);
+    setCommissionResult(p, "p1:pe", "na", "Petr Dvořák", { note: "provede revizní technik" }, plan);
+    assert.ok(commissioningSummary(p).done);
+    approve(p, "commission:plan", "Jan Novák");
+    approve(p, "commission:close", "Jan Novák", "oživení uzavřeno");
+    assert.equal(approvalStamp(p, ["commission"]).state, "approved");
+    assert.ok(commissioningMd(p).includes("SCHVÁLENO"));
+    /* změna výsledku po uzavření → uzavření změněno po schválení */
+    setCommissionResult(p, "p1:visual", "nok", "Petr Dvořák", { note: "doplnit štítky" });
+    assert.equal(statusOf(p, "commission:close"), "stale");
+    assert.equal(statusOf(p, "commission:plan"), "approved", "výsledky nemění plán");
+});
+test("registr: bezpečnostní modul se přihlásí do schvalování a do oživení bez zásahu do jádra", () => {
+    const p = sampleSmall();
+    assert.ok(approvalProviders().includes("commission"), "oživení je přihlášené přes registr");
+    const offA = registerApprovalProvider(prj => [{
+            key: "safety:SF1", group: "safety", required: true, title: "SF1 — nouzové zastavení", summary: "PL d, kat. 3",
+            hash: contentHash({ sf: 1, estop: prj.program.estop }),
+        }], "safety-test");
+    let offC = registerCommissioningProvider(() => [{
+            id: "safety:SF1:validate", phase: 10, title: "Validace SF1", how: "zkouška", expect: "STO do 100 ms", signals: ["S1_in"],
+        }], "safety-test");
+    try {
+        const m = itemMap(p);
+        assert.ok(m.has("safety:SF1") && !m.has("safety:external"), "bezpečnostní modul nahradí zástupnou položku");
+        approve(p, "safety:SF1", "Jan Novák");
+        assert.equal(statusOf(p, "safety:SF1"), "approved");
+        const plan = commissioningPlan(p);
+        assert.ok(plan.some(s => s.id === "safety:SF1:validate") && !plan.some(s => s.id === "safety:validation"));
+        assert.equal(plan[plan.length - 1].id, "safety:SF1:validate", "krok ze zdroje ve své fázi");
+        /* jiný krok ze zdroje → jiný otisk plánu */
+        const h0 = itemMap(p).get("commission:plan").hash;
+        offC();
+        offC = registerCommissioningProvider(() => [{ id: "safety:SF1:validate", phase: 10, title: "x", how: "x", expect: "x", signals: [] }], "safety-test");
+        assert.notEqual(itemMap(p).get("commission:plan").hash, h0);
+        /* duplicitní klíč = chyba */
+        const offD = registerApprovalProvider(() => [{ key: "seq", group: "safety", required: false, title: "x", summary: "x", hash: "0" }], "dup");
+        assert.throws(() => approvalItems(p), /duplicate/);
+        offD();
+    }
+    finally {
+        offA();
+        offC();
+    }
+    assert.ok(!approvalProviders().includes("safety-test"));
+    assert.ok(itemMap(p).has("safety:external"), "po odhlášení zpět zástupná položka");
+    assert.ok(commissioningPlan(p).some(s => s.id === "safety:validation"));
+});
+test("dokumenty: razítka stavu, 11_schvaleni a 12_protokol_ozivovani v cs i en", () => {
+    const CZ = /[ěščřžůďťňĚŠČŘŽŮĎŤŇ]/;
+    const p = sampleSmall();
+    const doc = (q, path) => docFiles(q).find(f => f.path === path).body;
+    assert.ok(doc(p, "01_funkcni_specifikace_FDS.md").split("\n")[2].startsWith("> **NESCHVÁLENO**"), "razítko pod nadpisem");
+    assert.ok(doc(p, APPROVAL_FILE).includes("| Tabulka I/O |"));
+    assert.ok(docFiles(p).some(f => f.path === COMMISSION_FILE_MD) && docFiles(p).some(f => f.path === COMMISSION_FILE_CSV));
+    assert.ok(allProjectFiles(p).find(f => f.save === "siemens_README.txt").body.startsWith("NESCHVÁLENO"));
+    approveAll(p);
+    const fds = doc(p, "01_funkcni_specifikace_FDS.md");
+    assert.ok(fds.includes("> **SCHVÁLENO** — Jan Novák, " + formatDate("2026-10-03T10:00:00.000Z")), fds.slice(0, 300));
+    assert.ok(approvalsMd(p).includes(formatDateTime("2026-10-03T10:00:00.000Z")), "kdy = datum a čas podle jazyka");
+    assert.ok(approvalsMd(p).includes("Všechny povinné položky jsou schválené"));
+    p.program.seq[1].timeS = 4;
+    assert.ok(doc(p, "01_funkcni_specifikace_FDS.md").includes("ZMĚNĚNO PO SCHVÁLENÍ"));
+    assert.ok(doc(p, "09_kusovnik.md").includes("SCHVÁLENO"), "kusovník pokrývá jen návrh zařízení");
+    /* anglicky: bez češtiny (obsah projektu vzniká v angličtině) */
+    withLang("en", () => {
+        const q = sampleSmall();
+        reject(q, "io", "John Smith", "addresses differ");
+        approve(q, "seq", "John Smith");
+        setCommissionResult(q, "p1:visual", "ok", "John Smith", { measured: "ok" });
+        const files = docFiles(q);
+        for (const path of [APPROVAL_FILE, COMMISSION_FILE_MD, COMMISSION_FILE_CSV, "00_prehled_dokumentace.md", "01_funkcni_specifikace_FDS.md", "08_overeni_simulaci.md"]) {
+            const body = files.find(f => f.path === path).body;
+            const m = body.match(CZ);
+            assert.ok(!m, path + ": " + (m ? body.slice(Math.max(0, m.index - 40), m.index + 40) : ""));
+            assert.ok(!/\{[a-z][A-Za-z]*\}/.test(body), path + ": zástupný znak");
+        }
+        assert.ok(files.find(f => f.path === "01_funkcni_specifikace_FDS.md").body.includes("NOT APPROVED"));
+        for (const t of tuningProposals(q))
+            assert.ok(!CZ.test(t.title + t.why), t.id);
+        for (const s of commissioningPlan(q))
+            assert.ok(!CZ.test(s.title + s.how + s.expect), s.id);
+    });
+});
+import { approveMany, applyTuningResult, isVerified, verifyDesign, approvalStatusLabel } from "./approval.js";
+test("schvalování: levný souhrn bez ověření, cache ověření přežije přejmenování projektu", () => {
+    const p = sampleSmall();
+    p.devices.push({ id: 999, name: "M9", cls: "Motor", desc: "", opt: {}, unit: "", rmin: 0, rmax: 100 }); // jiný návrh = jistě není v cache
+    syncIO(p);
+    assert.equal(isVerified(p), false);
+    const cheap = approvalSummary(p, { cheap: true });
+    assert.ok(cheap.partial && cheap.unverified >= 2, "verify a plán oživení čekají na ověření");
+    assert.equal(isVerified(p), false, "levný souhrn ověření nespustil");
+    const items = approvalItems(p, { cheap: true });
+    assert.equal(approvalStatus(p, items.find(i => i.key === "verify")), "unverified");
+    assert.ok(!items.some(i => i.group === "tuning"), "návrhy ladění potřebují ověření");
+    assert.equal(approvalStatusLabel("unverified"), "čeká na ověření");
+    verifyDesign(p);
+    assert.ok(isVerified(p));
+    const full = approvalSummary(p, { cheap: true });
+    assert.ok(!full.partial && full.unverified === 0, "po ověření je levný souhrn úplný");
+    assert.deepEqual(full, approvalSummary(p), "a shodný s plným");
+    /* název a popis projektu, schválení ani výsledky oživení ověření nezneplatní */
+    p.meta.name = "Přejmenovaný stroj";
+    p.meta.desc = "jiný popis";
+    approve(p, "seq", "Jan Novák");
+    setCommissionResult(p, "p1:visual", "ok", "Jan Novák");
+    assert.ok(isVerified(p));
+    assert.ok(docFiles(p).find(f => f.path === "08_overeni_simulaci.md").body.includes("Přejmenovaný stroj"), "hlavička protokolu nese název");
+    p.program.seq[0].timeS = 7;
+    assert.equal(isVerified(p), false, "změna návrhu ověření zneplatní");
+});
+test("schvalování: hromadné schválení vybraných položek", () => {
+    const p = sampleSmall();
+    const design = approvalItems(p).filter(i => i.group === "design").map(i => i.key);
+    const r = approveMany(p, [...design, "commission:close", "neexistuje", design[0]], "Jan Novák", "kontrola návrhu", "2026-10-03T09:00:00.000Z");
+    assert.deepEqual(r.approved, design, "každá vybraná položka jednou");
+    assert.deepEqual(r.skipped.map(x => x.key), ["commission:close", "neexistuje"]);
+    for (const k of design) {
+        const rec = p.approvals[k];
+        assert.equal(rec.state, "approved");
+        assert.equal(rec.note, "kontrola návrhu");
+        assert.equal(statusOf(p, k), "approved");
+    }
+    assert.equal(statusOf(p, "seq"), "missing", "nevybrané položky se neschválí");
+    assert.throws(() => approveMany(p, ["seq"], " "), /name/);
+});
+test("ladění: návrh nese seznam změn; meze analogu mění otisk plánu oživení", () => {
+    const p = sampleSmall();
+    const t = tuningProposals(p).find(x => x.id === "limits-B1");
+    assert.deepEqual(t.changes.map(c => [c.key, c.field, c.before]), [["dev:B1", "devices[B1].limLo", null], ["dev:B1", "devices[B1].limHi", null]]);
+    assert.ok(t.affects.includes("commission:plan") && t.affects.includes("dev:B1"));
+    assert.deepEqual(tuningProposals(p).find(x => x.id === "unused-out-H1").changes, []);
+    const before = itemMap(p);
+    const r = applyTuningResult(p, "limits-B1");
+    assert.equal(r.changes.length, 2);
+    const b1 = r.prj.devices.find(d => d.name === "B1");
+    assert.deepEqual([b1.limLo, b1.limHi], r.changes.map(c => c.after));
+    const after = itemMap(r.prj);
+    const changed = [...after.values()].filter(i => i.group !== "tuning" && before.has(i.key) && before.get(i.key).hash !== i.hash).map(i => i.key).sort();
+    assert.deepEqual(changed, [...r.affects].sort(), "affects = položky se změněným otiskem");
+    assert.ok(changed.includes("commission:plan"), "kontrola mezí v plánu závisí na hodnotě meze");
+    assert.equal(r.prj.approvals, undefined);
+    assert.deepEqual(applyTuning(p, "limits-B1"), r.prj, "applyTuning vrací projekt jako dřív");
+});
+test("i18n: datum a čas podle jazyka", () => {
+    const iso = "2026-10-03T08:05:00.000Z";
+    assert.match(formatDateTime(iso), /2026/);
+    assert.notEqual(withLang("en", () => formatDateTime(iso)), withLang("de", () => formatDateTime(iso)));
+    assert.equal(formatDateTime("nesmysl"), "nesmysl");
+    assert.equal(formatDate(iso), withLang("cs", () => new Date(iso).toLocaleDateString("cs-CZ")));
+});
+/* ================================================= bezpečnostní funkce (safety.ts, safety_prog.ts, safety_docs.ts) */
+import { proposeSafety, plrFromGraph, plFromCategory, mttfdFromB10d, nopFrom, symmetrizeMttfd, safetyDistance, mttfdClass, dcClass, safetyApprovalItems, safetyApprovalState, registerSafetyModule, unregisterSafetyModule, safetyModuleRegistered, safetyCommissioningSteps, guardKindOf, plRank, } from "./safety.js";
+import { safetyProgramFiles, programFunctions } from "./safety_prog.js";
+import { safetySrsMd, safetyValidationMd, SAFETY_FILE_SRS, SAFETY_FILE_VALIDATION } from "./safety_docs.js";
+import { logixSafetyProblems } from "./logix.js";
+/* Modul zapíná klient (`registerSafetyModule`); ostatní testy počítají se zástupnou položkou
+   „safety:external“ — modul se proto přihlašuje jen v testech bezpečnostního modulu. */
+unregisterSafetyModule();
+function withSafety(fn) {
+    const off = registerSafetyModule();
+    try {
+        fn();
+    }
+    finally {
+        off();
+    }
+}
+const SAFETY_SAMPLE = (name) => {
+    const j = JSON.parse(readFileSync(new URL(name + ".plcstudio.json", SAMPLE_DIR), "utf8"));
+    const p = j.prj || j;
+    syncIO(p);
+    return p;
+};
+const fnOf = (p, ref) => proposeSafety(p).fns.find(f => f.ref === ref);
+/** Schválí nebezpečí, funkce a návrhy (ne program); doplní změřené doby doběhu, kde jsou potřeba. */
+function approveSafetyFns(p, by = "Jan Novák") {
+    p.safety = p.safety || {};
+    p.safety.fn = p.safety.fn || {};
+    for (const f of proposeSafety(p).fns)
+        if (f.distance)
+            p.safety.fn[f.ref] = { ...(p.safety.fn[f.ref] || {}), tStopMs: 150 };
+    /* návrhy s PL < PLr (nebo bez dat) se schválit nedají — doplnit data, jinak PLr dle (zkušební) C-normy */
+    for (const f of proposeSafety(p).fns)
+        if (!f.off && f.design && f.risk.plr && !f.design.ok) {
+            const c = (p.safety.fn[f.ref] = { ...(p.safety.fn[f.ref] || {}) });
+            if (!f.design.pl) {
+                c.mttfdIn = 100;
+                c.mttfdOut = 100;
+            }
+            const g = fnOf(p, f.ref);
+            if (!g.design.ok) {
+                c.plr = g.design.pl || "a";
+                c.plrSource = "EN ISO 13849-1 (test)";
+            }
+        }
+    for (const it of safetyApprovalItems(p))
+        if (it.key !== "safety:program")
+            approve(p, it.key, by, "", "2026-10-03T10:00:00.000Z");
+}
+test("bezpečnost: návrh funkcí pro sampleSmall a sampleComplex", () => {
+    const s = sampleSmall();
+    const ps = proposeSafety(s);
+    const es = ps.fns.find(f => f.kind === "estop");
+    assert.ok(es && es.inputs[0] === "S1", "E-stop z prj.program.estop");
+    assert.equal(es.risk.plr, "d", "E-stop: S2/F1/P2 → d (ISO 13850 min. c)");
+    assert.deepEqual(es.risk.min, { pl: "c", why: es.risk.min.why });
+    assert.ok(ps.fns.some(f => f.kind === "guard" && f.inputs[0] === "S2"), "kryt z blokování dává blokování krytu");
+    assert.ok(ps.fns.some(f => f.kind === "restart"), "ochrana proti neočekávanému rozběhu");
+    for (const f of ps.fns.filter(x => x.role !== "passive")) {
+        assert.ok(f.design && f.design.subs.some(x => x.role === "L"), f.id + ": logika");
+        assert.ok(f.tests.length > 0 && f.sources.length > 0, f.id + ": zkoušky a zdroje");
+    }
+    const c = sampleComplex();
+    const pc = proposeSafety(c);
+    const kinds = pc.fns.map(f => f.kind);
+    for (const k of ["estop", "guard", "guard_lock", "light_curtain", "two_hand", "restart", "hydraulic"])
+        assert.ok(kinds.includes(k), "sampleComplex: " + k);
+    assert.deepEqual(pc.fns.filter(f => f.kind === "guard").map(f => f.inputs[0]), ["S2", "S3"]);
+    assert.deepEqual(fnOf(c, "two_hand").inputs, ["S5", "S6"], "tlačítka dvouručního ovládání z popisu DI");
+    assert.equal(fnOf(c, "two_hand").risk.plr, "e", "lis: dvouruční ovládání typ IIIC = PL e");
+    assert.equal(guardKindOf(c.devices.find(d => d.name === "S4")), "light_curtain");
+    assert.ok(pc.fns.every(f => /^SF\d+$/.test(f.id)) && new Set(pc.fns.map(f => f.ref)).size === pc.fns.length);
+    /* anglický obsah projektu: stejné rozpoznání */
+    const ce = withLang("en", sampleComplex);
+    assert.deepEqual(proposeSafety(ce).fns.map(f => f.ref), pc.fns.map(f => f.ref));
+    /* úpravy uživatele: vyřazení, S/F/P, doplněná funkce */
+    c.safety = { fn: { "guard:S3": { off: true, note: "kryt jen pro údržbu, uzamčen" }, "guard:S2": { P: "P2" } }, add: [{ ref: "user:mat", kind: "mat", inputs: ["S7"] }] };
+    const pu = proposeSafety(c);
+    assert.ok(pu.fns.find(f => f.ref === "guard:S3").off && !pu.fns.find(f => f.ref === "guard:S3").design);
+    assert.equal(pu.fns.find(f => f.ref === "guard:S2").risk.P, "P2");
+    assert.ok(pu.fns.some(f => f.ref === "user:mat" && f.user));
+    assert.equal(pu.fns.find(f => f.ref === "guard:S3").id, pc.fns.find(f => f.ref === "guard:S3").id, "vyřazená funkce drží číslo");
+});
+test("bezpečnost: příklady — lisy mají dvouruční ovládání, kryty dávají blokování, výstupy podle pohonů", () => {
+    const nl = SAFETY_SAMPLE("03_nytovaci_lis_NL-1");
+    const pn = proposeSafety(nl);
+    assert.ok(pn.fns.some(f => f.kind === "two_hand" && f.inputs.length === 2), "nýtovací lis: dvouruční ovládání S2 + S3");
+    assert.ok(pn.fns.some(f => f.kind === "guard" && f.inputs[0] === "S4"), "zadní kryt S4");
+    assert.ok(!pn.fns.some(f => f.kind === "guard" && f.inputs.includes("S5")), "tlakový spínač v blokování není ochranný kryt");
+    const tl = SAFETY_SAMPLE("07_transferova_lisovna_TL-07");
+    const pt = proposeSafety(tl);
+    assert.ok(pt.fns.some(f => f.kind === "two_hand"), "lisovna: dvouruční ovládání (chybí pult → návrh doplnit)");
+    assert.ok(pt.fns.find(f => f.kind === "two_hand").missing.length > 0);
+    assert.equal(pt.fns.filter(f => f.kind === "light_curtain").length, 3, "tři světelné závory");
+    assert.ok(pt.fns.some(f => f.kind === "enabling") && pt.fns.some(f => f.kind === "mode"), "robot: povolovací spínač a volba režimu");
+    const dop = SAFETY_SAMPLE("01_pasovy_dopravnik_vyhazovac");
+    const pd = proposeSafety(dop);
+    assert.ok(!pd.fns.some(f => f.kind === "two_hand"), "dopravník není lis");
+    assert.deepEqual(pd.groups.map(g => g.id), ["KS", "YS"], "stykače pro motor, odvzdušnění pro válec");
+    const ms = SAFETY_SAMPLE("08_montazni_linka_otocny_stul_MS-8");
+    assert.ok(proposeSafety(ms).groups.some(g => g.id === "STO_M1"), "měnič → STO");
+    assert.ok(proposeSafety(ms).fns.some(f => f.kind === "sto"));
+    const lk = SAFETY_SAMPLE("06_lakovaci_linka_LK-06");
+    const tf = proposeSafety(lk).fns.find(f => f.kind === "temperature");
+    assert.ok(tf && tf.inputs.includes("S6"), "teplotní pojistka pece jako vstup omezovače teploty");
+    assert.ok(tf.design.problems.length > 0 && tf.design.pl === null, "omezovač bez dat → PL nelze určit (otevřený bod)");
+});
+test("bezpečnost: PLr z grafu rizik, snížení a norma typu C", () => {
+    const exp = { S1F1P1: "a", S1F1P2: "b", S1F2P1: "b", S1F2P2: "c", S2F1P1: "c", S2F1P2: "d", S2F2P1: "d", S2F2P2: "e" };
+    for (const [k, v] of Object.entries(exp))
+        assert.equal(plrFromGraph(k.slice(0, 2), k.slice(2, 4), k.slice(4)), v, k);
+    const p = sampleComplex();
+    p.safety = { fn: { "guard:S2": { S: "S1", F: "F1", P: "P1" } } };
+    assert.equal(fnOf(p, "guard:S2").risk.plr, "a");
+    p.safety.fn["guard:S2"].reduce = "historie úrazů srovnatelných strojů";
+    assert.equal(fnOf(p, "guard:S2").risk.plr, "a", "snížení nikdy pod PL a");
+    p.safety.fn["guard:S2"] = { reduce: "nízká pravděpodobnost výskytu (zdůvodnění)" };
+    const g = fnOf(p, "guard:S2");
+    assert.equal(g.risk.graph, "e");
+    assert.equal(g.risk.plr, "d", "sníženo o jednu úroveň");
+    p.safety.fn.estop = { S: "S1", F: "F1", P: "P1" };
+    assert.equal(fnOf(p, "estop").risk.plr, "c", "E-stop nejméně PL c (ISO 13850)");
+    p.safety.fn.estop = { plr: "e", plrSource: "EN ISO 16092-1" };
+    assert.equal(fnOf(p, "estop").risk.plr, "e");
+    assert.equal(fnOf(p, "estop").risk.override.source, "EN ISO 16092-1");
+    /* výstupní funkce dědí PLr od funkcí, které je vyžadují */
+    const q = sampleComplex();
+    assert.equal(fnOf(q, "hydraulic").risk.plr, "e");
+});
+test("bezpečnost: výpočet PL (kategorie × MTTFd × DCavg × CCF)", () => {
+    assert.equal(Math.round(nopFrom(220, 16, 60)), 211200);
+    assert.equal(Math.round(mttfdFromB10d(1300000, 211200) * 10) / 10, 61.6, "příklad IFA: stykač 1,3 mil. cyklů");
+    assert.equal(mttfdClass(2), "not_suitable");
+    assert.equal(mttfdClass(29.9), "medium");
+    assert.equal(mttfdClass(30), "high");
+    assert.equal(dcClass(59), "none");
+    assert.equal(dcClass(90), "medium");
+    assert.equal(dcClass(99), "high");
+    assert.ok(Math.abs(symmetrizeMttfd(100, 100) - 100) < 1e-9);
+    const pl = (cat, mttfd, dc, ccf = 70) => plFromCategory({ cat, mttfd, dc, ccf }).pl;
+    assert.equal(pl("B", 5, 0), "a");
+    assert.equal(pl("B", 20, 0), "b");
+    assert.equal(pl("B", 200, 0), "b", "kat. B nejvýš b");
+    assert.equal(pl("1", 50, 0), "c");
+    assert.equal(pl("1", 20, 0), null, "kat. 1 jen s vysokou MTTFd");
+    assert.equal(pl("2", 5, 60), "a");
+    assert.equal(pl("2", 50, 95), "d");
+    assert.equal(pl("3", 20, 95), "d");
+    assert.equal(pl("3", 50, 99), "d");
+    assert.equal(pl("3", 50, 80), "d");
+    assert.equal(pl("3", 5, 80), "b");
+    assert.equal(pl("4", 2000, 99), "e");
+    assert.equal(pl("4", 2000, 95), null, "kat. 4 vyžaduje DC ≥ 99 %");
+    assert.equal(pl("3", 50, 99, 60), null, "CCF < 65 bodů");
+    assert.equal(pl("3", 50, 50), null, "kat. 3 bez diagnostiky");
+    assert.equal(plFromCategory({ cat: "3", mttfd: 4000, dc: 99, ccf: 70 }).mttfdCapped, 100, "MTTFd kanálu omezeno na 100 let");
+    assert.equal(plFromCategory({ cat: "4", mttfd: 4000, dc: 99, ccf: 70 }).mttfdCapped, 2500, "kat. 4: 2500 let");
+    /* návrh: komponenty s B10d → výpočet, přístroje s PL výrobce → PL přístroje; dosažené PL ≥ PLr */
+    const p = sampleSmall();
+    const es = proposeSafety(p).fns.find(f => f.kind === "estop");
+    const inp = es.design.subs.find(s => s.role === "I");
+    assert.equal(inp.from, "calc");
+    assert.ok(inp.nop > 0 && inp.mttfd > 0);
+    assert.equal(es.design.pl, "d");
+    assert.ok(es.design.ok);
+    p.safety = { fn: { estop: { b10dIn: 1000, demandS: 60 } } };
+    const es2 = proposeSafety(p).fns.find(f => f.kind === "estop");
+    assert.ok(!es2.design.ok && es2.design.problems.some(x => x.includes("PL")), "špatná data komponenty → PL < PLr, otevřený bod");
+});
+test("bezpečnost: bezpečná vzdálenost ISO 13855 (2010 / 2024), jen ze změřené doby doběhu", () => {
+    const miss = safetyDistance({ edition: "2010", mode: "orthogonal", d: 14 });
+    assert.equal(miss.S, null);
+    assert.ok(miss.missing.length === 1, "bez změřené doby doběhu se nepočítá");
+    const a = safetyDistance({ edition: "2010", mode: "orthogonal", d: 14, tStopMs: 100, tDeviceMs: 20, tLogicMs: 20 });
+    assert.equal(a.T, 0.14);
+    assert.equal(a.S, 280);
+    assert.equal(a.K, 2000);
+    const b = safetyDistance({ edition: "2010", mode: "orthogonal", d: 14, tStopMs: 400, tDeviceMs: 20, tLogicMs: 20 });
+    assert.equal(b.S, 704);
+    assert.equal(b.K, 1600, "S > 500 mm → K = 1600");
+    assert.equal(safetyDistance({ edition: "2010", mode: "orthogonal", d: 14, tStopMs: 20 }).S, 100, "nejméně 100 mm");
+    assert.equal(safetyDistance({ edition: "2010", mode: "orthogonal", d: 50, tStopMs: 200 }).S, 1170, "40 < d ≤ 70: 1600·T + 850");
+    assert.equal(safetyDistance({ edition: "2024", mode: "orthogonal", d: 30, tStopMs: 100 }).S, 328, "2024: D_DT = 8·(d − 14)");
+    assert.equal(safetyDistance({ edition: "2024", mode: "orthogonal", d: 45, tStopMs: 100 }).S, 500, "2024: 40–55 mm, nejméně 500 mm");
+    assert.equal(safetyDistance({ edition: "2010", mode: "two_hand", tStopMs: 200 }).S, 570);
+    assert.equal(safetyDistance({ edition: "2024", mode: "two_hand", tStopMs: 200 }).S, 870, "2024: D_DS = 550 mm");
+    assert.equal(safetyDistance({ edition: "2010", mode: "parallel", H: 300, tStopMs: 500 }).S, 1880, "C = 1200 − 0,4·H");
+    assert.equal(safetyDistance({ edition: "2010", mode: "parallel", H: 900, tStopMs: 500 }).C, 850, "C nejméně 850 mm");
+    assert.equal(safetyDistance({ edition: "2024", mode: "parallel", H: 300, tStopMs: 500, Z: 100 }).S, 2100);
+    assert.ok(safetyDistance({ edition: "2024", mode: "multibeam", tStopMs: 100 }).warnings.length >= 2);
+    assert.equal(safetyDistance({ edition: "2010", mode: "mat", tStopMs: 250 }).S, 1600);
+    for (const e of ["2010", "2024"])
+        assert.ok(safetyDistance({ edition: e, mode: "two_hand", tStopMs: 1 }).sources.length > 0, e + ": zdroje");
+    /* ve funkci: bez změřené doby doběhu nejde návrh schválit */
+    withSafety(() => {
+        const c = sampleComplex();
+        const lc = proposeSafety(c).fns.find(f => f.kind === "light_curtain");
+        const it = safetyApprovalItems(c).find(i => i.key === "safety:" + lc.id + ":design");
+        assert.equal(it.ready, false);
+        assert.throws(() => approve(c, it.key, "Jan Novák"), /not ready/);
+        c.safety = { iso13855: "2024", fn: { [lc.ref]: { tStopMs: 120, mttfdOut: 100 } } };
+        const lc2 = proposeSafety(c).fns.find(f => f.ref === lc.ref);
+        assert.equal(lc2.distance.edition, "2024");
+        assert.ok(lc2.distance.S > 0);
+        assert.ok(lc2.distance.warnings.some(w => w.includes("EN 692")), "lis: přednost C-normy");
+        approve(c, it.key, "Jan Novák");
+    });
+});
+test("bezpečnost: program se bez schválení negeneruje, po schválení má bloky pro každou funkci", () => {
+    withSafety(() => {
+        const p = sampleComplex();
+        p.platforms = ["rockwell", "siemens", "codesys"];
+        const noTime = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v.replace(/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d/g, "T")]));
+        const std = Object.fromEntries(["rockwell", "siemens", "codesys"].map(x => [x, noTime(genFor(p, x))]));
+        const pend = safetyProgramFiles(p, "rockwell");
+        assert.equal(pend.state, "pending");
+        assert.deepEqual(Object.keys(pend.files), ["00_CEKA_NA_SCHVALENI.md"]);
+        assert.ok(pend.files["00_CEKA_NA_SCHVALENI.md"].includes("NESCHVÁLENO"));
+        const prog0 = safetyApprovalItems(p).find(i => i.key === "safety:program");
+        assert.equal(prog0.ready, false, "program nejde schválit před funkcemi");
+        approveSafetyFns(p);
+        assert.ok(safetyApprovalState(p).fnsApproved);
+        const fns = programFunctions(proposeSafety(p)).filter(f => f.role === "input" && f.kind !== "restart");
+        /* Rockwell: L5X safety programu */
+        const rw = safetyProgramFiles(p, "rockwell");
+        assert.equal(rw.state, "draft");
+        const x = rw.files["PLCdesk_Safety.L5X"];
+        assert.deepEqual(logixSafetyProblems(x), []);
+        assert.ok(x.includes('Class="Safety"') && x.includes("NESCHVALENO"));
+        for (const f of fns)
+            assert.ok(new RegExp("(DCS|DCSTL|THRSe|DCSRT)\\(" + f.id + "_").test(x) || (f.kind === "mode" && x.includes(f.id + "_OK")), "L5X: blok pro " + f.id + " " + f.kind);
+        assert.ok(/CROUT\(KS_CROUT/.test(x), "stykače přes CROUT (EDM)");
+        assert.ok(rw.files["README_safety.txt"].includes("Logix Designer"));
+        /* Siemens: předpis volání F-bloků */
+        const sm = safetyProgramFiles(p, "siemens").files["F_program_predpis.md"];
+        for (const f of fns)
+            assert.ok(sm.includes("### " + f.id + " "), "Siemens: " + f.id);
+        for (const b of ["ESTOP1", "SFDOOR", "TWO_H_EN", "EV1oo2DI", "FDBACK", "ACK_GL"])
+            assert.ok(sm.includes("`" + b + "`"), "Siemens: " + b);
+        assert.ok(sm.includes("NESCHVÁLENO"));
+        /* PLCopen Safety */
+        const po = safetyProgramFiles(p, "plcopen").files["PLCopen_Safety_predpis.md"];
+        for (const b of ["SF_EmergencyStop", "SF_GuardMonitoring", "SF_ESPE", "SF_TwoHandControlTypeIII", "SF_GuardLocking_2", "SF_OutControl", "SF_EDM"])
+            assert.ok(po.includes("`" + b + "`"), "PLCopen: " + b);
+        for (const f of fns)
+            assert.ok(po.includes(f.id + "_OK"), "PLCopen: " + f.id);
+        /* Pilz / SICK / Schmersal / relé: konfigurační předpis */
+        for (const t of ["pilz", "sick", "schmersal", "relay"]) {
+            const body = Object.values(safetyProgramFiles(p, t).files)[0];
+            for (const f of fns)
+                assert.ok(body.includes("| " + f.id + " "), t + ": " + f.id);
+        }
+        /* standardní program se nemění */
+        for (const k of Object.keys(std))
+            assert.deepEqual(noTime(genFor(p, k)), std[k], k + ": standardní program beze změny");
+        /* schválení programu */
+        const def = safetyProgramFiles(p);
+        assert.equal(def.target, "rockwell", "cíl podle logiky (první platforma Rockwell → GuardLogix)");
+        assert.ok(def.files["README_safety.txt"].startsWith("NESCHVALENO"));
+        approve(p, "safety:program", "Jan Novák", "", "2026-10-03T11:00:00.000Z");
+        const ok = safetyProgramFiles(p);
+        assert.equal(ok.state, "approved");
+        assert.ok(ok.files["README_safety.txt"].startsWith("SCHVALENO"));
+        assert.ok(safetyProgramFiles(p, "siemens").files["F_program_predpis.md"].includes("**NESCHVÁLENO**"), "jiný cíl než schválený = návrh");
+        /* sada projektu: dokumenty, výkres, program */
+        const all = allProjectFiles(p);
+        for (const n of [SAFETY_FILE_SRS, SAFETY_FILE_VALIDATION, "00_bezpecnostni_okruh.svg", "00_bezpecnostni_okruh.dxf"])
+            assert.ok(all.some(f => f.save === n), n);
+        assert.ok(all.some(f => f.save.startsWith("safety_")), "bezpečnostní program v sadě");
+        assert.ok(!/[^\x00-\x7F]/.test(all.find(f => f.save === "00_bezpecnostni_okruh.dxf").body), "DXF ASCII");
+        assert.ok(all.find(f => f.save === "00_bezpecnostni_okruh.svg").body.includes('data-io="S1_ChA"'));
+    });
+});
+test("bezpečnost: položky ke schválení, otisky a zneplatnění", () => {
+    withSafety(() => {
+        assert.ok(safetyModuleRegistered());
+        const p = sampleComplex();
+        const items = approvalItems(p);
+        const keys = items.map(i => i.key);
+        assert.ok(!keys.includes("safety:external"), "modul nahradí zástupnou položku");
+        for (const k of ["safety:hazards", "safety:SF1", "safety:SF1:design", "safety:program"])
+            assert.ok(keys.includes(k), k);
+        assert.ok(items.filter(i => i.group === "safety").every(i => i.required));
+        /* otisky nezávislé na jazyku a popisech */
+        const h = Object.fromEntries(safetyApprovalItems(p).map(i => [i.key, i.hash]));
+        withLang("de", () => { for (const i of safetyApprovalItems(p))
+            assert.equal(i.hash, h[i.key], "de: " + i.key); });
+        approveSafetyFns(p);
+        const st = (k) => approvalStatus(p, approvalItems(p).find(i => i.key === k));
+        approve(p, "safety:program", "Jan Novák");
+        assert.equal(st("safety:program"), "approved");
+        p.devices.find(d => d.name === "S2").desc = "Levý kryt (přejmenováno)";
+        p.meta.desc = "jiný popis";
+        assert.equal(st("safety:SF2"), "approved", "popis zařízení schválení nezneplatní");
+        /* změna PLr parametru → funkce i program znovu ke schválení */
+        const g = proposeSafety(p).fns.find(f => f.ref === "guard:S2");
+        p.safety.fn[g.ref] = { ...(p.safety.fn[g.ref] || {}), P: "P1", note: "P1 - zdůvodnění (test)" };
+        assert.equal(st("safety:" + g.id), "stale");
+        assert.equal(st("safety:program"), "stale", "změna funkce zneplatní program");
+        assert.equal(safetyProgramFiles(p).state, "pending", "zneplatněná funkce → program znovu jen „čeká na schválení“");
+        approve(p, "safety:" + g.id, "Jan Novák");
+        /* změna komponenty / dat → jen návrh */
+        p.safety.fn[g.ref].b10dIn = 3000000;
+        assert.equal(st("safety:" + g.id), "approved");
+        assert.equal(st("safety:" + g.id + ":design"), "stale");
+        /* odhlášení modulu → zpět zástupná položka */
+    });
+    assert.ok(approvalItems(sampleSmall()).some(i => i.key === "safety:external"));
+});
+test("bezpečnost: pravidla blokace schválení jsou v jádře (approvalItems)", () => {
+    withSafety(() => {
+        const p = sampleComplex();
+        const item = (k) => safetyApprovalItems(p).find(i => i.key === k);
+        const g = fnOf(p, "guard:S2");
+        const fk = "safety:" + g.id, dk = fk + ":design";
+        p.safety = { fn: { "guard:S2": { tStopMs: 150 } } };
+        assert.notEqual(item(fk).ready, false, "výchozí návrh funkce lze schválit");
+        /* vyřazení bez zdůvodnění */
+        p.safety.fn["guard:S2"].off = true;
+        assert.equal(item(fk).ready, false);
+        assert.match(item(fk).notReady, /Vyřazení funkce potřebuje zdůvodnění/);
+        assert.throws(() => approve(p, fk, "Jan Novák"), /not ready/);
+        p.safety.fn["guard:S2"].note = "kryt nahrazen pevným krytem";
+        assert.notEqual(item(fk).ready, false, "se zdůvodněním lze schválit");
+        p.safety.fn["guard:S2"] = { tStopMs: 150 };
+        /* PLr z normy typu C bez zdroje */
+        p.safety.fn["guard:S2"].plr = "d";
+        assert.equal(item(fk).ready, false);
+        assert.deepEqual(item(fk).blockers, ["PLr převzaté z normy typu C potřebuje zdroj (norma a článek)."]);
+        p.safety.fn["guard:S2"].plrSource = "EN 415-10, 5.2";
+        assert.notEqual(item(fk).ready, false);
+        /* snížení PLr úpravou parametrů rizika bez zdůvodnění; reduce nese zdůvodnění v sobě */
+        p.safety.fn["guard:S2"] = { tStopMs: 150, P: "P1" };
+        assert.equal(item(fk).ready, false);
+        assert.match(item(fk).notReady, /Snížení PLr/);
+        p.safety.fn["guard:S2"].note = "rychlost pohybu < 10 mm/s, únik možný";
+        assert.notEqual(item(fk).ready, false);
+        p.safety.fn["guard:S2"] = { tStopMs: 150, reduce: "nízká pravděpodobnost výskytu" };
+        assert.notEqual(item(fk).ready, false);
+        /* PL < PLr → návrh nelze schválit; důvod jmenuje omezující subsystém */
+        p.safety.fn["guard:S2"] = { tStopMs: 150, cat: "B" };
+        const d = fnOf(p, "guard:S2");
+        assert.ok(d.design.pl && plRank(d.design.pl) < plRank(d.risk.plr));
+        assert.equal(item(dk).ready, false);
+        assert.match(item(dk).notReady, /je nižší než PLr/);
+        assert.throws(() => approve(p, dk, "Jan Novák"), /not ready/);
+        /* PL neurčitelné (omezovač teploty bez dat) */
+        const lk = SAFETY_SAMPLE("06_lakovaci_linka_LK-06");
+        const tf = proposeSafety(lk).fns.find(f => f.kind === "temperature");
+        const ti = safetyApprovalItems(lk).find(i => i.key === "safety:" + tf.id + ":design");
+        assert.equal(ti.ready, false);
+        assert.match(ti.notReady, /PL nelze určit/);
+        /* chybějící zařízení neblokuje — zůstává otevřeným bodem */
+        const tl = SAFETY_SAMPLE("07_transferova_lisovna_TL-07");
+        const pr = proposeSafety(tl).fns.find(f => f.kind === "pressure");
+        if (pr) {
+            assert.ok(pr.design.problems.length > 0, "pojistný ventil = otevřený bod");
+            assert.notEqual(safetyApprovalItems(tl).find(i => i.key === "safety:" + pr.id + ":design").ready, false, "chybějící zařízení schválení neblokuje");
+        }
+        const tw = proposeSafety(tl).fns.find(f => f.kind === "two_hand");
+        assert.ok(tw.missing.length > 0);
+        assert.ok(!(safetyApprovalItems(tl).find(i => i.key === "safety:" + tw.id).blockers || []).some(b => /Chybí/.test(b)), "chybějící pult funkci neblokuje");
+    });
+});
+test("bezpečnost: nebezpečí bez duplicitních zařízení", () => {
+    for (const name of ["07_transferova_lisovna_TL-07", "08_montazni_linka_otocny_stul_MS-8", "06_lakovaci_linka_LK-06"]) {
+        const p = proposeSafety(SAFETY_SAMPLE(name));
+        for (const h of p.hazards) {
+            assert.equal(new Set(h.devs).size, h.devs.length, name + " " + h.id + ": " + h.devs.join(","));
+            assert.equal(new Set(h.fns).size, h.fns.length, name + " " + h.id);
+        }
+    }
+    /* dvě ochranné funkce se stejným vstupem → zařízení v „access“ jen jednou */
+    const q = sampleComplex();
+    q.safety = { add: [{ ref: "user:1", kind: "light_curtain", inputs: ["S2"] }] };
+    const acc = proposeSafety(q).hazards.find(h => h.id === "access");
+    assert.equal(acc.devs.filter(d => d === "S2").length, 1);
+});
+test("bezpečnost: kroky validace v plánu oživení a položky kusovníku", () => {
+    withSafety(() => {
+        const p = sampleComplex();
+        const plan = commissioningPlan(p);
+        assert.ok(!plan.some(s => s.id === "safety:validation"), "fáze 10 dodá bezpečnostní modul");
+        const steps = plan.filter(s => s.phase === 10);
+        assert.deepEqual(steps.map(s => s.id), safetyCommissioningSteps(p).map(s => s.id));
+        const es = proposeSafety(p).fns.find(f => f.kind === "estop");
+        assert.equal(steps.filter(s => s.id.startsWith("sf:estop:t")).length, es.tests.length);
+        assert.ok(steps.some(s => s.id.endsWith(":distance")) && steps.some(s => s.id === "sf:report"));
+        const b = buildBom(p);
+        assert.ok(b.lines.some(l => l.tag === "-K0" && (l.cat === "safety_controller" || l.cat === "safety_relay") && l.brand));
+        assert.ok(!b.lines.some(l => l.id === "-K0:safety_relay" && l.desc === tr("Vyhodnocení E-stopu a blokování")), "obecné relé nahrazeno návrhem");
+        assert.ok(b.lines.some(l => l.tag === "-KS1") && b.lines.some(l => l.tag === "-KS2"));
+        assert.ok(b.lines.filter(l => l.safety).every(l => /13849/.test(l.note)));
+    });
+});
+test("bezpečnost: dokumenty a program bez češtiny v cizím jazyce", () => {
+    const CZ = /[ěščřžůďťňĚŠČŘŽŮĎŤŇ]/;
+    withSafety(() => {
+        for (const l of ["en", "de", "es", "zh"])
+            withLang(l, () => {
+                for (const mk of [sampleSmall, sampleComplex]) {
+                    const p = l === "zh" ? withLang("en", mk) : mk();
+                    p.platforms = ["rockwell", "siemens", "codesys"];
+                    const check = (where, body) => {
+                        const m = body.match(CZ);
+                        assert.ok(!m, l + " / " + where + ": „" + (m ? body.slice(Math.max(0, m.index - 50), m.index + 50) : "") + "“");
+                        assert.ok(!/\{[a-z][A-Za-z]*\}/.test(body), l + " / " + where + ": zástupný znak");
+                    };
+                    check("13", safetySrsMd(p));
+                    check("14", safetyValidationMd(p));
+                    check("pending", Object.values(safetyProgramFiles(p).files)[0] || "");
+                    for (const i of safetyApprovalItems(p))
+                        check(i.key, i.title + " " + i.summary + " " + (i.notReady || ""));
+                    approveSafetyFns(p, "John Smith");
+                    for (const t of ["rockwell", "siemens", "plcopen", "pilz", "sick", "schmersal", "relay"])
+                        for (const [n, b] of Object.entries(safetyProgramFiles(p, t).files)) {
+                            check(t + "/" + n, b);
+                            if (/\.(L5X|txt)$/.test(n))
+                                assert.ok(!/[^\x00-\x7F]/.test(b), l + " / " + n + ": ASCII");
+                        }
+                    for (const s of safetyCommissioningSteps(p))
+                        check(s.id, s.title + " " + s.how + " " + s.expect);
+                    for (const f of allProjectFiles(p).filter(f => f.save.includes("bezpecnost") || f.save.startsWith("safety_") || f.save.startsWith("13_") || f.save.startsWith("14_")))
+                        check(f.save, f.body);
+                    check("bom", buildBom(p).lines.filter(x => x.safety).map(x => x.item + " " + x.desc + " " + x.note).join("\n"));
+                }
+            });
+    });
 });

@@ -1,5 +1,5 @@
 /**
- * PLC Studio — výstup pro Rockwell Studio 5000 Logix Designer (CompactLogix 5380 / ControlLogix 5580).
+ * PLCdesk — výstup pro Rockwell Studio 5000 Logix Designer (CompactLogix 5380 / ControlLogix 5580).
  *
  * Logix 5000 ST není IEC 61131-3: rutina obsahuje jen příkazy (tagy jsou v databázi tagů),
  * FUNCTION_BLOCK nahrazuje Add-On Instruction, TON v ST není (je TONR nad FBD_TIMER),
@@ -16,7 +16,7 @@
  */
 import { Project, IoEntry, Dir } from "./model.js";
 /** Název importovaného programu a jeho hlavní rutiny. */
-export declare const LX_PROGRAM = "PLCStudio";
+export declare const LX_PROGRAM = "PLCdesk";
 export declare const LX_ROUTINE = "MainRoutine";
 /** Verze Logix Designeru uvedená v L5X (import do stejné nebo novější verze). */
 export declare const LX_SOFTWARE_REVISION = "32.00";
@@ -64,16 +64,45 @@ export declare function lxProgramTags(prj: Project): LxTag[];
  */
 export declare function genLogixRoutine(prj: Project): string;
 /**
- * PLCStudio_Program.L5X — dílčí import programu (MainTask → Add → Import Program):
+ * PLCdesk_Program.L5X — dílčí import programu (MainTask → Add → Import Program):
  * Add-On Instructions použitých tříd, I/O tagy (controller scope, BOOL / REAL),
- * program PLCStudio s programovými tagy a rutinou MainRoutine (ST).
+ * program PLCdesk s programovými tagy a rutinou MainRoutine (ST).
  * Struktura podle 1756-RM014 a reálných exportů; Rockwell nezveřejňuje XSD → neověřeno importem.
  */
 export declare function genRockwellL5X(prj: Project): string;
+/** Příčka (rung) safety rutiny: komentář a neutrální text RLL (`XIC(a)OTE(b);`). */
+export interface LxSafetyRung {
+    comment: string;
+    text: string;
+}
+/** Tag safety programu; `io` = zástupce kanálu bezpečnostního modulu (controller scope). */
+export interface LxSafetyTag {
+    name: string;
+    type: string;
+    desc: string;
+    io?: boolean;
+}
+/**
+ * PLCdesk_Safety.L5X — dílčí import SAFETY programu (Safety Task → Add → Import Program):
+ * program s `Class="Safety"`, safety tagy a rutina SafetyRoutine v ladderu (v safety tasku je jen
+ * RLL; FBD a ST bezpečnostní instrukce nemají). Obsah (DCS, DCSTL, THRSe, CROUT…) skládá
+ * safety_prog.ts jen pro schválené bezpečnostní funkce. Podpis safety tasku a safety-lock se
+ * v L5X jen exportují, při importu se ignorují — vznikají až v Logix Designeru (1756-RM084).
+ * Struktura podle RM014 / RM084; neověřeno importem ve Studiu 5000. Výstup je čisté ASCII.
+ */
+export declare function genRockwellSafetyL5X(o: {
+    name: string;
+    description: string;
+    banner: string;
+    tags: LxSafetyTag[];
+    rungs: LxSafetyRung[];
+}): string;
+/** Statická kontrola safety L5X (testy): well-formed, ASCII, každý operand příček deklarovaný. */
+export declare function logixSafetyProblems(x: string): string[];
 /**
  * Tags.csv pro Tools → Import → Tags and Logic Comments (náhradní cesta k L5X):
  * I/O jako ALIAS na body modulů 5069 (předpoklad osazení slotů v remark), jinak TAG;
- * programové tagy se SCOPE = program PLCStudio. Popisy ASCII s escapováním `$`.
+ * programové tagy se SCOPE = program PLCdesk. Popisy ASCII s escapováním `$`.
  */
 export declare function genLogixTagsCsv(prj: Project): string;
 /** Minimální kontrola well-formed XML (párování tagů, atributy, CDATA, entity); vrací chyby. */

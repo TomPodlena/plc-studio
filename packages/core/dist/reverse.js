@@ -630,7 +630,7 @@ function exL5X(f, t, sink) {
         }
         const d = xmlText(xmlChild(prog, "Description")).trim();
         if (d && !sink.meta.name)
-            sink.meta.name = d.replace(/\s*-\s*PLC Studio$/, "");
+            sink.meta.name = d.replace(/\s*-\s*(PLCdesk|PLC Studio)$/, "");
     }
     if (!sink.meta.name && ctrl && !ours) {
         const d = xmlText(xmlChild(ctrl, "Description")).trim();
@@ -903,7 +903,7 @@ function exPLCopen(f, t, sink) {
         sink.weak.push("codesys");
     if (!sink.meta.name) {
         const n = xmlAll(doc, "contentHeader")[0]?.attrs.name;
-        if (n && !/^(PLC-Studio-Project|Unnamed)$/.test(n))
+        if (n && !/^(PLCdesk-Project|PLC-Studio-Project|Unnamed)$/.test(n))
             sink.meta.name = n;
     }
     return { fmt: "PLCopen XML (TC6)", note: sfcSteps ? tr("SFC: {n} kroků převedeno na sekvenci (odhad).", { n: sfcSteps }) : sink.signals.length === s0 ? tr("Žádné proměnné s vazbou na I/O.") : undefined };
@@ -1301,7 +1301,7 @@ function exReadme(t, sink) {
     const m = t.match(/^[^:\n]{2,20}:\s*(.+?)\s+·\s+\d+\s/m);
     if (m && !sink.meta.name)
         sink.meta.name = m[1];
-    return { fmt: tr("README generátoru PLC Studio") };
+    return { fmt: tr("README generátoru PLCdesk") };
 }
 /* ========================================================= extrakce: rozcestník */
 function isBinary(f) {
@@ -1371,7 +1371,7 @@ export function extractFiles(files) {
                 r = exSimaticBlock(f, t, sink);
             else if (/\.sdf$/i.test(f.name))
                 r = exSdf(f, t, sink);
-            else if (/^README/i.test(f.name) && /PLC Studio/.test(t))
+            else if (/^README/i.test(f.name) && /PLCdesk|PLC Studio/.test(t))
                 r = exReadme(t, sink);
             else if (/^\s*(FUNCTION_BLOCK|PROGRAM|FUNCTION|ORGANIZATION_BLOCK|DATA_BLOCK)\s+\S/m.test(t) || /^\s*VAR_GLOBAL\b/m.test(t))
                 r = exSTSource(f, t, sink);

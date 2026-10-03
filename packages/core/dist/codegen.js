@@ -1,5 +1,5 @@
 /**
- * PLC Studio — generování zdrojových souborů programu pro cílové platformy.
+ * PLCdesk — generování zdrojových souborů programu pro cílové platformy.
  * Siemens: SCL (external sources) + SimaticML XML + TSV tagů.
  * Ostatní: IEC 61131-3 ST + platformní soubor tagů (GVL / CSV / tab).
  */
@@ -779,8 +779,8 @@ export function genLibrary(prj, plat) {
     const u = usedClasses(prj);
     const parts = [];
     const hdr = plat === "siemens"
-        ? "// Gen_Library.scl – " + trx("knihovna šablon (generováno PLC Studio)") + "\n// " + trx("Import: External source files → Generate blocks from source (PŘED Gen_Main)")
-        : "(* Gen_Library.st - " + stripDia(trx("knihovna šablon (generováno PLC Studio)")) + " - " + PLAT[plat].name + " *)";
+        ? "// Gen_Library.scl – " + trx("knihovna šablon (generováno PLCdesk)") + "\n// " + trx("Import: External source files → Generate blocks from source (PŘED Gen_Main)")
+        : "(* Gen_Library.st - " + stripDia(trx("knihovna šablon (generováno PLCdesk)")) + " - " + PLAT[plat].name + " *)";
     parts.push(hdr, "");
     const T = plat === "siemens"
         ? { Motor: SCL_MOTOR, Ventil: SCL_VENTIL, AnalogIn: SCL_AI, AnalogOut: SCL_AO }
@@ -835,7 +835,7 @@ END_DATA_BLOCK
 }
 /* ----------------------------------------------------------- soubory: IEC */
 export function genGVL(prj, plat) {
-    const lines = ["(* GVL_IO - " + stripDia(trx("globální proměnné / fyzické I/O - generováno PLC Studio")) + " *)", "{attribute 'qualified_only'}", "VAR_GLOBAL"];
+    const lines = ["(* GVL_IO - " + stripDia(trx("globální proměnné / fyzické I/O - generováno PLCdesk")) + " *)", "{attribute 'qualified_only'}", "VAR_GLOBAL"];
     for (const e of prj.io) {
         const at = addrFor(plat, e);
         lines.push("    " + e.tag + (at ? " AT " + at : "") + " : " + dtFor(e) + ";" + (e.cmt ? " (* " + cmtSafe(e.cmt) + " *)" : ""));
@@ -854,7 +854,7 @@ export function genMainIEC(prj, plat) {
     let v = inst.map(i => "    " + i.n + " : " + i.t + ";").join("\n");
     if (decl)
         v += (v ? "\n" : "") + decl;
-    return `(* MAIN - ${stripDia(trx("hlavní program (generováno PLC Studio)"))} - ${PLAT[plat].name} *)
+    return `(* MAIN - ${stripDia(trx("hlavní program (generováno PLCdesk)"))} - ${PLAT[plat].name} *)
 PROGRAM MAIN
 VAR
     enable : BOOL;
@@ -901,7 +901,7 @@ export function genReadme(prj, plat) {
         plat === "unitronics"
             ? tr("Založ tagy podle seznamu Tags.csv (postup níže).")
             : plat === "rockwell"
-                ? tr("Naimportuj program PLCStudio_Program.L5X — obsahuje tagy, Add-On Instructions i rutinu (postup níže).")
+                ? tr("Naimportuj program PLCdesk_Program.L5X — obsahuje tagy, Add-On Instructions i rutinu (postup níže).")
                 : tr("Naimportuj tagy/proměnné (soubor s tagy níže)."),
         plat === "unitronics"
             ? tr("Vlož logiku stroje (Machine.st) do ST funkce — knihovna šablon se u této platformy negeneruje.")
@@ -918,17 +918,17 @@ export function genReadme(prj, plat) {
    je neřeš jen v běžném programu.`),
         tr("Otestuj v simulátoru platformy před nasazením na stroj."),
     ];
-    const common = tr("PROJEKT: {name} · {tags} tagů · {devs} zařízení · generováno PLC Studio", { name: prj.meta.name || tr("(bez názvu)"), tags: prj.io.length, devs: prj.devices.length }) + "\n\n" +
+    const common = tr("PROJEKT: {name} · {tags} tagů · {devs} zařízení · generováno PLCdesk", { name: prj.meta.name || tr("(bez názvu)"), tags: prj.io.length, devs: prj.devices.length }) + "\n\n" +
         tr("SPOLEČNÉ KROKY") + "\n" + steps.map((s, i) => (i + 1) + ". " + s).join("\n") + "\n";
     /* nadpis (název produktu se nepřekládá) + odrážky */
     const list = (title, ...items) => title + "\n" + items.map(s => "- " + s).join("\n");
     const spec = {
         siemens: () => list("SIEMENS TIA PORTAL (V17–V21, S7-1200/1500)", tr("Gen_Tags.tsv: otevři v Excelu (UTF-8, oddělovač tabulátor), list přejmenuj na „PLC Tags“, ulož jako .xlsx a v tabulce tagů dej Import (sloupce Name / Data Type / Logical Address / Comment odpovídají formátu TIA)."), tr("Gen_IO.xml: import přes Openness. Pro V17–V20 přepiš v hlavičce Engineering version V21 na svou verzi; jazyk komentářů (Culture) musí být mezi jazyky projektu."), tr("Adresy jsou návrh (analogy od %IW64 = integrované AI S7-1200) — srovnej je se start address modulů v Device configuration."), tr("cmdAutoStart je úrovňový povel — napoj ho na tlačítko (puls), ne na přepínač, jinak se po skončení cyklu hned spustí další."), tr(`Gen_Library.scl a Gen_Main.scl: Program blocks → External source files →
   Add new external file → pravý klik → Generate blocks from source (NEJDŘÍV knihovnu).`), tr("Vznikne FB_Machine + InstMachine; volání vlož do OB1 (komentář na konci Gen_Main)."), tr("Doplň diagnostické OB 82/86/121/122, ať CPU nejde do STOP při poruše periferie."), tr("Test: PLCSIM / PLCSIM Advanced.")),
-        rockwell: () => list(tr("ROCKWELL STUDIO 5000 LOGIX DESIGNER (CompactLogix 5380 / ControlLogix 5580) — soubory PLCStudio_Program.L5X, MainRoutine.st a Tags.csv") + "\n" +
+        rockwell: () => list(tr("ROCKWELL STUDIO 5000 LOGIX DESIGNER (CompactLogix 5380 / ControlLogix 5580) — soubory PLCdesk_Program.L5X, MainRoutine.st a Tags.csv") + "\n" +
             tr(`POZOR — NEOVĚŘENO PŘEKLADEM: výstup pro Logix nebyl zkoušen ve Studiu 5000. Struktura L5X
 vychází z příručky 1756-RM014 a reálných exportů. Při prvním importu zkontroluj hlášení importu
-a Verify Controller (hlavně FBD_TIMER v AOI, výchozí hodnoty parametrů a verzi souboru).`) + "\n", tr(`PLCStudio_Program.L5X (hlavní cesta): v Controller Organizer pravý klik na MainTask →
+a Verify Controller (hlavně FBD_TIMER v AOI, výchozí hodnoty parametrů a verzi souboru).`) + "\n", tr(`PLCdesk_Program.L5X (hlavní cesta): v Controller Organizer pravý klik na MainTask →
   Add → Import Program… a vyber soubor. Vznikne program {prog} s rutinou MainRoutine (ST)
   a programovými tagy, Add-On Instructions FB_Motor / FB_Ventil / FB_AnalogIn / FB_AnalogOut
   a I/O tagy (controller scope). Pak Verify Controller. Soubor nese verzi {rev} — pro starší
@@ -1112,7 +1112,7 @@ export function genMainUnitronics(prj) {
     const fault = faultBlock(prj, plat).replace(/\b(inst\w+)\.(error|alarmHi|alarmLo)\b/g, "$1_$2");
     /* texty jsou tu s diakritikou — čisté ASCII z nich (i z překladu) dělá až uniAscii() na konci */
     const st = `(* ${trx(`Machine.st - logika stroje pro Unitronics UniLogic (UniStream), jazyk ST.
-   Generováno PLC Studio. Obsah vlož do JEDNÉ ST funkce volané každý scan.
+   Generováno PLCdesk. Obsah vlož do JEDNÉ ST funkce volané každý scan.
    ST funkce v UniLogic nemá vlastní paměť: všechny tagy z Tags.csv založ jako
    GLOBÁLNÍ. Bloky zařízení jsou proto rozepsané přímo zde (předpona instX_).`)} *)
 
@@ -1142,7 +1142,7 @@ export function genFor(prj, plat) {
     }
     else if (plat === "rockwell") {
         /* Logix 5000 ST nen\u00ED IEC (bez VAR, FB, TON\u2026) \u2192 L5X s AOI + tagy + rutinou; viz logix.ts */
-        files["PLCStudio_Program.L5X"] = genRockwellL5X(prj);
+        files["PLCdesk_Program.L5X"] = genRockwellL5X(prj);
         files["MainRoutine.st"] = genLogixRoutine(prj);
         files["Tags.csv"] = genLogixTagsCsv(prj);
     }

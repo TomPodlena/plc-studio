@@ -904,7 +904,7 @@ class ImportWizard:
         prog = prj["program"]
         f_lock = tab(_("E-stop a blokování"))
         wrap_label(f_lock, _("E-stop a kryty se převezmou jen jako informativní signály "
-                             "programu — bezpečnostní funkce PLC Studio negeneruje."),
+                             "programu — bezpečnostní funkce PLCdesk negeneruje."),
                    side="bottom", pady=(6, 0))
         t_lock = make_table(f_lock, [("kind", _("Funkce"), 120, False), ("dev", _("Zařízení"), 90, False),
                                      ("desc", _("Popis"), 220, True), ("conf", _("Jistota"), 90, False),

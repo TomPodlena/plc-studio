@@ -239,15 +239,35 @@ class BridgeTest(unittest.TestCase):
                '"estop":{"conf":"sure","src":[]}},"missing":["Chybí popis cyklu"]}\n```')
         res = self.b.request("import.norm", raw=raw, ex=ex, files=files, exact=ext["proposal"])
         p = res["proposal"]
-        self.assertEqual([d["name"] for d in p["prj"]["devices"]], ["M1", "S1"])
+        # doplněk AI se skládá s přesným návrhem (zařízení z io.csv zůstanou)
+        names = [d["name"] for d in p["prj"]["devices"]]
+        self.assertEqual(names[-2:], ["M1", "S1"])
+        self.assertEqual(names[:-2], [d["name"] for d in ext["proposal"]["prj"]["devices"]])
         self.assertEqual(p["evidence"]["dev:M1"]["src"][0]["page"], 2)
-        self.assertEqual(p["evidence"]["estop"]["conf"], "missing")      # „sure" bez zdroje zahozeno
+        self.assertIn("estop", p["dropped"])                            # „sure" bez zdroje zahozeno
+        if ext["proposal"]["prj"]["program"]["estop"] != "":            # E-stop z přesných dat má přednost
+            self.assertEqual(p["prj"]["program"]["estop"], ext["proposal"]["prj"]["program"]["estop"])
+        else:
+            self.assertEqual(p["evidence"]["estop"]["conf"], "missing")
         addr = {e["tag"]: e["addr"] for e in p["prj"]["io"]}
         self.assertEqual(addr["M1_outRun"], "%Q1.0")              # doložená adresa
         self.assertEqual(addr["S1_in"], "")                       # bez zdroje → doplní jádro
         self.assertEqual(p["evidence"]["io:S1_in"]["conf"], "missing")
         self.assertEqual(p["missing"], ["Chybí popis cyklu"])
         self.assertIsNotNone(res["merged"])
+        # navazující odpovědi: doplněk se skládá, "more" řídí pokračování; zprávy pokračování
+        comb = self.b.request("import.combine", acc=None, raw=raw)
+        self.assertFalse(comb["more"])
+        comb = self.b.request("import.combine", acc=comb["acc"],
+                              raw='{"devices":[{"name":"-Y1","cls":"Ventil","desc":"Upínání"}],"more":true}')
+        self.assertTrue(comb["more"])
+        self.assertEqual([d["name"] for d in comb["acc"]["devices"]], ["M1", "S1", "Y1"])
+        cont = self.b.request("import.messages", ex=ex, files=files, model="claude-sonnet-5-5",
+                              cont=['{"devices":[],"more":true}'])
+        self.assertEqual([m["role"] for m in cont["messages"]], ["user", "assistant", "user"])
+        self.assertEqual(cont["messages"][0]["content"][-1]["cache_control"], {"type": "ephemeral"})
+        for m in cont["messages"]:
+            ai_client._check_content(m["content"])
         with self.assertRaises(BridgeError) as cm:
             self.b.request("import.norm", raw="bez json", ex=ex)
         self.assertEqual(cm.exception.code, "invalid_json")
@@ -1878,7 +1898,7 @@ class GuiTest(unittest.TestCase):
             self._wait_ai()
         self.assertEqual(seen["key"], "test-key")
         self.assertEqual(seen["model"], ai_client.DEFAULT_MODEL)
-        self.assertIn("PLC Studio", seen["messages"][0]["content"])
+        self.assertIn("PLCdesk", seen["messages"][0]["content"])
         self.assertEqual(seen["messages"][-1]["content"], "Stanice s čerpadlem a měřením tlaku")
         self.assertEqual([t["role"] for t in self.app.ai["turns"]], ["user", "assistant"])
         self.assertEqual(len(self.app.ai["last"]["devices"]), 3)
@@ -2245,6 +2265,492 @@ class GuiTest(unittest.TestCase):
             self.root.update()
         op.assert_called_once()
         self.assertTrue(op.call_args[0][0].startswith("https://"))
+
+    # --- kroky 11–13: bezpečnost, schválení, oživení --------------------------------------
+
+    def entry_by_label(self, label):
+        """Vstupní pole za popiskem ``label`` ve stejném rámci."""
+        for w in self.find(ttk.Label):
+            if str(w.cget("text")) == label:
+                kids = w.master.winfo_children()
+                return next(e for e in kids[kids.index(w):] if type(e) is ttk.Entry)
+        self.fail(f"pole {label!r} není na obrazovce")
+
+    def set_name(self, label, name):
+        ent = self.entry_by_label(label)
+        ent.delete(0, "end")
+        ent.insert(0, name)
+        self.root.update()
+
+    def select_row(self, key, index=0):
+        tbl = self.table(index)
+        tbl.select(key)
+        self.root.update()
+        return tbl
+
+    def approval_state(self, key):
+        data = self.app.bridge.request("approval", prj=self.app.prj)
+        return next(i for i in data["items"] if i["key"] == key)
+
+    def test_approval_approve_reject_reset_and_name_required(self):
+        self.app.load_sample("small")
+        self.app.settings["approver"] = ""
+        self.goto(11)
+        tbl = self.select_row("seq")
+        self.assertTrue(self.button("Schválit").instate(["disabled"]), "bez jména nejde schválit")
+        self.assertTrue(self.button("Zamítnout").instate(["disabled"]))
+        self.assertIn("Bez jména schvalující osoby nelze schválit ani zamítnout — zadej ho nahoře.",
+                      self.ui_texts())
+        self.set_name("Schvaluje:", "  Jan Novák ")
+        self.assertEqual(self.app.settings["approver"], "Jan Novák")
+        stored = json.loads((self.app.home / "settings.json").read_text(encoding="utf-8"))
+        self.assertEqual(stored["approver"], "Jan Novák", "jméno se pamatuje v settings.json")
+        self.click("Schválit")
+        rec = self.app.prj["approvals"]["seq"]
+        self.assertEqual((rec["state"], rec["by"]), ("approved", "Jan Novák"))
+        tbl = self.table()
+        self.assertEqual(tbl.tv.set("seq", "status"), "schváleno")
+        self.assertIn("approved", tbl.tv.item("seq", "tags"))
+        self.assertTrue(tbl.tv.set("seq", "who").startswith("Jan Novák, "))
+
+        # zamítnutí potřebuje důvod v poznámce
+        self.click("Zamítnout")
+        self.assertEqual(self.app.prj["approvals"]["seq"]["state"], "approved")
+        self.entry_by_label("Poznámka (u zamítnutí důvod):").insert(0, "chybí krok upnutí")
+        self.root.update()
+        self.click("Zamítnout")
+        rec = self.app.prj["approvals"]["seq"]
+        self.assertEqual((rec["state"], rec["note"]), ("rejected", "chybí krok upnutí"))
+        self.assertEqual(self.table().tv.set("seq", "status"), "zamítnuto")
+        self.assertTrue(any("Poznámka: chybí krok upnutí" in t for t in self.ui_texts()))
+
+        self.click("Zrušit rozhodnutí")
+        self.assertNotIn("seq", self.app.prj.get("approvals") or {})
+        self.assertEqual(self.table().tv.set("seq", "status"), "neschváleno")
+
+        # položka, která ještě není připravená (oživení neuzavřené), schválit nejde
+        self.select_row("commission:close")
+        self.assertTrue(self.button("Schválit").instate(["disabled"]))
+        self.assertTrue(any("kroků není OK ani N/A" in t for t in self.ui_texts()))
+
+        # bez jména nejde schválit ani přes jádro (pojistka)
+        with self.assertRaises(BridgeError):
+            self.app.bridge.mutate("approve", self.app.prj, "io", "  ")
+
+    def test_approval_becomes_stale_after_change(self):
+        self.app.load_sample("small")
+        self.app.settings["approver"] = "Jan Novák"
+        self.goto(11)
+        self.select_row("dev:M1")
+        self.click("Schválit")
+        self.assertEqual(self.approval_state("dev:M1")["status"], "approved")
+        m1 = next(d for d in self.app.prj["devices"] if d["name"] == "M1")
+        m1["desc"] = "Jiný popis"                        # popis schválení nezneplatní
+        self.assertEqual(self.approval_state("dev:M1")["status"], "approved")
+        m1["opt"]["fault"] = not m1["opt"].get("fault")  # změna chování ano
+        self.goto(11)
+        tbl = self.table()
+        self.assertEqual(tbl.tv.set("dev:M1", "status"), "změněno po schválení")
+        self.assertIn("stale", tbl.tv.item("dev:M1", "tags"))
+        self.assertIn("1 změněno po schválení", self.ui_texts())
+        self.app.update_badge()
+        self.assertEqual(self.app._badge["stale"], 1)
+        # znovu schválit → zase platí
+        self.select_row("dev:M1")
+        self.click("Schválit")
+        self.assertEqual(self.approval_state("dev:M1")["status"], "approved")
+
+    def test_tuning_proposal_apply_changes_project_without_approving(self):
+        self.app.load_sample("small")
+        self.app.settings["approver"] = "Jan Novák"
+        self.app.ui["appr"] = {"tab": 1}
+        self.goto(11)
+        tune = next(t for t in self.find(Table) if t.tv.exists("limits-B1"))
+        self.assertTrue(self.button("Použít").instate(["disabled"]), "bez výběru nic")
+        tune.select("limits-B1")
+        self.root.update()
+        # návrh bez automatické úpravy se jen popisuje
+        tune.select("unused-out-H1")
+        self.root.update()
+        self.assertTrue(self.button("Použít").instate(["disabled"]))
+        tune.select("limits-B1")
+        self.root.update()
+        before = dict(self.app.prj.get("approvals") or {})
+        self.click("Použít")
+        b1 = next(d for d in self.app.prj["devices"] if d["name"] == "B1")
+        self.assertTrue(isinstance(b1.get("limLo"), (int, float)) and b1["limHi"] > b1["limLo"])
+        self.assertEqual(self.app.prj.get("approvals") or {}, before, "použití nic neschvaluje")
+        status = str(self.app._status.cget("text"))
+        self.assertIn("Použito:", status)
+        self.assertIn("Zařízení B1", status, "zpráva říká, co se změnilo")
+        self.assertFalse(any(t.tv.exists("limits-B1") for t in self.find(Table)), "návrh zmizel")
+
+    def test_approval_bulk_selected_and_group_with_confirmation(self):
+        self.app.load_sample("small")
+        self.app.settings["approver"] = "Jan Novák"
+        self.goto(11)
+        tbl = self.table()
+        tbl.tv.selection_set(("dev:M1", "dev:Y1"))
+        self.root.update()
+        with mock.patch("plc_studio.steps.schvaleni.messagebox.askyesno", return_value=False) as ask:
+            self.click("Schválit vybrané")
+        self.assertIn("2", ask.call_args[0][1], "potvrzení uvádí počet")
+        self.assertIn("Jan Novák", ask.call_args[0][1], "a jméno")
+        self.assertNotIn("dev:M1", self.app.prj.get("approvals") or {}, "bez potvrzení nic")
+        tbl = self.table()
+        tbl.tv.selection_set(("dev:M1", "dev:Y1"))
+        self.root.update()
+        with mock.patch("plc_studio.steps.schvaleni.messagebox.askyesno", return_value=True):
+            self.click("Schválit vybrané")
+        rec = self.app.prj["approvals"]
+        self.assertEqual(sorted(rec), ["dev:M1", "dev:Y1"], "jen vybrané, každá vlastní záznam")
+        self.assertTrue(all(r["by"] == "Jan Novák" and r["state"] == "approved" for r in rec.values()))
+        # celá skupina podle vybraného řádku skupiny
+        tbl = self.table()
+        tbl.tv.selection_set(("g:program",))
+        self.root.update()
+        with mock.patch("plc_studio.steps.schvaleni.messagebox.askyesno", return_value=True):
+            self.click("Schválit celou skupinu")
+        for k in ("seq", "interlocks", "limits"):
+            self.assertEqual(self.approval_state(k)["status"], "approved", k)
+        self.assertEqual(self.approval_state("io")["status"], "missing", "jiná skupina zůstala")
+
+    def test_approval_orphans_and_export(self):
+        self.app.load_sample("small")
+        self.app.settings["approver"] = "Jan Novák"
+        prj = self.app.bridge.mutate("approve", self.app.prj, "dev:H1", "Jan Novák")
+        prj["devices"] = [d for d in prj["devices"] if d["name"] != "H1"]
+        self.app.prj = prj
+        self.app.sync()
+        self.app.ui["appr"] = {"tab": 2}
+        self.goto(11)
+        tbl = next(t for t in self.find(Table) if t.tv.exists("dev:H1"))
+        self.assertEqual(tbl.tv.set("dev:H1", "state"), "schváleno")
+        tbl.select("dev:H1")
+        self.root.update()
+        self.click("Smazat vybraný")
+        self.assertNotIn("dev:H1", self.app.prj.get("approvals") or {})
+        with mock.patch("plc_studio.steps.schvaleni.save_file") as sf:
+            self.click("Uložit 11_schvaleni.md…")
+        name, body = sf.call_args[0][1:]
+        self.assertTrue(name.endswith("11_schvaleni.md"))
+        self.assertIn("# Schválení projektu", body)
+
+    def test_commissioning_results_filter_and_export(self):
+        self.app.load_sample("small")
+        self.app.settings["approver"] = ""
+        self.app.ui["com"] = {"sel": "p1:visual"}
+        self.goto(12)
+        self.assertTrue(self.button("OK").instate(["disabled"]), "bez jména nejde zapsat")
+        self.set_name("Oživuje:", "Petr Svoboda")
+        self.assertEqual(self.app.settings["approver"], "Petr Svoboda")
+        self.click("OK")
+        rec = self.app.prj["commissioning"]["p1:visual"]
+        self.assertEqual((rec["result"], rec["by"]), ("ok", "Petr Svoboda"))
+        self.assertEqual(self.app.ui["com"]["sel"], "p1:pe", "výběr přešel na další krok")
+        self.click("N/A")
+        self.assertEqual(self.app.prj["commissioning"]["p1:pe"]["result"], "na")
+        # 24 V: naměřeno + poznámka, nevyhovuje
+        self.assertEqual(self.app.ui["com"]["sel"], "p1:24v")
+        self.entry_by_label("Naměřeno:").insert(0, "21,5 V")
+        self.entry_by_label("Poznámka:").insert(0, "slabý zdroj")
+        self.root.update()
+        self.click("Nevyhovuje")
+        rec = self.app.prj["commissioning"]["p1:24v"]
+        self.assertEqual((rec["result"], rec["measured"], rec["note"]), ("nok", "21,5 V", "slabý zdroj"))
+        tbl = self.table()
+        self.assertEqual(tbl.tv.set("p1:24v", "res"), "NOK")
+        self.assertEqual(tbl.tv.set("p1:24v", "meas"), "21,5 V")
+        self.assertIn("1 NOK", self.ui_texts())
+
+        # filtr: jen nevyhovující / bez výsledku
+        radio = next(r for r in self.find(ttk.Radiobutton) if str(r.cget("text")).startswith("nevyhovuje"))
+        radio.invoke()
+        self.root.update()
+        steps = [i for g in self.table().tv.get_children() for i in self.table().tv.get_children(g)]
+        self.assertEqual(steps, ["p1:24v"])
+        radio = next(r for r in self.find(ttk.Radiobutton) if str(r.cget("text")).startswith("bez výsledku"))
+        radio.invoke()
+        self.root.update()
+        tv = self.table().tv
+        steps = [i for g in tv.get_children() for i in tv.get_children(g)]
+        self.assertNotIn("p1:visual", steps)
+        self.assertNotIn("p1:24v", steps)
+        self.assertIn("p1:plc", steps)
+        self.assertEqual(self.app.ui["com"]["filter"], "open")
+
+        # zrušení výsledku
+        self.app.ui["com"].update(filter="all", sel="p1:pe")
+        self.goto(12)
+        self.click("Zrušit výsledek")
+        self.assertNotIn("p1:pe", self.app.prj["commissioning"])
+
+        # export protokolu MD a CSV
+        with mock.patch("plc_studio.steps.ozivovani.save_file") as sf:
+            self.click("Uložit protokol…")
+            self.click("Uložit CSV…")
+        (n1, md), (n2, csv) = [c[0][1:] for c in sf.call_args_list]
+        self.assertTrue(n1.endswith("12_protokol_ozivovani.md"))
+        self.assertTrue(n2.endswith("12_protokol_ozivovani.csv"))
+        self.assertIn("# Protokol oživení", md)
+        self.assertIn("**NOK**", md)
+        self.assertIn("21,5 V", csv)
+
+    def test_badge_counts_unapproved_and_opens_approval(self):
+        self.app.load_sample("small")
+        self.goto(0)
+        self.app.update_badge()
+        data = self.app.bridge.request("approval", prj=self.app.prj)
+        n = data["summary"]["pending"] + data["summary"]["stale"]
+        lbl = self.app._badge_lbl
+        self.assertTrue(lbl.winfo_ismapped())
+        self.assertEqual(str(lbl.cget("text")), f"Neschváleno: {n}")
+        self.app.prj = self.app.bridge.mutate("approve", self.app.prj, "io", "Jan Novák")
+        self.app.render()
+        self.app.update_badge()
+        self.assertEqual(str(lbl.cget("text")), f"Neschváleno: {n - 1}")
+        lbl.event_generate("<Button-1>")
+        self.root.update()
+        self.assertEqual(self.app.step, 11)
+        # prázdný projekt: odznak zmizí
+        self.app.reset_project()
+        self.app.update_badge()
+        self.root.update()
+        self.assertFalse(lbl.winfo_ismapped())
+
+    def test_approval_and_commissioning_survive_redraw_and_reload(self):
+        self.app.load_sample("small")
+        self.app.settings["approver"] = "Jan Novák"
+        self.app.prj = self.app.bridge.mutate("approve", self.app.prj, "io", "Jan Novák", "ok")
+        self.app.prj = self.app.bridge.mutate("setCommissionResult", self.app.prj, "p1:24v", "nok",
+                                              "Jan Novák", {"measured": "22 V"})
+        self.app.ui["com"] = {"filter": "nok", "sel": "p1:24v"}
+        for _round in range(2):
+            self.goto(12)
+            self.app.render()
+            self.root.update()
+            tv = self.table().tv
+            self.assertEqual(tv.selection(), ("p1:24v",))
+            self.assertEqual(tv.set("p1:24v", "meas"), "22 V")
+            radio = next(r for r in self.find(ttk.Radiobutton) if str(r.cget("text")).startswith("nevyhovuje"))
+            self.assertEqual(str(radio.cget("value")), radio.getvar(str(radio.cget("variable"))))
+        self.app.ui["appr"] = {"sel": "io", "tab": 0}
+        self.goto(11)
+        self.assertEqual(self.table().tv.selection(), ("io",))
+        # uložení a nové načtení projektu (stav aplikace) — záznamy zůstanou, neplatné ne
+        self.app._flush()
+        saved = json.loads((self.app.home / "state.json").read_text(encoding="utf-8"))["prj"]
+        saved["approvals"]["bad"] = {"state": "maybe", "by": "X", "at": "", "hash": ""}
+        saved["approvals"]["noname"] = {"state": "approved", "by": " ", "at": "", "hash": "1"}
+        saved["commissioning"]["bad"] = {"result": "perfect", "by": "X", "at": ""}
+        self.app.set_project(saved, self.app.ai)
+        self.assertEqual(set(self.app.prj["approvals"]), {"io"})
+        self.assertEqual(self.app.prj["approvals"]["io"]["note"], "ok")
+        self.assertEqual(self.app.prj["commissioning"]["p1:24v"]["measured"], "22 V")
+        self.assertNotIn("bad", self.app.prj["commissioning"])
+
+    # --- krok Bezpečnost ------------------------------------------------------------------
+
+    def safety_widget(self, cls, attr, value=None):
+        """Prvek kroku Bezpečnost podle značky (``_key`` pole, ``_approve_key`` tlačítka…)."""
+        for w in walk(self.app.view):
+            if isinstance(w, cls) and hasattr(w, attr) and (value is None or getattr(w, attr) == value):
+                return w
+        self.fail(f"{cls.__name__} s {attr}={value!r} není na obrazovce")
+
+    def test_safety_step_links_to_approval(self):
+        """Bezpečnostní modul je zapnutý: položky safety:SFn ve schválení, zástupná položka ne."""
+        self.app.load_sample("small")
+        self.app.ui["safety"] = {"sel": "estop"}
+        self.goto(10)
+        texts = self.ui_texts()
+        self.assertTrue(any(t.startswith("SF1 — Nouzové zastavení") for t in texts), texts[:40])
+        self.assertTrue(any("ověř v SISTEMA" in t for t in texts), "výhrada k výpočtu PL")
+        self.assertFalse(any("se připravuje" in t for t in texts))
+        self.click("Ve Schválení →")
+        self.assertEqual(self.app.step, 11)
+        self.assertEqual(self.table().tv.selection(), ("safety:SF1",))
+        keys = {it["key"] for it in self.app.bridge.request("approval", prj=self.app.prj)["items"]}
+        self.assertNotIn("safety:external", keys)
+        self.assertTrue({"safety:hazards", "safety:SF1", "safety:SF1:design", "safety:program"} <= keys)
+
+    def test_safety_step_edit_approve_and_program(self):
+        """Editace S/F/P mění PLr, schválení funkce v kroku, program pending → draft → approved."""
+        self.app.load_sample("small")
+        self.app.settings["approver"] = ""
+        self.app.ui["safety"] = {"sel": "estop"}
+        self.goto(10)
+        plr = self.safety_widget(tk.Label, "_plr")
+        self.assertEqual(plr._plr, "d", "E-stop: S2/F1/P2 → PLr d")
+        self.assertEqual(self.safety_widget(tk.Label, "_state")._state, "pending")
+        b_ok = self.safety_widget(ttk.Button, "_approve_key", "safety:SF1")
+        self.assertTrue(b_ok.instate(["disabled"]), "bez jména nejde schválit")
+
+        # S2 → S1: graf dá PL b, ale ISO 13850 drží spodní mez PL c (živý přepočet)
+        cb = self.safety_widget(ttk.Combobox, "_key", "S")
+        cb.set(next(v for v in cb.cget("values") if str(v).startswith("S1")))
+        cb.event_generate("<<ComboboxSelected>>")
+        self.root.update()
+        self.assertEqual(self.app.prj["safety"]["fn"]["estop"]["S"], "S1")
+        self.assertEqual(self.safety_widget(tk.Label, "_plr")._plr, "c")
+        self.assertEqual(self.table().tv.set("estop", "plr"), "c")
+
+        # snížení PLr se zdůvodněním (pole se zapíše po Enter)
+        ent = self.safety_widget(ttk.Entry, "_key", "reduce")
+        ent.insert(0, "nízká pravděpodobnost výskytu")
+        self.key(ent, "<Return>")
+        self.root.update()
+        self.assertEqual(self.app.prj["safety"]["fn"]["estop"]["reduce"], "nízká pravděpodobnost výskytu")
+        self.assertEqual(self.safety_widget(tk.Label, "_plr")._plr, "c", "spodní mez normy platí i po snížení")
+
+        # vrátit návrh aplikace
+        self.click("Vrátit návrh aplikace")
+        self.assertNotIn("safety", self.app.prj)
+        self.assertEqual(self.safety_widget(tk.Label, "_plr")._plr, "d")
+
+        # schválení funkce přímo v kroku (se jménem)
+        self.app.settings["approver"] = "Jan Novák"
+        self.goto(10)
+        b_ok = self.safety_widget(ttk.Button, "_approve_key", "safety:SF1")
+        self.assertTrue(b_ok.instate(["!disabled"]))
+        b_ok.invoke()
+        self.root.update()
+        rec = self.app.prj["approvals"]["safety:SF1"]
+        self.assertEqual((rec["state"], rec["by"]), ("approved", "Jan Novák"))
+        self.assertEqual(self.table().tv.set("estop", "fn"), "schváleno")
+        # změna po schválení → „změněno po schválení“
+        cb = self.safety_widget(ttk.Combobox, "_key", "P")
+        cb.set(next(v for v in cb.cget("values") if str(v).startswith("P1")))
+        cb.event_generate("<<ComboboxSelected>>")
+        self.root.update()
+        self.assertEqual(self.table().tv.set("estop", "fn"), "změněno po schválení")
+        self.click("Vrátit návrh aplikace")
+
+        # program: pending → po schválení všech funkcí draft (NESCHVÁLENO) → approved
+        self.assertEqual(self.safety_widget(tk.Label, "_state")._state, "pending")
+        with mock.patch("plc_studio.steps.bezpecnost.messagebox.askyesno", return_value=True):
+            self.click(next(str(b.cget("text")) for b in self.find(ttk.Button)
+                            if str(b.cget("text")).startswith("Schválit vše připravené")))
+        self.assertEqual(self.safety_widget(tk.Label, "_state")._state, "draft")
+        texts = self.ui_texts()
+        self.assertTrue(any("NESCHVÁLENO" in t for t in texts))
+        prog = self.safety_widget(ttk.Button, "_approve_key", "safety:program")
+        self.assertTrue(prog.instate(["!disabled"]))
+        prog.invoke()
+        self.root.update()
+        self.assertEqual(self.safety_widget(tk.Label, "_state")._state, "approved")
+        self.assertEqual(self.app.prj["approvals"]["safety:program"]["state"], "approved")
+        # uložení souboru programu
+        nb = self.find(ttk.Notebook)[0]
+        nb.select(3)
+        self.root.update()
+        with mock.patch("plc_studio.steps.bezpecnost.save_file") as sf:
+            self.click("Uložit soubor…")
+        name, body = sf.call_args[0][1:]
+        self.assertTrue(name.endswith("safety_Konfigurace_relay.md"))
+        self.assertIn("SCHVÁLENO", body)
+        # výkres okruhu je na plátně
+        nb.select(4)
+        self.root.update()
+        self.assertTrue(self.find(SvgView))
+
+    def test_safety_step_distance_and_custom_function(self):
+        """Doběh → bezpečná vzdálenost; vlastní funkce se přidá a odebere."""
+        self.app.load_sample("small")
+        self.app.ui["safety"] = {"sel": "guard:S2"}
+        self.goto(10)
+        ent = self.safety_widget(ttk.Entry, "_key", "DGT")
+        ent.insert(0, "850")
+        self.key(ent, "<Return>")
+        self.root.update()
+        lbl = self.safety_widget(ttk.Label, "_S")
+        self.assertIsNone(lbl._S, "bez změřeného doběhu se S nepočítá")
+        ent = self.safety_widget(ttk.Entry, "_key", "tStopMs")
+        ent.insert(0, "200")
+        self.key(ent, "<Return>")
+        self.root.update()
+        # S = 1600 · (0,2 + 0,015 + 0,02) + 850 = 1226 mm
+        self.assertEqual(self.safety_widget(ttk.Label, "_S")._S, 1226)
+        self.assertEqual(self.app.prj["safety"]["fn"]["guard:S2"]["tStopMs"], 200)
+        # vlastní funkce
+        self.click("Přidat funkci")
+        add = self.app.prj["safety"]["add"]
+        self.assertEqual(len(add), 1)
+        ref = add[0]["ref"]
+        self.assertEqual(self.app.ui["safety"]["sel"], ref)
+        self.assertIn(ref, self.table().tv.get_children())
+        with mock.patch("plc_studio.steps.bezpecnost.messagebox.askyesno", return_value=True):
+            self.click("Odebrat funkci")
+        self.assertNotIn("add", self.app.prj.get("safety", {}))
+        # nastavení: vydání ISO 13855 a provozní hodiny
+        cb = self.safety_widget(ttk.Combobox, "_key", "iso13855")
+        cb.set(cb.cget("values")[1])
+        cb.event_generate("<<ComboboxSelected>>")
+        self.root.update()
+        self.assertEqual(self.app.prj["safety"]["iso13855"], "2024")
+        # neplatná data v uloženém projektu se zahodí
+        saved = json.loads(json.dumps(self.app.prj))
+        saved["safety"]["fn"]["guard:S2"]["S"] = "S9"
+        saved["safety"]["hop"] = "hodně"
+        self.app.set_project(saved, self.app.ai)
+        self.assertNotIn("S", self.app.prj["safety"]["fn"]["guard:S2"])
+        self.assertNotIn("hop", self.app.prj["safety"])
+        self.assertEqual(self.app.prj["safety"]["fn"]["guard:S2"]["tStopMs"], 200)
+
+    def test_step_bar_fits_small_window_in_german(self):
+        """13 kroků + Nápověda se vejde do 1100 px i v němčině — nic není useknuté."""
+        geo = self.root.geometry()
+        try:
+            self.app.set_language("de")
+            for size in ("1100x700", "1400x900"):
+                self.root.geometry(size)
+                for step in (0, 12):
+                    self.goto(step)
+                    self.root.update()
+                    nav = self.app._nav
+                    right = max(b.winfo_x() + b.winfo_width() for b in self.app._step_btns)
+                    self.assertLess(right, self.app._help_btn.winfo_x(), size)
+                    help_ = self.app._help_btn
+                    self.assertGreaterEqual(help_.winfo_width(), help_.winfo_reqwidth())
+                    self.assertLessEqual(help_.winfo_x() + help_.winfo_width(), nav.winfo_width())
+                    for b in self.app._step_btns:
+                        self.assertGreaterEqual(b.winfo_width(), b.winfo_reqwidth(), b.cget("text"))
+                    cur = self.app._step_btns[step]
+                    self.assertIn(self.app._step_text(step, None).split(" · ")[-1], str(cur.cget("text")),
+                                  "aktuální krok má celý název")
+        finally:
+            self.app.set_language("cs")
+            self.root.geometry(geo)
+            self.root.update()
+
+    def test_new_steps_are_translated(self):
+        czech = set("ěščřžůďťňĚŠČŘŽŮĎŤŇ")
+        try:
+            for lang in ("en", "de"):
+                self.app.set_language(lang)
+                self.app.load_sample("small")
+                self.app.settings["approver"] = "Jan Novak"
+                self.app.prj = self.app.bridge.mutate("approve", self.app.prj, "io", "Jan Novak")
+                seen = []
+                for step in (10, 11, 12):
+                    self.goto(step)
+                    if step == 11:
+                        nb = self.find(ttk.Notebook)[0]
+                        for tab in nb.tabs():
+                            nb.select(tab)
+                            self.root.update()
+                            seen += self.ui_texts()
+                    seen += self.ui_texts()
+                self.app.update_badge()
+                seen.append(str(self.app._badge_lbl.cget("text")))
+                content = {d["desc"] for d in self.app.prj["devices"]} | set(self.app.LANGS.values())
+                content |= {e["cmt"] for e in self.app.prj["io"]} | {self.app.prj["meta"]["name"]}
+                bad = sorted({t for t in seen if czech & set(t)
+                              and not any(c and c in t for c in content)})
+                self.assertEqual(bad[:5], [], f"{lang}: nepřeložené texty")
+        finally:
+            self.app.set_language("cs")
+            self.root.update()
 
 
 if __name__ == "__main__":

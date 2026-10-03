@@ -1,7 +1,7 @@
 {
   "name": "@plc-studio/core",
   "version": "0.1.0",
-  "description": "PLC Studio — jádro: datový model, generátory kódu (SCL/ST), import projektů, výkresy (SVG/DXF), dokumentace",
+  "description": "PLCdesk — jádro: datový model, generátory kódu (SCL/ST), import projektů, výkresy (SVG/DXF), dokumentace",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

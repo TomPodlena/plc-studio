@@ -1,8 +1,11 @@
 /**
- * PLC Studio — datový model návrhu a odvozování I/O.
+ * PLCdesk — datový model návrhu a odvozování I/O.
  * Čistý TypeScript bez závislostí; logika přenesená z prototypu (artifact v8).
  */
 import type { SolutionConcept } from "./concept.js";
+import type { ApprovalRecord } from "./approval.js";
+import type { CommissioningRecord } from "./commission.js";
+import type { SafetyCfg } from "./safety.js";
 import { N_, tr } from "./i18n.js";
 
 export type PlatformKey =
@@ -74,6 +77,12 @@ export interface Project {
   bom?: BomCfg;
   /** Zvolený koncept řešení z AI nadstavby (viz concept.ts); null = zatím nezvolen. */
   concept?: SolutionConcept | null;
+  /** Schválení položek návrhu (klíč = `ApprovalItem.key`, viz approval.ts). Bez záznamu = neschváleno. */
+  approvals?: Record<string, ApprovalRecord>;
+  /** Výsledky kroků oživení (klíč = `CommissioningStep.id`, viz commission.ts). */
+  commissioning?: Record<string, CommissioningRecord>;
+  /** Bezpečnostní funkce: parametry výpočtu, volby a úpravy návrhu (viz safety.ts). */
+  safety?: SafetyCfg;
 }
 
 export interface BomLineCfg { brand?: string; type?: string; orderCode?: string; supplier?: string; qty?: number; note?: string; }

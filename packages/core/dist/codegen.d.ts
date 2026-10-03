@@ -1,5 +1,5 @@
 /**
- * PLC Studio — generování zdrojových souborů programu pro cílové platformy.
+ * PLCdesk — generování zdrojových souborů programu pro cílové platformy.
  * Siemens: SCL (external sources) + SimaticML XML + TSV tagů.
  * Ostatní: IEC 61131-3 ST + platformní soubor tagů (GVL / CSV / tab).
  */

@@ -1,5 +1,5 @@
 /**
- * PLC Studio — simulace procesu a ověření programu.
+ * PLCdesk — simulace procesu a ověření programu.
  *
  * Simulátor provádí scan po scanu STEJNOU logiku, jakou generuje codegen.ts
  * (šablony FB_Motor / FB_Ventil, sekvence CASE, porucha stroje a kvitace;
@@ -1308,7 +1308,7 @@ export function docVerifyMd(prj: Project): string {
   const seq = prj.program.seq;
   const icon = { ok: "✔", info: "ℹ", warn: "⚠", error: "✖" } as const;
   const n = (lvl: string) => v.checks.filter(c => c.level === lvl).length;
-  let s = "# " + tr("Ověření programu simulací procesu") + "\n\n" + tr("**Projekt:** {name} · generováno nástrojem PLC Studio", { name: prj.meta.name || "—" }) + "\n\n";
+  let s = "# " + tr("Ověření programu simulací procesu") + "\n\n" + tr("**Projekt:** {name} · generováno nástrojem PLCdesk", { name: prj.meta.name || "—" }) + "\n\n";
   const counts = { ok: n("ok"), warn: n("warn"), error: n("error") };
   s += (v.ok ? tr("**Výsledek:** bez chyb — {ok} v pořádku, {warn} upozornění, {error} chyb", counts)
     : tr("**Výsledek:** NALEZENY CHYBY — {ok} v pořádku, {warn} upozornění, {error} chyb", counts)) + "\n\n";

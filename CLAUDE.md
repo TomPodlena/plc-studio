@@ -1,6 +1,12 @@
-# PLC Studio — kontext pro vývoj
+# PLCdesk — kontext pro vývoj
 
 Aplikace pro malé integrátory a strojírny: návrh PLC systému od zadání po kód a dokumentaci.
+**Produkt se jmenuje PLCdesk** (rozhodnutí uživatele 2026-10-03, dříve „PLC Studio“) — tak všude ve
+viditelných textech (titulky, UI, dokumenty, README, komentáře generovaného kódu, DXF, L5X `PLCdesk_*.L5X`).
+Interní názvy zůstávají: repo `plc-studio`, adresáře, balíček `@plc-studio/core`, Python balíček
+`plc_studio`, `PLCSTUDIO_HOME`, data uživatele `%APPDATA%\PLCStudio`, klíče `localStorage` `plcstudio.*`,
+přípona `.plcstudio.json`, spouštěč `PLCStudio.bat` (nově i `PLCdesk.bat`). Import přijímá i výstupy
+se starým názvem.
 Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedlejší volba) → I/O → Schéma → Program → Generovat → Dokumentace → Kusovník. Jazyky UI i výstupů: **čeština (zdrojová), angličtina, němčina, španělština, čínština** — viz „Vícejazyčnost".
 
 ## Architektura
@@ -33,7 +39,7 @@ pnpm -C packages/core test    # node --test, 59+ testů, bez závislostí
 npx -y -p typescript tsc -p packages/core/tsconfig.json   # build bez pnpm (ověřeno: tsc 7 dává shodný dist)
 npx http-server . -p 8080     # → http://localhost:8080/apps/web/
 # desktop (z apps/desktop; na vývojové stanici pinovat Python311, ne bare `python`):
-python -m plc_studio                       # spuštění; bez konzole PLCStudio.bat
+python -m plc_studio                       # spuštění; bez konzole PLCdesk.bat (PLCStudio.bat zůstává)
 python -m unittest discover -s tests -v    # most + výkresy + kroky GUI, bez volání API
 python -m plc_studio --smoke               # projde všechny kroky a skončí
 python scripts/i18n.py check               # texty v kódu × katalogy překladů (viz Vícejazyčnost)
@@ -145,8 +151,16 @@ node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s
   Rockwell/GX Works3/Sysmac). Generovaný kód: stavové automaty s timeouty, statusy 16#0000/8001/8002.
 - Výkresy: jedna geometrie (ops) → SVG náhled + DXF R12; konvence ECAD (rámeček, popisové pole,
   -M1 dle IEC 81346, -W1xx čísla vodičů, NC/NO dle IEC 60617). DXF texty bez diakritiky.
-- **Bezpečnost: nikdy negenerovat safety logiku** — E-stop je v programu jen informativní signál;
-  všude disclaimer „návrh k revizi". Toto pravidlo nerozvolňovat.
+- **Navrhovat vše, platí jen schválené** (rozhodnutí uživatele 2026-10-03, nahrazuje dřívější „nikdy
+  negenerovat safety logiku“): aplikace NAVRHUJE procesní logiku, bezpečnostní funkce (nebezpečí, PLr,
+  architektura, komponenty, zapojení) včetně **bezpečnostního programu** pro bezpečnostní PLC z
+  certifikovaných bloků, ladění i oživení — a každou položku nechá **schválit** odpovědnou osobou (jméno,
+  datum, poznámka; `approval.ts`). Schválení se váže na otisk obsahu — změna = znovu ke schválení.
+  Neschválené výstupy nesou výrazně NESCHVÁLENO; bezpečnostní program se generuje až po schválení
+  bezpečnostních funkcí. „Alibismus není na místě“: nestačí odkázat na normu — navrhnout, zdůvodnit
+  (zdroj), hlídat chybějící a neschválené. Bezpečnostní logika patří do bezpečnostního PLC / relé, ne do
+  standardního programu: tam E-stop a blokování zůstávají jen stavové signály (enable, kvitace).
+  Validaci na stroji (ISO 13849-2) aplikace plánuje a protokoluje, ale provádí ji člověk.
 - **Řízení stroje v generovaném kódu:** režimy `modeAuto` (AUTO / ručně), start `cmdAutoStart`,
   kvitace `cmdAck` (→ vstup `reset` všech bloků), ruční povely `manRun_*` / `manOpen_*` (jen mimo
   AUTO; bez sekvence vždy). Porucha kteréhokoli bloku nebo vypršení hlídacího času kroku

@@ -1,14 +1,23 @@
-/* PLC Studio — aplikační shell: stav, navigace, render, jazyk. */
-import { blankProject, sampleComplex, PLAT, LANGS, tr, N_, setLang, getLang } from "../../../packages/core/dist/index.js";
+/* PLCdesk — aplikační shell: stav, navigace, render, jazyk. */
+import { blankProject, sampleComplex, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule } from "../../../packages/core/dist/index.js";
 import { seedFromProject, SAMPLE_DESC } from "./ai.js";
 import { makeSteps } from "./steps.js";
 import { makeImportWizard } from "./import_wizard.js";
+import { makeSafetyStep } from "./safety_step.js";
+import { makeApprovalStep, approvalBadge } from "./approval_step.js";
+import { makeCommissionStep } from "./commission_step.js";
 import { $, normProject, normAi } from "./util.js";
+
+/* Bezpečnostní modul: položky ke schválení (nebezpečí, funkce, návrh, program), kroky validace
+   v oživení, dokumenty 13/14, bezpečnostní program a položky kusovníku. */
+registerSafetyModule();
 
 const LS_KEY = "plcstudio.state";
 const LANG_KEY = "plcstudio.lang";
 /* Názvy kroků jsou konstanta modulu → jen označené N_(), překlad až při vykreslení. */
-const STEPS = [N_("Projekt"), N_("AI návrh"), N_("Platformy"), N_("Zařízení"), N_("I/O"), N_("Schéma"), N_("Program"), N_("Generovat"), N_("Dokumentace"), N_("Kusovník")];
+const STEPS = [N_("Projekt"), N_("AI návrh"), N_("Platformy"), N_("Zařízení"), N_("I/O"), N_("Schéma"), N_("Program"), N_("Generovat"), N_("Dokumentace"), N_("Kusovník"),
+  N_("Bezpečnost"), N_("Schválení"), N_("Oživení")];
+const STEP_APPROVAL = 11;   // krok 12 Schválení (index) — cíl odznaku v hlavičce
 
 const S = {
   prj: blankProject(),
@@ -56,7 +65,36 @@ function stepDone(i) {
 let wizard = null;
 const steps = makeSteps({ S, save, render, openImport: () => wizard && wizard.open() });
 wizard = makeImportWizard({ S, save, render });
-const RENDERERS = [steps.rProjekt, steps.rAI, steps.rPlat, steps.rDev, steps.rIO, steps.rSchema, steps.rProg, steps.rGen, steps.rDocs, steps.rBom];
+const sctx = { S, save, render, showBadge };
+const safety = makeSafetyStep(sctx), approval = makeApprovalStep(sctx), commission = makeCommissionStep(sctx);
+const RENDERERS = [steps.rProjekt, steps.rAI, steps.rPlat, steps.rDev, steps.rIO, steps.rSchema, steps.rProg, steps.rGen, steps.rDocs, steps.rBom,
+  safety.rSafety, approval.rApproval, commission.rCommission];
+
+/* ---------------------------------------------------------------- odznak „Neschváleno: N"
+   pending + stale ze schvalování; počítá se odloženě po vykreslení a jen při změně projektu
+   (souhrn potřebuje ověření simulací — u velkého projektu sekundy). Klik → krok Schválení. */
+let badgeSum = null, badgeTimer = 0;
+const BADGE_LIVE_DEVICES = 60;   // do této velikosti se odznak přepočítá po každé změně
+function showBadge(sum) {
+  badgeSum = sum || badgeSum;
+  const b = $("badgeApproval");
+  if (!badgeSum) { b.hidden = true; return; }
+  const n = badgeSum.pending + badgeSum.stale + (badgeSum.unverified || 0);   // „čeká na ověření“ = neschváleno
+  b.hidden = !n;
+  b.textContent = tr("Neschváleno: {n}", { n }) + (badgeSum.old ? " ?" : "");
+  b.title = tr("Položky bez platného schválení (čeká, změněno po schválení) — otevře krok Schválení")
+    + (badgeSum.old ? " · " + tr("Projekt se od výpočtu změnil; u velkého projektu se počet přepočítá v krocích Dokumentace a Schválení.") : "");
+  b.classList.toggle("stale", badgeSum.stale > 0);
+}
+function scheduleBadge() {
+  clearTimeout(badgeTimer);
+  badgeTimer = setTimeout(() => {
+    /* souhrn potřebuje ověření simulací — u velkého projektu (sekundy) jen v krocích, které ho počítají stejně */
+    const compute = S.prj.devices.length <= BADGE_LIVE_DEVICES || [8, 10, 11, 12].includes(S.step);
+    try { const s = approvalBadge(S.prj, compute); if (s) showBadge(s); else $("badgeApproval").hidden = true; } catch (e) { console.warn("approval badge:", e); }
+  }, 400);
+}
+$("badgeApproval").addEventListener("click", () => { S.step = STEP_APPROVAL; save(); render(); });
 
 /* Statické texty hlavičky a patičky (v index.html jsou česky jako výchozí). */
 function renderStatic() {
@@ -92,6 +130,8 @@ function render() {
   }
   r($("view"));
   wizard.render();
+  showBadge();
+  scheduleBadge();
   window.scrollTo({ top: 0 });
 }
 

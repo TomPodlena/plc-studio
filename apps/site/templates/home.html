@@ -1,0 +1,105 @@
+<section class="hero">
+  <div class="wrap hero-in">
+    <div class="hero-text">
+      <p class="eyebrow">{{page.eyebrow}}</p>
+      <h1>{{page.h1}}</h1>
+      <p class="lead">{{page.lead}}</p>
+      <div class="cta-row">
+        <a class="btn" href="{{BLOCK.url_stazeni}}">{{page.cta1}}</a>
+        <a class="btn btn-ghost" href="{{BLOCK.url_ukazka}}">{{page.cta2}}</a>
+      </div>
+      <p class="fine">{{page.fine}}</p>
+    </div>
+
+    <figure class="mock" aria-label="{{page.mock_title}}">
+      <div class="mock-head">
+        <span class="mock-title">{{page.mock_title}}</span>
+        <span class="mock-project">{{page.mock_project}}</span>
+      </div>
+      <table class="mock-table">
+        <thead><tr><th>{{page.mock_h_item}}</th><th>{{page.mock_h_state}}</th><th>{{page.mock_h_who}}</th></tr></thead>
+        <tbody>
+        {{#each page.mock_rows}}
+          <tr><td>{{.item}}</td><td><span class="stamp stamp-{{.cls}}">{{.state}}</span></td><td class="who">{{.who}}</td></tr>
+        {{/each}}
+        </tbody>
+      </table>
+      <figcaption>{{page.mock_caption}}</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="facts">
+  <div class="wrap facts-in">
+    {{#each page.facts}}
+    <div class="fact"><span class="fact-n">{{.n}}</span><span class="fact-t">{{.t}}</span></div>
+    {{/each}}
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <p class="eyebrow">{{page.flow_eyebrow}}</p>
+    <h2>{{page.flow_title}}</h2>
+    <ol class="flow">
+      {{#each page.flow}}
+      <li><span class="flow-n">{{@n}}</span><strong>{{.name}}</strong><span>{{.desc}}</span></li>
+      {{/each}}
+    </ol>
+  </div>
+</section>
+
+<section class="sec sec-dark" id="schvalovani">
+  <div class="wrap">
+    <p class="eyebrow">{{page.trust_eyebrow}}</p>
+    <h2>{{page.trust_title}}</h2>
+    <p class="lead measure">{{page.trust_lead}}</p>
+    <div class="grid-2">
+      {{#each page.trust}}
+      <article class="card card-dark"><h3>{{.name}}</h3><p>{{.desc}}</p></article>
+      {{/each}}
+    </div>
+    <p class="note note-dark measure">{{page.trust_note}}</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap split">
+    <div>
+      <p class="eyebrow">{{page.docs_eyebrow}}</p>
+      <h2>{{page.docs_title}}</h2>
+      <p class="lead">{{page.docs_lead}}</p>
+      <p><a class="btn btn-ghost" href="{{BLOCK.url_ukazka}}">{{page.docs_cta}}</a></p>
+    </div>
+    <ul class="doclist">
+      {{#each page.docs}}
+      <li>{{.}}</li>
+      {{/each}}
+    </ul>
+  </div>
+</section>
+
+<section class="sec sec-tint">
+  <div class="wrap measure-wrap">
+    <h2>{{page.local_title}}</h2>
+    <p class="lead">{{page.local_body}}</p>
+    <p class="note">{{page.local_ai}}</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap measure-wrap">
+    <h2>{{page.faq_title}}</h2>
+    {{#each page.faq}}
+    <details class="faq"><summary>{{.q}}</summary><p>{{.a}}</p></details>
+    {{/each}}
+  </div>
+</section>
+
+<section class="sec sec-end">
+  <div class="wrap end">
+    <h2>{{page.end_title}}</h2>
+    <p class="lead">{{page.end_body}}</p>
+    <a class="btn" href="{{BLOCK.url_stazeni}}">{{page.end_cta}}</a>
+  </div>
+</section>

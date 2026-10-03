@@ -90,7 +90,7 @@ export function makeSteps(ctx) {
       try {
         const d = JSON.parse(jb.value);
         let prjNew;
-        try { prjNew = normProject(d && d.prj ? d.prj : d); } catch { alertRow(c, tr("JSON neobsahuje návrh PLC Studia.")); return; }
+        try { prjNew = normProject(d && d.prj ? d.prj : d); } catch { alertRow(c, tr("JSON neobsahuje návrh PLCdesk.")); return; }
         S.prj = prjNew;
         S.ai = normAi(d.ai);
         /* projekt bez konverzace (příklad ze samples/, cizí soubor) → krok AI návrh předvyplnit */
@@ -182,7 +182,7 @@ export function makeSteps(ctx) {
         <button class="small" id="aiFetchModels">${tr("Načíst dostupné modely")}</button>
         <span class="hint" style="margin:0" id="aiModelInfo">${esc(modelInfo(cfg))}</span>
       </div>
-      <p class="hint">${tr("Klíč získáš na console.anthropic.com. Dotazy jdou přímo z prohlížeče na Anthropic API; v produkční verzi půjdou přes server PLC Studia.")}</p>
+      <p class="hint">${tr("Klíč získáš na console.anthropic.com. Dotazy jdou přímo z prohlížeče na Anthropic API; v produkční verzi půjdou přes server PLCdesk.")}</p>
     </div></details>
     <div class="chat" id="aiChat">${S.ai.turns.map(aiTurnView).join("")}</div>
     <textarea id="aiInput" style="margin-top:12px;min-height:90px" placeholder="${esc(tr("Popiš stroj… (nebo klikni na Vložit příklad)"))}">${esc(S.ai.draft || "")}</textarea>
@@ -404,7 +404,7 @@ export function makeSteps(ctx) {
     <p class="hint" style="margin-top:0;max-width:75ch">${tr("Průvodce načte podklady stávajícího stroje — exporty a programy z PLC (SimaticML, L5X, PLCopen XML, GVL/ST, tabulky tagů), I/O listy, PDF schémata, fotky nebo vložený text — a zpětně sestaví zařízení, I/O, E-stop, blokování a sekvenci, u každé položky se zdrojem a jistotou. Hodí se i pro migraci na jinou platformu.")}</p>
     <div class="row"><button class="primary" id="bImportWizard">${tr("Import stávajícího zařízení…")}</button>
       <span class="hint" style="margin:0">${tr("Nic se nepřepíše, dokud převzetí nepotvrdíš.")}</span></div>
-    <p class="warnbox">${tr("<b>Co se přenese:</b> tagy, adresy, komentáře, odhad zařízení a tříd. <b>Co ne:</b> logika bloků (jen inventář), HW konfigurace, safety a komunikace — logiku generuje PLC Studio znovu ze šablon.")}</p>
+    <p class="warnbox">${tr("<b>Co se přenese:</b> tagy, adresy, komentáře, odhad zařízení a tříd. <b>Co ne:</b> logika bloků (jen inventář), HW konfigurace, safety a komunikace — logiku generuje PLCdesk znovu ze šablon.")}</p>
     </div>`;
     el.appendChild(c);
     c.querySelector("#bImportWizard").addEventListener("click", () => ctx.openImport && ctx.openImport());
@@ -666,7 +666,7 @@ export function makeSteps(ctx) {
     const p = prj();
     syncIO(p);
     const intro = "<p class='hint' style='margin-top:0;max-width:80ch'>" +
-      tr("Kusovník je podklad k poptávce, ne projekt elektro. Značky a typy jsou typické volby z katalogu PLC Studia; dimenzování (výkony, průřezy, jištění) a bezpečnostní prvky podle posouzení rizik ověří projektant — návrh k revizi.") + " " +
+      tr("Kusovník je podklad k poptávce, ne projekt elektro. Značky a typy jsou typické volby z katalogu PLCdesk; dimenzování (výkony, průřezy, jištění) a bezpečnostní prvky podle posouzení rizik ověří projektant — návrh k revizi.") + " " +
       tr("Katalog k datu {date}.", { date: esc(CATALOG_DATE) }) + "</p>";
     if (!p.devices.length) { card(el, "10", tr("Kusovník"), intro + "<p class='hint'>" + tr("Nejdřív navrhni zařízení (kroky 2–4).") + "</p>"); return; }
     const cfg = p.bom || (p.bom = {});
@@ -886,7 +886,7 @@ export function makeSteps(ctx) {
       <ul>
         <li>${tr("<b>LAD</b> — žebříček; čte ho údržba, ideální na blokování.")}</li>
         <li>${tr("<b>FBD</b> — grafické bloky, analogová logika.")}</li>
-        <li>${tr("<b>ST / SCL</b> — text jako Pascal; výpočty, automaty, data. <b>Tímto generuje PLC Studio</b> — je přenositelný.")}</li>
+        <li>${tr("<b>ST / SCL</b> — text jako Pascal; výpočty, automaty, data. <b>Tímto generuje PLCdesk</b> — je přenositelný.")}</li>
         <li>${tr("<b>SFC/GRAPH</b> — velké sekvence. <b>IL/STL</b> — jen údržba starého kódu.")}</li>
       </ul>`)
       + H(tr("Stavební bloky programu (FB, FC, DB, instance)"), `
@@ -903,7 +903,7 @@ export function makeSteps(ctx) {
       + H(tr("Bezpečnost — co NIKDY neřešit jen programem"), `
       <p>${tr("Nouzové zastavení, kryty, dvouruční ovládání jsou <b>bezpečnostní funkce</b> dle ISO 13849 / IEC 62061 — musí je zajistit bezpečnostní relé nebo safety PLC dle posouzení rizik. Běžný program s bezpečnostním signálem jen pracuje (zastaví sekvenci) — nesmí být jediné, co člověka chrání. V EU je to součást CE (nařízení 2023/1230).")}</p>`)
       + H(tr("Přehled platforem"), `
-      <div class='tablewrap'><table><thead><tr><th>${tr("Výrobce")}</th><th>IDE</th><th>CPU</th><th>${tr("Jazyk")}</th><th>${tr("Import z PLC Studio")}</th></tr></thead><tbody>
+      <div class='tablewrap'><table><thead><tr><th>${tr("Výrobce")}</th><th>IDE</th><th>CPU</th><th>${tr("Jazyk")}</th><th>${tr("Import z PLCdesk")}</th></tr></thead><tbody>
       ${Object.values(PLAT).map(pf => "<tr><td><b>" + pf.name + "</b></td><td>" + pf.ide + "</td><td>" + pf.cpu + "</td><td class='mono'>" + tr(pf.lang) + "</td><td style='font-size:.78rem'>" + tr(pf.imp) + "</td></tr>").join("")}
       </tbody></table></div>`)
       + H(tr("Odkazy na platformy"), platRefsHtml())
@@ -921,7 +921,7 @@ export function makeSteps(ctx) {
         <li>${tr("<b>Openness / L5X / PLCopen XML</b> — formáty pro strojovou výměnu projektů.")}</li>
         <li>${tr("<b>PLCSIM, Logix Echo, GX Simulator…</b> — simulátory CPU.")}</li>
       </ul>`)
-      + H(tr("Jak pracovat s PLC Studio"), `
+      + H(tr("Jak pracovat s PLCdesk"), `
       <ol style='padding-left:20px'>
         <li>${tr("<b>Projekt</b> — pojmenuj; nebo načti ukázku.")}</li>
         <li>${tr("<b>AI návrh</b> — popiš stroj, AI navrhne zařízení a sekvenci (API klíč v nastavení kroku).")}</li>
@@ -933,7 +933,13 @@ export function makeSteps(ctx) {
         <li>${tr("<b>Generovat</b> — kód po platformách, README s postupem importu.")}</li>
         <li>${tr("<b>Dokumentace</b> — FDS, FAT a spol. po souborech ke stažení.")}</li>
         <li>${tr("<b>Kusovník</b> — komponenty k poptávce: výrobci, typy, objednací kódy a dodavatelé; CSV pro Excel.")}</li>
-      </ol>`);
+        <li>${tr("<b>Bezpečnost</b> — nebezpečí a bezpečnostní funkce (PLr z grafu rizik, architektura, výpočet PL, bezpečná vzdálenost), schvalování, bezpečnostní program a výkres okruhu.")}</li>
+        <li>${tr("<b>Schválení</b> — odpovědná osoba schvaluje položky návrhu jménem, datem a poznámkou; návrhy ladění z ověření.")}</li>
+        <li>${tr("<b>Oživení</b> — plán oživení po fázích, výsledky kroků OK / Nevyhovuje / N/A a protokol (MD, CSV).")}</li>
+      </ol>`)
+      + H(tr("Schvalování a oživení"), `
+      <p>${tr("PLCdesk navrhuje, platí jen to, co odpovědná osoba schválí. Každá položka (zařízení, tabulka I/O, sekvence, E-stop a blokování, takt, výsledek ověření, bezpečnost, plán oživení) se schvaluje jménem, datem a poznámkou. Schválení platí pro obsah v okamžiku schválení — když se položka potom změní, ukáže se „změněno po schválení“ a je potřeba ji schválit znovu. Odznak v hlavičce ukazuje počet neschválených položek.")}</p>
+      <p>${tr("Návrhy ladění (delší hlídací čas, meze měření, nesplněný takt…) se dají jedním klikem použít — tím se změní projekt, ale nic se neschválí. Oživení prochází stroj po fázích od rozvaděče po validaci bezpečnostních funkcí; ke každému kroku se zapíše výsledek, naměřená hodnota a kdo ho zapsal.")}</p>`);
     el.appendChild(c);
   }
 

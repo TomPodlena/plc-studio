@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vícejazyčnost PLC Studia — sběr klíčů, slučování překladů a kontrola katalogů.
+"""Vícejazyčnost PLCdesk — sběr klíčů, slučování překladů a kontrola katalogů.
 
 Zdrojový jazyk je čeština; český text ve zdrojovém kódu je klíčem překladu:
 

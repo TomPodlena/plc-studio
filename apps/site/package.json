@@ -1,0 +1,17 @@
+{
+  "name": "plcdesk-site",
+  "private": true,
+  "type": "module",
+  "description": "Marketingový web a licenční API (jeden Cloudflare Worker). Bez závislostí.",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "serve": "node scripts/serve.js",
+    "preview": "node scripts/preview.js",
+    "shots": "node scripts/shots.js",
+    "test:preview": "node scripts/test-preview.js",
+    "test:api": "node test/api.test.js",
+    "ukazka": "node scripts/ukazka-pdf.js",
+    "cms": "node scripts/cms-config.js",
+    "deploy": "npx --yes wrangler@4 deploy"
+  }
+}

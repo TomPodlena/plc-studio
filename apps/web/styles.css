@@ -1,4 +1,4 @@
-/* PLC Studio app — tokeny a layout (port z prototypu) */
+/* PLCdesk app — tokeny a layout (port z prototypu) */
 :root{
   --bg:#f3f5f6; --surface:#ffffff; --fg:#15262b; --muted:#5b7077; --line:#d4dde0;
   --accent:#00707e; --accent-fg:#ffffff; --code-bg:#0e1b1f; --code-fg:#d7e4e8;
@@ -159,3 +159,47 @@ ul.warnlist li::marker{color:var(--warn)}
 .confirm{border-left-color:var(--err)}
 .notice{border-radius:9px;padding:10px 14px;font-size:.86rem;border:1px solid var(--line);border-left:4px solid var(--ok);background:var(--surface)}
 .notice.warn{border-left-color:var(--warn)} .notice.err{border-left-color:var(--err)}
+
+/* schválení (krok 12), bezpečnost (11), oživení (13) a odznak v hlavičce */
+button.apprbadge{border:1px solid var(--warn);color:var(--warn);background:var(--surface);font-weight:600;cursor:pointer;line-height:1.4}
+button.apprbadge:hover{background:color-mix(in srgb,var(--warn) 10%,var(--surface))}
+.st{display:inline-block;font-family:var(--font-mono);font-size:.68rem;border-radius:999px;padding:1px 8px;white-space:nowrap;border:1px solid currentColor;font-weight:600}
+.st-ok{color:var(--ok)} .st-stale{color:var(--warn)} .st-rej{color:var(--err)} .st-wait{color:var(--muted)}
+.stat.st-ok,.stat.st-stale,.stat.st-rej,.stat.st-wait{color:var(--fg);border:none;font-weight:400}
+.stat.st-ok b{color:var(--ok)} .stat.st-stale b{color:var(--warn)} .stat.st-rej b{color:var(--err)} .stat.st-wait b{color:var(--muted)}
+details.apgroup .body.apbody,details.cmphase .body.cmbody{max-width:none}
+details.apgroup summary .hint,details.cmphase summary .hint{font-weight:400}
+table.aptable td{vertical-align:top}
+table.aptable td.aptitle{min-width:260px}
+.apsum{font-size:.78rem;color:var(--muted);margin-top:2px;max-width:70ch}
+.apwarn{font-size:.76rem;color:var(--warn);margin-top:3px}
+td.apwho{font-size:.78rem;white-space:nowrap}
+td.apnote input{width:100%;min-width:140px;padding:4px 7px;font-size:.78rem}
+td.apacts{white-space:nowrap}
+td.apacts button{margin:0 4px 4px 0}
+tr.ap-ok td:first-child{box-shadow:inset 3px 0 var(--ok)} tr.ap-stale td:first-child{box-shadow:inset 3px 0 var(--warn)}
+tr.ap-rej td:first-child{box-shadow:inset 3px 0 var(--err)}
+.apname input{max-width:360px}
+.cmrow{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:.84rem}
+.cmrow.cm-ok{border-left-color:var(--ok)} .cmrow.cm-nok{border-left-color:var(--err)} .cmrow.cm-na{border-left-color:var(--muted)}
+.cmhead{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline}
+.cmhead code{font-family:var(--font-mono);font-size:.7rem;color:var(--muted)}
+.cmgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:6px}
+@media (max-width:760px){ .cmgrid{grid-template-columns:1fr} }
+.cmlbl{display:block;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.cmsig{margin-top:6px} .cmsig code{font-family:var(--font-mono);font-size:.72rem;background:var(--chip);padding:1px 5px;border-radius:4px}
+.cmform{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.cmform input{flex:1 1 160px;min-width:120px;padding:4px 7px;font-size:.78rem}
+.cmres{display:inline-flex;gap:4px}
+.cmres button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.cmres button[data-res="nok"][aria-pressed="true"]{background:var(--err);border-color:var(--err);color:#fff}
+.cmappr{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-top:12px;font-size:.84rem}
+/* krok Bezpečnost */
+#sfTable tbody tr:hover td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+#sfTable tr.sfsel td{background:color-mix(in srgb,var(--accent) 11%,transparent)}
+#sfTable tr.sfoff td{opacity:.6}
+.st.sf-plr{color:var(--accent)}
+#sfDetail select,#sfDetail input[type=text]{width:100%;min-width:0}
+#sfDetail tfoot td{border-bottom:none}
+#sfSheet svg{max-width:100%;height:auto;background:#fff}
+@media (max-width:760px){#sfDetail .grid.g3,#sfDetail .grid.g2{grid-template-columns:1fr}}

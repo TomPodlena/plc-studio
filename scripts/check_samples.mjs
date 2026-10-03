@@ -77,7 +77,7 @@ for (const file of files) {
     for (const plat of Object.keys(core.PLAT)) r.errors.push(...codeProblems(plat, core.genFor(prj, plat), prj));
     const docs = core.allProjectFiles(prj);
     for (const f of docs) if (f.kind === "dxf" && /[^\x00-\x7F]/.test(f.body)) r.errors.push(`${f.save}: DXF není ASCII`);
-    const v = core.verifyProject(prj);
+    const v = core.verifyDesign(prj);              // = verifyProject nad návrhem; sdílí cache s dokumentací
     r.cycle = v.nominal ? v.nominal.cycleTime : null;
     for (const c of v.checks) {
       if (c.level === "error") r.errors.push(`ověření: ${c.title} — ${c.detail}`);

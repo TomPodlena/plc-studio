@@ -1,5 +1,5 @@
 /**
- * PLC Studio — výstup pro Rockwell Studio 5000 Logix Designer (CompactLogix 5380 / ControlLogix 5580).
+ * PLCdesk — výstup pro Rockwell Studio 5000 Logix Designer (CompactLogix 5380 / ControlLogix 5580).
  *
  * Logix 5000 ST není IEC 61131-3: rutina obsahuje jen příkazy (tagy jsou v databázi tagů),
  * FUNCTION_BLOCK nahrazuje Add-On Instruction, TON v ST není (je TONR nad FBD_TIMER),
@@ -22,7 +22,7 @@ import {
 import { trx } from "./i18n.js";
 
 /** Název importovaného programu a jeho hlavní rutiny. */
-export const LX_PROGRAM = "PLCStudio";
+export const LX_PROGRAM = "PLCdesk";
 export const LX_ROUTINE = "MainRoutine";
 /** Verze Logix Designeru uvedená v L5X (import do stejné nebo novější verze). */
 export const LX_SOFTWARE_REVISION = "32.00";
@@ -276,8 +276,8 @@ export function genLogixRoutine(prj: Project): string {
     const s = spec.get(e.key);
     return l.replace(/\(\*\s+%[IQ]W?\d+(?:\.\d+)?\s*/, "(*   ").replace(/\s*\*\)$/, (s ? "  [" + s + "]" : "") + " *)");
   });
-  const body = `(* ${trx("MainRoutine - logika stroje pro Rockwell Logix 5000 (ST), generováno PLC Studio.")}
-   ${trx("Jen příkazy: tagy a Add-On Instructions jsou v PLCStudio_Program.L5X (nebo Tags.csv).")}
+  const body = `(* ${trx("MainRoutine - logika stroje pro Rockwell Logix 5000 (ST), generováno PLCdesk.")}
+   ${trx("Jen příkazy: tagy a Add-On Instructions jsou v PLCdesk_Program.L5X (nebo Tags.csv).")}
    ${trx("Návrh k revizi — E-stop je jen informativní signál, bezpečnostní funkce patří do safety obvodu.")} *)
 
     enable := ${enableExpr(prj, plat)};
@@ -299,7 +299,7 @@ function aoiXml(cls: DeviceClass): string {
   const desc = trComments(head, stripDia).replace(/^\(\*\s*|\s*\*\)$/g, "").replace(/\s*\n\s*/g, " ");
   const I = "      ";
   let x = '    <AddOnInstructionDefinition Use="Context" Name="' + name + '" Revision="1.0" ExecutePrescan="false" ExecutePostscan="false" ExecuteEnableInFalse="false" SoftwareRevision="v' + LX_SOFTWARE_REVISION + '">\n';
-  x += I + "<Description>" + cdata(lxAscii(desc) + " (PLC Studio)") + "</Description>\n";
+  x += I + "<Description>" + cdata(lxAscii(desc) + " (PLCdesk)") + "</Description>\n";
   x += I + "<Parameters>\n";
   x += I + ' <Parameter Name="EnableIn" TagType="Base" DataType="BOOL" Usage="Input" Radix="Decimal" Required="false" Visible="false" ExternalAccess="Read Only">\n' +
     I + "  <Description>" + cdata("Enable Input - System Defined Parameter") + "</Description>\n" + I + " </Parameter>\n";
@@ -337,16 +337,16 @@ function tagXml(t: LxTag, ind: string): string {
 }
 
 /**
- * PLCStudio_Program.L5X — dílčí import programu (MainTask → Add → Import Program):
+ * PLCdesk_Program.L5X — dílčí import programu (MainTask → Add → Import Program):
  * Add-On Instructions použitých tříd, I/O tagy (controller scope, BOOL / REAL),
- * program PLCStudio s programovými tagy a rutinou MainRoutine (ST).
+ * program PLCdesk s programovými tagy a rutinou MainRoutine (ST).
  * Struktura podle 1756-RM014 a reálných exportů; Rockwell nezveřejňuje XSD → neověřeno importem.
  */
 export function genRockwellL5X(prj: Project): string {
   const classes = new Set(prj.devices.map(d => d.cls));
   const { spec } = lxIoMap(prj);
   let x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
-  x += "<!-- " + attr(trx("PLC Studio: návrh k revizi, neověřeno importem ve Studiu 5000.")).replace(/--/g, "- -") + " -->\n";
+  x += "<!-- " + attr(trx("PLCdesk: návrh k revizi, neověřeno importem ve Studiu 5000.")).replace(/--/g, "- -") + " -->\n";
   x += '<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="' + LX_SOFTWARE_REVISION + '" TargetName="' + LX_PROGRAM +
     '" TargetType="Program" TargetClass="Standard" ContainsContext="true" ExportOptions="References NoRawData L5KData DecoratedData Context Dependencies ForceProtectedEncoding AllProjDocTrans">\n';
   x += '<Controller Use="Context" Name="' + LX_PROGRAM + '">\n';
@@ -362,7 +362,7 @@ export function genRockwellL5X(prj: Project): string {
   x += "  </Tags>\n";
   x += '  <Programs Use="Context">\n';
   x += '    <Program Use="Target" Name="' + LX_PROGRAM + '" TestEdits="false" MainRoutineName="' + LX_ROUTINE + '" Disabled="false" UseAsFolder="false">\n';
-  x += "      <Description>" + cdata(lxAscii(prj.meta.name || "PLC Studio") + " - PLC Studio") + "</Description>\n";
+  x += "      <Description>" + cdata(lxAscii(prj.meta.name || "PLCdesk") + " - PLCdesk") + "</Description>\n";
   x += "      <Tags>\n";
   for (const t of lxProgramTags(prj)) x += tagXml(t, "        ");
   x += "      </Tags>\n      <Routines>\n";
@@ -372,12 +372,82 @@ export function genRockwellL5X(prj: Project): string {
   return x;
 }
 
+/* ---------------------------------------------------- safety program (GuardLogix) */
+
+/** Příčka (rung) safety rutiny: komentář a neutrální text RLL (`XIC(a)OTE(b);`). */
+export interface LxSafetyRung { comment: string; text: string }
+/** Tag safety programu; `io` = zástupce kanálu bezpečnostního modulu (controller scope). */
+export interface LxSafetyTag { name: string; type: string; desc: string; io?: boolean }
+
+/**
+ * PLCdesk_Safety.L5X — dílčí import SAFETY programu (Safety Task → Add → Import Program):
+ * program s `Class="Safety"`, safety tagy a rutina SafetyRoutine v ladderu (v safety tasku je jen
+ * RLL; FBD a ST bezpečnostní instrukce nemají). Obsah (DCS, DCSTL, THRSe, CROUT…) skládá
+ * safety_prog.ts jen pro schválené bezpečnostní funkce. Podpis safety tasku a safety-lock se
+ * v L5X jen exportují, při importu se ignorují — vznikají až v Logix Designeru (1756-RM084).
+ * Struktura podle RM014 / RM084; neověřeno importem ve Studiu 5000. Výstup je čisté ASCII.
+ */
+export function genRockwellSafetyL5X(o: { name: string; description: string; banner: string; tags: LxSafetyTag[]; rungs: LxSafetyRung[] }): string {
+  const nm = o.name.replace(/[^A-Za-z0-9_]/g, "_");
+  let x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  x += "<!-- " + attr(o.banner).replace(/--/g, "- -") + " -->\n";
+  x += '<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="' + LX_SOFTWARE_REVISION + '" TargetName="' + nm +
+    '" TargetType="Program" TargetClass="Safety" ContainsContext="true" ExportOptions="References NoRawData L5KData DecoratedData Context Dependencies ForceProtectedEncoding AllProjDocTrans">\n';
+  x += '<Controller Use="Context" Name="' + nm + '">\n';
+  x += '  <DataTypes Use="Context">\n  </DataTypes>\n';
+  x += '  <Tags Use="Context">\n';
+  for (const t of o.tags.filter(t => t.io)) x += safetyTagXml(t, "    ");
+  x += "  </Tags>\n";
+  x += '  <Programs Use="Context">\n';
+  x += '    <Program Use="Target" Name="' + nm + '" TestEdits="false" MainRoutineName="SafetyRoutine" Disabled="false" Class="Safety" UseAsFolder="false">\n';
+  x += "      <Description>" + cdata(lxAscii(o.description)) + "</Description>\n";
+  x += "      <Tags>\n";
+  for (const t of o.tags.filter(t => !t.io)) x += safetyTagXml(t, "        ");
+  x += "      </Tags>\n      <Routines>\n";
+  x += '        <Routine Name="SafetyRoutine" Type="RLL">\n          <RLLContent>\n';
+  o.rungs.forEach((r, i) => {
+    x += '            <Rung Number="' + i + '" Type="N">\n';
+    if (r.comment) x += "              <Comment>" + cdata(lxAscii(r.comment)) + "</Comment>\n";
+    x += "              <Text>" + cdata(lxAscii(r.text)) + "</Text>\n            </Rung>\n";
+  });
+  x += "          </RLLContent>\n        </Routine>\n      </Routines>\n    </Program>\n  </Programs>\n</Controller>\n</RSLogix5000Content>\n";
+  return x;
+}
+
+function safetyTagXml(t: LxSafetyTag, ind: string): string {
+  const base = BASE.has(t.type);
+  return ind + '<Tag Name="' + t.name + '" Class="Safety" TagType="Base" DataType="' + t.type + '"' + radix(t.type) + (base ? ' Constant="false"' : "") + ' ExternalAccess="Read/Write">\n' +
+    (t.desc ? ind + " <Description>" + cdata(lxAscii(t.desc)) + "</Description>\n" : "") +
+    dataXml("Data", t.type, t.type === "REAL" ? "0.0" : "0", ind + " ") + ind + "</Tag>\n";
+}
+
+/** Statická kontrola safety L5X (testy): well-formed, ASCII, každý operand příček deklarovaný. */
+export function logixSafetyProblems(x: string): string[] {
+  const errs = xmlProblems(x).map(e => "L5X: " + e);
+  if (/[^\x00-\x7F]/.test(x)) errs.push("safety L5X: není ASCII");
+  if (!/Class="Safety"/.test(x)) errs.push("safety L5X: program není Class=Safety");
+  const tags = new Set([...x.matchAll(/<Tag Name="(\w+)"/g)].map(m => m[1].toLowerCase()));
+  const KW = new Set(["XIC", "XIO", "OTE", "OTL", "OTU", "NOP", "TON", "DCS", "DCST", "DCSTL", "DCSRT", "DCM", "CROUT", "THRSE"]);
+  const ENUM = new Set(["EMERGENCY_STOP", "SAFETY_GATE", "LIGHT_CURTAIN", "AREA_SCANNER", "SAFETY_MAT", "USER_DEFINED"]);
+  for (const m of x.matchAll(/<Text><!\[CDATA\[([\s\S]*?)\]\]><\/Text>/g)) {
+    const t = m[1];
+    if ((t.match(/\(/g) || []).length !== (t.match(/\)/g) || []).length || (t.match(/\[/g) || []).length !== (t.match(/\]/g) || []).length) errs.push("příčka: nespárované závorky: " + t);
+    if (!t.trim().endsWith(";")) errs.push("příčka bez středníku: " + t);
+    for (const id of t.match(/\b[A-Za-z_]\w*(?:\.\w+)?\b/g) || []) {
+      const baseId = id.split(".")[0];
+      if (KW.has(baseId.toUpperCase()) || ENUM.has(baseId)) continue;
+      if (!tags.has(baseId.toLowerCase())) errs.push("příčka: nedeklarovaný tag " + baseId);
+    }
+  }
+  return [...new Set(errs)];
+}
+
 /* -------------------------------------------------------------- Tags.csv */
 
 /**
  * Tags.csv pro Tools → Import → Tags and Logic Comments (náhradní cesta k L5X):
  * I/O jako ALIAS na body modulů 5069 (předpoklad osazení slotů v remark), jinak TAG;
- * programové tagy se SCOPE = program PLCStudio. Popisy ASCII s escapováním `$`.
+ * programové tagy se SCOPE = program PLCdesk. Popisy ASCII s escapováním `$`.
  */
 export function genLogixTagsCsv(prj: Project): string {
   const { spec } = lxIoMap(prj);
@@ -388,11 +458,11 @@ export function genLogixTagsCsv(prj: Project): string {
     : "(Constant := false, ExternalAccess := Read/Write)";
   const l = [
     'remark,"CSV-Import-Export"',
-    'remark,"Version = PLC Studio (Logix Designer v' + LX_SOFTWARE_REVISION + '+)"',
-    "remark," + q("Project = " + (prj.meta.name || "PLC Studio")),
+    'remark,"Version = PLCdesk (Logix Designer v' + LX_SOFTWARE_REVISION + '+)"',
+    "remark," + q("Project = " + (prj.meta.name || "PLCdesk")),
     "remark," + q(slots ? trx("I/O aliasy předpokládají osazení lokálních slotů (ověř!): {slots}", { slots })
       : trx("I/O aliasy nejde odvodit z adres - I/O tagy jsou běžné tagy, alias doplň ručně.")),
-    "remark," + q(trx("Programové tagy patří do programu {prog}; instance FB_* vyžadují AOI z PLCStudio_Program.L5X.", { prog: LX_PROGRAM })),
+    "remark," + q(trx("Programové tagy patří do programu {prog}; instance FB_* vyžadují AOI z PLCdesk_Program.L5X.", { prog: LX_PROGRAM })),
     "0.3",
     "TYPE,SCOPE,NAME,DESCRIPTION,DATATYPE,SPECIFIER,ATTRIBUTES",
   ];
@@ -447,8 +517,8 @@ const TIMER_MEMBERS = new Set(["PRE", "TimerEnable", "DN", "TT", "ACC", "Reset",
  */
 export function logixProblems(files: Record<string, string>): string[] {
   const errs: string[] = [];
-  const x = files["PLCStudio_Program.L5X"];
-  if (!x) return ["chybí PLCStudio_Program.L5X"];
+  const x = files["PLCdesk_Program.L5X"];
+  if (!x) return ["chybí PLCdesk_Program.L5X"];
   errs.push(...xmlProblems(x).map(e => "L5X: " + e));
   for (const [n, b] of Object.entries(files)) if (n !== "README.txt" && /[^\x00-\x7F]/.test(b)) errs.push(n + ": není ASCII");
   /* deklarace */

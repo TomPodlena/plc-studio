@@ -1,0 +1,5444 @@
+{
+ "meta": {
+  "created": "2026-10-03",
+  "title": "Certifikované bloky bezpečnostních PLC – rešerše pro modul Bezpečnostní funkce PLCdesk",
+  "language": "čeština (texty), názvy pinů a bloků v originále",
+  "disclaimer": "Generovaný bezpečnostní program je jen NÁVRH K REVIZI. Posouzení rizik, návrh bezpečnostních funkcí (PL/SIL), validace, certifikace a přijetí bezpečnostního programu jsou výhradně na odpovědné osobě. Údaje pocházejí z veřejných manuálů k uvedenému datu; před použitím je ověřte v aktuální dokumentaci výrobce. Položky s verified=false nejsou potvrzeny primárním zdrojem.",
+  "method": "Veřejné PDF bez registrace staženy a přečteny strojově (PyMuPDF); webové stránky přes WebFetch. Údaj bez potvrzení v primárním zdroji má verified=false.",
+  "sources_list": [
+   {
+    "id": "P1",
+    "title": "PLCopen TC5 Safety, Part 1: Concepts and Function Blocks, v2.10 (7. 11. 2023), volně ke stažení bez registrace",
+    "url": "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+   },
+   {
+    "id": "P2",
+    "title": "PLCopen TC5 Safety, Part 2: User Examples, v1.01 (2008)",
+    "url": "https://www.plcopen.org/download_file/force/7ac434db-4581-435f-bc1d-74222365be7e/342/"
+   },
+   {
+    "id": "P3",
+    "title": "PLCopen TC5 Safety, Part 3: Extensions to the Function Blocks, v1.0 (16. 12. 2013)",
+    "url": "https://www.plcopen.org/download_file/force/56d0eb46-6ace-4430-8b2a-f9456ba0ed69/342/"
+   },
+   {
+    "id": "P4",
+    "title": "PLCopen TC5 Safety, Part 4: Application specific FBs for Presses, v1.0",
+    "url": "https://www.plcopen.org/download_file/force/d85a9629-cbe5-47e8-bd3b-774246709d3e/342/"
+   },
+   {
+    "id": "PSM",
+    "title": "PLCopen TC5 Safe Motion, v1.0 Official Release (21. 7. 2017)",
+    "url": "https://www.plcopen.org/download_file/force/2b6d634e-8dde-46c4-949f-bc8bc6eb7589/342/"
+   },
+   {
+    "id": "PDL",
+    "title": "PLCopen – stránka Downloads (seznam safety dokumentů)",
+    "url": "https://www.plcopen.org/downloads/"
+   },
+   {
+    "id": "PSTD",
+    "title": "PLCopen – Safety standard (přehled částí 1–4, SafeMotion)",
+    "url": "https://www.plcopen.org/standards/safety/"
+   },
+   {
+    "id": "PCOMPL",
+    "title": "PLCopen – Compliance statement CODESYS Safety k Part 1 v1.0",
+    "url": "https://www.plcopen.org/application/files/7217/4100/9549/codesys_safety_part1_sf.pdf"
+   },
+   {
+    "id": "CDS_ESTOP",
+    "title": "CODESYS Online Help – SF_EmergencyStop (CODESYS Safety SIL2, knihovna PLCopen Safety FBs)",
+    "url": "https://content.helpme-codesys.com/en/CODESYS%20Safety%20SIL2/sil3_plcopen_fb_estop.html"
+   },
+   {
+    "id": "CDS_LIB",
+    "title": "CODESYS Online Help – Library PLCopen Safety FBs 3.5.18.0 (implementuje Part 1 v2.01)",
+    "url": "https://content.helpme-codesys.com/en/CODESYS%20Safety%20SIL2/sil3_safetyplcopen_library_overview.html"
+   },
+   {
+    "id": "CDS_BRO",
+    "title": "CODESYS Safety – brožura (SIL2/SIL3, editory, úrovně basic/extended/system)",
+    "url": "https://exhibitorsearch.messefrankfurt.com/images/original/userdata/bata/204697/5d5148817c22e.pdf"
+   },
+   {
+    "id": "ABB",
+    "title": "ABB AC500-S Safety User Manual V1.0.2 (3ADR025091M0203) – implementace PLCopen Safety FB",
+    "url": "https://library.e.abb.com/public/8e8e2a1098f84b2594cadb39f613706f/3ADR025091M0203.pdf"
+   },
+   {
+    "id": "SIE_PROG",
+    "title": "Siemens SIMATIC Safety – Configuring and Programming, Programming and Operating Manual 09/2016, A5E02714440-AE (STEP 7 Safety V14)",
+    "url": "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf"
+   },
+   {
+    "id": "SIE_PROG_NEW",
+    "title": "Siemens SIMATIC Safety – Configuring and Programming (vydání pro STEP 7 Safety V20; PDF se nepodařilo stáhnout – 404/403)",
+    "url": "https://cache.industry.siemens.com/dl/files/126/54110126/att_915537/v5/ProgFAILenUS_en-US.pdf"
+   },
+   {
+    "id": "SIE_GUIDE",
+    "title": "Siemens Programming Guideline Safety for SIMATIC S7-1200/1500, ID 109750255, V1.5 07/2023",
+    "url": "https://cache.industry.siemens.com/dl/files/255/109750255/att_1148293/v1/109750255_Programming-Guideline-Safety_DOC_V1_5_en.pdf"
+   },
+   {
+    "id": "SIE_OPN",
+    "title": "Siemens TIA Portal Openness: API for automation of engineering workflows, System Manual 11/2023 (Openness V19)",
+    "url": "https://cache.industry.siemens.com/dl/files/886/109826886/att_1163875/v1/TIAPortalOpenness_enUS_en-US.pdf"
+   },
+   {
+    "id": "SIE_V20",
+    "title": "Siemens TIA Portal V20 Technical slides (zrcadlo asutp.org, © Siemens 2024)",
+    "url": "https://asutp.org/SIEMENS/TIA_PORTAL/TIA20.pdf"
+   },
+   {
+    "id": "SIE_V21",
+    "title": "Siemens TIA Portal V21 Technical slides (© Siemens 2025)",
+    "url": "https://cache.industry.siemens.com/dl/files/772/109989772/att_1348791/v5/TIA_Portal_V21_technical_slides_EN.pdf"
+   },
+   {
+    "id": "RA_095",
+    "title": "Rockwell 1756-RM095O-EN-P (září 2025) – Logix 5000 Controller Safety Application Instruction Set",
+    "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+   },
+   {
+    "id": "RA_099",
+    "title": "Rockwell 1756-RM099H-EN-P (říjen 2024) – GuardLogix 5580 / Compact GuardLogix 5380 Safety Reference Manual",
+    "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm099_-en-p.pdf"
+   },
+   {
+    "id": "RA_093",
+    "title": "Rockwell 1756-RM093J-EN-P (duben 2018) – GuardLogix 5570 Controller Systems Safety Reference Manual",
+    "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm093_-en-p.pdf"
+   },
+   {
+    "id": "RA_084",
+    "title": "Rockwell Logix 5000 Controllers Import/Export Reference Manual (v PDF tištěno jako 1756-RM014D-EN-P, září 2025)",
+    "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm084_-en-p.pdf"
+   },
+   {
+    "id": "BK_FB",
+    "title": "Beckhoff TwinSAFE Logic FB – TwinCAT function blocks for TwinSAFE logic components, v4.3.0 (3. 12. 2025)",
+    "url": "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+   },
+   {
+    "id": "BK_EK",
+    "title": "Beckhoff EK1960 TwinSAFE Compact Controller, Operating Instructions v2.1.0 (7. 6. 2024)",
+    "url": "https://download.beckhoff.com/download/document/automation/twinsafe/ek1960_en.pdf"
+   },
+   {
+    "id": "BK_EL",
+    "title": "Beckhoff EL6910 TwinSAFE Logic Terminal, Operating Instructions v2.5.0 (18. 12. 2024)",
+    "url": "https://download.beckhoff.com/download/document/automation/twinsafe/el6910_en.pdf"
+   },
+   {
+    "id": "BK_SPLC",
+    "title": "Beckhoff TwinCAT Safety PLC – PC based Safety Controller, v1.2.0 (29. 6. 2017)",
+    "url": "https://download.beckhoff.com/download/document/automation/twinsafe/tcsafetyplc_en.pdf"
+   },
+   {
+    "id": "BK_TE9000",
+    "title": "Beckhoff TE9000 TwinCAT 3 Safety Editor – produktová stránka",
+    "url": "https://www.beckhoff.com/en-en/products/automation/twinsafe/twinsafe-software/te9000.html"
+   },
+   {
+    "id": "BK_EL6910W",
+    "title": "Beckhoff EL6910 – produktová stránka",
+    "url": "https://www.beckhoff.com/en-us/products/automation/twinsafe/twinsafe-hardware/el6910.html"
+   },
+   {
+    "id": "BK_PRESS",
+    "title": "Beckhoff tisková zpráva 12/2024 – TwinCAT Safety PLC (EL6910 runtime v IPC)",
+    "url": "https://www.beckhoff.com/en-us/company/press/twinsafe-with-new-hardware-components-and-update-of-the-software-safety-controller-2024-12.html"
+   },
+   {
+    "id": "OM_Z931",
+    "title": "Omron NX-series Safety Control Unit Instructions Reference Manual Z931-E1-07",
+    "url": "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf"
+   },
+   {
+    "id": "OM_SL5",
+    "title": "Omron NX-SL5 Safety CPU Unit datasheet (F124)",
+    "url": "https://files.omron.eu/downloads/latest/datasheet/en/f124_nx-sl5_safety_cpu_unit_datasheet_en.pdf"
+   },
+   {
+    "id": "OM_DS",
+    "title": "Omron NX-series Safety Control Units datasheet CSM_NX-SL_SI_SO_E_4_9 (zrcadlo distributora)",
+    "url": "https://www.saddlebrookcontrols.com/wp-content/uploads/Omron-NX-Series-Safety-IO.pdf"
+   },
+   {
+    "id": "OM_SYS",
+    "title": "Omron Sysmac Studio datasheet CSM_Sysmac_Studio_DS_E_18_18 (zrcadlo Farnell)",
+    "url": "https://www.farnell.com/datasheets/3628336.pdf"
+   },
+   {
+    "id": "PZ_CAT",
+    "title": "Pilz Technical Catalogue PNOZmulti, verze 2017-02 (zrcadlo distributora)",
+    "url": "https://www.cdluk.com/wp-content/uploads/pilz-PNOZmulti2.pdf"
+   },
+   {
+    "id": "PZ_S9",
+    "title": "Pilz PNOZ s9 Operating Manual 21401-EN-08 (zrcadlo distributora)",
+    "url": "https://cdn.logic-control.com/docs/pilz-safety/Manuals/PNOZ_s9_Operat_Man_21401-EN-08.pdf"
+   },
+   {
+    "id": "PZ_WEB",
+    "title": "Pilz – Software PNOZmulti (stránka vrací 403 pro automatické čtení; obsah jen z výsledku vyhledávání)",
+    "url": "https://www.pilz.com/en-INT/products/small-controllers/software"
+   },
+   {
+    "id": "SICK",
+    "title": "SICK Flexi Soft in Flexi Soft Designer – Operating Instructions 8022492/108C (11. 12. 2018)",
+    "url": "https://www.sick.com/media/docs/0/30/030/operating_instructions_8022491_en_im0094030.pdf"
+   },
+   {
+    "id": "MIT_CAT",
+    "title": "Mitsubishi MELSEC iQ-R Safety CPU – katalog R003ENG",
+    "url": "https://dl.mitsubishielectric.com/dl/fa/document/catalog/plcr/r003eng/r003engc.pdf"
+   },
+   {
+    "id": "MIT_SFB",
+    "title": "Mitsubishi MELSEC iQ-R Safety Function Block Reference BCN-P5999-0815",
+    "url": "https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/bcn-p5999-0815/bcnp59990815c.pdf"
+   },
+   {
+    "id": "SE_XPSMCM",
+    "title": "Schneider Electric Preventa XPSMCM – katalog 08/2018 (zrcadlo)",
+    "url": "https://media.distributordatasolutions.com/schneider2/2020q3/documents/ed6be933e33fe09acb0d6319b418a069d758ed7d.pdf"
+   },
+   {
+    "id": "SE_MEX",
+    "title": "Schneider EcoStruxure Machine Expert – Safety, PLCopen Safety Function Blocks Library (online nápověda, neprověřeno)",
+    "url": "https://product-help.schneider-electric.com/Machine%20Expert/V1.2/LandingPages/en/VLP_Safety/VLP_SoSafe/VLP_PLCOpen/index.html"
+   },
+   {
+    "id": "SCH",
+    "title": "Schmersal PROTECT PSC1 – brožura 2021 (schmersalusa.com)",
+    "url": "https://www.schmersalusa.com/fileadmin/content/usa/downloads/brochures/product-brochures/ProtectPSC1_2021.pdf"
+   },
+   {
+    "id": "SCH_PM",
+    "title": "Schmersal Programming Manual for the PSC1 Modules (SafePLC2), V2.6 – odkaz z vyhledávání, PDF se nepodařilo stáhnout",
+    "url": "https://products.schmersal.com/upload/orig/10/00/20/07/DOC_MAN_SOF_programming-manual-safeplc2_SEN_AIN_V6.pdf"
+   }
+  ]
+ },
+ "plcopen": {
+  "title": "PLCopen TC5 Safety",
+  "programming": {
+   "languages": [
+    "FBD",
+    "LD",
+    "ST (jen Extended Level, od v2.0)"
+   ],
+   "editor": "Specifikace nezávislá na nástroji; implementují ji např. CODESYS Safety, Omron Sysmac Studio, ABB AC500-S, Phoenix Contact, Schneider Machine Expert Safety, Mitsubishi (vlastní názvy M+SF_*).",
+   "levels": "Basic Level (jen certifikované FB, FBD/LD), Extended Level (i vlastní FB, ST), System Level (výrobce).",
+   "certification": "Specifikace pro SIL 1–3 (IEC 61508); sama certifikát nedává – certifikuje se nástroj a aplikace.",
+   "import_text": "Specifikace nedefinuje výměnný formát safety programu. Textově lze vygenerovat ST (Extended Level) nebo popis FBD; import závisí na cílovém nástroji.",
+   "sources": [
+    "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+   ],
+   "verified": true
+  },
+  "documents": [
+   {
+    "part": "Part 1 – Concepts and Function Blocks",
+    "version": "2.10",
+    "date": "2023-11-07",
+    "free": true,
+    "url": "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/",
+    "note": "v2.0 (2018) sloučila Part 3 (diagnostika, 5 nových FB), přidala ST a výstupy SafetyDemand/ResetRequest; 3 pohybové FB přesunuty do SafeMotion."
+   },
+   {
+    "part": "Part 2 – User Examples",
+    "version": "1.01",
+    "date": "2008-07-07",
+    "free": true,
+    "url": "https://www.plcopen.org/download_file/force/7ac434db-4581-435f-bc1d-74222365be7e/342/"
+   },
+   {
+    "part": "Part 3 – Extensions to the Function Blocks",
+    "version": "1.0",
+    "date": "2013-12-16",
+    "free": true,
+    "url": "https://www.plcopen.org/download_file/force/56d0eb46-6ace-4430-8b2a-f9456ba0ed69/342/"
+   },
+   {
+    "part": "Part 4 – Application specific FBs for Presses",
+    "version": "1.0",
+    "free": true,
+    "url": "https://www.plcopen.org/download_file/force/d85a9629-cbe5-47e8-bd3b-774246709d3e/342/"
+   },
+   {
+    "part": "SafeMotion",
+    "version": "1.0",
+    "date": "2017-07-21",
+    "free": true,
+    "url": "https://www.plcopen.org/download_file/force/2b6d634e-8dde-46c4-949f-bc8bc6eb7589/342/"
+   }
+  ],
+  "general_parameters": {
+   "inputs": [
+    {
+     "name": "Activate",
+     "type": "BOOL",
+     "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+    },
+    {
+     "name": "S_<jméno>",
+     "type": "SAFExxxx",
+     "meaning": "Každý bezpečnostní vstup začíná S_; připojit lze jen proměnné."
+    },
+    {
+     "name": "S_StartReset",
+     "type": "SAFEBOOL",
+     "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+    },
+    {
+     "name": "S_AutoReset",
+     "type": "SAFEBOOL",
+     "meaning": "FALSE = ruční reset po odeznění požadavku; TRUE = automatický (jen s dalšími opatřeními proti neočekávanému rozběhu)."
+    },
+    {
+     "name": "Reset",
+     "type": "BOOL",
+     "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+    }
+   ],
+   "outputs": [
+    {
+     "name": "Ready",
+     "type": "BOOL",
+     "meaning": "FB aktivní, výstupy platné."
+    },
+    {
+     "name": "S_<jméno>",
+     "type": "SAFExxxx",
+     "meaning": "Bezpečnostní výstup."
+    },
+    {
+     "name": "SafetyDemand",
+     "type": "BOOL",
+     "meaning": "Volitelný (od v2.0): požadavek bezpečnostní funkce."
+    },
+    {
+     "name": "ResetRequest",
+     "type": "BOOL",
+     "meaning": "Volitelný (od v2.0): čeká se na Reset."
+    },
+    {
+     "name": "Error",
+     "type": "BOOL",
+     "meaning": "Chybový stav (jako LED K1/K2 relé)."
+    },
+    {
+     "name": "DiagCode",
+     "type": "WORD",
+     "meaning": "Diagnostický registr; při více chybách první zjištěná."
+    }
+   ],
+   "sources": [
+    "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+   ],
+   "verified": true
+  },
+  "diag_codes_generic": {
+   "0000": "Idle – FB neaktivní",
+   "8000": "Aktivní, bez chyby, bezpečnostní výstup TRUE",
+   "8401": "Init + ResetRequest",
+   "8801": "Init + SafetyDemand",
+   "8802": "Detekován požadavek (S_In=FALSE), výstup FALSE",
+   "8403": "Požadavek odezněl, čeká na reset",
+   "Cxxx": "Chyby (bit 14 = Error); Cyn0 chyba, Cyn1 chyba resetu",
+   "0xxx (kromě 0000)": "Systémové / výrobcové kódy",
+   "83FF, 83FE": "Rezervováno pro Part 4 (SF_ValveGroupControl, SF_TwoHandMultiOperator)",
+   "struktura": "Bit 15 = 1 aktivní; bit 14 = Error; bit 11 = SafetyDemand (S); bit 10 = ResetRequest (R).",
+   "sources": [
+    "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+   ],
+   "verified": true
+  },
+  "blocks": [
+   {
+    "name": "SF_EmergencyStop",
+    "purpose": "Hlídání nouzového zastavení (STOP kat. 0; s periferií i kat. 1 nebo 2) s blokováním opětovného startu.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_EStopIn",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = požadavek bezpečnostní funkce (tlačítko stisknuto); TRUE = bez požadavku."
+     },
+     {
+      "name": "S_StartReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+     },
+     {
+      "name": "S_AutoReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po odeznění požadavku; TRUE = automatický (jen s dalšími opatřeními proti neočekávanému rozběhu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_EStopOut",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = bezpečnostní výstup povolen; FALSE = požadavek, čeká se na reset nebo chyba."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "diag_codes": {
+     "0000": "Idle",
+     "8001": "Init (Activate=TRUE)",
+     "8802": "Čeká na S_EStopIn=TRUE (1)",
+     "8402": "Čeká na Reset (1)",
+     "8804": "Detekován požadavek, čeká na S_EStopIn=TRUE (2)",
+     "8404": "Čeká na Reset nebo S_AutoReset (2)",
+     "8000": "Výstup povolen",
+     "C001": "Reset Error 1 – Reset TRUE při čekání na S_EStopIn",
+     "C011": "Reset Error 2 – Reset TRUE při čekání na S_EStopIn"
+    },
+    "notes": "Kódy dle v2.10. Implementace podle v1.0 (např. Omron) používají 8002/8003/8004/8005 a C001/C002 – viz discrepancies.",
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/",
+     "https://content.helpme-codesys.com/en/CODESYS%20Safety%20SIL2/sil3_plcopen_fb_estop.html",
+     "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_Guard (v1.0: SF_GuardMonitoring)",
+    "purpose": "Hlídání ochranného krytu se dvěma spínači a časem nesouladu; před znovupovolením nutné úplné otevření a zavření.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_GuardSwitch1",
+      "type": "SAFEBOOL",
+      "meaning": "Spínač krytu 1: TRUE = zavřeno."
+     },
+     {
+      "name": "S_GuardSwitch2",
+      "type": "SAFEBOOL",
+      "meaning": "Spínač krytu 2: TRUE = zavřeno."
+     },
+     {
+      "name": "DiscrepancyTime",
+      "type": "TIME",
+      "meaning": "Konstanta: max. časový rozdíl sepnutí obou spínačů (T#0ms výchozí)."
+     },
+     {
+      "name": "S_StartReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+     },
+     {
+      "name": "S_AutoReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po odeznění požadavku; TRUE = automatický (jen s dalšími opatřeními proti neočekávanému rozběhu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_GuardOut",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = oba spínače zavřené, bez chyby, kvitováno."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "diag_codes": {
+     "8000": "Normal",
+     "8001": "Init",
+     "8802": "Začalo otevírání – nutná úplná sekvence",
+     "8804": "Kryt otevřen",
+     "8806": "Čeká na GuardSwitch2",
+     "8808": "Čeká na GuardSwitch1",
+     "8002": "Kryt zavřen, čeká na Reset (pokud S_AutoReset=FALSE)",
+     "8402": "Čeká na Reset",
+     "C001": "Statický Reset",
+     "C010": "Překročen DiscrepancyTime (8806)",
+     "C020": "Překročen DiscrepancyTime (8808)"
+    },
+    "notes": "Specifikace dovoluje i původní název SF_GuardMonitoring. Pro nižší úrovně lze BOOL vstupy (posoudit FMEA).",
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_GuardLocking_2",
+    "purpose": "Kryt se zámkem (čtyřstavové blokování): odemknutí jen při bezpečném stavu stroje.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_Guard",
+      "type": "SAFEBOOL",
+      "meaning": "Stav krytu (lze z S_GuardOut bloku SF_Guard): TRUE = zavřeno."
+     },
+     {
+      "name": "S_SafetyActive",
+      "type": "SAFEBOOL",
+      "meaning": "Stav nebezpečného prostoru (EDM, např. hlídání otáček/bezpečné zpoždění): TRUE = bezpečný stav."
+     },
+     {
+      "name": "S_GuardLock",
+      "type": "SAFEBOOL",
+      "meaning": "Stav mechanického zámku: TRUE = zamčeno."
+     },
+     {
+      "name": "UnlockRequest",
+      "type": "BOOL",
+      "meaning": "Požadavek obsluhy na odemknutí."
+     },
+     {
+      "name": "S_StartReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+     },
+     {
+      "name": "S_AutoReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po odeznění požadavku; TRUE = automatický (jen s dalšími opatřeními proti neočekávanému rozběhu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Kvitace/reset; slouží i k požadavku na opětovné zamčení (kvalita ručního resetovacího prvku)."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_GuardLocked",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = bezpečný stav (kryt zavřen a zamčen) – rozhraní k nebezpečnému pohybu."
+     },
+     {
+      "name": "S_UnlockGuard",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = odemknout zámek."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "notes": "v1.0 a implementace podle ní (Omron, Mitsubishi) mají SF_GuardLocking se vstupem S_GuardMonitoring místo S_Guard. Varianta pro sériové kontakty: SF_GuardLockingSerial (bez S_GuardLock).",
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/",
+     "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_ESPE",
+    "purpose": "Hlídání bezdotykového ochranného zařízení (světelná závora/mříž, OSSD).",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_ESPE_In",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ESPE přerušeno (požadavek); TRUE = volno. Systém musí zachytit krátké přerušení (IEC 61496-1: min. 80 ms)."
+     },
+     {
+      "name": "S_StartReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+     },
+     {
+      "name": "S_AutoReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po odeznění požadavku; TRUE = automatický (jen s dalšími opatřeními proti neočekávanému rozběhu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_ESPE_Out",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = bezpečnostní výstup povolen."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "notes": "Specifikace nemá samostatný SF_LightCurtain – světelná závora = SF_ESPE (případně SF_TestableSafetySensor pro testovatelné snímače typu 2).",
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_PSE",
+    "purpose": "Hlídání tlakově citlivého zařízení (rohož, nárazník).",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_PSE_In",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = aktivováno (požadavek). Zachytit krátké přerušení (EN 1760: min. 200 ms)."
+     },
+     {
+      "name": "S_StartReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+     },
+     {
+      "name": "S_AutoReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po odeznění požadavku; TRUE = automatický (jen s dalšími opatřeními proti neočekávanému rozběhu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_PSE_Out",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = výstup povolen."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_TwoHandControlTypeII",
+    "purpose": "Dvouruční ovládání typu II (EN 574).",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_Button1",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = tlačítko 1 stisknuto."
+     },
+     {
+      "name": "S_Button2",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = tlačítko 2 stisknuto."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_TwoHandOut",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = správné dvouruční ovládání, bez chyby."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_TwoHandControlTypeIII",
+    "purpose": "Dvouruční ovládání typu III A/B/C (EN 574), pevný časový rozdíl 500 ms.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_Button1",
+      "type": "SAFEBOOL",
+      "meaning": "Tlačítko 1 (pro kat. 3/4 dva antivalentní kontakty)."
+     },
+     {
+      "name": "S_Button2",
+      "type": "SAFEBOOL",
+      "meaning": "Tlačítko 2."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_TwoHandOut",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = obě tlačítka FALSE→TRUE do 500 ms a bez chyby."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_TestableSafetySensor",
+    "purpose": "Test externího testovatelného snímače (např. jednopaprsková závora) – ztráta detekce, doba odezvy, statický signál.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_OSSD_In",
+      "type": "SAFEBOOL",
+      "meaning": "Stav výstupu snímače; TRUE = normální stav."
+     },
+     {
+      "name": "StartTest",
+      "type": "BOOL",
+      "meaning": "Spustí test (nastaví S_TestOut, časové hlídání)."
+     },
+     {
+      "name": "TestTime",
+      "type": "TIME",
+      "meaning": "Konstanta 0…150 ms (výchozí T#10ms) – doba testu."
+     },
+     {
+      "name": "NoExternalTest",
+      "type": "BOOL",
+      "meaning": "Konstanta: podpora ručního testu snímače."
+     },
+     {
+      "name": "S_StartReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+     },
+     {
+      "name": "S_AutoReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po odeznění požadavku; TRUE = automatický (jen s dalšími opatřeními proti neočekávanému rozběhu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_OSSD_Out",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = bez požadavku a bez chyby testu."
+     },
+     {
+      "name": "S_TestOut",
+      "type": "SAFEBOOL",
+      "meaning": "Na testovací vstup snímače (FALSE = test), v praxi často BOOL výstup."
+     },
+     {
+      "name": "TestPossible",
+      "type": "BOOL",
+      "meaning": "Automatický test je možný."
+     },
+     {
+      "name": "TestExecuted",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana = test úspěšně proveden."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_MutingSeq",
+    "purpose": "Sekvenční muting se 4 senzory (dočasné přemostění ochranného zařízení při průchodu materiálu).",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_AOPD_In",
+      "type": "SAFEBOOL",
+      "meaning": "OSSD z AOPD: TRUE = pole nepřerušeno."
+     },
+     {
+      "name": "MutingSwitch11",
+      "type": "BOOL",
+      "meaning": "Muting senzor 11 (dle požadavků i SAFEBOOL)."
+     },
+     {
+      "name": "MutingSwitch12",
+      "type": "BOOL",
+      "meaning": "Muting senzor 12."
+     },
+     {
+      "name": "MutingSwitch21",
+      "type": "BOOL",
+      "meaning": "Muting senzor 21."
+     },
+     {
+      "name": "MutingSwitch22",
+      "type": "BOOL",
+      "meaning": "Muting senzor 22."
+     },
+     {
+      "name": "MaxMutingTime",
+      "type": "TIME",
+      "meaning": "Konstanta 0…120 min: max. doba celé sekvence (start při 2. senzoru)."
+     },
+     {
+      "name": "MutingEnable",
+      "type": "BOOL",
+      "meaning": "Povolení startu mutingu od řízení stroje."
+     },
+     {
+      "name": "S_StartReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_AOPD_Out",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = pole nepřerušeno nebo muting aktivní."
+     },
+     {
+      "name": "S_MutingActive",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = muting aktivní (např. pro mutingovou lampu)."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "notes": "Bez S_AutoReset. Chybové kódy mutingových FB mohou mít rozšířený rozsah (Nibble1=C, Nibble4=4).",
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_MutingPar",
+    "purpose": "Paralelní muting se 4 senzory.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_AOPD_In",
+      "type": "SAFEBOOL",
+      "meaning": "OSSD z AOPD."
+     },
+     {
+      "name": "MutingSwitch11",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "MutingSwitch12",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "MutingSwitch21",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "MutingSwitch22",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "DiscTime11_12",
+      "type": "TIME",
+      "meaning": "Konstanta 0…4 s: nesoulad senzorů 11/12."
+     },
+     {
+      "name": "DiscTime21_22",
+      "type": "TIME",
+      "meaning": "Konstanta 0…4 s: nesoulad senzorů 21/22."
+     },
+     {
+      "name": "MaxMutingTime",
+      "type": "TIME",
+      "meaning": "Konstanta 0…120 min."
+     },
+     {
+      "name": "MutingEnable",
+      "type": "BOOL",
+      "meaning": "Povolení mutingu."
+     },
+     {
+      "name": "S_StartReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_AOPD_Out",
+      "type": "SAFEBOOL",
+      "meaning": ""
+     },
+     {
+      "name": "S_MutingActive",
+      "type": "SAFEBOOL",
+      "meaning": ""
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_MutingPar_2Sensor",
+    "purpose": "Paralelní muting se 2 senzory.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_AOPD_In",
+      "type": "SAFEBOOL",
+      "meaning": ""
+     },
+     {
+      "name": "MutingSwitch11",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "MutingSwitch12",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "DiscTimeEntry",
+      "type": "TIME",
+      "meaning": "Konstanta 0…4 s: nesoulad 11/12 při vstupu."
+     },
+     {
+      "name": "MaxMutingTime",
+      "type": "TIME",
+      "meaning": "Konstanta 0…120 min, start prvním senzorem."
+     },
+     {
+      "name": "MutingEnable",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "S_StartReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_AOPD_Out",
+      "type": "SAFEBOOL",
+      "meaning": ""
+     },
+     {
+      "name": "S_MutingActive",
+      "type": "SAFEBOOL",
+      "meaning": ""
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_Override",
+    "purpose": "Vyjetí materiálu po přerušeném mutingu (jen v kombinaci s mutingovým FB).",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_AOPD_In",
+      "type": "SAFEBOOL",
+      "meaning": ""
+     },
+     {
+      "name": "S_Muting_AOPD_Out",
+      "type": "SAFEBOOL",
+      "meaning": "S_AOPD_Out předchozího mutingového FB."
+     },
+     {
+      "name": "MutingError",
+      "type": "BOOL",
+      "meaning": "Error předchozího mutingového FB."
+     },
+     {
+      "name": "MutingSwitch11",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "MutingSwitch12",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "MutingSwitch21",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "MutingSwitch22",
+      "type": "BOOL",
+      "meaning": ""
+     }
+    ],
+    "outputs": [
+     {
+      "name": "S_AOPD_Out",
+      "type": "SAFEBOOL",
+      "meaning": "Override signál"
+     }
+    ],
+    "notes": "Rozhraní je v PDF delší (další vstupy za MutingSwitch22 – nedočteno); výstupy kromě S_AOPD_Out neověřeny.",
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": false
+   },
+   {
+    "name": "SF_EnableSwitch",
+    "purpose": "Třípolohový povolovací spínač (enabling device).",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_SafetyActive",
+      "type": "SAFEBOOL",
+      "meaning": "Potvrzení bezpečného režimu (omezení rychlosti/síly/rozsahu)."
+     },
+     {
+      "name": "S_EnableSwitchCh1",
+      "type": "SAFEBOOL",
+      "meaning": "Kontakty E1/E2 spínače."
+     },
+     {
+      "name": "S_EnableSwitchCh2",
+      "type": "SAFEBOOL",
+      "meaning": "Kontakty E3/E4 spínače."
+     },
+     {
+      "name": "S_AutoReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po odeznění požadavku; TRUE = automatický (jen s dalšími opatřeními proti neočekávanému rozběhu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_EnableSwitchOut",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = povoleno pozastavení ochrany (pohyb v servisním režimu)."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "notes": "SF_EnableSwitch_2 (2/3 polohy, bez detekce panické polohy): vstupy Activate, S_SafetyActive, S_EnableIn, Reset; výstup S_EnableSwitchOut.",
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_ModeSelector",
+    "purpose": "Volba provozního režimu (až 8 režimů) s potvrzením a zamčením volby.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_Mode0",
+      "type": "SAFEBOOL",
+      "meaning": "Požadavek režimu 0 z přepínače."
+     },
+     {
+      "name": "S_Mode1",
+      "type": "SAFEBOOL",
+      "meaning": "Požadavek režimu 1 z přepínače."
+     },
+     {
+      "name": "S_Mode2",
+      "type": "SAFEBOOL",
+      "meaning": "Požadavek režimu 2 z přepínače."
+     },
+     {
+      "name": "S_Mode3",
+      "type": "SAFEBOOL",
+      "meaning": "Požadavek režimu 3 z přepínače."
+     },
+     {
+      "name": "S_Mode4",
+      "type": "SAFEBOOL",
+      "meaning": "Požadavek režimu 4 z přepínače."
+     },
+     {
+      "name": "S_Mode5",
+      "type": "SAFEBOOL",
+      "meaning": "Požadavek režimu 5 z přepínače."
+     },
+     {
+      "name": "S_Mode6",
+      "type": "SAFEBOOL",
+      "meaning": "Požadavek režimu 6 z přepínače."
+     },
+     {
+      "name": "S_Mode7",
+      "type": "SAFEBOOL",
+      "meaning": "Požadavek režimu 7 z přepínače."
+     },
+     {
+      "name": "S_Unlock",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = zvolený režim zamčen."
+     },
+     {
+      "name": "S_SetMode",
+      "type": "SAFEBOOL",
+      "meaning": "Potvrzení změny režimu (náběžná hrana)."
+     },
+     {
+      "name": "AutoSetMode",
+      "type": "BOOL",
+      "meaning": "Konstanta: TRUE = změna bez potvrzení."
+     },
+     {
+      "name": "ModeMonitorTime",
+      "type": "TIME",
+      "meaning": "Konstanta: max. doba přepnutí vstupů."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_Mode0Sel",
+      "type": "SAFEBOOL",
+      "meaning": "Režim 0 zvolen a potvrzen."
+     },
+     {
+      "name": "S_Mode1Sel",
+      "type": "SAFEBOOL",
+      "meaning": "Režim 1 zvolen a potvrzen."
+     },
+     {
+      "name": "S_Mode2Sel",
+      "type": "SAFEBOOL",
+      "meaning": "Režim 2 zvolen a potvrzen."
+     },
+     {
+      "name": "S_Mode3Sel",
+      "type": "SAFEBOOL",
+      "meaning": "Režim 3 zvolen a potvrzen."
+     },
+     {
+      "name": "S_Mode4Sel",
+      "type": "SAFEBOOL",
+      "meaning": "Režim 4 zvolen a potvrzen."
+     },
+     {
+      "name": "S_Mode5Sel",
+      "type": "SAFEBOOL",
+      "meaning": "Režim 5 zvolen a potvrzen."
+     },
+     {
+      "name": "S_Mode6Sel",
+      "type": "SAFEBOOL",
+      "meaning": "Režim 6 zvolen a potvrzen."
+     },
+     {
+      "name": "S_Mode7Sel",
+      "type": "SAFEBOOL",
+      "meaning": "Režim 7 zvolen a potvrzen."
+     },
+     {
+      "name": "S_AnyModeSel",
+      "type": "SAFEBOOL",
+      "meaning": "Zvolen kterýkoli režim."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_Equivalent",
+    "purpose": "Dva ekvivalentní kanály (oba NO nebo oba NC) → jeden SAFEBOOL s hlídáním nesouladu. Nemá blokování opětovného startu – nepoužívat samostatně.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_ChannelA",
+      "type": "SAFEBOOL",
+      "meaning": "Kanál A: TRUE = kontakt sepnut."
+     },
+     {
+      "name": "S_ChannelB",
+      "type": "SAFEBOOL",
+      "meaning": "Kanál B."
+     },
+     {
+      "name": "DiscrepancyTime",
+      "type": "TIME",
+      "meaning": "Konstanta: max. doba nesouladu."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_EquivalentOut",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = oba kanály aktivní, změna v čase."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "diag_codes": {
+     "8801": "Init",
+     "8000": "Výstup povolen",
+     "8802": "Čeká na kanál B",
+     "8804": "Čeká na kanál A",
+     "8806": "Jeden kanál FALSE, čeká na druhý",
+     "C010": "Nesoulad (8802)",
+     "C020": "Nesoulad (8804)",
+     "C030": "Nesoulad (8806)"
+    },
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_Antivalent",
+    "purpose": "Antivalentní pár NO/NC → jeden SAFEBOOL s hlídáním nesouladu. Nepoužívat samostatně.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_ChannelNC",
+      "type": "SAFEBOOL",
+      "meaning": "NC kontakt (výchozí FALSE)."
+     },
+     {
+      "name": "S_ChannelNO",
+      "type": "SAFEBOOL",
+      "meaning": "NO kontakt (výchozí TRUE)."
+     },
+     {
+      "name": "DiscrepancyTime",
+      "type": "TIME",
+      "meaning": ""
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_AntivalentOut",
+      "type": "SAFEBOOL",
+      "meaning": ""
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_ResetButton",
+    "purpose": "Reset na sestupnou hranu (ISO 13849-1:2015) – páruje se s ResetRequest jiného FB.",
+    "inputs": [
+     {
+      "name": "ResetRequested",
+      "type": "BOOL",
+      "meaning": "Z výstupu ResetRequest párového FB."
+     },
+     {
+      "name": "ResetIn",
+      "type": "BOOL",
+      "meaning": "Resetovací tlačítko."
+     },
+     {
+      "name": "TrailingMinimum",
+      "type": "TIME",
+      "meaning": "Min. doba stisku (výchozí T#350ms, abs. min. 100 ms)."
+     },
+     {
+      "name": "TrailingMaximum",
+      "type": "TIME",
+      "meaning": "Max. doba stisku (výchozí T#2s)."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "ResetOut",
+      "type": "BOOL",
+      "meaning": "Puls po sestupné hraně → Reset párového FB."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": ""
+     }
+    ],
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_OutControl",
+    "purpose": "Ovládání bezpečnostního výstupu: bezpečnostní signál AND procesní povel, s volitelným blokováním rozběhu.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_SafeControl",
+      "type": "SAFEBOOL",
+      "meaning": "Výstup předchozích safety FB (EStop, Guard…)."
+     },
+     {
+      "name": "ProcessControl",
+      "type": "BOOL",
+      "meaning": "Povel z funkční aplikace."
+     },
+     {
+      "name": "StaticControl",
+      "type": "BOOL",
+      "meaning": "Konstanta: FALSE = po aktivaci/zásahu nutná hrana ProcessControl."
+     },
+     {
+      "name": "S_StartReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+     },
+     {
+      "name": "S_AutoReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po odeznění požadavku; TRUE = automatický (jen s dalšími opatřeními proti neočekávanému rozběhu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_OutControl",
+      "type": "SAFEBOOL",
+      "meaning": "Povolení připojených akčních členů."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_EDM",
+    "purpose": "Hlídání zpětné vazby akčních členů (stykače) – External Device Monitoring.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_OutControl",
+      "type": "SAFEBOOL",
+      "meaning": "Řídicí signál z předchozích FB (např. SF_OutControl)."
+     },
+     {
+      "name": "EDM1",
+      "type": "BOOL",
+      "meaning": "Zpětná vazba 1. akčního členu (TRUE = klidový stav)."
+     },
+     {
+      "name": "EDM2",
+      "type": "BOOL",
+      "meaning": "Zpětná vazba 2. členu (lze propojit s EDM1)."
+     },
+     {
+      "name": "MonitoringTime",
+      "type": "TIME",
+      "meaning": "Konstanta: max. doba odezvy akčních členů."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_EDM_Out",
+      "type": "SAFEBOOL",
+      "meaning": "Ovládání akčního členu, hlídané zpětnou vazbou."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "diag_codes": {
+     "C001": "Reset Error 1 (statický Reset)",
+     "C010": "EDM Error 11 – EDM1 neplatný v klidovém stavu",
+     "C020": "EDM Error 12",
+     "C030": "EDM Error 13",
+     "C040": "EDM Error 21 – EDM1 FALSE a vypršel MonitoringTime",
+     "C011…C091": "Reset Errors (statický Reset / současná hrana Reset+EDM)"
+    },
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_SafetyRequest",
+    "purpose": "Rozhraní k obecnému bezpečnému akčnímu členu (bezpečný pohon, ventil) – požadavek bezpečného stavu a hlídání potvrzení.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_OpMode",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = požadován bezpečný režim; TRUE = provoz."
+     },
+     {
+      "name": "S_Acknowledge",
+      "type": "SAFEBOOL",
+      "meaning": "Potvrzení akčního členu: TRUE = bezpečný stav."
+     },
+     {
+      "name": "MonitoringTime",
+      "type": "TIME",
+      "meaning": "Konstanta: max. doba od požadavku do potvrzení."
+     },
+     {
+      "name": "S_StartReset",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Kvitace chyby."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": "TRUE = blok aktivní, výstupy platné (jako LED POWER bezpečnostního relé)."
+     },
+     {
+      "name": "S_SafetyActive",
+      "type": "SAFEBOOL",
+      "meaning": "TRUE = bezpečný stav potvrzen."
+     },
+     {
+      "name": "S_SafetyRequest",
+      "type": "SAFEBOOL",
+      "meaning": "FALSE = požadavek na bezpečný stav akčního členu."
+     },
+     {
+      "name": "SafetyDemand",
+      "type": "BOOL",
+      "meaning": "Volitelný: požadavek bezpečnostní funkce (bez chyby)."
+     },
+     {
+      "name": "ResetRequest",
+      "type": "BOOL",
+      "meaning": "Volitelný: obsluha má stisknout Reset."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": "TRUE = chybový stav bloku; detail v DiagCode."
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": "Diagnostický kód (16#0000 Idle, 16#8000 výstup povolen, 16#8xxx stavy, 16#Cxxx chyby)."
+     }
+    ],
+    "notes": "Specifikace SafeMotion 1.0 doporučuje SF_SafetyRequest jako náhradu SF_SafeStop1/2 a SF_SafelyLimitedSpeed (pojmenované bity řídicího/stavového slova pohonu, např. SS1, STO, SLS).",
+    "sources": [
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/",
+     "https://www.plcopen.org/download_file/force/2b6d634e-8dde-46c4-949f-bc8bc6eb7589/342/"
+    ],
+    "verified": true
+   },
+   {
+    "name": "SF_SafeStop1",
+    "purpose": "Řízené zastavení pohonu kat. 1 (SS1) a následné odpojení energie. Z Part 1 v2.0 odstraněn, přesunut do SafeMotion.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_StopIn",
+      "type": "SAFEBOOL?",
+      "meaning": "Požadavek zastavení (typ v SafeMotion neuveden; v1.0 SAFEBOOL – neověřeno)."
+     },
+     {
+      "name": "AxisID",
+      "type": "?",
+      "meaning": "Identifikace osy (systémové rozhraní pohonu)."
+     },
+     {
+      "name": "MonitoringTime",
+      "type": "TIME?",
+      "meaning": "Max. doba do dosažení zastavení."
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": "Kvitace chyby."
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "S_Stopped",
+      "type": "SAFEBOOL?",
+      "meaning": "Pohon zastaven."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": ""
+     }
+    ],
+    "notes": "Jména pinů z obrázku SafeMotion 1.0 (kap. 4.5.1); datové typy tam nejsou – označeny '?'. SafeMotion upozorňuje, že SF_SafeStop1 nemusí aktivovat SS1, ale podle pohonu i STO.",
+    "sources": [
+     "https://www.plcopen.org/download_file/force/2b6d634e-8dde-46c4-949f-bc8bc6eb7589/342/",
+     "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+    ],
+    "verified": false
+   },
+   {
+    "name": "SF_SafeStop2",
+    "purpose": "Bezpečné zastavení kat. 2 (SS2) – cílový stav bezpečné provozní zastavení (SOS).",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_StopIn",
+      "type": "SAFEBOOL?",
+      "meaning": ""
+     },
+     {
+      "name": "AxisID",
+      "type": "?",
+      "meaning": ""
+     },
+     {
+      "name": "MonitoringTime",
+      "type": "TIME?",
+      "meaning": ""
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": ""
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "S_Standstill",
+      "type": "SAFEBOOL?",
+      "meaning": "Dosažen bezpečný klid (SOS)."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": ""
+     }
+    ],
+    "notes": "SafeMotion 1.0 kap. 4.5.2: výstup se jmenuje S_Standstill místo S_Stopped. Typy neověřeny.",
+    "sources": [
+     "https://www.plcopen.org/download_file/force/2b6d634e-8dde-46c4-949f-bc8bc6eb7589/342/"
+    ],
+    "verified": false
+   },
+   {
+    "name": "SF_SafelyLimitedSpeed",
+    "purpose": "Bezpečně omezená rychlost (SLS); při S_Enabled=FALSE bezpečné provozní zastavení.",
+    "inputs": [
+     {
+      "name": "Activate",
+      "type": "BOOL",
+      "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+     },
+     {
+      "name": "S_OpMode",
+      "type": "SAFEBOOL?",
+      "meaning": "Požadovaný režim (FALSE = bezpečný)."
+     },
+     {
+      "name": "S_Enabled",
+      "type": "SAFEBOOL?",
+      "meaning": "Povolení pohybu omezenou rychlostí (např. z povolovacího spínače)."
+     },
+     {
+      "name": "AxisID",
+      "type": "?",
+      "meaning": ""
+     },
+     {
+      "name": "MonitoringTime",
+      "type": "TIME?",
+      "meaning": ""
+     },
+     {
+      "name": "Reset",
+      "type": "BOOL",
+      "meaning": ""
+     }
+    ],
+    "outputs": [
+     {
+      "name": "Ready",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "S_SafetyActive",
+      "type": "SAFEBOOL?",
+      "meaning": "Bezpečná funkce aktivní."
+     },
+     {
+      "name": "Error",
+      "type": "BOOL",
+      "meaning": ""
+     },
+     {
+      "name": "DiagCode",
+      "type": "WORD",
+      "meaning": ""
+     }
+    ],
+    "notes": "Z obrázku SafeMotion 1.0 kap. 4.5.3; náhrada = dvě instance SF_SafetyRequest. Typy neověřeny.",
+    "sources": [
+     "https://www.plcopen.org/download_file/force/2b6d634e-8dde-46c4-949f-bc8bc6eb7589/342/"
+    ],
+    "verified": false
+   }
+  ],
+  "sources": [
+   "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/",
+   "https://www.plcopen.org/download_file/force/7ac434db-4581-435f-bc1d-74222365be7e/342/",
+   "https://www.plcopen.org/download_file/force/56d0eb46-6ace-4430-8b2a-f9456ba0ed69/342/",
+   "https://www.plcopen.org/download_file/force/d85a9629-cbe5-47e8-bd3b-774246709d3e/342/",
+   "https://www.plcopen.org/download_file/force/2b6d634e-8dde-46c4-949f-bc8bc6eb7589/342/",
+   "https://www.plcopen.org/downloads/",
+   "https://www.plcopen.org/standards/safety/"
+  ]
+ },
+ "platforms": {
+  "siemens": {
+   "title": "Siemens SIMATIC Safety Integrated (STEP 7 Safety Advanced / Basic, S7-1200F/1500F)",
+   "programming": {
+    "languages": [
+     "F-LAD",
+     "F-FBD"
+    ],
+    "editor": "TIA Portal – STEP 7 Safety (Safety Administration Editor, F-bloky žlutě); od V18 volitelně Safety Unit.",
+    "certification": "SIL 3 (IEC 61508:2010), PL e kat. 4 (ISO 13849-1:2015) – dle manuálu 09/2016.",
+    "data_types": "Bezpečnostní program: BOOL, INT, WORD, DINT, DWORD (S7-300/400), TIME, F-kompatibilní UDT (S7-1200/1500). EN/ENO nelze zapojit.",
+    "scl_in_safety": "Ne – manuál V14: standardní program SCL/STL/LAD/FBD, bezpečnostní program jen LAD nebo FBD. Ve slidech V20/V21 nic o F-SCL; změnu novějšími verzemi nelze ověřit, protože PDF manuálu V20 nešlo stáhnout.",
+    "import_text": "Openness (manuál 11/2023, V19): F-bloky lze exportovat a znovu importovat (SimaticML XML; konzistentní F-bloky se založí jako F-bloky, atribut ProgrammingLanguage s prefixem F_). F-systémové bloky exportovat nelze; F-bloky z předchozích verzí importovat nelze. SafetySignatureProvider čte F-podpisy, přes Openness lze přihlásit/odhlásit heslo safety programu. SIMATIC Source Documents (čitelný textový formát): V20 (s aktualizací) LAD a F-LAD, V21 i F-FBD, přístupné přes Openness/VCI. Bezpečnostní program se po importu musí přeložit; mění se souhrnný F-podpis → nové přijetí (acceptance).",
+    "sources": [
+     "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf",
+     "https://cache.industry.siemens.com/dl/files/886/109826886/att_1163875/v1/TIAPortalOpenness_enUS_en-US.pdf",
+     "https://asutp.org/SIEMENS/TIA_PORTAL/TIA20.pdf",
+     "https://cache.industry.siemens.com/dl/files/772/109989772/att_1348791/v5/TIA_Portal_V21_technical_slides_EN.pdf",
+     "https://cache.industry.siemens.com/dl/files/255/109750255/att_1148293/v1/109750255_Programming-Guideline-Safety_DOC_V1_5_en.pdf"
+    ],
+    "verified": true
+   },
+   "concepts": {
+    "f_runtime_group": "Bezpečnostní program běží v F-runtime skupině (F-OB s danou dobou cyklu); systém generuje RTGxSysInfo (aktuální a nejdelší doba běhu).",
+    "f_io_db": "Každý F-I/O má F-I/O DB: zapisovat lze PASS_ON (pasivace), ACK_NEC (výchozí 1), ACK_REI (kvitace reintegrace), IPAR_EN; číst PASS_OUT, QBAD (1 = náhradní hodnoty), ACK_REQ, IPAR_OK, DIAG (BYTE), QBAD_I_xx/QBAD_O_xx a value status kanálu.",
+    "passivation_reintegration": "Po chybě F-I/O nebo kanálu se vydávají náhradní hodnoty (0); reintegrace ručně (ACK_REI, ACK_GL) nebo automaticky podle ACK_NEC; od V14 SP1 lze generovat blok pro globální vyhodnocení stavu F-I/O (QSTATUS).",
+    "profisafe": "Komunikace CPU–F-I/O přes PROFIsafe; mezi F-CPU SENDDP/RCVDP, SENDS7/RCVS7, od novějších verzí Flexible F-Link (V21: rozšíření ze 100 na 1500 bajtů).",
+    "signatures": "Souhrnný F-podpis, souhrnný F-HW podpis, souhrnný F-SW podpis, F-communication address signature; změna podpisu = nová validace a přijetí.",
+    "libraries": "LSafe (TÜV prověřená knihovna základních bezpečnostních funkcí) a LDrvSafe (pohony SINAMICS/SINUMERIK přes PROFIsafe) – ID 109793462 a 109485794.",
+    "licensing_v20": "Od TIA V20 u S7-1200 G2 není potřeba samostatná licence Safety; STEP 7 Safety Basic končí.",
+    "sources": [
+     "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf",
+     "https://cache.industry.siemens.com/dl/files/255/109750255/att_1148293/v1/109750255_Programming-Guideline-Safety_DOC_V1_5_en.pdf",
+     "https://asutp.org/SIEMENS/TIA_PORTAL/TIA20.pdf",
+     "https://cache.industry.siemens.com/dl/files/772/109989772/att_1348791/v5/TIA_Portal_V21_technical_slides_EN.pdf"
+    ],
+    "verified": true
+   },
+   "blocks": [
+    {
+     "name": "ESTOP1",
+     "purpose": "Nouzové zastavení / vypnutí do STOP kat. 1 (okamžitý výstup Q a zpožděný Q_DELAY).",
+     "inputs": [
+      {
+       "name": "E_STOP",
+       "type": "BOOL",
+       "meaning": "Nouzové zastavení (0 = požadavek)."
+      },
+      {
+       "name": "ACK_NEC",
+       "type": "BOOL",
+       "meaning": "1 = nutná kvitace."
+      },
+      {
+       "name": "ACK",
+       "type": "BOOL",
+       "meaning": "Kvitace (náběžná hrana)."
+      },
+      {
+       "name": "TIME_DEL",
+       "type": "TIME",
+       "meaning": "Zpoždění pro Q_DELAY."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Q",
+       "type": "BOOL",
+       "meaning": "1 = povolení."
+      },
+      {
+       "name": "Q_DELAY",
+       "type": "BOOL",
+       "meaning": "Povolení vypnuté se zpožděním (kat. 1)."
+      },
+      {
+       "name": "ACK_REQ",
+       "type": "BOOL",
+       "meaning": "1 = nutná kvitace."
+      },
+      {
+       "name": "DIAG",
+       "type": "BYTE",
+       "meaning": "Nebezpečná servisní informace."
+      }
+     ],
+     "notes": "EN/ENO nelze zapojit. Po startu F-systému s ACK_NEC=1 nutná kvitace. Verze instrukce V1.0–1.5; F-CPU S7-1200/1500 od verze 1.5 (dle tabulky V14).",
+     "sources": [
+      "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "TWO_H_EN",
+     "purpose": "Dvouruční ovládání s povolením (S7-1200/1500); nahrazuje TWO_HAND (jen S7-300/400).",
+     "inputs": [
+      {
+       "name": "IN1",
+       "type": "BOOL",
+       "meaning": "Tlačítko 1."
+      },
+      {
+       "name": "IN2",
+       "type": "BOOL",
+       "meaning": "Tlačítko 2."
+      },
+      {
+       "name": "ENABLE",
+       "type": "BOOL",
+       "meaning": "Povolovací vstup."
+      },
+      {
+       "name": "DISCTIME",
+       "type": "TIME",
+       "meaning": "Čas nesouladu 0…500 ms."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Q",
+       "type": "BOOL",
+       "meaning": "1 = povolení."
+      },
+      {
+       "name": "DIAG",
+       "type": "BYTE",
+       "meaning": "Servisní informace."
+      }
+     ],
+     "sources": [
+      "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "MUT_P",
+     "purpose": "Paralelní muting (4 senzory) světelné závory.",
+     "inputs": [
+      {
+       "name": "MS_11",
+       "type": "BOOL",
+       "meaning": "Muting senzor 11"
+      },
+      {
+       "name": "MS_12",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MS_21",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MS_22",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "STOP",
+       "type": "BOOL",
+       "meaning": "1 = dopravník stojí."
+      },
+      {
+       "name": "FREE",
+       "type": "BOOL",
+       "meaning": "1 = světelná závora nepřerušena."
+      },
+      {
+       "name": "ENABLE",
+       "type": "BOOL",
+       "meaning": "1 = povolení mutingu."
+      },
+      {
+       "name": "QBAD_MUT",
+       "type": "BOOL",
+       "meaning": "QBAD / invertovaný value status kanálu mutingové lampy."
+      },
+      {
+       "name": "ACK",
+       "type": "BOOL",
+       "meaning": "Kvitace blokování opětovného startu."
+      },
+      {
+       "name": "DISCTIM1",
+       "type": "TIME",
+       "meaning": "Nesoulad páru 1 (0…3 s)."
+      },
+      {
+       "name": "DISCTIM2",
+       "type": "TIME",
+       "meaning": "Nesoulad páru 2 (0…3 s)."
+      },
+      {
+       "name": "TIME_MAX",
+       "type": "TIME",
+       "meaning": "Max. doba mutingu (0…10 min)."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Q",
+       "type": "BOOL",
+       "meaning": "1 = povolení."
+      },
+      {
+       "name": "MUTING",
+       "type": "BOOL",
+       "meaning": "Muting aktivní."
+      },
+      {
+       "name": "ACK_REQ",
+       "type": "BOOL",
+       "meaning": "Nutná kvitace."
+      },
+      {
+       "name": "FAULT",
+       "type": "BOOL",
+       "meaning": "Souhrnná chyba."
+      },
+      {
+       "name": "DIAG",
+       "type": "WORD",
+       "meaning": "Servisní informace."
+      }
+     ],
+     "notes": "MUTING (sekvenční/obecný) je v manuálu V14 jen pro S7-300/400.",
+     "sources": [
+      "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "EV1oo2DI",
+     "purpose": "Vyhodnocení 1oo2 (dva snímače) s analýzou nesouladu.",
+     "inputs": [
+      {
+       "name": "IN1",
+       "type": "BOOL",
+       "meaning": "Snímač 1 (bezpečný stav = 0)."
+      },
+      {
+       "name": "IN2",
+       "type": "BOOL",
+       "meaning": "Snímač 2."
+      },
+      {
+       "name": "DISCTIME",
+       "type": "TIME",
+       "meaning": "Nesoulad 0…60 s."
+      },
+      {
+       "name": "ACK_NEC",
+       "type": "BOOL",
+       "meaning": "1 = kvitace chyby nesouladu nutná."
+      },
+      {
+       "name": "ACK",
+       "type": "BOOL",
+       "meaning": "Kvitace chyby nesouladu."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Q",
+       "type": "BOOL",
+       "meaning": "Výstup."
+      },
+      {
+       "name": "ACK_REQ",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DISC_FLT",
+       "type": "BOOL",
+       "meaning": "Chyba nesouladu."
+      },
+      {
+       "name": "DIAG",
+       "type": "BYTE",
+       "meaning": ""
+      }
+     ],
+     "notes": "Nevalentní signály: vstup OR s QBAD a negovat.",
+     "sources": [
+      "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "FDBACK",
+     "purpose": "Hlídání zpětné vazby (EDM) výstupu Q proti invertovanému vstupu FEEDBACK.",
+     "inputs": [
+      {
+       "name": "ON",
+       "type": "BOOL",
+       "meaning": "1 = zapnout výstup."
+      },
+      {
+       "name": "FEEDBACK",
+       "type": "BOOL",
+       "meaning": "Zpětná vazba (NC kontakt stykače)."
+      },
+      {
+       "name": "QBAD_FIO",
+       "type": "BOOL",
+       "meaning": "QBAD / inverze value status výstupu Q."
+      },
+      {
+       "name": "ACK_NEC",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "ACK",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "FDB_TIME",
+       "type": "TIME",
+       "meaning": "Max. doba zpětné vazby."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Q",
+       "type": "BOOL",
+       "meaning": "Výstup."
+      },
+      {
+       "name": "ERROR",
+       "type": "BOOL",
+       "meaning": "Chyba zpětné vazby (uložená)."
+      },
+      {
+       "name": "ACK_REQ",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DIAG",
+       "type": "BYTE",
+       "meaning": ""
+      }
+     ],
+     "sources": [
+      "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "SFDOOR",
+     "purpose": "Hlídání ochranných dveří (dva kontakty, nutné úplné otevření a zavření, kvitace).",
+     "inputs": [
+      {
+       "name": "IN1",
+       "type": "BOOL",
+       "meaning": "Vstup 1."
+      },
+      {
+       "name": "IN2",
+       "type": "BOOL",
+       "meaning": "Vstup 2."
+      },
+      {
+       "name": "QBAD_IN1",
+       "type": "BOOL",
+       "meaning": "QBAD / inverze value status kanálu IN1."
+      },
+      {
+       "name": "QBAD_IN2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OPEN_NEC",
+       "type": "BOOL",
+       "meaning": "1 = při startu nutné otevření."
+      },
+      {
+       "name": "ACK_NEC",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "ACK",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Q",
+       "type": "BOOL",
+       "meaning": "1 = povolení, dveře zavřené."
+      },
+      {
+       "name": "ACK_REQ",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DIAG",
+       "type": "BYTE",
+       "meaning": ""
+      }
+     ],
+     "sources": [
+      "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "ACK_GL",
+     "purpose": "Globální kvitace reintegrace všech F-I/O jedné F-runtime skupiny.",
+     "inputs": [
+      {
+       "name": "ACK_GLOB",
+       "type": "BOOL",
+       "meaning": "1 = kvitace reintegrace (náběžná hrana)."
+      }
+     ],
+     "outputs": [],
+     "notes": "Jen jednou na F-runtime skupinu; funguje jen při ACK_REI = 0 v F-I/O DB.",
+     "sources": [
+      "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf",
+      "https://cache.industry.siemens.com/dl/files/255/109750255/att_1148293/v1/109750255_Programming-Guideline-Safety_DOC_V1_5_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "ACK_OP",
+     "purpose": "Fail-safe kvitace z HMI (dvoukrokově: hodnota 6, pak 9 do 1 min, nejdříve po 1 s).",
+     "inputs": [
+      {
+       "name": "ACK_ID",
+       "type": "INT",
+       "meaning": "Identifikátor kvitace 9…30000 (S7-1200/1500)."
+      },
+      {
+       "name": "IN",
+       "type": "INT (InOut)",
+       "meaning": "Vstup z HMI."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "OUT",
+       "type": "BOOL",
+       "meaning": "Výstup kvitace (1 cyklus)."
+      },
+      {
+       "name": "Q",
+       "type": "BOOL",
+       "meaning": "Časové okno běží."
+      }
+     ],
+     "sources": [
+      "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "TWO_HAND / MUTING",
+     "purpose": "Starší instrukce jen pro S7-300/400 F-CPU.",
+     "inputs": [],
+     "outputs": [],
+     "sources": [
+      "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf"
+     ],
+     "verified": true
+    }
+   ],
+   "sources": [
+    "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf",
+    "https://cache.industry.siemens.com/dl/files/255/109750255/att_1148293/v1/109750255_Programming-Guideline-Safety_DOC_V1_5_en.pdf",
+    "https://cache.industry.siemens.com/dl/files/886/109826886/att_1163875/v1/TIAPortalOpenness_enUS_en-US.pdf",
+    "https://asutp.org/SIEMENS/TIA_PORTAL/TIA20.pdf",
+    "https://cache.industry.siemens.com/dl/files/772/109989772/att_1348791/v5/TIA_Portal_V21_technical_slides_EN.pdf"
+   ]
+  },
+  "rockwell": {
+   "title": "Rockwell GuardLogix / Compact GuardLogix (Studio 5000 Logix Designer)",
+   "programming": {
+    "languages": [
+     "Ladder Diagram (jen RLL v safety tasku)"
+    ],
+    "editor": "Studio 5000 Logix Designer; safety task (periodický), safety programy a rutiny, safety tagy, safety AOI.",
+    "certification": "Safety application instructions: SIL 3 (IEC 61508), PLe kat. 4 (ISO 13849-1).",
+    "fbd_st_in_safety": "Ne – RM099H (10/2024): v safety tasku je podporována jen reléová ladder logika; RM095O (9/2025): u každé safety instrukce FBD i ST 'není dostupné'.",
+    "safety_signature": "Safety task signature povinný při funkcích SIL 3 (pro SIL 2 ne). Od Logix Designer v36 je podpis hierarchický (task, programy, rutiny). Safety-lock zamyká safety task.",
+    "import_text": "L5X/L5K obsahují safety programy a task (atribut Class = Safety u PROGRAM/TASK/AOI, element SafetyInfo). SafetySignature a SafetyLocked se jen exportují, při importu se ignorují; RootSignature (v36+) lze importovat. Safety AOI nelze importovat do standardního projektu, do safety-locked projektu nebo projektu s podpisem safety tasku, ani online. Neplatné safety tagy po importu nelze ověřit.",
+    "sources": [
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm099_-en-p.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm084_-en-p.pdf"
+    ],
+    "verified": true
+   },
+   "blocks": [
+    {
+     "name": "DCS (Dual Channel Input Stop)",
+     "purpose": "Dvoukanálové bezpečnostní zařízení, jehož funkcí je zastavit (E-stop, světelná závora, kryt); doporučená náhrada ESTOP/LC.",
+     "inputs": [
+      {
+       "name": "DCS",
+       "type": "DCI_STOP",
+       "meaning": "Backing tag."
+      },
+      {
+       "name": "Safety Function",
+       "type": "DINT",
+       "meaning": "Jen popisné: E-stop, safety gate, light curtain, area scanner, safety mat, rope pull, user-defined."
+      },
+      {
+       "name": "Input Type",
+       "type": "DINT",
+       "meaning": "Equivalent (0) / Complementary (2)."
+      },
+      {
+       "name": "Discrepancy Time (ms)",
+       "type": "DINT",
+       "meaning": "5…3000 ms."
+      },
+      {
+       "name": "Restart Type",
+       "type": "List/BOOL",
+       "meaning": "Manual (0) / Automatic (1; výstup 50 ms po splnění podmínek)."
+      },
+      {
+       "name": "Cold Start Type",
+       "type": "BOOL",
+       "meaning": "Manual (0) / Automatic (1)."
+      },
+      {
+       "name": "Channel A",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup A (modul nastavit jako single)."
+      },
+      {
+       "name": "Channel B",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup B."
+      },
+      {
+       "name": "Input Status",
+       "type": "BOOL",
+       "meaning": "Stav vstupního modulu / logiky: 1 = vstupy platné."
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": "Náběžná hrana: povolení O1 (manual restart), reset FP."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 (O1)",
+       "type": "BOOL",
+       "meaning": "Povolení."
+      },
+      {
+       "name": "Fault Present (FP)",
+       "type": "BOOL",
+       "meaning": "Chyba v instrukci."
+      },
+      {
+       "name": "Fault Code",
+       "type": "DINT",
+       "meaning": "Kód chyby (není bezpečnostní)."
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "DINT",
+       "meaning": "Diagnostika (není bezpečnostní)."
+      }
+     ],
+     "notes": "Pro PLd (kat. 3) i PLe (kat. 4). Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "DCST (Dual-Channel Input Stop with Test)",
+     "purpose": "Jako DCS + test zařízení (Test Request / Test Command).",
+     "inputs": [
+      {
+       "name": "DCST",
+       "type": "DCI_STOP_TEST",
+       "meaning": ""
+      },
+      {
+       "name": "Safety Function",
+       "type": "DINT",
+       "meaning": "Jen popisné: E-stop, safety gate, light curtain, area scanner, safety mat, rope pull, user-defined."
+      },
+      {
+       "name": "Input Type",
+       "type": "DINT",
+       "meaning": "Equivalent (0) / Complementary (2)."
+      },
+      {
+       "name": "Discrepancy Time (ms)",
+       "type": "DINT",
+       "meaning": "5…3000 ms."
+      },
+      {
+       "name": "Restart Type",
+       "type": "List/BOOL",
+       "meaning": "Manual (0) / Automatic (1; výstup 50 ms po splnění podmínek)."
+      },
+      {
+       "name": "Cold Start Type",
+       "type": "BOOL",
+       "meaning": "Manual (0) / Automatic (1)."
+      },
+      {
+       "name": "Channel A",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup A (modul nastavit jako single)."
+      },
+      {
+       "name": "Channel B",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup B."
+      },
+      {
+       "name": "Test Request",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Input Status",
+       "type": "BOOL",
+       "meaning": "Stav vstupního modulu / logiky: 1 = vstupy platné."
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": "Náběžná hrana: povolení O1 (manual restart), reset FP."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 (O1)",
+       "type": "BOOL",
+       "meaning": "Povolení."
+      },
+      {
+       "name": "Test Command (TC)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Present (FP)",
+       "type": "BOOL",
+       "meaning": "Chyba v instrukci."
+      },
+      {
+       "name": "Fault Code",
+       "type": "DINT",
+       "meaning": "Kód chyby (není bezpečnostní)."
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "DINT",
+       "meaning": "Diagnostika (není bezpečnostní)."
+      }
+     ],
+     "notes": "Pro 5370/5570/5380/5580/5590. Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "DCSTL (Dual Channel Input Stop with Test and Lock)",
+     "purpose": "Kryt se zámkem (guard locking).",
+     "inputs": [
+      {
+       "name": "DCSTL",
+       "type": "DCI_STOP_TEST_LOCK",
+       "meaning": ""
+      },
+      {
+       "name": "Safety Function",
+       "type": "DINT",
+       "meaning": "Jen popisné: E-stop, safety gate, light curtain, area scanner, safety mat, rope pull, user-defined."
+      },
+      {
+       "name": "Input Type",
+       "type": "DINT",
+       "meaning": "Equivalent (0) / Complementary (2)."
+      },
+      {
+       "name": "Discrepancy Time (ms)",
+       "type": "DINT",
+       "meaning": "5…3000 ms."
+      },
+      {
+       "name": "Restart Type",
+       "type": "List/BOOL",
+       "meaning": "Manual (0) / Automatic (1; výstup 50 ms po splnění podmínek)."
+      },
+      {
+       "name": "Cold Start Type",
+       "type": "BOOL",
+       "meaning": "Manual (0) / Automatic (1)."
+      },
+      {
+       "name": "Channel A",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup A (modul nastavit jako single)."
+      },
+      {
+       "name": "Channel B",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup B."
+      },
+      {
+       "name": "Test Request",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Unlock Request",
+       "type": "BOOL",
+       "meaning": "Požadavek na odemknutí."
+      },
+      {
+       "name": "Lock Feedback",
+       "type": "BOOL",
+       "meaning": "Zpětná vazba zámku."
+      },
+      {
+       "name": "Hazard Stopped",
+       "type": "BOOL",
+       "meaning": "Nebezpečný pohyb zastaven."
+      },
+      {
+       "name": "Input Status",
+       "type": "BOOL",
+       "meaning": "Stav vstupního modulu / logiky: 1 = vstupy platné."
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": "Náběžná hrana: povolení O1 (manual restart), reset FP."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 (O1)",
+       "type": "BOOL",
+       "meaning": "Povolení."
+      },
+      {
+       "name": "Test Command (TC)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Unlock Command (ULC)",
+       "type": "BOOL",
+       "meaning": "Povel k odemknutí."
+      },
+      {
+       "name": "Fault Present (FP)",
+       "type": "BOOL",
+       "meaning": "Chyba v instrukci."
+      },
+      {
+       "name": "Fault Code",
+       "type": "DINT",
+       "meaning": "Kód chyby (není bezpečnostní)."
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "DINT",
+       "meaning": "Diagnostika (není bezpečnostní)."
+      }
+     ],
+     "notes": "Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "DCSTM (Dual Channel Input Stop with Test and Mute)",
+     "purpose": "Zastavení s testem a mutingem (např. světelná závora).",
+     "inputs": [
+      {
+       "name": "DCSTM",
+       "type": "DCI_STOP_TEST_MUTE",
+       "meaning": ""
+      },
+      {
+       "name": "Safety Function",
+       "type": "DINT",
+       "meaning": "Jen popisné: E-stop, safety gate, light curtain, area scanner, safety mat, rope pull, user-defined."
+      },
+      {
+       "name": "Input Type",
+       "type": "DINT",
+       "meaning": "Equivalent (0) / Complementary (2)."
+      },
+      {
+       "name": "Discrepancy Time (ms)",
+       "type": "DINT",
+       "meaning": "5…3000 ms."
+      },
+      {
+       "name": "Restart Type",
+       "type": "List/BOOL",
+       "meaning": "Manual (0) / Automatic (1; výstup 50 ms po splnění podmínek)."
+      },
+      {
+       "name": "Cold Start Type",
+       "type": "BOOL",
+       "meaning": "Manual (0) / Automatic (1)."
+      },
+      {
+       "name": "Test Type",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "Test Time",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "Channel A",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup A (modul nastavit jako single)."
+      },
+      {
+       "name": "Channel B",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup B."
+      },
+      {
+       "name": "Test Request",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Mute",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Muting Lamp Status",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Input Status",
+       "type": "BOOL",
+       "meaning": "Stav vstupního modulu / logiky: 1 = vstupy platné."
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": "Náběžná hrana: povolení O1 (manual restart), reset FP."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 (O1)",
+       "type": "BOOL",
+       "meaning": "Povolení."
+      },
+      {
+       "name": "Test Command (TC)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Muting Lamp (ML)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Safe state (SS)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Present (FP)",
+       "type": "BOOL",
+       "meaning": "Chyba v instrukci."
+      },
+      {
+       "name": "Fault Code",
+       "type": "DINT",
+       "meaning": "Kód chyby (není bezpečnostní)."
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "DINT",
+       "meaning": "Diagnostika (není bezpečnostní)."
+      }
+     ],
+     "notes": "Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "DCSRT (Dual-channel Input Start)",
+     "purpose": "Dvoukanálový startovací/povolovací prvek (např. povolovací spínač); náhrada ENPEN.",
+     "inputs": [
+      {
+       "name": "DCSRT",
+       "type": "DCI_START",
+       "meaning": ""
+      },
+      {
+       "name": "Safety Function",
+       "type": "DINT",
+       "meaning": "Jen popisné: E-stop, safety gate, light curtain, area scanner, safety mat, rope pull, user-defined."
+      },
+      {
+       "name": "Input Type",
+       "type": "DINT",
+       "meaning": "Equivalent (0) / Complementary (2)."
+      },
+      {
+       "name": "Discrepancy Time (ms)",
+       "type": "DINT",
+       "meaning": "5…3000 ms."
+      },
+      {
+       "name": "Enable",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Channel A",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup A (modul nastavit jako single)."
+      },
+      {
+       "name": "Channel B",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup B."
+      },
+      {
+       "name": "Input Status",
+       "type": "BOOL",
+       "meaning": "Stav vstupního modulu / logiky: 1 = vstupy platné."
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": "Náběžná hrana: povolení O1 (manual restart), reset FP."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 (O1)",
+       "type": "BOOL",
+       "meaning": "Povolení."
+      },
+      {
+       "name": "Fault Present (FP)",
+       "type": "BOOL",
+       "meaning": "Chyba v instrukci."
+      },
+      {
+       "name": "Fault Code",
+       "type": "DINT",
+       "meaning": "Kód chyby (není bezpečnostní)."
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "DINT",
+       "meaning": "Diagnostika (není bezpečnostní)."
+      }
+     ],
+     "notes": "Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "DCM (Dual Channel Input Monitor)",
+     "purpose": "Dvoukanálové hlídání bez zastavovací funkce (monitoring).",
+     "inputs": [
+      {
+       "name": "DCM",
+       "type": "DCI_MONITOR",
+       "meaning": ""
+      },
+      {
+       "name": "Safety Function",
+       "type": "DINT",
+       "meaning": "Jen popisné: E-stop, safety gate, light curtain, area scanner, safety mat, rope pull, user-defined."
+      },
+      {
+       "name": "Input Type",
+       "type": "DINT",
+       "meaning": "Equivalent (0) / Complementary (2)."
+      },
+      {
+       "name": "Discrepancy Time (ms)",
+       "type": "DINT",
+       "meaning": "5…3000 ms."
+      },
+      {
+       "name": "Channel A",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup A (modul nastavit jako single)."
+      },
+      {
+       "name": "Channel B",
+       "type": "BOOL",
+       "meaning": "Bezpečnostní vstup B."
+      },
+      {
+       "name": "Input Status",
+       "type": "BOOL",
+       "meaning": "Stav vstupního modulu / logiky: 1 = vstupy platné."
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": "Náběžná hrana: povolení O1 (manual restart), reset FP."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 (O1)",
+       "type": "BOOL",
+       "meaning": "Povolení."
+      },
+      {
+       "name": "Instruction Status (IS)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Present (FP)",
+       "type": "BOOL",
+       "meaning": "Chyba v instrukci."
+      },
+      {
+       "name": "Fault Code",
+       "type": "DINT",
+       "meaning": "Kód chyby (není bezpečnostní)."
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "DINT",
+       "meaning": "Diagnostika (není bezpečnostní)."
+      }
+     ],
+     "notes": "Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "CROUT (Configurable Redundant Output)",
+     "purpose": "Redundantní výstup s hlídáním zpětné vazby (EDM); náhrada ROUT.",
+     "inputs": [
+      {
+       "name": "Feedback Type",
+       "type": "BOOL",
+       "meaning": "Typ zpětné vazby (hodnoty v RM095)."
+      },
+      {
+       "name": "Time",
+       "type": "DINT",
+       "meaning": "Doba zpětné vazby."
+      },
+      {
+       "name": "Actuate",
+       "type": "BOOL",
+       "meaning": "Povel."
+      },
+      {
+       "name": "Feedback 1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Feedback 2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Input Status",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Output Status",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 (O1)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Output 2 (O2)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Present (FP)",
+       "type": "BOOL",
+       "meaning": "Chyba v instrukci."
+      },
+      {
+       "name": "Fault Code",
+       "type": "DINT",
+       "meaning": "Kód chyby (není bezpečnostní)."
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "DINT",
+       "meaning": "Diagnostika (není bezpečnostní)."
+      }
+     ],
+     "notes": "Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "THRSe (Two Hand Run Station Enhanced)",
+     "purpose": "Dvouruční stanice (NO+NC každého tlačítka); náhrada THRS.",
+     "inputs": [
+      {
+       "name": "THRSe",
+       "type": "THRS_ENHANCED",
+       "meaning": ""
+      },
+      {
+       "name": "Discrepancy Time",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "Enable",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Disconnected",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Right Button Normally Open",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Right Button Normally Closed",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Left Button Normally Open",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Left Button Normally Closed",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Input Status",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 (O1)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Buttons Released (BR)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Station Bypassed (SB)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Present (FP)",
+       "type": "BOOL",
+       "meaning": "Chyba v instrukci."
+      },
+      {
+       "name": "Fault Code",
+       "type": "DINT",
+       "meaning": "Kód chyby (není bezpečnostní)."
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "DINT",
+       "meaning": "Diagnostika (není bezpečnostní)."
+      }
+     ],
+     "notes": "Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "FSBM (Four Sensor Bi-Directional Muting)",
+     "purpose": "Obousměrný muting se 4 senzory.",
+     "inputs": [
+      {
+       "name": "FSBM",
+       "type": "MUTING_FOUR_SENSOR_BIDIR",
+       "meaning": ""
+      },
+      {
+       "name": "Restart Type",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "S1-S2 Time",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "S2-LC Time",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "LC-S3 Time",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "S3-S4 Time",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "Maximum Mute Time",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "Maximum Override Time",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "Direction",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Light Curtain",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Sensor 1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Sensor 2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Sensor 3",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Sensor 4",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Enable Mute",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Override",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Input Status",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Muting Lamp Status",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 (O1)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Muting Lamp (ML)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Clear Area (CA)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Present (FP)",
+       "type": "BOOL",
+       "meaning": "Chyba v instrukci."
+      },
+      {
+       "name": "Fault Code",
+       "type": "DINT",
+       "meaning": "Kód chyby (není bezpečnostní)."
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "DINT",
+       "meaning": "Diagnostika (není bezpečnostní)."
+      }
+     ],
+     "notes": "Další mutingové instrukce: TSAM (2 senzory asymetricky), TSSM (2 senzory symetricky). Datový typ backing tagu v PDF zalomen (MUTING_FOUR_SENSOR_B…DIR). Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "SMAT (Safety Mat)",
+     "purpose": "Bezpečnostní rohož.",
+     "inputs": [
+      {
+       "name": "SMAT",
+       "type": "SAFETY_MAT",
+       "meaning": ""
+      },
+      {
+       "name": "Restart Type",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "Time",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "Channel A",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Channel B",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Input Status",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 (O1)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Source A (SRCA)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Source B (SRCB)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Present (FP)",
+       "type": "BOOL",
+       "meaning": "Chyba v instrukci."
+      },
+      {
+       "name": "Fault Code",
+       "type": "DINT",
+       "meaning": "Kód chyby (není bezpečnostní)."
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "DINT",
+       "meaning": "Diagnostika (není bezpečnostní)."
+      }
+     ],
+     "notes": "Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "EPMS / FPMS (Eight / Five Position Mode Selector)",
+     "purpose": "Volba režimu; FPMS (Input 1–5 → Output 1–5, No Mode, Multiple Modes Selected) je starší, preferovaná EPMS.",
+     "inputs": [
+      {
+       "name": "Input 1…5 (FPMS)",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Reset",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1…5",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "No Mode",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Multiple Modes Selected",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Present",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "Rozhraní EPMS nebylo vypsáno. Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "SS1 (Safe Stop 1)",
+     "purpose": "Drive safety: SS1 s CIP Safety pohonem (rychlost a poloha přes SFX).",
+     "inputs": [
+      {
+       "name": "Stop Monitor Delay",
+       "type": "INT",
+       "meaning": ""
+      },
+      {
+       "name": "Stop Delay",
+       "type": "DINT",
+       "meaning": ""
+      },
+      {
+       "name": "Standstill Speed",
+       "type": "REAL",
+       "meaning": ""
+      },
+      {
+       "name": "Decel Ref Speed",
+       "type": "REAL",
+       "meaning": ""
+      },
+      {
+       "name": "Decel Speed Tolerance",
+       "type": "REAL",
+       "meaning": ""
+      },
+      {
+       "name": "Feedback",
+       "type": "SAFETY_FEEDBACK_INTERFACE",
+       "meaning": "Instance SFX."
+      },
+      {
+       "name": "Request",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 [O1]",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Reset Required [RR]",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Present [FP]",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "SINT",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Type",
+       "type": "SINT",
+       "meaning": ""
+      },
+      {
+       "name": "Stop Monitor Delay Active",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Speed Limit",
+       "type": "REAL",
+       "meaning": ""
+      },
+      {
+       "name": "Deceleration Ramp",
+       "type": "REAL",
+       "meaning": ""
+      },
+      {
+       "name": "SS1 Fault",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "SS1 Active",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "Jen Compact GuardLogix 5380, GuardLogix 5580, ControlLogix 5590 (dle kap. 4). Další: SS2, SOS, SLS, SLP, SDI, SBC, SFX. Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "SLS (Safely-Limited Speed)",
+     "purpose": "Drive safety: bezpečně omezená rychlost.",
+     "inputs": [
+      {
+       "name": "Safety Control",
+       "type": "SAFELY_LIMITED_SPEED",
+       "meaning": ""
+      },
+      {
+       "name": "Request",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Active Limit",
+       "type": "REAL",
+       "meaning": ""
+      },
+      {
+       "name": "Check Delay",
+       "type": "INT",
+       "meaning": ""
+      },
+      {
+       "name": "Feedback",
+       "type": "SAFETY_FEEDBACK_INTERFACE",
+       "meaning": ""
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 [O1]",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Reset Required [RR]",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Present [FP]",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Diagnostic Code",
+       "type": "SINT",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Type",
+       "type": "SINT",
+       "meaning": ""
+      },
+      {
+       "name": "Check Delay Active",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "SLS Active",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "SLS Limit",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "SLS Fault",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "SS2 (Safe Stop 2)",
+     "purpose": "Drive safety: SS2 → SOS.",
+     "inputs": [
+      {
+       "name": "Mode",
+       "type": "SINT",
+       "meaning": ""
+      },
+      {
+       "name": "SS2 Standstill Speed",
+       "type": "REAL",
+       "meaning": ""
+      },
+      {
+       "name": "SOS Standstill Speed",
+       "type": "REAL",
+       "meaning": ""
+      },
+      {
+       "name": "Request",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1 [O1]",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "SS2 Active",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "SOS Standstill",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "SS2 Fault",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "SOS Fault",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "Vybrané piny (úplný seznam v RM095). Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "ESTOP, ENPEN, LC, ROUT, THRS, FPMS, DIN, RIN (legacy)",
+     "purpose": "Instrukce z RSLogix 5000 v14+; od Logix Designer v17 nahradit preferovanými (ESTOP→DCS, ENPEN→DCSRT/DCS, LC→DCSTM/DCS/TSAM/TSSM/FSBM, ROUT→CROUT, THRS→THRSe, FPMS→EPMS, DIN/RIN→DCS/DCM).",
+     "inputs": [
+      {
+       "name": "Channel A / Channel B",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Circuit Reset",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Reset",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Reset Type",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Output 1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Cycle Inputs",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Circuit Reset Held On",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Inputs Inconsistent",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Fault Present",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "Rozhraní ESTOP (EMERGENCY_STOP); LC má navíc Input Filter Time, Mute Light Curtain, Light Curtain Blocked/Muted. Jen Ladder (FBD a ST: instrukce není dostupná).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+     ],
+     "verified": true
+    }
+   ],
+   "sources": [
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm099_-en-p.pdf",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm093_-en-p.pdf",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm084_-en-p.pdf"
+   ]
+  },
+  "beckhoff": {
+   "title": "Beckhoff TwinSAFE (EL6910/EJ6910, EK1960, EL6900, KL6904, TwinCAT Safety PLC)",
+   "programming": {
+    "languages": [
+     "Grafický editor bloků (FBD) v TE9000 Safety Editor",
+     "Safety C (vlastní FB a TwinCAT Safety PLC)"
+    ],
+    "editor": "TwinCAT 3 Safety Editor (TE9000); logika v TwinSAFE skupinách (soubory .sal, projekt .splcproj); Safety C = 'téměř neomezená odvozenina standardního C' (IF-THEN-ELSE, SWITCH CASE).",
+    "certification": "EL6910: EN ISO 13849-1:2015 kat. 4 PL e, EN 61508:2010 SIL 3. TwinCAT Safety PLC: IEC 61508:2010 SIL 3 a EN ISO 13849-1:2015.",
+    "limits": "EL6910: až 512 FB, 128 skupin, 212 spojení; TwinCAT Safety PLC (2024): 4096 FB, 1024 skupin, 2014 spojení; binárně kompatibilní s EL6910.",
+    "import_text": "Projekt lze archivovat (*.tfzip), exportovat do XML (výměna TC3↔TC2) a do binárního souboru pro TwinSAFE Loader; import přes Add Existing Item: *.splc, *.tfzip, XML. VAROVÁNÍ: certifikát TÜV SÜD pokrývá jen TwinCAT 3.1, TwinSAFE Loader a CODESYS Safety for EtherCAT Safety Module – externě generované XML pro import TwinSAFE a automatické generování projektu certifikát NEpokrývá.",
+    "sources": [
+     "https://download.beckhoff.com/download/document/automation/twinsafe/ek1960_en.pdf",
+     "https://download.beckhoff.com/download/document/automation/twinsafe/el6910_en.pdf",
+     "https://www.beckhoff.com/en-en/products/automation/twinsafe/twinsafe-software/te9000.html",
+     "https://download.beckhoff.com/download/document/automation/twinsafe/tcsafetyplc_en.pdf",
+     "https://www.beckhoff.com/en-us/company/press/twinsafe-with-new-hardware-components-and-update-of-the-software-safety-controller-2024-12.html",
+     "https://www.beckhoff.com/en-us/products/automation/twinsafe/twinsafe-hardware/el6910.html"
+    ],
+    "verified": true
+   },
+   "concepts": {
+    "twinsafe_group": "Logika je rozdělena do TwinSAFE skupin; chyba FB se kvituje vstupem ERR_ACK skupiny.",
+    "restart": "Výstupy opouštějí bezpečný stav po náběžné a sestupné hraně vstupu Restart (bez časového hlídání).",
+    "pin_types": "TwinSAFE-In/Out (bezpečné I/O), FB-In/Out (propojení FB), Standard-In/Out (proměnné standardního PLC), Local-Out (KL6904).",
+    "sources": [
+     "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+    ],
+    "verified": true
+   },
+   "blocks": [
+    {
+     "name": "ESTOP",
+     "purpose": "Nouzové zastavení: až 8 vstupů (NC/NO), okamžitý EStopOut a zpožděný EStopDelOut (kat. 1); páry vstupů s nesouladem; EDM smyčky.",
+     "inputs": [
+      {
+       "name": "Restart",
+       "type": "BOOL",
+       "meaning": "Restart (hrana)."
+      },
+      {
+       "name": "EDM1",
+       "type": "BOOL",
+       "meaning": "Zpětná vazba EStopOut."
+      },
+      {
+       "name": "EDM2",
+       "type": "BOOL",
+       "meaning": "Zpětná vazba EStopDelOut."
+      },
+      {
+       "name": "EStopIn1",
+       "type": "BOOL",
+       "meaning": "Vstup (páry 1/2, 3/4, 5/6, 7/8)."
+      },
+      {
+       "name": "EStopIn2",
+       "type": "BOOL",
+       "meaning": "Vstup (páry 1/2, 3/4, 5/6, 7/8)."
+      },
+      {
+       "name": "EStopIn3",
+       "type": "BOOL",
+       "meaning": "Vstup (páry 1/2, 3/4, 5/6, 7/8)."
+      },
+      {
+       "name": "EStopIn4",
+       "type": "BOOL",
+       "meaning": "Vstup (páry 1/2, 3/4, 5/6, 7/8)."
+      },
+      {
+       "name": "EStopIn5",
+       "type": "BOOL",
+       "meaning": "Vstup (páry 1/2, 3/4, 5/6, 7/8)."
+      },
+      {
+       "name": "EStopIn6",
+       "type": "BOOL",
+       "meaning": "Vstup (páry 1/2, 3/4, 5/6, 7/8)."
+      },
+      {
+       "name": "EStopIn7",
+       "type": "BOOL",
+       "meaning": "Vstup (páry 1/2, 3/4, 5/6, 7/8)."
+      },
+      {
+       "name": "EStopIn8",
+       "type": "BOOL",
+       "meaning": "Vstup (páry 1/2, 3/4, 5/6, 7/8)."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Error",
+       "type": "BOOL",
+       "meaning": "Chyba nesouladu nebo EDM; kvitace ERR_ACK skupiny."
+      },
+      {
+       "name": "EStopOut",
+       "type": "BOOL",
+       "meaning": "Okamžitý výstup."
+      },
+      {
+       "name": "EStopDelOut",
+       "type": "BOOL",
+       "meaning": "Zpožděný výstup (Delay Time)."
+      }
+     ],
+     "notes": "Diagnostika: 16bitová hodnota (bity chyb nesouladu skupin).",
+     "sources": [
+      "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "MON",
+     "purpose": "Hlídání (např. dveří): až 4 vstupy MonIn, okamžitý MonOut a zpožděný MonDelOut; vstupy Secure pro odložení požadavku.",
+     "inputs": [
+      {
+       "name": "Restart",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "EDM1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "EDM2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MonIn1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MonIn2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MonIn3",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MonIn4",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Secure1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Secure2",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Error",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MonOut",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MonDelOut",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "",
+     "sources": [
+      "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "TWOHAND",
+     "purpose": "Dvouruční ovládání; skupiny 1–2kanálové, časové hlídání mezi skupinami až 2500 ms.",
+     "inputs": [
+      {
+       "name": "Twohand1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Twohand2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Twohand3",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Twohand4",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Error",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "TwoHandOut",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "Na KL6904 není.",
+     "sources": [
+      "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "MUTING",
+     "purpose": "Muting ochranného zařízení (sekvenční/paralelní), hlídané muting senzory.",
+     "inputs": [
+      {
+       "name": "Enable",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "EDM1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "EDM2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MutingIn1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MutingIn2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OSSDIn1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OSSDIn2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MutingIn3",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MutingIn4",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Error",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MutingActive",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MuteOut",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "MuteDelOut",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "Rozšíření pro EL/EJ6910 (kap. 4.8.4).",
+     "sources": [
+      "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "EDM",
+     "purpose": "Časové hlídání signálů Mon1/Mon2 (zapnutí i vypnutí, max. 10000 ms).",
+     "inputs": [
+      {
+       "name": "Mon1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Mon2",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Error",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "",
+     "sources": [
+      "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "OPMODE",
+     "purpose": "Volba režimu: 8 vstupů → 8 výstupů, výstup jen při právě jednom aktivním vstupu.",
+     "inputs": [
+      {
+       "name": "Restart",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpIn1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpIn2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpIn3",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpIn4",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpIn5",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpIn6",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpIn7",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpIn8",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Error",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpOut1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpOut2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpOut3",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpOut4",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpOut5",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpOut6",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpOut7",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "OpOut8",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "",
+     "sources": [
+      "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "DECOUPLE",
+     "purpose": "Oddělení signálů TwinSAFE spojení do jiných skupin (8→8).",
+     "inputs": [
+      {
+       "name": "DecIn1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecIn2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecIn3",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecIn4",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecIn5",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecIn6",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecIn7",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecIn8",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "DecOut1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecOut2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecOut3",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecOut4",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecOut5",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecOut6",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecOut7",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DecOut8",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "",
+     "sources": [
+      "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "AND / OR / XOR",
+     "purpose": "Logické členy; AndIn1 lze spojit i se standardním signálem (umí jen uvolnit, ne zapnout).",
+     "inputs": [
+      {
+       "name": "AndIn1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "AndIn2",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "AndIn3",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "AndIn4",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "AndIn5",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "AndIn6",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "AndIn7",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "AndIn8",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "AndOut",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "",
+     "sources": [
+      "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "CONNECTION SHUTDOWN",
+     "purpose": "Deaktivace TwinSAFE spojení (modulární stroje).",
+     "inputs": [
+      {
+       "name": "Deactivate1",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Deactivate2",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Error",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Deactivated",
+       "type": "BOOL",
+       "meaning": ""
+      }
+     ],
+     "notes": "",
+     "sources": [
+      "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "SPEED / SLI / SLI2 / SLP / SBT / ADVPOSMON / CAMMONITOR / LOADSENSING",
+     "purpose": "Analogové a pohybové FB (EL6910 a novější): rychlost, omezení přírůstku/polohy, test brzdy…",
+     "inputs": [],
+     "outputs": [],
+     "notes": "SPEED: vstup Position (INT16/UINT16/INT32/UINT32), výstupy Speed, Error; na KL6904/EL6900 není.",
+     "sources": [
+      "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "Další",
+     "purpose": "RS, SR, TON, TON2, TOF, ADD, SUB, MUL, DIV, COMPARE, LIMIT, COUNTER, SCALE, safeCAM, safeLookUpTable, safeSequence.",
+     "inputs": [],
+     "outputs": [],
+     "notes": "",
+     "sources": [
+      "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf"
+     ],
+     "verified": true
+    }
+   ],
+   "sources": [
+    "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf",
+    "https://download.beckhoff.com/download/document/automation/twinsafe/ek1960_en.pdf",
+    "https://download.beckhoff.com/download/document/automation/twinsafe/el6910_en.pdf",
+    "https://download.beckhoff.com/download/document/automation/twinsafe/tcsafetyplc_en.pdf",
+    "https://www.beckhoff.com/en-en/products/automation/twinsafe/twinsafe-software/te9000.html",
+    "https://www.beckhoff.com/en-us/company/press/twinsafe-with-new-hardware-components-and-update-of-the-software-safety-controller-2024-12.html"
+   ]
+  },
+  "omron": {
+   "title": "Omron NX-SL3300 / NX-SL5500 / NX-SL5700 (Sysmac Studio)",
+   "programming": {
+    "languages": [
+     "FBD"
+    ],
+    "editor": "Sysmac Studio – FBD editor bezpečnostních programů; uživatelské FB, převod programu na FB (v1.24+), automatické generování programu (v1.24+).",
+    "certification": "EN ISO 13849-1 PLe kat. 4, IEC 61508 SIL 3.",
+    "st_in_safety": "V datasheetu Sysmac Studio jsou pro bezpečnostní programy uvedeny jen FBD editor a FBD sítě; ST pro safety nebylo ověřeno (obecná věta 'Ladder, ST, FB' platí pro standardní CPU).",
+    "import_text": "Export/import POU (v1.17+), uživatelských FB (v1.12+), import programů, FB POU a globálních proměnných ve formátu IEC 61131-10 XML (v1.29+, uvedeno v tabulce funkcí Safety Control Units), export/import I/O mapy do CSV (v1.40+). → Nejlepší kandidát na textové generování; shodu schématu IEC 61131-10 s PLCopen TC6 XML z PLCdesk je třeba ověřit na reálném importu.",
+    "sources": [
+     "https://www.farnell.com/datasheets/3628336.pdf",
+     "https://www.saddlebrookcontrols.com/wp-content/uploads/Omron-NX-Series-Safety-IO.pdf",
+     "https://files.omron.eu/downloads/latest/datasheet/en/f124_nx-sl5_safety_cpu_unit_datasheet_en.pdf"
+    ],
+    "verified": true
+   },
+   "instruction_types": "Standardní funkce, safety standard FB (čítače, časovače, hrany – SF_TON, SF_TOF, SF_TP, SF_CTU, SF_CTD, SF_CTUD, SF_R_TRIG, SF_F_TRIG, SF_RS, SF_SR) a safety FB podle PLCopen.",
+   "blocks": [
+    {
+     "name": "SF_EmergencyStop",
+     "purpose": "Nouzové zastavení (PLCopen v1.0 rozhraní).",
+     "inputs": [
+      {
+       "name": "Activate",
+       "type": "BOOL",
+       "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+      },
+      {
+       "name": "S_EStopIn",
+       "type": "SAFEBOOL",
+       "meaning": ""
+      },
+      {
+       "name": "S_StartReset",
+       "type": "SAFEBOOL",
+       "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+      },
+      {
+       "name": "S_AutoReset",
+       "type": "SAFEBOOL",
+       "meaning": "FALSE = ruční reset po odeznění požadavku; TRUE = automatický (jen s dalšími opatřeními proti neočekávanému rozběhu)."
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Ready",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "S_EStopOut",
+       "type": "SAFEBOOL",
+       "meaning": ""
+      },
+      {
+       "name": "Error",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DiagCode",
+       "type": "WORD",
+       "meaning": ""
+      }
+     ],
+     "diag_codes": {
+      "8001": "Init",
+      "8002": "Wait for S_EStopIn 1",
+      "8003": "Wait for Reset 1",
+      "8004": "Wait for S_EStopIn 2",
+      "8005": "Wait for Reset 2",
+      "8000": "Výstup povolen",
+      "C001": "Reset Error 1",
+      "C002": "Reset Error 2"
+     },
+     "notes": "Bez SafetyDemand/ResetRequest (v1.0).",
+     "sources": [
+      "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "SF_GuardLocking",
+     "purpose": "Kryt se zámkem (v1.0).",
+     "inputs": [
+      {
+       "name": "Activate",
+       "type": "BOOL",
+       "meaning": "Aktivace bloku; FALSE = všechny výstupy na počáteční hodnoty. Bez zařízení připojit konstantu TRUE."
+      },
+      {
+       "name": "S_GuardMonitoring",
+       "type": "SAFEBOOL",
+       "meaning": "TRUE = kryt zavřen."
+      },
+      {
+       "name": "S_SafetyActive",
+       "type": "SAFEBOOL",
+       "meaning": ""
+      },
+      {
+       "name": "S_GuardLock",
+       "type": "SAFEBOOL",
+       "meaning": ""
+      },
+      {
+       "name": "UnlockRequest",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "S_StartReset",
+       "type": "SAFEBOOL",
+       "meaning": "FALSE = ruční reset po startu PES; TRUE = automatický (jen pokud nehrozí nebezpečí při startu)."
+      },
+      {
+       "name": "S_AutoReset",
+       "type": "SAFEBOOL",
+       "meaning": "FALSE = ruční reset po odeznění požadavku; TRUE = automatický (jen s dalšími opatřeními proti neočekávanému rozběhu)."
+      },
+      {
+       "name": "Reset",
+       "type": "BOOL",
+       "meaning": "Náběžná hrana: kvitace chyby / reset blokování opětovného startu. Statická TRUE může být chyba."
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Ready",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "S_GuardLocked",
+       "type": "SAFEBOOL",
+       "meaning": "?"
+      },
+      {
+       "name": "S_UnlockGuard",
+       "type": "SAFEBOOL",
+       "meaning": "?"
+      },
+      {
+       "name": "Error",
+       "type": "BOOL",
+       "meaning": ""
+      },
+      {
+       "name": "DiagCode",
+       "type": "WORD",
+       "meaning": ""
+      }
+     ],
+     "notes": "Vstupy ověřeny v Z931; výstupy převzaty z PLCopen (neověřeno v Z931).",
+     "sources": [
+      "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf",
+      "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/"
+     ],
+     "verified": false
+    },
+    {
+     "name": "Další safety FB (Z931)",
+     "purpose": "SF_Antivalent, SF_Equivalent, SF_ESPE, SF_GuardMonitoring, SF_ModeSelector, SF_MutingSeq, SF_MutingPar, SF_MutingPar_2Sensor, SF_TestableSafetySensor, SF_TwoHandControlTypeII, SF_TwoHandControlTypeIII, SF_EnableSwitch, SF_OutControl, SF_EDM, SF_SafetyRequest.",
+     "inputs": [],
+     "outputs": [],
+     "sources": [
+      "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf"
+     ],
+     "verified": true
+    }
+   ],
+   "sources": [
+    "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf",
+    "https://www.farnell.com/datasheets/3628336.pdf",
+    "https://www.saddlebrookcontrols.com/wp-content/uploads/Omron-NX-Series-Safety-IO.pdf",
+    "https://files.omron.eu/downloads/latest/datasheet/en/f124_nx-sl5_safety_cpu_unit_datasheet_en.pdf"
+   ]
+  },
+  "codesys": {
+   "title": "CODESYS Safety (SIL2, SIL3, Safety for EtherCAT Safety Module)",
+   "programming": {
+    "languages": [
+     "SIL3: FBD safety editor (basic/extended level)",
+     "SIL2: FBD / LD / ST (basic/extended/system level)"
+    ],
+    "editor": "CODESYS Development System s certifikovanými editory; programovací model dle PLCopen Safety (basic/extended/system level).",
+    "certification": "IEC 61508 SIL 2 / SIL 3 (podle produktu).",
+    "import_text": "Neověřeno, zda lze safety aplikaci importovat z PLCopen XML (standardní CODESYS PLCopenXML import umí, pro safety aplikace nenalezen doklad).",
+    "sources": [
+     "https://exhibitorsearch.messefrankfurt.com/images/original/userdata/bata/204697/5d5148817c22e.pdf",
+     "https://content.helpme-codesys.com/en/CODESYS%20Safety%20SIL2/sil3_safetyplcopen_library_overview.html"
+    ],
+    "verified": true
+   },
+   "blocks": [
+    {
+     "name": "Knihovna PLCopen Safety FBs 3.5.18.0",
+     "purpose": "Implementace PLCopen Part 1 v2.01; v přehledu nápovědy uvedeny SF_Antivalent, SF_Equivalent, SF_EmergencyStop, SF_ResetButton, SF_EDM.",
+     "inputs": [],
+     "outputs": [],
+     "notes": "Rozhraní SF_EmergencyStop v nápovědě odpovídá v2.x (vč. SafetyDemand, ResetRequest).",
+     "sources": [
+      "https://content.helpme-codesys.com/en/CODESYS%20Safety%20SIL2/sil3_safetyplcopen_library_overview.html",
+      "https://content.helpme-codesys.com/en/CODESYS%20Safety%20SIL2/sil3_plcopen_fb_estop.html"
+     ],
+     "verified": true
+    }
+   ],
+   "sources": [
+    "https://exhibitorsearch.messefrankfurt.com/images/original/userdata/bata/204697/5d5148817c22e.pdf",
+    "https://content.helpme-codesys.com/en/CODESYS%20Safety%20SIL2/sil3_safetyplcopen_library_overview.html",
+    "https://content.helpme-codesys.com/en/CODESYS%20Safety%20SIL2/sil3_plcopen_fb_estop.html",
+    "https://www.plcopen.org/application/files/7217/4100/9549/codesys_safety_part1_sf.pdf"
+   ]
+  },
+  "pilz": {
+   "title": "Pilz PNOZmulti / PNOZmulti 2 / PNOZsigma / PNOZ X",
+   "programming": {
+    "languages": [
+     "Grafická konfigurace (předdefinované symboly, schéma zapojení)"
+    ],
+    "editor": "PNOZmulti Configurator – grafický nástroj; projektový soubor se stáhne do základní jednotky (PNOZmulti 2: *.mpnoz2, i z USB paměti).",
+    "certification": "Při správném zapojení až PL e (EN ISO 13849-1) a SIL CL 3 (EN IEC 62061).",
+    "import_text": "Katalog uvádí funkci 'Import/export' a 'Create macro' v Configuratoru bez popisu formátu; veřejně dokumentovaný textový formát (XML/CSV) pro import logiky nebyl nalezen → generovat jen podklad (seznam prvků, zapojení), konfiguraci dělá uživatel v Configuratoru.",
+    "free_version": "Podle výsledku vyhledávání (pilz.com) je od verze 11 plná verze Configuratoru zdarma – stránku nešlo ověřit (HTTP 403).",
+    "sources": [
+     "https://www.cdluk.com/wp-content/uploads/pilz-PNOZmulti2.pdf",
+     "https://www.pilz.com/en-INT/products/small-controllers/software"
+    ],
+    "verified": true
+   },
+   "blocks": [
+    {
+     "name": "Bezpečnostní funkce (vstupní prvky)",
+     "purpose": "Hlídání: tlačítka E-STOP, přepínače režimů, povolovací spínače, dvouruční tlačítka, ochranné kryty, světelné závory, světelné paprsky, otáčky (PNOZ ms…), klid, muting, analogové vstupy (PNOZ ma1p), bezpečnostní rohože, lisy (PNOZ m2p), pece (PNOZ m3p).",
+     "inputs": [],
+     "outputs": [],
+     "notes": "Logické funkce AND, OR, zpoždění; výstupy polovodičové / reléové (Out1, Out2).",
+     "sources": [
+      "https://www.cdluk.com/wp-content/uploads/pilz-PNOZmulti2.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "PNOZsigma (např. PNOZ s9)",
+     "purpose": "Kompaktní bezpečnostní relé – provozní režim a zpoždění se nastavují otočnými přepínači na přístroji (bez softwaru).",
+     "inputs": [],
+     "outputs": [],
+     "notes": "Změna přepínače za provozu = chyba, kontakty rozepnou.",
+     "sources": [
+      "https://cdn.logic-control.com/docs/pilz-safety/Manuals/PNOZ_s9_Operat_Man_21401-EN-08.pdf"
+     ],
+     "verified": true
+    },
+    {
+     "name": "PNOZ X",
+     "purpose": "Bezpečnostní relé s pevnou funkcí, konfigurace zapojením.",
+     "inputs": [],
+     "outputs": [],
+     "notes": "Neověřeno z primárního zdroje.",
+     "sources": [],
+     "verified": false
+    }
+   ],
+   "sources": [
+    "https://www.cdluk.com/wp-content/uploads/pilz-PNOZmulti2.pdf",
+    "https://cdn.logic-control.com/docs/pilz-safety/Manuals/PNOZ_s9_Operat_Man_21401-EN-08.pdf",
+    "https://www.pilz.com/en-INT/products/small-controllers/software"
+   ]
+  },
+  "sick": {
+   "title": "SICK Flexi Soft (Flexi Soft Designer)",
+   "programming": {
+    "languages": [
+     "Grafický logický editor (FB)"
+    ],
+    "editor": "Flexi Soft Designer – až 255 logických a aplikačních FB.",
+    "certification": "SIL3 (IEC 61508), SILCL3 (EN 62061), PL e (EN ISO 13849-1).",
+    "import_text": "Export/import 'partial application' (moduly, I/O, logika – proprietární), import/export jmen tagů z CSV/Excel. Textový import logiky nedokumentován.",
+    "sources": [
+     "https://www.sick.com/media/docs/0/30/030/operating_instructions_8022491_en_im0094030.pdf"
+    ],
+    "verified": true
+   },
+   "blocks": [
+    {
+     "name": "Aplikační FB",
+     "purpose": "Reset, Restart, Off-/On-delay timer, External device monitoring, Valve monitoring, User mode switch, Ramp down detection, Frequency monitoring, Start warning; dvoukanálové: Emergency stop, Magnetic switch, Light curtain monitoring, Safety gate monitoring, Two hand control type IIIA/IIIC, Multi operator; Parallel/Sequential/Cross muting; lisové FB.",
+     "inputs": [],
+     "outputs": [],
+     "sources": [
+      "https://www.sick.com/media/docs/0/30/030/operating_instructions_8022491_en_im0094030.pdf"
+     ],
+     "verified": true
+    }
+   ],
+   "sources": [
+    "https://www.sick.com/media/docs/0/30/030/operating_instructions_8022491_en_im0094030.pdf"
+   ]
+  },
+  "schneider": {
+   "title": "Schneider Electric Preventa XPSMCM (SoSafe Configurable); Machine Expert Safety",
+   "programming": {
+    "languages": [
+     "Grafická konfigurace drag&drop certifikovaných FB"
+    ],
+    "editor": "SoSafe Configurable",
+    "certification": "Kat. 4, PL e (EN/ISO 13849-1), SILCL 3 (dle katalogu 08/2018).",
+    "import_text": "Neověřeno – konfigurace se přenáší USB / paměťovou kartou; textový import nedokumentován. Machine Expert – Safety má knihovnu PLCopen Safety FB (nápověda, neprověřeno).",
+    "sources": [
+     "https://media.distributordatasolutions.com/schneider2/2020q3/documents/ed6be933e33fe09acb0d6319b418a069d758ed7d.pdf",
+     "https://product-help.schneider-electric.com/Machine%20Expert/V1.2/LandingPages/en/VLP_Safety/VLP_SoSafe/VLP_PLCOpen/index.html"
+    ],
+    "verified": false
+   },
+   "blocks": [],
+   "notes": "Starší XPSMC (XPSMCWIN) neověřeno.",
+   "sources": [
+    "https://media.distributordatasolutions.com/schneider2/2020q3/documents/ed6be933e33fe09acb0d6319b418a069d758ed7d.pdf",
+    "https://product-help.schneider-electric.com/Machine%20Expert/V1.2/LandingPages/en/VLP_Safety/VLP_SoSafe/VLP_PLCOpen/index.html"
+   ]
+  },
+  "mitsubishi": {
+   "title": "Mitsubishi MELSEC iQ-R Safety CPU (R08/16/32/120SFCPU, GX Works3)",
+   "programming": {
+    "languages": [
+     "Ladder (LD) – bezpečnostní programy; ST a FBD jen pro obecné programy"
+    ],
+    "editor": "GX Works3 – bezpečnostní a obecné programy v jednom projektu; bezpečnostní operandy s prefixem SA\\.",
+    "certification": "SIL 3 (IEC 61508), PL e (EN/ISO 13849-1); safety FB knihovna: PLe, SIL3 (IEC 62061/61508).",
+    "import_text": "Neověřeno pro bezpečnostní program. Knihovnu safety FB poskytuje místní zastoupení Mitsubishi.",
+    "sources": [
+     "https://dl.mitsubishielectric.com/dl/fa/document/catalog/plcr/r003eng/r003engc.pdf",
+     "https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/bcn-p5999-0815/bcnp59990815c.pdf"
+    ],
+    "verified": true
+   },
+   "blocks": [
+    {
+     "name": "Safety FB (M+SF_*_R, verze _01A)",
+     "purpose": "M+SF_2HAND2_R, M+SF_2HAND3_R, M+SF_EDM_R, M+SF_ENBLSW_R, M+SF_ESPE_R, M+SF_ESTOP_R, M+SF_GLOCK_R, M+SF_GMON_R, M+SF_MODSEL_R, M+SF_MUTE2_R, M+SF_MUTEP_R, M+SF_MUTES_R, M+SF_OUTC_R, M+SF_EQUI_R, M+SF_ANTI_R, M+SF_TSSEN_R – obdoba PLCopen.",
+     "inputs": [
+      {
+       "name": "i_bActivate",
+       "type": "Bit",
+       "meaning": ""
+      },
+      {
+       "name": "i_bS_EStopIn",
+       "type": "Bit",
+       "meaning": "(M+SF_ESTOP_R)"
+      },
+      {
+       "name": "i_bS_StartReset",
+       "type": "Bit",
+       "meaning": ""
+      },
+      {
+       "name": "i_bS_AutoReset",
+       "type": "Bit",
+       "meaning": ""
+      },
+      {
+       "name": "i_bReset",
+       "type": "Bit",
+       "meaning": ""
+      }
+     ],
+     "outputs": [
+      {
+       "name": "o_bReady",
+       "type": "Bit",
+       "meaning": ""
+      },
+      {
+       "name": "o_bS_EStop_Out",
+       "type": "Bit",
+       "meaning": ""
+      },
+      {
+       "name": "o_bError",
+       "type": "Bit",
+       "meaning": ""
+      },
+      {
+       "name": "o_wDiagCode",
+       "type": "Word",
+       "meaning": ""
+      }
+     ],
+     "sources": [
+      "https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/bcn-p5999-0815/bcnp59990815c.pdf"
+     ],
+     "verified": true
+    }
+   ],
+   "sources": [
+    "https://dl.mitsubishielectric.com/dl/fa/document/catalog/plcr/r003eng/r003engc.pdf",
+    "https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/bcn-p5999-0815/bcnp59990815c.pdf"
+   ]
+  },
+  "schmersal": {
+   "title": "Schmersal PROTECT PSC1 (SafePLC2)",
+   "programming": {
+    "languages": [
+     "Grafický editor (metoda funkčních bloků) – dle vyhledávání"
+    ],
+    "editor": "SafePLC2",
+    "certification": "Až SIL 3 (IEC 61508/62061), PL e kat. 4 (EN ISO 13849-1).",
+    "import_text": "Neověřeno.",
+    "sources": [
+     "https://www.schmersalusa.com/fileadmin/content/usa/downloads/brochures/product-brochures/ProtectPSC1_2021.pdf",
+     "https://products.schmersal.com/upload/orig/10/00/20/07/DOC_MAN_SOF_programming-manual-safeplc2_SEN_AIN_V6.pdf"
+    ],
+    "verified": false
+   },
+   "blocks": [],
+   "sources": [
+    "https://www.schmersalusa.com/fileadmin/content/usa/downloads/brochures/product-brochures/ProtectPSC1_2021.pdf",
+    "https://products.schmersal.com/upload/orig/10/00/20/07/DOC_MAN_SOF_programming-manual-safeplc2_SEN_AIN_V6.pdf"
+   ]
+  }
+ },
+ "mapping": {
+  "columns": [
+   "plcopen",
+   "siemens",
+   "rockwell",
+   "beckhoff",
+   "omron",
+   "codesys",
+   "mitsubishi",
+   "pilz_pnozmulti",
+   "sick_flexisoft"
+  ],
+  "rows": [
+   {
+    "function": "estop",
+    "popis": "Nouzové zastavení",
+    "plcopen": "SF_EmergencyStop",
+    "siemens": "ESTOP1",
+    "rockwell": "DCS (Safety Function = E-stop); legacy ESTOP",
+    "beckhoff": "ESTOP",
+    "omron": "SF_EmergencyStop",
+    "codesys": "SF_EmergencyStop",
+    "mitsubishi": "M+SF_ESTOP_R",
+    "pilz_pnozmulti": "prvek E-STOP",
+    "sick_flexisoft": "Emergency stop"
+   },
+   {
+    "function": "guard",
+    "popis": "Ochranný kryt (blokování bez zámku)",
+    "plcopen": "SF_Guard (v1.0 SF_GuardMonitoring)",
+    "siemens": "SFDOOR",
+    "rockwell": "DCS (safety gate) / DCST",
+    "beckhoff": "MON",
+    "omron": "SF_GuardMonitoring",
+    "codesys": "SF_GuardMonitoring / SF_Guard (neověřeno v knihovně)",
+    "mitsubishi": "M+SF_GMON_R",
+    "pilz_pnozmulti": "prvek safety gate",
+    "sick_flexisoft": "Safety gate monitoring"
+   },
+   {
+    "function": "guard_lock",
+    "popis": "Kryt se zámkem",
+    "plcopen": "SF_GuardLocking_2 / SF_GuardLockingSerial (v1.0 SF_GuardLocking)",
+    "siemens": "bez vlastní instrukce (SFDOOR + logika; knihovna LSafe – obsah neověřen)",
+    "rockwell": "DCSTL",
+    "beckhoff": "bez vlastního FB (MON + logika)",
+    "omron": "SF_GuardLocking",
+    "codesys": "neověřeno",
+    "mitsubishi": "M+SF_GLOCK_R",
+    "pilz_pnozmulti": "neověřeno",
+    "sick_flexisoft": "neověřeno (Safety gate monitoring + logika)"
+   },
+   {
+    "function": "light_curtain",
+    "popis": "Světelná závora / ESPE",
+    "plcopen": "SF_ESPE (+ SF_TestableSafetySensor pro typ 2)",
+    "siemens": "EV1oo2DI / F-DI s vyhodnocením 1oo2 + kvitace",
+    "rockwell": "DCS (light curtain) / DCST; legacy LC",
+    "beckhoff": "ESTOP nebo MON se vstupy OSSD",
+    "omron": "SF_ESPE",
+    "codesys": "SF_ESPE (neověřeno v knihovně)",
+    "mitsubishi": "M+SF_ESPE_R",
+    "pilz_pnozmulti": "prvek light curtain",
+    "sick_flexisoft": "Light curtain monitoring"
+   },
+   {
+    "function": "two_hand",
+    "popis": "Dvouruční ovládání",
+    "plcopen": "SF_TwoHandControlTypeII / SF_TwoHandControlTypeIII",
+    "siemens": "TWO_H_EN (S7-300/400: TWO_HAND)",
+    "rockwell": "THRSe; legacy THRS",
+    "beckhoff": "TWOHAND",
+    "omron": "SF_TwoHandControlTypeII/III",
+    "codesys": "neověřeno",
+    "mitsubishi": "M+SF_2HAND2_R / M+SF_2HAND3_R",
+    "pilz_pnozmulti": "prvek two-hand",
+    "sick_flexisoft": "Two hand control type IIIA / IIIC"
+   },
+   {
+    "function": "edm",
+    "popis": "Hlídání zpětné vazby stykačů",
+    "plcopen": "SF_EDM",
+    "siemens": "FDBACK",
+    "rockwell": "CROUT; legacy ROUT",
+    "beckhoff": "EDM (nebo vstupy EDM1/EDM2 v ESTOP/MON)",
+    "omron": "SF_EDM",
+    "codesys": "SF_EDM",
+    "mitsubishi": "M+SF_EDM_R",
+    "pilz_pnozmulti": "neověřeno (zpětná vazba v prvku výstupu)",
+    "sick_flexisoft": "External device monitoring"
+   },
+   {
+    "function": "muting",
+    "popis": "Muting ochranného zařízení",
+    "plcopen": "SF_MutingSeq / SF_MutingPar / SF_MutingPar_2Sensor (+ SF_Override)",
+    "siemens": "MUT_P (S7-300/400: MUTING)",
+    "rockwell": "FSBM / TSAM / TSSM / DCSTM",
+    "beckhoff": "MUTING",
+    "omron": "SF_MutingSeq / SF_MutingPar / SF_MutingPar_2Sensor",
+    "codesys": "neověřeno",
+    "mitsubishi": "M+SF_MUTES_R / M+SF_MUTEP_R / M+SF_MUTE2_R",
+    "pilz_pnozmulti": "muting",
+    "sick_flexisoft": "Parallel / Sequential / Cross muting"
+   },
+   {
+    "function": "mode_select",
+    "popis": "Volba provozního režimu",
+    "plcopen": "SF_ModeSelector",
+    "siemens": "bez instrukce (logika)",
+    "rockwell": "EPMS; legacy FPMS",
+    "beckhoff": "OPMODE",
+    "omron": "SF_ModeSelector",
+    "codesys": "neověřeno",
+    "mitsubishi": "M+SF_MODSEL_R",
+    "pilz_pnozmulti": "operating mode selector",
+    "sick_flexisoft": "User mode switch"
+   },
+   {
+    "function": "enable_device",
+    "popis": "Povolovací (třípolohový) spínač",
+    "plcopen": "SF_EnableSwitch / SF_EnableSwitch_2",
+    "siemens": "bez instrukce (EV1oo2DI + logika)",
+    "rockwell": "DCSRT; legacy ENPEN",
+    "beckhoff": "bez vlastního FB (MON/AND)",
+    "omron": "SF_EnableSwitch",
+    "codesys": "neověřeno",
+    "mitsubishi": "M+SF_ENBLSW_R",
+    "pilz_pnozmulti": "enabling switch",
+    "sick_flexisoft": "neověřeno"
+   },
+   {
+    "function": "sto_ss1",
+    "popis": "STO / SS1 (bezpečné zastavení pohonu)",
+    "plcopen": "SF_SafetyRequest (SafeMotion); dříve SF_SafeStop1; SS2 = SF_SafeStop2",
+    "siemens": "ESTOP1 (Q_DELAY, kat. 1) / PROFIsafe telegram pohonu (LDrvSafe)",
+    "rockwell": "SS1 / SS2 / SOS (CIP Safety pohon)",
+    "beckhoff": "ESTOP (EStopDelOut = časově řízené SS1)",
+    "omron": "SF_SafetyRequest (pohon přes FSoE)",
+    "codesys": "neověřeno",
+    "mitsubishi": "neověřeno",
+    "pilz_pnozmulti": "zpožděné výstupy / moduly PNOZ ms (neověřeno)",
+    "sick_flexisoft": "Off-delay timer / Ramp down detection"
+   },
+   {
+    "function": "sls",
+    "popis": "Bezpečně omezená rychlost",
+    "plcopen": "SF_SafetyRequest (SafeMotion); dříve SF_SafelyLimitedSpeed",
+    "siemens": "funkce pohonu (SINAMICS Safety Integrated) přes PROFIsafe – neověřeno",
+    "rockwell": "SLS",
+    "beckhoff": "SPEED + COMPARE/LIMIT nebo funkce pohonu – neověřeno",
+    "omron": "neověřeno (parametry SRA serv 1S)",
+    "codesys": "neověřeno",
+    "mitsubishi": "neověřeno",
+    "pilz_pnozmulti": "moduly PNOZ ms (hlídání otáček)",
+    "sick_flexisoft": "neověřeno (moduly Drive Monitor)"
+   },
+   {
+    "function": "ack_reset",
+    "popis": "Kvitace / reset",
+    "plcopen": "vstup Reset (+ SF_ResetButton pro sestupnou hranu)",
+    "siemens": "vstupy ACK; ACK_GL (reintegrace F-I/O), ACK_OP (kvitace z HMI), ACK_REI v F-I/O DB",
+    "rockwell": "vstup Reset instrukcí; Input Status",
+    "beckhoff": "vstup Restart FB; ERR_ACK TwinSAFE skupiny",
+    "omron": "vstup Reset",
+    "codesys": "vstup Reset; SF_ResetButton",
+    "mitsubishi": "i_bReset",
+    "pilz_pnozmulti": "reset prvek (neověřeno)",
+    "sick_flexisoft": "Reset / Restart"
+   },
+   {
+    "function": "dual_channel",
+    "popis": "Dvoukanálové vyhodnocení",
+    "plcopen": "SF_Equivalent / SF_Antivalent",
+    "siemens": "EV1oo2DI (nebo vyhodnocení 1oo2 v F-DI)",
+    "rockwell": "DCM / DCS (Input Type)",
+    "beckhoff": "páry vstupů v ESTOP/MON (Discrepancy)",
+    "omron": "SF_Equivalent / SF_Antivalent",
+    "codesys": "SF_Equivalent / SF_Antivalent",
+    "mitsubishi": "M+SF_EQUI_R / M+SF_ANTI_R",
+    "pilz_pnozmulti": "v prvku vstupu",
+    "sick_flexisoft": "Dual-channel evaluation"
+   },
+   {
+    "function": "out_control",
+    "popis": "Bezpečný výstup = bezpečnostní signál AND procesní povel",
+    "plcopen": "SF_OutControl",
+    "siemens": "logika AND v F-LAD/F-FBD",
+    "rockwell": "logika + CROUT",
+    "beckhoff": "AND",
+    "omron": "SF_OutControl",
+    "codesys": "neověřeno",
+    "mitsubishi": "M+SF_OUTC_R",
+    "pilz_pnozmulti": "logika AND",
+    "sick_flexisoft": "logika AND"
+   }
+  ],
+  "sources": [
+   "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/",
+   "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf",
+   "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf",
+   "https://download.beckhoff.com/download/document/automation/twinsafe/twinsafe-logic-fb_en.pdf",
+   "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf",
+   "https://content.helpme-codesys.com/en/CODESYS%20Safety%20SIL2/sil3_safetyplcopen_library_overview.html",
+   "https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/bcn-p5999-0815/bcnp59990815c.pdf",
+   "https://www.cdluk.com/wp-content/uploads/pilz-PNOZmulti2.pdf",
+   "https://www.sick.com/media/docs/0/30/030/operating_instructions_8022491_en_im0094030.pdf"
+  ],
+  "note": "'neověřeno' = zdroj nebyl dohledán nebo přečten; buňky nevyplňovat odhadem."
+ },
+ "text_generation": {
+  "summary": "Co může PLCdesk reálně vygenerovat textově (vždy jen NÁVRH k revizi, nikdy hotový validovaný bezpečnostní program).",
+  "platforms": {
+   "siemens": {
+    "feasible": "částečně",
+    "how": "SimaticML XML F-bloků (F_LAD/F_FBD) a import přes TIA Openness (Windows + TIA Portal) – vhodné pro apps/worker-openness; od V20/V21 i SIMATIC Source Documents (textový F-LAD, F-FBD) přes Openness/VCI. SCL v bezpečnostním programu nepoužívat.",
+    "limits": "F-systémové bloky ani konfiguraci PROFIsafe nelze dodat jako text z jádra; po importu kompilace, nové F-podpisy, přijetí (acceptance) – odpovědnost uživatele.",
+    "sources": [
+     "https://cache.industry.siemens.com/dl/files/886/109826886/att_1163875/v1/TIAPortalOpenness_enUS_en-US.pdf",
+     "https://asutp.org/SIEMENS/TIA_PORTAL/TIA20.pdf",
+     "https://cache.industry.siemens.com/dl/files/772/109989772/att_1348791/v5/TIA_Portal_V21_technical_slides_EN.pdf",
+     "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf"
+    ]
+   },
+   "rockwell": {
+    "feasible": "ano (návrh)",
+    "how": "L5X s programem Class=\"Safety\" v safety tasku a RLL rungy s instrukcemi DCS/DCST/DCSTL/DCSRT/CROUT/THRSe/FSBM… a safety tagy (backing tagy typů DCI_STOP apod.) – navazuje na existující logix.ts.",
+    "limits": "Jen ladder. Import nejde do safety-locked projektu ani do projektu s podpisem safety tasku (výslovně ověřeno u safety AOI; u rutin se předpokládá stejné omezení – neověřeno). Podpis se generuje až v Logix Designer.",
+    "sources": [
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm084_-en-p.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm099_-en-p.pdf"
+    ]
+   },
+   "beckhoff": {
+    "feasible": "technicky ano, certifikačně ne",
+    "how": "Import XML / .splc / .tfzip existuje (XML pro výměnu TC2↔TC3).",
+    "limits": "Externě generované XML a automatické generování projektu certifikát TÜV SÜD výslovně NEpokrývá → generovat jen dokumentaci (tabulku FB a propojení), logiku vytvoří uživatel v TE9000.",
+    "sources": [
+     "https://download.beckhoff.com/download/document/automation/twinsafe/ek1960_en.pdf"
+    ]
+   },
+   "omron": {
+    "feasible": "pravděpodobně ano (ověřit)",
+    "how": "IEC 61131-10 XML import programů, FB a globálních proměnných do Safety CPU (Sysmac Studio v1.29+); I/O mapa jako CSV (v1.40+). FB podle PLCopen v1.0 (SF_EmergencyStop…, SF_GuardMonitoring).",
+    "limits": "Nutno ověřit, zda XML z PLCdesk (PLCopen TC6) Sysmac přijme pro Safety CPU a jako FBD; podpis/validace v Sysmac Studiu.",
+    "sources": [
+     "https://www.farnell.com/datasheets/3628336.pdf",
+     "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf"
+    ]
+   },
+   "codesys": {
+    "feasible": "neověřeno",
+    "how": "PLCopen FB (knihovna podle v2.01); FBD/LD, u SIL2 i ST.",
+    "limits": "Import safety aplikace z XML nedoložen.",
+    "sources": [
+     "https://exhibitorsearch.messefrankfurt.com/images/original/userdata/bata/204697/5d5148817c22e.pdf",
+     "https://content.helpme-codesys.com/en/CODESYS%20Safety%20SIL2/sil3_safetyplcopen_library_overview.html"
+    ]
+   },
+   "twincat_plc_standard": {
+    "feasible": "ne pro safety",
+    "how": "Standardní TwinCAT PLC z PLCopen XML – bezpečnost jen přes TwinSAFE (viz beckhoff).",
+    "limits": "",
+    "sources": [
+     "https://download.beckhoff.com/download/document/automation/twinsafe/ek1960_en.pdf"
+    ]
+   },
+   "mitsubishi": {
+    "feasible": "neověřeno",
+    "how": "Bezpečnostní program jen ladder s FB M+SF_*; textový import do safety programu nedoložen.",
+    "limits": "",
+    "sources": [
+     "https://dl.mitsubishielectric.com/dl/fa/document/catalog/plcr/r003eng/r003engc.pdf",
+     "https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/bcn-p5999-0815/bcnp59990815c.pdf"
+    ]
+   },
+   "unitronics": {
+    "feasible": "ne",
+    "how": "Ve zdrojích nenalezen bezpečnostní programovatelný automat Unitronics – generovat jen informativní signály (stávající pravidlo PLCdesk).",
+    "limits": "Neprověřováno.",
+    "sources": []
+   },
+   "pilz": {
+    "feasible": "ne",
+    "how": "Grafický PNOZmulti Configurator; generovat jen podklad (seznam prvků, I/O, logika slovně).",
+    "limits": "Formát Import/export nedokumentován.",
+    "sources": [
+     "https://www.cdluk.com/wp-content/uploads/pilz-PNOZmulti2.pdf"
+    ]
+   },
+   "sick": {
+    "feasible": "jen tagy",
+    "how": "CSV se jmény tagů pro Flexi Soft Designer; logiku ne.",
+    "limits": "",
+    "sources": [
+     "https://www.sick.com/media/docs/0/30/030/operating_instructions_8022491_en_im0094030.pdf"
+    ]
+   },
+   "schneider_xpsmcm": {
+    "feasible": "ne (neověřeno)",
+    "how": "Grafický SoSafe Configurable.",
+    "limits": "",
+    "sources": [
+     "https://media.distributordatasolutions.com/schneider2/2020q3/documents/ed6be933e33fe09acb0d6319b418a069d758ed7d.pdf"
+    ]
+   },
+   "schmersal": {
+    "feasible": "ne (neověřeno)",
+    "how": "Grafický SafePLC2.",
+    "limits": "",
+    "sources": [
+     "https://www.schmersalusa.com/fileadmin/content/usa/downloads/brochures/product-brochures/ProtectPSC1_2021.pdf"
+    ]
+   }
+  }
+ },
+ "discrepancies": [
+  {
+   "topic": "Názvy FB PLCopen v1.0 a v2.x",
+   "detail": "v2.10: SF_Guard (dříve SF_GuardMonitoring, původní název je povolen), SF_GuardLocking_2 (vstup S_Guard) místo SF_GuardLocking (vstup S_GuardMonitoring). Omron Z931 a Mitsubishi používají názvy a rozhraní v1.0.",
+   "sources": [
+    "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/",
+    "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf",
+    "https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/bcn-p5999-0815/bcnp59990815c.pdf"
+   ]
+  },
+  {
+   "topic": "DiagCode SF_EmergencyStop",
+   "detail": "PLCopen v2.10: 8801/8802/8402/8804/8404, chyby C001/C011. Omron (v1.0): 8002 Wait for S_EStopIn 1, 8003 Wait for Reset 1, 8004, 8005, chyby C001/C002. Stejný stav má u výrobců různé kódy – diagnostika v PLCdesk musí mít tabulku podle platformy.",
+   "sources": [
+    "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/",
+    "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf"
+   ]
+  },
+  {
+   "topic": "Výstupy SafetyDemand / ResetRequest",
+   "detail": "Jen v v2.x (volitelné); v1.0 implementace (Omron) je nemají, CODESYS knihovna 3.5.18 (v2.01) je má.",
+   "sources": [
+    "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/",
+    "https://assets.omron.eu/downloads/latest/manual/en/z931_nx_series_safety_control_unit_instructions_reference_manual_en.pdf",
+    "https://content.helpme-codesys.com/en/CODESYS%20Safety%20SIL2/sil3_plcopen_fb_estop.html"
+   ]
+  },
+  {
+   "topic": "Pohybové FB",
+   "detail": "SF_SafeStop1/2 a SF_SafelyLimitedSpeed byly ve v1.0; v2.0 je odstranila a SafeMotion 1.0 doporučuje SF_SafetyRequest. Rockwell má vlastní SS1/SS2/SOS/SLS s jiným rozhraním (REAL rychlosti, SFX).",
+   "sources": [
+    "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/",
+    "https://www.plcopen.org/download_file/force/2b6d634e-8dde-46c4-949f-bc8bc6eb7589/342/",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm095_-en-p.pdf"
+   ]
+  },
+  {
+   "topic": "ST v bezpečnostním programu",
+   "detail": "PLCopen v2.x připouští ST na Extended Level; Siemens (V14 manuál) jen LAD/FBD; Rockwell jen ladder; Omron jen FBD editor; Mitsubishi jen ladder (ST/FBD jen obecné programy); CODESYS SIL2 FBD/LD/ST, SIL3 FBD.",
+   "sources": [
+    "https://www.plcopen.org/download_file/force/6a32064b-14cc-49bb-99a6-1b00e418ee94/342/",
+    "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm099_-en-p.pdf",
+    "https://www.farnell.com/datasheets/3628336.pdf",
+    "https://dl.mitsubishielectric.com/dl/fa/document/catalog/plcr/r003eng/r003engc.pdf",
+    "https://exhibitorsearch.messefrankfurt.com/images/original/userdata/bata/204697/5d5148817c22e.pdf"
+   ]
+  },
+  {
+   "topic": "Siemens Openness a F-bloky",
+   "detail": "Starší poznámka v témže manuálu: export systémově generovaných F-bloků zablokován od V15.1, import F-bloků z předchozích verzí nemožný; novější kapitola 6.4.2.9: F-bloky lze exportovat i importovat (kromě F-systémových). Obojí platí současně – omezení se týká systémových bloků a starších verzí.",
+   "sources": [
+    "https://cache.industry.siemens.com/dl/files/886/109826886/att_1163875/v1/TIAPortalOpenness_enUS_en-US.pdf"
+   ]
+  },
+  {
+   "topic": "Číslo publikace Rockwell Import/Export",
+   "detail": "Soubor na adrese 1756-rm084_-en-p.pdf je v textu označen 1756-RM014D-EN-P (září 2025).",
+   "sources": [
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/1756-rm084_-en-p.pdf"
+   ]
+  },
+  {
+   "topic": "Muting v Siemens",
+   "detail": "MUTING jen pro S7-300/400; pro S7-1200/1500 MUT_P (paralelní). Sekvenční muting jako instrukce pro S7-1500 v manuálu V14 nenalezen.",
+   "sources": [
+    "https://cache.industry.siemens.com/dl/files/126/54110126/att_896015/v1/ProgFAILenUS_en-US.pdf"
+   ]
+  }
+ ],
+ "unverified": [
+  "Siemens STEP 7 Safety V20 manuál (PDF att_915537 vrátil 404/403) – nelze potvrdit, zda V20/V21 přidaly SCL pro F-bloky nebo nové instrukce (např. guard locking).",
+  "Datové typy pinů SF_SafeStop1/2 a SF_SafelyLimitedSpeed (SafeMotion je ukazuje jen na obrázku bez typů).",
+  "Úplné rozhraní SF_Override (PDF dočteno jen do MutingSwitch22).",
+  "Pilz: formát funkce Import/export v PNOZmulti Configurator; prvky PNOZmulti pro EDM/reset; PNOZ X detaily; bezplatná plná verze od v11 (pilz.com vrací 403).",
+  "CODESYS: úplný seznam FB v knihovně PLCopen Safety FBs a možnost importu safety aplikace z PLCopen XML.",
+  "Omron: zda import IEC 61131-10 XML přijme FBD síť vygenerovanou mimo Sysmac Studio (nutný test); ST pro Safety CPU.",
+  "Mitsubishi: textový import bezpečnostního programu do GX Works3.",
+  "Schneider XPSMC/XPSMCWIN, Schmersal SafePLC2 (manuál nestažen – HTML místo PDF).",
+  "Rockwell: zda platí zákaz importu do projektu se safety signature i pro běžné safety rutiny (ověřeno jen pro safety AOI).",
+  "Unitronics: existence bezpečnostního programovatelného automatu nebyla zkoumána."
+ ]
+}

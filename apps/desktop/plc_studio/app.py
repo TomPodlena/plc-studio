@@ -1,4 +1,4 @@
-"""PLC Studio — hlavní okno: stav, navigace mezi kroky, ukládání.
+"""PLCdesk — hlavní okno: stav, navigace mezi kroky, ukládání.
 
 Odpovídá ``apps/web/src/app.js``; kroky jsou v balíku ``steps``. Stav
 (projekt, AI konverzace, aktuální krok) se průběžně ukládá do složky
@@ -24,7 +24,11 @@ from .i18n import N_, _
 from .steps import RENDERERS, render_help
 
 STEPS = [N_("Projekt"), N_("AI návrh"), N_("Platformy"), N_("Zařízení"), N_("I/O"),
-         N_("Schéma"), N_("Program"), N_("Generovat"), N_("Dokumentace"), N_("Kusovník")]
+         N_("Schéma"), N_("Program"), N_("Generovat"), N_("Dokumentace"), N_("Kusovník"),
+         N_("Bezpečnost"), N_("Schválení"), N_("Oživení")]
+STEP_SAFETY, STEP_APPROVAL, STEP_COMMISSION = 10, 11, 12
+# zkrácení popisků neaktivních kroků, když se lišta nevejde (None = celé, 0 = jen číslo)
+NAV_LEVELS = (None, *range(24, 2, -1), 0)
 PROJECT_EXT = ".plcstudio.json"
 SAMPLE_NOTE = {
     "small": N_("Ukázkový návrh malé stanice — předvyplněno jako příklad práce AI návrháře."),
@@ -51,6 +55,12 @@ class App:
         self.errors: list[str] = []      # zachycené chyby callbacků (pro --smoke)
         self._save_job = None
         self._status_job = None
+        self._badge_job = None
+        self._badge: dict | None = None      # stav schválení pro odznak a lištu kroků
+        self._badge_key: str | None = None   # projekt, ke kterému stav patří
+        self._nav_level = None
+        self._nav_extra: int | None = None
+        self._badge_cur: dict | None = None
         self.ui: dict = {}               # stav UI kroků, který má přežít překreslení
 
         self.settings = self._read_json("settings.json", {})
@@ -64,7 +74,7 @@ class App:
         if not self.prj["devices"] and not self.prj["meta"]["name"]:
             self.load_sample("complex", render=False)   # první spuštění = ukázka
 
-        theme.setup_window(root, "PLC Studio", topmost=bool(self.settings.get("topmost")))
+        theme.setup_window(root, "PLCdesk", topmost=bool(self.settings.get("topmost")))
         root.geometry(self.settings.get("geometry") or "1240x820")
         root.minsize(1100, 680)
         theme.apply_styles(root)
@@ -190,7 +200,7 @@ class App:
         titles = ttk.Frame(head)         # balí se až po tlačítkách vpravo — dlouhý název
         line = ttk.Frame(titles)         # projektu je pak nevytlačí (zkrátí se sám)
         line.pack(anchor="w")
-        ttk.Label(line, text="PLC STUDIO", style="Header.TLabel").pack(side="left")
+        ttk.Label(line, text="PLCdesk", style="Header.TLabel").pack(side="left")
         self._proj_lbl = ttk.Label(line, text="", style="Section.TLabel")
         self._proj_lbl.pack(side="left", padx=(10, 0))
         ttk.Label(titles, text=_("AI návrh · schéma · kód · dokumentace · {n} platforem",
@@ -213,6 +223,11 @@ class App:
                    ).pack(side="right", padx=(6, 0))
         ttk.Button(head, text=_("Otevřít projekt…"), command=self.open_project_dialog
                    ).pack(side="right")
+        # odznak neschválených položek → krok Schválení (počítá se až po vykreslení kroku)
+        self._badge_lbl = tk.Label(head, text="", font=theme.FONT_ACCENT, cursor="hand2",
+                                   padx=8, pady=3, bg=theme.WARN_BG, fg=theme.WARN)
+        self._badge_lbl.bind("<Button-1>", lambda _e: self.goto(STEP_APPROVAL))
+        self._badge_lbl.invoke = lambda: self.goto(STEP_APPROVAL)
         titles.pack(side="left", fill="x", expand=True)
         self._titles = titles
         titles.bind("<Configure>", lambda _e: self.update_title())
@@ -222,6 +237,7 @@ class App:
         # lišta kroků
         nav = ttk.Frame(frm)
         nav.pack(fill="x")
+        self._nav = nav
         self._step_btns = []
         for i, name in enumerate(STEPS):
             b = ttk.Button(nav, text=f"{i + 1} · {_(name)}", style="Step.TButton",
@@ -231,6 +247,7 @@ class App:
         self._help_btn = ttk.Button(nav, text="? " + _("Nápověda"), style="Step.TButton",
                                     command=lambda: self.goto("help"))
         self._help_btn.pack(side="right")
+        nav.bind("<Configure>", lambda _e: self._fit_nav())
 
         # patička (pack před obsahem, ať ji obsah nevytlačí z okna)
         foot = ttk.Frame(frm)
@@ -262,6 +279,13 @@ class App:
             return bool(self.prj["platforms"])
         if i == 3:
             return bool(self.prj["devices"])
+        b = self._badge_cur
+        if b and i == STEP_SAFETY:
+            return b["safetyOk"]
+        if b and i == STEP_APPROVAL:
+            return b["ok"]
+        if b and i == STEP_COMMISSION:
+            return b["commissionDone"]
         return False
 
     def goto(self, step) -> None:
@@ -325,16 +349,101 @@ class App:
                     text = text[:-1]
                 text = text.rstrip() + "…"
         self._proj_lbl.configure(text=text)
-        self.root.title(f"PLC Studio — {name}" if name else "PLC Studio")
+        self.root.title(f"PLCdesk — {name}" if name else "PLCdesk")
 
-    def render(self) -> None:
-        """Překreslí lištu kroků a obsah aktuálního kroku."""
+    # --- lišta kroků ------------------------------------------------------------------
+
+    def _step_text(self, i: int, level) -> str:
+        """Popisek kroku; ``level`` = nejvýš tolik znaků názvu neaktivního kroku."""
+        done = self._step_done(i) and i != self.step
+        name = _(STEPS[i])
+        if level is not None and i != self.step:
+            name = "" if level == 0 else name if len(name) <= level                 else name[:level - 1].rstrip(" -") + "…"
+        sep = " · " if level is None else " "             # zkrácená lišta šetří místo
+        return f"{'✔ ' if done else ''}{i + 1}" + (sep + name if name else "")
+
+    def _fit_nav(self) -> None:
+        """Popisky kroků zkrátí tak, aby se lišta vešla do šířky okna (němčina, 1100 px):
+        aktuální krok zůstává celý, ostatní se krátí, v krajním případě na číslo."""
+        width = self._nav.winfo_width()
+        if width <= 1:
+            return
+        room = width - self._help_btn.winfo_reqwidth() - 12
+        fonts = (tkfont.Font(font=theme.FONT_UI), tkfont.Font(font=theme.FONT_ACCENT))
+        if self._nav_extra is None:
+            # vycpávka stylu a rámeček změřené na tlačítkách (medián — po změně popisku
+            # je požadovaná šířka do vykreslení stará) + mezera mezi tlačítky
+            diffs = sorted(b.winfo_reqwidth() - fonts[i == self.step].measure(str(b.cget("text")))
+                           for i, b in enumerate(self._step_btns))
+            self._nav_extra = diffs[len(diffs) // 2] + 3
+        extra = self._nav_extra
+        level = NAV_LEVELS[-1]
+        for lv in NAV_LEVELS:
+            need = sum(fonts[i == self.step].measure(self._step_text(i, lv)) + extra
+                       for i in range(len(STEPS)))
+            if need <= room:
+                level = lv
+                break
+        self._nav_level = level
+        for i, b in enumerate(self._step_btns):
+            text = self._step_text(i, level)
+            if str(b.cget("text")) != text:
+                b.configure(text=text)
+
+    def _refresh_nav(self) -> None:
+        # značky kroků 11–13 jen ze stavu, který patří k aktuálnímu projektu
+        self._badge_cur = self._badge if self._badge_key == self._prj_key() else None
         for i, b in enumerate(self._step_btns):
             done = self._step_done(i)
             b.configure(style="StepOn.TButton" if i == self.step
                         else "StepDone.TButton" if done else "Step.TButton",
-                        text=f"{'✔ ' if done and i != self.step else ''}{i + 1} · {_(STEPS[i])}")
+                        text=self._step_text(i, self._nav_level))
         self._help_btn.configure(style="StepOn.TButton" if self.step == "help" else "Step.TButton")
+        self._fit_nav()
+
+    # --- odznak schválení ----------------------------------------------------------------
+
+    def _prj_key(self) -> str:
+        return json.dumps(self.prj, sort_keys=True, ensure_ascii=False)
+
+    def schedule_badge(self, delay: int = 300) -> None:
+        """Přepočítá odznak „Neschváleno: N“ chvíli po změně (ověření simulací něco stojí)."""
+        if self._badge_job is not None:
+            self.root.after_cancel(self._badge_job)
+        self._badge_job = self.root.after(delay, self.update_badge)
+
+    def update_badge(self) -> None:
+        self._badge_job = None
+        key = self._prj_key()
+        if key != self._badge_key:
+            try:
+                self._badge = self.bridge.request("approval.badge", prj=self.prj)                     if self.prj["devices"] else None
+            except BridgeError:
+                self._badge = None
+            self._badge_key = key
+        b = self._badge
+        if not self._badge_lbl.winfo_exists():
+            return
+        if b is None:
+            self._badge_lbl.pack_forget()
+        else:
+            # „čeká na ověření“ (velký stroj, ověření simulací ještě neproběhlo) se počítá
+            # mezi neschválené; počet je pak jen dolní odhad → „?“
+            n = b["pending"] + b["stale"] + b.get("unverified", 0)
+            if n:
+                self._badge_lbl.configure(text=_("Neschváleno: {n}", n=n)
+                                          + (" ?" if b.get("partial") else ""),
+                                          bg=theme.WARN_BG, fg=theme.WARN)
+            else:
+                self._badge_lbl.configure(text="✔ " + _("Vše schváleno"), bg=theme.TREE_SEL,
+                                          fg=theme.PRIMARY)
+            if not self._badge_lbl.winfo_ismapped():
+                self._badge_lbl.pack(side="right", padx=(0, 10), before=self._titles)
+        self._refresh_nav()
+
+    def render(self) -> None:
+        """Překreslí lištu kroků a obsah aktuálního kroku."""
+        self._refresh_nav()
         self.update_title()
         num = isinstance(self.step, int)
         self._prev_btn.state(["!disabled"] if num and self.step > 0 else ["disabled"])
@@ -349,6 +458,7 @@ class App:
             self._report(_("Jádro hlásí chybu: {exc}", exc=exc), traceback.format_exc())
             ttk.Label(self.view, text="⚠ " + _("Krok se nepodařilo vykreslit: {exc}", exc=exc),
                       style="Err.TLabel").pack(anchor="w")
+        self.schedule_badge()
 
     # --- stavový řádek, schránka, chyby ---------------------------------------------------
 
@@ -416,7 +526,7 @@ class App:
         path = filedialog.asksaveasfilename(
             parent=self.root, title=_("Uložit projekt"), initialfile=name,
             initialdir=self.settings.get("last_dir") or None, defaultextension=".json",
-            filetypes=[(_("Projekt PLC Studio"), "*" + PROJECT_EXT), ("JSON", "*.json")])
+            filetypes=[(_("Projekt PLCdesk"), "*" + PROJECT_EXT), ("JSON", "*.json")])
         if not path:
             return
         try:
@@ -441,7 +551,7 @@ class App:
         path = filedialog.askopenfilename(
             parent=self.root, title=_("Otevřít projekt"),
             initialdir=self.settings.get("last_dir") or None,
-            filetypes=[(_("Projekt PLC Studio"), "*" + PROJECT_EXT), ("JSON", "*.json"),
+            filetypes=[(_("Projekt PLCdesk"), "*" + PROJECT_EXT), ("JSON", "*.json"),
                        (_("Všechny soubory"), "*.*")])
         if path:
             self.open_project(path)

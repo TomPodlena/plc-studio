@@ -1,5 +1,5 @@
 /**
- * PLC Studio — import stávajícího zařízení: přesné zpětné zpracování exportů a programů z PLC
+ * PLCdesk — import stávajícího zařízení: přesné zpětné zpracování exportů a programů z PLC
  * (bez AI). Společné typy pro jádro i AI vrstvu (apps/web/src/import_ai.js).
  *
  *  extractFiles()   soubory → signály (tagy s kanonickou adresou) + POU (těla programů)
@@ -568,7 +568,7 @@ function exL5X(f: InputFile, t: string, sink: Sink): FileResult {
       sink.pous.push({ name: r.attrs.Name || "Routine", kind: "routine", lang, body: body + pre, src: { file: f.name, line: lineAt(t, r.pos) + 2 } });
     }
     const d = xmlText(xmlChild(prog, "Description")).trim();
-    if (d && !sink.meta.name) sink.meta.name = d.replace(/\s*-\s*PLC Studio$/, "");
+    if (d && !sink.meta.name) sink.meta.name = d.replace(/\s*-\s*(PLCdesk|PLC Studio)$/, "");
   }
   if (!sink.meta.name && ctrl && !ours) { const d = xmlText(xmlChild(ctrl, "Description")).trim(); if (d) sink.meta.name = d; }
   sink.plats.push("rockwell");
@@ -771,7 +771,7 @@ function exPLCopen(f: InputFile, t: string, sink: Sink): FileResult {
   }
   const pl = platFromText(sink.pous.map(p => p.body).join("\n")) || (anyStar ? "beckhoff" : undefined);
   if (pl) sink.plats.push(pl); else sink.weak.push("codesys");
-  if (!sink.meta.name) { const n = xmlAll(doc, "contentHeader")[0]?.attrs.name; if (n && !/^(PLC-Studio-Project|Unnamed)$/.test(n)) sink.meta.name = n; }
+  if (!sink.meta.name) { const n = xmlAll(doc, "contentHeader")[0]?.attrs.name; if (n && !/^(PLCdesk-Project|PLC-Studio-Project|Unnamed)$/.test(n)) sink.meta.name = n; }
   return { fmt: "PLCopen XML (TC6)", note: sfcSteps ? tr("SFC: {n} kroků převedeno na sekvenci (odhad).", { n: sfcSteps }) : sink.signals.length === s0 ? tr("Žádné proměnné s vazbou na I/O.") : undefined };
 }
 /* ----------------------------------------------------------------- ST / SCL zdroje */
@@ -1115,7 +1115,7 @@ function exReadme(t: string, sink: Sink): FileResult {
   /* první řádek: „PROJEKT: {name} · {tags} tagů · …" (v libovolném jazyce) */
   const m = t.match(/^[^:\n]{2,20}:\s*(.+?)\s+·\s+\d+\s/m);
   if (m && !sink.meta.name) sink.meta.name = m[1];
-  return { fmt: tr("README generátoru PLC Studio") };
+  return { fmt: tr("README generátoru PLCdesk") };
 }
 
 /* ========================================================= extrakce: rozcestník */
@@ -1170,7 +1170,7 @@ export function extractFiles(files: InputFile[]): Extracted {
       else if (/plcopen\.org\/xml\/tc6|<project[\s>][\s\S]*<types>/.test(t)) r = exPLCopen(f, t, sink);
       else if (/<SW\.(Blocks|Types|TechnologicalObjects)\./.test(t)) r = exSimaticBlock(f, t, sink);
       else if (/\.sdf$/i.test(f.name)) r = exSdf(f, t, sink);
-      else if (/^README/i.test(f.name) && /PLC Studio/.test(t)) r = exReadme(t, sink);
+      else if (/^README/i.test(f.name) && /PLCdesk|PLC Studio/.test(t)) r = exReadme(t, sink);
       else if (/^\s*(FUNCTION_BLOCK|PROGRAM|FUNCTION|ORGANIZATION_BLOCK|DATA_BLOCK)\s+\S/m.test(t) || /^\s*VAR_GLOBAL\b/m.test(t)) r = exSTSource(f, t, sink);
       else if ((t.match(/:=[^;\n]*;/g) || []).length >= 3 && !/^\s*</.test(t)) r = exSTRoutine(f, t, sink);
       else r = exTable(f, t, sink);

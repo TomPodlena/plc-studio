@@ -1,0 +1,17 @@
+<section class="page-head">
+  <div class="wrap split split-top">
+    <div>
+      <p class="eyebrow">{{page.eyebrow}}</p>
+      <h1>{{page.h1}}</h1>
+      <p class="lead">{{page.lead}}</p>
+      <dl class="spec">
+        <div class="spec-row"><dt>{{page.mail_label}}</dt><dd><a href="mailto:{{site.email}}">{{site.email}}</a></dd></div>
+        <div class="spec-row"><dt>{{page.company_title}}</dt><dd>{{page.company}}</dd></div>
+      </dl>
+    </div>
+    <div class="box">
+      <h2>{{page.topics_title}}</h2>
+      <ul class="ticks">{{page.topics|li}}</ul>
+    </div>
+  </div>
+</section>

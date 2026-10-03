@@ -1,4 +1,4 @@
-"""Spuštění PLC Studia:  ``python -m plc_studio``  (z adresáře apps/desktop).
+"""Spuštění PLCdesk:  ``python -m plc_studio``  (z adresáře apps/desktop).
 
 ``--smoke`` projde všechny kroky nad ukázkami i prázdným projektem a skončí
 (kontrola, že se každý krok vykreslí); ``--shots SLOŽKA`` k tomu uloží snímky.
@@ -86,6 +86,8 @@ def _smoke(app: App, shots: Path | None) -> int:
             scen = range(3) if app.prj["program"]["seq"] else [0]
             return [("_0", {"prog_tab": 0}), ("_1", {"prog_tab": 1})] + [
                 (f"_2{t}", {"prog_tab": 2, "sim_tab": t}) for t in scen]
+        if step == 10 and app.prj["devices"]:             # Bezpečnost: funkce, nebezpečí, … výkres
+            return [(f"_{t}", {"safety": {"tab": t}}) for t in range(5)]
         return [("", {})]
 
     def walk(label: str) -> None:
@@ -135,7 +137,7 @@ def _smoke(app: App, shots: Path | None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="plc_studio", description="PLC Studio — desktop")
+    ap = argparse.ArgumentParser(prog="plc_studio", description="PLCdesk — desktop")
     ap.add_argument("project", nargs="?", help="soubor projektu (.plcstudio.json) k otevření")
     ap.add_argument("--smoke", action="store_true", help="projít všechny kroky a skončit")
     ap.add_argument("--shots", metavar="SLOŽKA", help="při --smoke uložit snímky kroků")
@@ -151,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         app = App(root)
     except BridgeError as exc:
         root.withdraw()
-        messagebox.showerror(_("PLC Studio nejde spustit"), str(exc))
+        messagebox.showerror(_("PLCdesk nejde spustit"), str(exc))
         return 2
     if args.smoke:
         return _smoke(app, Path(args.shots) if args.shots else None)

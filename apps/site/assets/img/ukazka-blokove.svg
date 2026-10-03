@@ -1,0 +1,149 @@
+<svg role="img" aria-label="Blokové schéma: zařízení, moduly PLC a signálové cesty" viewBox="0 0 980 1000" style="max-width:100%;height:auto" width="980" xmlns="http://www.w3.org/2000/svg"><rect x="340" y="46" width="300" height="322" rx="8" fill="none" stroke="var(--accent, #00707e)" stroke-width="1.5"/><text x="350" y="38" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:700;fill:var(--accent, #00707e)">PLC</text><text x="640" y="38" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)" text-anchor="end">zdroje signálů →  PLC  → akční členy</text><g><rect x="352" y="56" width="276" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="360" y="70" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">PS — zdroj 24 V DC</text><text x="360" y="83" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">napájení modulů a snímačů</text></g><g><rect x="352" y="100" width="276" height="34" rx="5" fill="var(--chip, #eee)" stroke="var(--accent, #00707e)"/><text x="360" y="114" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">CPU</text><text x="360" y="127" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">S7-1200 / S7-1500</text></g><g data-mod="0"><title>DI1 — digitální vstupy
+X1:1  M1_fbkRunning  %I0.0
+X1:2  M1_fault  %I0.1
+X1:3  M2_fbkRunning  %I0.2
+X1:4  M2_fault  %I0.3
+X1:5  M4_fbkRunning  %I0.4
+X1:6  M4_fault  %I0.5
+X1:7  Y1_fbkOpen  %I0.6
+X1:8  Y1_fbkClosed  %I0.7
+X1:9  Y2_fbkOpen  %I1.0
+X1:10  Y2_fbkClosed  %I1.1
+X1:11  Y3_fbkOpen  %I1.2
+X1:12  Y3_fbkClosed  %I1.3
+X1:13  Y4_fbkOpen  %I1.4
+X1:14  Y4_fbkClosed  %I1.5
+X1:15  Y5_fbkOpen  %I1.6
+X1:16  S1_in  %I1.7</title><rect x="352" y="144" width="276" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="360" y="158" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">DI1 — digitální vstupy</text><text x="360" y="171" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">16 kanálů · svorkovnice X1</text></g><g data-mod="1"><title>DI2 — digitální vstupy
+X2:1  S2_in  %I2.0
+X2:2  S3_in  %I2.1
+X2:3  S4_in  %I2.2
+X2:4  S5_in  %I2.3
+X2:5  S6_in  %I2.4
+X2:6  S7_in  %I2.5
+X2:7  S8_in  %I2.6</title><rect x="352" y="188" width="276" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="360" y="202" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">DI2 — digitální vstupy</text><text x="360" y="215" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">7 kanálů · svorkovnice X2</text></g><g data-mod="2"><title>DO1 — digitální výstupy
+X3:1  M1_outRun  %Q0.0
+X3:2  M2_outRun  %Q0.1
+X3:3  M3_outRun  %Q0.2
+X3:4  M4_outRun  %Q0.3
+X3:5  Y1_outOpen  %Q0.4
+X3:6  Y2_outOpen  %Q0.5
+X3:7  Y3_outOpen  %Q0.6
+X3:8  Y4_outOpen  %Q0.7
+X3:9  Y5_outOpen  %Q1.0
+X3:10  Y6_outOpen  %Q1.1
+X3:11  H1_out  %Q1.2
+X3:12  H2_out  %Q1.3
+X3:13  H3_out  %Q1.4
+X3:14  H4_out  %Q1.5</title><rect x="352" y="232" width="276" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="360" y="246" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">DO1 — digitální výstupy</text><text x="360" y="259" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">14 kanálů · svorkovnice X3</text></g><g data-mod="3"><title>AI1 — analogové vstupy
+X4:1  B1_raw  %IW64
+X4:2  B2_raw  %IW66
+X4:3  B3_raw  %IW68
+X4:4  B4_raw  %IW70
+X4:5  B5_raw  %IW72</title><rect x="352" y="276" width="276" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="360" y="290" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">AI1 — analogové vstupy</text><text x="360" y="303" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">5 kanálů · svorkovnice X4</text></g><g data-mod="4"><title>AO1 — analogové výstupy
+X5:1  U1_raw  %QW64
+X5:2  U2_raw  %QW66</title><rect x="352" y="320" width="276" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="360" y="334" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">AO1 — analogové výstupy</text><text x="360" y="347" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">2 kanálů · svorkovnice X5</text></g><g data-dev="1" data-side="in"><title>M1 — Vstupní pásový dopravník
+Motor / čerpadlo
+DI  M1_fbkRunning  %I0.0
+DI  M1_fault  %I0.1
+DO  M1_outRun  %Q0.0</title><rect x="20" y="56" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="70" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">M1</text><text x="28" y="83" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Vstupní pásový dopravník</text></g><g data-dev="2" data-side="in"><title>M2 — Výstupní pásový dopravník
+Motor / čerpadlo
+DI  M2_fbkRunning  %I0.2
+DI  M2_fault  %I0.3
+DO  M2_outRun  %Q0.1</title><rect x="20" y="100" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="114" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">M2</text><text x="28" y="127" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Výstupní pásový dopravník</text></g><g data-dev="4" data-side="in"><title>M4 — Čerpadlo hydraulického agregátu
+Motor / čerpadlo
+DI  M4_fbkRunning  %I0.4
+DI  M4_fault  %I0.5
+DO  M4_outRun  %Q0.3</title><rect x="20" y="144" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="158" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">M4</text><text x="28" y="171" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Čerpadlo hydraulického agregátu</text></g><g data-dev="5" data-side="in"><title>Y1 — Lisovací válec
+Ventil / válec
+DI  Y1_fbkOpen  %I0.6
+DI  Y1_fbkClosed  %I0.7
+DO  Y1_outOpen  %Q0.4</title><rect x="20" y="188" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="202" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">Y1</text><text x="28" y="215" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Lisovací válec</text></g><g data-dev="6" data-side="in"><title>Y2 — Upínací válec levý
+Ventil / válec
+DI  Y2_fbkOpen  %I1.0
+DI  Y2_fbkClosed  %I1.1
+DO  Y2_outOpen  %Q0.5</title><rect x="20" y="232" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="246" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">Y2</text><text x="28" y="259" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Upínací válec levý</text></g><g data-dev="7" data-side="in"><title>Y3 — Upínací válec pravý
+Ventil / válec
+DI  Y3_fbkOpen  %I1.2
+DI  Y3_fbkClosed  %I1.3
+DO  Y3_outOpen  %Q0.6</title><rect x="20" y="276" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="290" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">Y3</text><text x="28" y="303" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Upínací válec pravý</text></g><g data-dev="8" data-side="in"><title>Y4 — Manipulátor — přesuv do lisu
+Ventil / válec
+DI  Y4_fbkOpen  %I1.4
+DI  Y4_fbkClosed  %I1.5
+DO  Y4_outOpen  %Q0.7</title><rect x="20" y="320" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="334" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">Y4</text><text x="28" y="347" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Manipulátor — přesuv do lisu</text></g><g data-dev="9" data-side="in"><title>Y5 — Vakuová přísavka manipulátoru
+Ventil / válec
+DI  Y5_fbkOpen  %I1.6
+DO  Y5_outOpen  %Q1.0</title><rect x="20" y="364" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="378" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">Y5</text><text x="28" y="391" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Vakuová přísavka manipulátoru</text></g><g data-dev="11" data-side="in"><title>B1 — Tlak hydrauliky
+Analogový vstup
+AI  B1_raw  %IW64</title><rect x="20" y="408" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="422" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">B1</text><text x="28" y="435" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Tlak hydrauliky</text></g><g data-dev="12" data-side="in"><title>B2 — Teplota oleje
+Analogový vstup
+AI  B2_raw  %IW66</title><rect x="20" y="452" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="466" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">B2</text><text x="28" y="479" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Teplota oleje</text></g><g data-dev="13" data-side="in"><title>B3 — Lisovací síla (tenzometr)
+Analogový vstup
+AI  B3_raw  %IW68</title><rect x="20" y="496" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="510" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">B3</text><text x="28" y="523" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Lisovací síla (tenzometr)</text></g><g data-dev="14" data-side="in"><title>B4 — Poloha lisu (lineární snímač)
+Analogový vstup
+AI  B4_raw  %IW70</title><rect x="20" y="540" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="554" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">B4</text><text x="28" y="567" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Poloha lisu (lineární snímač)</text></g><g data-dev="15" data-side="in"><title>B5 — Průtok chlazení
+Analogový vstup
+AI  B5_raw  %IW72</title><rect x="20" y="584" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="598" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">B5</text><text x="28" y="611" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Průtok chlazení</text></g><g data-dev="18" data-side="in"><title>S1 — Nouzové zastavení (NC)
+Digitální vstup (snímač)
+DI  S1_in  %I1.7</title><rect x="20" y="628" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="642" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">S1</text><text x="28" y="655" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Nouzové zastavení (NC)</text></g><g data-dev="19" data-side="in"><title>S2 — Kryt levý zavřen (NC)
+Digitální vstup (snímač)
+DI  S2_in  %I2.0</title><rect x="20" y="672" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="686" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">S2</text><text x="28" y="699" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Kryt levý zavřen (NC)</text></g><g data-dev="20" data-side="in"><title>S3 — Kryt pravý zavřen (NC)
+Digitální vstup (snímač)
+DI  S3_in  %I2.1</title><rect x="20" y="716" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="730" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">S3</text><text x="28" y="743" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Kryt pravý zavřen (NC)</text></g><g data-dev="21" data-side="in"><title>S4 — Světelná závora volná
+Digitální vstup (snímač)
+DI  S4_in  %I2.2</title><rect x="20" y="760" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="774" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">S4</text><text x="28" y="787" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Světelná závora volná</text></g><g data-dev="22" data-side="in"><title>S5 — Dvouruční spouštění — tlačítko A
+Digitální vstup (snímač)
+DI  S5_in  %I2.3</title><rect x="20" y="804" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="818" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">S5</text><text x="28" y="831" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Dvouruční spouštění — tlačítko A</text></g><g data-dev="23" data-side="in"><title>S6 — Dvouruční spouštění — tlačítko B
+Digitální vstup (snímač)
+DI  S6_in  %I2.4</title><rect x="20" y="848" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="862" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">S6</text><text x="28" y="875" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Dvouruční spouštění — tlačítko B</text></g><g data-dev="24" data-side="in"><title>S7 — Díl v pozici pod manipulátorem
+Digitální vstup (snímač)
+DI  S7_in  %I2.5</title><rect x="20" y="892" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="906" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">S7</text><text x="28" y="919" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Díl v pozici pod manipulátorem</text></g><g data-dev="25" data-side="in"><title>S8 — Zásobník dílů prázdný
+Digitální vstup (snímač)
+DI  S8_in  %I2.6</title><rect x="20" y="936" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="28" y="950" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">S8</text><text x="28" y="963" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Zásobník dílů prázdný</text></g><g data-dev="1" data-side="out"><title>M1 — Vstupní pásový dopravník
+Motor / čerpadlo
+DI  M1_fbkRunning  %I0.0
+DI  M1_fault  %I0.1
+DO  M1_outRun  %Q0.0</title><rect x="710" y="56" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="70" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">M1</text><text x="718" y="83" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Vstupní pásový dopravník</text></g><g data-dev="2" data-side="out"><title>M2 — Výstupní pásový dopravník
+Motor / čerpadlo
+DI  M2_fbkRunning  %I0.2
+DI  M2_fault  %I0.3
+DO  M2_outRun  %Q0.1</title><rect x="710" y="100" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="114" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">M2</text><text x="718" y="127" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Výstupní pásový dopravník</text></g><g data-dev="3" data-side="out"><title>M3 — Vibrační podavač dílů
+Motor / čerpadlo
+DO  M3_outRun  %Q0.2</title><rect x="710" y="144" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="158" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">M3</text><text x="718" y="171" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Vibrační podavač dílů</text></g><g data-dev="4" data-side="out"><title>M4 — Čerpadlo hydraulického agregátu
+Motor / čerpadlo
+DI  M4_fbkRunning  %I0.4
+DI  M4_fault  %I0.5
+DO  M4_outRun  %Q0.3</title><rect x="710" y="188" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="202" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">M4</text><text x="718" y="215" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Čerpadlo hydraulického agregátu</text></g><g data-dev="5" data-side="out"><title>Y1 — Lisovací válec
+Ventil / válec
+DI  Y1_fbkOpen  %I0.6
+DI  Y1_fbkClosed  %I0.7
+DO  Y1_outOpen  %Q0.4</title><rect x="710" y="232" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="246" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">Y1</text><text x="718" y="259" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Lisovací válec</text></g><g data-dev="6" data-side="out"><title>Y2 — Upínací válec levý
+Ventil / válec
+DI  Y2_fbkOpen  %I1.0
+DI  Y2_fbkClosed  %I1.1
+DO  Y2_outOpen  %Q0.5</title><rect x="710" y="276" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="290" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">Y2</text><text x="718" y="303" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Upínací válec levý</text></g><g data-dev="7" data-side="out"><title>Y3 — Upínací válec pravý
+Ventil / válec
+DI  Y3_fbkOpen  %I1.2
+DI  Y3_fbkClosed  %I1.3
+DO  Y3_outOpen  %Q0.6</title><rect x="710" y="320" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="334" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">Y3</text><text x="718" y="347" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Upínací válec pravý</text></g><g data-dev="8" data-side="out"><title>Y4 — Manipulátor — přesuv do lisu
+Ventil / válec
+DI  Y4_fbkOpen  %I1.4
+DI  Y4_fbkClosed  %I1.5
+DO  Y4_outOpen  %Q0.7</title><rect x="710" y="364" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="378" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">Y4</text><text x="718" y="391" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Manipulátor — přesuv do lisu</text></g><g data-dev="9" data-side="out"><title>Y5 — Vakuová přísavka manipulátoru
+Ventil / válec
+DI  Y5_fbkOpen  %I1.6
+DO  Y5_outOpen  %Q1.0</title><rect x="710" y="408" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="422" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">Y5</text><text x="718" y="435" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Vakuová přísavka manipulátoru</text></g><g data-dev="10" data-side="out"><title>Y6 — Značicí jednotka (razicí válec)
+Ventil / válec
+DO  Y6_outOpen  %Q1.1</title><rect x="710" y="452" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="466" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">Y6</text><text x="718" y="479" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Značicí jednotka (razicí válec)</text></g><g data-dev="16" data-side="out"><title>U1 — Proporcionální ventil tlaku
+Analogový výstup
+AO  U1_raw  %QW64</title><rect x="710" y="496" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="510" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">U1</text><text x="718" y="523" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Proporcionální ventil tlaku</text></g><g data-dev="17" data-side="out"><title>U2 — Žádaná rychlost dopravníku M2
+Analogový výstup
+AO  U2_raw  %QW66</title><rect x="710" y="540" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="554" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">U2</text><text x="718" y="567" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Žádaná rychlost dopravníku M2</text></g><g data-dev="26" data-side="out"><title>H1 — Maják zelená — chod
+Digitální výstup (signálka…)
+DO  H1_out  %Q1.2</title><rect x="710" y="584" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="598" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">H1</text><text x="718" y="611" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Maják zelená — chod</text></g><g data-dev="27" data-side="out"><title>H2 — Maják červená — porucha
+Digitální výstup (signálka…)
+DO  H2_out  %Q1.3</title><rect x="710" y="628" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="642" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">H2</text><text x="718" y="655" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Maják červená — porucha</text></g><g data-dev="28" data-side="out"><title>H3 — Houkačka — start cyklu
+Digitální výstup (signálka…)
+DO  H3_out  %Q1.4</title><rect x="710" y="672" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="686" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">H3</text><text x="718" y="699" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Houkačka — start cyklu</text></g><g data-dev="29" data-side="out"><title>H4 — Elektromagnetický zámek krytů
+Digitální výstup (signálka…)
+DO  H4_out  %Q1.5</title><rect x="710" y="716" width="250" height="34" rx="5" fill="none" stroke="var(--line, #999)"/><text x="718" y="730" style="font-family:ui-monospace,monospace;font-size:12px;fill:currentColor;font-weight:600">H4</text><text x="718" y="743" style="font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)">Elektromagnetický zámek krytů</text></g><line data-io="1:fbkRunning" data-dev="1" data-mod="0" x1="270" y1="73" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="1:fault" data-dev="1" data-mod="0" x1="270" y1="73" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="1:outRun" data-dev="1" data-mod="2" x1="628" y1="249" x2="710" y2="73" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="2:fbkRunning" data-dev="2" data-mod="0" x1="270" y1="117" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="2:fault" data-dev="2" data-mod="0" x1="270" y1="117" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="2:outRun" data-dev="2" data-mod="2" x1="628" y1="249" x2="710" y2="117" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="3:outRun" data-dev="3" data-mod="2" x1="628" y1="249" x2="710" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="4:fbkRunning" data-dev="4" data-mod="0" x1="270" y1="161" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="4:fault" data-dev="4" data-mod="0" x1="270" y1="161" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="4:outRun" data-dev="4" data-mod="2" x1="628" y1="249" x2="710" y2="205" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="5:fbkOpen" data-dev="5" data-mod="0" x1="270" y1="205" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="5:fbkClosed" data-dev="5" data-mod="0" x1="270" y1="205" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="5:outOpen" data-dev="5" data-mod="2" x1="628" y1="249" x2="710" y2="249" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="6:fbkOpen" data-dev="6" data-mod="0" x1="270" y1="249" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="6:fbkClosed" data-dev="6" data-mod="0" x1="270" y1="249" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="6:outOpen" data-dev="6" data-mod="2" x1="628" y1="249" x2="710" y2="293" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="7:fbkOpen" data-dev="7" data-mod="0" x1="270" y1="293" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="7:fbkClosed" data-dev="7" data-mod="0" x1="270" y1="293" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="7:outOpen" data-dev="7" data-mod="2" x1="628" y1="249" x2="710" y2="337" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="8:fbkOpen" data-dev="8" data-mod="0" x1="270" y1="337" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="8:fbkClosed" data-dev="8" data-mod="0" x1="270" y1="337" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="8:outOpen" data-dev="8" data-mod="2" x1="628" y1="249" x2="710" y2="381" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="9:fbkOpen" data-dev="9" data-mod="0" x1="270" y1="381" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="9:outOpen" data-dev="9" data-mod="2" x1="628" y1="249" x2="710" y2="425" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="10:outOpen" data-dev="10" data-mod="2" x1="628" y1="249" x2="710" y2="469" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="11:raw" data-dev="11" data-mod="3" x1="270" y1="425" x2="352" y2="293" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="12:raw" data-dev="12" data-mod="3" x1="270" y1="469" x2="352" y2="293" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="13:raw" data-dev="13" data-mod="3" x1="270" y1="513" x2="352" y2="293" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="14:raw" data-dev="14" data-mod="3" x1="270" y1="557" x2="352" y2="293" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="15:raw" data-dev="15" data-mod="3" x1="270" y1="601" x2="352" y2="293" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="16:raw" data-dev="16" data-mod="4" x1="628" y1="337" x2="710" y2="513" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="17:raw" data-dev="17" data-mod="4" x1="628" y1="337" x2="710" y2="557" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="18:in" data-dev="18" data-mod="0" x1="270" y1="645" x2="352" y2="161" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="19:in" data-dev="19" data-mod="1" x1="270" y1="689" x2="352" y2="205" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="20:in" data-dev="20" data-mod="1" x1="270" y1="733" x2="352" y2="205" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="21:in" data-dev="21" data-mod="1" x1="270" y1="777" x2="352" y2="205" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="22:in" data-dev="22" data-mod="1" x1="270" y1="821" x2="352" y2="205" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="23:in" data-dev="23" data-mod="1" x1="270" y1="865" x2="352" y2="205" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="24:in" data-dev="24" data-mod="1" x1="270" y1="909" x2="352" y2="205" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="25:in" data-dev="25" data-mod="1" x1="270" y1="953" x2="352" y2="205" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="26:out" data-dev="26" data-mod="2" x1="628" y1="249" x2="710" y2="601" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="27:out" data-dev="27" data-mod="2" x1="628" y1="249" x2="710" y2="645" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="28:out" data-dev="28" data-mod="2" x1="628" y1="249" x2="710" y2="689" stroke="var(--muted, #777)" stroke-width="1"/><line data-io="29:out" data-dev="29" data-mod="2" x1="628" y1="249" x2="710" y2="733" stroke="var(--muted, #777)" stroke-width="1"/></svg>

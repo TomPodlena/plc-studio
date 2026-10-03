@@ -1,5 +1,5 @@
 /**
- * PLC Studio — simulace procesu a ověření programu.
+ * PLCdesk — simulace procesu a ověření programu.
  *
  * Simulátor provádí scan po scanu STEJNOU logiku, jakou generuje codegen.ts
  * (šablony FB_Motor / FB_Ventil, sekvence CASE, porucha stroje a kvitace;

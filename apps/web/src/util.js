@@ -1,6 +1,7 @@
 /* Drobné UI utility. */
 import { tr, blankProject, CLS, PLAT } from "../../../packages/core/dist/index.js";
 import { aiNorm } from "./ai.js";
+import { normSafety } from "./safety_view.js";
 
 const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
 /**
@@ -54,6 +55,27 @@ export function normProject(raw) {
     }
     p.bom = b;
   }
+  /* schválení položek a výsledky oživení: jen záznamy v platném tvaru (jinak by shodily kroky 11–13) */
+  const str = v => typeof v === "string";
+  if (isObj(raw.approvals)) {
+    const a = {};
+    for (const [k, r] of Object.entries(raw.approvals)) {
+      if (!isObj(r) || !["approved", "rejected", "proposed"].includes(r.state) || !str(r.by) || !r.by.trim() || !str(r.at) || !str(r.hash)) continue;
+      a[k] = { state: r.state, by: r.by, at: r.at, hash: r.hash, ...(str(r.note) && r.note ? { note: r.note } : {}) };
+    }
+    if (Object.keys(a).length) p.approvals = a;
+  }
+  if (isObj(raw.commissioning)) {
+    const c = {};
+    for (const [k, r] of Object.entries(raw.commissioning)) {
+      if (!isObj(r) || !["ok", "nok", "na"].includes(r.result) || !str(r.by) || !r.by.trim() || !str(r.at)) continue;
+      c[k] = { result: r.result, by: r.by, at: r.at, ...(str(r.note) && r.note ? { note: r.note } : {}), ...(str(r.measured) && r.measured ? { measured: r.measured } : {}) };
+    }
+    if (Object.keys(c).length) p.commissioning = c;
+  }
+  /* bezpečnostní data (úpravy návrhu funkcí, parametry výpočtu) */
+  const sf = normSafety(raw.safety);
+  if (sf) p.safety = sf;
   p.nextId = Math.max(Number.isFinite(raw.nextId) ? raw.nextId : 1, ...p.devices.map(d => d.id + 1));
   return p;
 }

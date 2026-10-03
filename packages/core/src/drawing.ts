@@ -1,5 +1,5 @@
 /**
- * PLC Studio — výkresy: jedna geometrie (ops) renderovaná do SVG (náhled)
+ * PLCdesk — výkresy: jedna geometrie (ops) renderovaná do SVG (náhled)
  * i DXF R12 (EPLAN / AutoCAD / LibreCAD).
  * Konvence: rámeček s mřížkovými referencemi, popisové pole, značení -M1
  * (IEC 81346), čísla vodičů -W1xx, NC/NO kontakty (IEC 60617).
@@ -60,7 +60,7 @@ export function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number
   Tx(tx + 7, ty + 10, trx("Projekt"), { k: "m", size: 8 }); Tx(tx + 7, ty + 22, (pname || "—").slice(0, 32), { k: "b", size: 9 });
   Tx(tx + 187, ty + 10, trx("Výkres"), { k: "m", size: 8 }); Tx(tx + 187, ty + 22, trx("Zapojení {mod}", { mod: mod.dir + mod.idx }) + " · X" + xnum, { size: 9 });
   Tx(tx + 337, ty + 10, trx("List"), { k: "m", size: 8 }); Tx(tx + 337, ty + 22, page + " / " + total, { size: 9 });
-  Tx(tx + 7, ty + 36, trx("Kreslil"), { k: "m", size: 8 }); Tx(tx + 7, ty + 48, trx("PLC Studio (návrh k revizi)"), { size: 9 });
+  Tx(tx + 7, ty + 36, trx("Kreslil"), { k: "m", size: 8 }); Tx(tx + 7, ty + 48, trx("PLCdesk (návrh k revizi)"), { size: 9 });
   Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 }); Tx(tx + 187, ty + 48, date, { size: 9 });
   Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 }); Tx(tx + 337, ty + 48, "0.1", { size: 9 });
 
@@ -169,6 +169,108 @@ export function sheetDXF(prj: Project, mod: IoModule, xnum: number, page?: numbe
   const tot = total ?? modules(prj).length;
   return opsToDXF(sheetOps(prj, mod, xnum, page ?? xnum, tot, meta));
 }
+
+/* ------------------------------------------------- bezpečnostní okruh */
+
+/**
+ * Výkres bezpečnostního okruhu (návrh): vstupní prvky bezpečnostních funkcí vlevo, bezpečnostní
+ * logika uprostřed, výstupní skupiny (stykače s EDM, STO, ventily) vpravo. Texty dodává volající
+ * už přeložené přes `trx` (latinka — stejná geometrie jde do DXF). Odkazy `io` = tag signálu.
+ */
+export interface CircuitSheet {
+  title: string; projectName: string; date?: string; logic: string; note: string;
+  inputs: Array<{ sf: string; dev: string; label: string; tags: string[]; kind: "nc2" | "ossd" | "twohand" | "single" }>;
+  outputs: Array<{ id: string; label: string; tags: string[]; fbk: string[]; kind: "contactors" | "sto" | "valve" | "other" }>;
+  reset: string | null;
+}
+
+export function circuitSheetOps(s: CircuitSheet): SheetOps {
+  const rh = 54, top = 92;
+  const rowsL = s.inputs.length + (s.reset ? 1 : 0), rowsR = s.outputs.length;
+  const rows = Math.max(rowsL, rowsR, 2);
+  const W = 980, H = top + rows * rh + 120;
+  const O: Op[] = [];
+  let cur: string | undefined;
+  const ref = (): Ref => cur ? { io: cur } : {};
+  const Ln = (x1: number, y1: number, x2: number, y2: number, k?: string) => O.push({ t: "l", x1, y1, x2, y2, k: k || "w", ...ref() });
+  const Ci = (cx: number, cy: number, r: number) => O.push({ t: "c", cx, cy, r, ...ref() });
+  const Re = (x: number, y: number, w: number, h: number, k?: string) => O.push({ t: "r", x, y, w, h, k: k || "s", ...ref() });
+  const Tx = (x: number, y: number, t: unknown, o?: Partial<{ size: number; anchor: string; k: string }>) =>
+    O.push(Object.assign({ t: "t" as const, x, y, s: String(t), size: 11, anchor: "start", k: "t" }, o || {}, ref()));
+  /* rámeček a popisové pole */
+  Re(8, 8, W - 16, H - 16, "f"); Re(26, 26, W - 52, H - 52, "f");
+  for (let i = 1; i < 8; i++) { const x = 26 + (W - 52) / 8 * i; Ln(x, 8, x, 26, "f"); Ln(x, H - 26, x, H - 8, "f"); }
+  for (let i = 0; i < 8; i++) Tx(26 + (W - 52) / 8 * (i + 0.5), 20, i + 1, { anchor: "middle", k: "m", size: 9 });
+  const tx = W - 26 - 420, ty = H - 26 - 52;
+  Re(tx, ty, 420, 52, "f"); Ln(tx, ty + 26, tx + 420, ty + 26, "f"); Ln(tx + 180, ty, tx + 180, ty + 52, "f"); Ln(tx + 330, ty, tx + 330, ty + 52, "f");
+  Tx(tx + 7, ty + 10, trx("Projekt"), { k: "m", size: 8 }); Tx(tx + 7, ty + 22, (s.projectName || "—").slice(0, 32), { k: "b", size: 9 });
+  Tx(tx + 187, ty + 10, trx("Výkres"), { k: "m", size: 8 }); Tx(tx + 187, ty + 22, s.title.slice(0, 26), { size: 9 });
+  Tx(tx + 337, ty + 10, trx("List"), { k: "m", size: 8 }); Tx(tx + 337, ty + 22, "1 / 1", { size: 9 });
+  Tx(tx + 7, ty + 36, trx("Kreslil"), { k: "m", size: 8 }); Tx(tx + 7, ty + 48, trx("PLCdesk (návrh k revizi)"), { size: 9 });
+  Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 }); Tx(tx + 187, ty + 48, s.date || todayCz(), { size: 9 });
+  Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 }); Tx(tx + 337, ty + 48, "0.1", { size: 9 });
+  Tx(40, 52, s.title, { k: "b", size: 12 });
+  Tx(40, 68, s.note.slice(0, 130), { k: "m", size: 9 });
+  /* logika */
+  const lx = 430, lw = 150, ly = top - 14, lh = rows * rh + 4;
+  Re(lx, ly, lw, lh, "chip");
+  Tx(lx + lw / 2, ly - 6, s.logic.slice(0, 30), { anchor: "middle", k: "b", size: 10 });
+  /* vstupy */
+  const contact = (x: number, y: number, nc: boolean) => { Ln(x, y, x + 22, y - 12, "s"); if (nc) Ln(x + 22, y, x + 22, y - 10, "s"); };
+  let r = 0;
+  for (const i of s.inputs) {
+    const y = top + r * rh + 10;
+    cur = i.tags[0];
+    Tx(40, y - 16, i.sf + "  -" + i.dev, { k: "b", size: 10 }); Tx(40, y + 22, i.label.slice(0, 40), { k: "m", size: 9 });
+    if (i.kind === "ossd") {
+      Re(150, y - 10, 70, 30); Tx(185, y + 9, "OSSD", { anchor: "middle", size: 9 });
+      Ln(220, y - 2, lx, y - 2); Ln(220, y + 12, lx, y + 12);
+    } else if (i.kind === "single") {
+      Ln(120, y, 160, y); contact(160, y, true); Ln(182, y, lx, y);
+    } else {
+      /* dva kanály: rozpínací (nc2) nebo spínací + rozpínací (twohand) */
+      Ln(120, y - 4, 160, y - 4); contact(160, y - 4, i.kind === "nc2"); Ln(182, y - 4, lx, y - 4);
+      Ln(120, y + 12, 160, y + 12); contact(160, y + 12, true); Ln(182, y + 12, lx, y + 12);
+    }
+    Tx(250, y - 7, i.tags[0] || "", { size: 9 }); if (i.tags[1]) Tx(250, y + 25, i.tags[1], { size: 9 });
+    Ci(lx - 4, y - 2, 2.5);
+    r++;
+  }
+  if (s.reset) {
+    const y = top + r * rh + 10;
+    cur = s.reset;
+    Tx(40, y - 16, "-S0R  RESET", { k: "b", size: 10 });
+    Ln(120, y, 160, y); contact(160, y, false); Ln(182, y, lx, y);
+    Tx(250, y - 7, s.reset, { size: 9 });
+  }
+  /* výstupy */
+  s.outputs.forEach((o, k) => {
+    const y = top + k * rh + 10;
+    cur = o.tags[0];
+    Ln(lx + lw, y - 2, 760, y - 2);
+    if (o.kind === "contactors") {
+      Re(760, y - 14, 26, 18); Re(800, y - 14, 26, 18);
+      Ln(786, y - 5, 800, y - 5);
+      Tx(773, y - 18, "K1", { anchor: "middle", k: "b", size: 9 }); Tx(813, y - 18, "K2", { anchor: "middle", k: "b", size: 9 });
+    } else if (o.kind === "sto") {
+      Re(760, y - 14, 70, 22); Tx(795, y + 1, "STO", { anchor: "middle", size: 9 });
+    } else {
+      Re(760, y - 14, 26, 18); Tx(773, y - 18, "Y", { anchor: "middle", k: "b", size: 9 });
+    }
+    Tx(lx + lw + 10, y - 8, o.tags.join(" / ").slice(0, 34), { size: 9 });
+    Tx(845, y - 2, o.id, { k: "b", size: 10 }); Tx(845, y + 12, o.label.slice(0, 18), { k: "m", size: 9 });
+    if (o.fbk.length) {
+      cur = o.fbk[0];
+      Ln(773, y + 4, 773, y + 18, "r0"); Ln(773, y + 18, lx + lw, y + 18, "r0");
+      Tx(lx + lw + 10, y + 30, "EDM: " + o.fbk.join(" + ").slice(0, 30), { k: "m", size: 9 });
+    }
+  });
+  cur = undefined;
+  Tx(40, top + rows * rh + 16, trx("Kontakty: šikmá páka s dorazem = NC, bez dorazu = NO. EDM = rozpínací zrcadlové kontakty zpět do logiky."), { k: "m", size: 9 });
+  return { W, H, O };
+}
+export function circuitSheetSVG(s: CircuitSheet): string { return opsToSVG(circuitSheetOps(s), s.title); }
+export function circuitSheetDXF(s: CircuitSheet): string { return opsToDXF(circuitSheetOps(s)); }
 
 /* ------------------------------------------------------- blokové schéma */
 

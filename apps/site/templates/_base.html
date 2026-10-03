@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="{{meta.lang}}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{BLOCK.title}}</title>
+<meta name="description" content="{{BLOCK.description}}">
+<link rel="canonical" href="{{BLOCK.canonical}}">
+{{BLOCK.robots}}
+{{BLOCK.hreflang}}
+<meta property="og:site_name" content="{{site.brand}}">
+<meta property="og:title" content="{{BLOCK.title}}">
+<meta property="og:description" content="{{BLOCK.description}}">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="{{meta.locale}}">
+<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body data-page="{{BLOCK.key}}">
+
+<a class="skip" href="#main">{{ui.skip}}</a>
+
+<header class="site-head">
+  <div class="wrap head-in">
+    <a class="brand" href="{{BLOCK.url_home}}">{{BLOCK.brand_logo}}</a>
+
+    <nav class="nav" id="nav" aria-label="{{ui.nav_label}}">
+      <div class="nav-links">
+        {{BLOCK.nav}}
+      </div>
+      <div class="nav-side">
+        <div class="langs" aria-label="{{ui.lang_label}}">
+        {{BLOCK.langswitch}}
+        </div>
+        <a class="btn btn-sm" href="{{BLOCK.url_stazeni}}">{{nav.cta}}</a>
+      </div>
+    </nav>
+
+    <button class="burger" type="button" aria-expanded="false" aria-controls="nav" aria-label="{{ui.menu}}">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+{{BODY}}
+</main>
+
+<footer class="site-foot">
+  <div class="wrap foot-in">
+    <div class="foot-brand">
+      <span class="brand">{{BLOCK.brand_logo}}</span>
+      <p>{{ui.foot_tag}}</p>
+    </div>
+    <div class="foot-col">
+      <h2>{{ui.foot_product}}</h2>
+      <a href="{{BLOCK.url_funkce}}">{{nav.funkce}}</a>
+      <a href="{{BLOCK.url_platformy}}">{{nav.platformy}}</a>
+      <a href="{{BLOCK.url_cenik}}">{{nav.cenik}}</a>
+      <a href="{{BLOCK.url_ukazka}}">{{nav.ukazka}}</a>
+      <a href="{{BLOCK.url_stazeni}}">{{nav.stazeni}}</a>
+    </div>
+    <div class="foot-col">
+      <h2>{{ui.foot_contact}}</h2>
+      <a href="{{BLOCK.url_kontakt}}">{{nav.kontakt}}</a>
+      <a href="mailto:{{site.email}}">{{site.email}}</a>
+    </div>
+    <div class="foot-col">
+      <h2>{{ui.foot_legal}}</h2>
+      <a href="{{BLOCK.url_podminky}}">{{nav.podminky}}</a>
+      <a href="{{BLOCK.url_soukromi}}">{{nav.soukromi}}</a>
+      <a href="{{BLOCK.url_cookies}}">{{nav.cookies}}</a>
+    </div>
+  </div>
+  <div class="wrap foot-bar">
+    <span>&copy; {{BLOCK.year}} {{site.brand}}</span>
+    <span>{{ui.made}}</span>
+  </div>
+</footer>
+
+<script>
+// Mobilni menu
+(function () {
+  var b = document.querySelector(".burger");
+  var n = document.querySelector(".nav");
+  if (!b || !n) return;
+  b.addEventListener("click", function () {
+    var open = b.getAttribute("aria-expanded") === "true";
+    b.setAttribute("aria-expanded", String(!open));
+    n.classList.toggle("is-open", !open);
+    document.body.classList.toggle("nav-open", !open);
+  });
+})();
+
+// Formular ke stazeni: JSON na /api/lead (stejny Worker, stejna domena).
+// Honeypot a cas vyplneni posilame serveru; ten bota tise "pusti" a nic neposle.
+(function () {
+  var f = document.querySelector("form[data-lead]");
+  if (!f) return;
+  var start = Date.now();
+  var msg = f.querySelector(".form-msg");
+  var T = f.dataset;
+  f.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!f.elements.consent.checked) { msg.className = "form-msg err"; msg.textContent = T.consent; f.elements.consent.focus(); return; }
+    var btn = f.querySelector("button[type=submit]");
+    var ts = f.querySelector("[name='cf-turnstile-response']");
+    btn.disabled = true;
+    msg.className = "form-msg";
+    msg.textContent = T.sending;
+    fetch("/api/lead", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: f.elements.email.value.trim(),
+        web: f.elements.web.value,
+        elapsed: Date.now() - start,
+        locale: f.elements.lang.value,
+        consent: f.elements.consent.checked,
+        turnstile: ts ? ts.value : "",
+        source: new URLSearchParams(location.search).get("utm_source")
+      })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; });
+    }).then(function (res) {
+      if (res.ok) {
+        msg.className = "form-msg ok";
+        if (res.d.download_url) {
+          msg.textContent = T.okDirect + " ";
+          var a = document.createElement("a");
+          a.href = res.d.download_url;
+          a.textContent = T.tokenCta;
+          msg.appendChild(a);
+        } else {
+          msg.textContent = T.ok;
+        }
+        f.reset();
+      } else {
+        msg.className = "form-msg err";
+        msg.textContent = res.d.error || T.err;
+      }
+    }).catch(function () {
+      msg.className = "form-msg err";
+      msg.textContent = T.net;
+    }).then(function () {
+      btn.disabled = false;
+      if (window.turnstile) window.turnstile.reset();
+    });
+  });
+})();
+
+// Odkaz z e-mailu: /stazeni/?t=<token> ukaze tlacitko ke stazeni
+(function () {
+  var box = document.querySelector("[data-token-box]");
+  if (!box) return;
+  var t = new URLSearchParams(location.search).get("t");
+  if (!t || !/^[A-Za-z0-9_-]{16,64}$/.test(t)) return;
+  box.querySelector("a").href = "/api/download?t=" + encodeURIComponent(t) + "&ch=portable";
+  box.hidden = false;
+})();
+</script>
+</body>
+</html>
