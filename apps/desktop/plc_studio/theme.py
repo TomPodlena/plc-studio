@@ -124,6 +124,10 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
                     bordercolor=PRIMARY, lightcolor=PRIMARY, darkcolor=PRIMARY,
                     font=FONT_ACCENT, padding=(6, 5))
     style.map("StepOn.TButton", background=[("active", PRIMARY)])
+    # štítek aktivního filtru (klik = zrušit)
+    style.configure("Chip.TButton", background=TREE_SEL, foreground=PRIMARY, bordercolor=BORDER,
+                    lightcolor=TREE_SEL, darkcolor=TREE_SEL, font=FONT_DIM, padding=(6, 1))
+    style.map("Chip.TButton", background=[("active", "#C6E0D1")])
 
     # Přepínače záložek (platforma / soubor) — Radiobutton ve stylu tlačítka.
     style.configure("Tab.Toolbutton", background=BTN, foreground=FG, padding=(10, 4),

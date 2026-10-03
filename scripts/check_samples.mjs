@@ -50,6 +50,11 @@ function codeProblems(plat, out, prj) {
     const und = [...new Set(body.match(/[A-Za-z_][A-Za-z0-9_]*/g))].filter(i => !kw.has(i) && !tags.has(i));
     if (und.length) errs.push(`unitronics/Machine.st: nedeklarované identifikátory ${und.slice(0, 5).join(", ")}`);
   }
+  if (plat === "rockwell") {
+    /* L5X well-formed, žádné konstrukce IEC, TONR s PRE před voláním, vše deklarované, ASCII */
+    for (const e of core.logixProblems(out)) errs.push(`rockwell/${e}`);
+    if (!/^0\.3$/m.test(out["Tags.csv"]) || /[^\x00-\x7F]/.test(out["Tags.csv"])) errs.push("rockwell/Tags.csv: hlavička nebo ASCII");
+  }
   /* každý tag I/O musí být v generovaném kódu deklarovaný (soubor s tagy) */
   const all = Object.values(out).join("\n");
   const missing = prj.io.filter(e => !all.includes(e.tag)).map(e => e.tag);

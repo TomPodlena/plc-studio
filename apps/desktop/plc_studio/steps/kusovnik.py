@@ -142,19 +142,109 @@ def render(app, parent) -> None:
                 lc.pop(edit_keys[key], None)       # prázdné = zpět na hodnotu z katalogu
         _changed(app)
 
-    tbl = Table(t_items, [("pos", "#", 36, False), ("tag", _("Označení"), 64, False),
-                       ("item", _("Položka"), 150, True), ("desc", _("Popis"), 160, True),
-                       ("qty", _("Ks"), 40, False), ("brand", _("Výrobce"), 110, True),
-                       ("type", _("Typ"), 220, True), ("code", _("Objednací kód"), 130, True),
-                       ("sup", _("Dodavatel"), 140, True)],
-                height=9, editable=tuple(k for k in edit_keys if k != "note"), on_edit=on_edit)
+    cols = [("pos", "#", 36, False), ("tag", _("Označení"), 64, False),
+            ("item", _("Položka"), 150, True), ("desc", _("Popis"), 160, True),
+            ("qty", _("Ks"), 40, False), ("brand", _("Výrobce"), 110, True),
+            ("type", _("Typ"), 220, True), ("code", _("Objednací kód"), 130, True),
+            ("sup", _("Dodavatel"), 140, True)]
+    titles = {k: t for k, t, *_ in cols}
+
+    def cells(ln: dict) -> tuple:
+        return (ln["pos"], ln["tag"], ln["item"] + (" ⚠" if ln.get("safety") else ""), ln["desc"],
+                ln["qty"], ln["brand"], ln["type"], ln["orderCode"], ln["supplier"])
+
+    # --- filtry a řazení (jen pohled; volby uživatele se nemění) ----------------------
+    filters: dict = ui.setdefault("filters", {})        # klíč sloupce → hledaný text
+    sort: list = ui.setdefault("sort", [])              # [klíč sloupce, sestupně]
+    fbar = ttk.Frame(t_items)
+    fbar.pack(fill="x", pady=(0, 6))
+    ttk.Label(fbar, text=_("Filtr:")).pack(side="left")
+    keys = [k for k, *_ in cols]
+    var_fcol = tk.StringVar(value=titles[ui.get("fcol", "brand")])
+    cb_fcol = ttk.Combobox(fbar, textvariable=var_fcol, values=[titles[k] for k in keys],
+                           state="readonly", width=max(len(titles[k]) for k in keys) + 2)
+    cb_fcol._var = var_fcol
+    cb_fcol.pack(side="left", padx=(6, 4))
+    var_ftext = tk.StringVar()
+    ent_f = ttk.Entry(fbar, textvariable=var_ftext, width=22)
+    ent_f._var = var_ftext
+    ent_f.pack(side="left")
+    chips = ttk.Frame(fbar)
+    shown = ttk.Label(fbar, text="", style="Dim.TLabel")
+
+    def add_filter(_e=None) -> None:
+        k = keys[max(cb_fcol.current(), 0)]
+        ui["fcol"] = k
+        text = var_ftext.get().strip()
+        if text:
+            filters[k] = text
+        else:
+            filters.pop(k, None)
+        var_ftext.set("")
+        refill()
+
+    def clear_filters() -> None:
+        filters.clear()
+        refill()
+
+    ttk.Button(fbar, text=_("Přidat filtr"), command=add_filter).pack(side="left", padx=(4, 0))
+    ent_f.bind("<Return>", add_filter)
+    chips.pack(side="left", padx=(10, 0))
+    shown.pack(side="right")
+
+    def value(ln: dict, k: str):
+        v = cells(ln)[keys.index(k)]
+        return v if isinstance(v, (int, float)) else str(v)
+
+    def visible() -> list[dict]:
+        out = [ln for ln in lines
+               if all(f.lower() in str(value(ln, k)).lower() for k, f in filters.items() if k in keys)]
+        if sort and sort[0] in keys:
+            k, desc = sort[0], bool(sort[1])
+            num = k in ("pos", "qty")
+            out.sort(key=lambda ln: (value(ln, k) if num else str(value(ln, k)).lower()), reverse=desc)
+        return out
+
+    def on_sort(k: str) -> None:
+        if sort and sort[0] == k:
+            if sort[1]:
+                sort.clear()                               # třetí klik = původní pořadí
+            else:
+                sort[1] = True
+        else:
+            sort[:] = [k, False]
+        refill()
+
+    tbl = Table(t_items, cols, height=7, editable=tuple(k for k in edit_keys if k != "note"),
+                on_edit=on_edit)
     tbl.pack(fill="both", expand=True)
     tbl.tv.tag_configure("safety", foreground="#B45309")
-    for ln in lines:
-        tbl.add(ln["id"], (ln["pos"], ln["tag"], ln["item"] + (" ⚠" if ln.get("safety") else ""),
-                           ln["desc"], ln["qty"], ln["brand"], ln["type"], ln["orderCode"],
-                           ln["supplier"]),
-                tags=("dim",) if ln.get("excluded") else ("safety",) if ln.get("safety") else ())
+    for k in keys:
+        tbl.tv.heading(k, command=lambda k=k: on_sort(k))
+
+    def refill() -> None:
+        for k in keys:                                     # šipka řazení v záhlaví
+            mark = (" ▼" if sort[1] else " ▲") if sort and sort[0] == k else ""
+            tbl.tv.heading(k, text=titles[k] + mark)
+        for w in chips.winfo_children():
+            w.destroy()
+        for k, f in filters.items():
+            if k in titles:
+                ttk.Button(chips, text=f"{titles[k]}: {f}  ✕", style="Chip.TButton",
+                           command=lambda k=k: (filters.pop(k, None), refill())).pack(side="left", padx=(0, 4))
+        if filters:
+            ttk.Button(chips, text=_("Zrušit filtry"), command=clear_filters).pack(side="left")
+        rows = visible()
+        sel = tbl.selected()
+        tbl.clear()
+        for ln in rows:
+            tbl.add(ln["id"], cells(ln),
+                    tags=("dim",) if ln.get("excluded") else ("safety",) if ln.get("safety") else ())
+        shown.configure(text=_("zobrazeno {n} z {m}", n=len(rows), m=len(lines)) if filters else "")
+        if sel and tbl.tv.exists(sel):
+            tbl.select(sel)
+
+    refill()
     wrap_label(t_items, _("Dvojklik na Ks, Typ, Objednací kód nebo Dodavatele = úprava řádku "
                        "(prázdná hodnota vrátí katalog). Výrobce a typ z katalogu a poznámku "
                        "změníš dole u vybraného řádku."), pady=(4, 0))

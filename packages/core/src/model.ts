@@ -288,13 +288,17 @@ export function dtFor(e: IoEntry): "BOOL" | "INT" {
 export function addrFor(plat: PlatformKey, e: IoEntry): string {
   const a = e.addr || "";
   if (plat === "siemens") return a;
-  if (plat === "beckhoff" || plat === "codesys" || plat === "schneider") {
+  /* TwinCAT: pevné adresy nedoporučuje — AT %I* / %Q* a nalinkování na kanály svorek */
+  if (plat === "beckhoff") return e.dir === "DI" || e.dir === "AI" ? "%I*" : "%Q*";
+  if (plat === "codesys" || plat === "schneider") {
     const m = a.match(/^%([IQ])(\d+)\.(\d+)$/);
-    return m ? "%" + m[1] + "X" + m[2] + "." + m[3] : a;
+    if (m) return "%" + m[1] + "X" + m[2] + "." + m[3];
+    const w = a.match(/^%([IQ])W(\d+)$/);         // Siemens bajt → CODESYS index slova (%IW64 → %IW32)
+    return w ? "%" + w[1] + "W" + (+w[2] >> 1) : a;
   }
   if (plat === "mitsubishi") {
     const m = a.match(/^%([IQ])(\d+)\.(\d+)$/);
-    if (m) return (m[1] === "I" ? "X" : "Y") + ((+m[2]) * 8 + (+m[3])).toString(16).toUpperCase();
+    if (m) return (m[1] === "I" ? "X" : "Y") + ((+m[2]) * 8 + (+m[3])).toString(8);   // FX5 (iQ-F): X/Y osmičkově
     return "";
   }
   return ""; // rockwell, omron, unitronics: symbolicky / alias tagy
@@ -343,9 +347,15 @@ const RESERVED = new Set([
 export function validateProject(prj: Project): ValidationIssue[] {
   const out: ValidationIssue[] = [];
   const names = new Map<string, number>();
-  for (const d of prj.devices) names.set(d.name, (names.get(d.name) || 0) + 1);
+  for (const d of prj.devices) names.set(d.name.toUpperCase(), (names.get(d.name.toUpperCase()) || 0) + 1);   // CODESYS nerozlišuje velikost
   for (const [n, c] of names) if (c > 1) out.push({ level: "error", where: n, msg: tr("Duplicitní označení zařízení.") });
   for (const d of prj.devices) {
+    /* z označení vznikají jména instancí a povelů (instM1, manRun_M1) na všech platformách */
+    if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(d.name))
+      out.push({ level: "error", where: d.name, msg: tr("Označení zařízení musí být identifikátor — písmena bez diakritiky, číslice a _, na začátku písmeno (např. M1, Y2_A). Používá se v názvech instancí v kódu.") });
+    /* Logix: jméno tagu max. 40 znaků, bez „__“ a bez „_“ na konci; nejdelší předpona je seqOpen_ / manOpen_ (8) */
+    else if (d.name.length > 32 || /__/.test(d.name) || /_$/.test(d.name))
+      out.push({ level: "error", where: d.name, msg: tr("Označení zařízení může mít nejvýš 32 znaků, bez „__“ a bez „_“ na konci — vznikají z něj jména jako seqOpen_<označení> a Rockwell Logix povoluje 40 znaků.") });
     if ((d.cls === "AnalogIn" || d.cls === "AnalogOut") && Number.isFinite(d.rmin) && Number.isFinite(d.rmax) && d.rmin >= d.rmax)
       out.push({ level: "error", where: d.name, msg: tr("Rozsah měření: minimum musí být menší než maximum.") });
     if (d.cls === "AnalogIn" && Number.isFinite(d.limLo) && Number.isFinite(d.limHi) && (d.limLo as number) >= (d.limHi as number))
@@ -354,18 +364,29 @@ export function validateProject(prj: Project): ValidationIssue[] {
       && ((d.setpoint as number) < d.rmin || (d.setpoint as number) > d.rmax))
       out.push({ level: "warn", where: d.name, msg: tr("Žádaná hodnota leží mimo rozsah výstupu.") });
   }
+  /* FX5 (GX Works3): TON bere PT jen 0–32767 ms — delší výdrž / hlídací čas nebude fungovat správně */
+  if (prj.platforms.includes("mitsubishi")) {
+    for (const [i, s] of prj.program.seq.entries())
+      if (Number.isFinite(s.timeS) && s.timeS > 32.767)
+        out.push({ level: "warn", where: tr("krok {n}", { n: i + 1 }), msg: tr("Mitsubishi FX5: časovač TON bere nejvýš 32,767 s — krok s {t} s rozděl nebo v GX Works3 použij TIMER_100_FB_M.", { t: s.timeS }) });
+  }
   const ADDR_RE: Record<Dir, RegExp> = { DI: /^%I\d+\.[0-7]$/, DO: /^%Q\d+\.[0-7]$/, AI: /^%IW\d+$/, AO: /^%QW\d+$/ };
 
   const tags = new Map<string, number>();
   const addrs = new Map<string, number>();
   for (const e of prj.io) {
-    tags.set(e.tag, (tags.get(e.tag) || 0) + 1);
+    tags.set(e.tag.toUpperCase(), (tags.get(e.tag.toUpperCase()) || 0) + 1);   // CODESYS / Sysmac nerozlišují velikost
     if (e.addr) addrs.set(e.addr, (addrs.get(e.addr) || 0) + 1);
     if (e.addr && ADDR_RE[e.dir] && !ADDR_RE[e.dir].test(e.addr)) {
       out.push({ level: "warn", where: e.tag, msg: tr("Adresa {addr} neodpovídá směru {dir} v Siemens notaci (např. %I0.0, %Q0.0, %IW64, %QW64) — pro ostatní platformy se nepřevede.", { addr: e.addr, dir: e.dir }) });
     }
-    if (e.tag !== sanitizeTag(e.tag)) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(e.tag) || /__/.test(e.tag)) {
+      out.push({ level: "error", where: e.tag, msg: tr("Tag není platný identifikátor IEC 61131-3 (písmena bez diakritiky, číslice, jedno _) — žádná platforma ho nepřijme. Doporučeno: {tag}", { tag: sanitizeTag(e.tag) }) });
+    } else if (e.tag !== sanitizeTag(e.tag)) {
       out.push({ level: "warn", where: e.tag, msg: tr("Tag obsahuje diakritiku/mezery — Rockwell, GX Works3 a Sysmac ho odmítnou. Doporučeno: {tag}", { tag: sanitizeTag(e.tag) }) });
+    }
+    if ((prj.platforms || []).includes("rockwell") && e.tag.length > 40) {
+      out.push({ level: "error", where: e.tag, msg: tr("Tag je delší než 40 znaků — Rockwell Logix ho nepřijme.") });
     }
     if (RESERVED.has(e.tag.toUpperCase())) {
       out.push({ level: "error", where: e.tag, msg: tr("Tag koliduje s klíčovým slovem IEC 61131-3.") });

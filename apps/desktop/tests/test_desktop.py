@@ -1682,7 +1682,7 @@ class GuiTest(unittest.TestCase):
     # --- kusovník a odkazy v nápovědě ------------------------------------------------
 
     def _bom_table(self):
-        return next(t for t in self.find(Table) if "-A1:plc_cpu" in t.tv.get_children())
+        return next(t for t in self.find(Table) if "code" in t._keys and "pos" in t._keys)
 
     def _bom_pick(self):
         return next(c for c in self.find(ttk.Combobox)
@@ -1751,6 +1751,47 @@ class GuiTest(unittest.TestCase):
                                        self.app.PLAT), {})
         self.click("Obnovit výchozí volby")
         self.assertEqual(self.app.prj.get("bom"), {"plat": "rockwell"})
+
+    def test_bill_of_materials_sort_and_filter_by_columns(self):
+        self.app.load_sample("complex")
+        self.goto(9)
+        tv = self._bom_table().tv
+        total = len(tv.get_children())
+        self.root.tk.call(tv.heading("brand", "command"))   # klik na záhlaví Výrobce
+        self.root.update()
+        tv = self._bom_table().tv
+        brands = [tv.set(r, "brand").lower() for r in tv.get_children()]
+        self.assertEqual(brands, sorted(brands))
+        self.assertTrue(tv.heading("brand", "text").endswith("▲"))
+        self.root.tk.call(tv.heading("brand", "command"))
+        self.root.update()
+        brands = [tv.set(r, "brand").lower() for r in tv.get_children()]
+        self.assertEqual(brands, sorted(brands, reverse=True), "druhý klik = sestupně")
+        # filtry na dva sloupce
+        cb = next(c for c in self.find(ttk.Combobox) if "Výrobce" in c.cget("values"))
+        ent = next(e for e in cb.master.winfo_children() if type(e) is ttk.Entry)
+        add = next(b for b in cb.master.winfo_children() if isinstance(b, ttk.Button))
+        cb.set("Výrobce")
+        ent.insert(0, "festo")
+        add.invoke()
+        cb.set("Položka")
+        ent.insert(0, "válec")
+        add.invoke()
+        self.root.update()
+        rows = tv.get_children()
+        self.assertTrue(0 < len(rows) < total)
+        self.assertTrue(all("festo" in tv.set(r, "brand").lower() and "válec" in tv.set(r, "item").lower()
+                            for r in rows))
+        self.assertTrue(self.label_text("zobrazeno"))
+        # po překreslení kroku řazení i filtry zůstanou; volby projektu se nemění
+        self.app.render()
+        self.root.update()
+        tv = self._bom_table().tv
+        self.assertEqual(len(tv.get_children()), len(rows))
+        self.assertTrue(tv.heading("brand", "text").endswith("▼"))
+        self.assertNotIn("bom", self.app.prj, "řazení a filtr nejsou volby projektu")
+        self.click("Zrušit filtry")
+        self.assertEqual(len(self._bom_table().tv.get_children()), total)
 
     def test_opened_sample_without_conversation_fills_ai_step(self):
         """Příklad ze samples/ nemá AI konverzaci — krok 2 se předvyplní z projektu."""

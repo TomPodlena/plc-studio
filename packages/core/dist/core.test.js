@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { blankProject, syncIO, autoAddr, addrFor, sanitizeTag, validateProject, modules, dtFor, ioOf, PLAT, enableInputs, } from "./model.js";
 import { genFor, genTagFile, seqBody, parseFbTemplate, ST_MOTOR, ST_VENTIL, SCL_MOTOR, SCL_VENTIL, TPL_COMMENTS, templateComments, trComments, timeLit } from "./codegen.js";
+import { logixProblems } from "./logix.js";
 import { LANGS, fill, getLang, setLang, tr, trx, withLang } from "./i18n.js";
 import { detectAndParse, buildDevicesFromTags, normAddr } from "./importers.js";
 import { sheetOps, opsToDXF, opsToSVG, svgBlock } from "./drawing.js";
@@ -31,11 +32,13 @@ test("autoAddr(force) přečísluje od nuly, AI slovní adresy sudé", () => {
 });
 test("addrFor převádí notace platforem", () => {
     const e = { addr: "%I1.3", dir: "DI" };
-    assert.equal(addrFor("beckhoff", e), "%IX1.3");
-    assert.equal(addrFor("mitsubishi", e), "X" + (11).toString(16).toUpperCase());
+    assert.equal(addrFor("beckhoff", e), "%I*", "TwinCAT: AT %I* a nalinkování");
+    assert.equal(addrFor("beckhoff", { addr: "%Q0.1", dir: "DO" }), "%Q*");
+    assert.equal(addrFor("codesys", e), "%IX1.3");
+    assert.equal(addrFor("mitsubishi", e), "X13", "FX5: X/Y osmičkově (%I1.3 = 11. vstup = X13)");
     assert.equal(addrFor("rockwell", e), "");
     const w = { addr: "%IW64", dir: "AI" };
-    assert.equal(addrFor("codesys", w), "%IW64");
+    assert.equal(addrFor("codesys", w), "%IW32", "CODESYS: %IW = index slova (Siemens bajt 64 → slovo 32)");
 });
 test("sanitizeTag a validace chytí diakritiku a duplicity", () => {
     assert.equal(sanitizeTag("Čerpadlo 1 běh"), "Cerpadlo_1_beh");
@@ -45,17 +48,135 @@ test("sanitizeTag a validace chytí diakritiku a duplicity", () => {
     p.io[2].tag = "Příliš divný tag";
     const issues = validateProject(p);
     assert.ok(issues.some(i => i.level === "error" && i.msg.includes("Duplicitní tag")));
-    assert.ok(issues.some(i => i.level === "warn" && i.msg.includes("diakritiku")));
+    assert.ok(issues.some(i => i.level === "error" && i.where === "Příliš divný tag" && i.msg.includes("identifikátor")), "neplatný identifikátor = chyba");
+    /* CODESYS / Sysmac nerozlišují velikost písmen → duplicita */
+    const q = sampleSmall();
+    q.io[1].tag = q.io[0].tag.toLowerCase();
+    assert.ok(validateProject(q).some(i => i.level === "error" && i.msg.includes("Duplicitní tag")));
+    /* text uživatele s (* *) v komentáři nerozbije ST (vnořené komentáře) */
+    const r = sampleSmall();
+    r.devices[0].desc = "Čerpadlo (*) dle zákazníka *) konec";
+    syncIO(r);
+    for (const f of Object.values(genFor(r, "codesys"))) {
+        const opens = (f.match(/\(\*/g) || []).length, closes = (f.match(/\*\)/g) || []).length;
+        assert.equal(opens, closes, "vyvážené komentáře");
+    }
 });
-test("Rockwell Tags.csv má povinnou hlavičku (remark + 0.3) a žádný WORD", () => {
+test("Rockwell Tags.csv: hlavička, ASCII, atributy, escapování $, REAL analogy, aliasy 5069 a programové tagy", () => {
     const p = sampleSmall();
+    p.devices[0].desc = 'Čerpadlo $1 "A" – 50 °C';
+    p.io = [];
+    syncIO(p);
     const f = genTagFile(p, "rockwell");
     const lines = f.body.split("\n");
+    assert.equal(f.name, "Tags.csv");
     assert.match(lines[0], /^remark,"CSV-Import-Export"$/);
-    assert.equal(lines[3], "0.3");
-    assert.equal(lines[4], "TYPE,SCOPE,NAME,DESCRIPTION,DATATYPE,SPECIFIER,ATTRIBUTES");
-    assert.ok(!f.body.includes("WORD"));
-    assert.ok(f.body.includes('"INT"'));
+    const hdr = lines.indexOf("0.3");
+    assert.ok(hdr > 0 && lines.slice(0, hdr).every(l => l.startsWith("remark,")), "před 0.3 jen remark");
+    assert.equal(lines[hdr + 1], "TYPE,SCOPE,NAME,DESCRIPTION,DATATYPE,SPECIFIER,ATTRIBUTES");
+    assert.ok(!/[^\x00-\x7F]/.test(f.body), "ASCII (CSV neumí dvoubajtové znaky)");
+    assert.ok(!f.body.includes("WORD") && !/"INT"/.test(f.body));
+    assert.ok(f.body.includes('"Cerpadlo $$1 $QA$Q - 50 degC - beh"'), "escapování $ a uvozovek");
+    assert.ok(f.body.includes('ALIAS,,M1_fbkRunning,') && f.body.includes('"Local:1:I.Pt00.Data"'), "alias DI na bod modulu 5069");
+    assert.ok(f.body.includes('ALIAS,,B1_raw,') && /B1_raw,.*"Local:3:I\.Ch00\.Data","\(RADIX := Float/.test(f.body), "analog = REAL kanál");
+    assert.ok(/remark,"I\/O .*1: 5069-IB16 \(DI 0-15\), 2: 5069-OB16 \(DO 0-15\), 3: 5069-IF8/.test(f.body), "předpoklad osazení slotů v remark");
+    assert.ok(f.body.includes('TAG,PLCStudio,tonSeq10,"","FBD_TIMER"') && f.body.includes('TAG,PLCStudio,instM1,"","FB_Motor"'), "programové tagy se SCOPE");
+    for (const l of lines.slice(hdr + 2))
+        assert.ok(/,"\([^"]*ExternalAccess := Read\/Write\)"$/.test(l), "vyplněné ATTRIBUTES: " + l);
+    /* adresa, kterou nejde převést → běžný tag (REAL / BOOL) */
+    p.io.find(e => e.tag === "B2_raw").addr = "%IW63";
+    assert.ok(/^TAG,,B2_raw,.*"REAL"/m.test(genTagFile(p, "rockwell").body));
+});
+test("Rockwell: L5X (AOI + tagy + rutina ST) je well-formed a bez konstrukcí, které Logix nemá", () => {
+    /* nezávislá kontrola párování značek (bez knihoven) */
+    const tagsBalanced = (xml) => {
+        const st = [];
+        const body = xml.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "").replace(/<\?[\s\S]*?\?>|<!--[\s\S]*?-->/g, "");
+        for (const m of body.matchAll(/<(\/?)([A-Za-z]\w*)[^>]*?(\/?)>/g)) {
+            if (m[3])
+                continue;
+            if (!m[1])
+                st.push(m[2]);
+            else if (st.pop() !== m[2])
+                return false;
+        }
+        return st.length === 0 && !/[<&]/.test(body.replace(/<[^>]*>/g, "").replace(/&(amp|lt|gt|quot);/g, ""));
+    };
+    const weird = sampleSmall();
+    weird.meta.name = 'Stroj "A" ]]> <b>&';
+    weird.devices[0].desc = "Čerpadlo ]]> $ 中文";
+    weird.io = [];
+    syncIO(weird);
+    for (const p of [sampleSmall(), sampleComplex(), weird]) {
+        const files = genFor(p, "rockwell");
+        assert.deepEqual(Object.keys(files), ["PLCStudio_Program.L5X", "MainRoutine.st", "Tags.csv", "README.txt"]);
+        const x = files["PLCStudio_Program.L5X"], st = files["MainRoutine.st"];
+        assert.ok(tagsBalanced(x), "párování značek");
+        assert.deepEqual(logixProblems(files), [], "kontrola Logix");
+        assert.ok(x.startsWith('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'));
+        assert.match(x, /<RSLogix5000Content [^>]*TargetType="Program"[^>]*ContainsContext="true"/);
+        assert.match(x, /<Program Use="Target" Name="PLCStudio"[^>]*MainRoutineName="MainRoutine"/);
+        assert.ok(!/[^\x00-\x7F]/.test(x) && !/[^\x00-\x7F]/.test(st), "ASCII");
+        /* rutina a AOI: jen Logix ST */
+        const rout = [...x.matchAll(/<Line Number="\d+">((?:<!\[CDATA\[[\s\S]*?\]\]>)+)<\/Line>/g)]
+            .map(m => m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")).join("\n");
+        const code = rout.replace(/\(\*[\s\S]*?\*\)/g, " ");
+        for (const bad of [/\bVAR\b/, /\bEND_VAR\b/, /\bPROGRAM\b/, /T#/, /=>/, /\bWORD\b/, /\bRETURN\b/, /\bINT_TO_REAL\b/, /\bREAL_TO_INT\b/, /END_IF(?!;)/, /\bTON\s*\(/, /\.Q\b/]) {
+            assert.ok(!bad.test(code), "nesmí obsahovat " + bad);
+        }
+        /* TONR: PRE a TimerEnable PŘED voláním (jinak zpoždění o scan proti simulaci) */
+        const calls = [...code.matchAll(/TONR\((\w+)\);/g)];
+        assert.ok(calls.length > 0);
+        for (const m of calls) {
+            const line = code.slice(code.lastIndexOf("\n", m.index) + 1, m.index);
+            assert.match(line, new RegExp(m[1] + "\\.PRE := \\d+; " + m[1] + "\\.TimerEnable := .+; $"), "PRE před TONR(" + m[1] + ")");
+        }
+        /* každý tag použitý v rutině je v L5X deklarovaný */
+        const declared = new Set([...x.matchAll(/<Tag Name="(\w+)"/g)].map(m => m[1]));
+        const mainCode = st.replace(/\(\*[\s\S]*?\*\)/g, " ");
+        const used = new Set([...mainCode.matchAll(/(?<![.\w])([A-Za-z_]\w*)/g)].map(m => m[1]));
+        const KW = new Set(["IF", "THEN", "ELSIF", "ELSE", "END_IF", "CASE", "OF", "END_CASE", "AND", "OR", "NOT", "TONR", "FB_Motor", "FB_Ventil", "FB_AnalogIn", "FB_AnalogOut"]);
+        for (const u of used)
+            assert.ok(KW.has(u) || declared.has(u), "deklarace " + u);
+    }
+});
+test("Rockwell: rutina je zrcadlo IEC generátoru (pořadí, časovače za CASE, volání přes členy instance)", () => {
+    const p = sampleSmall();
+    const st = genFor(p, "rockwell")["MainRoutine.st"];
+    assert.ok(st.includes("IF Y1_fbkOpen THEN seqStep := 20;\n            ELSIF tonSeq10.DN THEN machineFault := 1; faultStep := 10;"));
+    assert.ok(st.includes("tonSeq10.PRE := 5000; tonSeq10.TimerEnable := (seqStep = 10); TONR(tonSeq10);"));
+    assert.ok(st.includes("IF tonSeq30.DN THEN seqStep := 40; END_IF;"), "výdrž");
+    assert.ok(st.indexOf("END_CASE;") < st.indexOf("TONR(tonSeq10)") && st.indexOf("TONR(tonSeq50)") < st.indexOf("FB_Motor(instM1)"), "časovače za CASE, před instancemi");
+    const cmd = "seqRun_M1 OR (manRun_M1 AND NOT modeAuto)";
+    assert.ok(st.includes("instM1.enable := enable;\n    instM1.cmdStart := " + cmd + ";\n    instM1.cmdStop := NOT (" + cmd + ");\n    instM1.reset := cmdAck;"));
+    assert.ok(st.includes("FB_Motor(instM1);\n    M1_outRun := instM1.outRun;"));
+    assert.ok(st.includes("instB1.rawMax := 100.0;"), "analog 5069 REAL 0-100 %");
+    const err = "instM1.error OR instY1.error";
+    assert.ok(st.indexOf("FB_Ventil(instY1)") < st.indexOf("IF cmdAck AND NOT (" + err + ") THEN machineFault := 0; faultStep := 0; END_IF;"), "kvitace za bloky");
+    assert.ok(!/tempUnused/.test(st));
+    /* šablona → AOI: RETURN jako ELSE, TONR a DINT status */
+    const x = genFor(p, "rockwell")["PLCStudio_Program.L5X"];
+    assert.match(x, /<Parameter Name="status" TagType="Base" DataType="DINT" Usage="Output"/);
+    assert.match(x, /<LocalTag Name="tonFbk" DataType="FBD_TIMER"/);
+    assert.ok(x.includes("<![CDATA[    tonFbk.PRE := 3000; tonFbk.TimerEnable := (statStep = 10); TONR(tonFbk);]]>"));
+    assert.ok(x.includes("<![CDATA[ELSE]]>"));
+    /* bez sekvence: jen ruční povely */
+    const q = sampleSmall();
+    q.program.seq = [];
+    const s2 = genFor(q, "rockwell")["MainRoutine.st"];
+    assert.ok(s2.includes("instM1.cmdStart := manRun_M1;") && !s2.includes("seqStep"));
+    /* README: skutečný postup + štítek neověřeno */
+    const r = genFor(p, "rockwell")["README.txt"];
+    assert.ok(r.includes("Import Program") && r.includes("NEOVĚŘENO") && r.includes("Local:1:I.Pt00.Data") && !r.includes("Gen_Library"));
+});
+test("validace: označení zařízení pro Logix (max. 32 znaků, bez __ a _ na konci)", () => {
+    const p = blankProject();
+    p.devices.push({ id: 1, name: "A".repeat(33), cls: "DI", desc: "", opt: {}, unit: "", rmin: 0, rmax: 1 }, { id: 2, name: "B__1", cls: "DI", desc: "", opt: {}, unit: "", rmin: 0, rmax: 1 }, { id: 3, name: "C_", cls: "DI", desc: "", opt: {}, unit: "", rmin: 0, rmax: 1 }, { id: 4, name: "D_" + "x".repeat(30), cls: "DI", desc: "", opt: {}, unit: "", rmin: 0, rmax: 1 });
+    p.nextId = 5;
+    syncIO(p);
+    const bad = new Set(validateProject(p).filter(i => i.level === "error").map(i => i.where));
+    assert.ok(bad.has("A".repeat(33)) && bad.has("B__1") && bad.has("C_"));
+    assert.ok(!bad.has("D_" + "x".repeat(30)), "32 znaků je OK");
 });
 test("Siemens: Main obsahuje FB_Machine, instance a sekvenci; SCL AI bez NORM_X", () => {
     const p = sampleSmall();
@@ -64,12 +185,30 @@ test("Siemens: Main obsahuje FB_Machine, instance a sekvenci; SCL AI bez NORM_X"
     assert.ok(files["Gen_Main.scl"].includes("instM1"));
     assert.ok(files["Gen_Main.scl"].includes("CASE #seqStep OF"));
     assert.ok(!files["Gen_Library.scl"].includes("NORM_X"));
-    assert.ok(files["Gen_Tags.tsv"].startsWith("Name\tData Type"));
+    assert.ok(files["Gen_Tags.tsv"].startsWith("\uFEFFName\tData Type"), "TSV s BOM pro Excel");
+    assert.ok(files["Gen_Main.scl"].startsWith("\uFEFF") && files["Gen_Library.scl"].startsWith("\uFEFF"), "SCL s BOM pro TIA");
+    assert.ok(/: TON_TIME;/.test(files["Gen_Main.scl"] + files["Gen_Library.scl"]) && !/: TON;/.test(files["Gen_Main.scl"] + files["Gen_Library.scl"]), "časovače TON_TIME");
+    /* krok bez zpětného hlášení: komentář // až za END_IF (jinak zakomentuje THEN … END_IF) */
+    const q = sampleSmall();
+    q.devices.forEach(d => { if (d.cls === "Motor")
+        d.opt.fbk = false; });
+    syncIO(q);
+    const m = genFor(q, "siemens")["Gen_Main.scl"];
+    assert.ok(m.split("\n").every(l => !/\/\/.*\bTHEN\b/.test(l)), "žádné THEN za komentářem //");
+    /* jen analog s mezí + DO s rolí: cmdAck / machineFault deklarované */
+    const r = blankProject();
+    r.devices.push({ id: 1, name: "B1", cls: "AnalogIn", desc: "", opt: {}, unit: "bar", rmin: 0, rmax: 10, limHi: 8 }, { id: 2, name: "H1", cls: "DO", desc: "", opt: {}, unit: "", rmin: 0, rmax: 100, role: "fault" });
+    r.nextId = 3;
+    syncIO(r);
+    for (const plat of ["siemens", "codesys"]) {
+        const all = Object.values(genFor(r, plat)).join("\n");
+        assert.ok(/machineFault\s*:\s*BOOL/.test(all) && /cmdAck\s*:\s*BOOL/.test(all), plat + ": deklarace poruchy stroje");
+    }
     assert.ok(files["Gen_IO.xml"].includes('<Engineering version="V21" />'));
 });
 test("IEC MAIN kompletní pro všechny neSiemens platformy", () => {
     const p = sampleComplex();
-    for (const plat of ["rockwell", "beckhoff", "codesys", "mitsubishi", "schneider", "omron"]) {
+    for (const plat of ["beckhoff", "codesys", "mitsubishi", "schneider", "omron"]) {
         const files = genFor(p, plat);
         const main = files["MAIN.st"];
         assert.ok(main.includes("PROGRAM MAIN"), plat);
@@ -167,7 +306,8 @@ test("simulace: běžný cyklus malé stanice doběhne a vypne výstupy", () => 
 });
 test("generátor: ruční povely, hlídání kroků, porucha stroje a kvitace na všech platformách", () => {
     const p = sampleSmall();
-    for (const plat of ["siemens", "rockwell", "beckhoff", "codesys", "mitsubishi", "schneider", "omron"]) {
+    /* Rockwell (Logix ST, L5X) má vlastní testy výše */
+    for (const plat of ["siemens", "beckhoff", "codesys", "mitsubishi", "schneider", "omron"]) {
         const files = genFor(p, plat);
         const main = files[plat === "siemens" ? "Gen_Main.scl" : "MAIN.st"];
         const lib = files[plat === "siemens" ? "Gen_Library.scl" : "Gen_Library.st"];
@@ -184,20 +324,21 @@ test("generátor: ruční povely, hlídání kroků, porucha stroje a kvitace na
         assert.ok(main.includes("IF " + L("tonSeq30") + ".Q THEN " + L("seqStep") + " := 40; END_IF"), plat + ": výdrž beze změny");
         // instance: povel = sekvence NEBO ruční v ručním režimu; kvitace do bloku
         const cmd = L("seqRun_M1") + " OR (" + L("manRun_M1") + " AND NOT " + L("modeAuto") + ")";
-        assert.ok(main.includes("cmdStart := " + cmd + ",\n        cmdStop := NOT (" + cmd + "),\n        reset := " + L("cmdAck") + ","), plat);
+        const rst = plat === "omron" ? "resetIn" : "reset"; // Sysmac: Reset je instrukce
+        assert.ok(main.includes("cmdStart := " + cmd + ",\n        cmdStop := NOT (" + cmd + "),\n        " + rst + " := " + L("cmdAck") + ","), plat);
         assert.ok(main.includes("cmdOpen := " + L("seqOpen_Y1") + " OR (" + L("manOpen_Y1") + " AND NOT " + L("modeAuto") + "),"), plat);
         // porucha stroje za instancemi
         const err = L("instM1") + ".error OR " + L("instY1") + ".error";
         assert.ok(main.includes("IF " + err + " THEN " + L("machineFault") + " := TRUE; END_IF;\n    IF " + L("cmdAck") + " AND NOT (" + err + ") THEN " + L("machineFault") + " := FALSE; " + L("faultStep") + " := 0; END_IF;"), plat);
         assert.ok(main.indexOf(L("instY1") + "(enable") < main.indexOf("machineFault := FALSE") || plat === "siemens" && main.indexOf("#instY1(enable") < main.indexOf("#machineFault := FALSE"), plat + ": kvitace až za voláním bloků");
         // šablony bloků: vstup reset, stop během rozběhu, obrat ventilu, dva časovače
-        assert.ok(/reset : B(OOL|ool);/.test(lib), plat + ": vstup reset");
+        assert.ok(new RegExp(rst + " : B(OOL|ool);").test(lib), plat + ": vstup reset");
         assert.ok(!/TODO: \+ ru[čc]n/.test(main), plat + ": žádné TODO místo ručního povelu");
         assert.ok(files["README.txt"].includes("cmdAck") && files["README.txt"].includes("manRun_*"), plat);
     }
-    assert.ok(/10: \(\* STARTING \*\)\s+outRun := TRUE;\s+IF fbkRunning THEN statStep := 20; END_IF\s+IF trigStop THEN statStep := 0; END_IF/.test(ST_MOTOR), "stop během rozběhu");
+    assert.ok(/10: \(\* STARTING \*\)\s+outRun := TRUE;\s+IF fbkRunning THEN statStep := 20; END_IF;\s+IF trigStop THEN statStep := 0; END_IF;/.test(ST_MOTOR), "stop během rozběhu");
     assert.ok(ST_MOTOR.includes("IF trigReset AND NOT fault THEN statStep := 0; END_IF"));
-    assert.ok(/10: \(\* OPENING \*\)[\s\S]*?IF trigClose THEN statStep := 30; END_IF\s+20:/.test(ST_VENTIL), "zavření během otevírání");
+    assert.ok(/10: \(\* OPENING \*\)[\s\S]*?IF trigClose THEN statStep := 30; END_IF;\s+20:/.test(ST_VENTIL), "zavření během otevírání");
     assert.ok(ST_VENTIL.includes("tonOpen(IN := (statStep = 10), PT := T#5S);") && ST_VENTIL.includes("tonClose(IN := (statStep = 30), PT := T#5S);"));
     assert.ok(SCL_MOTOR.includes("IF #instTrigReset.Q AND NOT #fault THEN") && SCL_VENTIL.includes("#instTonClose(IN := (#statStep = #STEP_CLOSING)"));
     // bez sekvence: jen ruční povely (bez režimů), kvitace a porucha zůstávají
@@ -520,6 +661,10 @@ test("časové literály: celé sekundy i desetinné časy kroků", () => {
     p.program.seq[2].timeS = 1.5; // výdrž 1,5 s
     for (const plat of Object.keys(PLAT)) {
         const all = Object.values(genFor(p, plat)).join("\n");
+        if (plat === "rockwell") {
+            assert.ok(all.includes("tonSeq30.PRE := 1500;"), plat);
+            continue;
+        } // Logix: TONR, PRE v ms
         assert.ok(all.includes("PT := T#1S500MS") || all.includes("PT := T#1S500MS)"), plat);
         assert.ok(!all.includes("T#1.5S"), plat);
     }
@@ -710,7 +855,7 @@ test("blokování: kryty a závora jsou v enable kódu všech platforem a v simu
     assert.deepEqual(enableInputs(p).map(x => x.io.tag), ["S1_in", "S2_in", "S3_in", "S4_in"]);
     for (const plat of Object.keys(PLAT)) {
         const files = genFor(p, plat);
-        const main = files["Gen_Main.scl"] || files["MAIN.st"] || files["Machine.st"];
+        const main = files["Gen_Main.scl"] || files["MAIN.st"] || files["Machine.st"] || files["MainRoutine.st"];
         assert.ok(/S1_in"? AND ("|GVL_IO\.)?S2_in"? AND ("|GVL_IO\.)?S3_in"? AND ("|GVL_IO\.)?S4_in/.test(main), plat + ": enable = E-stop AND blokování");
         const from = main.lastIndexOf("(DI/DO)");
         const freePart = main.slice(from, main.indexOf("END_", from) > 0 ? main.indexOf("END_", from) : undefined);

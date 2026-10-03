@@ -108,6 +108,10 @@ footer.bar{display:flex;justify-content:space-between;gap:10px;margin-top:4px}
 
 /* kusovník: kompaktní tabulka s výběry, bezpečnostní řádky */
 table.bom td{vertical-align:top}
+table.bom th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+table.bom th.sortable:hover{color:var(--accent)}
+table.bom tr.filters th{padding-top:0;font-weight:normal}
+table.bom tr.filters input{width:100%;min-width:50px;padding:3px 6px;font-size:.74rem}
 table.bom select{width:100%;min-width:140px;padding:4px 6px;font-size:.76rem}
 table.bom td input[type=number]{padding:4px 6px}
 table.bom tr.safety td{background:color-mix(in srgb,var(--warn) 7%,transparent)}

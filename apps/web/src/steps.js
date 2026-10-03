@@ -5,7 +5,7 @@ import {
   validateProject, sanitizeTag, genFor, allProjectFiles,
   detectAndParse, buildDevicesFromTags,
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
-  sampleSmall, sampleComplex, tr, N_, DO_ROLES, stepTitle,
+  sampleSmall, sampleComplex, tr, N_, getLang, DO_ROLES, stepTitle,
   buildBom, bomOptions, bomPlatform, bomCsv, catKey, suppliersFor, SUPPLIERS, CATALOG_DATE, PLATFORM_REFS,
 } from "../../../packages/core/dist/index.js";
 import { $, card, copyText, downloadFile, downloadFiles, normProject, normAi } from "./util.js";
@@ -686,6 +686,10 @@ export function makeSteps(ctx) {
   const BOM_CUSTOM = "__custom__";           // hodnota volby „vlastní…" ve výběrech (NUL by parser HTML změnil na U+FFFD)
   const bomCustomEdit = new Set();            // řádky / pole, kde uživatel právě zadává vlastní text
   let bomFocus = "";
+  /* řazení a filtry tabulky kusovníku — jen pohled (volby projektu se nemění), drží se mezi překresleními */
+  const bomView = { sort: null, filters: {} };
+  const BOM_COLS = [["pos", "#"], ["tag", N_("Označení")], ["item", N_("Položka")], ["desc", N_("Popis")], ["qty", N_("Ks")],
+    ["brand", N_("Výrobce")], ["type", N_("Typ")], ["orderCode", N_("Objednací kód")], ["supplier", N_("Dodavatel")], ["note", N_("Poznámka")]];
   /** Druhy dodavatelů z katalogu (data jsou česky) → přeložitelný popisek. */
   const SUP_KIND = { "distributor": N_("distributor"), "e-shop": N_("e-shop"), "výrobce": N_("výrobce") };
   function rBom(el) {
@@ -719,7 +723,13 @@ export function makeSteps(ctx) {
     };
     const opt = (v, label, sel) => "<option value='" + esc(v) + "'" + (sel ? " selected" : "") + ">" + esc(label) + "</option>";
     let rows = "";
-    for (const l of lines) {
+    const bomVal = (l, k) => k === "pos" || k === "qty" ? l[k] : String(l[k] ?? "");
+    const view = lines.slice();
+    if (bomView.sort) {
+      const [k, desc] = bomView.sort, num = k === "pos" || k === "qty";
+      view.sort((a, b) => (num ? bomVal(a, k) - bomVal(b, k) : bomVal(a, k).localeCompare(bomVal(b, k), getLang())) * (desc ? -1 : 1));
+    }
+    for (const l of view) {
       const pk = pickOf(l), ov = cfg.lines?.[l.id] || {};
       const customMode = pk.custom || bomCustomEdit.has("b:" + l.id);
       const brandSel = "<select data-bf='brand' data-id='" + esc(l.id) + "' aria-label='" + esc(tr("Výrobce")) + "'>" +
@@ -736,7 +746,7 @@ export function makeSteps(ctx) {
       const src = !pk.custom && pk.opt?.brand.src && ov.type === undefined
         ? " <a href='" + esc(pk.opt.brand.src) + "' target='_blank' rel='noopener' title='" + esc(tr("Zdroj údajů o typu")) + "'>↗</a>" : "";
       const autoNote = ov.note ? l.note.slice(0, Math.max(0, l.note.length - ov.note.length)).replace(/; $/, "") : l.note;
-      rows += "<tr" + (l.safety ? " class='safety'" : "") + "><td class='mono'>" + l.pos + "</td>" +
+      rows += "<tr data-row='" + esc(l.id) + "'" + (l.safety ? " class='safety'" : "") + "><td class='mono'>" + l.pos + "</td>" +
         "<td class='mono'><b>" + esc(l.tag) + "</b></td>" +
         "<td>" + (l.safety ? "<span class='warnmark' title='" + esc(tr("Bezpečnostní prvek")) + "'>⚠</span> " : "") + esc(l.item) + "</td>" +
         "<td style='font-size:.78rem;min-width:140px'>" + esc(l.desc) + "</td>" +
@@ -767,7 +777,11 @@ export function makeSteps(ctx) {
       <span class="hint" style="margin:0">${tr("★ = platforma zvolená v projektu. Podle platformy se vybere CPU a I/O moduly.")}</span>
     </div>
     <div class="stats"><span class="stat">${tr("řádků <b>{n}</b>", { n: lines.length })}</span><span class="stat">${tr("kusů <b>{n}</b>", { n: lines.reduce((a, l) => a + l.qty, 0) })}</span>${lines.some(l => l.safety) ? "<span class='stat'>⚠ <b>" + lines.filter(l => l.safety).length + "</b></span>" : ""}</div>
-    <div class="tablewrap"><table class="bom"><thead><tr><th>#</th><th>${tr("Označení")}</th><th>${tr("Položka")}</th><th>${tr("Popis")}</th><th>${tr("Ks")}</th><th>${tr("Výrobce")}</th><th>${tr("Typ")}</th><th>${tr("Objednací kód")}</th><th>${tr("Dodavatel")}</th><th>${tr("Poznámka")}</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="row" style="margin:6px 0 2px"><span class="hint" style="margin:0" id="bomShown"></span>
+      <button class="small" id="bBomFltClear" ${Object.keys(bomView.filters).length ? "" : "hidden"}>${tr("Zrušit filtry")}</button>
+      <span class="hint" style="margin:0">${tr("Klik na záhlaví = řazení (▲ / ▼ / původní pořadí); pole pod záhlavím = filtr sloupce.")}</span></div>
+    <div class="tablewrap"><table class="bom"><thead><tr>${BOM_COLS.map(([k, t]) => "<th class='sortable' data-sort='" + k + "' title='" + esc(tr("Seřadit")) + "'>" + esc(k === "pos" ? t : tr(t)) + (bomView.sort && bomView.sort[0] === k ? (bomView.sort[1] ? " ▼" : " ▲") : "") + "</th>").join("")}</tr>
+      <tr class="filters">${BOM_COLS.map(([k, t]) => "<th><input type='search' data-flt='" + k + "' value='" + esc(bomView.filters[k] || "") + "' placeholder='" + esc(tr("filtr")) + "' aria-label='" + esc(tr("Filtr sloupce {col}", { col: k === "pos" ? t : tr(t) })) + "'></th>").join("")}</tr></thead><tbody>${rows}</tbody></table></div>
     ${lines.some(l => l.safety) ? "<p class='warnbox'>⚠ " + tr("Volba a zapojení podle posouzení rizik (EN ISO 13849) — návrh k revizi.") + "</p>" : ""}
     <div class="row">
       <button class="small primary" id="bBomCsv">${tr("Stáhnout CSV")}</button>
@@ -779,6 +793,31 @@ export function makeSteps(ctx) {
     ${used.length ? "<div class='tablewrap'><table><thead><tr><th>" + tr("Dodavatel") + "</th><th>" + tr("Web") + "</th><th>" + tr("Druh") + "</th><th>" + tr("Řádků") + "</th></tr></thead><tbody>" + supRows + "</tbody></table></div>" : "<p class='hint'>" + tr("Žádný dodavatel není vybrán.") + "</p>"}`);
 
     c.querySelector("#bomPlat").addEventListener("change", e => { cfg.plat = e.target.value; commit(); });
+    /* řazení: klik na záhlaví; filtry: skrývání řádků bez překreslení (kurzor zůstane v poli) */
+    c.querySelectorAll("th[data-sort]").forEach(th => th.addEventListener("click", () => {
+      const k = th.dataset.sort, s = bomView.sort;
+      bomView.sort = !s || s[0] !== k ? [k, false] : !s[1] ? [k, true] : null;
+      rerender();
+    }));
+    const applyFilters = () => {
+      const f = Object.entries(bomView.filters).filter(([, v]) => v);
+      let n = 0;
+      c.querySelectorAll("table.bom tbody tr[data-row]").forEach(row => {
+        const l = lines.find(x => x.id === row.dataset.row);
+        const ok = !l || f.every(([k, v]) => String(bomVal(l, k)).toLowerCase().includes(v.toLowerCase()));
+        row.hidden = !ok;
+        if (ok) n++;
+      });
+      c.querySelector("#bomShown").textContent = f.length ? tr("zobrazeno {n} z {m}", { n, m: lines.length }) : "";
+      c.querySelector("#bBomFltClear").hidden = !f.length;
+    };
+    c.querySelectorAll("input[data-flt]").forEach(inp => inp.addEventListener("input", () => {
+      const v = inp.value.trim();
+      if (v) bomView.filters[inp.dataset.flt] = v; else delete bomView.filters[inp.dataset.flt];
+      applyFilters();
+    }));
+    c.querySelector("#bBomFltClear").addEventListener("click", () => { bomView.filters = {}; rerender(); });
+    applyFilters();
     const lineById = id => lines.find(l => l.id === id);
     /* výrobce: pro řádek, nebo pro celou kategorii (pak se volby řádků téže kategorie zruší) */
     const setBrand = (l, val, forCat) => {

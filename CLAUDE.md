@@ -133,6 +133,16 @@ node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s
   kroku 0, povely vypnout, nový start až po kvitaci. Poruchy bloků drží do kvitace; stop / zavřít
   funguje i během rozběhu / otevírání. Toto chování popisuje i FDS, seznam alarmů a FAT —
   při změně držet kód, simulátor a dokumentaci pohromadě.
+- **Dialekty platforem (ověřeno proti manuálům výrobců 2026-10-03, zprávy v jobs tmp `verify/`):**
+  `END_IF;` se středníkem všude (GX Works3, Sysmac a Logix ho vyžadují); text uživatele do
+  komentářů `(* *)` jen přes `cmtSafe()` (CODESYS/TwinCAT komentáře vnořují); označení zařízení
+  i tagy musí být identifikátory (validace = error, duplicity bez ohledu na velikost písmen).
+  Siemens: `.scl`/`.tsv` s BOM, časovače `TON_TIME`, kultura komentáře v XML dle jazyka.
+  Beckhoff: `AT %I*` / `%Q*` (linkování), CODESYS/Schneider: `%IW` = index slova (bajt/2).
+  Mitsubishi FX5: X/Y osmičkově, bez počátečních hodnot (meze a `rawMax` se předávají vždy),
+  TON max. 32 767 ms. Omron: vstup `reset` → `resetIn` (Reset je instrukce Sysmac), Variables.txt
+  ve sloupcích Global Variables. `rawMax` analogů dle platformy (`RAW_MAX`). Rockwell: L5X
+  (`logix.ts`) — Logix ST není IEC (TONR/FBD_TIMER, AOI, bez deklarací v textu).
 - **Unitronics (UniLogic / UniStream):** ST funkce nemá paměť a FB v ST nejsou → generuje se
   plochý ST (`Machine.st`) a seznam tagů (`Tags.csv`). Logika bloků se **neopisuje** — vzniká
   z týchž šablon `ST_MOTOR` / `ST_VENTIL` / … přes `parseFbTemplate()` + `inlineFb()` + `uniDialect()`,
