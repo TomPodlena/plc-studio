@@ -1,0 +1,8 @@
+Name;Path;Data Type;Logical Address;Comment;Hmi Visible;Hmi Accessible;Hmi Writeable;Typeobject ID;Version ID
+"NotHalt_OK";"Standard-Variablentabelle";"Bool";"%E0.0";"Not-Halt-Kreis i.O. (Öffner)";"True";"True";"True";"";""
+"M1_Ein";"Standard-Variablentabelle";"Bool";"%A0.0";"Förderband Schütz";"True";"True";"True";"";""
+"M1_RM";"Standard-Variablentabelle";"Bool";"%E0.1";"Förderband Rückmeldung";"True";"True";"True";"";""
+"M1_Stoerung";"Standard-Variablentabelle";"Bool";"%E0.2";"Förderband Motorschutz";"True";"True";"True";"";""
+"Schutztuer_zu";"Standard-Variablentabelle";"Bool";"%E0.3";"Schutztür geschlossen";"True";"True";"True";"";""
+"Druck_Ist";"Standard-Variablentabelle";"Int";"%EW64";"Druck 0-10 bar";"True";"True";"True";"";""
+"Merker_Takt";"Standard-Variablentabelle";"Bool";"%M20.0";"Taktmerker";"True";"True";"True";"";""

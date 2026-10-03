@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Zkrácený výňatek z Vacuum.L5X, https://github.com/gwbischof/VacuumGroups
+     Copyright (c) 2015, Brookhaven Science Associates, Brookhaven National Laboratory. BSD-3-Clause,
+     plné znění v LICENSE.bnl-vacuumgroups-BSD-3-Clause.txt. Ponechány: AOI GV_HNDL (jen parametry),
+     aliasy jednoho ventilu a měrky, instance AOI a list FBD s jedním blokem. Ostatní vynecháno. -->
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="20.01" TargetName="Vacuum" TargetType="Program" ContainsContext="true" Owner="BNL, Microsoft" ExportDate="Fri Oct 19 01:36:26 2018" ExportOptions="References DecoratedData Context Dependencies ForceProtectedEncoding AllProjDocTrans">
+<Controller Use="Context" Name="XF02ID_SIX_EPS">
+<AddOnInstructionDefinitions Use="Context">
+<AddOnInstructionDefinition Name="GV_HNDL" Revision="1.0" ExecutePrescan="false" ExecutePostscan="false" ExecuteEnableInFalse="false" CreatedDate="2014-04-22T13:19:05.400Z" CreatedBy="BNL\rkadyrov" EditedDate="2016-08-16T15:40:34.964Z" EditedBy="BNL\hxu" SoftwareRevision="v20.04">
+<Parameters>
+<Parameter Name="EnableIn" TagType="Base" DataType="BOOL" Usage="Input" Radix="Decimal" Required="false" Visible="false" ExternalAccess="Read Only"/>
+<Parameter Name="EnableOut" TagType="Base" DataType="BOOL" Usage="Output" Radix="Decimal" Required="false" Visible="false" ExternalAccess="Read Only"/>
+<Parameter Name="PermitToCls" TagType="Base" DataType="BOOL" Usage="Input" Radix="Decimal" Required="false" Visible="false" ExternalAccess="Read/Write"/>
+<Parameter Name="Vac_US" TagType="Base" DataType="BOOL" Usage="Input" Radix="Decimal" Required="true" Visible="true" ExternalAccess="Read/Write"/>
+<Parameter Name="Vac_DS" TagType="Base" DataType="BOOL" Usage="Input" Radix="Decimal" Required="true" Visible="true" ExternalAccess="Read/Write"/>
+<Parameter Name="Vac_DDS" TagType="Base" DataType="BOOL" Usage="Input" Radix="Decimal" Required="false" Visible="true" ExternalAccess="Read/Write"/>
+<Parameter Name="PermitToOpn" TagType="Base" DataType="BOOL" Usage="Input" Radix="Decimal" Required="false" Visible="true" ExternalAccess="Read/Write"/>
+<Parameter Name="OpnSw" TagType="Base" DataType="BOOL" Usage="Input" Radix="Decimal" Required="true" Visible="true" ExternalAccess="Read/Write"/>
+<Parameter Name="ClsSw" TagType="Base" DataType="BOOL" Usage="Input" Radix="Decimal" Required="true" Visible="true" ExternalAccess="Read/Write"/>
+<Parameter Name="Coil1" TagType="Base" DataType="BOOL" Usage="Output" Radix="Decimal" Required="false" Visible="true" ExternalAccess="Read Only"/>
+<Parameter Name="GV_Cmd" TagType="Base" DataType="GV_Cmd" Usage="InOut" Required="true" Visible="true" Constant="false"/>
+<Parameter Name="GV_Sts" TagType="Base" DataType="GV_Sts" Usage="InOut" Required="true" Visible="true" Constant="false"/>
+</Parameters>
+</AddOnInstructionDefinition>
+</AddOnInstructionDefinitions>
+<Tags Use="Context">
+<Tag Name="IDA_VA_BC1_CCG1_1_Sts" TagType="Alias" Radix="Decimal" AliasFor="Local:1:I.Data.0" ExternalAccess="Read/Write"/>
+<Tag Name="IDA_VA_BC1_GV2_D_1_Cls" TagType="Alias" Radix="Decimal" AliasFor="Drop_FOE:3:I.7" ExternalAccess="Read/Write"/>
+<Tag Name="IDA_VA_BC1_GV2_D_1_Coil" TagType="Alias" Radix="Decimal" AliasFor="Drop_FOE:4:O.6" ExternalAccess="Read/Write"/>
+<Tag Name="IDA_VA_BC1_GV2_D_1_Opn" TagType="Alias" Radix="Decimal" AliasFor="Drop_FOE:3:I.6" ExternalAccess="Read/Write"/>
+<Tag Name="IDA_VA_BC1_GV2_D_1_HNDL" TagType="Base" DataType="GV_HNDL" Constant="false" ExternalAccess="Read/Write"/>
+<Tag Name="IDA_VA_BC1_GV2_D_1_Cmd" TagType="Base" DataType="GV_Cmd" Constant="false" ExternalAccess="Read/Write"/>
+<Tag Name="IDA_VA_BC1_GV2_D_1_Sts" TagType="Base" DataType="GV_Sts" Constant="false" ExternalAccess="Read/Write"/>
+<Tag Name="FE_SH_Sts" TagType="Base" DataType="DINT" Constant="false" ExternalAccess="Read/Write"/>
+</Tags>
+<Programs Use="Context">
+<Program Use="Target" Name="GateValves" TestEdits="false" MainRoutineName="IDA_GateValves" Disabled="false" UseAsFolder="false">
+<Tags/>
+<Routines>
+<Routine Name="IDA_GateValves" Type="FBD">
+<FBDContent SheetSize="C - 17 x 22 in" SheetOrientation="Landscape">
+<Sheet Number="1">
+<IRef ID="2" X="960" Y="480" Operand="FE_SH_Sts.StatusRaw" HideDesc="false"/>
+<IRef ID="10" X="960" Y="600" Operand="IDA_VA_BC1_GV2_D_1_Cls" HideDesc="false"/>
+<IRef ID="11" X="960" Y="580" Operand="IDA_VA_BC1_GV2_D_1_Opn" HideDesc="false"/>
+<ORef ID="42" X="1340" Y="480" Operand="IDA_VA_BC1_GV2_D_1_Coil" HideDesc="false"/>
+<AddOnInstruction Name="GV_HNDL" ID="54" X="1020" Y="440" Operand="IDA_VA_BC1_GV2_D_1_HNDL" VisiblePins="PermitToCls Vac_US Vac_DS Vac_DDS PermitToOpn OpnSw ClsSw Coil1 GV_Cmd GV_Sts">
+<InOutParameter Name="GV_Cmd" Argument="IDA_VA_BC1_GV2_D_1_Cmd"/>
+<InOutParameter Name="GV_Sts" Argument="IDA_VA_BC1_GV2_D_1_Sts"/>
+</AddOnInstruction>
+<Wire FromID="2" ToID="54" ToParam="PermitToCls"/>
+<Wire FromID="10" ToID="54" ToParam="ClsSw"/>
+<Wire FromID="11" ToID="54" ToParam="OpnSw"/>
+<Wire FromID="54" FromParam="Coil1" ToID="42"/>
+</Sheet>
+</FBDContent>
+</Routine>
+</Routines>
+</Program>
+</Programs>
+</Controller>
+</RSLogix5000Content>

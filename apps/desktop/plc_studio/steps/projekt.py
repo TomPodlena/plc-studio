@@ -39,6 +39,11 @@ def list_samples() -> list[dict]:
     return _cache["items"]
 
 
+def _open_import(app) -> None:
+    from ..importer import open_wizard      # líně: importer sahá na moduly kroků
+    open_wizard(app)
+
+
 def render(app, parent) -> None:
     p = app.prj
     body = card(parent, "01", _("Projekt"))
@@ -106,6 +111,14 @@ def render(app, parent) -> None:
     ttk.Button(row, text=_("Nový prázdný projekt"), style="Danger.TButton", command=reset
                ).pack(side="left", padx=(18, 0))
 
+    # stávající stroj → projekt (průvodce importu: exporty PLC, I/O listy, schémata, fotky)
+    irow = ttk.Frame(body)
+    irow.pack(fill="x", pady=(12, 0))
+    ttk.Button(irow, text=_("Načíst stávající zařízení…"), command=lambda: _open_import(app)
+               ).pack(side="left")
+    ttk.Label(irow, text=_("převezme stávající stroj z exportů PLC, I/O listů, schémat a fotek"),
+              style="Dim.TLabel").pack(side="left", padx=10)
+
     # knihovna příkladů (samples/ v kořeni repozitáře) — od jednoduchých po velké linky
     samples = list_samples()
     if samples:
@@ -153,7 +166,8 @@ def render(app, parent) -> None:
     note_box(body, _(
         "Projdi kroky zleva doprava — návrh se průběžně ukládá a mezi kroky se "
         "můžeš kdykoli vracet a vstupy upřesňovat; výstupy se vždy přepočítají. "
-        "Nejrychlejší start: popiš stroj v kroku AI návrh. Existující projekt převezmeš "
-        "volbou Import v kroku Zařízení. Pokud s PLC začínáš, otevři Nápovědu "
+        "Nejrychlejší start: popiš stroj v kroku AI návrh. Stávající stroj převezmeš "
+        "z exportů PLC, I/O listů a schémat tlačítkem Načíst stávající zařízení. "
+        "Pokud s PLC začínáš, otevři Nápovědu "
         "(tlačítko vpravo v liště kroků). Soubor projektu (.plcstudio.json) je "
         "zaměnitelný s exportem z webové verze PLC Studia."), pady=(16, 0))

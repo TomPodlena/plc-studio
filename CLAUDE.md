@@ -29,7 +29,7 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
 
 ```bash
 pnpm -C packages/core build   # tsc → dist (dist je commitnutý, po změně core přegeneruj a commitni)
-pnpm -C packages/core test    # node --test, 45+ testů, bez závislostí
+pnpm -C packages/core test    # node --test, 59+ testů, bez závislostí
 npx -y -p typescript tsc -p packages/core/tsconfig.json   # build bez pnpm (ověřeno: tsc 7 dává shodný dist)
 npx http-server . -p 8080     # → http://localhost:8080/apps/web/
 # desktop (z apps/desktop; na vývojové stanici pinovat Python311, ne bare `python`):
@@ -69,6 +69,27 @@ node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s
   `catalog_data.ts` (+ `platform_refs.ts` z `data/platform_refs.json`); objednací kód jen s URL
   zdroje, ceny se neuvádějí; české popisy jsou klíče překladu (N_). Po přegenerování build jádra,
   `i18n.py missing/merge`, testy. Desktop: krok `steps/kusovnik.py` + operace mostu `bom`, `refs`.
+
+## Import stávajícího zařízení (reverse engineering + AI)
+
+- **Přesně, bez AI** (`reverse.ts` + `importers.ts`): `extractFiles(InputFile[]) → Extracted`
+  (signály, POU, odhad platformy, `unparsed` pro AI), `inferProject(ex) → ImportProposal` (projekt +
+  `evidence` ke každé položce `dev:/io:/seq:/estop/lock:/meta` s jistotou sure/guess/missing a zdrojem
+  soubor:řádek, `conflicts`, `missing`), `mergeProposals(přesný, ai)` (přesné má přednost, adresa od AI
+  jen se zdrojem). Formáty: vlastní výstupy všech 8 platforem (round-trip test 14 projektů × 8 × 5 jazyků
+  beze změny) + exporty IDE: SimaticML (tagy i bloky Openness), SCL/STL/AWL, .sdf, L5X/L5K/CSV (aliasy
+  modulů), PLCopen XML (ST, FBD vazby, LD, **SFC → sekvence**), TwinCAT .TcPOU/.TcGVL/.tsproj/.xti
+  (TcLinkTo), GX Works CSV, Sysmac, Unitronics, I/O listy CSV/TSV ve více jazycích. Binární projekty
+  (.ACD, .zap, .gxw, .smc2…) → `unparsed` s doporučeným textovým exportem. Reálná data (licence MIT/BSD/
+  Apache) v `packages/core/test-data/real/`; hodnocení na 36 veřejných projektech (jobs tmp `realdata/eval.mjs`).
+- **AI** (`apps/web/src/import_ai.js`, desktop přes most `import.*` + `ai_client.call_full`): PDF/obrázky
+  jako document/image bloky, dělení velkých podkladů na navazující dotazy, `estimateImport` (cena PŘED
+  odesláním — placené, uživatel potvrzuje), `importNorm` (evidence povinná, bez zdroje = missing; adresy
+  jen doložené), dílčí výsledek při chybě/Stop. E-stop a kryty jen jako signály — nikdy rekonstruovat
+  bezpečnostní okruh ani logiku.
+- **Průvodce** (web `import_wizard.js`, desktop `importer.py`): Podklady → Rozpoznáno → Analýza AI
+  (volitelná) → Kontrola a převzetí (jistota barevně, citace zdroje, konflikty, chybí, odškrtnutí
+  zařízení) → projekt + předvyplněný krok AI návrh. Vstup z kroku Projekt i Zařízení.
 
 ## Příklady a ověření simulací
 

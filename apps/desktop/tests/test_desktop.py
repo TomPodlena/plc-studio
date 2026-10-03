@@ -29,7 +29,7 @@ from plc_studio.app import App  # noqa: E402
 from plc_studio.bridge import BridgeError, CoreBridge  # noqa: E402
 from plc_studio.detail import DevicePanel  # noqa: E402
 from plc_studio.mimic import FILL, WIRE_IN, WIRE_OFF, WIRE_OUT, Mimic  # noqa: E402
-from plc_studio.steps.zarizeni import ImportDialog  # noqa: E402
+from plc_studio import importer  # noqa: E402
 from plc_studio.svgview import SvgView, parse_svg  # noqa: E402
 from plc_studio.widgets import Table  # noqa: E402
 
@@ -52,6 +52,15 @@ AI_REPLY = ('Návrh:\n```json\n{"questions":[],"devices":['
             '{"name":"B1","cls":"AnalogIn","desc":"Tlak","opt":{},"unit":"bar","rmin":0,"rmax":250}],'
             '"estop":"S1","seq":[{"dev":"M1","act":"start","cond":"fbk","timeS":3},'
             '{"dev":"","act":"wait","cond":"time","timeS":5}],"note":"Zkušební návrh"}\n```')
+
+
+def messages_text(messages) -> str:
+    """Všechny textové bloky zpráv Messages API jako jeden text."""
+    out = []
+    for m in messages:
+        c = m["content"]
+        out += [c] if isinstance(c, str) else [b.get("text", "") for b in c]
+    return "\n".join(out)
 
 
 class CatalogTest(unittest.TestCase):
@@ -173,6 +182,123 @@ class BridgeTest(unittest.TestCase):
         terms = self.b.request("terminals", prj=p)["map"]
         self.assertEqual(set(terms), {e["key"] for e in p["io"]})
         self.assertEqual(terms[p["io"][0]["key"]]["svorka"], "X1:1")
+
+    def test_import_ai_through_bridge_without_api(self):
+        """Import podkladů: jádro → odhad → zprávy s bloky PDF/obrázek → normalizace odpovědi."""
+        import base64
+        pdf = ("%PDF-1.4\n1 0 obj << /Type /Pages /Count 2 >> endobj\n"
+               "2 0 obj << /Type /Page >> endobj\n3 0 obj << /Type /Page >> endobj\n%%EOF")
+        png = bytearray(33)
+        png[:8] = b"\x89PNG\r\n\x1a\n"
+        png[12:16] = b"IHDR"
+        png[16:20] = (1600).to_bytes(4, "big")
+        png[20:24] = (1200).to_bytes(4, "big")
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = {"schema.pdf": pdf.encode("latin-1"), "stitek.png": bytes(png),
+                     "io.csv": PLAIN_IO.encode("utf-8"), "popis.txt": "Čerpadlo běží 5 s.".encode("cp1250")}
+            for n, b in paths.items():
+                Path(tmp, n).write_bytes(b)
+            files = [ai_client.input_file(Path(tmp, n)) for n in paths]
+        by = {f["name"]: f for f in files}
+        self.assertEqual(by["schema.pdf"]["mime"], "application/pdf")
+        self.assertEqual(base64.b64decode(by["schema.pdf"]["data"]).decode("latin-1"), pdf)
+        self.assertEqual(by["stitek.png"]["mime"], "image/png")
+        self.assertEqual(by["popis.txt"]["text"], "Čerpadlo běží 5 s.")       # cp1250 → text
+        self.assertNotIn("data", by["io.csv"])
+
+        ext = self.b.request("import.extract", files=files)
+        ex = ext["ex"]
+        for k in ("files", "signals", "pous", "unparsed"):
+            self.assertIsInstance(ex[k], list)
+        self.assertIn("prj", ext["proposal"])
+        # binární obsah do jádra nejde
+        self.assertTrue(all("data" not in u for u in ex["unparsed"]))
+        self.assertIn("schema.pdf", [u["name"] for u in ex["unparsed"]])
+
+        est = self.b.request("import.estimate", files=files, ex=ex, model="claude-sonnet-5-5")
+        self.assertGreater(est["inputTokens"], 2 * 2250)
+        self.assertGreater(est["usd"], 0)
+        self.assertLess(est["usd"], 1)
+        self.assertEqual(est["priceDate"], "2026-10-03")
+
+        msg = self.b.request("import.messages", ex=ex, files=files, model="claude-sonnet-5-5")
+        content = msg["messages"][0]["content"]
+        doc = next(b for b in content if b["type"] == "document")
+        self.assertEqual(doc["source"]["media_type"], "application/pdf")
+        self.assertEqual(doc["source"]["data"], by["schema.pdf"]["data"])
+        img = next(b for b in content if b["type"] == "image")
+        self.assertEqual(img["source"]["media_type"], "image/png")
+        self.assertIn("NIC NEVYMÝŠLEJ", content[-1]["text"])
+        ai_client._check_content(content)               # bloky projdou kontrolou klienta
+
+        raw = ('```json\n{"devices":[{"name":"-M1","cls":"Motor","desc":"Čerpadlo","opt":{}},'
+               '{"name":"-S1","cls":"DI","desc":"Nouzové zastavení (NC)","opt":{}}],"estop":"-S1",'
+               '"io":[{"dev":"M1","sig":"outRun","addr":"%Q1.0"},{"dev":"S1","sig":"in","addr":"%I3.0"}],'
+               '"evidence":{"dev:-M1":{"conf":"sure","src":[{"file":"schema.pdf","page":2,"quote":"-M1"}]},'
+               '"io:M1_outRun":{"conf":"sure","src":[{"file":"schema.pdf","page":2,"quote":"%Q1.0"}]},'
+               '"estop":{"conf":"sure","src":[]}},"missing":["Chybí popis cyklu"]}\n```')
+        res = self.b.request("import.norm", raw=raw, ex=ex, files=files, exact=ext["proposal"])
+        p = res["proposal"]
+        self.assertEqual([d["name"] for d in p["prj"]["devices"]], ["M1", "S1"])
+        self.assertEqual(p["evidence"]["dev:M1"]["src"][0]["page"], 2)
+        self.assertEqual(p["evidence"]["estop"]["conf"], "missing")      # „sure" bez zdroje zahozeno
+        addr = {e["tag"]: e["addr"] for e in p["prj"]["io"]}
+        self.assertEqual(addr["M1_outRun"], "%Q1.0")              # doložená adresa
+        self.assertEqual(addr["S1_in"], "")                       # bez zdroje → doplní jádro
+        self.assertEqual(p["evidence"]["io:S1_in"]["conf"], "missing")
+        self.assertEqual(p["missing"], ["Chybí popis cyklu"])
+        self.assertIsNotNone(res["merged"])
+        with self.assertRaises(BridgeError) as cm:
+            self.b.request("import.norm", raw="bez json", ex=ex)
+        self.assertEqual(cm.exception.code, "invalid_json")
+
+    def test_ai_client_sends_content_blocks(self):
+        """Klient API pošle obsah jako seznam bloků; neplatný blok neodejde."""
+        sent = {}
+
+        class Resp:
+            def __init__(self, body):
+                self.body = body
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return json.dumps(self.body).encode("utf-8")
+
+        def fake(req, timeout=0):
+            sent["body"] = json.loads(req.data.decode("utf-8"))
+            sent["timeout"] = timeout
+            return Resp({"content": [{"type": "text", "text": "{}"}], "stop_reason": "end_turn",
+                         "usage": {"input_tokens": 5, "output_tokens": 1}})
+
+        blocks = [{"type": "document", "source": {"type": "base64", "media_type": "application/pdf",
+                                                   "data": "JVBERi0="}},
+                  {"type": "text", "text": "Instrukce"}]
+        with mock.patch("urllib.request.urlopen", fake):
+            r = ai_client.call_full("k", "claude-sonnet-5-5", [{"role": "user", "content": blocks}],
+                                    timeout=ai_client.IMPORT_TIMEOUT, max_tokens=32000)
+        self.assertEqual(r["usage"]["input_tokens"], 5)
+        self.assertEqual(sent["body"]["messages"][0]["content"][0]["type"], "document")
+        self.assertEqual(sent["body"]["max_tokens"], 32000)
+        self.assertEqual(sent["timeout"], 600)
+        bad = [{"type": "image", "source": {"type": "base64", "media_type": "image/tiff", "data": "x"}}]
+        with mock.patch("urllib.request.urlopen", fake) as m:
+            with self.assertRaises(ai_client.AiError) as cm:
+                ai_client.call_full("k", "m", [{"role": "user", "content": bad}])
+        self.assertEqual(cm.exception.code, "bad_request")
+
+        def truncated(req, timeout=0):
+            return Resp({"content": [{"type": "text", "text": "{"}], "stop_reason": "max_tokens"})
+        with mock.patch("urllib.request.urlopen", truncated):
+            with self.assertRaises(ai_client.AiError) as cm:
+                ai_client.call_full("k", "m", [{"role": "user", "content": "x"}])
+            self.assertEqual(cm.exception.code, "truncated")
+            # AI návrhář (call) zůstává tolerantní: vrátí text, chybu ohlásí až extractJson
+            self.assertEqual(ai_client.call("k", "m", [{"role": "user", "content": "x"}]), "{")
 
     def test_bridge_restarts_after_process_death(self):
         self.b._proc.kill()
@@ -1406,28 +1532,324 @@ class GuiTest(unittest.TestCase):
         self.app._load_state()
         self.assertEqual((self.app.prj["meta"]["name"], self.app.step), ("Trvalý stav", 4))
 
-    def test_import_dialog_preview_and_apply(self):
-        self.app.load_sample("small")
-        self.goto(3)
-        dlg = ImportDialog(self.app)
-        try:
-            dlg.txt.insert("1.0", "tohle není export")
-            dlg._analyze()
-            self.assertIsNone(dlg.built)
-            dlg.txt.delete("1.0", "end")
-            dlg.txt.insert("1.0", PLAIN_IO)
-            dlg._analyze()
-            self.assertEqual([d["name"] for d in dlg.built["devices"]], ["M7", "S9"])
-            self.assertEqual(len(self.app.prj["devices"]), 7)  # náhled nic nepřepsal
-            with mock.patch("tkinter.messagebox.askyesno", return_value=True):
-                dlg._apply()
-        finally:
-            if dlg.win.winfo_exists():
-                dlg.win.destroy()
+    # --- průvodce importem stávajícího zařízení -------------------------------------------
+
+    def _wizard(self) -> importer.ImportWizard:
+        self.app.ui.pop("import", None)
+        wiz = importer.open_wizard(self.app)
         self.root.update()
+        self.addCleanup(lambda: wiz.win.winfo_exists() and wiz.close())
+        return wiz
+
+    def _wait_import(self, wiz, timeout=5):
+        deadline = time.time() + timeout
+        while wiz.S["busy"] and time.time() < deadline:
+            self.root.update()
+            time.sleep(0.02)
+        self.root.update()
+        self.assertFalse(wiz.S["busy"])
+
+    def test_import_wizard_entry_points_and_pasted_text(self):
+        """Krok Projekt i Zařízení otevřou tentýž průvodce; vložený text funguje jako dřív."""
+        self.app.load_sample("small")
+        self.goto(0)
+        self.click("Načíst stávající zařízení…")
+        wiz = self.app._import_wiz
+        self.assertIsNotNone(wiz)
+        self.assertEqual(wiz.S["page"], 0)
+        wiz.close()
+        self.goto(3)
+        self.click("Import stávajícího zařízení…")
+        self.assertIsNot(self.app._import_wiz, wiz)
+        wiz = self.app._import_wiz
+        self.addCleanup(lambda: wiz.win.winfo_exists() and wiz.close())
+        self.assertIs(importer.open_wizard(self.app), wiz)          # druhé otevření = totéž okno
+
+        self.assertFalse(wiz.extract())                               # bez podkladů nic
+        self.assertIn("Nejdřív přidej", wiz.S["msg"][1])
+        wiz.paste_text.insert("1.0", "tohle není export")
+        self.assertTrue(wiz.extract())
+        self.assertEqual(wiz.S["ex"]["unparsed"][0]["name"], importer.PASTE_NAME)
+        self.assertEqual(wiz.S["exact"]["prj"]["devices"], [])
+        wiz.goto(3)
+        self.assertIn("disabled", self.button("Převzít jako projekt", wiz.win).state())
+
+        wiz.goto(0)
+        wiz.paste_text.delete("1.0", "end")
+        wiz.paste_text.insert("1.0", PLAIN_IO)
+        self.assertTrue(wiz.extract())
+        self.assertEqual(wiz.S["page"], 1)
+        self.assertEqual([d["name"] for d in wiz.S["exact"]["prj"]["devices"]], ["M7", "S9"])
+        self.assertEqual(len(self.app.prj["devices"]), 7)             # náhled nic nepřepsal
+        wiz.goto(3)
+        with mock.patch("tkinter.messagebox.askyesno", return_value=False):
+            self.assertFalse(wiz.take_over())                         # potvrzení odmítnuto
+        self.assertEqual(len(self.app.prj["devices"]), 7)
+        with mock.patch("tkinter.messagebox.askyesno", return_value=True) as ask:
+            self.assertTrue(wiz.take_over())
+        self.assertIn("7", ask.call_args[0][1])                       # kolik zařízení nahradí
+        self.root.update()
+        self.assertFalse(wiz.win.winfo_exists())
         self.assertEqual([d["name"] for d in self.app.prj["devices"]], ["M7", "S9"])
-        self.assertEqual(self.app.prj["program"]["seq"], [])
         self.assertTrue(all(e["addr"] for e in self.app.prj["io"]))
+        self.assertEqual(self.app.step, 3)
+        self.assertNotIn("import", self.app.ui)                       # příště načisto
+
+    def test_import_wizard_own_code_of_all_platforms(self):
+        """Vlastní výstup genFor každé platformy se přes průvodce vrátí jako stejná sestava."""
+        self.app.load_sample("complex")
+        src = self.app.prj
+        names = sorted(d["name"] for d in src["devices"])
+        out = self.app.bridge.request("gen", prj={**src, "platforms": list(self.app.PLAT)})["out"]
+        self.assertEqual(set(out), set(self.app.PLAT))
+        for plat, files in out.items():
+            with self.subTest(plat=plat):
+                tmp = Path(tempfile.mkdtemp())
+                for n, body in files.items():
+                    (tmp / n).write_text(body, encoding="utf-8", newline="")
+                wiz = self._wizard()
+                wiz.add_paths(sorted(str(p) for p in tmp.iterdir()))
+                self.assertEqual(len(wiz.files_table.tv.get_children()), len(files))
+                self.assertTrue(wiz.extract())
+                ex, prj = wiz.S["ex"], wiz.S["exact"]["prj"]
+                self.assertTrue(all(f["ok"] for f in ex["files"]), ex["files"])
+                self.assertEqual(ex.get("platform"), plat)
+                self.assertEqual(len(wiz.found_table.tv.get_children()), len(files))
+                self.assertEqual(sorted(d["name"] for d in prj["devices"]), names)
+                self.assertEqual(len(prj["program"]["seq"]), len(src["program"]["seq"]))
+                wiz.goto(3)
+                self.assertEqual(len(wiz.dev_table.tv.get_children()), len(names))
+                if plat != "codesys":
+                    wiz.close()
+                    continue
+                with mock.patch("tkinter.messagebox.askyesno", return_value=True):
+                    self.assertTrue(wiz.take_over())
+                self.root.update()
+                p = self.app.prj
+                self.assertEqual(sorted(d["name"] for d in p["devices"]), names)
+                self.assertEqual(len(p["program"]["seq"]), len(src["program"]["seq"]))
+                self.assertEqual(p["platforms"], ["codesys"])
+                self.assertIn("chyb", self.app._status.cget("text"))
+                # krok AI návrh je předvyplněný importovanou sestavou
+                self.assertEqual([d["name"] for d in self.app.ai["last"]["devices"]],
+                                 [d["name"] for d in p["devices"]])
+                self.assertEqual(self.app.ai["turns"][0]["role"], "user")
+
+    def test_import_wizard_foreign_samples_review_and_skip(self):
+        """Cizí vzorky (TIA, Logix, GX Works3, I/O list): revize, zdroje, odškrtnutí, převzetí."""
+        self.app.load_sample("small")
+        data = Path(__file__).resolve().parents[3] / "packages" / "core" / "test-data"
+        paths = sorted(str(p) for p in data.iterdir() if p.is_file())
+        self.assertGreaterEqual(len(paths), 5)
+        wiz = self._wizard()
+        wiz.add_paths(paths)
+        wiz.add_paths(paths[:1])                                     # tentýž soubor podruhé ne
+        self.assertEqual(len(wiz.S["files"]), len(paths))
+        self.assertTrue(wiz.extract())
+        ex = wiz.S["ex"]
+        self.assertTrue(all(f["ok"] for f in ex["files"]), ex["files"])
+        self.assertTrue(ex.get("platform"))
+        self.assertGreater(len(ex["pous"]), 0)                       # L5X rutiny
+        prop = wiz.proposal()
+        self.assertGreater(len(prop["conflicts"]), 0)                # dvě sady adres se kryjí
+        self.assertGreater(len(prop["missing"]), 0)
+        wiz.goto(3)
+        tabs = [wiz.notebook.tab(t, "text") for t in wiz.notebook.tabs()]
+        self.assertIn("Konflikty ({n})".format(n=len(prop["conflicts"])), tabs)
+        self.assertIn("Chybí ({n})".format(n=len(prop["missing"])), tabs)
+        # klik na řádek ukáže citaci zdroje
+        devs = prop["prj"]["devices"]
+        d = next(x for x in devs if x["name"] == "Conveyor")
+        wiz.dev_table.tv.selection_set(str(d["id"]))
+        self.root.update()
+        cite = wiz.cite.get("1.0", "end")
+        self.assertIn("gxworks3_GlobalLabel.csv", cite)
+        self.assertIn("Conveyor contactor", cite)
+        # barva jistoty
+        self.assertIn(prop["evidence"]["dev:Conveyor"]["conf"],
+                      wiz.dev_table.tv.item(str(d["id"]), "tags"))
+        # odškrtnutí: klik do sloupce ✓
+        wiz.dev_table._on_click(str(d["id"]), "take")
+        self.root.update()
+        self.assertEqual(wiz.S["skip"], {"Conveyor"})
+        self.assertEqual(wiz.dev_table.tv.set(str(d["id"]), "take"), "☐")
+        self.assertEqual(wiz.dev_table.selected(), str(d["id"]))       # výběr přežil překreslení
+        wiz.goto(1)
+        wiz.goto(3)                                                   # volby drží
+        self.assertEqual(wiz.S["skip"], {"Conveyor"})
+        with mock.patch("tkinter.messagebox.askyesno", return_value=True):
+            self.assertTrue(wiz.take_over())
+        self.root.update()
+        p = self.app.prj
+        self.assertEqual(len(p["devices"]), len(devs) - 1)
+        self.assertNotIn("Conveyor", [x["name"] for x in p["devices"]])
+        self.assertFalse(any(e["tag"].startswith("Conveyor") for e in p["io"]))
+        self.assertEqual(self.app.step, 3)
+
+    def test_import_wizard_ai_with_mocked_api(self):
+        """AI krok: odhad ceny, potvrzení, úspěch (sloučení), chyby, neplatná odpověď a Stop."""
+        import threading
+        self.app.load_sample("small")
+        tmp = Path(tempfile.mkdtemp())
+        pdf = ("%PDF-1.4\n1 0 obj << /Type /Pages /Count 2 >> endobj\n"
+               "2 0 obj << /Type /Page >> endobj\n3 0 obj << /Type /Page >> endobj\n%%EOF")
+        (tmp / "schema.pdf").write_bytes(pdf.encode("latin-1"))
+        (tmp / "io.csv").write_text(PLAIN_IO, encoding="utf-8")
+        (tmp / "popis.txt").write_bytes("Čerpadlo M1 běží 5 s.".encode("cp1250"))
+        self.app.settings["ai_key"] = ""
+        self.addCleanup(self.app.settings.__setitem__, "ai_key", "")
+        wiz = self._wizard()
+        wiz.add_paths([str(tmp / n) for n in ("schema.pdf", "io.csv", "popis.txt")])
+        self.assertTrue(wiz.extract())
+        self.assertEqual(sorted(u["name"] for u in wiz.S["ex"]["unparsed"]),
+                         ["popis.txt", "schema.pdf"])
+        wiz.goto(2)
+        texts = " ".join(self.ui_texts(wiz.win))
+        self.assertIn("USD", texts)
+        self.assertIn("Anthropic API", texts)
+        self.assertIn("Bez API klíče", texts)
+        self.assertNotIn("Spustit analýzu (placené)", texts)        # bez klíče jen informace
+        est = wiz.S["est"]
+        self.assertGreater(est["usd"], 0)
+        self.assertIn("schema.pdf", est["parts"][0]["files"])
+
+        self.app.settings["ai_key"] = "test-key"
+        wiz.render()
+        raw = ('```json\n{"devices":[{"name":"-M1","cls":"Motor","desc":"Čerpadlo","opt":{}},'
+               '{"name":"-S1","cls":"DI","desc":"Nouzové zastavení (NC)","opt":{}}],"estop":"-S1",'
+               '"io":[{"dev":"M1","sig":"outRun","addr":"%Q1.0"}],'
+               '"evidence":{"dev:-M1":{"conf":"sure","src":[{"file":"schema.pdf","page":2,'
+               '"quote":"-M1 Čerpadlo"}]}},"missing":["Chybí popis cyklu"],'
+               '"questions":["Jaký je takt?"],"note":"Ze schématu"}\n```')
+        calls = []
+
+        def ok(key, model, messages, timeout=0, max_tokens=0, strict=True):
+            calls.append((key, model, messages, timeout, max_tokens))
+            return {"text": raw, "usage": {"input_tokens": 12000, "output_tokens": 3000},
+                    "stop_reason": "end_turn"}
+
+        with mock.patch.object(ai_client, "call_full", ok):
+            with mock.patch("tkinter.messagebox.askyesno", return_value=False) as ask:
+                self.click("Spustit analýzu (placené)", wiz.win)
+            self.assertIn("USD", ask.call_args[0][1])
+            self.assertEqual(calls, [])                               # odmítnuto = nic neodešlo
+            with mock.patch("tkinter.messagebox.askyesno", return_value=True):
+                self.click("Spustit analýzu (placené)", wiz.win)
+            self._wait_import(wiz)
+        self.assertEqual(len(calls), 1)
+        key, model, messages, timeout, max_tokens = calls[0]
+        self.assertEqual((key, timeout, max_tokens), ("test-key", 600, 32000))
+        self.assertIn("document", [b["type"] for b in messages[0]["content"]])
+        S = wiz.S
+        self.assertEqual(S["page"], 3)
+        self.assertIsNotNone(S["merged"])
+        self.assertIn("USD", S["msg"][1])
+        names = [d["name"] for d in S["merged"]["prj"]["devices"]]
+        self.assertIn("M1", names)
+        self.assertIn("M7", names)                                    # přesná data zůstala
+        tabs = [wiz.notebook.tab(t, "text") for t in wiz.notebook.tabs()]
+        self.assertIn("Otázky a poznámka AI", tabs)
+        m1 = next(d for d in S["merged"]["prj"]["devices"] if d["name"] == "M1")
+        wiz.dev_table.tv.selection_set(str(m1["id"]))
+        self.root.update()
+        cite = wiz.cite.get("1.0", "end")
+        self.assertIn("schema.pdf", cite)
+        self.assertIn("strana 2", cite)
+        self.assertIn("-M1 Čerpadlo", cite)
+
+        # chyby API a neplatná odpověď
+        for exc, text in ((ai_client.AiError("too_large"), "příliš velký"),
+                          (ai_client.AiError("network", "timeout"), "timeout"),
+                          (ai_client.AiError("bad_key"), "401"),
+                          (ai_client.AiError("bad_request", "too many PDF pages"), "too many PDF pages")):
+            def fail(*_a, exc=exc, **_k):
+                raise exc
+            wiz.goto(2)
+            with mock.patch.object(ai_client, "call_full", fail):
+                wiz.start_ai()
+                self._wait_import(wiz)
+            self.assertEqual(S["msg"][0], "err")
+            self.assertIn(text, S["msg"][1])
+            self.assertEqual(S["page"], 2)
+        with mock.patch.object(ai_client, "call_full", lambda *a, **k: {
+                "text": "bez json", "usage": {}, "stop_reason": "end_turn"}):
+            wiz.start_ai()
+            self._wait_import(wiz)
+        self.assertIn("nepodařilo přečíst", S["msg"][1])
+
+        # Stop: běžící dotaz se zahodí, i když odpověď dorazí později
+        gate = threading.Event()
+
+        def slow(*_a, **_k):
+            gate.wait(5)
+            return {"text": raw.replace("Čerpadlo", "Pozdě"), "usage": {}, "stop_reason": "end_turn"}
+
+        before = S["merged"]
+        with mock.patch.object(ai_client, "call_full", slow):
+            wiz.start_ai()
+            self.root.update()
+            self.assertTrue(S["busy"])
+            self.click("Stop", wiz.win)
+            self.assertFalse(S["busy"])
+            self.assertIn("zastavena", S["msg"][1])
+            gate.set()
+            deadline = time.time() + 0.6
+            while time.time() < deadline:
+                self.root.update()
+                time.sleep(0.02)
+        self.assertIs(S["merged"], before)
+        self.assertEqual(S["page"], 2)
+
+        # převzetí sloučeného návrhu → projekt + předvyplněný AI návrh
+        wiz.goto(3)
+        with mock.patch("tkinter.messagebox.askyesno", return_value=True):
+            self.assertTrue(wiz.take_over())
+        self.root.update()
+        self.assertIn("M1", [d["name"] for d in self.app.prj["devices"]])
+        self.assertIn("Chybí popis cyklu", self.app.ai["last"]["note"])   # body AI se neztratí
+        self.assertIn("schema.pdf", self.app.ai["turns"][0]["content"])
+
+    def test_import_wizard_ai_partial_result_after_error(self):
+        """Podklady ve více dotazech: chyba v dalším dotazu nabídne výsledek dosavadních."""
+        self.app.load_sample("small")
+        self.app.settings["ai_key"] = "test-key"
+        self.addCleanup(self.app.settings.__setitem__, "ai_key", "")
+        tmp = Path(tempfile.mkdtemp())
+        prose = "\n".join(f"Krok {i}: obsluha zkontroluje stroj a pokracuje dal podle navodu."
+                          for i in range(9000))
+        (tmp / "popis.txt").write_text(prose, encoding="utf-8")
+        (tmp / "io.csv").write_text(PLAIN_IO, encoding="utf-8")
+        wiz = self._wizard()
+        wiz.S["model"] = "claude-haiku-4-5-20251001"            # kontext 200k → víc dotazů
+        wiz.add_paths([str(tmp / "popis.txt"), str(tmp / "io.csv")])
+        self.assertTrue(wiz.extract())
+        wiz.goto(2)
+        n = len(wiz.S["est"]["parts"])
+        self.assertGreater(n, 1)
+        raw = ('{"devices":[{"name":"M1","cls":"Motor","desc":"Pohon","opt":{}}],'
+               '"evidence":{"dev:M1":{"conf":"guess","src":[{"file":"popis.txt","line":3}]}}}')
+        calls = []
+
+        def flaky(key, model, messages, **_k):
+            calls.append(messages)
+            if len(calls) > 1:
+                raise ai_client.AiError("rate_limited")
+            return {"text": raw, "usage": {"input_tokens": 1, "output_tokens": 1}}
+
+        with mock.patch.object(ai_client, "call_full", flaky):
+            wiz.start_ai()
+            self._wait_import(wiz)
+        self.assertEqual(len(calls), 2)
+        # druhý dotaz dostal výsledek prvního
+        self.assertIn('"M1"', messages_text(calls[1]))
+        self.assertEqual(wiz.S["page"], 2)
+        self.assertIn("Příliš mnoho dotazů", wiz.S["msg"][1])
+        self.assertEqual(wiz.S["partial"], (1, n))
+        self.click(f"Použít výsledek dosavadních dotazů (1 z {n})", wiz.win)
+        self.assertEqual(wiz.S["page"], 3)
+        self.assertIn("M1", [d["name"] for d in wiz.S["merged"]["prj"]["devices"]])
+        self.assertIn("M7", [d["name"] for d in wiz.S["merged"]["prj"]["devices"]])
+        self.assertIn(f"1 z {n}", wiz.S["msg"][1])
 
     def _wait_ai(self):
         deadline = time.time() + 5

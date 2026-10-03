@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="32.00" TargetName="StationSafety" TargetType="Program" ContainsContext="true" ExportDate="Tue Aug 04 13:30:00 2026" ExportOptions="References NoRawData L5KData DecoratedData Context Dependencies ForceProtectedEncoding AllProjDocTrans">
+<Controller Use="Context" Name="AssemblyInspectionStation" ProcessorType="1756-L83E" MajorRev="32" MinorRev="11">
+<DataTypes Use="Context"/>
+<Modules Use="Context"/>
+<Tags Use="Context">
+<Tag Name="I_EStopOk" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Emergency stop circuit healthy. Normally closed contact, made when the mushroom head is released.]]></Description>
+</Tag>
+<Tag Name="I_LightCurtainClear" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Light curtain output signal switching device clear. Low when the guarded opening is broken.]]></Description>
+</Tag>
+<Tag Name="I_GuardClosed" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Interlocked guard door closed and switch made.]]></Description>
+</Tag>
+<Tag Name="I_PartPresent" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Diffuse sensor confirming a part is seated on the fixture.]]></Description>
+</Tag>
+<Tag Name="I_ClampConfirm" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Clamp closed proximity switch.]]></Description>
+</Tag>
+<Tag Name="I_ResetPressed" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Hardwired safety reset pushbutton, momentary.]]></Description>
+</Tag>
+<Tag Name="I_StartPressed" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Cycle start pushbutton, momentary.]]></Description>
+</Tag>
+<Tag Name="I_StopPressed" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Cycle stop pushbutton, momentary.]]></Description>
+</Tag>
+<Tag Name="C_ClampRequest" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Clamp request written by the supervisory application. Gated by the safety chain, never trusted directly.]]></Description>
+</Tag>
+<Tag Name="C_ConveyorAdvanceRequest" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Conveyor advance request written by the supervisory application.]]></Description>
+</Tag>
+<Tag Name="C_EjectRequest" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Eject request written by the supervisory application.]]></Description>
+</Tag>
+<Tag Name="C_SafetyResetRequest" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Safety reset request written by the supervisory application, equivalent to the hardwired pushbutton.]]></Description>
+</Tag>
+<Tag Name="C_StartAcknowledge" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Supervisory acknowledgement that the latched start request has been consumed.]]></Description>
+</Tag>
+<Tag Name="C_StopAcknowledge" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write">
+<Description><![CDATA[Supervisory acknowledgement that the latched stop request has been consumed.]]></Description>
+</Tag>
+<Tag Name="S_StartLatched" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[Latched cycle start request. The momentary pushbutton is held here so a polling supervisor cannot miss it.]]></Description>
+</Tag>
+<Tag Name="S_StopLatched" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[Latched cycle stop request.]]></Description>
+</Tag>
+<Tag Name="S_SafetyChainOk" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[All three safety devices healthy this scan.]]></Description>
+</Tag>
+<Tag Name="S_EStopLatched" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[Latched safety trip. Set on first scan and on any chain break, cleared only by reset with the chain restored.]]></Description>
+</Tag>
+<Tag Name="S_SafetyRelayEnergized" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[Safety relay picked up.]]></Description>
+</Tag>
+<Tag Name="S_MotionPermissive" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[Permissive granted to the motion controller. The supervisory application observes this and cannot assert it.]]></Description>
+</Tag>
+<Tag Name="O_ClampSolenoid" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[Fixture clamp solenoid valve.]]></Description>
+</Tag>
+<Tag Name="O_ConveyorRun" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[Conveyor motor contactor.]]></Description>
+</Tag>
+<Tag Name="O_EjectSolenoid" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[Part eject solenoid valve.]]></Description>
+</Tag>
+<Tag Name="O_StackLightRed" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[Stack light red: safety relay dropped.]]></Description>
+</Tag>
+<Tag Name="O_StackLightAmber" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[Stack light amber: safe but idle.]]></Description>
+</Tag>
+<Tag Name="O_StackLightGreen" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read Only">
+<Description><![CDATA[Stack light green: safe and clamped, inspection may run.]]></Description>
+</Tag>
+</Tags>
+<Programs Use="Context">
+<Program Use="Target" Name="StationSafety" TestEdits="false" MainRoutineName="MainRoutine" Disabled="false" UseAsFolder="false">
+<Description><![CDATA[Machine safety and sequencing for the automated precision assembly and inspection station. Executable mirror of sim/SoftPlc/LadderLogic.cs.]]></Description>
+<Tags/>
+<Routines Use="Context">
+<Routine Use="Target" Name="MainRoutine" Type="RLL">
+<RLLContent>
+<Rung Number="0" Type="N">
+<Comment><![CDATA[POWER UP INHIBIT
+The safety relay must never be self starting. On the first scan the trip is latched so that an
+operator reset is required before motion is permitted, even if every safety device reads healthy.
+This prevents unexpected start up after a power cycle.]]></Comment>
+<Text><![CDATA[XIC(S:FS)OTL(S_EStopLatched);]]></Text>
+</Rung>
+<Rung Number="1" Type="N">
+<Comment><![CDATA[SAFETY CHAIN
+All three protective devices must be healthy in the same scan for the chain to be considered made.]]></Comment>
+<Text><![CDATA[XIC(I_EStopOk)XIC(I_LightCurtainClear)XIC(I_GuardClosed)OTE(S_SafetyChainOk);]]></Text>
+</Rung>
+<Rung Number="2" Type="N">
+<Comment><![CDATA[TRIP LATCH SET
+Any break in the chain latches the trip. The latch is retentive, so restoring the device on its own
+does not restore motion.]]></Comment>
+<Text><![CDATA[XIO(S_SafetyChainOk)OTL(S_EStopLatched);]]></Text>
+</Rung>
+<Rung Number="3" Type="N">
+<Comment><![CDATA[TRIP LATCH RESET
+The latch clears only when the chain has been restored AND a reset is issued, either from the
+hardwired pushbutton or from the supervisory application.]]></Comment>
+<Text><![CDATA[XIC(S_SafetyChainOk)[XIC(I_ResetPressed),XIC(C_SafetyResetRequest)]OTU(S_EStopLatched);]]></Text>
+</Rung>
+<Rung Number="4" Type="N">
+<Comment><![CDATA[SAFETY RELAY
+Picked up only with the chain made and no latched trip outstanding.]]></Comment>
+<Text><![CDATA[XIC(S_SafetyChainOk)XIO(S_EStopLatched)OTE(S_SafetyRelayEnergized);]]></Text>
+</Rung>
+<Rung Number="5" Type="N">
+<Comment><![CDATA[MOTION PERMISSIVE
+The single bit the motion controller and the supervisory application both gate on. It is derived
+here in the PLC and is read only to everything outside this routine.]]></Comment>
+<Text><![CDATA[XIC(S_SafetyRelayEnergized)OTE(S_MotionPermissive);]]></Text>
+</Rung>
+<Rung Number="6" Type="N">
+<Comment><![CDATA[CYCLE START LATCH
+The panel pushbutton is momentary and is true for a single scan. A supervisory client polling over
+the network would miss it, so the request is latched here and held until the supervisor acknowledges.]]></Comment>
+<Text><![CDATA[XIC(I_StartPressed)OTL(S_StartLatched);]]></Text>
+</Rung>
+<Rung Number="7" Type="N">
+<Comment><![CDATA[CYCLE START ACKNOWLEDGE]]></Comment>
+<Text><![CDATA[XIO(I_StartPressed)XIC(C_StartAcknowledge)OTU(S_StartLatched);]]></Text>
+</Rung>
+<Rung Number="8" Type="N">
+<Comment><![CDATA[CYCLE STOP LATCH]]></Comment>
+<Text><![CDATA[XIC(I_StopPressed)OTL(S_StopLatched);]]></Text>
+</Rung>
+<Rung Number="9" Type="N">
+<Comment><![CDATA[CYCLE STOP ACKNOWLEDGE]]></Comment>
+<Text><![CDATA[XIO(I_StopPressed)XIC(C_StopAcknowledge)OTU(S_StopLatched);]]></Text>
+</Rung>
+<Rung Number="10" Type="N">
+<Comment><![CDATA[FIXTURE CLAMP
+The supervisory clamp request is permissive gated and additionally requires a part on the fixture.
+Losing the permissive drops the solenoid on the very next scan without the request changing.]]></Comment>
+<Text><![CDATA[XIC(C_ClampRequest)XIC(S_MotionPermissive)XIC(I_PartPresent)OTE(O_ClampSolenoid);]]></Text>
+</Rung>
+<Rung Number="11" Type="N">
+<Comment><![CDATA[CONVEYOR
+Runs only while the fixture is empty, so the part sensor stops transport on arrival.]]></Comment>
+<Text><![CDATA[XIC(C_ConveyorAdvanceRequest)XIC(S_MotionPermissive)XIO(I_PartPresent)OTE(O_ConveyorRun);]]></Text>
+</Rung>
+<Rung Number="12" Type="N">
+<Comment><![CDATA[EJECT
+Mechanically interlocked against an engaged clamp.]]></Comment>
+<Text><![CDATA[XIC(C_EjectRequest)XIC(S_MotionPermissive)XIO(O_ClampSolenoid)OTE(O_EjectSolenoid);]]></Text>
+</Rung>
+<Rung Number="13" Type="N">
+<Comment><![CDATA[STACK LIGHT RED - safety relay dropped.]]></Comment>
+<Text><![CDATA[XIO(S_SafetyRelayEnergized)OTE(O_StackLightRed);]]></Text>
+</Rung>
+<Rung Number="14" Type="N">
+<Comment><![CDATA[STACK LIGHT AMBER - safe but not clamped.]]></Comment>
+<Text><![CDATA[XIC(S_SafetyRelayEnergized)XIO(O_ClampSolenoid)OTE(O_StackLightAmber);]]></Text>
+</Rung>
+<Rung Number="15" Type="N">
+<Comment><![CDATA[STACK LIGHT GREEN - safe and clamped, inspection may run.]]></Comment>
+<Text><![CDATA[XIC(S_SafetyRelayEnergized)XIC(O_ClampSolenoid)OTE(O_StackLightGreen);]]></Text>
+</Rung>
+</RLLContent>
+</Routine>
+</Routines>
+</Program>
+</Programs>
+<Tasks Use="Context">
+<Task Name="MainTask" Type="CONTINUOUS" Priority="10" Watchdog="500" DisableUpdateOutputs="false" InhibitTask="false">
+<ScheduledPrograms>
+<ScheduledProgram Name="StationSafety"/>
+</ScheduledPrograms>
+</Task>
+</Tasks>
+</Controller>
+</RSLogix5000Content>

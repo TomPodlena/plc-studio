@@ -47,8 +47,123 @@ export function guessDir(name: string, dt: string, addr: string): Dir {
   return /out|cmd|povel|run$|open$|lamp|valve|^Y|^H/i.test(name) ? "DO" : "DI";
 }
 
+/* ------------------------------------------------ sdílené nástroje (i pro reverse.ts) */
+
+/** Uzel minimálního XML stromu (bez DOMParseru — jádro běží i v Node bez závislostí). */
+export interface XmlNode { name: string; attrs: Record<string, string>; children: XmlNode[]; text: string; pos: number; }
+
+const XML_ENT: Record<string, string> = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
+export function xmlDecode(s: string): string {
+  return s.replace(/&(#x[0-9a-fA-F]+|#\d+|\w+);/g, (m, e: string) =>
+    e[0] === "#" ? String.fromCodePoint(e[1] === "x" ? parseInt(e.slice(2), 16) : +e.slice(1)) : (XML_ENT[e] ?? m));
+}
+
+/**
+ * Tolerantní XML parser: elementy, atributy, text a CDATA (text = přímý obsah uzlu).
+ * Neuzavřené / přebývající značky nevadí. Vrací umělý kořen `#document`.
+ */
+export function parseXml(src: string): XmlNode {
+  const root: XmlNode = { name: "#document", attrs: {}, children: [], text: "", pos: 0 };
+  const stack: XmlNode[] = [root];
+  const re = /<!\[CDATA\[([\s\S]*?)\]\]>|<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!DOCTYPE[^>]*>|<\/([\w.:-]+)\s*>|<([\w.:-]+)((?:\s+[\w.:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|([^<]+)|</g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src))) {
+    const top = stack[stack.length - 1];
+    if (m[1] !== undefined) top.text += m[1];
+    else if (m[2]) {
+      const i = stack.map(n => n.name).lastIndexOf(m[2]);
+      if (i > 0) stack.length = i;
+    } else if (m[3]) {
+      const attrs: Record<string, string> = {};
+      for (const a of (m[4] || "").matchAll(/([\w.:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) attrs[a[1]] = xmlDecode(a[2] ?? a[3] ?? "");
+      const n: XmlNode = { name: m[3], attrs, children: [], text: "", pos: m.index };
+      top.children.push(n);
+      if (m[5] !== "/") stack.push(n);
+    } else if (m[6] !== undefined) top.text += xmlDecode(m[6]);
+  }
+  return root;
+}
+/** Všichni potomci se jménem `name` (bez ohledu na předponu jmenného prostoru). */
+export function xmlAll(n: XmlNode, name: string, out: XmlNode[] = []): XmlNode[] {
+  for (const c of n.children) {
+    if (c.name === name || c.name.endsWith(":" + name)) out.push(c);
+    xmlAll(c, name, out);
+  }
+  return out;
+}
+/** První přímý potomek se jménem `name`. */
+export function xmlChild(n: XmlNode | undefined, name: string): XmlNode | undefined {
+  return n ? n.children.find(c => c.name === name || c.name.endsWith(":" + name)) : undefined;
+}
+/** Text uzlu včetně potomků. */
+export function xmlText(n: XmlNode | undefined): string {
+  if (!n) return "";
+  return n.text + n.children.map(xmlText).join("");
+}
+
+/** Rozdělí řádek CSV/TSV (uvozovky, zdvojené uvozovky uvnitř). */
+export function splitDelimited(line: string, delim: string): string[] {
+  const out: string[] = [];
+  let cur = "", q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) {
+      if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+      else cur += ch;
+    } else if (ch === '"' && !cur.trim()) { q = true; cur = ""; }
+    else if (ch === delim) { out.push(cur.trim()); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+/** Nejpravděpodobnější oddělovač tabulky (tabulátor, středník, čárka). */
+export function guessDelimiter(text: string): string {
+  const lines = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 30);
+  const score = (d: string) => lines.reduce((s, l) => s + (splitDelimited(l, d).length > 1 ? 1 : 0), 0);
+  const cand = ["\t", ";", ","].map(d => ({ d, s: score(d) }));
+  cand.sort((a, b) => b.s - a.s);
+  return cand[0].s ? cand[0].d : ",";
+}
+
+/**
+ * Adresa I/O v notaci platformy → kanonická adresa v Siemens notaci (inverze `addrFor`).
+ * Siemens %I/%Q/%IW (i německé %E/%A, bez %, PIW), CODESYS %IX/%QX a %IW = index slova,
+ * Mitsubishi X/Y (osmičkově jako FX5, hexadecimálně, když jsou v čísle číslice 8–F).
+ * Nepřevoditelné (symbolické, %I*, Rockwell Local:…) = "".
+ */
+export function canonAddr(raw: string, plat?: string): string {
+  if (!raw) return "";
+  const a = raw.trim().toUpperCase().replace(/\s+/g, "");
+  let m: RegExpMatchArray | null;
+  const iec = plat === "codesys" || plat === "beckhoff" || plat === "schneider";
+  if ((m = a.match(/^%([IQEA])X(\d+)\.([0-7])$/))) return "%" + (m[1] === "E" ? "I" : m[1] === "A" ? "Q" : m[1]) + m[2] + "." + m[3];
+  if ((m = a.match(/^%?([IQEA])(\d+)\.([0-7])$/))) return "%" + (m[1] === "E" || m[1] === "I" ? "I" : "Q") + m[2] + "." + m[3];
+  if ((m = a.match(/^%([IQ])W(\d+)$/))) return "%" + m[1] + "W" + (iec ? +m[2] * 2 : +m[2]);
+  if ((m = a.match(/^%?P?([IQEA])W(\d+)(?::P)?$/))) return "%" + (m[1] === "E" || m[1] === "I" ? "I" : "Q") + "W" + m[2];
+  if ((m = a.match(/^([XY])([0-9A-F]+)$/))) {
+    const hex = /[89A-F]/.test(m[2]);
+    const i = parseInt(m[2], hex ? 16 : 8);
+    return (m[1] === "X" ? "%I" : "%Q") + (i >> 3) + "." + (i & 7);
+  }
+  return "";
+}
+/** Je to adresa vnitřní paměti / DB (ne fyzické I/O)? */
+export function isMemAddr(raw: string): boolean {
+  return /^%?(M|MW|MD|MB|DB|D|L|T|C)\d/i.test((raw || "").trim()) && !/^%?[XY]/i.test(raw.trim());
+}
+
 export function parseSimaticML(t: string): ParseResult {
   const tags: ImportedTag[] = [];
+  if (!DP) {                                        // Node bez DOMParseru: vlastní parser
+    for (const el of xmlAll(parseXml(t), "SW.Tags.PlcTag")) {
+      const al = xmlChild(el, "AttributeList");
+      const get = (n: string) => xmlText(xmlChild(al, n)).trim();
+      const name = get("Name");
+      const cmt = xmlText(xmlAll(el, "Text")[0]).trim();
+      if (name) tags.push({ tag: name, dt: get("DataTypeName"), addr: normAddr(get("LogicalAddress")), cmt });
+    }
+  }
   if (DP) try {
     const doc = new DP().parseFromString(t, "text/xml");
     const els = doc.getElementsByTagName("SW.Tags.PlcTag");
@@ -71,6 +186,16 @@ export function parseSimaticML(t: string): ParseResult {
 
 export function parseL5X(t: string): ParseResult {
   const tags: ImportedTag[] = [], blocks: string[] = [];
+  if (!DP) {                                        // Node bez DOMParseru: vlastní parser
+    const doc = parseXml(t);
+    for (const el of xmlAll(doc, "Tag")) {
+      const name = el.attrs.Name || "", dt = el.attrs.DataType || "";
+      if (!name || !/^(BOOL|INT|DINT|SINT|REAL)$/i.test(dt)) continue;
+      tags.push({ tag: name, dt, addr: "", cmt: xmlText(xmlChild(el, "Description")).trim() });
+    }
+    for (const el of xmlAll(doc, "AddOnInstructionDefinition")) blocks.push("AOI " + (el.attrs.Name || ""));
+    for (const el of xmlAll(doc, "Routine")) blocks.push("Routine " + (el.attrs.Name || ""));
+  }
   if (DP) try {
     const doc = new DP().parseFromString(t, "text/xml");
     for (const el of Array.from(doc.getElementsByTagName("Tag")) as any[]) {

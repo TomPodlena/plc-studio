@@ -3,6 +3,7 @@ export * from "./model.js";
 export * from "./codegen.js";
 export * from "./logix.js";
 export * from "./importers.js";
+export * from "./reverse.js";
 export * from "./drawing.js";
 export * from "./sim.js";
 export * from "./flow.js";
