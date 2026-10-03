@@ -27,7 +27,8 @@ const PROBE = `(() => {
   const vw = document.documentElement.clientWidth;
   const seen = new Map();
   document.querySelectorAll('body *').forEach(el => {
-    if (el.closest('.skip, .hp')) return;
+    // .art = dekorativni SVG orezane rodicem (overflow: hidden); jeho cary mohou presahovat
+    if (el.closest('.skip, .hp, .art')) return;
     if (!el.getClientRects().length) return;
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) return;
@@ -40,6 +41,14 @@ const PROBE = `(() => {
   });
   return JSON.stringify({ overflowPx: Math.max(0, document.documentElement.scrollWidth - vw),
     culprits: [...seen.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5) });
+})()`;
+
+const SCROLL = `(async () => {
+  const H = document.documentElement.scrollHeight;
+  for (let y = 0; y < H; y += innerHeight * 0.7) { scrollTo({ top: y, behavior: "instant" }); await new Promise((r) => setTimeout(r, 25)); }
+  scrollTo({ top: 0, behavior: "instant" });
+  await new Promise((r) => setTimeout(r, 800));
+  return true;
 })()`;
 
 fs.rmSync(OUT, { recursive: true, force: true });
@@ -57,6 +66,8 @@ try {
       for (const p of PAGES) {
         const url = `${BASE}${lang === "cs" ? "" : "/" + lang}/${p ? p + "/" : ""}`;
         await page.goto(url, 150);
+        // projet stranku dolu a zpet: animace pri scrollu (IntersectionObserver) se odkryji jako u ctenare
+        await page.eval(SCROLL, true);
         const states = [["", null]];
         // mobilni menu otevrene se musi taky vejit
         if (v.w < 1024 && p === "") states.push(["-menu", "document.querySelector('.burger').click()"]);

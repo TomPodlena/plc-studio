@@ -127,6 +127,9 @@
         "desc": "Files for your development environment, documentation for the customer and a commissioning plan for the machine."
       }
     ],
+    "show_eyebrow": "Real output",
+    "show_title": "Drawings from the sample project",
+    "show_lead": "Generated directly by the application for the LL-03 press and marking line, the same as in the sample documentation.",
     "trust_eyebrow": "Why trust it",
     "trust_title": "It designs everything. Only what you approve counts.",
     "trust_lead": "In machine control, what matters is not who wrote the first version but who stands behind it. That is why {{site.brand}} does as much of the design work as possible and lets nothing through without a decision by the responsible person.",
@@ -553,7 +556,26 @@
     ],
     "fig_block": "Block diagram of the sample machine",
     "fig_sheet": "Wiring of input module DI1 (excerpt)",
-    "fig_safety": "Safety circuit schematic"
+    "fig_safety": "Safety circuit schematic",
+    "fig_do1": "Wiring of output module DO1 (terminal strip X3)",
+    "fig_timing": "Cycle timing diagram",
+    "fig_flow": "Cycle function diagram (excerpt)",
+    "figs_title": "Drawings and diagrams",
+    "pages_title": "Page preview",
+    "pages": [
+      {
+        "name": "Cover page"
+      },
+      {
+        "name": "Approval record"
+      },
+      {
+        "name": "I/O list"
+      },
+      {
+        "name": "Safety functions (SRS)"
+      }
+    ]
   },
   "stazeni": {
     "title": "Download — {{site.brand}}",

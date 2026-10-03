@@ -127,6 +127,9 @@
         "desc": "Soubory pro vaše vývojové prostředí, dokumentaci pro zákazníka a plán oživení na stroj."
       }
     ],
+    "show_eyebrow": "Skutečné výstupy",
+    "show_title": "Výkresy z ukázkového projektu",
+    "show_lead": "Přímý výstup aplikace pro lisovací a značicí linku LL-03, stejný jako v ukázkové dokumentaci.",
     "trust_eyebrow": "Proč tomu věřit",
     "trust_title": "Navrhne všechno. Platí jen to, co schválíte.",
     "trust_lead": "U řízení stroje nerozhoduje, kdo napsal první verzi, ale kdo za ni ručí. {{site.brand}} proto odvede maximum práce na návrhu a nic nepustí dál bez rozhodnutí odpovědné osoby.",
@@ -553,7 +556,26 @@
     ],
     "fig_block": "Blokové schéma ukázkového stroje",
     "fig_sheet": "Zapojení vstupního modulu DI1 (výřez)",
-    "fig_safety": "Schéma bezpečnostního okruhu"
+    "fig_safety": "Schéma bezpečnostního okruhu",
+    "fig_do1": "Zapojení výstupního modulu DO1 (svorkovnice X3)",
+    "fig_timing": "Časový diagram cyklu",
+    "fig_flow": "Funkční diagram cyklu (výřez)",
+    "figs_title": "Výkresy a diagramy",
+    "pages_title": "Náhled stránek",
+    "pages": [
+      {
+        "name": "Titulní strana"
+      },
+      {
+        "name": "Protokol schválení"
+      },
+      {
+        "name": "I/O list"
+      },
+      {
+        "name": "Bezpečnostní funkce (SRS)"
+      }
+    ]
   },
   "stazeni": {
     "title": "Ke stažení — {{site.brand}}",

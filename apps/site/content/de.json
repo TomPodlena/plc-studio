@@ -127,6 +127,9 @@
         "desc": "Dateien für Ihre Entwicklungsumgebung, Dokumentation für den Kunden und ein Inbetriebnahmeplan für die Maschine."
       }
     ],
+    "show_eyebrow": "Echte Ergebnisse",
+    "show_title": "Zeichnungen aus dem Beispielprojekt",
+    "show_lead": "Direkt von der Anwendung für die Press- und Markierlinie LL-03 erzeugt, genauso wie in der Beispieldokumentation.",
     "trust_eyebrow": "Warum Sie dem vertrauen können",
     "trust_title": "Es entwirft alles. Es gilt nur, was Sie freigeben.",
     "trust_lead": "Bei einer Maschinensteuerung zählt nicht, wer die erste Version geschrieben hat, sondern wer dafür einsteht. Deshalb übernimmt {{site.brand}} so viel Entwurfsarbeit wie möglich und lässt nichts ohne Entscheidung der verantwortlichen Person durch.",
@@ -553,7 +556,26 @@
     ],
     "fig_block": "Blockschaltbild der Beispielmaschine",
     "fig_sheet": "Verdrahtung des Eingangsmoduls DI1 (Auszug)",
-    "fig_safety": "Schaltplan des Sicherheitskreises"
+    "fig_safety": "Schaltplan des Sicherheitskreises",
+    "fig_do1": "Verdrahtung des Ausgangsmoduls DO1 (Klemmleiste X3)",
+    "fig_timing": "Zeitdiagramm des Zyklus",
+    "fig_flow": "Funktionsdiagramm des Zyklus (Auszug)",
+    "figs_title": "Zeichnungen und Diagramme",
+    "pages_title": "Seitenvorschau",
+    "pages": [
+      {
+        "name": "Titelseite"
+      },
+      {
+        "name": "Freigabeprotokoll"
+      },
+      {
+        "name": "E/A-Liste"
+      },
+      {
+        "name": "Sicherheitsfunktionen (SRS)"
+      }
+    ]
   },
   "stazeni": {
     "title": "Download — {{site.brand}}",

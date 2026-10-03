@@ -10,7 +10,8 @@
   <div class="wrap">
     <div class="plans">
       {{#each page.plans}}
-      <article class="plan plan-{{@i}}">
+      <article class="plan plan-{{@i}} rv">
+        <span class="plan-badge">{{page.featured}}</span>
         <h2>{{.name}}</h2>
         <p class="price">{{.price}} <small>{{.unit}}</small></p>
         <ul class="ticks">{{.points|li}}</ul>
@@ -27,7 +28,7 @@
   </div>
 </section>
 
-<section class="sec sec-tint">
+<section class="sec sec-tint sec-dots">
   <div class="wrap measure-wrap">
     <h2>{{page.faq_title}}</h2>
     {{#each page.faq}}

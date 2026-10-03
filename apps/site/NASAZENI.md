@@ -52,9 +52,12 @@ npx wrangler@4 d1 execute plcdesk --remote --file=schema.sql
 
 ### A3. Ochrana formuláře Turnstile — zdarma
 1. Dashboard → **Turnstile** → *Add widget*, hostname `plcdesk.<účet>.workers.dev`, režim *Managed*.
-2. **Site key** (veřejný) se předává buildu: proměnná `TURNSTILE_SITEKEY` (v GitHubu jako
-   *Variable*, lokálně `TURNSTILE_SITEKEY=… node scripts/build.js`). Bez ní web běží na testovacím
-   klíči, který pustí kohokoli — build to vypíše jako POZOR.
+2. **Site key** (veřejný, není tajný) je v `content/site.json` → `turnstile_sitekey`
+   (nyní `0x4AAAAAAFM-FbL-8dZLSk-N`). Přebít ho jde proměnnou `TURNSTILE_SITEKEY` při buildu
+   (v GitHubu jako *Variable*). Bez obojího web běží na testovacím klíči, který pustí kohokoli —
+   build to vypíše jako POZOR. Ostrý klíč platí jen pro doménu webu, proto `serve.js` a `preview.js`
+   lokálně dosazují testovací klíč samy (`dist/` pro nasazení zůstává ostrý); `node scripts/build.js
+   --test` postaví celý `dist/` s testovacím klíčem (nenasazovat).
 3. **Secret key**: `npx wrangler@4 secret put TURNSTILE_SECRET`.
    Bez něj je formulář **zavřený** (503) — záměrně, chybějící nastavení nikdy nevypne ochranu.
 

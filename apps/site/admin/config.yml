@@ -292,6 +292,18 @@ collections:
                     label: "desc"
                     i18n: true
                     widget: string
+              - name: "show_eyebrow"
+                label: "show_eyebrow"
+                i18n: true
+                widget: string
+              - name: "show_title"
+                label: "show_title"
+                i18n: true
+                widget: string
+              - name: "show_lead"
+                label: "show_lead"
+                i18n: true
+                widget: text
               - name: "trust_eyebrow"
                 label: "trust_eyebrow"
                 i18n: true
@@ -721,6 +733,35 @@ collections:
                 label: "fig_safety"
                 i18n: true
                 widget: string
+              - name: "fig_do1"
+                label: "fig_do1"
+                i18n: true
+                widget: string
+              - name: "fig_timing"
+                label: "fig_timing"
+                i18n: true
+                widget: string
+              - name: "fig_flow"
+                label: "fig_flow"
+                i18n: true
+                widget: string
+              - name: "figs_title"
+                label: "figs_title"
+                i18n: true
+                widget: string
+              - name: "pages_title"
+                label: "pages_title"
+                i18n: true
+                widget: string
+              - name: "pages"
+                label: "pages"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "name"
+                    label: "name"
+                    i18n: true
+                    widget: string
           - name: "stazeni"
             label: "Ke stažení"
             i18n: true
@@ -1092,6 +1133,7 @@ collections:
           - { name: "email", label: "email", widget: string }
           - { name: "free_io_limit", label: "free_io_limit", widget: string }
           - { name: "platforms_checked", label: "platforms_checked", widget: string }
+          - { name: "turnstile_sitekey", label: "turnstile_sitekey", widget: string }
           - { name: "pdf_cs", label: "pdf_cs", widget: string }
           - { name: "pdf_en", label: "pdf_en", widget: string }
           - { name: "pdf_de", label: "pdf_de", widget: string }

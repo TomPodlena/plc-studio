@@ -27,7 +27,13 @@ const TYPES = {
   ".xml": "application/xml; charset=utf-8",
   ".txt": "text/plain; charset=utf-8",
   ".yml": "text/yaml; charset=utf-8",
+  ".woff2": "font/woff2",
 };
+
+// Ostry klic Turnstile plati jen pro domenu webu - lokalne ho nahradi testovaci klic Cloudflare
+// (dist/ pro nasazeni zustava beze zmeny).
+const TURNSTILE_TEST_SITEKEY = "1x00000000000000000000AA";
+const testSitekey = (html) => html.replace(/data-sitekey="[^"]*"/g, `data-sitekey="${TURNSTILE_TEST_SITEKEY}"`);
 
 async function api(req, res) {
   const chunks = [];
@@ -53,9 +59,10 @@ http
     if (!path.extname(file)) file = path.join(file, "index.html");
     if (!fs.existsSync(file)) {
       res.writeHead(404, { "Content-Type": TYPES[".html"] });
-      return fs.createReadStream(path.join(DIST, "404.html")).pipe(res);
+      return res.end(testSitekey(fs.readFileSync(path.join(DIST, "404.html"), "utf-8")));
     }
     res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] || "application/octet-stream" });
+    if (path.extname(file) === ".html") return res.end(testSitekey(fs.readFileSync(file, "utf-8")));
     fs.createReadStream(file).pipe(res);
   })
   .listen(PORT, () => console.log(`Nahled bezi na http://localhost:${PORT}/ (API ve vyvojovem rezimu)`));

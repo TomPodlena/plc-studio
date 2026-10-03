@@ -158,6 +158,7 @@ try {
     check("  mirici na /api/download", await js(`document.querySelector('[data-token-box] a').getAttribute('href')`), (v) => v.startsWith("/api/download?t=AbCd"));
     await page.goto(`${BASE}/stazeni/`, 200);
     check("bez tokenu je tlacitko skryte", await js(shown("[data-token-box]")), 0);
+    check("lokalne testovaci klic Turnstile", await js(`document.querySelector('.cf-turnstile').dataset.sitekey`), "1x00000000000000000000AA");
     // zadne cookies ani uloziste prohlizece na zadne strance (stranka Cookies to slibuje)
     for (const p of ["", "funkce", "cenik", "ukazka", "stazeni", "cookies"]) {
       await page.goto(`${BASE}/${p ? p + "/" : ""}`, 300);

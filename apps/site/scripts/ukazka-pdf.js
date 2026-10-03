@@ -6,8 +6,8 @@
 //
 // Jadro jen cte z packages/core/dist (nic v nem nemeni). Spusteni z apps/site:
 //   node scripts/ukazka-pdf.js            -> assets/ukazka/ukazka-dokumentace-{cs,en,de}.pdf
-//                                            + assets/img/ukazka-*.svg (obrazky na stranku Ukazka)
 //   node scripts/ukazka-pdf.js --html     -> navic necha mezivysledek HTML v docasne slozce
+// Obrazky na web (vykresy z jadra, nahledy stran) dela scripts/obrazky.js nad stejnym projektem.
 
 import fs from "node:fs";
 import os from "node:os";
@@ -18,7 +18,6 @@ import { launch } from "./cdp.js";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CORE = path.join(ROOT, "..", "..", "packages", "core", "dist", "index.js");
 const OUT = path.join(ROOT, "assets", "ukazka");
-const IMG = path.join(ROOT, "assets", "img");
 const LANGS = ["cs", "en", "de"];
 const KEEP_HTML = process.argv.includes("--html");
 
@@ -32,7 +31,7 @@ const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 const fill = (s, v) => s.replace(/\{\{site\.(\w+)\}\}/g, (m, k) => site[k] ?? m).replace(/\{(\w+)\}/g, (m, k) => (k in v ? v[k] : m));
 
 // Jadro se zatim jmenuje PLC Studio; ve vystupu ukazky pouzijeme nazev produktu.
-const rebrand = (s) => s.replace(/PLC Studio/g, BRAND).replace(/PLCStudio/g, BRAND);
+export const rebrand = (s) => s.replace(/PLC Studio/g, BRAND).replace(/PLCStudio/g, BRAND);
 
 // ---------- Markdown -> HTML (jen to, co generuji dokumenty jadra) ----------
 
@@ -159,7 +158,7 @@ const svgImg = (svg) => `<img class="sheet" src="data:image/svg+xml;base64,${Buf
 
 // ---------- projekt ukazky ----------
 
-function sampleProject(t) {
+export function sampleProject(t) {
   const prj = C.sampleComplex();
   const at = "2026-10-02T09:00:00.000Z";
   const approveKeys = (k) =>
@@ -175,7 +174,7 @@ function sampleProject(t) {
   return prj;
 }
 
-function buildHtml(lang, t) {
+export function buildHtml(lang, t) {
   C.setLang(lang);
   const prj = sampleProject(t);
   const docs = C.docFiles(prj);
@@ -289,42 +288,32 @@ ${sections
 
 // ---------- beh ----------
 
-fs.mkdirSync(OUT, { recursive: true });
-const browser = await launch();
-try {
-  const page = await browser.page();
-  for (const lang of LANGS) {
-    const content = JSON.parse(fs.readFileSync(path.join(ROOT, "content", `${lang}.json`), "utf-8"));
-    const t = content.pdf;
-    const html = buildHtml(lang, t);
-    // mezivysledek NIKDY do assets/ (build by ho zverejnil)
-    const tmp = path.join(os.tmpdir(), `plcdesk-ukazka-${lang}.html`);
-    if (KEEP_HTML) console.log(`HTML: ${tmp}`);
-    fs.writeFileSync(tmp, html);
-    await page.goto(pathToFileURL(tmp).href, 500);
-    const pdf = await page.send("Page.printToPDF", { preferCSSPageSize: true, printBackground: true, displayHeaderFooter: false });
-    const file = path.join(OUT, `ukazka-dokumentace-${lang}.pdf`);
-    fs.writeFileSync(file, Buffer.from(pdf.data, "base64"));
-    const pages = (Buffer.from(pdf.data, "base64").toString("latin1").match(/\/Type\s*\/Page[^s]/g) || []).length;
-    console.log(`${path.relative(ROOT, file)}  ${(fs.statSync(file).size / 1024).toFixed(0)} kB, ${pages} stran`);
-    if (!KEEP_HTML) fs.rmSync(tmp, { force: true });
+async function main() {
+  fs.mkdirSync(OUT, { recursive: true });
+  const browser = await launch();
+  try {
+    const page = await browser.page();
+    for (const lang of LANGS) {
+      const content = JSON.parse(fs.readFileSync(path.join(ROOT, "content", `${lang}.json`), "utf-8"));
+      const t = content.pdf;
+      const html = buildHtml(lang, t);
+      // mezivysledek NIKDY do assets/ (build by ho zverejnil)
+      const tmp = path.join(os.tmpdir(), `plcdesk-ukazka-${lang}.html`);
+      if (KEEP_HTML) console.log(`HTML: ${tmp}`);
+      fs.writeFileSync(tmp, html);
+      await page.goto(pathToFileURL(tmp).href, 500);
+      const pdf = await page.send("Page.printToPDF", { preferCSSPageSize: true, printBackground: true, displayHeaderFooter: false });
+      const file = path.join(OUT, `ukazka-dokumentace-${lang}.pdf`);
+      fs.writeFileSync(file, Buffer.from(pdf.data, "base64"));
+      const pages = (Buffer.from(pdf.data, "base64").toString("latin1").match(/\/Type\s*\/Page[^s]/g) || []).length;
+      console.log(`${path.relative(ROOT, file)}  ${(fs.statSync(file).size / 1024).toFixed(0)} kB, ${pages} stran`);
+      if (!KEEP_HTML) fs.rmSync(tmp, { force: true });
+    }
+  } finally {
+    browser.close();
   }
-} finally {
-  browser.close();
+  console.log("Obrazky na web: node scripts/obrazky.js");
 }
 
-// Obrazky na stranku Ukazka (cesky projekt; texty vykresu jsou latinkou)
-C.setLang("cs");
-{
-  const files = C.allProjectFiles(sampleProject({ approver: "-", approver_note: "" }));
-  for (const [name, out] of [
-    ["blokove_schema.svg", "ukazka-blokove.svg"],
-    ["DI1_X1.svg", "ukazka-di1.svg"],
-    ["bezpecnostni_okruh.svg", "ukazka-bezpecnost.svg"],
-  ]) {
-    const f = files.find((x) => x.name === name);
-    if (!f) throw new Error("V jadru chybi " + name);
-    fs.writeFileSync(path.join(IMG, out), rebrand(f.body));
-    console.log(`assets/img/${out}`);
-  }
-}
+// jen pri primem spusteni (obrazky.js si odsud bere projekt a HTML dokumentace)
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

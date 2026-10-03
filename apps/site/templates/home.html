@@ -1,86 +1,143 @@
 <section class="hero">
+  <div class="hero-bg" aria-hidden="true">{{> art-ladder}}</div>
   <div class="wrap hero-in">
     <div class="hero-text">
-      <p class="eyebrow">{{page.eyebrow}}</p>
+      <p class="eyebrow"><span class="eyebrow-dot"></span>{{page.eyebrow}}</p>
       <h1>{{page.h1}}</h1>
       <p class="lead">{{page.lead}}</p>
       <div class="cta-row">
-        <a class="btn" href="{{BLOCK.url_stazeni}}">{{page.cta1}}</a>
-        <a class="btn btn-ghost" href="{{BLOCK.url_ukazka}}">{{page.cta2}}</a>
+        <a class="btn" href="{{BLOCK.url_stazeni}}">{{page.cta1}}<svg class="ico ico-btn" aria-hidden="true"><use href="#i-download"/></svg></a>
+        <a class="btn btn-ghost" href="{{BLOCK.url_ukazka}}">{{page.cta2}}<svg class="ico ico-btn" aria-hidden="true"><use href="#i-arrow"/></svg></a>
       </div>
       <p class="fine">{{page.fine}}</p>
     </div>
 
-    <figure class="mock" aria-label="{{page.mock_title}}">
-      <div class="mock-head">
-        <span class="mock-title">{{page.mock_title}}</span>
-        <span class="mock-project">{{page.mock_project}}</span>
-      </div>
-      <table class="mock-table">
-        <thead><tr><th>{{page.mock_h_item}}</th><th>{{page.mock_h_state}}</th><th>{{page.mock_h_who}}</th></tr></thead>
-        <tbody>
-        {{#each page.mock_rows}}
-          <tr><td>{{.item}}</td><td><span class="stamp stamp-{{.cls}}">{{.state}}</span></td><td class="who">{{.who}}</td></tr>
-        {{/each}}
-        </tbody>
-      </table>
-      <figcaption>{{page.mock_caption}}</figcaption>
-    </figure>
+    <div class="hero-stage">
+      <figure class="win win-back" aria-hidden="true">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">LL-03 / 03_DO1_X3.svg</span></div>
+        <div class="win-sheet"><img src="/assets/img/ukazka-do1.svg" alt="" width="980" height="760"></div>
+      </figure>
+      <figure class="win win-front mock" aria-label="{{page.mock_title}}">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">LL-03 / 11_schvaleni.md</span></div>
+        <div class="mock-head">
+          <span class="mock-title"><svg class="ico" aria-hidden="true"><use href="#i-stamp"/></svg>{{page.mock_title}}</span>
+          <span class="mock-project">{{page.mock_project}}</span>
+        </div>
+        <table class="mock-table">
+          <thead><tr><th>{{page.mock_h_item}}</th><th>{{page.mock_h_state}}</th><th>{{page.mock_h_who}}</th></tr></thead>
+          <tbody>
+          {{#each page.mock_rows}}
+            <tr><td>{{.item}}</td><td><span class="stamp stamp-{{.cls}}">{{.state}}</span></td><td class="who">{{.who}}</td></tr>
+          {{/each}}
+          </tbody>
+        </table>
+        <figcaption>{{page.mock_caption}}</figcaption>
+      </figure>
+    </div>
   </div>
 </section>
 
 <section class="facts">
   <div class="wrap facts-in">
     {{#each page.facts}}
-    <div class="fact"><span class="fact-n">{{.n}}</span><span class="fact-t">{{.t}}</span></div>
+    <div class="fact rv"><svg class="ico fact-ico" aria-hidden="true"><use href="#fa-{{@n}}"/></svg><span class="fact-n">{{.n}}</span><span class="fact-t">{{.t}}</span></div>
     {{/each}}
   </div>
 </section>
 
-<section class="sec">
+<section class="sec sec-grid">
   <div class="wrap">
     <p class="eyebrow">{{page.flow_eyebrow}}</p>
     <h2>{{page.flow_title}}</h2>
     <ol class="flow">
       {{#each page.flow}}
-      <li><span class="flow-n">{{@n}}</span><strong>{{.name}}</strong><span>{{.desc}}</span></li>
+      <li class="rv">
+        <span class="flow-node"><svg class="ico" aria-hidden="true"><use href="#fl-{{@n}}"/></svg></span>
+        <span class="flow-n">{{@n}}</span>
+        <strong>{{.name}}</strong>
+        <span class="flow-d">{{.desc}}</span>
+      </li>
       {{/each}}
     </ol>
   </div>
 </section>
 
+<section class="sec sec-show">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">{{page.show_eyebrow}}</p>
+        <h2>{{page.show_title}}</h2>
+        <p class="lead measure">{{page.show_lead}}</p>
+      </div>
+      <a class="btn btn-ghost" href="{{BLOCK.url_ukazka}}">{{page.docs_cta}}<svg class="ico ico-btn" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="show">
+      <figure class="win rv">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">00_casovy_diagram.svg</span></div>
+        <div class="win-sheet"><img src="/assets/img/ukazka-casovy.svg" alt="{{ukazka.fig_timing}}" loading="lazy" width="980" height="636"></div>
+        <figcaption>{{ukazka.fig_timing}}</figcaption>
+      </figure>
+      <figure class="win rv">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">03_DO1_X3.svg</span></div>
+        <div class="win-sheet"><img src="/assets/img/ukazka-do1.svg" alt="{{ukazka.fig_do1}}" loading="lazy" width="980" height="760"></div>
+        <figcaption>{{ukazka.fig_do1}}</figcaption>
+      </figure>
+      <figure class="win rv">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">00_bezpecnostni_okruh.svg</span></div>
+        <div class="win-sheet"><img src="/assets/img/ukazka-bezpecnost.svg" alt="{{ukazka.fig_safety}}" loading="lazy" width="980" height="590"></div>
+        <figcaption>{{ukazka.fig_safety}}</figcaption>
+      </figure>
+      <figure class="win fig-crop rv">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">00_funkcni_diagram.svg</span></div>
+        <div class="win-sheet"><img src="/assets/img/ukazka-funkcni.svg" alt="{{ukazka.fig_flow}}" loading="lazy" width="980" height="1628"></div>
+        <figcaption>{{ukazka.fig_flow}}</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
 <section class="sec sec-dark" id="schvalovani">
+  <div class="dark-bg" aria-hidden="true">{{> art-traces}}</div>
   <div class="wrap">
     <p class="eyebrow">{{page.trust_eyebrow}}</p>
     <h2>{{page.trust_title}}</h2>
     <p class="lead measure">{{page.trust_lead}}</p>
     <div class="grid-2">
       {{#each page.trust}}
-      <article class="card card-dark"><h3>{{.name}}</h3><p>{{.desc}}</p></article>
+      <article class="card card-dark rv"><span class="card-ico"><svg class="ico" aria-hidden="true"><use href="#tr-{{@n}}"/></svg></span><h3>{{.name}}</h3><p>{{.desc}}</p></article>
       {{/each}}
     </div>
     <p class="note note-dark measure">{{page.trust_note}}</p>
   </div>
 </section>
 
-<section class="sec">
-  <div class="wrap split">
-    <div>
-      <p class="eyebrow">{{page.docs_eyebrow}}</p>
-      <h2>{{page.docs_title}}</h2>
-      <p class="lead">{{page.docs_lead}}</p>
-      <p><a class="btn btn-ghost" href="{{BLOCK.url_ukazka}}">{{page.docs_cta}}</a></p>
+<section class="sec sec-docs">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <p class="eyebrow">{{page.docs_eyebrow}}</p>
+        <h2>{{page.docs_title}}</h2>
+        <p class="lead">{{page.docs_lead}}</p>
+        <p><a class="btn btn-ghost" href="{{BLOCK.url_ukazka}}">{{page.docs_cta}}<svg class="ico ico-btn" aria-hidden="true"><use href="#i-arrow"/></svg></a></p>
+      </div>
+      <div class="pages-stack" aria-hidden="true">
+        <img src="/assets/img/doc-{{meta.lang}}-03.webp" alt="" loading="lazy" width="476" height="674">
+        <img src="/assets/img/doc-{{meta.lang}}-02.webp" alt="" loading="lazy" width="476" height="674">
+        <img src="/assets/img/doc-{{meta.lang}}-01.webp" alt="" loading="lazy" width="476" height="674">
+      </div>
     </div>
     <ul class="doclist">
       {{#each page.docs}}
-      <li>{{.}}</li>
+      <li><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>{{.}}</li>
       {{/each}}
     </ul>
   </div>
 </section>
 
-<section class="sec sec-tint">
-  <div class="wrap measure-wrap">
+<section class="sec sec-tint sec-dots">
+  <div class="wrap measure-wrap local">
+    <span class="local-ico"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg></span>
     <h2>{{page.local_title}}</h2>
     <p class="lead">{{page.local_body}}</p>
     <p class="note">{{page.local_ai}}</p>
@@ -100,6 +157,6 @@
   <div class="wrap end">
     <h2>{{page.end_title}}</h2>
     <p class="lead">{{page.end_body}}</p>
-    <a class="btn" href="{{BLOCK.url_stazeni}}">{{page.end_cta}}</a>
+    <a class="btn btn-lg" href="{{BLOCK.url_stazeni}}">{{page.end_cta}}<svg class="ico ico-btn" aria-hidden="true"><use href="#i-download"/></svg></a>
   </div>
 </section>

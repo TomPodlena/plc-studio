@@ -14,13 +14,16 @@
 <meta property="og:type" content="website">
 <meta property="og:locale" content="{{meta.locale}}">
 <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
+<link rel="preload" href="/assets/fonts/plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/style.css">
+<meta name="theme-color" content="#0b6b53">
 </head>
 <body data-page="{{BLOCK.key}}">
 
 <a class="skip" href="#main">{{ui.skip}}</a>
 
 <header class="site-head">
+  {{> icons}}
   <div class="wrap head-in">
     <a class="brand" href="{{BLOCK.url_home}}">{{BLOCK.brand_logo}}</a>
 
@@ -47,6 +50,7 @@
 </main>
 
 <footer class="site-foot">
+  <div class="foot-rail" aria-hidden="true"></div>
   <div class="wrap foot-in">
     <div class="foot-brand">
       <span class="brand">{{BLOCK.brand_logo}}</span>
@@ -89,6 +93,26 @@
     b.setAttribute("aria-expanded", String(!open));
     n.classList.toggle("is-open", !open);
     document.body.classList.toggle("nav-open", !open);
+  });
+})();
+
+// Jemne animace pri scrollu: jen s JS, IntersectionObserverem a bez prefers-reduced-motion.
+// Bez JS (a v nahledu pro tisk) je vse videt hned.
+(function () {
+  var els = document.querySelectorAll(".rv");
+  if (!els.length || !("IntersectionObserver" in window)) return;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+    });
+  }, { rootMargin: "0px 0px -6% 0px", threshold: 0.08 });
+  document.documentElement.classList.add("rv-on");
+  els.forEach(function (el, i) {
+    // co je pri nacteni uz ve viditelne casti, se neanimuje
+    var r = el.getBoundingClientRect();
+    if (r.top < window.innerHeight && r.bottom > 0) el.classList.add("in", "now");
+    else { el.style.setProperty("--rv-d", (i % 4) * 70 + "ms"); io.observe(el); }
   });
 })();
 

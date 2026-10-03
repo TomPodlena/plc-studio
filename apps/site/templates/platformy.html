@@ -8,6 +8,11 @@
 
 <section class="sec sec-tight">
   <div class="wrap">
+    <ul class="ptiles" aria-hidden="true">
+      {{#each page.rows}}
+      <li class="rv"><span class="ptile-n">{{@n}}</span><strong>{{.name}}</strong><span>{{.ide}}</span></li>
+      {{/each}}
+    </ul>
     <p class="checked">{{page.checked}} {{BLOCK.checked_date}}</p>
     <div class="table-wrap">
       <table class="ptable">
@@ -34,9 +39,10 @@
   </div>
 </section>
 
-<section class="sec sec-tint">
+<section class="sec sec-tint sec-dots">
   <div class="wrap split">
     <div>
+      <span class="local-ico"><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg></span>
       <h2>{{page.safety_title}}</h2>
       <p class="lead">{{page.safety_lead}}</p>
     </div>
@@ -50,6 +56,7 @@
 
 <section class="sec">
   <div class="wrap measure-wrap">
+    <span class="local-ico"><svg class="ico" aria-hidden="true"><use href="#i-globe"/></svg></span>
     <h2>{{page.lang_title}}</h2>
     <p class="lead">{{page.lang_body}}</p>
   </div>

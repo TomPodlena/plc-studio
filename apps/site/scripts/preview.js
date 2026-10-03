@@ -49,6 +49,7 @@ const dead = new Set();
 function rewrite(html, lang) {
   return html
     .replace(/ loading="lazy"/g, "") // skryte sekce by se jinak nikdy nenacetly
+    .replace(/data-sitekey="[^"]*"/g, 'data-sitekey="1x00000000000000000000AA"') // nahled: testovaci klic Turnstile
     .replace(/src="(\/assets\/[^"]+)"/g, (m, u) => `src="${PIX}" data-asset="${key(u)}"`)
     .replace(/href="(\/assets\/[^"]+)"/g, (m, u) => `href="#" data-asset-href="${key(u)}" data-name="${path.basename(u)}"`)
     .replace(/href="(\/[^"#]*)"/g, (m, u) => {
@@ -75,7 +76,7 @@ for (const lang of LANGS) {
   );
 }
 
-const TYPES = { ".svg": "image/svg+xml", ".pdf": "application/pdf", ".png": "image/png", ".webp": "image/webp" };
+const TYPES = { ".svg": "image/svg+xml", ".pdf": "application/pdf", ".png": "image/png", ".webp": "image/webp", ".woff2": "font/woff2" };
 const assetMap = {};
 for (const [u, k] of assets) {
   const f = path.join(DIST, u.replace(/^\//, ""));
@@ -86,7 +87,15 @@ for (const [u, k] of assets) {
   assetMap[k] = `data:${TYPES[path.extname(f)] || "application/octet-stream"};base64,${fs.readFileSync(f).toString("base64")}`;
 }
 
-const css = fs.readFileSync(path.join(DIST, "assets", "style.css"), "utf-8");
+// CSS: pisma a obrazky z url(/assets/...) vlozit jako data: URI (nahled se otevira z disku)
+const css = fs.readFileSync(path.join(DIST, "assets", "style.css"), "utf-8").replace(/url\((["']?)(\/assets\/[^"')]+)\1\)/g, (m, q, u) => {
+  const f = path.join(DIST, u.replace(/^\//, ""));
+  if (!fs.existsSync(f)) {
+    dead.add(u);
+    return m;
+  }
+  return `url("data:${TYPES[path.extname(f)] || "application/octet-stream"};base64,${fs.readFileSync(f).toString("base64")}")`;
+});
 const baseScript = between(readPage("/"), "// Mobilni menu", "</script>");
 const LABEL = Object.fromEntries(LANGS.map((l) => [l, Object.fromEntries(KEYS.map((k) => [k, content[l].nav[k]]))]));
 const favicon = `data:image/svg+xml;base64,${fs.readFileSync(path.join(DIST, "assets", "img", "favicon.svg")).toString("base64")}`;

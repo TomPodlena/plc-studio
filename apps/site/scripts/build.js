@@ -7,6 +7,7 @@
 //   {{#each cesta}} ... {{/each}}   opakovani pro pole (uvnitr {{.pole}}, {{.}}, {{@n}} = 01, {{@i}} = 0)
 //   {{cesta|li}}                    pole retezcu -> <li>…</li>
 //   {{cesta|note}}                  nepovinny text -> <p class="note">…</p> (chybi = nic, bez varovani)
+//   {{> jmeno}}                     vlozi templates/_jmeno.html (sada ikon, dekorativni SVG)
 // Nazev znacky a adresa webu jsou jen v content/site.json; texty je pisou jako {{site.brand}}.
 
 import fs from "node:fs";
@@ -24,9 +25,13 @@ const SITE_URL = (process.env.SITE_URL || site.url).replace(/\/$/, "");
 site.url = SITE_URL;
 
 // Verejny klic Turnstile smi byt v repozitari (tajny protejsek je secret Workeru).
-// Bez TURNSTILE_SITEKEY se pouzije testovaci klic Cloudflare, ktery pusti kazdeho.
-const TURNSTILE_TEST_SITEKEY = "1x00000000000000000000AA";
-const TURNSTILE_SITEKEY = process.env.TURNSTILE_SITEKEY || TURNSTILE_TEST_SITEKEY;
+// Poradi: promenna TURNSTILE_SITEKEY > site.json turnstile_sitekey > testovaci klic Cloudflare
+// (pusti kazdeho). Volba --test vynuti testovaci klic (ostry klic na localhostu neprojde);
+// serve.js a preview.js ho do stranek dosazuji samy, build pro nasazeni zustava ostry.
+export const TURNSTILE_TEST_SITEKEY = "1x00000000000000000000AA";
+const TURNSTILE_SITEKEY = process.argv.includes("--test")
+  ? TURNSTILE_TEST_SITEKEY
+  : process.env.TURNSTILE_SITEKEY || site.turnstile_sitekey || TURNSTILE_TEST_SITEKEY;
 
 // Stranky: klic = sablona i klic obsahu; out = cesta bez jazykoveho prefixu
 export const PAGES = [
@@ -184,6 +189,11 @@ function render(tpl, c, lang, key, out) {
   const where = `${lang}/${key}`;
   const ctx = { ...c, site, page: c[key] };
   let html = templates._base.replace("{{BODY}}", templates[tpl]);
+  // vlozene casti {{> jmeno}} = templates/_jmeno.html (ikony, dekorativni SVG)
+  html = html.replace(/\{\{> ([a-z0-9-]+)\}\}/g, (m, n) => {
+    if (templates[`_${n}`] === undefined) return warn(`${where}: chybi sablona _${n}.html`), "";
+    return templates[`_${n}`];
+  });
 
   html = expandEach(html, ctx, where);
 
@@ -342,7 +352,11 @@ try {
 }
 
 if (TURNSTILE_SITEKEY === TURNSTILE_TEST_SITEKEY) {
-  console.log("\n  POZOR: Turnstile bezi na TESTOVACIM klici (pusti kazdeho). Ostry klic: TURNSTILE_SITEKEY=... pri buildu.");
+  console.log(
+    process.argv.includes("--test")
+      ? "\n  POZOR: build --test: Turnstile na TESTOVACIM klici (jen pro lokalni zkouseni, nenasazovat)."
+      : "\n  POZOR: Turnstile bezi na TESTOVACIM klici (pusti kazdeho). Ostry klic: site.json turnstile_sitekey nebo TURNSTILE_SITEKEY=... pri buildu."
+  );
 }
 // Provozovatel a ucinnost pravnich textu: dokud je "TBC", jen upozorneni (ne chyba, ne varovani buildu)
 const tbc = [
