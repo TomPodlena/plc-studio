@@ -2,6 +2,7 @@
  * PLC Studio — datový model návrhu a odvozování I/O.
  * Čistý TypeScript bez závislostí; logika přenesená z prototypu (artifact v8).
  */
+import type { SolutionConcept } from "./concept.js";
 import { N_, tr } from "./i18n.js";
 
 export type PlatformKey =
@@ -71,6 +72,8 @@ export interface Project {
   sim?: { motorDelay?: number; valveTravel?: number };
   /** Kusovník: platforma HW, značka po kategoriích, úpravy řádků (klíč = `BomLine.id`). */
   bom?: BomCfg;
+  /** Zvolený koncept řešení z AI nadstavby (viz concept.ts); null = zatím nezvolen. */
+  concept?: SolutionConcept | null;
 }
 
 export interface BomLineCfg { brand?: string; type?: string; orderCode?: string; supplier?: string; qty?: number; note?: string; }
@@ -154,6 +157,7 @@ export function blankProject(): Project {
     io: [],
     program: { modes: true, estop: "", seq: [], interlocks: [] },
     nextId: 1,
+    concept: null,
   };
 }
 

@@ -12,6 +12,7 @@ import { bomCsv, bomMd } from "./bom.js";
 import { tr, N_, today } from "./i18n.js";
 import { genFor } from "./codegen.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
+import { conceptMd } from "./concept.js";
 import { simulate, docVerifyMd, stepWatchdog, stepTitle, stepCondText } from "./sim.js";
 import { svgFlow, svgTiming, svgMachine } from "./flow.js";
 
@@ -102,6 +103,8 @@ export function docFDSMd(prj: Project): string {
     "## " + tr("1. Popis stroje a účel"),
     prj.meta.desc || tr("(doplnit)"),
     "",
+    ...(prj.concept ? ["### " + tr("Zvolený koncept řešení: {name}", { name: prj.concept.nazev }), prj.concept.shrnuti,
+      tr("Podrobně viz {file}.", { file: "`" + CONCEPT_FILE + "`" }), ""] : []),
     "## " + tr("2. Cílové řídicí systémy"),
     prj.platforms.map(p => "- " + tr("{name} — {ide}, {cpu}, jazyk {lang}",
       { name: PLAT[p].name, ide: PLAT[p].ide, cpu: PLAT[p].cpu, lang: tr(PLAT[p].lang) })).join("\n"),
@@ -356,8 +359,14 @@ export function docFiles(prj: Project): DocFile[] {
     docAlarmCsv(prj), docFATMd(prj), docManualMd(prj), docSWMd(prj), docVerifyMd(prj),
     bomMd(prj), bomCsv(prj),
   ];
-  return DOC_META.map((m, i) => ({ path: m[0], tab: tr(m[1]), title: tr(m[2]), body: bodies[i] }));
+  const out = DOC_META.map((m, i) => ({ path: m[0], tab: tr(m[1]), title: tr(m[2]), body: bodies[i] }));
+  /* koncept řešení (AI nadstavba) jen když je zvolený */
+  if (prj.concept) out.push({ path: CONCEPT_FILE, tab: tr("Koncept"), title: tr("koncept řešení (AI návrh k revizi)"), body: conceptMd(prj) });
+  return out;
 }
+
+/** Dokument konceptu řešení — číslo za pevnou sadou 00–09. */
+export const CONCEPT_FILE = "10_koncept_reseni.md";
 
 export interface ProjectFile {
   group: string; name: string; save: string; body: string;

@@ -15,6 +15,9 @@ import { svgFlow, svgTiming, svgMachine } from "./flow.js";
 import { allProjectFiles, docFiles } from "./docs.js";
 import { sampleSmall, sampleComplex } from "./samples.js";
 import { buildBom, bomCsv, bomMd } from "./bom.js";
+import { genPLCopenXML, parseStPou, splitLibrary } from "./plcopen.js";
+import { conceptNorm, conceptInstructions } from "./concept.js";
+import { docFDSMd, CONCEPT_FILE } from "./docs.js";
 
 test("syncIO přiřadí unikátní adresy a NC podle popisu", () => {
   const p = sampleSmall();
@@ -986,4 +989,96 @@ test("i18n: výstupy ve všech jazycích — bez češtiny, bez nevyplněných z
     }
   });
   assert.equal(getLang(), "cs");
+});
+
+/* --- z main: PLCopen XML export a koncepty řešení (sloučeno 2026-10-03) --- */
+
+test("PLCopen XML: POU, GVL s adresami, MAIN instance, escapování", () => {
+  const p = sampleComplex();
+  const xml = genPLCopenXML(p, "codesys");
+  assert.ok(xml.startsWith('<?xml version="1.0"'));
+  assert.ok(xml.includes('xmlns="http://www.plcopen.org/xml/tc6_0200"'));
+  for (const pou of ["FB_Motor", "FB_Ventil", "FB_AnalogIn", "FB_AnalogOut"]) {
+    assert.ok(xml.includes('<pou name="' + pou + '" pouType="functionBlock">'), pou);
+  }
+  assert.ok(xml.includes('<pou name="MAIN" pouType="program">'));
+  assert.ok(xml.includes('<pouInstance name="MAIN" typeName="MAIN" />'));
+  assert.ok(xml.includes('<globalVars name="GVL_IO">'));
+  assert.ok(xml.includes('address="%IX0.0"'));
+  assert.ok(xml.includes('<derived name="TON" />'));
+  assert.ok(xml.includes('<derived name="FB_Motor" />'), "instance v MAIN");
+  assert.ok(!/&(?!amp;|lt;|gt;|quot;|#)/.test(xml), "žádné neescapované &");
+  const body = xml.split("<ST>")[1];
+  assert.ok(body.includes("CASE statStep OF"));
+  assert.ok(!body.split("</ST>")[0].includes("VAR_INPUT"));
+  /* TwinCAT: proměnné GVL s AT %I* / %Q* (linkování) */
+  assert.ok(genPLCopenXML(p, "beckhoff").includes('address="%I*"'));
+});
+
+test("PLCopen XML je z FINÁLNÍHO výstupu generátoru (= Gen_Library.st a MAIN.st)", () => {
+  const p = sampleComplex();
+  for (const plat of ["codesys", "beckhoff", "schneider"] as const) {
+    const files = genFor(p, plat);
+    const xml = files["PLCopen_Import.xml"];
+    const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    assert.ok(xml.includes(esc(parseStPou(files["MAIN.st"]).body)), plat + ": tělo MAIN shodné s MAIN.st");
+    const fbs = splitLibrary(files["Gen_Library.st"]);
+    assert.ok(fbs.length >= 4, plat);
+    for (const fb of fbs) assert.ok(xml.includes(esc(parseStPou(fb).body)), plat + ": tělo " + parseStPou(fb).name);
+    /* ruční povely, porucha stroje a středníky jsou v importu stejně jako v souborech */
+    assert.ok(xml.includes("manRun_M1") && xml.includes("machineFault") && !/END_IF(?!;)/.test(xml), plat);
+  }
+});
+
+test("parseStPou: interface a tělo z MAIN", () => {
+  const p = sampleSmall();
+  const main = parseStPou(genFor(p, "codesys")["MAIN.st"]);
+  assert.equal(main.kind, "program");
+  assert.equal(main.name, "MAIN");
+  assert.ok(main.locals.some(v => v.name === "instM1" && v.type === "FB_Motor"));
+  assert.ok(main.locals.some(v => v.type === "TON"));
+  assert.ok(main.body.includes("instM1("));
+  assert.ok(!main.body.includes("END_PROGRAM"));
+});
+
+test("genFor: PLCopen jen pro CODESYS rodinu", () => {
+  const p = sampleSmall();
+  for (const plat of ["codesys", "beckhoff", "schneider"] as const) {
+    assert.ok("PLCopen_Import.xml" in genFor(p, plat), plat);
+    assert.ok(genFor(p, plat)["README.txt"].includes("PLCopen_Import.xml"), plat + ": README");
+  }
+  for (const plat of ["rockwell", "siemens", "mitsubishi", "omron", "unitronics"] as const) assert.ok(!("PLCopen_Import.xml" in genFor(p, plat)), plat);
+});
+
+test("koncept: normalizace, markdown a podmíněný dokument", () => {
+  const prop = conceptNorm({
+    questions: [], note: "srovnání",
+    variants: [{
+      nazev: "Centralizované PLC s pneumatikou", shrnuti: "Jedno CPU, vše v rozvaděči.",
+      architektura: "S7-1500 + centrální I/O", pohony: "pneumatika", bezpecnost: "E-stop + relé",
+      hmi: "7\" panel", odhadIO: { di: 24, do: 16, ai: 4, ao: 2 },
+      doporucenePlatformy: ["siemens", "nesmysl"], rizika: ["takt"], pracnostMD: 12,
+    }],
+  });
+  assert.equal(prop.variants.length, 1);
+  assert.deepEqual(prop.variants[0].doporucenePlatformy, ["siemens"]);
+  assert.equal(prop.variants[0].odhadIO.do, 16);
+
+  const p = sampleSmall();
+  const n = docFiles(p).length;
+  assert.equal(n, 11, "bez konceptu 11 dokumentů");
+  p.concept = { ...prop.variants[0], zadani: "zkušební stanice" };
+  const files = docFiles(p);
+  assert.equal(files.length, n + 1, "s konceptem o dokument víc");
+  const km = files.find(f => f.path === CONCEPT_FILE)!;
+  assert.ok(km.body.includes("Centralizované PLC"));
+  assert.ok(km.body.includes("ISO 13849"));
+  assert.ok(docFDSMd(p).includes("Zvolený koncept řešení"));
+  assert.ok(conceptInstructions(p).includes("AKTUÁLNĚ ZVOLENÝ KONCEPT"));
+  /* v cizím jazyce přeložené nadpisy, prompt dostane pokyn k jazyku */
+  withLang("en", () => {
+    assert.ok(!/Koncept řešení|Princip řešení/.test(docFiles(p).find(f => f.path === CONCEPT_FILE)!.body), "nadpisy přeložené");
+    assert.ok(conceptInstructions(p).includes("English"));
+  });
+  assert.equal(blankProject().concept, null);
 });

@@ -168,9 +168,37 @@ node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s
   s klíčem uživatele; v produkci přes backend. Model je volitelný: známé modely + seznam dostupných pro klíč (`GET /v1/models`, na klik, neúčtuje se) + vlastní ID — web `AI_MODELS` v `ai.js`, desktop `ai_client.KNOWN_MODELS`, držet shodně.
 - Commity: česky bez diakritiky, stručný popis změn.
 
+## PLCopen XML a koncepty řešení (sloučeno z main 2026-10-03)
+
+**PLCopen XML (TC6)** (`src/plcopen.ts`): `genFor()` (zůstává v `codegen.ts`) pro codesys /
+beckhoff / schneider přidává `PLCopen_Import.xml` a README ho uvádí jako nejrychlejší cestu.
+XML se staví z **finálního textu** `Gen_Library.st` (`splitLibrary`) a `MAIN.st` téže platformy
+(`parseStPou`) — ne ze surových šablon — takže import = ručně vložené soubory (ruční povely,
+porucha, `cmtSafe`, `rawMax`, adresy `addrFor` vč. `%I*` u TwinCATu). Ověřeno: well-formed a
+schéma TC6 v2.01 (Beremiz `tc6_xml_v201.xsd`, ns přepsán) na 14 projektech × 3 platformy;
+**reálný import v CODESYS / TwinCAT zatím neověřen** — nálezy zapsat sem.
+Úkoly v app (z handoffu main): proklikat krok Generovat (PLCopen_Import.xml se zobrazí a stáhne
+sám — Generovat i Dokumentace iterují přes soubory), volitelně badge „doporučeno".
+
+**Dále přibyla AI nadstavba KONCEPTŮ** (`src/concept.ts`, dist přegenerován):
+`conceptInstructions(prj)` + `conceptNorm()` + typ `SolutionConcept` + `conceptMd(prj)`;
+`Project.concept` nese zvolenou variantu; FDS a dokumentace (`10_koncept_reseni.md`, jen když je
+koncept zvolen — `CONCEPT_FILE` v docs.ts) se propisují automaticky; nadpisy přes `tr`, prompt dostává
+pokyn k jazyku výstupu. Úkol pro app (apps/web):
+4. Krok „AI návrh" rozdělit na dva režimy (přepínač nahoře):
+   a) **Koncept** — textarea zadání → aiCall s `conceptInstructions(prj)` (nový helper
+      v ai.js vedle aiInstructions) → `conceptNorm` → vykreslit 2–3 varianty jako karty
+      (název, shrnutí, architektura, pohony, bezpečnost, HMI, odhad I/O, platformy,
+      rizika, pracnost) + tlačítko „Zvolit koncept" → uloží `prj.concept = {...variant,
+      zadani: <první zpráva uživatele>}` a předvybere `prj.platforms` dle
+      doporucenePlatformy; konverzace konceptu má vlastní turns (S.aiConcept).
+   b) **Sestava zařízení** — stávající chování; `aiInstructions()` rozšířit, aby při
+      existujícím prj.concept přikládala i koncept jako kontext (JSON.stringify(prj.concept)).
+   Zvolený koncept zobrazit i v kroku Projekt (řádek s názvem + odkaz na dokument).
+
 ## Roadmapa (pořadí)
 
-1. PLCopen XML (TC6) export — CODESYS/TwinCAT/Machine Expert jedním importovatelným souborem
+1. ~~PLCopen XML (TC6) export~~ ✅ hotovo v core (viz sekce PLCopen XML výše); zbývá IEC 61131-10 XML pro GX Works3 / Sysmac
 2. apps/api: účty, projekty v DB, CZ/EN, platby (Stripe)
 3. AI přes backend; AI z fotky P&ID
 4. Openness worker (import+kompilace do TIA na klik)

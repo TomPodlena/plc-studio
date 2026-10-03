@@ -28,6 +28,7 @@ export function waitedDis(prj) {
     return new Set(prj.program.seq.filter(isDiWait).map(s => s.dev));
 }
 import { tr, trx, N_, getLang } from "./i18n.js";
+import { genPLCopenXML } from "./plcopen.js";
 import { genRockwellL5X, genLogixRoutine, genLogixTagsCsv, lxSlotText, LX_PROGRAM, LX_SOFTWARE_REVISION } from "./logix.js";
 /* ------------------------------------------------------------ šablony SCL */
 export const SCL_MOTOR = `FUNCTION_BLOCK "FB_Motor"
@@ -944,13 +945,13 @@ a Verify Controller (hlavně FBD_TIMER v AOI, výchozí hodnoty parametrů a ver
   scaleMin…scaleMax (rawMax = 100.0).`), tr("Stavová slova status jsou DINT: 16#8001 blokováno, 16#8002 porucha (do INT se 16#8001 nevejde)."), tr(`Nejkratší test: nový projekt CompactLogix 5380 (např. 5069-L306ER) s moduly podle osazení
   výše → Import Program (L5X) → Verify Controller bez chyb → Logix Echo nebo emulátor: modeAuto := 1,
   puls cmdAutoStart a sleduj seqStep a výstupy.`)),
-        beckhoff: () => list("BECKHOFF TWINCAT 3", tr(`GVL_IO.st: PLC projekt → Add → Global Variable List, vlož obsah.
+        beckhoff: () => list("BECKHOFF TWINCAT 3", tr("NEJRYCHLEJI: PLCopen_Import.xml — PLC projekt → pravý klik → Import PLCopenXML (knihovna bloků, MAIN i GVL_IO najednou; import je aditivní, duplicitní POU předem smaž). Ruční cesta je níže."), tr(`GVL_IO.st: PLC projekt → Add → Global Variable List, vlož obsah.
   Adresy %IX/%QX můžeš nechat a nalinkovat v I/O mapování, nebo použít AT %I*.`), tr("Gen_Library.st: každý FUNCTION_BLOCK vlož jako nový POU (ST)."), tr("MAIN.st: obsah do MAIN (PRG) a zavolej v PlcTask."), tr("Test: lokální runtime na PC (TwinCAT XAR).")),
-        codesys: () => list("CODESYS V3.5 (WAGO, Festo, Eaton…)", tr("GVL_IO.st: Application → Add Object → Global Variable List s názvem přesně GVL_IO (MAIN píše GVL_IO.<tag>), obsah nahraď."), tr("Gen_Library.st / MAIN.st: editor POU má dvě části — do HORNÍ (deklarace) vlož řádky od FUNCTION_BLOCK / PROGRAM po poslední END_VAR, do DOLNÍ (implementace) zbytek BEZ END_FUNCTION_BLOCK / END_PROGRAM. Každý blok jako nový POU (Function Block, ST)."), tr("MAIN: vytvoř POU „MAIN“ (Program, ST) a přidej ho do MainTask místo PLC_PRG."), tr("Adresy jsou návrh (analogy jako index slova: %IW32 = bajty 64–65) — porovnej s I/O mapováním zařízení (WAGO: analogové moduly jsou v obrazu procesu první), nebo AT smaž a namapuj GVL_IO v I/O Mapping."), tr("Test: CODESYS Control Win (soft PLC).")),
+        codesys: () => list("CODESYS V3.5 (WAGO, Festo, Eaton…)", tr("NEJRYCHLEJI: PLCopen_Import.xml — Project → Import PLCopenXML (knihovna bloků, MAIN i GVL_IO najednou; import je aditivní, duplicitní POU hlásí chybu). Ruční cesta je níže."), tr("GVL_IO.st: Application → Add Object → Global Variable List s názvem přesně GVL_IO (MAIN píše GVL_IO.<tag>), obsah nahraď."), tr("Gen_Library.st / MAIN.st: editor POU má dvě části — do HORNÍ (deklarace) vlož řádky od FUNCTION_BLOCK / PROGRAM po poslední END_VAR, do DOLNÍ (implementace) zbytek BEZ END_FUNCTION_BLOCK / END_PROGRAM. Každý blok jako nový POU (Function Block, ST)."), tr("MAIN: vytvoř POU „MAIN“ (Program, ST) a přidej ho do MainTask místo PLC_PRG."), tr("Adresy jsou návrh (analogy jako index slova: %IW32 = bajty 64–65) — porovnej s I/O mapováním zařízení (WAGO: analogové moduly jsou v obrazu procesu první), nebo AT smaž a namapuj GVL_IO v I/O Mapping."), tr("Test: CODESYS Control Win (soft PLC).")),
         mitsubishi: () => list("MITSUBISHI GX WORKS3 (iQ-F/iQ-R)", tr(`GlobalLabels.csv: Navigation → Label → Global Label → import CSV
   (sloupec Assign obsahuje návrh X/Y — ověř dle skutečných modulů; formát CSV
   se liší podle verze GX Works3, srovnej s exportem ze své instalace).`), tr("Gen_Library.st: Function Block do knihovny projektu (jazyk ST)."), tr("MAIN.st: GX Works3 edituje tělo programu odděleně od návěští — do ProgPou (ST) vlož jen tělo (od řádku za END_VAR po END_PROGRAM) a lokální návěští založ podle bloku VAR."), tr("Adresy X/Y jsou pro FX5 osmičkové (X0–X7, X10…); analogy přiřaď na SD6020 / SD6060 (vestavěné AI) nebo vyrovnávací paměť modulu U…\\G…; rawMax je v kódu 16000 (TODO podle modulu)."), tr("TON na FX5 bere nejvýš 32767 ms — kroky s delším časem kontrola návrhu hlásí; uprav je (např. TIMER_100_FB_M nebo rozdělení kroku)."), tr("Test: GX Simulator3.")),
-        schneider: () => list("SCHNEIDER ECOSTRUXURE MACHINE EXPERT (M241/M262)", tr("Platforma je postavená na CODESYS — postup shodný: GVL, POU (ST), MAIN do tasku."), tr("Adresy %IX/%QX namapuj na embedded I/O / TM3 moduly v konfiguraci."), tr("Pro Control Expert (M580) je nutné bloky přenést jako DFB — struktura sedí."), tr("Test: simulátor v Machine Expert.")),
+        schneider: () => list("SCHNEIDER ECOSTRUXURE MACHINE EXPERT (M241/M262)", tr("NEJRYCHLEJI: PLCopen_Import.xml — Project → Import PLCopenXML (báze CODESYS: knihovna bloků, MAIN i GVL_IO najednou). Ruční cesta je níže."), tr("Platforma je postavená na CODESYS — postup shodný: GVL, POU (ST), MAIN do tasku."), tr("Adresy %IX/%QX namapuj na embedded I/O / TM3 moduly v konfiguraci."), tr("Pro Control Expert (M580) je nutné bloky přenést jako DFB — struktura sedí."), tr("Test: simulátor v Machine Expert.")),
         omron: () => list("OMRON SYSMAC STUDIO (NX/NJ)", tr("Variables.txt: v Global Variables vyber první prázdnou buňku sloupce Name a vlož (Ctrl+V) — sloupce Name, Data Type, Initial Value, AT, Retain, Constant, Network Publish, Comment."), tr("AT sloupec nech prázdný a namapuj na I/O porty zařízení (EtherCAT) v projektu."), tr("Gen_Library.st: každý blok jako Function Block (ST) do POUs → Function Blocks; vstup kvitace se jmenuje resetIn (Reset je instrukce Sysmac)."), tr("MAIN.st: Sysmac edituje tělo programu odděleně od proměnných — do Program0 (ST) vlož jen tělo (od řádku za END_VAR po END_PROGRAM) a proměnné z bloku VAR založ v tabulce lokálních proměnných."), tr("rawMax analogů je v kódu 32000 s poznámkou TODO — uprav podle rozsahu svého modulu NX."), tr("Test: Simulace přímo v Sysmac Studiu.")),
         unitronics: () => list(tr("UNITRONICS UNILOGIC (řada UniStream) — soubory Tags.csv a Machine.st") + "\n" +
             tr(`POZOR — NEOVĚŘENO PŘEKLADEM: výstup pro Unitronics nebyl zkoušen v UniLogic. Při prvním
@@ -1149,6 +1150,9 @@ export function genFor(prj, plat) {
         files[tf.name] = tf.body;
         files["Gen_Library.st"] = genLibrary(prj, plat);
         files["MAIN.st"] = genMainIEC(prj, plat);
+        /* CODESYS rodina: celý program jedním importovatelným souborem (z téhož finálního textu) */
+        if (plat === "codesys" || plat === "beckhoff" || plat === "schneider")
+            files["PLCopen_Import.xml"] = genPLCopenXML(prj, plat);
         if (plat === "omron")
             for (const f of ["Gen_Library.st", "MAIN.st"])
                 files[f] = files[f].replace(/\breset\b/g, "resetIn");

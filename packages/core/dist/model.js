@@ -1,7 +1,3 @@
-/**
- * PLC Studio — datový model návrhu a odvozování I/O.
- * Čistý TypeScript bez závislostí; logika přenesená z prototypu (artifact v8).
- */
 import { N_, tr } from "./i18n.js";
 export const PLAT = {
     siemens: { name: "Siemens SIMATIC", ide: "TIA Portal V17–V21", cpu: "S7-1200 / S7-1500", lang: "SCL", imp: N_("externí zdroje .scl + SimaticML XML (Openness) + TSV tagů") },
@@ -68,6 +64,7 @@ export function blankProject() {
         io: [],
         program: { modes: true, estop: "", seq: [], interlocks: [] },
         nextId: 1,
+        concept: null,
     };
 }
 export function devById(prj, id) {

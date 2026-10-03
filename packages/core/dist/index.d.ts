@@ -10,4 +10,6 @@ export * from "./docs.js";
 export * from "./samples.js";
 export * from "./catalog.js";
 export * from "./bom.js";
+export * from "./plcopen.js";
+export * from "./concept.js";
 export * from "./platform_refs.js";

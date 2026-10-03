@@ -23,6 +23,8 @@ export interface DocFile {
     body: string;
 }
 export declare function docFiles(prj: Project): DocFile[];
+/** Dokument konceptu řešení — číslo za pevnou sadou 00–09. */
+export declare const CONCEPT_FILE = "10_koncept_reseni.md";
 export interface ProjectFile {
     group: string;
     name: string;
