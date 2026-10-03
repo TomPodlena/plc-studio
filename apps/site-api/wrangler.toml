@@ -1,0 +1,31 @@
+name = "plcdesk-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ---- D1: leads, licence, aktivace ----
+[[d1_databases]]
+binding = "DB"
+database_name = "plcdesk"
+database_id = "PLACEHOLDER_SPUST_wrangler_d1_create_plcdesk"
+
+# ---- R2: instalátory a update balíčky ----
+# R2 nemá poplatky za egress — proto tam patří binárky, ne na Pages.
+[[r2_buckets]]
+binding = "RELEASES"
+bucket_name = "plcdesk-releases"
+
+[vars]
+APP_NAME = "PLCdesk"
+PUBLIC_SITE = "https://plcdesk.io"
+MAIL_FROM = "PLCdesk <noreply@mail.plcdesk.io>"
+MAIL_REPLY_TO = "podlena.t@gmail.com"
+# Volná verze: strop I/O. Mění se jen tady, aplikace si ho tahá z /api/config.
+FREE_IO_LIMIT = "64"
+
+# ---- Tajné hodnoty: NEDÁVAT sem. Nastav přes wrangler secret put ----
+# wrangler secret put RESEND_API_KEY
+# wrangler secret put TURNSTILE_SECRET
+# wrangler secret put LICENSE_PRIVATE_KEY     (Ed25519 PKCS#8, base64 — viz tools/keygen.mjs)
+# wrangler secret put STRIPE_WEBHOOK_SECRET
+# wrangler secret put ADMIN_TOKEN

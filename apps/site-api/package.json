@@ -1,0 +1,14 @@
+{
+  "name": "plcdesk-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:local": "wrangler d1 execute plcdesk --local --file=schema.sql",
+    "test": "node test/worker.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

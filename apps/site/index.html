@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PLCdesk — dokumentace ke stroji za odpoledne</title>
+<meta name="description" content="Od popisu stroje k FDS, výkresům a kostře PLC programu. Siemens, Beckhoff, CODESYS a další. Běží lokálně, do 64 I/O zdarma.">
+<link rel="canonical" href="https://plcdesk.io/">
+<meta property="og:title" content="PLCdesk — dokumentace ke stroji za odpoledne">
+<meta property="og:description" content="Popište stroj. PLCdesk napíše FDS, I/O list, svorkovnici, FAT protokol i návod — plus kostru programu.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="cs_CZ">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f4f5f7;
+    --line: #d8dbe0;
+    --ink: #16191d;
+    --muted: #5c646e;
+    --accent: #0f5c4a;
+    --accent-ink: #ffffff;
+    --warn: #8a5a00;
+    --radius: 6px;
+    --maxw: 68rem;
+  }
+  :root:not([data-theme="light"]) {
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171a;
+      --surface: #1c2024;
+      --line: #2e343a;
+      --ink: #e8eaed;
+      --muted: #9aa3ad;
+      --accent: #3fae8f;
+      --accent-ink: #0c1512;
+      --warn: #d8a43c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171a;
+    --surface: #1c2024;
+    --line: #2e343a;
+    --ink: #e8eaed;
+    --muted: #9aa3ad;
+    --accent: #3fae8f;
+    --accent-ink: #0c1512;
+    --warn: #d8a43c;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 17px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3 { line-height: 1.2; letter-spacing: -0.015em; margin: 0 0 .6em; }
+  h1 { font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 650; }
+  h2 { font-size: clamp(1.5rem, 4vw, 2.1rem); font-weight: 620; }
+  h3 { font-size: 1.1rem; font-weight: 620; }
+  p { margin: 0 0 1em; }
+  a { color: inherit; }
+
+  header {
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(8px);
+  }
+  .nav { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .logo { font-weight: 680; letter-spacing: -0.02em; font-size: 1.15rem; text-decoration: none; }
+  .logo span { color: var(--accent); }
+  .nav-links { display: flex; gap: 20px; font-size: .94rem; }
+  .nav-links a { color: var(--muted); text-decoration: none; }
+  .nav-links a:hover { color: var(--ink); }
+  @media (max-width: 620px) { .nav-links { display: none; } }
+
+  .hero { padding: clamp(48px, 9vw, 92px) 0 clamp(36px, 6vw, 64px); }
+  .hero p.lead { font-size: clamp(1.05rem, 2.4vw, 1.25rem); color: var(--muted); max-width: 44ch; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .btn {
+    display: inline-block; padding: 13px 22px; border-radius: var(--radius);
+    font-weight: 600; font-size: 1rem; text-decoration: none; cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-secondary { background: transparent; color: var(--ink); border-color: var(--line); }
+  .fineprint { font-size: .86rem; color: var(--muted); margin-top: 14px; }
+
+  section { padding: clamp(40px, 7vw, 72px) 0; border-top: 1px solid var(--line); }
+  .cards { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+  .card p { margin: 0; color: var(--muted); font-size: .96rem; }
+  .card h3 { margin-bottom: .5em; }
+  .num { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 680; font-size: .9rem; display: block; margin-bottom: 6px; }
+
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; max-width: 62ch; }
+  ol.steps li { counter-increment: s; position: relative; padding-left: 44px; margin-bottom: 22px; }
+  ol.steps li::before {
+    content: counter(s); position: absolute; left: 0; top: 1px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-size: .9rem; font-weight: 650;
+  }
+  ol.steps strong { display: block; }
+  ol.steps span { color: var(--muted); font-size: .96rem; }
+
+  .limits { border-left: 3px solid var(--warn); padding-left: 18px; max-width: 62ch; }
+  .limits li { margin-bottom: 10px; color: var(--muted); }
+  .limits strong { color: var(--ink); }
+
+  .pricing { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); align-items: start; }
+  .plan { border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  .plan.featured { border-color: var(--accent); border-width: 2px; }
+  .price { font-size: 1.8rem; font-weight: 660; margin: 8px 0 4px; }
+  .price small { font-size: .9rem; font-weight: 400; color: var(--muted); }
+  .plan ul { list-style: none; padding: 0; margin: 16px 0 0; font-size: .94rem; color: var(--muted); }
+  .plan li { padding: 6px 0 6px 20px; position: relative; }
+  .plan li::before { content: "·"; position: absolute; left: 6px; color: var(--accent); font-weight: 700; }
+
+  details { border-bottom: 1px solid var(--line); padding: 16px 0; max-width: 68ch; }
+  details summary { cursor: pointer; font-weight: 600; list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: "+ "; color: var(--accent); font-weight: 700; }
+  details[open] summary::before { content: "– "; }
+  details p { margin: 12px 0 0; color: var(--muted); font-size: .96rem; }
+
+  form.signup { display: flex; flex-wrap: wrap; gap: 10px; max-width: 34rem; margin-top: 22px; }
+  form.signup input[type=email] {
+    flex: 1 1 15rem; padding: 13px 14px; font-size: 1rem; font-family: inherit;
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--bg); color: var(--ink);
+  }
+  .form-msg { margin-top: 12px; font-size: .94rem; min-height: 1.4em; }
+  .form-msg.ok { color: var(--accent); }
+  .form-msg.err { color: #c0392b; }
+  @media (prefers-color-scheme: dark) { .form-msg.err { color: #ff8a7a; } }
+
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); font-size: .9rem; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="/">PLC<span>desk</span></a>
+    <nav class="nav-links">
+      <a href="#jak">Jak to funguje</a>
+      <a href="#hranice">Co nedělá</a>
+      <a href="#cenik">Ceník</a>
+      <a href="#faq">Otázky</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>Dokumentace ke stroji<br>za odpoledne, ne za víkend</h1>
+    <p class="lead">
+      Popište stroj a jeho I/O. PLCdesk z toho vygeneruje FDS, seznam I/O,
+      svorkovnici, tabulku alarmů, FAT protokol i návod k obsluze — plus kostru
+      PLC programu pro Siemens, Beckhoff, CODESYS a další. Vše ve vašem
+      počítači, nic se nenahrává do cloudu.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#stazeni">Stáhnout zdarma — do 64 I/O bez omezení</a>
+      <a class="btn btn-secondary" href="/ukazka.pdf">Ukázkové výstupy (PDF)</a>
+    </div>
+    <p class="fineprint">Bez registrace kartou. Windows 10/11.</p>
+  </div>
+
+</div>
+
+<section>
+  <div class="wrap">
+    <div class="cards">
+      <div class="card">
+        <span class="num">01</span>
+        <h3>Dokumentace, kterou zákazník podepíše</h3>
+        <p>FDS, seznam I/O, tabulka alarmů, FAT protokol, návod k obsluze,
+        softwarová dokumentace. Všechno z jednoho popisu stroje, všechno
+        konzistentní — když přidáte ventil, objeví se ve všech dokumentech
+        najednou. Žádné přepisování mezi Wordem a Excelem.</p>
+      </div>
+      <div class="card">
+        <span class="num">02</span>
+        <h3>Výkresy, které sedí s dokumentací</h3>
+        <p>Elektrické schéma se značkami podle IEC, čísly vodičů, rámečkem
+        a razítkem. Svorkovnicový plán. Export do DXF, takže to otevřete
+        v AutoCADu nebo pošlete elektrikáři. Rozlišuje NC a NO kontakty, takže
+        bezpečnostní obvody kreslí správně.</p>
+      </div>
+      <div class="card">
+        <span class="num">03</span>
+        <h3>Kostra programu, ne hotový program</h3>
+        <p>Tagy, šablony funkčních bloků a krokový automat pro Siemens (SCL),
+        Beckhoff, CODESYS, Schneider, Rockwell, Mitsubishi a OMRON. To nudné,
+        co píšete pokaždé znovu. Procesní logiku si napíšete sami — a to je
+        záměr, ne nedodělek.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="jak">
+  <div class="wrap">
+    <h2>Jak to funguje</h2>
+    <ol class="steps">
+      <li><strong>Popíšete stroj.</strong>
+        <span>Dopravník, dvě pneumatické jednotky, tři ventily, jeden frekvenční
+        měnič. Psát můžete běžnou řečí nebo zařízení naklikat z typových bloků.</span></li>
+      <li><strong>Doplníte I/O.</strong>
+        <span>Adresy, NC/NO, rozsahy analogových signálů, poruchová hlášení.
+        Nebo naimportujete to, co už máte — tabulku tagů z TIA, L5X z Rockwellu, GVL.</span></li>
+      <li><strong>Zkontrolujete sestavu.</strong>
+        <span>Vidíte seznam zařízení a signálů dřív, než se cokoli vygeneruje.
+        Tady se opravuje, ne až v hotových souborech.</span></li>
+      <li><strong>Vygenerujete výstupy.</strong>
+        <span>Dokumentace, výkresy a soubory k importu do vašeho vývojového
+        prostředí. Všechno najednou, konzistentní mezi sebou.</span></li>
+    </ol>
+    <p style="color:var(--muted); max-width:62ch; margin-top:24px">
+      Změníte-li cokoli ve stroji, přegenerujete vše jedním kliknutím. Žádné
+      ruční dohledávání, co ještě nesedí.
+    </p>
+  </div>
+</section>
+
+<section id="hranice">
+  <div class="wrap">
+    <h2>Co PLCdesk nedělá</h2>
+    <ul class="limits">
+      <li><strong>Nikdy bezpečnostní funkce.</strong> Safety okruhy, nouzové
+        zastavení, hlídání dveří — nic z toho PLCdesk negeneruje a generovat
+        nebude. Bezpečnost patří do rukou člověka s odpovědností a certifikací.</li>
+      <li><strong>Negeneruje hotový stroj.</strong> Dostanete kostru
+        a dokumentaci. Procesní logiku, odladění a oživení děláte vy.</li>
+      <li><strong>Nenahrazuje projektanta.</strong> Je to nástroj, který ušetří
+        papírování, ne inženýra.</li>
+    </ul>
+
+    <h3 style="margin-top:44px">Vaše projekty neopouštějí váš počítač</h3>
+    <p style="color:var(--muted); max-width:62ch">
+      PLCdesk běží lokálně. Žádný upload, žádný cloud, žádné servery, kam by se
+      vaše zakázky ukládaly. Pracujete-li pod NDA s automobilkou nebo německým
+      OEM, nemusíte nikomu nic vysvětlovat.
+    </p>
+  </div>
+</section>
+
+<section id="cenik">
+  <div class="wrap">
+    <h2>Ceník</h2>
+    <p style="color:var(--muted); max-width:56ch">
+      Vyzkoušejte na skutečné zakázce, ne na hračce. Free verze projde celým
+      postupem až k hotovým souborům.
+    </p>
+    <div class="pricing">
+      <div class="plan featured">
+        <h3>Free</h3>
+        <div class="price">0 Kč <small>trvale</small></div>
+        <ul>
+          <li>Neomezený počet projektů do 64 I/O</li>
+          <li>Všechny generátory i dokumentace</li>
+          <li>Exporty s patičkou PLCdesk</li>
+          <li>Bez DXF</li>
+        </ul>
+      </div>
+      <div class="plan">
+        <h3>Pro</h3>
+        <div class="price">990 Kč <small>/ měsíc</small></div>
+        <ul>
+          <li>Bez omezení velikosti projektu</li>
+          <li>Čisté exporty bez patičky</li>
+          <li>Export do DXF</li>
+        </ul>
+      </div>
+      <div class="plan">
+        <h3>Firma</h3>
+        <div class="price">2 990 Kč <small>/ měsíc</small></div>
+        <ul>
+          <li>Vše z Pro pro tým</li>
+          <li>Vlastní knihovna šablon FB</li>
+          <li>Firemní názvosloví a statusy</li>
+        </ul>
+      </div>
+    </div>
+    <p style="color:var(--muted); margin-top:22px; max-width:56ch">
+      Narazíte na limit 64 I/O u reálného stroje?
+      <a href="mailto:podlena.t@gmail.com?subject=Odemčení%20projektu">Napište nám</a>
+      a první projekt vám odemkneme celý zdarma.
+    </p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Otázky, které dostáváme</h2>
+
+    <details>
+      <summary>Generuje to AI? Tomu nevěřím.</summary>
+      <p>Dokumentaci a výkresy skládá PLCdesk z vašeho popisu podle pevných
+      pravidel, ne odhadem. AI pomáhá jen v jednom kroku: z volného popisu
+      stroje navrhne sestavu zařízení, kterou pak schválíte nebo upravíte.
+      Nic se negeneruje bez vaší kontroly.</p>
+    </details>
+
+    <details>
+      <summary>Kdo nese odpovědnost, když to zavaří stroj?</summary>
+      <p>Vy, stejně jako u kódu, který napíšete sami. Proto PLCdesk negeneruje
+      bezpečnostní funkce a proto dostanete kostru, ne hotový program.</p>
+    </details>
+
+    <details>
+      <summary>Neukládají se mi projekty někam na server?</summary>
+      <p>Ne. Aplikace běží u vás v počítači. Online spojení potřebuje jen při
+      aktivaci licence a pro AI návrh sestavy, který lze vypnout.</p>
+    </details>
+
+    <details>
+      <summary>Mám existující projekt. Musím ho přepisovat?</summary>
+      <p>Ne. PLCdesk umí naimportovat tabulku tagů z TIA, L5X z Rockwellu nebo
+      GVL a zrekonstruovat z nich zařízení a I/O. Logiku bloků nepřenáší —
+      ta zůstává u vás.</p>
+    </details>
+
+    <details>
+      <summary>Co když používám platformu, kterou nepodporujete?</summary>
+      <p>Pro CODESYS, TwinCAT a Machine Expert generujeme PLCopen XML, který je
+      naimportuje. U ostatních dostanete zdrojové soubory k ručnímu importu.</p>
+    </details>
+
+    <details>
+      <summary>Je to drahé.</summary>
+      <p>Jedna zakázka, u které nemusíte psát FDS a svorkovnici, se vejde do
+      ročního předplatného několikrát. Do 64 I/O je nástroj zdarma napořád.</p>
+    </details>
+  </div>
+</section>
+
+<section id="stazeni">
+  <div class="wrap">
+    <h2>Stáhnout PLCdesk</h2>
+    <p style="color:var(--muted); max-width:52ch">
+      Nemusí se instalovat — rozbalte a spusťte. Nepotřebujete práva správce.
+    </p>
+    <form class="signup" id="leadForm">
+      <input type="email" name="email" placeholder="vas@email.cz" required autocomplete="email">
+      <button class="btn btn-primary" type="submit">Poslat odkaz ke stažení</button>
+      <div class="cf-turnstile" data-sitekey="PLACEHOLDER_TURNSTILE_SITEKEY" data-size="flexible"></div>
+    </form>
+    <div class="form-msg" id="formMsg" role="status" aria-live="polite"></div>
+    <p class="fineprint">
+      Odkaz vám přijde do minuty. Žádné další e-maily, pokud si je nevyžádáte.
+    </p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>PLCdesk — nástroj pro návrh a dokumentaci jednoúčelových strojů.</p>
+    <p>
+      <a href="/podminky">Podmínky užití</a> ·
+      <a href="/soukromi">Ochrana údajů</a> ·
+      <a href="mailto:podlena.t@gmail.com">Kontakt</a>
+    </p>
+  </div>
+</footer>
+
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script>
+(function () {
+  var API = 'https://api.plcdesk.io';
+  var form = document.getElementById('leadForm');
+  var msg = document.getElementById('formMsg');
+  if (!form) return;
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var btn = form.querySelector('button');
+    var email = form.email.value.trim();
+    var ts = (form.querySelector('[name="cf-turnstile-response"]') || {}).value;
+
+    btn.disabled = true;
+    msg.className = 'form-msg';
+    msg.textContent = 'Odesílám…';
+
+    try {
+      var res = await fetch(API + '/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          turnstile: ts,
+          source: new URLSearchParams(location.search).get('utm_source') || null
+        })
+      });
+      var data = await res.json();
+      if (res.ok) {
+        msg.className = 'form-msg ok';
+        msg.textContent = 'Hotovo — odkaz je na cestě do ' + email + '.';
+        form.reset();
+      } else {
+        msg.className = 'form-msg err';
+        msg.textContent = data.error || 'Něco se nepovedlo, zkuste to prosím znovu.';
+      }
+    } catch (err) {
+      msg.className = 'form-msg err';
+      msg.textContent = 'Spojení se nezdařilo. Zkuste to prosím za chvíli.';
+    } finally {
+      btn.disabled = false;
+      if (window.turnstile) window.turnstile.reset();
+    }
+  });
+})();
+</script>
+</body>
+</html>
