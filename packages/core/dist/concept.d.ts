@@ -36,5 +36,6 @@ export interface ConceptProposal {
 /** Instrukce pro AI (vede konverzaci nad konceptem; app přikládá turns uživatele). */
 export declare function conceptInstructions(prj: Project): string;
 export declare function conceptNorm(r: unknown): ConceptProposal;
-/** Markdown dokument „Koncept řešení" (součást projektové dokumentace). */
+/** Markdown dokument „Koncept řešení“ (součást projektové dokumentace). Obsah polí je od AI
+    v jazyce zadání (jako obsah projektu) — překládají se jen nadpisy a pevné věty. */
 export declare function conceptMd(prj: Project): string;

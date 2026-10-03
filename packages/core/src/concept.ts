@@ -9,6 +9,7 @@
  * dělá aplikace (apps/web/src/ai.js, později backend).
  */
 import { Project, PLAT, PlatformKey } from "./model.js";
+import { tr, getLang, LANGS } from "./i18n.js";
 
 export interface ConceptIO { di: number; do: number; ai: number; ao: number; }
 
@@ -59,6 +60,8 @@ export function conceptInstructions(prj: Project): string {
     + "Piš česky, věcně, pro malou integrátorskou firmu. Nenavrhuj safety logiku do PLC.\n"
     + "Chybí-li ZÁSADNÍ informace, polož nejvýše 3 otázky v \"questions\" a \"variants\" nech prázdné; jinak otázky prázdné.\n"
     + ctx
+    /* prompt zůstává česky (jako aiInstructions); cizí jazyk UI jen přidá pokyn k textům pro uživatele */
+    + (getLang() === "cs" ? "" : "Texty určené uživateli (všechna textová pole variant, otázky, poznámku) piš v jazyce „" + LANGS[getLang()] + "“ — tento pokyn má přednost před pokynem psát česky; klíče JSON a klíče platforem zůstávají beze změny.\n")
     + 'Odpověz POUZE jedním JSON objektem: {"questions":[],"variants":[…],"note":"krátké srovnání variant / doporučení"}';
 }
 
@@ -92,40 +95,31 @@ export function conceptNorm(r: unknown): ConceptProposal {
   return out;
 }
 
-/** Markdown dokument „Koncept řešení" (součást projektové dokumentace). */
+/** Markdown dokument „Koncept řešení“ (součást projektové dokumentace). Obsah polí je od AI
+    v jazyce zadání (jako obsah projektu) — překládají se jen nadpisy a pevné věty. */
 export function conceptMd(prj: Project): string {
   const c = prj.concept;
-  if (!c) return "# Koncept řešení\n\n(Koncept zatím nebyl zvolen — vygeneruj ho v kroku AI návrh.)";
-  return `# Koncept řešení — ${c.nazev}
-
-**Projekt:** ${prj.meta.name || "—"} · návrh konceptu vygenerován AI v PLC Studio, **podléhá revizi**.
-
-## Zadání
-${c.zadani || prj.meta.desc || "(doplnit)"}
-
-## Princip řešení
-${c.shrnuti}
-
-## Architektura řízení
-${c.architektura}
-
-## Pohony a akční členy
-${c.pohony}
-
-## Koncept bezpečnosti
-${c.bezpecnost}
-
-> Finální bezpečnostní řešení (kategorie/PL, prvky, zapojení) určí posouzení rizik dle ISO 13849 / IEC 62061 — tento koncept je pouze výchozí rámec a nenahrazuje ho.
-
-## Koncept ovládání (HMI)
-${c.hmi}
-
-## Odhad rozsahu
-- I/O: DI ${c.odhadIO.di} · DO ${c.odhadIO.do} · AI ${c.odhadIO.ai} · AO ${c.odhadIO.ao}
-- Doporučené platformy: ${c.doporucenePlatformy.map(k => PLAT[k].name).join(", ") || "—"}
-- Hrubý odhad pracnosti SW: ~${c.pracnostMD} člověkodnů
-
-## Rizika a otevřené body
-${c.rizika.map(r => "- " + r).join("\n") || "- (doplnit)"}
-`;
+  if (!c) return "# " + tr("Koncept řešení") + "\n\n" + tr("(Koncept zatím nebyl zvolen — vygeneruj ho v kroku AI návrh.)");
+  return [
+    "# " + tr("Koncept řešení") + " — " + c.nazev,
+    "",
+    tr("**Projekt:** {name} · návrh konceptu vygenerován AI v PLC Studio, **podléhá revizi**.", { name: prj.meta.name || "—" }),
+    "",
+    "## " + tr("Zadání"), c.zadani || prj.meta.desc || tr("(doplnit)"), "",
+    "## " + tr("Princip řešení"), c.shrnuti, "",
+    "## " + tr("Architektura řízení"), c.architektura, "",
+    "## " + tr("Pohony a akční členy"), c.pohony, "",
+    "## " + tr("Koncept bezpečnosti"), c.bezpecnost, "",
+    "> " + tr("Finální bezpečnostní řešení (kategorie/PL, prvky, zapojení) určí posouzení rizik dle ISO 13849 / IEC 62061 — tento koncept je pouze výchozí rámec a nenahrazuje ho."),
+    "",
+    "## " + tr("Koncept ovládání (HMI)"), c.hmi, "",
+    "## " + tr("Odhad rozsahu"),
+    "- " + tr("I/O: DI {di} · DO {do} · AI {ai} · AO {ao}", { di: c.odhadIO.di, do: c.odhadIO.do, ai: c.odhadIO.ai, ao: c.odhadIO.ao }),
+    "- " + tr("Doporučené platformy: {list}", { list: c.doporucenePlatformy.map(k => PLAT[k].name).join(", ") || "—" }),
+    "- " + tr("Hrubý odhad pracnosti SW: ~{md} člověkodnů", { md: c.pracnostMD }),
+    "",
+    "## " + tr("Rizika a otevřené body"),
+    c.rizika.map(r => "- " + r).join("\n") || "- " + tr("(doplnit)"),
+    "",
+  ].join("\n");
 }

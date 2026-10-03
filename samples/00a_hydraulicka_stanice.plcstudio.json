@@ -1,0 +1,246 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Hydraulická zkušební stanice (ukázka)",
+   "desc": "Ukázkový projekt — hydraulická zkušební stanice: upnutí zkoušeného dílu, rozběh čerpadla, výdrž pod tlakem 5 s, zastavení čerpadla a uvolnění. Tlak a teplota oleje hlídané mezemi (překročení = porucha stroje), signálka Připraveno, nouzové zastavení a kryt v blokování.",
+   "takt": 10
+  },
+  "platforms": [
+   "siemens"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "M1",
+    "cls": "Motor",
+    "desc": "Čerpadlo hydrauliky",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 2,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Ventil upínání",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 3,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Tlak hydrauliky",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 250,
+    "limHi": 210
+   },
+   {
+    "id": 4,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Teplota oleje",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 100,
+    "limLo": 10,
+    "limHi": 60
+   },
+   {
+    "id": 5,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 6,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Kryt zkušebního prostoru zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 7,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Signálka Připraveno",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready"
+   }
+  ],
+  "io": [
+   {
+    "key": "1:fbkRunning",
+    "devId": 1,
+    "sig": "fbkRunning",
+    "dir": "DI",
+    "tag": "M1_fbkRunning",
+    "addr": "%I0.0",
+    "cmt": "Čerpadlo hydrauliky – běh",
+    "nc": false
+   },
+   {
+    "key": "1:fault",
+    "devId": 1,
+    "sig": "fault",
+    "dir": "DI",
+    "tag": "M1_fault",
+    "addr": "%I0.1",
+    "cmt": "Čerpadlo hydrauliky – porucha",
+    "nc": false
+   },
+   {
+    "key": "1:outRun",
+    "devId": 1,
+    "sig": "outRun",
+    "dir": "DO",
+    "tag": "M1_outRun",
+    "addr": "%Q0.0",
+    "cmt": "Čerpadlo hydrauliky – povel chod",
+    "nc": false
+   },
+   {
+    "key": "2:fbkOpen",
+    "devId": 2,
+    "sig": "fbkOpen",
+    "dir": "DI",
+    "tag": "Y1_fbkOpen",
+    "addr": "%I0.2",
+    "cmt": "Ventil upínání – otevřeno",
+    "nc": false
+   },
+   {
+    "key": "2:fbkClosed",
+    "devId": 2,
+    "sig": "fbkClosed",
+    "dir": "DI",
+    "tag": "Y1_fbkClosed",
+    "addr": "%I0.3",
+    "cmt": "Ventil upínání – zavřeno",
+    "nc": false
+   },
+   {
+    "key": "2:outOpen",
+    "devId": 2,
+    "sig": "outOpen",
+    "dir": "DO",
+    "tag": "Y1_outOpen",
+    "addr": "%Q0.1",
+    "cmt": "Ventil upínání – povel otevřít",
+    "nc": false
+   },
+   {
+    "key": "3:raw",
+    "devId": 3,
+    "sig": "raw",
+    "dir": "AI",
+    "tag": "B1_raw",
+    "addr": "%IW64",
+    "cmt": "Tlak hydrauliky – bar",
+    "nc": false
+   },
+   {
+    "key": "4:raw",
+    "devId": 4,
+    "sig": "raw",
+    "dir": "AI",
+    "tag": "B2_raw",
+    "addr": "%IW66",
+    "cmt": "Teplota oleje – °C",
+    "nc": false
+   },
+   {
+    "key": "5:in",
+    "devId": 5,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S1_in",
+    "addr": "%I0.4",
+    "cmt": "Nouzové zastavení (NC) – ",
+    "nc": true
+   },
+   {
+    "key": "6:in",
+    "devId": 6,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S2_in",
+    "addr": "%I0.5",
+    "cmt": "Kryt zkušebního prostoru zavřen (NC) – ",
+    "nc": true
+   },
+   {
+    "key": "7:out",
+    "devId": 7,
+    "sig": "out",
+    "dir": "DO",
+    "tag": "H1_out",
+    "addr": "%Q0.2",
+    "cmt": "Signálka Připraveno – ",
+    "nc": false
+   }
+  ],
+  "program": {
+   "modes": true,
+   "estop": 5,
+   "interlocks": [
+    6
+   ],
+   "seq": [
+    {
+     "dev": 2,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 1,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 5
+    },
+    {
+     "dev": 1,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 2,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    }
+   ]
+  },
+  "nextId": 8
+ }
+}

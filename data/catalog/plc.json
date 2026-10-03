@@ -1,0 +1,887 @@
+{
+  "categories": {
+    "plc_cpu@siemens": {
+      "label": "PLC – CPU (Siemens)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Siemens", "series": ["SIMATIC S7-1200 G2", "SIMATIC S7-1200", "SIMATIC S7-1500"],
+          "typical": "CPU 1212C DC/DC/DC (S7-1200 G2) – napájení 24 V DC, 8 DI 24 V DC / 6 DO 24 V DC, 2× PROFINET, STEP 7 V21+",
+          "orderCode": "6ES7212-1AG50-0XB0", "src": "https://www.automation24.com/simatic-s7-1200-g2-siemens-cpu-1212c-6es7212-1ag50-0xb0",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)", "Automation24 (e-shop)", "RS Components"],
+          "note": "Pro větší stroj S7-1500 (bez ověřeného kódu). Starší S7-1200 G1 = CPU 1212C 6ES7212-1AE40-0XB0 (viz automation24.com)." }
+      ]
+    },
+    "plc_di@siemens": {
+      "label": "PLC – digitální vstupy (Siemens)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Siemens", "series": ["ET 200SP"],
+          "typical": "DI 16x24VDC ST – 16 DI, 24 V DC, PNP (sink input), BU typ A0",
+          "orderCode": "6ES7131-6BH01-0BA0", "src": "https://www.automation24.com/siemens-simatic-et-200sp-di-16x-24v-dc-st-6es7131-6bh01-0ba0",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)", "Automation24 (e-shop)"],
+          "note": "Modul ET 200SP potřebuje BaseUnit (BU typ A0) – kód BU neověřen." }
+      ]
+    },
+    "plc_do@siemens": {
+      "label": "PLC – digitální výstupy (Siemens)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Siemens", "series": ["ET 200SP"],
+          "typical": "DQ 16x24VDC/0,5A ST – 16 DO, 24 V DC, 0,5 A, PNP (source)",
+          "orderCode": "6ES7132-6BH01-0BA0", "src": "https://www.automation24.com/siemens-simatic-et-200sp-dq-16x24vdc-0-5a-st-6es7132-6bh01-0ba0",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)", "Automation24 (e-shop)"], "note": "" }
+      ]
+    },
+    "plc_ai@siemens": {
+      "label": "PLC – analogové vstupy (Siemens)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Siemens", "series": ["ET 200SP"],
+          "typical": "AI 4xU/I 2-wire ST – 4 AI, 0–10 V / ±10 V / 0–20 mA / 4–20 mA (2vodič), 16 bit",
+          "orderCode": "6ES7134-6HD01-0BA1", "src": "https://www.automation24.com/siemens-simatic-et-200sp-ai-4x-u-i-2-wire-6es7134-6hd01-0ba1",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)", "Automation24 (e-shop)"], "note": "" }
+      ]
+    },
+    "plc_ao@siemens": {
+      "label": "PLC – analogové výstupy (Siemens)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Siemens", "series": ["ET 200SP"],
+          "typical": "AQ 2xU ST – 2 AO, napěťové (0–10 V / ±10 V)",
+          "orderCode": "6ES7135-6FB00-0BA1", "src": "https://www.automation24.com/siemens-simatic-et-200sp-aq-2xu-st-6es7135-6fb00-0ba1",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)", "Automation24 (e-shop)"], "note": "Jen napětí." },
+        { "brand": "Siemens", "series": ["ET 200SP"],
+          "typical": "AQ 4xU/I ST – 4 AO, 0–10 V / ±10 V / 0–20 mA / 4–20 mA",
+          "orderCode": "6ES7135-6HD00-0BA1", "src": "https://support.industry.siemens.com/cs/attachments/59753612/et200sp_aq_4xu_i_st_manual_en-US_en-US.pdf",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)"], "note": "Když je potřeba proudový výstup 4–20 mA." }
+      ]
+    },
+    "plc_coupler@siemens": {
+      "label": "PLC – rozhraní vzdálených I/O (Siemens)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Siemens", "series": ["ET 200SP IM 155-6 PN"],
+          "typical": "IM 155-6 PN ST – PROFINET, 2× RJ45, až 32 modulů, se server modulem",
+          "orderCode": "6ES7155-6AU02-0BN0", "src": "https://support.industry.siemens.com/cs/attachments/109826046/et200sp_im_155_6_pn_st_manual_en-US_en-US.pdf",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)", "Automation24 (e-shop)"],
+          "note": "Ověřeno 2026-10-02 (manuál Siemens „IM 155-6 PN ST (6ES7155-6AU02-0BN0)“, datasheet RS/Distrelec): až 32 modulů ET 200SP, server modul a napájecí konektor 24 V jsou součástí dodávky, BusAdapter ne — objednat BA 2×RJ45 zvlášť, nebo sadu s BA 2×RJ45 6ES7155-6AA02-0BN0. Předchůdce 6ES7155-6AU01-0BN0 ukončen. Každý I/O modul potřebuje BaseUnit: první ve skupině BU15-P16+A0+2D (světlá, otevírá potenciálovou skupinu) 6ES7193-6BP00-0DA0, další BU15-P16+A0+2B (tmavá) 6ES7193-6BP00-0BA0 (https://www.electricautomationnetwork.com/en/siemens/6es7193-6bp00-0da0-siemens-simatic-et-200sp-baseunit-bu15-p16a02d-bu-type-a0-push-in-terminals-without)." }
+      ]
+    },
+    "plc_hmi@siemens": {
+      "label": "Operátorský panel HMI (Siemens)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Siemens", "series": ["SIMATIC HMI Unified Basic Panels"],
+          "typical": "MTP700 Unified Basic – 7\" dotykový, 800×480, PROFINET, WinCC Unified Basic V18 Upd. 3+",
+          "orderCode": "6AV2123-3GB32-0AW0", "src": "https://www.automation24.com/siemens-simatic-hmi-mtp700-unified-basic-panel-6av2123-3gb32-0aw0",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)", "Automation24 (e-shop)"], "note": "Nástupce řady Basic Panels 2nd Gen." },
+        { "brand": "Siemens", "series": ["SIMATIC HMI Basic Panels 2nd Gen"],
+          "typical": "KTP700 Basic – 7\" dotyk + 8 tlačítek, PROFINET, 24 V DC",
+          "orderCode": "6AV2123-2GB03-0AX0", "src": "https://www.quicktimeonline.com/6av2123-2gb03-0ax0",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)"], "note": "Starší, stále rozšířená řada." }
+      ]
+    },
+
+    "plc_cpu@rockwell": {
+      "label": "PLC – CPU (Rockwell Automation)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Allen-Bradley (Rockwell Automation)", "series": ["CompactLogix 5380"],
+          "typical": "CompactLogix 5380, 0,6 MB, až 8 lokálních modulů I/O, 16 uzlů EtherNet/IP, 2× 1 Gb Ethernet",
+          "orderCode": "5069-L306ER", "src": "https://www.rockwellautomation.com/en-us/products/details.5069-L306ER.html",
+          "priceLevel": "vysoká", "suppliers": ["ControlTech s.r.o. (autorizovaný distributor Rockwell)"], "note": "" }
+      ]
+    },
+    "plc_di@rockwell": {
+      "label": "PLC – digitální vstupy (Rockwell Automation)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Allen-Bradley (Rockwell Automation)", "series": ["Compact 5000 I/O"],
+          "typical": "16 DI, 24 V DC, sink (pro PNP snímače)",
+          "orderCode": "5069-IB16", "src": "https://plcexchange.net/product/allen-bradley-5069-ib16-16-channel-24v-dc-input-module/",
+          "priceLevel": "vysoká", "suppliers": ["ControlTech s.r.o."], "note": "Svorkovnice (RTB) se objednávají zvlášť – kód neověřen." }
+      ]
+    },
+    "plc_do@rockwell": {
+      "label": "PLC – digitální výstupy (Rockwell Automation)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Allen-Bradley (Rockwell Automation)", "series": ["Compact 5000 I/O"],
+          "typical": "16 DO, 24 V DC, source (PNP), 0,5 A",
+          "orderCode": "5069-OB16", "src": "https://plcexchange.net/how-to-5069-ob16/",
+          "priceLevel": "vysoká", "suppliers": ["ControlTech s.r.o."], "note": "" }
+      ]
+    },
+    "plc_ai@rockwell": {
+      "label": "PLC – analogové vstupy (Rockwell Automation)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Allen-Bradley (Rockwell Automation)", "series": ["Compact 5000 I/O"],
+          "typical": "8 AI, 0–10 V / ±10 V / 0–20 mA / 4–20 mA, 16 bit",
+          "orderCode": "5069-IF8", "src": "https://www.rockwellautomation.com/en-us/products/details.5069-if8.html",
+          "priceLevel": "vysoká", "suppliers": ["ControlTech s.r.o."], "note": "Nejmenší ověřený analogový vstup v řadě má 8 kanálů." }
+      ]
+    },
+    "plc_ao@rockwell": {
+      "label": "PLC – analogové výstupy (Rockwell Automation)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Allen-Bradley (Rockwell Automation)", "series": ["Compact 5000 I/O"],
+          "typical": "4 AO, napětí / proud (0–10 V, ±10 V, 0–20 mA, 4–20 mA)",
+          "orderCode": "5069-OF4", "src": "https://literature.rockwellautomation.com/idc/groups/literature/documents/um/5069-um005_-en-p.pdf",
+          "priceLevel": "vysoká", "suppliers": ["ControlTech s.r.o."], "note": "" }
+      ]
+    },
+    "plc_coupler@rockwell": {
+      "label": "PLC – rozhraní vzdálených I/O (Rockwell Automation)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Allen-Bradley (Rockwell Automation)", "series": ["Compact 5000 EtherNet/IP adapter", "POINT I/O"],
+          "typical": "Adaptér EtherNet/IP pro Compact 5000 I/O, 2× 1 Gb, až 31 modulů, DLR",
+          "orderCode": "5069-AEN2TR", "src": "https://www.plchardware.com/Products/RA-5069-AEN2TR.aspx",
+          "priceLevel": "vysoká", "suppliers": ["ControlTech s.r.o."], "note": "" }
+      ]
+    },
+    "plc_hmi@rockwell": {
+      "label": "Operátorský panel HMI (Rockwell Automation)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Allen-Bradley (Rockwell Automation)", "series": ["PanelView 5310", "PanelView 5510"],
+          "typical": "PanelView 5310 – 7\" širokoúhlý dotykový, 800×480, 24 V DC, Ethernet",
+          "orderCode": "2713P-T7WD1", "src": "https://www.rockwellautomation.com/en-us/products/details.2713P-T7WD1.html",
+          "priceLevel": "vysoká", "suppliers": ["ControlTech s.r.o."], "note": "Existuje i varianta 2713P-T7WD1-B (Rexel USA)." }
+      ]
+    },
+
+    "plc_cpu@beckhoff": {
+      "label": "PLC – CPU (Beckhoff)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Beckhoff", "series": ["CX7000", "CX8100", "C6015/C6017"],
+          "typical": "CX7000 – Embedded PC, Arm Cortex-M7 480 MHz, TwinCAT 3, 8 DI / 4 DO 24 V DC vestavěno, rozšíření EtherCAT/Bus svorkami",
+          "orderCode": "CX7000", "src": "https://www.beckhoff.com/en-us/products/ipc/embedded-pcs/cx7000-arm-r-cortex-r/cx7000.html",
+          "priceLevel": "střední", "suppliers": ["Beckhoff Automation s.r.o. (Brno, Praha)"], "note": "Obchodní označení = objednací kód." }
+      ]
+    },
+    "plc_di@beckhoff": {
+      "label": "PLC – digitální vstupy (Beckhoff)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Beckhoff", "series": ["EtherCAT Terminals EL1xxx"],
+          "typical": "EL1008 – 8 DI, 24 V DC, typ 1/3 (PNP)",
+          "orderCode": "EL1008", "src": "https://www.beckhoff.com/cs-cz/products/i-o/ethercat-terminals/el1xxx-digital-input/el1008.html",
+          "priceLevel": "nízká", "suppliers": ["Beckhoff Automation s.r.o."], "note": "Pro 16 DI EL1809 (neověřeno)." }
+      ]
+    },
+    "plc_do@beckhoff": {
+      "label": "PLC – digitální výstupy (Beckhoff)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Beckhoff", "series": ["EtherCAT Terminals EL2xxx"],
+          "typical": "EL2008 – 8 DO, 24 V DC, 0,5 A, odolné proti zkratu",
+          "orderCode": "EL2008", "src": "https://www.beckhoff.com/cs-cz/products/i-o/ethercat-terminals/el2xxx-digital-output/el2008.html",
+          "priceLevel": "nízká", "suppliers": ["Beckhoff Automation s.r.o."], "note": "" }
+      ]
+    },
+    "plc_ai@beckhoff": {
+      "label": "PLC – analogové vstupy (Beckhoff)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Beckhoff", "series": ["EtherCAT Terminals EL3xxx"],
+          "typical": "EL3064 – 4 AI, 0–10 V, 12 bit, single-ended",
+          "orderCode": "EL3064", "src": "https://www.beckhoff.com/cs-cz/products/i-o/ethercat-terminals/el-ed3xxx-analog-input/el3064.html",
+          "priceLevel": "nízká", "suppliers": ["Beckhoff Automation s.r.o.", "TME (e-shop)"], "note": "Jen napětí; pro 4–20 mA je třeba jiná svorka řady EL30xx (neověřeno)." }
+      ]
+    },
+    "plc_ao@beckhoff": {
+      "label": "PLC – analogové výstupy (Beckhoff)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Beckhoff", "series": ["EtherCAT Terminals EL4xxx"],
+          "typical": "EL4002 – 2 AO, 0–10 V, 12 bit",
+          "orderCode": "EL4002", "src": "https://www.beckhoff.com/en-en/products/i-o/ethercat-terminals/el4xxx-analog-output/el4002.html",
+          "priceLevel": "nízká", "suppliers": ["Beckhoff Automation s.r.o."], "note": "" }
+      ]
+    },
+    "plc_coupler@beckhoff": {
+      "label": "PLC – rozhraní vzdálených I/O (Beckhoff)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Beckhoff", "series": ["EK1100 EtherCAT Coupler"],
+          "typical": "EK1100 – EtherCAT coupler, 2× RJ45, napájení 24 V DC systém + pole",
+          "orderCode": "EK1100", "src": "https://www.beckhoff.com/en-us/products/i-o/ethercat-terminals/ek-ec1xxx-bk1xx0-ethercat-coupler/ek1100.html",
+          "priceLevel": "nízká", "suppliers": ["Beckhoff Automation s.r.o."], "note": "Na konci sestavy koncová svorka (EL9011, kód neověřen)." }
+      ]
+    },
+    "plc_hmi@beckhoff": {
+      "label": "Operátorský panel HMI (Beckhoff)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Beckhoff", "series": ["CP29xx (multi-touch, CP-Link 4)", "CP26xx/CP27xx panel PC"],
+          "typical": "CP2907-0010 – 7\" multi-touch vestavný panel, 800×480, IP65 čelo, CP-Link 4",
+          "orderCode": "CP2907-0010", "src": "https://www.beckhoff.com/en-us/products/ipc/control-panels/cp29xx-cp39xx-multi-touch-control-panels/cp29xx-0010.html",
+          "priceLevel": "vysoká", "suppliers": ["Beckhoff Automation s.r.o."],
+          "note": "Panel CP-Link 4 potřebuje PC s vysílačem CP-Link 4 / DVI; zda jde přímo s CX7000, jsem neověřil – u malého CX může být vhodnější webový panel nebo panelové PC." }
+      ]
+    },
+
+    "plc_cpu@codesys": {
+      "label": "PLC – CPU (CODESYS, typicky WAGO)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["PFC200 (750-82xx)", "Compact Controller CC100 (751-93xx)"],
+          "typical": "PFC200 750-8212 – 2× Ethernet, RS-232/485, Linux RT, CODESYS V3.5 od FW 23, I/O řady 750/753",
+          "orderCode": "750-8212", "src": "https://www.wago.com/us/controllers-bus-couplers-i-o/controller-pfc200/p/750-8212",
+          "priceLevel": "střední", "suppliers": ["WAGO (česká pobočka, wago.com/cz)", "TME", "Conrad"], "note": "" },
+        { "brand": "WAGO", "series": ["Compact Controller CC100"],
+          "typical": "CC100 751-9301 – 8 DI / 4 DO / 2 AI / 2 AO vestavěno, Modbus TCP, EtherCAT, CODESYS V3",
+          "orderCode": "751-9301", "src": "https://automationdistribution.com/wago-751-9301-compact-controller-100-plc-modbus-tcp-ethercat-8di-4do-2ai-2ao-codesys-v3/",
+          "priceLevel": "nízká", "suppliers": ["WAGO (česká pobočka)", "Conrad (manuál na conrad.com)"], "note": "Pro nejmenší stroje, bez rozšiřování o 750 moduly." }
+      ]
+    },
+    "plc_di@codesys": {
+      "label": "PLC – digitální vstupy (CODESYS / WAGO 750)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["WAGO I/O System 750"],
+          "typical": "750-1405 – 16 DI, 24 V DC, 3 ms, šířka 12 mm, Push-in CAGE CLAMP",
+          "orderCode": "750-1405", "src": "https://www.wago.com/global/i-o-systems/16-channel-digital-input/p/750-1405",
+          "priceLevel": "nízká", "suppliers": ["WAGO (česká pobočka)"], "note": "" }
+      ]
+    },
+    "plc_do@codesys": {
+      "label": "PLC – digitální výstupy (CODESYS / WAGO 750)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["WAGO I/O System 750"],
+          "typical": "750-1504 – 16 DO, 24 V DC, 0,5 A, šířka 12 mm",
+          "orderCode": "750-1504", "src": "https://www.wago.com/global/i-o-systems/16-channel-digital-output/p/750-1504",
+          "priceLevel": "nízká", "suppliers": ["WAGO (česká pobočka)"], "note": "" }
+      ]
+    },
+    "plc_ai@codesys": {
+      "label": "PLC – analogové vstupy (CODESYS / WAGO 750)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["WAGO I/O System 750"],
+          "typical": "750-455 – 4 AI, 4–20 mA, 12 bit, single-ended",
+          "orderCode": "750-455", "src": "https://www.wago.com/global/i-o-systems/4-channel-analog-input/p/750-455",
+          "priceLevel": "střední", "suppliers": ["WAGO (česká pobočka)"], "note": "Jen proud 4–20 mA; pro 0–10 V jiný modul řady 750-45x (neověřeno)." }
+      ]
+    },
+    "plc_ao@codesys": {
+      "label": "PLC – analogové výstupy (CODESYS / WAGO 750)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["WAGO I/O System 750"],
+          "typical": "750-559 – 4 AO, 0–10 V, 12 bit",
+          "orderCode": "750-559", "src": "https://www.wago.com/us/controllers-bus-couplers-i-o/4-channel-analog-output/p/750-559",
+          "priceLevel": "střední", "suppliers": ["WAGO (česká pobočka)"], "note": "" }
+      ]
+    },
+    "plc_coupler@codesys": {
+      "label": "PLC – rozhraní vzdálených I/O (CODESYS / WAGO 750)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["Fieldbus Coupler 750-3xx"],
+          "typical": "750-362 – Modbus TCP/UDP coupler 4. generace, 2× Ethernet se switchem",
+          "orderCode": "750-362", "src": "https://www.wago.com/global/i-o-systems/fieldbus-coupler-modbus-tcp/p/750-362",
+          "priceLevel": "střední", "suppliers": ["WAGO (česká pobočka)"], "note": "Sestava 750 se zakončuje koncovým modulem (kód neověřen)." }
+      ]
+    },
+    "plc_hmi@codesys": {
+      "label": "Operátorský panel HMI (CODESYS / WAGO)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["Touch Panel 600 – Web Panel (762-41xx)", "Visu / Control Panel (762-42xx, 762-6xxx)"],
+          "typical": "Touch Panel 600 Web Panel 7\" (17,8 cm), 800×480, 2× USB, 2× Ethernet",
+          "orderCode": "762-4103", "src": "https://www.wago.com/gb/touch-panels/touch-panel-600/p/762-4103",
+          "priceLevel": "střední", "suppliers": ["WAGO (česká pobočka)"], "note": "Webpanel zobrazuje WebVisu z PFC200. Menší 4,3\" varianta 762-4101." }
+      ]
+    },
+
+    "plc_cpu@mitsubishi": {
+      "label": "PLC – CPU (Mitsubishi Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Mitsubishi Electric", "series": ["MELSEC iQ-F FX5U", "FX5UC", "FX5UJ"],
+          "typical": "FX5U-32MT/ESS – 16 DI / 16 DO tranzistor source (PNP), Ethernet + RS-485, napájení 100–240 V AC",
+          "orderCode": "FX5U-32MT/ESS", "src": "https://shop1.us.mitsubishielectric.com/products/FX5U-32MT/ESS",
+          "priceLevel": "střední", "suppliers": ["Mitsubishi Electric Europe B.V., organizační složka ČR (cz-fa.mitsubishielectric.com)"],
+          "note": "/ES = sink (NPN) výstupy, /ESS = source (PNP) – pro EU zvyk volit /ESS. Napájení 24 V DC mají varianty /DSS (neověřeno)." }
+      ]
+    },
+    "plc_di@mitsubishi": {
+      "label": "PLC – digitální vstupy (Mitsubishi Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Mitsubishi Electric", "series": ["FX5 I/O moduly"],
+          "typical": "FX5-16EX/ES – 16 DI, 24 V DC, sink/source",
+          "orderCode": "FX5-16EX/ES", "src": "https://www.nexinstrument.com/fx5-16exes",
+          "priceLevel": "nízká", "suppliers": ["Mitsubishi Electric (ČR)"], "note": "" }
+      ]
+    },
+    "plc_do@mitsubishi": {
+      "label": "PLC – digitální výstupy (Mitsubishi Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Mitsubishi Electric", "series": ["FX5 I/O moduly"],
+          "typical": "FX5-16EYT/ESS – 16 DO, tranzistor source (PNP), 24 V DC",
+          "orderCode": "FX5-16EYT/ESS", "src": "https://mitsubishi-electric-eshop.mee.com/mee/FA_IA/en/EUR/Catalogue/PLC/PLC-Compact/Digital-I-O-Module/FX5-16EYT-ESS/p/000000000000280504",
+          "priceLevel": "nízká", "suppliers": ["Mitsubishi Electric e-shop (EU)"], "note": "" }
+      ]
+    },
+    "plc_ai@mitsubishi": {
+      "label": "PLC – analogové vstupy (Mitsubishi Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Mitsubishi Electric", "series": ["FX5 expansion adapter"],
+          "typical": "FX5-4AD-ADP – 4 AI, ±10 V / ±20 mA (0–10 V, 4–20 mA), 14 bit, adaptér na levý bok CPU",
+          "orderCode": "FX5-4AD-ADP", "src": "https://www.mitsubishielectric.com/fa/products/faspec/point.page?kisyu=%2Fplcf&formNm=FX5_ANALOG_IN_FX5-4AD-ADP_1&lang=2",
+          "priceLevel": "střední", "suppliers": ["Mitsubishi Electric (ČR)"], "note": "" }
+      ]
+    },
+    "plc_ao@mitsubishi": {
+      "label": "PLC – analogové výstupy (Mitsubishi Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Mitsubishi Electric", "series": ["FX5 expansion adapter"],
+          "typical": "FX5-4DA-ADP – 4 AO, 0–10 V / ±10 V / 0–20 mA / 4–20 mA, 14 bit",
+          "orderCode": "FX5-4DA-ADP", "src": "https://www.mitsubishielectric.com/fa/products/faspec/detail.page?kisyu=/plcf&formNm=FX5_ANALOG_OUT_FX5-4DA-ADP_1&lang=2&category=ex&id=spec",
+          "priceLevel": "střední", "suppliers": ["Mitsubishi Electric (ČR)"], "note": "Nejmenší ověřený AO adaptér má 4 kanály." }
+      ]
+    },
+    "plc_hmi@mitsubishi": {
+      "label": "Operátorský panel HMI (Mitsubishi Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Mitsubishi Electric", "series": ["GOT2000 GT21", "GOT2000 GT25"],
+          "typical": "GT2107-WTBD – 7\" širokoúhlý, 800×480, Ethernet + RS-232/422/485, 24 V DC",
+          "orderCode": "GT2107-WTBD", "src": "https://www.mitsubishielectric.com/fa/products/hmi/got/pmerit/got2000/wide/spec_gt21w.html",
+          "priceLevel": "střední", "suppliers": ["Mitsubishi Electric (ČR)"], "note": "" }
+      ]
+    },
+
+    "plc_cpu@schneider": {
+      "label": "PLC – CPU (Schneider Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Schneider Electric", "series": ["Modicon M241", "Modicon M262"],
+          "typical": "TM241CE24T – M241, 24 I/O (14 DI / 10 DO tranzistor PNP), Ethernet, 24 V DC",
+          "orderCode": "TM241CE24T", "src": "https://www.se.com/cz/cs/product/TM241CE24T/",
+          "priceLevel": "střední", "suppliers": ["Schneider Electric CZ, s.r.o.", "RS Components"], "note": "M262 pro výkonnější stroje (kód neověřen)." }
+      ]
+    },
+    "plc_di@schneider": {
+      "label": "PLC – digitální vstupy (Schneider Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Schneider Electric", "series": ["Modicon TM3"],
+          "typical": "TM3DI16 – 16 DI, 24 V DC, sink/source, šroubová svorkovnice",
+          "orderCode": "TM3DI16", "src": "https://www.se.com/us/en/product/TM3DI16/discrete-input-module-modicon-tm3-16-inputs-screw-24v-dc/",
+          "priceLevel": "nízká", "suppliers": ["Schneider Electric CZ"], "note": "Pružinová varianta TM3DI16G." }
+      ]
+    },
+    "plc_do@schneider": {
+      "label": "PLC – digitální výstupy (Schneider Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Schneider Electric", "series": ["Modicon TM3"],
+          "typical": "TM3DQ16T – 16 DO, tranzistor PNP (source), 0,5 A, šroubová svorkovnice",
+          "orderCode": "TM3DQ16T", "src": "https://www.se.com/us/en/product/TM3DQ16T/discrete-output-module-modicon-tm3-16-outputs-transistor-pnp-screw/",
+          "priceLevel": "nízká", "suppliers": ["Schneider Electric CZ", "RS Components"], "note": "" }
+      ]
+    },
+    "plc_ai@schneider": {
+      "label": "PLC – analogové vstupy (Schneider Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Schneider Electric", "series": ["Modicon TM3"],
+          "typical": "TM3AI4 – 4 AI, napětí / proud, 12 bit + znaménko",
+          "orderCode": "TM3AI4", "src": "https://www.se.com/us/en/product/TM3AI4/analog-input-module-modicon-tm3-4-inputs-screw-24v-dc/",
+          "priceLevel": "střední", "suppliers": ["Schneider Electric CZ", "Farnell"], "note": "" }
+      ]
+    },
+    "plc_ao@schneider": {
+      "label": "PLC – analogové výstupy (Schneider Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Schneider Electric", "series": ["Modicon TM3"],
+          "typical": "TM3AQ2 – 2 AO, napětí / proud, 12 bit",
+          "orderCode": "TM3AQ2", "src": "https://www.se.com/us/en/product/TM3AQ2/analog-output-module-modicon-tm3-2-outputs-screw-24v-dc/",
+          "priceLevel": "střední", "suppliers": ["Schneider Electric CZ"], "note": "" }
+      ]
+    },
+    "plc_coupler@schneider": {
+      "label": "PLC – rozhraní vzdálených I/O (Schneider Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Schneider Electric", "series": ["Modicon TM3 bus coupler"],
+          "typical": "TM3BCEIP – EtherNet/IP adaptér + Modbus TCP server, 2× RJ45, pro moduly TM3/TM2",
+          "orderCode": "TM3BCEIP", "src": "https://www.mouser.com/datasheet/2/357/1/Modicon_TM3_TM3BCEIP_document-2240844.pdf",
+          "priceLevel": "střední", "suppliers": ["Schneider Electric CZ", "Mouser"], "note": "" }
+      ]
+    },
+    "plc_hmi@schneider": {
+      "label": "Operátorský panel HMI (Schneider Electric)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Schneider Electric", "series": ["Harmony ST6", "Harmony STU/STO"],
+          "typical": "HMIST6400 – 7\" širokoúhlý dotykový, 800×480, 2× Ethernet, 2× COM, 24 V DC",
+          "orderCode": "HMIST6400", "src": "https://prof-elec.com/hmist6400-en/",
+          "priceLevel": "střední", "suppliers": ["Schneider Electric CZ"], "note": "" }
+      ]
+    },
+
+    "plc_cpu@omron": {
+      "label": "PLC – CPU (Omron)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Omron", "series": ["Sysmac NX1P2", "NX102"],
+          "typical": "NX1P2-9024DT1 – 24 I/O (14 DI / 10 DO PNP), EtherCAT (16 uzlů, 4 PTP osy), EtherNet/IP, 1,5 MB",
+          "orderCode": "NX1P2-9024DT1", "src": "https://automation.omron.com/en/us/products/family/NX1P/nx1p2-9024dt1",
+          "priceLevel": "střední", "suppliers": ["OMRON Czech Republic (+420 234 076 010)", "autorizovaní partneři Omron"], "note": "Varianta DT (bez 1) má NPN výstupy." }
+      ]
+    },
+    "plc_di@omron": {
+      "label": "PLC – digitální vstupy (Omron)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Omron", "series": ["NX I/O"],
+          "typical": "NX-ID5442 – 16 DI, 24 V DC, PNP, bezšroubové svorky",
+          "orderCode": "NX-ID5442", "src": "https://us.rs-online.com/product/omron-automation/nx-id5442/70574333/",
+          "priceLevel": "nízká", "suppliers": ["OMRON Czech Republic", "RS Components", "DigiKey"], "note": "" }
+      ]
+    },
+    "plc_do@omron": {
+      "label": "PLC – digitální výstupy (Omron)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Omron", "series": ["NX I/O"],
+          "typical": "NX-OD5256 – 16 DO, tranzistor 24 V DC, pružinové svorky",
+          "orderCode": "NX-OD5256", "src": "https://www.digikey.com/en/products/detail/omron-automation-and-safety/NX-OD5256/4987759",
+          "priceLevel": "nízká", "suppliers": ["OMRON Czech Republic", "DigiKey"], "note": "PNP provedení jsem na otevřené stránce výslovně neviděl – ověřit v katalogu Omron." }
+      ]
+    },
+    "plc_ai@omron": {
+      "label": "PLC – analogové vstupy (Omron)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Omron", "series": ["NX-AD"],
+          "typical": "NX-AD3603 – 4 AI, napěťové ±10 V, single-ended, rozlišení 1/8000",
+          "orderCode": "NX-AD3603", "src": "https://www.ia.omron.com/products/family/3187/specification.html",
+          "priceLevel": "střední", "suppliers": ["OMRON Czech Republic"], "note": "Jen napětí; proudová (4–20 mA) varianta řady NX-AD neověřena." }
+      ]
+    },
+    "plc_ao@omron": {
+      "label": "PLC – analogové výstupy (Omron)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Omron", "series": ["NX-DA"],
+          "typical": "NX-DA2603 – 2 AO, napěťové",
+          "orderCode": "NX-DA2603", "src": "https://www.ia.omron.com/products/family/3187/specification.html",
+          "priceLevel": "střední", "suppliers": ["OMRON Czech Republic"], "note": "" }
+      ]
+    },
+    "plc_coupler@omron": {
+      "label": "PLC – rozhraní vzdálených I/O (Omron)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Omron", "series": ["NX EtherCAT Coupler"],
+          "typical": "NX-ECC203 – EtherCAT coupler, až 63 NX modulů, cyklus od 125 µs",
+          "orderCode": "NX-ECC203", "src": "https://www.newark.com/omron-industrial-automation/nx-ecc203/communication-coupler-unit-ethercat/dp/03AH5094",
+          "priceLevel": "střední", "suppliers": ["OMRON Czech Republic", "Farnell / Newark"], "note": "" }
+      ]
+    },
+    "plc_hmi@omron": {
+      "label": "Operátorský panel HMI (Omron)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Omron", "series": ["Sysmac NA5"],
+          "typical": "NA5-7W001S-V1 – 7\" širokoúhlý, 800×480, 2× Ethernet, IP65, stříbrný rámeček",
+          "orderCode": "NA5-7W001S-V1", "src": "https://www.integralel.com/en/human-machine-interfaces-hmi/154404-na5-7w001s-v1.html",
+          "priceLevel": "vysoká", "suppliers": ["OMRON Czech Republic"], "note": "" },
+        { "brand": "Omron", "series": ["NB"],
+          "typical": "NB7W-TW01B-V1 – 7\" TFT, 800×480, Ethernet, USB, IP65",
+          "orderCode": "NB7W-TW01B-V1", "src": "https://www.digikey.com/en/products/detail/omron-automation-and-safety/NB7W-TW01B-V1/21776965",
+          "priceLevel": "nízká", "suppliers": ["OMRON Czech Republic", "DigiKey"], "note": "Starší NB7W-TW01B (bez -V1) ukončen." }
+      ]
+    },
+
+    "plc_cpu@unitronics": {
+      "label": "PLC – CPU s HMI (Unitronics)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["UniStream Built-in US5 / US7 / US10", "UniStream USC (CPU for Panel)"],
+          "typical": "US5-B5-T24 – 5\" HMI + PLC, 10 DI, 2 AI, 12 DO tranzistor PNP (vč. 2 PWM)",
+          "orderCode": "US5-B5-T24", "src": "https://elmark-automation.com/shop/unitronics/us5-b5-t24",
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "HMI je součástí – samostatný panel není potřeba." },
+        { "brand": "Unitronics", "series": ["UniStream Built-in US7"],
+          "typical": "US7-B5-TR22 – 7\" HMI + PLC, 10 DI, 2 AI (0–10 V / 4–20 mA), 8 relé + 2 tranzistor NPN",
+          "orderCode": "US7-B5-TR22", "src": "https://www.unitronicsplc.com/unistream-series-unistream7-built-in/",
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ"], "note": "Pozor: tranzistorové výstupy jsou NPN, ostatní reléové." }
+      ]
+    },
+    "plc_di@unitronics": {
+      "label": "PLC – digitální vstupy (Unitronics)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Uni-I/O"],
+          "typical": "UID-1600 – 16 DI, 24 V DC, sink/source",
+          "orderCode": "UID-1600", "src": "https://store.gilsoneng.com/products/UID-1600",
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ"], "note": "Uni-I/O se nasazuje na záda panelu nebo na DIN lištu přes Local Expansion Adapter." }
+      ]
+    },
+    "plc_do@unitronics": {
+      "label": "PLC – digitální výstupy (Unitronics)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Uni-I/O"],
+          "typical": "UID-0016T – 16 DO, tranzistor PNP (source), 0,5 A",
+          "orderCode": "UID-0016T", "src": "https://shop.lakelandengineering.com/products/UID-0016T",
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ"], "note": "" }
+      ]
+    },
+    "plc_ai@unitronics": {
+      "label": "PLC – analogové vstupy (Unitronics)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Uni-I/O"],
+          "typical": "UIA-0402N – 4 AI (0–10 V / 4–20 mA, 13 bit) + 2 AO v jednom modulu",
+          "orderCode": "UIA-0402N", "src": "https://www.unitronicsplc.com/Documents/UniStream/Uni-I_O/UG_UIA-0402N.pdf",
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ", "Tipteh (b2b)"], "note": "Kombinovaný modul AI+AO – v kusovníku nepočítat dvakrát." }
+      ]
+    },
+    "plc_ao@unitronics": {
+      "label": "PLC – analogové výstupy (Unitronics)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Uni-I/O"],
+          "typical": "UIA-0402N – 2 AO (0–10 V 14 bit / 4–20 mA 13 bit) + 4 AI",
+          "orderCode": "UIA-0402N", "src": "https://www.unitronicsplc.com/Documents/UniStream/Uni-I_O/UG_UIA-0402N.pdf",
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ"], "note": "Týž modul jako plc_ai@unitronics." }
+      ]
+    },
+    "plc_coupler@unitronics": {
+      "label": "PLC – rozhraní vzdálených I/O (Unitronics)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["UniStream Remote I/O"],
+          "typical": "URB-TCP – Ethernet (Modbus TCP) adaptér vzdálených Uni-I/O",
+          "orderCode": "URB-TCP", "src": "https://downloads.unitronics.com/Documents/UniStream_IO_&_COM/UniStream_Remote_I_O_User_Manual.pdf",
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ"], "note": "Existuje i novější URB-TCP2 (jiný počet modulů)." }
+      ]
+    },
+    "plc_hmi@unitronics": {
+      "label": "Operátorský panel HMI (Unitronics)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["UniStream US5 / US7 / US10 (HMI vestavěno)"],
+          "typical": "HMI je součástí CPU UniStream (5\"/7\"/10,4\") – samostatná položka se nepočítá",
+          "src": "https://www.unitronicsplc.com/unistream-series-unistream7-built-in/",
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ"], "note": "V kusovníku 0 ks navíc." }
+      ]
+    },
+
+    "power_supply_24v": {
+      "label": "Napájecí zdroj 24 V DC",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Mean Well", "series": ["NDR", "HDR", "SDR"],
+          "typical": "NDR-240-24 – 24 V DC / 10 A, 240 W, DIN lišta, PFC",
+          "orderCode": "NDR-240-24", "src": "https://us.rs-online.com/product/mean-well/ndr-240-24/70588315/",
+          "priceLevel": "nízká", "suppliers": ["TME", "RS Components", "GM electronic"], "note": "Běžná levná volba; GM electronic neověřeno." },
+        { "brand": "Weidmüller", "series": ["PROeco", "PROmax", "PROtop"],
+          "typical": "PRO ECO 240W 24V 10A II – 24 V / 10 A",
+          "orderCode": "3025580000", "src": "https://eshop.weidmueller.com/en/pro-eco-240w-24v-10a-ii/p/3025580000",
+          "priceLevel": "střední", "suppliers": ["Weidmüller (ČR)", "TME"], "note": "Starší generace PRO ECO 240W 24V 10A = 1469490000." },
+        { "brand": "WAGO", "series": ["Pro 2", "Eco 2", "BASE"],
+          "typical": "Pro 2 – 1fázový 24 V / 20 A (TopBoost, PowerBoost, komunikace)",
+          "orderCode": "2787-2147", "src": "https://www.wago.com/gb/power-supply-modules/power-supply/p/2787-2147",
+          "priceLevel": "střední", "suppliers": ["WAGO (česká pobočka)"], "note": "2787-2346 je 10 A, ale 3fázový (wago.com). 1fázový 10 A typ řady Pro 2 neověřen." },
+        { "brand": "Siemens", "series": ["SITOP PSU6200", "SITOP PSU8200"],
+          "typical": "SITOP PSU6200 24 V / 10 A, vstup 120–230 V AC, diagnostické rozhraní",
+          "orderCode": "6EP3334-7SB00-3AX0", "src": "https://www.kempstoncontrols.com/6EP3334-7SB00-3AX0/Siemens/sku/2853055",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)"], "note": "" },
+        { "brand": "Phoenix Contact", "series": ["QUINT POWER", "UNO POWER", "TRIO POWER"],
+          "typical": "QUINT4-PS/1AC/24DC/10 – 24 V / 10 A, SFB, NFC",
+          "orderCode": "2904601", "src": "https://www.rexelusa.com/p/1683161/phoenix-contact/quint4-ps-1ac-24dc-10-24vdc/2904601",
+          "priceLevel": "vysoká", "suppliers": ["Phoenix Contact, s.r.o. (ČR)", "TME"], "note": "Levnější řada UNO/TRIO – kódy neověřeny." },
+        { "brand": "PULS", "series": ["DIMENSION CP", "QS"],
+          "typical": "CP10.241 – 24 V / 10 A, 240 W, šířka 39 mm, účinnost 95,2 %",
+          "orderCode": "CP10.241", "src": "https://products.pulspower.com/en/cp10-241.html",
+          "priceLevel": "vysoká", "suppliers": ["PULS (distribuce v ČR neověřena)", "DigiKey"], "note": "" }
+      ]
+    },
+    "mcb": {
+      "label": "Jistič / proudový chránič",
+      "unit": "ks",
+      "brands": [
+        { "brand": "OEZ (Letohrad, CZ – skupina Siemens)", "series": ["Minia LTN", "Minia OLI (chránič s jističem)", "Minia OFI (chránič)"],
+          "typical": "LTN-10C-1 – jistič 1pól, 10 A, char. C, 10 kA",
+          "orderCode": "41655", "src": "https://www.bbelektro.cz/jistic-ltn-10c-1-oez",
+          "priceLevel": "nízká", "suppliers": ["OEZ s.r.o.", "K&V ELEKTRO", "ELKOV elektro (e-shop)", "elektro velkoobchody"], "note": "Kód OEZ:41655 uveden i na elektro-malinsky.cz." },
+        { "brand": "OEZ (Letohrad, CZ – skupina Siemens)", "series": ["Minia OLI"],
+          "typical": "OLI-10C-1N-030AC – proudový chránič s nadproudovou ochranou, 10 A, 30 mA, typ AC, 1+N",
+          "orderCode": "38279", "src": "https://www.emas.cz/oez-38279-proudovy-chranic-s-nadproudovou-ochranou-oli-10c-1n-030ac",
+          "priceLevel": "nízká", "suppliers": ["OEZ s.r.o.", "EMAS", "elektromaterial.cz"], "note": "" },
+        { "brand": "Schneider Electric", "series": ["Acti9 iC60", "Resi9"],
+          "typical": "iC60N 1P 10 A char. C",
+          "orderCode": "A9F04110", "src": "https://www.se.com/cz/cs/product/A9F04110/",
+          "priceLevel": "střední", "suppliers": ["Schneider Electric CZ", "elektro velkoobchody"], "note": "" },
+        { "brand": "Eaton", "series": ["PL6 / PL7", "FAZ"],
+          "typical": "PL6-C10/1 – jistič 1pól, 10 A, char. C, 6 kA",
+          "orderCode": "286531", "src": "https://www.kvelektro.cz/jistic-eaton-pl6-c10-1-10a-286531-p1180864",
+          "priceLevel": "nízká", "suppliers": ["Eaton Electric s.r.o. (ČR)", "K&V ELEKTRO", "elektroslama.cz"], "note": "Pozor: 286533 je PL6-C16/1 (16 A)." },
+        { "brand": "ABB", "series": ["S200 (S201)", "F200 (chránič)"],
+          "typical": "S201-C10 – jistič 1pól, 10 A, char. C, 6 kA",
+          "orderCode": "2CDS251001R0104", "src": "https://www.elima.cz/obchod/2cds251001r0104-s201-c10-jistic-fazovy-1p-in-10-a-char-c-icn-6-ka-abb-p-30921.html",
+          "priceLevel": "střední", "suppliers": ["ABB s.r.o. (ČR)", "Elfetex", "ARGOS", "bbelektro.cz"], "note": "" },
+        { "brand": "Siemens", "series": ["5SL6", "5SY", "5SV (chránič)"],
+          "typical": "5SL6110-7 – jistič 1pól, 10 A, char. C, 6 kA",
+          "orderCode": "5SL6110-7", "src": "https://www.elfetex.cz/siemens-jistic-10c-1-5sl6110-7-6ka-1586470",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)", "Elfetex"], "note": "Elfetex blokuje roboty — kód a popis z titulku stránky ve výsledku hledání; parametry potvrzují zahraniční e-shopy (EAN 4001869388182)." }
+      ]
+    },
+    "main_switch": {
+      "label": "Hlavní vypínač",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Schneider Electric", "series": ["TeSys Vario VCF/VBF", "TeSys VLS"],
+          "typical": "VCF02 – 3pól. odpínač 12 A / 690 V, uzamykatelná červená rukojeť (hlavní / nouzový vypínač)",
+          "orderCode": "VCF02", "src": "https://www.se.com/cz/cs/product/VCF02/",
+          "priceLevel": "nízká", "suppliers": ["Schneider Electric CZ"], "note": "Volbu nouzového vypínače dělat podle posouzení rizik (EN ISO 13849, EN 60204-1), návrh k revizi." },
+        { "brand": "Eaton", "series": ["P1 / P3 (hlavní vypínač)", "T0 / T3"],
+          "typical": "P1-25/EA/SVB – hlavní / nouzový vypínač 3pól. 25 A, 11 kW (AC-23A/400 V), červená rukojeť a žlutý štítek, uzamykatelný v poloze 0, montáž do panelu, IP65",
+          "orderCode": "041097", "src": "https://www.emas.cz/eaton-41097-hlavni-vypinac-3-pol-25a-p1-25-ea-svb",
+          "priceLevel": "nízká", "suppliers": ["Eaton Electric s.r.o. (ČR)", "EMAS", "Elfetex", "Elektro S.M.S."], "note": "S pomocným kontaktem 1Z+1V: P1-25/EA/SVB/HI11 = 091080 (emas.cz). Volbu nouzového vypínače dělat podle posouzení rizik (EN ISO 13849, EN 60204-1), návrh k revizi." },
+        { "brand": "ABB", "series": ["OT (OT16…OT125)"],
+          "typical": "OT16F3 – odpínač 3pól. 16 A, čelní ovládání, DIN lišta / základna, IP20; rukojeť a hřídel zvlášť",
+          "orderCode": "1SCA104811R1001", "src": "https://viola.cz/produkt/27554-abb-elsynn-ot16f3-otocny-odpinac-3p-16a-1sca104811r1001",
+          "priceLevel": "střední", "suppliers": ["ABB s.r.o. (ČR)", "Viola.cz", "Elfetex", "TME"], "note": "Pro hlavní vypínač na dveře doplnit rukojeť (červeno-žlutou pro nouzové vypnutí) a prodlužovací hřídel řady OT — kódy neověřeny. Výrobce: https://new.abb.com/products/1SCA104811R1001/ot16f3" },
+        { "brand": "OEZ (CZ)", "series": ["MSN / MS0 (modulové vypínače)", "Varius (pojistkové odpínače)"],
+          "typical": "MSN-32-3 – modulový hlavní vypínač 3pól. 32 A na DIN lištu",
+          "orderCode": "44298", "src": "https://www.elektro-malinsky.cz/elektro-malinsky/eshop/2-1-Modulove-pristroje-I/1016-4-Hlavni-vypinace-MSN/5/5046-Hlavni-vypinac-OEZ-MSN-32-3-44298",
+          "priceLevel": "nízká", "suppliers": ["OEZ s.r.o.", "elektro-malinsky.cz", "Elektro S.M.S."], "note": "Modulový vypínač na DIN lištu – ne panelový hlavní vypínač s rukojetí na dveřích. Větší: MSN-63-3 = 44300, MSN-125-3 = 44301." },
+        { "brand": "Siemens", "series": ["3LD (SENTRON)", "3KD"],
+          "typical": "3LD2103-0TK53 – hlavní / nouzový vypínač 3pól. 25 A (9,5 kW AC-23A/400 V), červeno-žlutá rukojeť, čelní montáž 4 otvory, uzamykatelný, IP65",
+          "orderCode": "3LD2103-0TK53", "src": "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=3LD21030TK53&language=en&caller=SIOS",
+          "priceLevel": "střední", "suppliers": ["Siemens, s.r.o. (ČR)"], "note": "Volbu nouzového vypínače dělat podle posouzení rizik (EN ISO 13849, EN 60204-1), návrh k revizi." }
+      ]
+    },
+    "terminal_block": {
+      "label": "Řadové svorky",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["TOPJOB S 2002", "2000", "2004"],
+          "typical": "2002-1201 – průchozí svorka 2,5 mm², 2 vodiče, Push-in CAGE CLAMP, šedá",
+          "orderCode": "2002-1201", "src": "https://www.wago.com/global/p/2002-1201",
+          "priceLevel": "nízká", "suppliers": ["WAGO (česká pobočka)", "elektro velkoobchody", "TME"], "note": "Třívodičová 2002-1301 (wago.com)." },
+        { "brand": "Phoenix Contact", "series": ["PT (push-in)", "UT (šroubové)", "CLIPLINE complete"],
+          "typical": "PT 2,5 – průchozí svorka push-in 2,5 mm² (0,14–4 mm²), 24 A / 800 V, 2 připojení, šedá",
+          "orderCode": "3209510", "src": "https://www.phoenixcontact.com/en-sa/products/feed-through-terminal-block-pt-25-3209510",
+          "priceLevel": "nízká", "suppliers": ["Phoenix Contact, s.r.o. (ČR)", "Elfetex", "elektro-ivicic.cz", "TME"], "note": "" },
+        { "brand": "Weidmüller", "series": ["Klippon Connect A-Series (push-in)", "W-Series (šroubové)"],
+          "typical": "A2C 2.5 – průchozí svorka PUSH IN 2,5 mm², 24 A / 800 V, šířka 5,1 mm, tmavě béžová",
+          "orderCode": "1521850000", "src": "https://eshop.weidmueller.com/en/a2c-2-5/p/1521850000",
+          "priceLevel": "nízká", "suppliers": ["Weidmüller (ČR)", "TME"], "note": "Balení 100 ks." },
+        { "brand": "Elektro Bečov (CZ)", "series": ["řadové svorky a svorkovnice"],
+          "typical": "řadové svorky a svorkovnice (konkrétní typ neověřen)",
+          "src": "https://www.elektrobecov.cz/kontakty.html",
+          "priceLevel": "nízká", "suppliers": ["ELEKTRO, výrobní družstvo v Bečově nad Teplou (přímo)", "elektro velkoobchody"], "note": "Český výrobce elektroinstalačního materiálu (řadové svorky, svorkovnice, svorky); Tovární 128, Bečov nad Teplou. Sortiment ověřen jen z popisu firmy ve výsledcích hledání." }
+      ]
+    },
+    "interface_relay": {
+      "label": "Vazební relé 24 V DC",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["857 (6 mm)", "788", "2857"],
+          "typical": "857-304 – reléový modul 24 V DC, 1 přepínací kontakt, 6 A, šířka 6 mm",
+          "orderCode": "857-304", "src": "https://www.wago.com/global/p/857-304",
+          "priceLevel": "nízká", "suppliers": ["WAGO (česká pobočka)"], "note": "" },
+        { "brand": "Schneider Electric", "series": ["Harmony RXM (zásuvné)", "Harmony RSL (úzké)"],
+          "typical": "RXM2AB2BD – zásuvné relé 24 V DC, 2 přepínací kontakty, 12 A, LED",
+          "orderCode": "RXM2AB2BD", "src": "https://www.se.com/cz/cs/product/RXM2AB2BD/",
+          "priceLevel": "nízká", "suppliers": ["Schneider Electric CZ"], "note": "Patice se objednává zvlášť (kód neověřen)." },
+        { "brand": "Finder", "series": ["38 (relé interface modul 6,2 mm)", "39 MasterINTERFACE"],
+          "typical": "38.51.7.024.0050 – reléový interface modul 6,2 mm, 1 přepínací kontakt 6 A / 250 V AC, cívka 24 V DC, LED a ochranný obvod, šroubové svorky",
+          "orderCode": "38.51.7.024.0050", "src": "https://us.rs-online.com/product/finder/38-51-7-024-0050/70747667/",
+          "priceLevel": "nízká", "suppliers": ["Finder (distribuce v ČR)", "TME", "GM electronic"], "note": "Distribuce v ČR a GM electronic neověřeny." },
+        { "brand": "Phoenix Contact", "series": ["PLC-RSC", "PLC-INTERFACE", "RIFLINE complete"],
+          "typical": "PLC-RSC- 24DC/21 – reléový modul 6,2 mm (svorkovnice + zásuvné relé), 1 přepínací kontakt 6 A, 24 V DC, šroubové svorky",
+          "orderCode": "2966171", "src": "https://us.rs-online.com/product/phoenix-contact/2966171/70207721/",
+          "priceLevel": "střední", "suppliers": ["Phoenix Contact, s.r.o. (ČR)"], "note": "Datový list: https://www.phoenixcontact.com/redirector/api/v1/product/2966171/pdf" },
+        { "brand": "Weidmüller", "series": ["TERMSERIES", "D-SERIES"],
+          "typical": "TRS 24VDC 1CO – vazební relé TERMSERIES, vstup 24 V DC, 1 přepínací kontakt 6 A / 250 V AC, LED, šroubové svorky",
+          "orderCode": "1122770000", "src": "https://www.automation24.com/coupling-relay-weidmueller-trs-24vdc-1co-1122770000",
+          "priceLevel": "nízká", "suppliers": ["Weidmüller (ČR)", "Automation24"], "note": "Balení 10 ks." }
+      ]
+    },
+    "cabinet": {
+      "label": "Skříň rozvaděče",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Rittal", "series": ["AX (kompaktní)", "KX", "VX25 (řadové)"],
+          "typical": "AX 1050.000 – ocelová kompaktní skříň 500×500×210 mm",
+          "orderCode": "1050.000", "src": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1050000",
+          "priceLevel": "vysoká", "suppliers": ["Rittal Czech, s.r.o. (Zdiby u Prahy)"], "note": "" },
+        { "brand": "Schneider Electric", "series": ["Spacial S3D", "Spacial SF (řadové)"],
+          "typical": "Spacial S3D 500×500×200 mm, plné dveře, bez montážního panelu, IP66, RAL 7035",
+          "orderCode": "NSYS3D5520", "src": "https://www.se.com/cz/cs/product/NSYS3D5520/",
+          "priceLevel": "střední", "suppliers": ["Schneider Electric CZ"], "note": "Montážní panel se objednává zvlášť (kód neověřen)." },
+        { "brand": "Eaton", "series": ["CS (nástěnné)", "xEnergy"],
+          "typical": "nástěnná skříň CS (kód neověřen)",
+          "priceLevel": "střední", "suppliers": ["Eaton Electric s.r.o. (ČR)"], "note": "" },
+        { "brand": "ABB", "series": ["ComfortLine", "SR2 (AM2)"],
+          "typical": "nástěnná ocelová skříň (kód neověřen)",
+          "priceLevel": "střední", "suppliers": ["ABB s.r.o. (ČR)"], "note": "" },
+        { "brand": "Hensel", "series": ["Mi (izolační rozvaděče)", "KV / DK (rozvodnice a skříně)"],
+          "typical": "izolační plastový rozvaděč Mi pro menší rozvaděč (konkrétní kód neověřen)",
+          "src": "https://www.hensel-electric.de/cs-cz/",
+          "priceLevel": "střední", "suppliers": ["HENSEL, s.r.o. (Roudnice nad Labem)", "elektro velkoobchody"], "note": "Hensel s.r.o. v Roudnici n. L. (od 1992) prodává výrobky Hensel a sama vyrábí rozvaděče do 1000 V / 2000 A. Elektro Bečov (výrobní družstvo, Bečov n. T.) je samostatný výrobce svorek, ne výrobce skříní Hensel — viz terminal_block." }
+      ]
+    },
+    "cable_sensor": {
+      "label": "Kabel s konektorem M12 (snímače)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "ifm electronic", "series": ["EVC (propojovací / připojovací kabely M12)"],
+          "typical": "EVC002 – kabel se zásuvkou M12 přímou, 4pól., 5 m, PUR, bezhalogenový, pozlacené kontakty, IP67/68/69K",
+          "orderCode": "EVC002", "src": "https://automation24.com/m12-sensor-cable-ifm-electronic-evc002",
+          "priceLevel": "nízká", "suppliers": ["ifm electronic spol. s r.o. (ČR)", "Automation24"], "note": "EVC001 = totéž s délkou 2 m; EVC005 = úhlová zásuvka 5 m." },
+        { "brand": "Lapp", "series": ["UNITRONIC SENSOR M12"],
+          "typical": "AB-C4-5,0PUR-M12FS – kabel se zásuvkou M12 přímou, 4pól., 5 m, PUR, volný konec, IP65/67",
+          "orderCode": "22260323", "src": "https://www.tme.com/us/en-us/details/22260323/sensors-cables/lapp/ab-c4-5-0pur-m12fs/",
+          "priceLevel": "nízká", "suppliers": ["LAPP (pobočka a výroba v ČR)", "TME"], "note": "" },
+        { "brand": "Murrelektronik", "series": ["M12 kabely (MVK, Exact12)"],
+          "typical": "M12 female 0° A-cod. s kabelem PVC 4×0,34 černý UL/CSA, 5 m – zásuvka M12 přímá, 4pól., volný konec",
+          "orderCode": "7000-12221-6140500", "src": "https://shop.murrelektronik.com/en/Connection-Technology/With-open-ended-wires/Signal/M12-female-0-A-cod-with-cable-7000-12221-6140500.html",
+          "priceLevel": "střední", "suppliers": ["Murrelektronik (distribuce v ČR, neověřeno)", "Automation24", "TME"], "note": "Plášť PVC (dle titulku shopu Murrelektronik) — pro vlečné řetězy volit PUR variantu." },
+        { "brand": "Phoenix Contact", "series": ["SAC"],
+          "typical": "SAC-4P- 5,0-PUR/M12FS – kabel se zásuvkou M12 přímou, 4pól., kód A, 5 m, PUR, volný konec",
+          "orderCode": "1668124", "src": "https://www.electricautomationnetwork.com/en/phoenixcontact/cable-phoenix-contact-sac-4p-50-pur-m12fs-1668124",
+          "priceLevel": "střední", "suppliers": ["Phoenix Contact, s.r.o. (ČR)"], "note": "" }
+      ]
+    },
+    "cable_power": {
+      "label": "Silový / ovládací kabel",
+      "unit": "m",
+      "brands": [
+        { "brand": "Lapp", "series": ["ÖLFLEX CLASSIC 110", "ÖLFLEX SERVO / VFD"],
+          "typical": "ÖLFLEX CLASSIC 110 4G1,5 – PVC, 300/500 V, ovládací/připojovací",
+          "orderCode": "1119304", "src": "https://www.lapp.com/cs/cz/p/1119304",
+          "priceLevel": "střední", "suppliers": ["LAPP (pobočka a výroba v ČR)", "elektro velkoobchody"], "note": "" },
+        { "brand": "Helukabel", "series": ["JZ-500", "TOPFLEX (EMV)"],
+          "typical": "JZ-500 4G1,5 (kód neověřen)",
+          "priceLevel": "střední", "suppliers": ["Helukabel CZ s.r.o. (Libušín)"], "note": "Kód JZ-500 neověřen." },
+        { "brand": "Kabex / Prakab (CZ)", "series": ["CYKY, CYSY (neověřeno)"],
+          "typical": "české instalační / ovládací kabely (neověřeno)",
+          "priceLevel": "nízká", "suppliers": ["elektro velkoobchody"], "note": "Vazba značek na konkrétní řady neověřena." }
+      ]
+    },
+    "fieldbus_io": {
+      "label": "IO-Link master / decentrální I/O IP67",
+      "unit": "ks",
+      "brands": [
+        { "brand": "ifm electronic", "series": ["IO-Link master AL11xx / AL13xx"],
+          "typical": "AL1100 – IO-Link master s rozhraním PROFINET",
+          "orderCode": "AL1100", "src": "https://www.ifm.com/cz/cs/product/AL1100",
+          "priceLevel": "střední", "suppliers": ["ifm electronic spol. s r.o. (ČR)"], "note": "Počet portů a krytí na stránce nebyly – ověřit." },
+        { "brand": "Murrelektronik", "series": ["IMPACT67 Pro", "MVK Pro", "MVK Fusion", "Cube67"],
+          "typical": "IMPACT67 Pro PN DIO8 IOL8 M12L 5P – IO-Link master PROFINET, plastové pouzdro, 8 IO-Link portů + 8 DIO (M12), napájení M12 L-kód 5pól., IP65/67",
+          "orderCode": "54630", "src": "https://www.murrelektronik.uk/fileadmin/user_upload/Great_Britain_en_GB/News/Product/MVK-Pro-and-IMPACT67-Pro_02-21_EN__3_.pdf",
+          "priceLevel": "střední", "suppliers": ["Murrelektronik (distribuce v ČR, neověřeno)"], "note": "Kovové MVK Pro PROFINET: 54610 (5pól. napájení) / 54600 (4pól.). Varianty EtherNet/IP 54631, EtherCAT 54632." },
+        { "brand": "Balluff", "series": ["BNI (IO-Link master, IP67)"],
+          "typical": "BNI PNT-508-105-Z015 – IO-Link master PROFINET, 8 portů IO-Link (třída A), 16 DI/DO PNP, napájení 7/8\", displej, IP67",
+          "orderCode": "BNI005H", "src": "https://www.balluff.com/en-us/products/BNI005H",
+          "priceLevel": "střední", "suppliers": ["Balluff CZ s.r.o. (Praha 9)"], "note": "" },
+        { "brand": "Turck", "series": ["TBEN-S / TBEN-L"],
+          "typical": "TBEN-S2-4IOL – kompaktní multiprotokolový modul (PROFINET / EtherNet/IP / Modbus TCP), 4 IO-Link master porty + 4 DIO PNP 0,5 A, IP65/67/69K",
+          "orderCode": "6814024", "src": "https://www.turck.us/en/product/6814024",
+          "priceLevel": "střední", "suppliers": ["Turck (distribuce v ČR, neověřeno)"], "note": "Ethernet má konektory M8 — ověřit v datasheetu typy konektorů a objednat odpovídající kabely." }
+      ]
+    }
+  },
+  "suppliers": [
+    { "name": "Siemens, s.r.o.", "url": "https://www.siemens.com/cz", "country": "CZ", "kind": "výrobce",
+      "cats": ["plc_cpu@siemens", "plc_di@siemens", "plc_do@siemens", "plc_ai@siemens", "plc_ao@siemens", "plc_coupler@siemens", "plc_hmi@siemens", "power_supply_24v", "mcb", "main_switch"],
+      "note": "Česká pobočka; adresa a síť partnerů neověřeny v této rešerši." },
+    { "name": "OEZ s.r.o.", "url": "https://www.oez.cz", "country": "CZ", "kind": "výrobce",
+      "cats": ["mcb", "main_switch", "cabinet"], "note": "Letohrad, Šedivská 339; člen skupiny Siemens od 2007; jističe Minia, Varius, rozvodnice Distri." },
+    { "name": "Beckhoff Automation s.r.o.", "url": "https://www.beckhoff.com/cs-cz/", "country": "CZ", "kind": "výrobce",
+      "cats": ["plc_cpu@beckhoff", "plc_di@beckhoff", "plc_do@beckhoff", "plc_ai@beckhoff", "plc_ao@beckhoff", "plc_coupler@beckhoff", "plc_hmi@beckhoff"],
+      "note": "Brno, Sochorova 23; obchodní kancelář Praha; tel. +420 511 189 250, info.cz@beckhoff.com." },
+    { "name": "WAGO (česká pobočka)", "url": "https://www.wago.com/cz/", "country": "CZ", "kind": "výrobce",
+      "cats": ["plc_cpu@codesys", "plc_di@codesys", "plc_do@codesys", "plc_ai@codesys", "plc_ao@codesys", "plc_coupler@codesys", "plc_hmi@codesys", "terminal_block", "interface_relay", "power_supply_24v"],
+      "note": "Český web wago.com/cz s odkazem na české zastoupení; přesný název firmy neověřen." },
+    { "name": "ControlTech s.r.o.", "url": "https://www.controltech.cz", "country": "CZ", "kind": "distributor",
+      "cats": ["plc_cpu@rockwell", "plc_di@rockwell", "plc_do@rockwell", "plc_ai@rockwell", "plc_ao@rockwell", "plc_coupler@rockwell", "plc_hmi@rockwell"],
+      "note": "Ovčáry 297; autorizovaný Value-Add distributor a servisní partner Rockwell Automation, také Belden/Hirschmann; opravy a školení." },
+    { "name": "SCHMACHTL CZ spol. s r.o.", "url": "https://www.schmachtl.cz", "country": "CZ", "kind": "distributor",
+      "cats": ["plc_cpu@unitronics", "plc_di@unitronics", "plc_do@unitronics", "plc_ai@unitronics", "plc_ao@unitronics", "plc_coupler@unitronics", "plc_hmi@unitronics"],
+      "note": "Vestec u Prahy (Vídeňská 185) a Zlín; oficiální distributor Unitronics pro ČR (dle unitronicsplc.com), +420 244 001 558. Zastupuje přes 20 výrobců: senzorika a automatizace (Leuze — autorizovaný distributor, Pizzato, PLC), pohony (elektromotory, měniče, serva), strojírenství (čerpadla, spojky); výhradní distributor Wieland pro ČR." },
+    { "name": "Mitsubishi Electric Europe B.V., organizační složka (FA)", "url": "https://cz-fa.mitsubishielectric.com/fa", "country": "CZ", "kind": "výrobce",
+      "cats": ["plc_cpu@mitsubishi", "plc_di@mitsubishi", "plc_do@mitsubishi", "plc_ai@mitsubishi", "plc_ao@mitsubishi", "plc_hmi@mitsubishi"],
+      "note": "Český web FA existuje; název složky a seznam distributorů neověřeny (stránka se nenačetla)." },
+    { "name": "Mitsubishi Electric e-shop (EU)", "url": "https://mitsubishi-electric-eshop.mee.com", "country": "EU", "kind": "e-shop",
+      "cats": ["plc_do@mitsubishi"], "note": "Oficiální evropský e-shop; dodání do ČR neověřeno." },
+    { "name": "Schneider Electric CZ, s.r.o.", "url": "https://www.se.com/cz/cs/", "country": "CZ", "kind": "výrobce",
+      "cats": ["plc_cpu@schneider", "plc_di@schneider", "plc_do@schneider", "plc_ai@schneider", "plc_ao@schneider", "plc_coupler@schneider", "plc_hmi@schneider", "mcb", "main_switch", "interface_relay", "cabinet"],
+      "note": "Česká verze produktových stránek se.com/cz ověřena; obchodní název firmy neověřen." },
+    { "name": "OMRON Czech Republic", "url": "https://industrial.omron.cz", "country": "CZ", "kind": "výrobce",
+      "cats": ["plc_cpu@omron", "plc_di@omron", "plc_do@omron", "plc_ai@omron", "plc_ao@omron", "plc_coupler@omron", "plc_hmi@omron"],
+      "note": "Tel. +420 234 076 010 (Po–Pá 8–16); prodej i přes autorizované partnery (vyhledávač na webu)." },
+    { "name": "Rockwell Automation (ČR)", "url": "https://www.rockwellautomation.com", "country": "CZ", "kind": "výrobce",
+      "cats": ["plc_cpu@rockwell"], "note": "Česká pobočka – adresu se nepodařilo ověřit (stránka kontaktů 404); prodej přes distributory (ControlTech)." },
+    { "name": "LAPP (Česká republika)", "url": "https://www.lapp.com/cs/cz/", "country": "CZ", "kind": "výrobce",
+      "cats": ["cable_power", "cable_sensor"], "note": "Česká pobočka s administrativou a výrobou; ÖLFLEX, UNITRONIC." },
+    { "name": "ifm electronic (ČR)", "url": "https://www.ifm.com/cz/cs/", "country": "CZ", "kind": "výrobce",
+      "cats": ["fieldbus_io", "cable_sensor"], "note": "Česká verze webu s kontakty české kanceláře." },
+    { "name": "Rittal Czech", "url": "https://www.rittal.cz", "country": "CZ", "kind": "výrobce",
+      "cats": ["cabinet"], "note": "Rittal Czech, s.r.o., Ke Zdibsku 182, 250 66 Zdiby u Prahy (IČO 26687356), tel. 234 099 000, info@rittal.cz." },
+    { "name": "Helukabel CZ s.r.o.", "url": "https://www.helukabel.cz", "country": "CZ", "kind": "výrobce",
+      "cats": ["cable_power", "cable_sensor"], "note": "Důl Max 39, 273 06 Libušín (IČO 26514478), tel. 312 672 620, prodej@helukabel.cz; další pobočky na webu." },
+    { "name": "HENSEL, s.r.o.", "url": "https://www.hensel-electric.de/cs-cz/", "country": "CZ", "kind": "výrobce",
+      "cats": ["cabinet"], "note": "Chelčického 1386, 413 01 Roudnice nad Labem (IČO 61539422), prodej@hensel.cz; rozvaděče Mi, KV, DK, VT a zakázkové rozvaděče do 1000 V / 2000 A." },
+    { "name": "ELEKTRO, výrobní družstvo v Bečově nad Teplou", "url": "https://www.elektrobecov.cz", "country": "CZ", "kind": "výrobce",
+      "cats": ["terminal_block"], "note": "Tovární 128, 364 64 Bečov nad Teplou; řadové svorky, svorkovnice a elektroinstalační materiál." },
+    { "name": "ELFETEX, spol. s r.o.", "url": "https://www.elfetex.cz", "country": "CZ", "kind": "distributor",
+      "cats": ["mcb", "main_switch", "terminal_block"], "note": "Elektrotechnický velkoobchod od 1991, sídlo Plzeň-Doubravka, 26 prodejních míst v ČR; kabely, jističe, stykače, relé, rozvodnice, průmyslová technika, e-shop. Viděny mj. ABB S201, Siemens 5SL6, Eaton P1 a PKZM0, ABB OT16F3, Phoenix PT 2,5, Schneider GV2/ATV320. Web blokuje roboty (403)." },
+    { "name": "Viola.cz", "url": "https://viola.cz", "country": "CZ", "kind": "e-shop",
+      "cats": ["main_switch"], "note": "ABB OT16F3." },
+    { "name": "elektro-malinsky.cz", "url": "https://www.elektro-malinsky.cz", "country": "CZ", "kind": "e-shop",
+      "cats": ["main_switch", "mcb"], "note": "OEZ MSN s objednacími čísly OEZ." },
+    { "name": "K&V ELEKTRO a.s.", "url": "https://www.kvelektro.cz", "country": "CZ", "kind": "distributor",
+      "cats": ["mcb", "main_switch", "terminal_block", "cable_power", "cabinet"], "note": "Elektro velkoobchod, 23 poboček; OEZ jističe v nabídce." },
+    { "name": "ELKOV elektro a.s.", "url": "https://eshop.elkov.cz", "country": "CZ", "kind": "distributor",
+      "cats": ["mcb", "main_switch", "cable_power"], "note": "Elektro velkoobchod se sídlem v Brně, 33 poboček (www.elkov.cz); elektroinstalační materiál, jističe, stykače, relé, svítidla, fotovoltaika, poradenství v průmyslové automatizaci; e-shop s OEZ modulovými přístroji." },
+    { "name": "EMAS / elektromaterial.cz / bbelektro.cz", "url": "https://www.emas.cz", "country": "CZ", "kind": "e-shop",
+      "cats": ["mcb"], "note": "České e-shopy, kde jsou uvedeny objednací kódy OEZ." },
+    { "name": "TME (Transfer Multisort Elektronik)", "url": "https://www.tme.eu/cz/", "country": "PL", "kind": "e-shop",
+      "cats": ["power_supply_24v", "terminal_block", "interface_relay", "plc_ai@beckhoff"], "note": "Velký evropský e-shop s českou verzí; v nabídce Beckhoff EL3064, Weidmüller PRO ECO." },
+    { "name": "RS Components", "url": "https://cz.rs-online.com", "country": "EU", "kind": "e-shop",
+      "cats": ["power_supply_24v", "plc_cpu@siemens", "plc_di@omron", "plc_do@schneider"], "note": "České zastoupení / web neověřeno v této rešerši." },
+    { "name": "Farnell / Newark", "url": "https://cz.farnell.com", "country": "EU", "kind": "e-shop",
+      "cats": ["plc_coupler@omron", "plc_ai@schneider", "power_supply_24v"], "note": "" },
+    { "name": "Automation24", "url": "https://www.automation24.com", "country": "DE", "kind": "e-shop",
+      "cats": ["plc_cpu@siemens", "plc_di@siemens", "plc_do@siemens", "plc_ai@siemens", "plc_ao@siemens", "plc_coupler@siemens", "plc_hmi@siemens"],
+      "note": "Německý e-shop s automatizací (Siemens aj.); dodání do ČR neověřeno." },
+    { "name": "Conrad", "url": "https://www.conrad.cz", "country": "CZ", "kind": "e-shop",
+      "cats": ["plc_cpu@codesys"], "note": "Nabízí WAGO CC100 (manuál na asset.conrad.com)." }
+  ],
+  "notes": [
+    "Limit webového vyhledávání (200 dotazů na relaci) se vyčerpal uprostřed části B. Doplněno 2026-10-02: jističe Eaton/ABB/Siemens, hlavní vypínače Eaton/ABB/Siemens/OEZ, svorky Phoenix/Weidmüller, relé Finder/Phoenix/Weidmüller, kabely M12 (ifm, Lapp, Murrelektronik, Phoenix) a IP67 I/O (Murrelektronik, Balluff, Turck) mají kódy. Bez kódu zůstávají Eaton/ABB skříně, Hensel Mi, Helukabel JZ-500, Kabex/Prakab a Elektro Bečov.",
+    "Objednací kódy jsou uvedené jen tam, kde jsem kód viděl na stránce výrobce nebo prodejce (src). U Beckhoff, Mitsubishi, Omron, Rockwell, Unitronics a Mean Well je typové označení zároveň objednacím kódem.",
+    "Automa.cz NENÍ distributor – je to odborný časopis (Automa – časopis pro automatizační techniku, s. r. o.). Ampér je veletrh na BVV (amper.cz přesměrovává na bvv.cz/amper). kaiser.cz je KAISER DATA s.r.o. (IT/ERP), ne distributor automatizace. Proto nejsou v seznamu dodavatelů.",
+    "Elfetex (elfetex.cz) vrací robotům 403 – sortiment ověřen z titulků stránek ve výsledcích hledání a z firemních katalogů (sídlo Plzeň, 26 prodejních míst).",
+    "Siemens IM 155-6 PN ST 6ES7155-6AU02-0BN0 ověřen (manuál Siemens): server modul je v dodávce, BusAdapter ne (sada s BA 2×RJ45 = 6ES7155-6AA02-0BN0). BaseUnit: BU15-P16+A0+2D 6ES7193-6BP00-0DA0 (první, světlá), BU15-P16+A0+2B 6ES7193-6BP00-0BA0 (další, tmavá).",
+    "Elektro Bečov a Hensel jsou dvě různé firmy: ELEKTRO v.d. Bečov nad Teplou vyrábí svorky, HENSEL s.r.o. (Roudnice n. L.) rozvaděče Mi/KV/DK.",
+    "Mitsubishi: FX5U-32MT/ES má sink (NPN) výstupy, /ESS source (PNP). FX5U-32MT/xSS je podle nalezeného popisu napájené 100–240 V AC; 24V DC varianta (/DSS) neověřena. Kategorie plc_coupler@mitsubishi chybí – vzdálené I/O pro iQ-F jsem neověřil.",
+    "Unitronics US7-B5-TR22 má reléové výstupy a 2 tranzistorové NPN; pro PNP výstupy volit variantu T24 (ověřeno u US5-B5-T24). HMI je součástí CPU, plc_hmi@unitronics je proto 0 ks navíc. UIA-0402N je kombinovaný modul 4 AI + 2 AO.",
+    "Omron NX-OD5256: na otevřené stránce není výslovně uvedeno PNP (ověřit). NX-AD3603 / NX-DA2603 jsou napěťové; proudové varianty jsem neověřil. NB7W-TW01B je ukončen, NB7W-TW01B-V1 je aktuální.",
+    "Beckhoff: EL3064 je jen 0–10 V. Panel CP2907 (CP-Link 4) potřebuje PC s CP-Link 4 / DVI. Zda jde napojit na CX7000, jsem neověřil.",
+    "WAGO: 750-455 je jen 4–20 mA, 750-559 jen 0–10 V. Zdroj 2787-2346 (10 A) je 3fázový, 2787-2147 je 1fázový 20 A.",
+    "Hlavní / nouzový vypínač a další bezpečnostní prvky: volba a zapojení podle posouzení rizik (EN ISO 13849, EN 60204-1), návrh k revizi. Bezpečnostní logika se nenavrhuje.",
+    "Kategorie platforem jsou ve tvaru <kategorie>@<platforma> podle zadání. Vlastní kategorie nebyly přidány. Pro cable_power je jednotka 'm'."
+  ]
+}

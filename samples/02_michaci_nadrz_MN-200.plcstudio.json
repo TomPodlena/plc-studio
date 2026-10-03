@@ -1,0 +1,187 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Míchací nádrž MN-200 (jednoduchý příklad)",
+   "desc": "Dávková míchací nádrž 200 l: napouštění vody ventilem Y1, míchání míchadlem M1 (rozběh už při napouštění), homogenizace, vypouštění samospádem ventilem Y2 za chodu míchadla (proti usazování), pak zavření výpusti a zastavení míchadla. Hladina a teplota se měří analogově s mezemi (přeplnění nad 90 %, přehřátí nad 80 °C = porucha stroje). Signálky: cyklus běží, porucha. Ochrany: nouzové zastavení, víko nádrže zavřeno a plovák přeplnění jako blokování.",
+   "takt": 85
+  },
+  "platforms": [
+   "siemens"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Napouštěcí ventil vody",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 2,
+    "name": "M1",
+    "cls": "Motor",
+    "desc": "Míchadlo (převodový motor)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 3,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Vypouštěcí ventil (klapka s pohonem)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 4,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Hladina v nádrži",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "limHi": 90
+   },
+   {
+    "id": 5,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Teplota obsahu nádrže",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 100,
+    "limHi": 80
+   },
+   {
+    "id": 6,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 7,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Víko nádrže zavřeno (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 8,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Hladina pod mezí přeplnění — plovák (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 9,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Signálka Cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run"
+   },
+   {
+    "id": 10,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Signálka Porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 6,
+   "interlocks": [
+    7,
+    8
+   ],
+   "seq": [
+    {
+     "dev": 1,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 2,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 25
+    },
+    {
+     "dev": 1,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 0,
+     "act": "wait",
+     "cond": "time",
+     "timeS": 30
+    },
+    {
+     "dev": 3,
+     "act": "open",
+     "cond": "time",
+     "timeS": 20
+    },
+    {
+     "dev": 3,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 2,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    }
+   ]
+  },
+  "nextId": 11
+ }
+}

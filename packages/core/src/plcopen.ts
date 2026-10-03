@@ -3,12 +3,16 @@
  * TwinCAT 3 a EcoStruxure Machine Expert: POU (FB knihovna + MAIN, ST)
  * + globální proměnné GVL_IO s adresami.
  *
+ * Zdrojem je FINÁLNÍ text, který jde do Gen_Library.st a MAIN.st pro danou platformu
+ * (přeložené komentáře, ruční povely, porucha stroje, meze, rawMax, cmtSafe…) — žádné
+ * surové šablony, aby se import nikdy nelišil od ručně vložených souborů.
+ *
  * Namespace tc6_0200 (nejširší kompatibilita; CODESYS/TwinCAT round-trip).
- * Import v IDE: Project/File → Import PLCopenXML. Import je aditivní —
+ * Import v IDE: Project / PLC projekt → Import PLCopenXML. Import je aditivní —
  * duplicitní názvy POU hlásí chybu (smazat staré, nebo importovat do prázdné aplikace).
  */
-import { Project, PlatformKey, addrFor, dtFor, esc, usedClasses } from "./model.js";
-import { ST_MOTOR, ST_VENTIL, ST_AI, ST_AO, genMainIEC } from "./codegen.js";
+import { Project, PlatformKey, addrFor, dtFor, esc } from "./model.js";
+import { genLibrary, genMainIEC } from "./codegen.js";
 
 export interface ParsedVar { name: string; type: string; init?: string; comment?: string; address?: string; }
 export interface ParsedPou {
@@ -17,20 +21,20 @@ export interface ParsedPou {
   body: string;
 }
 
-/** Rozparsuje náš vlastní, dobře formovaný ST POU (šablony/generovaný MAIN) na interface + tělo. */
+/** Rozparsuje náš vlastní, dobře formovaný ST POU (generovaný FB / MAIN) na interface + tělo. */
 export function parseStPou(src: string): ParsedPou {
-  const head = src.match(/(FUNCTION_BLOCK|PROGRAM)\s+"?(\w+)"?/);
+  const head = src.match(/^\s*(FUNCTION_BLOCK|PROGRAM)\s+"?(\w+)"?/m);
   if (!head) throw new Error("parseStPou: chybí hlavička POU");
   const kind = head[1] === "PROGRAM" ? "program" : "functionBlock";
   const name = head[2];
   const inputs: ParsedVar[] = [], outputs: ParsedVar[] = [], locals: ParsedVar[] = [];
-  const re = /(VAR_INPUT|VAR_OUTPUT|VAR_IN_OUT|VAR)\b([\s\S]*?)END_VAR/g;
+  const re = /^\s*(VAR_INPUT|VAR_OUTPUT|VAR_IN_OUT|VAR)\b([\s\S]*?)^\s*END_VAR/gm;
   let m: RegExpExecArray | null, lastEnd = 0;
   while ((m = re.exec(src))) {
     lastEnd = re.lastIndex;
     const bucket = m[1] === "VAR_INPUT" ? inputs : m[1] === "VAR_OUTPUT" ? outputs : locals;
     for (const line of m[2].split("\n")) {
-      const vm = line.match(/^\s*([A-Za-z_]\w*)\s*(?:AT\s*(%[\w.]+)\s*)?:\s*([A-Za-z_]\w*)\s*(?::=\s*([^;]+?)\s*)?;\s*(?:\(\*\s*(.*?)\s*\*\))?/);
+      const vm = line.match(/^\s*([A-Za-z_]\w*)\s*(?:AT\s*(%[\w.*]+)\s*)?:\s*([A-Za-z_]\w*)\s*(?::=\s*([^;]+?)\s*)?;\s*(?:\(\*\s*(.*?)\s*\*\))?/);
       if (vm && !/^(VAR|END)/i.test(vm[1])) {
         bucket.push({ name: vm[1], address: vm[2], type: vm[3], init: vm[4], comment: vm[5] });
       }
@@ -39,6 +43,11 @@ export function parseStPou(src: string): ParsedPou {
   let body = src.slice(lastEnd);
   body = body.replace(/END_(FUNCTION_BLOCK|PROGRAM)\s*$/m, "").trim();
   return { name, kind, inputs, outputs, locals, body };
+}
+
+/** Všechny FUNCTION_BLOCK z textu knihovny (Gen_Library.st obsahuje víc bloků za sebou). */
+export function splitLibrary(lib: string): string[] {
+  return lib.match(/^FUNCTION_BLOCK\b[\s\S]*?^END_FUNCTION_BLOCK\b/gm) || [];
 }
 
 const ELEMENTARY = new Set(["BOOL", "BYTE", "WORD", "DWORD", "SINT", "INT", "DINT", "LINT", "UINT", "REAL", "LREAL", "TIME", "STRING"]);
@@ -76,17 +85,12 @@ ${varsSection("inputVars", p.inputs, "        ")}${varsSection("outputVars", p.o
 }
 
 /**
- * Kompletní PLCopen TC6 XML projektu: knihovna FB (jen použité třídy),
- * MAIN a GVL_IO s adresami dle cílové platformy (%IX…).
+ * Kompletní PLCopen TC6 XML projektu: knihovna FB (jen použité třídy — přesně bloky
+ * z Gen_Library.st), MAIN (= MAIN.st) a GVL_IO s adresami dle cílové platformy.
  */
 export function genPLCopenXML(prj: Project, plat: PlatformKey = "codesys"): string {
   const now = new Date().toISOString().slice(0, 19);
-  const u = usedClasses(prj);
-  const pous: ParsedPou[] = [];
-  const T: Array<[cls: string, src: string]> = [
-    ["Motor", ST_MOTOR], ["Ventil", ST_VENTIL], ["AnalogIn", ST_AI], ["AnalogOut", ST_AO],
-  ];
-  for (const [cls, src] of T) if (u.has(cls as never)) pous.push(parseStPou(src));
+  const pous: ParsedPou[] = splitLibrary(genLibrary(prj, plat)).map(parseStPou);
   pous.push(parseStPou(genMainIEC(prj, plat)));
 
   let gvl = "";

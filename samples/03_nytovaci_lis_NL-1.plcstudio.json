@@ -1,0 +1,280 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Pneumatický nýtovací lis NL-1",
+   "desc": "Ruční pracoviště pro nýtování držáků plnými nýty. Obsluha vloží díl do přípravku (snímač dílu) a potvrdí cyklus dvouručním ovládáním: vibrační zásobník doplní nýt, upínací válec díl upne, oddělovač podá nýt pod razník, pneumohydraulický válec nýt roztvaruje (síla měřena tenzometrem, přetížení = porucha), díl se uvolní a vyhazovač ho vysune do skluzu; cyklus končí kontrolou, že přípravek je prázdný. Nevložený díl, nestisknutá tlačítka nebo nevyhozený díl vyhlásí po hlídacím čase poruchu. Ochrany: E-stop, zadní kryt a tlakový spínač vzduchu jako blokování, hlídání tlaku vzduchu analogově; maják zelená = chod, červená = porucha. Dvouruční ovládání čte program jen informativně — bezpečnostní funkci řeší bezpečnostní relé typ IIIC mimo PLC. Návrh k revizi.",
+   "takt": 15
+  },
+  "platforms": [
+   "siemens"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Upínací válec dílu (upnuto / uvolněno)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 2,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Nýtovací válec pneumohydraulický (dole / nahoře)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 3,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Vyhazovač hotového dílu (vysunut / zasunut)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 4,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Podavač nýtů — oddělovač (podáno / zpět)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 5,
+    "name": "M1",
+    "cls": "Motor",
+    "desc": "Vibrační zásobník nýtů",
+    "opt": {
+     "fbk": false,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 6,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Tlak vzduchu na vstupu",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limHi": 8,
+    "limLo": 4.5
+   },
+   {
+    "id": 7,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Nýtovací síla (tenzometr) — přetížení",
+    "opt": {},
+    "unit": "kN",
+    "rmin": 0,
+    "rmax": 50,
+    "limHi": 40
+   },
+   {
+    "id": 8,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 9,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Dvouruční ovládání — tlačítko levé",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 10,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Dvouruční ovládání — tlačítko pravé",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 11,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Zadní ochranný kryt zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 12,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Tlak vzduchu v pořádku — tlakový spínač (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 13,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Díl vložen v přípravku",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100
+   },
+   {
+    "id": 14,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run"
+   },
+   {
+    "id": 15,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha stroje",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 8,
+   "interlocks": [
+    11,
+    12
+   ],
+   "seq": [
+    {
+     "dev": 13,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 9,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 10,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 5,
+     "act": "start",
+     "cond": "time",
+     "timeS": 2
+    },
+    {
+     "dev": 1,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 4,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 4,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 5,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 2,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 2,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 1,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 3,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 3,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 13,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 5
+    }
+   ]
+  },
+  "nextId": 16
+ }
+}

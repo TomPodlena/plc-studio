@@ -1,0 +1,400 @@
+{
+  "categories": {
+    "sensor_inductive": {
+      "label": "Indukční snímač (M12/M18, PNP)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "ifm electronic", "series": ["IF (M12)", "IG (M18)"], "typical": "IFS204 — M12, Sn 4 mm, zapuštěný, PNP NO, konektor M12, 10–36 V DC",
+          "orderCode": "IFS204", "src": "https://www.conrad.cz/p/ifm-electronic-indukcni-senzor-priblizeni-m12-zarovnana-pnp-ifs204-507184", "priceLevel": "střední",
+          "suppliers": ["ifm electronic (přímo)", "Conrad.cz", "RS Components"], "note": "" },
+        { "brand": "SICK", "series": ["IME", "IMB"], "typical": "IME12-04BPSZC0S — M12, Sn 4 mm, PNP NO, konektor M12 4pin",
+          "orderCode": "1040764", "src": "https://eshop.technoline.cz/indukcni-snimace-sick-rada-im-a-ime/475-ime12-04bpszc0s-indukcni-snimac-1040764-sick-", "priceLevel": "střední",
+          "suppliers": ["SICK CZ", "Technoline e-shop", "Viola.cz", "Distrelec CZ", "TME"], "note": "Objednací číslo SICK 1040764 = typ IME12-04BPSZC0S. Viola.cz uvádí u téhož čísla NC – před objednáním ověřit funkci výstupu v datasheetu." },
+        { "brand": "Pepperl+Fuchs", "series": ["NBB…-12GM", "NBN…-18GM"], "typical": "NBB4-12GM50-E2-V1 — M12, Sn 4 mm, zapuštěný, PNP NO, konektor M12",
+          "orderCode": "NBB4-12GM50-E2-V1", "src": "https://www.pepperl-fuchs.com/en-us/products-gp25581/95524", "priceLevel": "střední",
+          "suppliers": ["Pepperl+Fuchs (přímo)", "TME", "RS Components"], "note": "" },
+        { "brand": "Balluff", "series": ["BES M12MI", "BES M18MI"], "typical": "BES M12MI-PSC40B-S04G — M12, Sn 4 mm, zapuštěný, PNP NO, konektor M12",
+          "orderCode": "BES0068", "src": "https://www.balluff.com/en-us/products/BES0068", "priceLevel": "střední",
+          "suppliers": ["Balluff (přímo)", "TME"], "note": "BES0068 = objednací kód Balluff k typu BES M12MI-PSC40B-S04G. Varianta M18: BES008L (BES M18MI-PSC80B-S04G) podle balluff.com." },
+        { "brand": "Omron", "series": ["E2E NEXT", "E2EC"], "typical": "E2E-X4B1T12-M1 — M12, Sn 4 mm, PNP NO, konektor M12",
+          "orderCode": "E2E-X4B1T12-M1", "src": "https://cz.rs-online.com/web/p/snimace-priblizeni/1889117", "priceLevel": "střední",
+          "suppliers": ["Omron CZ", "RS Components CZ (1889117)", "SOS electronic", "TME"], "note": "" }
+      ]
+    },
+    "sensor_optical": {
+      "label": "Optický snímač (reflexní závora, difuzní s potlačením pozadí)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "SICK", "series": ["W12", "W4", "WL/WTB"], "typical": "WL12-3P2431 — reflexní závora s polarizačním filtrem, dosah 0–7 m, PNP, M12 4pin",
+          "orderCode": "1041436", "src": "https://www.sick.com/media/pdf/0/10/310/dataSheet_WL12-3P2431_1041436_cs.pdf", "priceLevel": "střední",
+          "suppliers": ["SICK CZ", "RS Components", "Farnell"], "note": "Odrazka se objednává zvlášť." },
+        { "brand": "ifm electronic", "series": ["O5", "O6", "OG"], "typical": "O5H500 — difuzní snímač s potlačením pozadí 50–1800 mm, PNP, M12",
+          "orderCode": "O5H500", "src": "https://media.ifm.com/dam/4b1b2bd7-fe4d-46d3-a51b-2ffc6e141831/Original/O5H500-00_CS-CZ.pdf", "priceLevel": "střední",
+          "suppliers": ["ifm electronic (přímo)", "Automation24"], "note": "" },
+        { "brand": "Leuze", "series": ["PRK 25C", "PRK 3C", "PRK 5"], "typical": "PRK25C/4P-M12 — polarizovaná reflexní závora, M12 4pin",
+          "orderCode": "50134279", "src": "https://www.leuze.com/en-us/prk25c-4p-m12/50134279", "priceLevel": "střední",
+          "suppliers": ["Schmachtl CZ (e-shop)", "Conrad.cz"], "note": "" },
+        { "brand": "Omron", "series": ["E3Z", "E3ZM"], "typical": "E3Z-R81 2M — polarizovaná reflexní závora 0,1–4 m, PNP, kabel 2 m",
+          "orderCode": "E3Z-R81 2M", "src": "https://industrial.omron.eu/en/products/E3Z-R81-2M", "priceLevel": "střední",
+          "suppliers": ["Omron CZ", "Farnell", "Limasoft"], "note": "E3Z-R61 je NPN verze — pro PNP vstupy PLC volit R81." },
+        { "brand": "Pepperl+Fuchs", "series": ["ML100", "R100"], "typical": "ML100-8-H-250-RT/95/103 — miniaturní snímač s potlačením pozadí 5–250 mm, PNP, M8",
+          "orderCode": "ML100-8-H-250-RT/95/103", "src": "https://www.pepperl-fuchs.com/en-us/products-gp25581/88725", "priceLevel": "střední",
+          "suppliers": ["Pepperl+Fuchs (přímo)"], "note": "Konektor M8 — počítat s jiným kabelem než M12." }
+      ]
+    },
+    "sensor_capacitive": {
+      "label": "Kapacitní snímač (hladina, materiál)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "SICK", "series": ["CM18", "CM30"], "typical": "CM18-08BPP-KC1 — M18, Sn 3–8 mm (potenciometr), PNP, M12 4pin",
+          "orderCode": "6020388", "src": "https://www.sick.com/media/pdf/3/43/243/dataSheet_CM18-08BPP-KC1_6020388_de.pdf", "priceLevel": "střední",
+          "suppliers": ["SICK CZ", "TME", "RS Components"], "note": "" },
+        { "brand": "Balluff", "series": ["BCS M18", "BCS M30"], "typical": "BCS M18BBI3-PSC80D-S04K — M18, PNP, M12",
+          "orderCode": "BCS00M8", "src": "https://www.tme.com/us/en-us/details/bcs00m8/capacitive-sensors/balluff/bcs-m18bbi3-psc80d-s04k/", "priceLevel": "střední",
+          "suppliers": ["Balluff (přímo)", "TME"], "note": "" },
+        { "brand": "ifm electronic", "series": ["KI (M30)", "KQ"], "typical": "KI5087 — M30, Sn 15 mm, PNP, IO-Link; i přes nekovovou stěnu nádoby",
+          "orderCode": "KI5087", "src": "https://www.ifm.com/us/en/product/KI5087", "priceLevel": "střední",
+          "suppliers": ["ifm electronic (přímo)", "Conrad.cz"], "note": "M30, ne M18." },
+        { "brand": "Dinel (CZ)", "series": ["CLS-23", "CLS-40/53"], "typical": "CLS-23 — miniaturní kapacitní spínač hladiny kapalin, PNP nebo dvouvodič, IP68",
+          "src": "https://www.jsp.cz/cz/sortiment/rozsireny_sortiment/vyrobci/dinel/kapacitni-spinac-hladiny-cls-23.html", "priceLevel": "nízká",
+          "suppliers": ["Dinel (přímo, Zlín)", "JSP", "Viola.cz", "GAS"], "note": "Český výrobce. Úplný kód se skládá podle délky elektrody a výstupu (datasheet dinel.cz)." }
+      ]
+    },
+    "limit_switch": {
+      "label": "Mechanický polohový (koncový) spínač",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Telemecanique Sensors (Schneider)", "series": ["XCKN", "XCKS", "XCKM"], "typical": "XCKN2118P20 — plastové tělo, kladková páčka, 1NC+1NO, skoková, vývodka M20",
+          "orderCode": "XCKN2118P20", "src": "https://www.telemecaniquesensors.com/global/en/product/reference/XCKN2118P20", "priceLevel": "nízká",
+          "suppliers": ["TME", "Schneider Electric CZ (distribuce)"], "note": "" },
+        { "brand": "Omron", "series": ["D4N", "WL", "D4C"], "typical": "D4N-1120 — kladková páčka (pryskyřice), 1NO+1NC skoková, PG13.5",
+          "orderCode": "D4N-1120", "src": "https://industrial.omron.eu/en/products/D4N-1120", "priceLevel": "nízká",
+          "suppliers": ["Omron CZ", "TME"], "note": "" },
+        { "brand": "Siemens", "series": ["3SE5 (SIRIUS)"], "typical": "3SE5112-… — kovové pouzdro 40 mm, různé hlavice",
+          "src": "https://www.tme.eu/cz/katalog/?search=3SE5112", "priceLevel": "střední",
+          "suppliers": ["Siemens CZ (distribuce)", "TME", "Sonepar ČR"], "note": "TME nabízí řadu variant 3SE5112-0…; konkrétní typ podle hlavice z konfigurátoru Siemens (popis variant tu nebyl ověřen)." },
+        { "brand": "Schmersal / Euchner", "series": ["Schmersal PS/Z, Euchner SN/NZ"], "typical": "",
+          "src": "", "priceLevel": "střední",
+          "suppliers": ["Schmersal CZ", "Euchner (přes distributory)"], "note": "Řady neověřeny webem v této rešerši – jen jako tip k doplnění." }
+      ]
+    },
+    "light_curtain": {
+      "label": "Bezpečnostní světelná závora / mříž",
+      "unit": "ks",
+      "brands": [
+        { "brand": "SICK", "series": ["deTec4 Core", "deTec4", "miniTwin"], "typical": "C4C-SA03010A10000 — vysílač, ochranná výška 300 mm, rozlišení 14 mm, 24 V DC, M12; přijímač C4C-EA03010A10000",
+          "orderCode": "C4C-SA03010A10000", "src": "https://www.tme.com/us/en-us/details/c4c-sa03010a10000/light-curtains/sick/", "priceLevel": "vysoká",
+          "suppliers": ["SICK CZ", "TME", "RS Components CZ"], "note": "Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi. Objednává se pár vysílač + přijímač (+ držáky); objednací čísla SICK 1211450 / 1211463 jen z distributora wiautomation – ověřit." },
+        { "brand": "Leuze", "series": ["MLC 500/510/520"], "typical": "MLC500T30-600 + MLC520R30-600 — rozlišení 30 mm (ruka), výška 600 mm, Typ 4, PL e",
+          "orderCode": "68020306", "src": "https://trimantec.com/products/leuze-mlc500t30-600g-safety-light-curtain-transmitter-68020306", "priceLevel": "vysoká",
+          "suppliers": ["Schmachtl CZ", "Leuze (přímo)"], "note": "68020306 = vysílač MLC500T30-600G (zdroj zahraniční distributor). Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Pilz", "series": ["PSENopt II", "PSENopt"], "typical": "PSENopt II Typ 4, ochrana ruky (30 mm), výška podle aplikace",
+          "src": "https://www.pilz.com/en-INT/eshop/Sensor-technology/Safety-light-curtain/PSENopt-II-Safety-light-curtains/Basic-Type-4-light-curtain-body-protection/c/0010600219710480RU", "priceLevel": "vysoká",
+          "suppliers": ["Pilz Czech (e-shop pilz.com/cs-CZ)"], "note": "Objednací číslo řady 632xxx – konkrétní kód neověřen. Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Omron", "series": ["F3SG-RA", "F3SG-SR"], "typical": "F3SG-4RA0600-30 — Typ 4, rozlišení 30 mm, výška 600 mm, PNP/NPN přepínatelně",
+          "src": "https://industrial.omron.eu/en/products/f3sg-ra", "priceLevel": "vysoká",
+          "suppliers": ["Omron CZ"], "note": "Typ odvozen z klíče řady (stránka řady), konkrétní kód na stránce neověřen. Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Keyence", "series": ["GL-R"], "typical": "GL-R32H — ochrana ruky (25 mm), 32 paprsků, výška 620 mm, Typ 4, PL e",
+          "orderCode": "GL-R32H", "src": "https://www.keyence.com/products/safety/light-curtain/gl-r/models/gl-r32h/", "priceLevel": "vysoká",
+          "suppliers": ["Keyence (přímý prodej)"], "note": "Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." }
+      ]
+    },
+    "safety_switch": {
+      "label": "Bezpečnostní spínač krytu / zámek",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Euchner", "series": ["CES-C07 (RFID)", "CTM", "MGB"], "typical": "CES-IA-BR-U-C07-SA-N — sada bezkontaktní kódovaný spínač CES-C07 + aktuátor",
+          "orderCode": "170374", "src": "https://www.euchner.com/en-us/a/170374/", "priceLevel": "vysoká",
+          "suppliers": ["Euchner (přes distributory)"], "note": "Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Schmersal", "series": ["AZM201", "AZ16", "RSS36"], "typical": "AZM201Z-SK-T-1P2PW-A — bezpečnostní zámek krytu",
+          "orderCode": "103016752", "src": "https://www.tme.eu/cz/details/103016752/standardni-bezpecnostni-vypinace/schmersal/azm201z-sk-t-1p2pw-a/", "priceLevel": "vysoká",
+          "suppliers": ["Schmersal CZ", "TME"], "note": "Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Pilz", "series": ["PSENcode", "PSENmlock", "PSENslock"], "typical": "PSEN cs3.1a — bezkontaktní kódovaný spínač (sada)",
+          "orderCode": "541011", "src": "https://cz.farnell.com/pilz/541011/switch-safety-coded-2no-2nc-24v/dp/2341298", "priceLevel": "vysoká",
+          "suppliers": ["Pilz Czech", "Farnell CZ"], "note": "Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Siemens", "series": ["3SE5 (s odděleným ovladačem)", "3SE63 (RFID)"], "typical": "3SE5232-0QV40 — bezpečnostní polohový spínač s odděleným ovladačem, plast 31 mm, 1NO+2NC, M20",
+          "orderCode": "3SE5232-0QV40", "src": "https://www.conrad.cz/p/siemens-3se5232-0qv40-bezpecnostni-polohovy-spinac-6-a-ip65-1-ks-1746422", "priceLevel": "střední",
+          "suppliers": ["Conrad.cz", "RS Components CZ (0498927)", "elektrosms.cz"], "note": "Ovladač (klíč) se objednává zvlášť. Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." }
+      ]
+    },
+    "estop_button": {
+      "label": "Tlačítko nouzového zastavení",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Eaton", "series": ["M22-PV", "M22-PVT"], "typical": "M22-PV/K11 — hřib nouzového zastavení, kompletní přístroj 1Z+1V",
+          "orderCode": "216516", "src": "https://www.emas.cz/eaton-216516-ovladaci-hlavice-nouzoveho-zastaveni-kompletni-pristroj-1z-1v-m22-pv-k11", "priceLevel": "nízká",
+          "suppliers": ["Eaton CZ (distribuce)", "Sonepar ČR", "KV Elektro", "bbelektro.cz", "emas.cz"], "note": "V krabici: M22-PV/KC11/IY = 216525. Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Schneider Electric", "series": ["Harmony XB5", "Harmony XB4"], "typical": "XB5AS8442 — hřib 40 mm červený, aretace, uvolnění pootočením, 1 V (NC)",
+          "orderCode": "XB5AS8442", "src": "https://www.se.com/cz/cs/product/XB5AS8442/harmony-xb5-ru-ovl%C3%A1da%C4%8D-nouz-zastav-%C3%B822-mm-s-aretac%C3%AD-uvolnit-pooto%C4%8Den%C3%ADm-1-v/", "priceLevel": "nízká",
+          "suppliers": ["Schneider Electric CZ (distribuce)", "Sonepar ČR", "KV Elektro", "RS Components CZ"], "note": "Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Siemens", "series": ["SIRIUS ACT 3SU1"], "typical": "3SU1150-1HB20-1CH0 — hřibové tlačítko nouzového zastavení, kov, 40 mm, uvolnění pootočením, 1 NC, s držákem",
+          "orderCode": "3SU1150-1HB20-1CH0", "src": "https://cz.rs-online.com/web/p/nouzova-tlacitka/8741807", "priceLevel": "střední",
+          "suppliers": ["RS Components CZ", "Sonepar ČR", "Elfetex", "jork.shop"], "note": "Varianta 2 NC: 3SU1150-1HB20-3PH0. Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "ABB", "series": ["Modular MPEP"], "typical": "MPEP3-10R — hlavice nouzového zastavení 30 mm, uvolnění tahem (kontaktní blok zvlášť)",
+          "orderCode": "1SFA611521R1001", "src": "https://new.abb.com/products/1SFA611521R1001/mpep3-10r", "priceLevel": "nízká",
+          "suppliers": ["Elfetex", "TME"], "note": "Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Schlegel", "series": [], "typical": "",
+          "src": "https://www.ghvtrading.cz/katalogy-ceniky/signalizacni-ovladaci-prvky.html", "priceLevel": "nízká",
+          "suppliers": ["GHV Trading"], "note": "Distribuce v ČR přes GHV Trading; konkrétní řada/kód neověřen." }
+      ]
+    },
+    "safety_relay": {
+      "label": "Bezpečnostní relé / modul",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Pilz", "series": ["PNOZ X", "PNOZsigma", "myPNOZ"], "typical": "PNOZ X2.8P 24VACDC 3n/o 1n/c — E-stop / ochranné dveře, 1–2kanálově, 22,5 mm",
+          "orderCode": "777301", "src": "https://www.pilz.com/en-INT/eshop/product/777301", "priceLevel": "střední",
+          "suppliers": ["Pilz Czech (e-shop)", "RS Components"], "note": "Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Siemens", "series": ["SIRIUS 3SK1", "3SK2"], "typical": "3SK1111-1AB30 — základní jednotka Standard, 3 NO bezp. + 1 NC pomocný, 24 V AC/DC",
+          "orderCode": "3SK1111-1AB30", "src": "https://www.elfetex.cz/11-022-824-rele-3sk1111-1ab30-bezpecnostni", "priceLevel": "střední",
+          "suppliers": ["Elfetex", "emas.cz", "elektrosms.cz", "TME"], "note": "Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Phoenix Contact", "series": ["PSR-MC38", "PSR-MC45"], "typical": "PSR-MC38-2NO-1DO-24DC-SC — nouzové zastavení, dveře, světelné mříže do SIL 3 / PL e",
+          "orderCode": "1009831", "src": "https://www.phoenixcontact.com/en-us/products/safety-relays-psr-mc38-2no-1do-24dc-sc-1009831", "priceLevel": "střední",
+          "suppliers": ["Phoenix Contact CZ"], "note": "Varianta 3NO: PSR-MC45-3NO-1DO-24DC-SC = 1082024. Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "Schmersal", "series": ["SRB-E", "SRB 301"], "typical": "SRB 301MC-24V — 3 NO bezp. + 1 NC, 24 V AC/DC",
+          "orderCode": "101190684", "src": "https://www.tme.com/us/en-us/details/101190684/safety-switches-control-modules/schmersal/srb301mc-24v/", "priceLevel": "střední",
+          "suppliers": ["Sonepar ČR", "RS Components CZ (7418650)", "TME"], "note": "Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." },
+        { "brand": "SICK", "series": ["ReLy", "Flexi Soft"], "typical": "ReLy OSSD2 (RLY3-OSSD2) — vyhodnocení pro senzory s OSSD výstupy (světelné závory)",
+          "orderCode": "1085344", "src": "https://www.sick.com/media/docs/9/99/099/operating_instructions_rely_ossd2_en_im0076099.pdf", "priceLevel": "střední",
+          "suppliers": ["SICK CZ", "TME"], "note": "Číslo 1085344 uvádějí distributoři (DigiKey, Kendall). Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." }
+      ]
+    },
+    "pressure_transmitter": {
+      "label": "Snímač tlaku 4–20 mA",
+      "unit": "ks",
+      "brands": [
+        { "brand": "ifm electronic", "series": ["PT", "PN (s displejem)"], "typical": "PT5404 — 0–10 bar, G1/4, 4–20 mA, M12",
+          "orderCode": "PT5404", "src": "https://www.automation24.com/pressure-transmitter-ifm-electronic-pt5404", "priceLevel": "střední",
+          "suppliers": ["ifm electronic (přímo)", "Automation24", "RS Components"], "note": "" },
+        { "brand": "Danfoss", "series": ["MBS 3000", "MBS 1900"], "typical": "MBS 3000 — 0–10 bar, 4–20 mA, G1/4",
+          "orderCode": "060G1125", "src": "https://www.bola.cz/tlakovy-snimac-danfoss-mbs-3000-0-10-bar-4-20-ma-060g1125", "priceLevel": "nízká",
+          "suppliers": ["Danfoss e-shop CZ", "Bola.cz", "Zefin", "steman-shop.cz"], "note": "060G1124 = 0–6 bar (store.danfoss.com/cz)." },
+        { "brand": "BD Sensors (CZ)", "series": ["DMP 331", "DMK 331"], "typical": "DMP 331 — 0–10 bar, 4–20 mA dvouvodič, G1/2",
+          "orderCode": "DMP 331 110-1002-1-3-100-100-1-000", "src": "https://viola.cz/produkt/65127-bd-sensors-dmp-331-110-1002-1-3-100-100-1-000-0-10-bar-4-20ma-g1-2-snimac-tlaku", "priceLevel": "střední",
+          "suppliers": ["BD SENSORS s.r.o. (Buchlovice, přímo)", "Viola.cz", "Zefin"], "note": "Český výrobce." },
+        { "brand": "WIKA", "series": ["A-10", "S-20"], "typical": "A-10 — 0–10 bar, G1/4, 4–20 mA dvouvodič, přesnost 0,5 %",
+          "orderCode": "12783359", "src": "https://blackhawksupply.com/products/wika-12783359", "priceLevel": "nízká",
+          "suppliers": ["Manomarket.cz", "MaR Systems", "VP centrum"], "note": "Číslo WIKA ze zahraničního e-shopu; Manomarket.cz uvádí vlastní kat. číslo 30101.W0712719260." },
+        { "brand": "SICK", "series": ["PBT", "PBS"], "typical": "PBT-RB010SG1SSNAMA0Z — 0–10 bar, G1/4, 4–20 mA, M12",
+          "orderCode": "PBT-RB010SG1SSNAMA0Z", "src": "https://us.rs-online.com/product/sick/pbt-rb010sg1ssnama0z/70870707/", "priceLevel": "střední",
+          "suppliers": ["SICK CZ", "RS Components"], "note": "Objednací číslo SICK pravděpodobně 6038615 (jen z webu hydracentre.com) – ověřit." }
+      ]
+    },
+    "temperature_sensor": {
+      "label": "Snímač teploty Pt100 / s převodníkem 4–20 mA",
+      "unit": "ks",
+      "brands": [
+        { "brand": "JSP (CZ)", "series": ["odporové snímače teploty", "převodníky do hlavice"], "typical": "Snímač teploty Pt100 s převodníkem TW 39B 490L 060 T 245 — 4–20 mA",
+          "orderCode": "TW 39B 490L 060 T 245", "src": "https://www.jspshop.cz/snimace-teploty-a-prislusenstvi-2/snimac-teploty-pt100-s-prevodnikem-tw-39b-490l-060-t-245/", "priceLevel": "nízká",
+          "suppliers": ["JSP s.r.o. (Nová Paka, přímo, jspshop.cz)"], "note": "Český výrobce; snímače se běžně skládají podle délky a rozsahu." },
+        { "brand": "Sensit (CZ)", "series": ["snímače teploty do 400 °C", "převodníky STI/STID"], "typical": "Pt100 s hlavicí + převodník STI 4–20 mA",
+          "src": "https://www.sensit.cz/cz/produkt/prevodniky-teplota-proud-sti-a-stid-420-ma-20998-20613-781/", "priceLevel": "nízká",
+          "suppliers": ["SENSIT s.r.o. (Rožnov p. R., přímo)", "Bola.cz", "Zefin"], "note": "Český výrobce; konkrétní objednací kód neověřen." },
+        { "brand": "ifm electronic", "series": ["TA", "TN (s displejem)"], "typical": "TA2105 — Pt1000 + převodník 4–20 mA, −50…150 °C, G1/4, délka 25 mm, M12",
+          "orderCode": "TA2105", "src": "https://www.automation24.com/temperature-transmitter-ifm-electronic-ta2105", "priceLevel": "střední",
+          "suppliers": ["ifm electronic (přímo)", "RS Components"], "note": "" },
+        { "brand": "WIKA", "series": ["TR33", "TR30"], "typical": "TR33 — miniaturní odporový teploměr, verze s převodníkem 4–20 mA, M12",
+          "src": "https://www.wika.com/en-us/tr33.WIKA", "priceLevel": "střední",
+          "suppliers": ["Manomarket.cz", "MaR Systems"], "note": "Kód se skládá konfigurátorem; neověřen." },
+        { "brand": "JUMO", "series": ["dTRANS T1000 (902915)", "dTRANS T100 (902815)"], "typical": "902915/10 — Pt1000, −50…150 °C, IO-Link",
+          "src": "https://www.jumo.net/attachments/JUMO/attachmentdownload?id=400931", "priceLevel": "střední",
+          "suppliers": ["JUMO (přes distributory)"], "note": "T1000 je primárně IO-Link; pro 4–20 mA ověřit variantu nebo zvolit T100." }
+      ]
+    },
+    "level_sensor": {
+      "label": "Snímač hladiny (spínač, spojitý)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Dinel (CZ)", "series": ["ULM-53 (ultrazvuk)", "CLS-23 (kapacitní)", "GRLM (radar)"], "typical": "ULM-53 — ultrazvukový hladinoměr 0,2–6 m, 4–20 mA, G1½\"",
+          "src": "https://www.dinel.cz/en/products/ultrasonic-level-meter-ulm-53-2/", "priceLevel": "nízká",
+          "suppliers": ["Dinel (přímo)", "Bola.cz", "Zefin", "Apoelmos"], "note": "Český výrobce. Úplný kód podle rozsahu/výstupu (např. Zefin: ULM-53N-10-I = 0,4–10 m, 4–20 mA)." },
+        { "brand": "ifm electronic", "series": ["LMT", "LR"], "typical": "LMT100 — elektronický spínač hladiny G1/2, 2× PNP/NPN, IO-Link",
+          "orderCode": "LMT100", "src": "https://cz.rs-online.com/web/p/hladinove-snimace/7406442", "priceLevel": "střední",
+          "suppliers": ["RS Components CZ (7406442)", "Viola.cz", "Bola.cz"], "note": "" },
+        { "brand": "Endress+Hauser", "series": ["Liquiphant FTL31/33", "Micropilot FMR"], "typical": "Liquiphant FTL31 — vibrační limitní spínač kapalin, IO-Link",
+          "orderCode": "FTL31-AA4N3AAWBJ", "src": "https://viola.cz/produkt/211284-endress-hauser-ftl31-aa4n3aawbj-vibracni-limitni-hladinovy-spinac-liquiphant-ftl31", "priceLevel": "střední",
+          "suppliers": ["Endress+Hauser Czech (e-direct.endress.com/cz)", "Viola.cz", "MaR Systems"], "note": "" },
+        { "brand": "VEGA", "series": ["VEGASWING 61", "VEGAPULS C 21"], "typical": "VEGASWING 61 — vibrační spínač kapalin; VEGAPULS C 21 — radar 4–20 mA",
+          "src": "https://www.vega.com/en-us/products/product-catalog/switching/vibration/vegaswing-61", "priceLevel": "střední",
+          "suppliers": ["Level Instruments CZ – Level Expert (výhradní zastoupení VEGA)", "Viola.cz"], "note": "Kód se skládá konfigurátorem. Viola.cz má např. VEGAPULS C 11 (PSC11GB)." }
+      ]
+    },
+    "flow_sensor": {
+      "label": "Průtokoměr / hlídač průtoku",
+      "unit": "ks",
+      "brands": [
+        { "brand": "ifm electronic", "series": ["SM (magneticko-indukční)", "SI/SA (kalorimetrický hlídač)"], "typical": "SM6000 — 0,1–25 l/min, G1/2, spínací + analogový výstup, M12",
+          "orderCode": "SM6000", "src": "https://www.ifm.com/us/en/product/SM6000", "priceLevel": "střední",
+          "suppliers": ["ifm electronic (přímo)", "Automation24"], "note": "Hlídač proudění SI5010 (M18, PNP) – TME; SI5000 – Technoline, RS CZ." },
+        { "brand": "Endress+Hauser", "series": ["Picomag DMA", "Promag"], "typical": "Picomag DMA15-AAAAA1 — 0,05–35 l/min, G1/2, 4–20 mA, IO-Link, Bluetooth",
+          "orderCode": "DMA15-AAAAA1", "src": "https://www.automation24.com/magnetic-inductive-flow-meter-endress-hauser-picomag-dma15-aaaaa1", "priceLevel": "střední",
+          "suppliers": ["Endress+Hauser Czech (e-direct)", "RS Components"], "note": "" },
+        { "brand": "KROHNE", "series": ["OPTIFLUX 1000/1100/2100"], "typical": "OPTIFLUX 1100 C — magneticko-indukční průtokoměr, mezipřírubový",
+          "src": "https://cz.krohne.com/cs/vyrobky/mereni-prutoku/componentes-y-equipo-auxiliar-para-la-medida-de-caudal/snimace-prutoku/optiflux-1000", "priceLevel": "vysoká",
+          "suppliers": ["KROHNE CZ, spol. s r.o. (Brno)", "JSP", "Apoelmos", "Viola.cz"], "note": "Kód se skládá konfigurátorem." },
+        { "brand": "Siemens", "series": ["SITRANS FM MAG 5100 W (7ME6520)"], "typical": "MAG 5100 W — přírubový senzor DN15–DN1200 (voda)",
+          "src": "https://cache.industry.siemens.com/dl/files/956/109764956/att_1048612/v1/sitransf_fmmag5100w_fi01_en.pdf", "priceLevel": "vysoká",
+          "suppliers": [], "note": "Spíše pro vodárenství a větší DN; objednací kód 7ME6520-… se skládá konfigurátorem." }
+      ]
+    },
+    "load_cell": {
+      "label": "Siloměr / tenzometrický snímač síly",
+      "unit": "ks",
+      "brands": [
+        { "brand": "LUKAS TENZO (CZ)", "series": ["S-22 … S-52"], "typical": "Tenzometrický siloměr S-51 (rozsahy 10 N – 1 MN v celé řadě)",
+          "src": "https://www.lukas-tenzo.cz/?i=285/tenzometricky-silomer-s-51", "priceLevel": "střední",
+          "suppliers": ["LUKAS TENZO (přímo)"], "note": "Český výrobce (od 1991); objednací kódy na webu neověřeny." },
+        { "brand": "HBK (HBM)", "series": ["U9C", "C9C", "Z6 / PW6D (vážení)"], "typical": "1-U9C/1KN — miniaturní tah/tlak 1 kN, třída 0,2, výstup 1 mV/V, IP67",
+          "orderCode": "1-U9C/1KN", "src": "https://www.hbm.cz/en/produkty/kategorie/u9c/", "priceLevel": "vysoká",
+          "suppliers": ["hbm.cz", "Viola.cz"], "note": "Výstup mV/V — potřeba tenzometrický zesilovač / převodník na 4–20 mA." },
+        { "brand": "Kistler", "series": ["9313AA1/AA2", "9331"], "typical": "9313AA1 — piezoelektrický snímač lisovací síly 0–5 kN",
+          "orderCode": "9313AA1", "src": "https://www.kistler.com/INT/en/p/piezoelectric-press-force-load-cell-lightweight-miniature-force-transducer-fz-max-0-%E2%80%A6-5-kn-9313aa1/000000000018007649", "priceLevel": "vysoká",
+          "suppliers": ["Kistler (přímo)"], "note": "Piezo — nutný nábojový zesilovač; pro statické vážení nevhodné." },
+        { "brand": "tecsis (WIKA)", "series": ["F2301", "F23C1"], "typical": "F2301 — tah/tlak tenkovrstvý, integrovaný zesilovač 4–20 mA, M12, 50 kN",
+          "orderCode": "F2301", "src": "https://cz.rs-online.com/web/p/tenzometry/2690975", "priceLevel": "vysoká",
+          "suppliers": ["RS Components CZ (2690975)"], "note": "Rozsahy 1–100 kN." },
+        { "brand": "ZEMIC / Megatron", "series": [], "typical": "",
+          "src": "https://www.manat.cz/kategorie-produktu/tenzometricke-snimace-zatizeni", "priceLevel": "nízká",
+          "suppliers": ["Manat s.r.o. (ZEMIC)", "Megatron CZ"], "note": "Levné snímače zatížení pro vážení; řady neověřeny." }
+      ]
+    },
+    "beacon": {
+      "label": "Signální maják / věž LED 24 V",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Werma", "series": ["KombiSIGN 71/72", "KombiSIGN 40", "KOMPAKT 37", "RST 56"], "typical": "KS71 RM 24VAC/DC GN/YE/RD — hotová věž KombiSIGN 71 zelená/žlutá/červená, LED trvalé světlo, 24 V AC/DC, IP65, Ø70 mm, jedno objednací číslo",
+          "orderCode": "64924005", "src": "https://www.werma.com/us/Signal-tower-KS71-RM-24VAC-DC-GN-YE-RD/64924005", "priceLevel": "střední",
+          "suppliers": ["TME", "RS Components (649.240.05)"], "note": "Werma píše číslo i s tečkami (649.240.05). Modulární věž se skládá z patice a modulů (kódy podle konfigurátoru Werma)." },
+        { "brand": "PATLITE", "series": ["LR6", "LR4", "LR5"], "typical": "LR6-302WJNW-RYG — signalizační sloupek červená/jantarová/zelená, LED, 24 V DC, IP65",
+          "orderCode": "LR6-302WJNW-RYG", "src": "https://www.tme.eu/cz/details/lr6-302wjnw-ryg/signalizacni-sloupky/patlite/", "priceLevel": "střední",
+          "suppliers": ["TME"], "note": "" },
+        { "brand": "Eaton", "series": ["SL7", "SL4"], "typical": "SL7-100-L-RYG-24LED — kompletní 3patrový sloupek LED červená/žlutá/zelená, trvalé světlo, 24 V AC/DC, IP66, Ø70 mm",
+          "orderCode": "171425", "src": "https://www.eaton.com/us/en-us/skuPage.171425.html", "priceLevel": "střední",
+          "suppliers": ["TME", "Sonepar ČR", "Farnell"], "note": "Ověřeno 2026-10-02: typ SL7-100-L-RYG-24LED = číslo Eaton 171425 (eaton.com, RS). Moduly zvlášť: SL7-L24-R / -Y (kódy neověřeny)." },
+        { "brand": "Auer Signal", "series": ["CT5 (modulární Ø50)", "PC7 (modulární Ø70)", "ECOmodul70"], "typical": "CT5-Q01 — modulární sloupek Ø50, červená/jantarová/zelená, LED trvalé světlo, 24 V DC",
+          "orderCode": "CT5-Q01", "src": "https://export.rsdelivers.com/product/auer-signal/ct5-q01/auer-signal-modul-compete-50-series-red-green-no-3/2106876", "priceLevel": "střední",
+          "suppliers": ["RS Components", "TME"], "note": "Popis z výsledku hledání (RS). Řady: https://www.auersignal.com/en/tower-lights/ct5/ct5/" }
+      ]
+    },
+    "horn": {
+      "label": "Houkačka / siréna",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Werma", "series": ["Signal horn WM", "EvoSIGNAL Mini/Midi", "vestavné sirény a bzučáky"], "typical": "Signal horn WM 24VAC/DC GY — elektronická houkačka, trvalý tón, 98 dB(A)/1 m, nastavitelná hlasitost, IP65, nástěnná",
+          "orderCode": "58500075", "src": "https://www.werma.com/en/Signal-horn-WM-Contin.-tone-24VAC-DC-GY/58500075", "priceLevel": "střední",
+          "suppliers": ["TME"], "note": "Werma píše 585.000.75. Varianty 115/230 V AC mají jiné číslo." },
+        { "brand": "Auer Signal", "series": ["HPT", "HTG"], "typical": "HPT 24 V DC — membránová siréna 108 dB, 0,6 A, IP55, Ø132×330 mm, vývodka PG13.5",
+          "orderCode": "712100005", "src": "https://www.tme.eu/en/details/ja-hpt-24/sound-signalling-devices/auer-signal/712100005/", "priceLevel": "střední",
+          "suppliers": ["TME"], "note": "Ověřeno 2026-10-02 (TME): membránová siréna 24 V DC, 108 dB — hlasitá, pro venkovní / hlučné provozy." },
+        { "brand": "Klaxon Signals / Clifford & Snell", "series": ["Klaxon PNV/PSV", "C&S YA40/YA50/YA80"], "typical": "",
+          "src": "https://www.tme.eu/cz/katalog/?search=sirena%2024VDC%20sir%C3%A9na", "priceLevel": "nízká",
+          "suppliers": ["TME"], "note": "Kódy na TME v kategorii Akustické signalizátory (např. PNV-0001, 204330); popis neověřen." }
+      ]
+    },
+    "pushbutton": {
+      "label": "Ovládací tlačítka a přepínače 22 mm",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Schneider Electric", "series": ["Harmony XB5 (plast)", "Harmony XB4 (kov)"], "typical": "XB5AA31 — zelené lícující tlačítko Ø22 s návratem, 1 Z (NO); červené 1 V: XB5AA42",
+          "orderCode": "XB5AA31", "src": "https://www.se.com/cz/cs/product/XB5AA31/", "priceLevel": "nízká",
+          "suppliers": ["Schneider Electric CZ (distribuce)", "Sonepar ČR", "KV Elektro"], "note": "" },
+        { "brand": "Eaton", "series": ["RMQ-Titan M22"], "typical": "M22-D-G — hlavice tlačítka Ø22 zelená, plochá, s návratem, IP67/IP69K (s upevňovacím adaptérem M22-A); kontakt M22-K10 (NO) zvlášť",
+          "orderCode": "M22-D-G", "src": "https://www.eaton.com/us/en-us/skuPage.M22-D-G.html", "priceLevel": "nízká",
+          "suppliers": ["TME", "Sonepar ČR", "Elfetex"], "note": "Ověřeno 2026-10-02 na eaton.com: zelená, momentary (s návratem), bez osvětlení. Šestimístné číslo Eaton neověřeno." },
+        { "brand": "Siemens", "series": ["SIRIUS ACT 3SU1"], "typical": "3SU1100-0AB40-1BA0 — kompletní tlačítko Ø22, plast, zelené ploché, s návratem, s držákem a 1 NO, šroubové svorky, IP66/67/69K",
+          "orderCode": "3SU1100-0AB40-1BA0", "src": "https://www.electricautomationnetwork.com/en/siemens/3su1100-0ab40-1ba0-3su11000ab401ba0-siemens-pushbutton-22mm-round-plastic-green-flat-button-momentary-", "priceLevel": "nízká",
+          "suppliers": ["TME", "Sonepar ČR", "Elfetex", "jork.shop"], "note": "Kompletní přístroj (hlavice + držák + kontakt) pod jedním číslem." },
+        { "brand": "ABB", "series": ["Modular (MP…)", "Compact"], "typical": "MP1-10G — tlačítko Ø22 zelené ploché s návratem, plast, IP66; kontaktní blok a držák zvlášť",
+          "orderCode": "1SFA611100R1002", "src": "https://new.abb.com/products/1SFA611100R1002/mp1-10g", "priceLevel": "nízká",
+          "suppliers": ["Elfetex", "TME"], "note": "Bez kontaktního bloku (dle ABB); balení min. 10 ks." },
+        { "brand": "Schlegel", "series": ["RONTRON-R-JUWEL (RRJ)", "RONDEX", "QUARTEX-R"], "typical": "RRJT — tlačítko Ø22 (otvor 22,3 mm) s návratem, osvětlitelné, IP65/67/69K; barevná krytka zvlášť (zelená T22RRGN)",
+          "orderCode": "RRJT", "src": "https://stex24.com/de/129256-drucktaste-rrjt", "priceLevel": "střední",
+          "suppliers": ["GHV Trading (autorizovaný prodejce Schlegel v ČR)", "TME"], "note": "Kontaktní prvky a krytku objednat podle katalogu Schlegel. Krytka: https://www.digitalo.de/products/222491/Schlegel-RONTRON-T22RRGN-Tastkappe-Gruen-Transparent.html" }
+      ]
+    },
+    "pilot_light": {
+      "label": "Signálka 22 mm 24 V",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Schneider Electric", "series": ["Harmony XB5", "Harmony XB4"], "typical": "XB5AVB3 — signálka Ø22 zelená, integrovaná LED 24 V; červená XB5AVB4",
+          "orderCode": "XB5AVB3", "src": "https://www.se.com/cz/cs/product/XB5AVB3/", "priceLevel": "nízká",
+          "suppliers": ["Schneider Electric CZ (distribuce)", "Sonepar ČR", "KV Elektro"], "note": "" },
+        { "brand": "Eaton", "series": ["RMQ-Titan M22 (M22-L + M22-LED)"], "typical": "M22-L-G — signálka Ø22 zelená s upevňovacím adaptérem + LED prvek M22-LED-G (zelená, 12–30 V AC/DC, šroubové svorky)",
+          "orderCode": "M22-L-G", "src": "https://www.platt.com/p/0787006/eaton/22mm-indicator-light-green-m22/786685278551/cutm22lg", "priceLevel": "nízká",
+          "suppliers": ["Sonepar ČR", "TME"], "note": "LED prvek se objednává zvlášť: M22-LED-G (https://www.imc-direct.com/products/m22-led-g). V USA se prodává i sestava M22-L-G-G." },
+        { "brand": "Siemens", "series": ["SIRIUS ACT 3SU1"], "typical": "3SU1102-6AA40-1AA0 — signálka Ø22, plast, zelená hladká čočka, s držákem a LED modulem 24 V AC/DC, šroubové svorky",
+          "orderCode": "3SU1102-6AA40-1AA0", "src": "https://mall.industry.siemens.com/teddatasheet/?format=PDF&caller=EGH&mlfbs=3SU1102-6AA40-1AA0&language=en", "priceLevel": "nízká",
+          "suppliers": ["Sonepar ČR", "TME", "Elfetex"], "note": "Nezaměnit s 3SU1106-6AA40-1AA0, ta je na 230 V AC." }
+      ]
+    },
+    "analog_sensor": {
+      "label": "Analogový snímač polohy / vzdálenosti (4–20 mA / 0–10 V)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Balluff", "series": ["BTL7 (magnetostrikční, tyčové / profilové)"], "typical": "BTL7-E500-M0300-B-S32 — magnetostrikční snímač lineární polohy, tyčové provedení, rozsah 300 mm, výstup 4–20 mA, konektor M16 (S32)",
+          "orderCode": "BTL0UN1", "src": "https://www.balluff.com/en-us/products/BTL0UN1", "priceLevel": "vysoká",
+          "suppliers": ["Balluff CZ s.r.o. (Praha 9)"], "note": "Poloha se snímá bezkontaktně přes posuvný magnet (objednává se zvlášť). Profilové provedení např. BTL7-E501-M0300-P-S32 (výstup 4–20 / 20–4 mA)." },
+        { "brand": "Novotechnik", "series": ["LWH (tyčový potenciometr)", "TLH (bez tyče)"], "typical": "LWH-0300 — potenciometrický snímač polohy s táhlem, elektrický zdvih 300 mm, vodivý plast, konektor DIN EN 175301-803",
+          "orderCode": "400024512", "src": "https://www.novotechnik.com/resources/data-sheets/linear-rod-type/24_DS_572_LWH--enUS.pdf", "priceLevel": "střední",
+          "suppliers": ["RS Components (TLH)"], "note": "Pasivní dělič napětí: napájením 10 V dá 0–10 V (nutný vstup s vysokou impedancí); pro 4–20 mA přidat převodník signálu. Česká distribuce Novotechnik neověřena." },
+        { "brand": "SICK", "series": ["OD1000", "OD2000", "OD Mini"], "typical": "OD1000-6001R15 — laserový snímač vzdálenosti 200–1000 mm, analogový výstup přepínatelný 4–20 mA / 0–10 V, spínací výstup, 18–30 V DC",
+          "orderCode": "1075638", "src": "https://www.sick.com/media/pdf/4/44/144/dataSheet_OD1000-6001R15_1075638_en.pdf", "priceLevel": "vysoká",
+          "suppliers": ["SICK spol. s r.o. (Praha 10)"], "note": "Laser třídy 1; přesnost závisí na povrchu objektu (remise 6–90 %)." },
+        { "brand": "ifm electronic", "series": ["O1D (laserový snímač vzdálenosti)"], "typical": "O1D100 — laserový snímač vzdálenosti 0,2–10 m (difuzní), analogový výstup 4–20 mA, M12",
+          "orderCode": "O1D100", "src": "https://us.rs-online.com/product/ifm-efector/o1d100/70746393/", "priceLevel": "vysoká",
+          "suppliers": ["ifm electronic, spol. s r.o. (Praha 4)", "RS Components"], "note": "Vhodné pro vzdálenost / polohu na delší dráze (zásobník, pojezd). Stránka výrobce: https://www.ifm.com/us/en/product/O1D100" }
+      ]
+    }
+  },
+  "suppliers": [
+    { "name": "SICK spol. s r.o. (CZ)", "url": "https://www.sick.com/cz/cs/", "country": "CZ", "kind": "výrobce", "cats": ["sensor_inductive", "sensor_optical", "sensor_capacitive", "light_curtain", "safety_relay", "pressure_transmitter", "analog_sensor"], "note": "Dceřiná společnost SICK AG: Ukrajinská 2a, 101 00 Praha 10 (IČO 44849036), tel. 234 719 500, objednávky orders@sick.cz." },
+    { "name": "ifm electronic", "url": "https://www.ifm.com/cz/cs/", "country": "CZ", "kind": "výrobce", "cats": ["sensor_inductive", "sensor_optical", "sensor_capacitive", "pressure_transmitter", "temperature_sensor", "level_sensor", "flow_sensor", "analog_sensor"], "note": "ifm electronic, spol. s r.o., Jihlavská 1558/21, 140 00 Praha 4 (IČO 49622676), tel. 267 990 211, objednavky.cz@ifm.com." },
+    { "name": "Balluff CZ s.r.o.", "url": "https://www.balluff.com/cs-cz", "country": "CZ", "kind": "výrobce", "cats": ["sensor_inductive", "sensor_capacitive", "analog_sensor"], "note": "Pelušková 1400, 198 00 Praha 9 - Kyje (IČO 62411853), tel. 281 000 666, obchod@balluff.cz." },
+    { "name": "Pepperl + Fuchs s.r.o.", "url": "https://www.pepperl-fuchs.com/czech_republic/cs/20549.htm", "country": "CZ", "kind": "výrobce", "cats": ["sensor_inductive", "sensor_optical"], "note": "Pod vodárenskou věží 1143/4, 182 00 Praha 8 (IČO 27117171), info@cz.pepperl-fuchs.com; výroba P+F i v Trutnově." },
+    { "name": "Leuze engineering Czech s.r.o.", "url": "https://www.leuze.com/en-us/contact-and-support/locations", "country": "CZ", "kind": "výrobce", "cats": ["sensor_optical", "light_curtain"], "note": "Pod Vrchem 1201/51a, Plzeň, kancelář Ostrava, office.cz@leuze.com; prodej Leuze v ČR též přes Schmachtl CZ (autorizovaný distributor)." },
+    { "name": "EUCHNER electric s.r.o.", "url": "https://www.euchner.cz/", "country": "CZ", "kind": "výrobce", "cats": ["safety_switch", "limit_switch"], "note": "Trnkova 3069/117h, 628 00 Brno; prodej a technická podpora pro ČR a SR (info@euchner.cz). Autorizovaný distributor AMTEK, s.r.o., Brno." },
+    { "name": "MERCOM COMPONENTA s.r.o. (Schmersal)", "url": "https://mercom.cz/zastupujeme/schmersal/", "country": "CZ", "kind": "distributor", "cats": ["safety_switch", "safety_relay", "limit_switch"], "note": "Oficiální zastoupení Schmersal v ČR: Bechyňská 640, 199 00 Praha 9 - Letňany, mercom@mercom.cz. Schmersal nemá vlastní českou pobočku." },
+    { "name": "Level Instruments CZ – Level Expert (VEGA)", "url": "https://www.levelexpert.cz", "country": "CZ", "kind": "distributor", "cats": ["level_sensor", "pressure_transmitter"], "note": "Výhradní zastoupení VEGA Grieshaber pro ČR (VEGAPULS, VEGAFLEX, VEGABAR, VEGASWING)." },    { "name": "Omron (CZ)", "url": "https://industrial.omron.cz", "country": "CZ", "kind": "výrobce", "cats": ["sensor_inductive", "sensor_optical", "limit_switch", "light_curtain"], "note": "" },
+    { "name": "Pilz Czech (e-shop)", "url": "https://www.pilz.com/cs-CZ/eshop", "country": "CZ", "kind": "výrobce", "cats": ["light_curtain", "safety_switch", "safety_relay"], "note": "" },
+    { "name": "Schneider Electric CZ", "url": "https://www.se.com/cz/cs/", "country": "CZ", "kind": "výrobce", "cats": ["pushbutton", "pilot_light", "estop_button", "limit_switch"], "note": "" },
+    { "name": "Phoenix Contact (CZ)", "url": "https://www.phoenixcontact.com/cs-cz/", "country": "CZ", "kind": "výrobce", "cats": ["safety_relay"], "note": "" },
+    { "name": "Endress+Hauser Czech", "url": "https://www.cz.endress.com", "country": "CZ", "kind": "výrobce", "cats": ["level_sensor", "flow_sensor"], "note": "E-shop e-direct.endress.com/cz." },
+    { "name": "KROHNE CZ, spol. s r.o.", "url": "https://cz.krohne.com", "country": "CZ", "kind": "výrobce", "cats": ["flow_sensor", "level_sensor"], "note": "Soběšická 156, Brno." },
+    { "name": "Danfoss (e-shop CZ)", "url": "https://store.danfoss.com/cz/cs/", "country": "CZ", "kind": "výrobce", "cats": ["pressure_transmitter"], "note": "" },
+    { "name": "BD SENSORS s.r.o.", "url": "https://www.bdsensors.cz", "country": "CZ", "kind": "výrobce", "cats": ["pressure_transmitter", "level_sensor"], "note": "Český výrobce, Buchlovice." },
+    { "name": "JSP s.r.o.", "url": "https://www.jsp.cz", "country": "CZ", "kind": "výrobce", "cats": ["temperature_sensor", "pressure_transmitter", "level_sensor", "flow_sensor"], "note": "Český výrobce (Nová Paka), e-shop jspshop.cz; distribuuje i Dinel a KROHNE." },
+    { "name": "SENSIT s.r.o.", "url": "https://www.sensit.cz", "country": "CZ", "kind": "výrobce", "cats": ["temperature_sensor"], "note": "Český výrobce, Rožnov pod Radhoštěm." },
+    { "name": "Dinel, s.r.o.", "url": "https://www.dinel.cz", "country": "CZ", "kind": "výrobce", "cats": ["level_sensor", "sensor_capacitive"], "note": "Český výrobce hladinoměrů." },
+    { "name": "LUKAS TENZO", "url": "https://www.lukas-tenzo.cz", "country": "CZ", "kind": "výrobce", "cats": ["load_cell"], "note": "Český výrobce siloměrů." },
+    { "name": "hbm.cz", "url": "https://www.hbm.cz", "country": "CZ", "kind": "distributor", "cats": ["load_cell"], "note": "Česká stránka s produkty HBK/HBM; vztah k výrobci (pobočka vs. zastoupení) neověřen." },
+    { "name": "TME (Transfer Multisort Elektronik)", "url": "https://www.tme.eu/cz/", "country": "PL", "kind": "e-shop", "cats": ["sensor_inductive", "sensor_capacitive", "limit_switch", "light_curtain", "safety_switch", "safety_relay", "beacon", "horn", "pushbutton", "pilot_light", "flow_sensor"], "note": "Česká verze; Werma, Patlite, Eaton, Auer, Siemens, Omron, Balluff, Schmersal." },
+    { "name": "RS Components CZ", "url": "https://cz.rs-online.com", "country": "CZ", "kind": "e-shop", "cats": ["sensor_inductive", "level_sensor", "load_cell", "safety_switch", "estop_button", "safety_relay"], "note": "" },
+    { "name": "Farnell CZ", "url": "https://cz.farnell.com", "country": "CZ", "kind": "e-shop", "cats": ["safety_switch", "sensor_optical"], "note": "" },
+    { "name": "Conrad CZ", "url": "https://www.conrad.cz", "country": "CZ", "kind": "e-shop", "cats": ["sensor_inductive", "sensor_optical", "safety_switch"], "note": "" },
+    { "name": "Distrelec CZ", "url": "https://www.distrelec.cz", "country": "CZ", "kind": "e-shop", "cats": ["sensor_inductive"], "note": "" },
+    { "name": "Technoline (e-shop)", "url": "https://eshop.technoline.cz", "country": "CZ", "kind": "distributor", "cats": ["sensor_inductive", "flow_sensor", "estop_button"], "note": "SICK, ifm." },
+    { "name": "Viola.cz", "url": "https://viola.cz", "country": "CZ", "kind": "e-shop", "cats": ["sensor_inductive", "pressure_transmitter", "level_sensor", "flow_sensor", "load_cell"], "note": "" },
+    { "name": "Bola.cz", "url": "https://www.bola.cz", "country": "CZ", "kind": "e-shop", "cats": ["pressure_transmitter", "temperature_sensor", "level_sensor"], "note": "Danfoss, Dinel, Sensit, ifm." },
+    { "name": "Zefin", "url": "https://www.zefin.cz", "country": "CZ", "kind": "e-shop", "cats": ["pressure_transmitter", "temperature_sensor", "level_sensor"], "note": "BD Sensors, Danfoss, Dinel, Sensit." },
+    { "name": "Manomarket.cz", "url": "https://www.manomarket.cz", "country": "CZ", "kind": "e-shop", "cats": ["pressure_transmitter"], "note": "WIKA." },
+    { "name": "MaR SYSTEMS", "url": "https://www.marsystems.cz", "country": "CZ", "kind": "distributor", "cats": ["pressure_transmitter", "level_sensor"], "note": "WIKA, E+H." },
+    { "name": "Apoelmos", "url": "https://www.apoelmos.cz", "country": "CZ", "kind": "distributor", "cats": ["level_sensor", "flow_sensor", "pressure_transmitter"], "note": "Dinel, KROHNE, BD Sensors." },
+    { "name": "Schmachtl CZ", "url": "https://www.schmachtl.cz", "country": "CZ", "kind": "distributor", "cats": ["sensor_optical", "light_curtain", "estop_button"], "note": "E-shop eshop.schmachtl.cz (Leuze)." },
+    { "name": "Sonepar ČR", "url": "https://www.sonepar.cz", "country": "CZ", "kind": "distributor", "cats": ["estop_button", "pushbutton", "pilot_light", "safety_relay"], "note": "" },
+    { "name": "Elfetex", "url": "https://www.elfetex.cz", "country": "CZ", "kind": "e-shop", "cats": ["estop_button", "safety_relay", "pushbutton"], "note": "Siemens, ABB." },
+    { "name": "elektrosms.cz", "url": "https://www.elektrosms.cz", "country": "CZ", "kind": "e-shop", "cats": ["sensor_inductive", "safety_switch", "safety_relay"], "note": "" },
+    { "name": "KV Elektro", "url": "https://www.kvelektro.cz", "country": "CZ", "kind": "e-shop", "cats": ["estop_button", "pushbutton"], "note": "Eaton, Schneider." },
+    { "name": "GHV Trading", "url": "https://www.ghvtrading.cz", "country": "CZ", "kind": "distributor", "cats": ["estop_button", "pushbutton"], "note": "Schlegel." },
+    { "name": "Manat s.r.o.", "url": "https://www.manat.cz", "country": "CZ", "kind": "distributor", "cats": ["load_cell"], "note": "ZEMIC." },
+    { "name": "Automation24", "url": "https://www.automation24.com", "country": "DE", "kind": "e-shop", "cats": ["sensor_optical", "pressure_transmitter", "temperature_sensor", "flow_sensor"], "note": "ifm, E+H." }
+  ],
+  "notes": [
+    "Rešerše přes WebSearch/WebFetch 2026-10-02. Rozpočet vyhledávání se vyčerpal u kategorie beacon; beacon, horn, pushbutton, pilot_light a limit_switch jsou doplněny jen z vyhledávání v TME a stránek výrobců, část bez objednacího kódu.",
+    "orderCode je kód výrobce, jak byl viděn na stránce v src. U SICK je to sedmimístné objednací číslo (typ je v typical), u Balluff kód BES/BCS, jinak typové označení.",
+    "Několik čísel pochází jen ze zahraničních distributorů (SICK 1211450/1211463, 6038615, Leuze 68020306, WIKA 12783359) — označeno v note, před použitím ověřit u výrobce.",
+    "U TME se nepodařilo načíst detail produktů (HTTP 429); kódy Werma jsou proto ověřeny na werma.com.",
+    "Pobočky v ČR ověřeny 2026-10-02: SICK (Praha 10), ifm (Praha 4), Balluff (Praha 9), Pepperl+Fuchs (Praha 8, výroba Trutnov), Leuze engineering Czech (Plzeň; distributor Schmachtl), EUCHNER electric (Brno; distributor AMTEK). Schmersal nemá pobočku — zastupuje MERCOM COMPONENTA (Praha 9). VEGA zastupuje výhradně Level Instruments CZ – Level Expert. Siemens, Eaton, ABB, Keyence se v této části neověřovaly.",
+    "Doplnění 2026-10-02: ověřeny kódy beacon (Werma 64924005, Eaton SL7-100-L-RYG-24LED = 171425, Auer CT5-Q01), horn (Werma 58500075, Auer 712100005 = HPT 24 V DC membránová siréna), pushbutton (Siemens 3SU1100-0AB40-1BA0, ABB 1SFA611100R1002, Schlegel RRJT, Eaton M22-D-G ověřen na eaton.com), pilot_light (Eaton M22-L-G + M22-LED-G, Siemens 3SU1102-6AA40-1AA0). Nová kategorie analog_sensor (Balluff BTL7, Novotechnik LWH, SICK OD1000, ifm O1D100).",
+    "Bezpečnostní komponenty (light_curtain, safety_switch, estop_button, safety_relay) jsou uvedeny jen jako HW, s poznámkou: volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi."
+  ]
+}

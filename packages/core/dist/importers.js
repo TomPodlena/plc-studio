@@ -7,6 +7,7 @@
  * s polyfillem (např. linkedom) předaným přes setDOMParser().
  */
 import { CLS, devSignals } from "./model.js";
+import { tr } from "./i18n.js";
 let DP = (typeof DOMParser !== "undefined") ? DOMParser : null;
 export function setDOMParser(ctor) { DP = ctor; }
 export function detectAndParse(text) {
@@ -84,7 +85,7 @@ export function parseSimaticML(t) {
             }
         }
         catch { /* vadné XML — vrátíme prázdno */ }
-    return { fmt: "Siemens SimaticML (tabulka tagů)", tags, blocks: [] };
+    return { fmt: tr("Siemens SimaticML (tabulka tagů)"), tags, blocks: [] };
 }
 export function parseL5X(t) {
     const tags = [], blocks = [];
@@ -124,7 +125,7 @@ export function parseSTSource(t) {
                 tags.push({ tag: lm[1], dt: lm[3], addr: normAddr(lm[2] || ""), cmt: (lm[4] || lm[5] || "").trim() });
         }
     }
-    return { fmt: "ST / SCL zdroj" + (tags.length ? " + VAR_GLOBAL" : ""), tags, blocks };
+    return { fmt: tags.length ? tr("ST / SCL zdroj + VAR_GLOBAL") : tr("ST / SCL zdroj"), tags, blocks };
 }
 export function parseRockwellCSV(t) {
     const tags = [];
@@ -137,7 +138,7 @@ export function parseRockwellCSV(t) {
         if (name)
             tags.push({ tag: name, dt, addr: "", cmt });
     }
-    return { fmt: "Rockwell CSV export tagů", tags, blocks: [] };
+    return { fmt: tr("Rockwell CSV export tagů"), tags, blocks: [] };
 }
 export function parseLabelTable(t) {
     const tags = [];
@@ -150,7 +151,7 @@ export function parseLabelTable(t) {
         const cmt = c.slice(2).find(x => !!x && !/^[XY][0-9A-F]+$|^%|^VAR|^FALSE|^TRUE|^Retain/i.test(x)) || "";
         tags.push({ tag: c[0], dt, addr: normAddr(at), cmt });
     }
-    return { fmt: "Tabulka proměnných (Mitsubishi / OMRON)", tags, blocks: [] };
+    return { fmt: tr("Tabulka proměnných (Mitsubishi / OMRON)"), tags, blocks: [] };
 }
 export function parsePlainIO(t) {
     const tags = [];
@@ -166,7 +167,7 @@ export function parsePlainIO(t) {
             continue;
         tags.push({ tag: c[0], dt: "", addr: normAddr(c[1]), cmt: c[4] || c[2] || "", dev: c[2] || "", cls: c[3] || "" });
     }
-    return { fmt: "Prostý I/O list (Tag;Adresa;Zařízení;Třída;Komentář)", tags, blocks: [] };
+    return { fmt: tr("Prostý I/O list (Tag;Adresa;Zařízení;Třída;Komentář)"), tags, blocks: [] };
 }
 /** Seskupí importované tagy do zařízení a namapuje role signálů. */
 export function buildDevicesFromTags(tags) {
