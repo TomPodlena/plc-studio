@@ -915,6 +915,7 @@
           "- Communication: the content of e-mails you send us. Purpose: replies and support. Basis: legitimate interest (Art. 6(1)(f)).",
           "- Website protection: IP address and technical browser data during Turnstile verification and in the hosting's operational logs. Purpose: protecting forms against bots and service security. Basis: legitimate interest.",
           "- Customer admin: only the operator has access to the data above, through the protected customer admin (sign-in with a token, or via Cloudflare Access), and may add a note to a customer for support and licence management. Every view of a customer's details, every action (issuing, extending or cancelling a licence, releasing a computer, adding a note) and every export is written to an audit log (who, when, what). Failed sign-in attempts are recorded with the IP address and browser details to protect against misuse. Purpose: licence management and data security. Basis: performance of contract and legitimate interest.",
+          "- Business contacts (B2B): in an internal record of sales opportunities we keep companies that might use {{site.brand}} — for companies from our own research only publicly available company data (name, website, segment, city, country, link to the source); the contact person's name, phone and e-mail are added manually only once we are in contact with the company. It also includes download-form leads (e-mail and status: download, trial, licence) only to see the stage of the relationship (we do not use this data for marketing). Purpose: managing business relationships and offering the product to companies. Basis: legitimate interest (Art. 6(1)(f)). You can object to this processing at any time at {{site.email}} — we will then delete the record and not create it again. We do not send commercial e-mails without your consent unless you are our customer.",
           "We do not use your data for marketing, do not send newsletters without your express consent and do not carry out profiling."
         ]
       },
@@ -945,7 +946,8 @@
           "- Licence data: for the duration of the licence and 3 years after it ends.",
           "- Accounting and tax documents: 10 years under Czech VAT and accounting law.",
           "- Hosting operational logs: according to the provider's settings, usually days to weeks.",
-          "- Customer admin: audit log 3 years, failed sign-in attempts 30 days, customer notes for as long as the customer's data is kept."
+          "- Customer admin: audit log 3 years, failed sign-in attempts 30 days, customer notes for as long as the customer's data is kept.",
+          "- Business contacts: for as long as sales talks continue, at most 3 years after the last contact; immediately after an objection."
         ]
       },
       {

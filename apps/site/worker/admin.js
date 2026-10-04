@@ -21,12 +21,14 @@
 
 import { signLicense, newLicenseKey, newId, b64url } from "./license.js";
 import { sendLicense } from "./email.js";
+import { out, enc, nowIso, isoAgo, clip, num, readJson, audit, likePattern, toCsv, csvResponse } from "./admin_util.js";
+import { CRM_ROUTES } from "./crm.js";
+export { csvCell, toCsv } from "./admin_util.js";
 
 export const ADMIN_COOKIE = "__Host-plcdesk_admin";
 export const SESSION_S = 8 * 3600;
 const ATTEMPT_WINDOW_MS = 15 * 60e3;
 export const MAX_FAILS = 5;
-const MAX_BODY = 16 * 1024;
 const PAGE_SIZE = 50;
 const AUDIT_PAGE = 100;
 const EXPORT_MAX = 50000;
@@ -37,18 +39,7 @@ export const PLAN_DEFAULTS = { pro: { days: 365, seats: 1 }, firma: { days: 365,
 export const CUSTOMER_STATES = ["active", "past_due", "expired", "canceled", "downloaded", "lead"];
 const KEY_RE = /^PLCD-[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/;
 
-// ------------------------------------------------------------ odpovedi a hlavicky
-
-const API_HEADERS = {
-  "Content-Type": "application/json; charset=utf-8",
-  "Cache-Control": "no-store",
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "Referrer-Policy": "no-referrer",
-  "X-Robots-Tag": "noindex, nofollow",
-  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
-};
-const out = (data, status = 200, extra = {}) => new Response(JSON.stringify(data), { status, headers: { ...API_HEADERS, ...extra } });
+// ------------------------------------------------------------ hlavicky stranky
 
 // Stranka /sprava: prisna CSP (zadne inline skripty ani styly, nic odjinud), bez ramcu, bez cache.
 export const PAGE_CSP =
@@ -70,12 +61,7 @@ export function securePage(resp) {
 
 // ------------------------------------------------------------ pomocne
 
-const enc = new TextEncoder();
-const nowIso = () => new Date().toISOString();
-const isoAgo = (ms) => new Date(Date.now() - ms).toISOString();
-const clip = (s, n) => (s == null ? null : String(s).slice(0, n));
 const validEmail = (s) => typeof s === "string" && s.length < 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
-const num = (v) => Number(v) || 0;
 
 // Licencni klic do logu a auditu jen zkraceny: PLCD-ABCD…WXYZ
 export const shortKey = (k) => (typeof k === "string" && k.length > 13 ? `${k.slice(0, 9)}…${k.slice(-4)}` : String(k ?? ""));
@@ -295,30 +281,6 @@ function sameOrigin(req, env) {
   return req.headers.get("Origin") === expected && !!String(req.headers.get("X-Requested-With") || "").trim();
 }
 
-async function readJson(req) {
-  if (!/^application\/json(\s*;|$)/i.test(req.headers.get("Content-Type") || "")) return { res: out({ error: "unsupported media type" }, 415) };
-  if (num(req.headers.get("Content-Length")) > MAX_BODY) return { res: out({ error: "too large" }, 413) };
-  const text = await req.text();
-  if (enc.encode(text).length > MAX_BODY) return { res: out({ error: "too large" }, 413) };
-  try {
-    const v = JSON.parse(text);
-    if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error();
-    return { body: v };
-  } catch {
-    return { res: out({ error: "bad json" }, 400) };
-  }
-}
-
-async function audit(env, { actor, via, action, target = null, detail = null, ip = null }) {
-  try {
-    await env.DB.prepare("INSERT INTO admin_audit (at, actor, via, action, target, detail, ip) VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .bind(nowIso(), clip(actor, 254), via, action, clip(target, 300), clip(detail, 500), clip(ip, 64))
-      .run();
-  } catch (err) {
-    console.error("admin_audit: zapis se nezdaril:", err?.message ?? err);
-  }
-}
-
 // Kolik neuspesnych pokusu ma IP v okne; {n, retry} (retry v sekundach do uvolneni)
 async function failures(env, ip) {
   const row = await env.DB.prepare("SELECT COUNT(*) AS n, MIN(at) AS first FROM admin_attempts WHERE ip = ? AND ok = 0 AND at > ?")
@@ -457,8 +419,6 @@ const CUSTOMERS_WHERE = `
 WHERE (?2 = '' OR c.email LIKE ?3 ESCAPE '\\'
        OR EXISTS (SELECT 1 FROM licenses x WHERE x.email = c.email AND x.key LIKE ?3 ESCAPE '\\'))
   AND (?4 = '' OR c.status = ?4)`;
-
-const likePattern = (q) => `%${q.replace(/[\\%_]/g, (m) => "\\" + m)}%`;
 
 function customerFilter(url) {
   const q = String(url.searchParams.get("q") ?? "").trim().slice(0, 100);
@@ -693,16 +653,6 @@ async function handleNote(req, env, ctx) {
 
 // ------------------------------------------------------------ export CSV a audit
 
-// Strednik, BOM UTF-8, CRLF (cesky Excel). Bunky zacinajici = + - @ dostanou apostrof
-// (ochrana proti vzorcum v Excelu); text s ; " nebo koncem radku jde do uvozovek.
-export function csvCell(v) {
-  if (v == null) return "";
-  let s = String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-  return /[;"\r\n]/.test(s) || /^\s|\s$/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-export const toCsv = (cols, rows) => "﻿" + [cols.join(";"), ...rows.map((r) => cols.map((c) => csvCell(r[c])).join(";"))].join("\r\n") + "\r\n";
-
 const EXPORTS = {
   customers: {
     cols: ["email", "status", "plan", "licenses", "devices", "valid_until", "lead_at", "downloaded_at", "locale", "last_activity"],
@@ -729,13 +679,7 @@ async function handleExport(req, env, ctx) {
   if (!ex) return out({ error: "bad type" }, 400);
   const rows = (await ex.query(env).all()).results || [];
   await audit(env, { actor: ctx.actor, via: ctx.via, action: "export", target: type, detail: `${rows.length} radku`, ip: ctx.ip });
-  return new Response(toCsv(ex.cols, rows), {
-    headers: {
-      ...API_HEADERS,
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="plcdesk-${type}-${nowIso().slice(0, 10)}.csv"`,
-    },
-  });
+  return csvResponse(toCsv(ex.cols, rows), `plcdesk-${type}-${nowIso().slice(0, 10)}.csv`);
 }
 
 async function handleAudit(req, env, ctx) {
@@ -766,6 +710,8 @@ const ROUTES = {
   "POST /api/admin/note": { fn: handleNote },
   "GET /api/admin/export.csv": { fn: handleExport },
   "GET /api/admin/audit": { fn: handleAudit },
+  // obchodni kanban leadu (crm.js) - stejne prihlaseni, CSRF i audit jako zbytek spravy
+  ...CRM_ROUTES,
 };
 export const ADMIN_PATHS = [...new Set(Object.keys(ROUTES).map((r) => r.split(" ")[1]))];
 

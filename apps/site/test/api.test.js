@@ -652,7 +652,9 @@ await check("bez Access nastaveni se hlavicka JWT ignoruje (401)", async () => {
 console.log("\nsprava zakazniku: CSRF a pristup");
 await check("vsechny /api/admin/* bez prihlaseni -> 401 (no-store, DENY)", async () => {
   const routes = [["GET", "/api/admin/me"], ["GET", "/api/admin/summary"], ["GET", "/api/admin/customers"], ["GET", "/api/admin/customer?email=beta@firma.cz"],
-    ["POST", "/api/admin/license"], ["POST", "/api/admin/activation/release"], ["POST", "/api/admin/note"], ["GET", "/api/admin/export.csv?type=customers"], ["GET", "/api/admin/audit"]];
+    ["POST", "/api/admin/license"], ["POST", "/api/admin/activation/release"], ["POST", "/api/admin/note"], ["GET", "/api/admin/export.csv?type=customers"], ["GET", "/api/admin/audit"],
+    ["GET", "/api/admin/crm"], ["GET", "/api/admin/crm/lead?id=x"], ["POST", "/api/admin/crm/lead"], ["POST", "/api/admin/crm/move"],
+    ["POST", "/api/admin/crm/note"], ["POST", "/api/admin/crm/delete"], ["POST", "/api/admin/crm/import"], ["GET", "/api/admin/crm/export.csv"]];
   const covered = new Set(routes.map(([, p]) => p.split("?")[0]));
   for (const p of ADMIN_PATHS) if (!covered.has(p) && !/login|logout/.test(p)) throw new Error("netestovana cesta " + p);
   for (const [m, p] of routes) {
@@ -928,6 +930,209 @@ await check("uchovani: neuspesna prihlaseni po 30 dnech pryc, ostatni audit 3 ro
   eq(count("SELECT COUNT(*) AS n FROM admin_audit WHERE ip = '192.0.2.99'"), 0, "stary login_failed");
   eq(count("SELECT COUNT(*) AS n FROM admin_attempts WHERE ip = '192.0.2.99'"), 0, "stary pokus");
   eq(count("SELECT COUNT(*) AS n FROM admin_audit WHERE target = 'stary@firma.cz'"), 1, "ostatni audit zustava");
+});
+
+// =====================================================================================
+console.log("\nsprava: obchodni kanban leadu (CRM)");
+const crmGet = async (qs = "") => (await adm("GET", "/api/admin/crm" + qs, undefined, S)).json();
+const crmCards = (d) => Object.values(d.columns).flatMap((c) => c.cards);
+const crmLead = (id) => db.prepare("SELECT * FROM crm_leads WHERE id = ?").get(id);
+const crmEvents = (id) => db.prepare("SELECT type, text, actor FROM crm_events WHERE lead_id = ? ORDER BY id").all(id);
+const isoIn = (days) => new Date(Date.now() + days * 864e5).toISOString();
+// zakaznik s aktivni licenci -> karta z formulare dostane navrh "won"
+db.prepare("INSERT INTO leads (id, email, locale, created_at) VALUES ('crm-l1', 'nakup@strojirna-test.cz', 'cs', ?)").run(isoIn(-3));
+db.prepare(`INSERT INTO licenses (key, email, plan, seats, status, valid_until, created_at, updated_at)
+  VALUES ('PLCD-CRMT-AAAA-BBBB-CC22', 'nakup@strojirna-test.cz', 'pro', 1, 'active', ?, ?, ?)`).run(isoIn(200), isoIn(-1), isoIn(-1));
+
+let crmManual;
+await check("tabule: sloupce vsech fazi, web leady se promitnou jako 'new' (bez duplicit), sync do auditu", async () => {
+  const leads = count("SELECT COUNT(*) AS n FROM leads");
+  const d = await crmGet();
+  eq(d.stages, ["prospect", "new", "contacted", "trial", "offer", "won", "lost"], "faze");
+  eq(d.synced, leads, "synchronizovano");
+  eq(count("SELECT COUNT(*) AS n FROM crm_leads WHERE source = 'web_form' AND stage = 'new'"), leads, "karty new");
+  eq(count("SELECT COUNT(*) AS n FROM crm_events WHERE type = 'import' AND text = 'web_form'"), leads, "udalosti");
+  eq(auditRows("crm_sync").length, 1, "audit sync");
+  const again = await crmGet();
+  eq(again.synced, 0, "druhe nacteni nic nepridava");
+  eq(count("SELECT COUNT(*) AS n FROM crm_leads"), leads, "bez duplicit");
+  eq(auditRows("crm_sync").length, 1, "audit jen pri zmene");
+});
+await check("karta z formulare: firma = domena, web, zeme z .cz; bezplatna schranka bez webu", async () => {
+  const c = db.prepare("SELECT * FROM crm_leads WHERE email = 'nakup@strojirna-test.cz'").get();
+  eq([c.company, c.website, c.domain, c.country, c.segment], ["strojirna-test.cz", "https://strojirna-test.cz", "strojirna-test.cz", "CZ", "jine"], "firma");
+  db.prepare("INSERT INTO leads (id, email, locale, created_at) VALUES ('crm-l2', 'jan.novak@gmail.com', 'cs', ?)").run(isoIn(0));
+  eq((await crmGet()).synced, 1, "novy lead");
+  const g = db.prepare("SELECT * FROM crm_leads WHERE email = 'jan.novak@gmail.com'").get();
+  eq([g.company, g.website, g.domain, g.country], ["jan.novak@gmail.com", null, null, null], "gmail");
+});
+await check("aktivni licence -> navrh 'won', faze se sama neprepise", async () => {
+  const d = await crmGet();
+  const card = crmCards(d).find((c) => c.company === "strojirna-test.cz");
+  eq([card.stage, card.licensed, card.suggest], ["new", true, "won"], "navrh");
+  if ("email" in card) throw new Error("tabule nema posilat e-maily");
+});
+await check("zalozeni karty: validace, faze new, udalost create, audit", async () => {
+  eq((await adm("POST", "/api/admin/crm/lead", { segment: "integrator" }, S)).status, 400, "bez firmy");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", website: "javascript:alert(1)" }, S)).json()).error, "bad website", "javascript: web");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", source_url: "ftp://x.cz/a" }, S)).json()).error, "bad source_url", "ftp zdroj");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", segment: "banka" }, S)).json()).error, "bad segment", "segment");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", next_date: "2026-02-30" }, S)).json()).error, "bad next_date", "datum");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", stage: "hotovo" }, S)).json()).error, "bad stage", "faze");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", value_czk: -5 }, S)).json()).error, "bad value_czk", "hodnota");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", phone: "<script>" }, S)).json()).error, "bad phone", "telefon");
+  const r = await adm("POST", "/api/admin/crm/lead", { company: "  Automatizace Test s.r.o. ", website: "www.AutoTest.cz/kontakt", segment: "Integrátor",
+    country: "cz", city: "Brno", next_action: "Zavolat", next_date: "2026-11-02", value_czk: 120000, contact_name: "Ing. Test" }, S);
+  eq(r.status, 200, "status");
+  crmManual = (await r.json()).id;
+  const c = crmLead(crmManual);
+  eq([c.company, c.website, c.domain, c.segment, c.country, c.stage, c.source, c.value_czk], ["Automatizace Test s.r.o.", "https://www.autotest.cz/kontakt", "autotest.cz", "integrator", "CZ", "new", "manual", 120000], "ulozeno");
+  eq(crmEvents(crmManual).map((e) => e.type), ["create"], "udalost");
+  eq(auditRows("crm_lead_create").length, 1, "audit");
+});
+await check("duplicita: stejny e-mail vzdy 409, stejna domena 409 bez allow_duplicate", async () => {
+  const dupMail = await adm("POST", "/api/admin/crm/lead", { company: "Jina", email: "NAKUP@strojirna-test.cz", allow_duplicate: true }, S);
+  eq(dupMail.status, 409, "e-mail");
+  eq((await dupMail.json()).by, "email", "duvod");
+  const dupDom = await adm("POST", "/api/admin/crm/lead", { company: "Pobocka", website: "https://autotest.cz" }, S);
+  eq(dupDom.status, 409, "domena");
+  eq((await dupDom.json()).id, crmManual, "odkaz na existujici");
+  const ok = await adm("POST", "/api/admin/crm/lead", { company: "Pobocka", website: "https://autotest.cz", allow_duplicate: true }, S);
+  eq(ok.status, 200, "s potvrzenim");
+  eq((await adm("POST", "/api/admin/crm/delete", { id: (await ok.json()).id }, S)).status, 200, "uklid");
+});
+await check("uprava: jen poslana pole, udalost edit se seznamem poli, faze se upravou nemeni", async () => {
+  const r = await adm("POST", "/api/admin/crm/lead", { id: crmManual, city: "Ostrava", owner: "Tomáš", stage: "won" }, S);
+  eq(r.status, 200, "status");
+  eq((await r.json()).changed, ["city", "owner"], "zmenena pole");
+  const c = crmLead(crmManual);
+  eq([c.city, c.owner, c.stage, c.website], ["Ostrava", "Tomáš", "new", "https://www.autotest.cz/kontakt"], "ulozeno");
+  eq(crmEvents(crmManual).at(-1), { type: "edit", text: "city,owner", actor: "token" }, "udalost");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { id: crmManual, city: "Ostrava" }, S)).json()).unchanged, true, "beze zmeny");
+  eq((await adm("POST", "/api/admin/crm/lead", { id: "neexistuje-1", city: "X" }, S)).status, 404, "neznama karta");
+  eq((await adm("POST", "/api/admin/crm/lead", { id: "../x", city: "X" }, S)).status, 400, "spatne id");
+});
+await check("presun: zmena faze + udalost stage_change, ztraceno s duvodem, neplatna faze 400", async () => {
+  const r = await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "contacted" }, S);
+  eq(await r.json(), { ok: true, stage: "contacted", from: "new" }, "odpoved");
+  eq((await (await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "contacted" }, S)).json()).already, true, "uz tam je");
+  eq((await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "zruseno" }, S)).status, 400, "faze");
+  await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "lost", lost_reason: "Ma vlastni reseni" }, S);
+  eq([crmLead(crmManual).stage, crmLead(crmManual).lost_reason], ["lost", "Ma vlastni reseni"], "ztraceno");
+  await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "trial" }, S);
+  eq(crmLead(crmManual).lost_reason, null, "duvod pri navratu pryc");
+  eq(crmEvents(crmManual).filter((e) => e.type === "stage_change").map((e) => e.text), ["new>contacted", "contacted>lost\nMa vlastni reseni", "lost>trial"], "historie");
+  eq(auditRows("crm_move").length, 3, "audit");
+  const d = await crmGet();
+  eq(d.columns.trial.count, 1, "pocet ve sloupci");
+  eq(d.columns.trial.value_czk, 120000, "soucet ve sloupci");
+});
+await check("poznamka a kontakt: udalost, prazdna / dlouha / spatny typ 400", async () => {
+  eq((await adm("POST", "/api/admin/crm/note", { id: crmManual, text: "Volal jsem, poslat nabidku" , type: "contact" }, S)).status, 200, "kontakt");
+  eq((await adm("POST", "/api/admin/crm/note", { id: crmManual, text: "Radek 1\nRadek 2" }, S)).status, 200, "poznamka");
+  eq((await adm("POST", "/api/admin/crm/note", { id: crmManual, text: "  " }, S)).status, 400, "prazdna");
+  eq((await adm("POST", "/api/admin/crm/note", { id: crmManual, text: "x".repeat(2001) }, S)).status, 400, "dlouha");
+  eq((await adm("POST", "/api/admin/crm/note", { id: crmManual, text: "x", type: "sms" }, S)).status, 400, "typ");
+  eq(crmEvents(crmManual).slice(-2).map((e) => [e.type, e.text]), [["contact", "Volal jsem, poslat nabidku"], ["note", "Radek 1\nRadek 2"]], "udalosti");
+});
+await check("detail: karta, historie nejnovejsi prvni, priznak zakaznika, zobrazeni do auditu", async () => {
+  const w = db.prepare("SELECT id FROM crm_leads WHERE email = 'nakup@strojirna-test.cz'").get().id;
+  const d = await (await adm("GET", "/api/admin/crm/lead?id=" + w, undefined, S)).json();
+  eq([d.lead.email, d.customer, d.licensed, d.suggest], ["nakup@strojirna-test.cz", true, true, "won"], "zakaznik");
+  const m = await (await adm("GET", "/api/admin/crm/lead?id=" + crmManual, undefined, S)).json();
+  eq([m.customer, m.events[0].type, m.events.at(-1).type], [false, "note", "create"], "historie");
+  eq(auditRows("crm_view").length, 2, "audit");
+  eq((await adm("GET", "/api/admin/crm/lead?id=nic", undefined, S)).status, 404, "404");
+});
+await check("filtr: segment, zeme, hledani (LIKE se escapuje)", async () => {
+  eq(crmCards(await crmGet("?segment=integrator")).map((c) => c.id), [crmManual], "segment");
+  eq(crmCards(await crmGet("?country=CZ")).some((c) => c.id === crmManual), true, "zeme");
+  eq(crmCards(await crmGet("?q=ostrava")).map((c) => c.id), [crmManual], "mesto");
+  eq(crmCards(await crmGet("?q=%25")).length, 0, "procento neni zastupny znak");
+  eq((await crmGet("?segment=banka")).filter.segment, "", "neznamy segment ignorovan");
+});
+
+const research = [
+  { company: "Alfa Automation s.r.o.", website: "https://www.alfa-automation.cz/", segment: "integrátor", country: "CZ", city: "Zlín", source_url: "https://firmy.example.cz/alfa", contact_name: "Jan Alfa", phone: "+420 600 000 000" },
+  { company: "Beta Maschinenbau GmbH", website: "beta-maschinenbau.de", segment: "Maschinenbau", country: "Deutschland", city: "Dresden" },
+  { company: "Alfa (duplicita v souboru)", website: "http://alfa-automation.cz/kontakt" },
+  { company: "Autotest pobocka", website: "autotest.cz" },
+  { company: "Gama", email: "NAKUP@strojirna-test.cz" },
+  { company: "", website: "x.cz" },
+  { company: "Delta", website: "javascript:alert(1)" },
+  "neni objekt",
+  { company: "Epsilon CNC", website: "epsilon-cnc.sk", note: "Hledaji PLC pro linku", segment: "výrobce" },
+];
+await check("import nahled (dry_run): pocty novych, duplicit (DB i soubor), chyb, osobni udaje; nic se neulozi", async () => {
+  const before = count("SELECT COUNT(*) AS n FROM crm_leads");
+  const d = await (await adm("POST", "/api/admin/crm/import", { leads: research, dry_run: true }, S)).json();
+  eq([d.total, d.new, d.duplicates, d.invalid, d.personal_ignored, d.imported], [9, 3, 3, 3, 1, 0], "pocty");
+  eq(d.duplicate_rows.map((x) => [x.row, x.by]), [[3, "file"], [4, "domain"], [5, "email"]], "duplicity");
+  eq(d.invalid_rows.map((x) => [x.row, x.error]), [[6, "bad company"], [7, "bad website"], [8, "bad row"]], "chyby");
+  eq(count("SELECT COUNT(*) AS n FROM crm_leads"), before, "nic neulozeno");
+  eq(auditRows("crm_import").length, 0, "nahled se neaudituje");
+});
+await check("import: faze prospect, source research, bez jmena a telefonu, udalost import, audit", async () => {
+  const d = await (await adm("POST", "/api/admin/crm/import", { leads: research }, S)).json();
+  eq([d.imported, d.new, d.duplicates], [3, 3, 3], "pocty");
+  const a = db.prepare("SELECT * FROM crm_leads WHERE domain = 'alfa-automation.cz'").get();
+  eq([a.stage, a.source, a.segment, a.city, a.country, a.contact_name, a.phone, a.email, a.source_url],
+    ["prospect", "research", "integrator", "Zlín", "CZ", null, null, null, "https://firmy.example.cz/alfa"], "karta");
+  const b = db.prepare("SELECT * FROM crm_leads WHERE domain = 'beta-maschinenbau.de'").get();
+  eq([b.segment, b.country, b.website], ["strojirna", "DE", "https://beta-maschinenbau.de"], "aliasy");
+  const e = db.prepare("SELECT * FROM crm_leads WHERE domain = 'epsilon-cnc.sk'").get();
+  eq([e.segment, e.country, e.value_note], ["vyrobce", "SK", "Hledaji PLC pro linku"], "zeme z domeny, poznamka");
+  eq(crmEvents(a.id).map((x) => [x.type, x.text]), [["import", "research"]], "udalost");
+  eq(auditRows("crm_import").length, 1, "audit");
+  const again = await (await adm("POST", "/api/admin/crm/import", { leads: research }, S)).json();
+  eq([again.imported, again.new, again.duplicates], [0, 0, 6], "opakovany import = same duplicity");
+});
+await check("import: limit 500 radku, prazdny seznam, ne-JSON, velke telo", async () => {
+  const many = Array.from({ length: 501 }, (_, i) => ({ company: `Firma ${i}`, website: `firma${i}.cz` }));
+  const r = await adm("POST", "/api/admin/crm/import", { leads: many, dry_run: true }, S);
+  eq([r.status, (await r.json()).error], [400, "too many"], "501");
+  const ok500 = await (await adm("POST", "/api/admin/crm/import", { leads: many.slice(0, 500), dry_run: true }, S)).json();
+  eq(ok500.new, 500, "500 projde");
+  eq((await adm("POST", "/api/admin/crm/import", { leads: [] }, S)).status, 400, "prazdny");
+  eq((await adm("POST", "/api/admin/crm/import", { leads: "x" }, S)).status, 400, "ne pole");
+  eq((await adm("POST", "/api/admin/crm/import", "[{}]", S)).status, 400, "pole misto objektu");
+  eq((await adm("POST", "/api/admin/crm/import", { leads: [{ company: "x".repeat(800 * 1024) }] }, S)).status, 413, "telo");
+});
+await check("CSRF: mutace CRM bez Origin / X-Requested-With / s cizim Origin -> 403, nic se nezmeni", async () => {
+  const before = crmLead(crmManual).stage;
+  eq((await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "won" }, { ...S, Origin: "https://utocnik.example" })).status, 403, "cizi Origin");
+  eq((await call("POST", "/api/admin/crm/move", { id: crmManual, stage: "won" }, { ...S, Origin: SITE })).status, 403, "bez XRW");
+  eq((await call("POST", "/api/admin/crm/import", { leads: research }, { ...S, "X-Requested-With": "x" })).status, 403, "bez Origin");
+  eq((await adm("POST", "/api/admin/crm/lead", { company: "CSRF" }, { ...S, "Sec-Fetch-Site": "cross-site" })).status, 403, "cross-site");
+  eq((await adm("POST", "/api/admin/crm/note", "id=x", { ...S, "Content-Type": "text/plain" })).status, 415, "formular");
+  eq(crmLead(crmManual).stage, before, "faze beze zmeny");
+  eq(count("SELECT COUNT(*) AS n FROM crm_leads WHERE company = 'CSRF'"), 0, "nic nezalozeno");
+});
+await check("export CSV: hlavicka, BOM, ochrana proti vzorcum, no-store, audit", async () => {
+  await adm("POST", "/api/admin/crm/lead", { company: "=HYPERLINK(\"http://x\")", website: "vzorec-test.cz" }, S);
+  const r = await adm("GET", "/api/admin/crm/export.csv", undefined, S);
+  eq([r.status, r.headers.get("cache-control"), r.headers.get("content-type")], [200, "no-store", "text/csv; charset=utf-8"], "hlavicky");
+  if (!/attachment; filename="plcdesk-leady-\d{4}-\d{2}-\d{2}\.csv"/.test(r.headers.get("content-disposition"))) throw new Error("nazev souboru");
+  const text = Buffer.from(await r.arrayBuffer()).toString("utf8");
+  if (!text.startsWith("﻿id;company;segment;country;city;website;email")) throw new Error("hlavicka CSV");
+  if (!text.includes(`"'=HYPERLINK(""http://x"")"`)) throw new Error("vzorec neosetren");
+  eq(text.trim().split("\r\n").length - 1, count("SELECT COUNT(*) AS n FROM crm_leads"), "radky");
+  eq(db.prepare("SELECT * FROM admin_audit WHERE action = 'export' AND target = 'crm'").all().length, 1, "audit");
+});
+await check("smazani (namitka): karta i historie pryc, e-mail se synchronizaci nevrati", async () => {
+  const g = db.prepare("SELECT id FROM crm_leads WHERE email = 'jan.novak@gmail.com'").get().id;
+  eq((await adm("POST", "/api/admin/crm/delete", { id: g }, S)).status, 200, "smazano");
+  eq([crmLead(g) ?? null, crmEvents(g).length], [null, 0], "karta a historie");
+  eq((await crmGet()).synced, 0, "nevraci se");
+  eq(count("SELECT COUNT(*) AS n FROM crm_leads WHERE email = 'jan.novak@gmail.com'"), 0, "bez karty");
+  eq((await adm("POST", "/api/admin/crm/delete", { id: g }, S)).status, 404, "podruhe 404");
+  eq(auditRows("crm_delete").length, 2, "audit");
+});
+await check("audit CRM: bez kontaktnich udaju a obsahu poznamek, 401 bez relace i s podvrzenou cookie", async () => {
+  const rows = JSON.stringify(db.prepare("SELECT target, detail FROM admin_audit WHERE action LIKE 'crm_%'").all());
+  for (const s of ["Ing. Test", "Volal jsem", "Radek 1"]) if (rows.includes(s)) throw new Error("v auditu: " + s);
+  eq((await adm("GET", "/api/admin/crm", undefined, withCookie("v1.9999999999.AAAAAAAAAAAAAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"))).status, 401, "podvrh");
+  eq((await adm("POST", "/api/admin/crm/import", { leads: research })).status, 401, "bez cookie");
 });
 
 // Cloudflare: s run_worker_first jako seznamem dostane Worker JEN uvedené cesty — bez "/api/*"

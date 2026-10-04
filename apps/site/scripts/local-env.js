@@ -83,6 +83,37 @@ export function seedDemo(db) {
     "unl-1", "buyer@controls-example.com", "p-demo", 78, iso(-11), "self-serve");
   ins("INSERT INTO customer_notes (id, email, body, author, created_at) VALUES (?, ?, ?, ?, ?)",
     "note-1", "jana.novakova@strojirna-example.cz", "Fakturu posílat na nákup, IČO v podpisu e-mailu. Pátý počítač až po rozšíření licence.", "token", iso(-6));
+
+  // Obchodni kanban: cast web leadu uz posunuta rucne (zbytek dopadne do "new" pri prvnim nacteni),
+  // firmy z pruzkumu jen s firemnimi udaji. Vse smyslene (domeny example).
+  const dt = (d) => iso(d).slice(0, 10);
+  const crm = [
+    // id, email, company, website, segment, country, city, source, stage, value, next_action, next_date, value_note, lost_reason, contact
+    ["crm-1", "jana.novakova@strojirna-example.cz", "Strojírna Example a.s.", "https://strojirna-example.cz", "strojirna", "CZ", "Zlín", "web_form", "won", 59400, "Nabídnout rozšíření na 6 míst", dt(9), "Firma, 5 míst", null, "Jana Nováková"],
+    ["crm-2", "integrator@automatika-example.cz", "Automatika Example s.r.o.", "https://automatika-example.cz", "integrator", "CZ", "Brno", "web_form", "offer", 11880, "Připomenout nabídku Pro", dt(-2), "Pro, roční", null, null],
+    ["crm-3", "m.weber@anlagenbau-example.de", "Anlagenbau Example GmbH", "https://anlagenbau-example.de", "strojirna", "DE", "Chemnitz", "web_form", "trial", 23760, "Online ukázka TIA exportu", dt(3), "2× Pro", null, null],
+    ["crm-4", "buyer@controls-example.com", "Controls Example Ltd", "https://controls-example.com", "integrator", "GB", "Leeds", "web_form", "contacted", null, "Poslat referenční projekt", dt(1), null, null, null],
+    ["crm-5", null, "Pohony Example s.r.o.", "https://pohony-example.cz", "integrator", "CZ", "Ostrava", "research", "prospect", null, "Najít kontakt na vedoucího automatizace", null, "Siemens a Beckhoff, 15 lidí", null, null],
+    ["crm-6", null, "Linky Example spol. s r.o.", "https://linky-example.cz", "strojirna", "CZ", "Plzeň", "research", "prospect", null, null, null, "Montážní linky pro automotive", null, null],
+    ["crm-7", null, "Maschinen Example AG", "https://maschinen-example.de", "vyrobce", "DE", "Stuttgart", "research", "prospect", null, "Veletrh SPS — stánek 3A", dt(40), null, null, null],
+    ["crm-8", null, "Robotika Example a.s.", "https://robotika-example.cz", "integrator", "CZ", "Hradec Králové", "research", "prospect", null, null, null, null, null, null],
+    ["crm-9", null, "Automatyka Example Sp. z o.o.", "https://automatyka-example.pl", "integrator", "PL", "Wrocław", "research", "prospect", null, null, null, "Omron, Mitsubishi", null, null],
+    ["crm-10", null, "Balicí stroje Example s.r.o.", "https://balici-example.cz", "vyrobce", "CZ", "Olomouc", "manual", "contacted", 35640, "Druhá schůzka s technologem", dt(-5), "3× Pro", null, null],
+    ["crm-11", null, "Stroje Example Slovakia s.r.o.", "https://stroje-example.sk", "strojirna", "SK", "Žilina", "manual", "trial", 11880, "Zjistit dojem ze zkušební verze", dt(0), null, null, null],
+    ["crm-12", null, "Hydraulika Example s.r.o.", "https://hydraulika-example.cz", "strojirna", "CZ", "Jihlava", "research", "lost", null, null, null, null, "Programují jen v Ladderu, ST nechtějí", null],
+    ["crm-13", null, "Elektro Example a.s.", "https://elektro-example.cz", "jine", "CZ", "Praha", "manual", "lost", null, null, null, null, "Rozpočet až příští rok", null],
+  ];
+  for (const [id, email, company, website, segment, country, city, source, stage, value, next, nextDate, note, lost, contact] of crm) {
+    ins(`INSERT INTO crm_leads (id, email, company, contact_name, website, domain, segment, country, city, source, stage, value_czk, value_note,
+         next_action, next_date, lost_reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, email, company, contact, website, new URL(website).hostname, segment, country, city, source, stage, value, note, next, nextDate, lost, iso(-30), iso(-1));
+    ins("INSERT INTO crm_events (lead_id, at, actor, type, text) VALUES (?, ?, ?, ?, ?)", id, iso(-30), source === "manual" ? "token" : "system",
+      source === "manual" ? "create" : "import", source === "manual" ? "manual" : source);
+  }
+  ins("INSERT INTO crm_events (lead_id, at, actor, type, text) VALUES (?, ?, 'token', 'stage_change', 'new>contacted')", "crm-2", iso(-20));
+  ins("INSERT INTO crm_events (lead_id, at, actor, type, text) VALUES (?, ?, 'token', 'contact', ?)", "crm-2", iso(-19), "Telefonát: řeší dvě linky na S7-1500, chtějí nabídku na Pro.");
+  ins("INSERT INTO crm_events (lead_id, at, actor, type, text) VALUES (?, ?, 'token', 'stage_change', 'contacted>offer')", "crm-2", iso(-12));
+  ins("INSERT INTO crm_events (lead_id, at, actor, type, text) VALUES (?, ?, 'token', 'note', ?)", "crm-2", iso(-4), "Nabídka odeslána, rozhodují do konce měsíce.");
 }
 
 export function localEnv(extra = {}) {

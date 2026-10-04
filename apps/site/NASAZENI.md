@@ -229,7 +229,7 @@ po splatnosti, zrušené, aktivní počítače, platby), zákazníci s hledání
 zákazníka (zájem o stažení, licence, počítače, platby, poznámky), vystavení / prodloužení / zrušení
 licence, uvolnění počítače, export CSV (středník + BOM pro český Excel) a audit. Na webu na ni nevede
 žádný odkaz, není v sitemapě a nese `noindex`. Kód: `worker/admin.js` (API `/api/admin/*`),
-`sprava/` (stránka), tabulky `schema_admin.sql`.
+`worker/crm.js` (obchodní kanban), `sprava/` (stránka), tabulky `schema_admin.sql`.
 
 ### Migrace D1 — zdarma (jednou, před nasazením Workeru se správou)
 ```bash
@@ -239,6 +239,35 @@ Migrace je idempotentní (jen `CREATE … IF NOT EXISTS`), jde spustit opakovan�
 `admin_attempts` (pokusy o přihlášení), `admin_sessions` (relace), `admin_audit`, `customer_notes`
 a `payment_log` (platební události k zákazníkovi — evidují se od nasazení, starší v detailu nejsou).
 Bez migrace přihlášení do správy končí chybou 500; webhooky plateb fungují dál.
+Stejný příkaz zakládá i tabulky obchodního kanbanu `crm_leads`, `crm_events` a `crm_suppressed`
+(viz níže). Kdo už správu nasadil, spustí ho po aktualizaci znovu — existující tabulky a data
+zůstanou beze změny, jen přibudou nové. Bez toho záložka Leady končí chybou 500.
+
+### Obchodní kanban leadů (záložka Leady)
+`/sprava/#/leady`: sloupce **Prospekce → Nový → Kontaktován → Zkouší → Nabídka → Zákazník → Ztracen**
+(ztracené jsou sbalené). Karta = firma: segment (integrátor / strojírna / výrobce / jiné), město, zdroj,
+další krok s termínem (po termínu zvýrazněný), odhad hodnoty v Kč za rok (součet ve sloupci).
+- **Přesun:** přetažením (HTML5 drag & drop), šipkami na kartě, s fokusem na kartě Alt+← / Alt+→,
+  na mobilu výběrem fáze. Každý přesun jde do historie karty i do auditu; u „Ztracen“ se ptá na důvod.
+- **Detail karty:** úprava údajů, změna fáze, historie (založení, úpravy, přesuny, poznámky, kontakty),
+  zápis poznámky nebo kontaktu, odkaz na zákazníka ve správě (když e-mail karty odpovídá), smazání.
+- **Formulář ke stažení:** zájemci z tabulky `leads` se při načtení tabule sami přidají do sloupce Nový
+  (bez duplicit podle e-mailu). Má-li e-mail aktivní licenci, karta ukáže návrh „Přesunout do Zákazník“ —
+  ručně nastavenou fázi nic samo nepřepisuje. Smazaná karta s e-mailem se znovu nezaloží
+  (`crm_suppressed`); záznam v `leads` se maže zvlášť.
+- **Import z průzkumu:** tlačítko *Import JSON* → soubor (max. 500 řádků, 700 kB): pole objektů nebo
+  `{"leads": [...]}` s poli `company` (povinné), `website`, `segment`, `country`, `city`, `source_url`,
+  `note`. Nejdřív náhled (nové / duplicity / neplatné), import až po potvrzení. Deduplikace podle domény
+  webu (`www.` a cesta se ignorují) a e-mailu, proti kanbanu i uvnitř souboru. Karty jdou do Prospekce se
+  zdrojem *Průzkum*. **Jména a telefony se z průzkumu neimportují** — kontaktní osobu, telefon a e-mail
+  doplňuje provozovatel ručně, až s firmou jedná (oprávněný zájem, B2B; popsané v Ochraně osobních údajů,
+  při námitce kartu smazat).
+- **Export:** *Export CSV* (středník + BOM), zapisuje se do auditu.
+- API (vše za přihlášením, změny s kontrolou Origin + X-Requested-With, audit): `GET /api/admin/crm`
+  (`?segment=&country=&q=`), `GET /api/admin/crm/lead?id=`, `POST /api/admin/crm/lead` (bez `id` založí,
+  s `id` upraví poslaná pole), `POST /api/admin/crm/move`, `POST /api/admin/crm/note`,
+  `POST /api/admin/crm/delete`, `POST /api/admin/crm/import` (`dry_run: true` = náhled),
+  `GET /api/admin/crm/export.csv`. Kód: `worker/crm.js`.
 
 ### Přihlášení tokenem — funguje hned, zdarma
 Na `/sprava/` zadejte hodnotu secretu `ADMIN_TOKEN` (viz A4; dlouhý náhodný řetězec, např.

@@ -63,3 +63,54 @@ CREATE TABLE IF NOT EXISTS payment_log (
 CREATE INDEX IF NOT EXISTS idx_payment_log_email ON payment_log(email);
 CREATE INDEX IF NOT EXISTS idx_payment_log_sub ON payment_log(sub_id);
 CREATE INDEX IF NOT EXISTS idx_payment_log_at ON payment_log(received_at);
+
+-- Obchodní kanban leadů (/sprava #/leady, /api/admin/crm*). Karta = firma.
+-- Web leady (tabulka leads z formuláře ke stažení) se promítají samy jako fáze new, bez duplicit
+-- podle e-mailu. U leadů z průzkumu (import) jen firemní údaje, contact_name / phone / email
+-- jsou pro ruční doplnění. domain = doména webu (nebo firemního e-mailu) pro deduplikaci.
+-- Hodnoty: segment integrator | strojirna | vyrobce | jine, source web_form | research | manual | import,
+-- stage prospect | new | contacted | trial | offer | won | lost. value_czk = odhad hodnoty v Kč za rok.
+CREATE TABLE IF NOT EXISTS crm_leads (
+  id            TEXT PRIMARY KEY,
+  email         TEXT,
+  company       TEXT NOT NULL,
+  contact_name  TEXT,
+  website       TEXT,
+  domain        TEXT,
+  phone         TEXT,
+  segment       TEXT NOT NULL DEFAULT 'jine',
+  country       TEXT,
+  city          TEXT,
+  source        TEXT NOT NULL,
+  source_url    TEXT,
+  stage         TEXT NOT NULL DEFAULT 'new',
+  value_czk     INTEGER,
+  value_note    TEXT,
+  next_action   TEXT,
+  next_date     TEXT,
+  owner         TEXT,
+  lost_reason   TEXT,
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_leads_email ON crm_leads(email) WHERE email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_crm_leads_domain ON crm_leads(domain);
+CREATE INDEX IF NOT EXISTS idx_crm_leads_stage ON crm_leads(stage, next_date);
+
+-- Historie karty: create | edit | stage_change (text from>to, případně důvod ztráty na dalším řádku)
+-- | note | contact | import (text = zdroj web_form / research).
+CREATE TABLE IF NOT EXISTS crm_events (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  lead_id  TEXT NOT NULL,
+  at       TEXT NOT NULL,
+  actor    TEXT NOT NULL,
+  type     TEXT NOT NULL,
+  text     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_crm_events_lead ON crm_events(lead_id, at);
+
+-- Smazané karty s e-mailem (námitka, chybný záznam): synchronizace z formuláře je znovu nezaloží.
+CREATE TABLE IF NOT EXISTS crm_suppressed (
+  email  TEXT PRIMARY KEY,
+  at     TEXT NOT NULL
+);
