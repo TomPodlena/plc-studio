@@ -149,7 +149,7 @@ const OPS = {
       rows.push({
         key: e.key, devId: e.devId, sheet: mi,
         svorka: "X" + (mi + 1) + ":" + (i + 1), modul: m.dir + m.idx, kanal: i,
-        addr: e.addr, tag: e.tag, cmt: (d.name ? d.name + " · " : "") + (e.cmt || ""),
+        addr: e.addr, tag: e.tag, wire: core.wireNo(mi + 1, i), cmt: (d.name ? d.name + " · " : "") + (e.cmt || ""),
       });
     }));
     return {

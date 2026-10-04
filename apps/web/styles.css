@@ -7,6 +7,8 @@
   --bg:#F5F6F9; --surface:#FFFFFF; --fg:#111A2E; --muted:#5A6881; --line:#D6DCE6;
   --accent:#2457C5; --accent-fg:#FFFFFF; --code-bg:#0B1221; --code-fg:#D4DEF2;
   --ok:#1a7f37; --warn:#b45309; --err:#b3261e; --chip:#E7ECF6;
+  /* sémantika signálů (= desktop theme.SIG_*): vstup DI modrá, výstup DO zelená, analog fialová */
+  --sig-in:#1F6FB2; --sig-out:#1A7F37; --sig-an:#7A4FB5;
   --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
   --font-brand:"Barlow","IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -17,6 +19,8 @@
     --bg:#0E1422; --surface:#161E31; --fg:#DDE3F0; --muted:#93A0BA; --line:#2A3550;
     --accent:#6E9BFF; --accent-fg:#0B1221; --code-bg:#080D17; --code-fg:#C9D5EC;
     --ok:#4ec977; --warn:#e0a84a; --err:#ef8b84; --chip:#1F2A42;
+    /* zesvětlené pro tmavé pozadí: na --surface 6,6 / 7,9 / 6,6 : 1 (AA) */
+    --sig-in:#5EA8EE; --sig-out:#4EC977; --sig-an:#B392F0;
     color-scheme:dark;
   }
 }

@@ -5,7 +5,7 @@
  * Texty jdou přes `tr()` po přirozených jednotkách (nadpis, odstavec, odrážka, řádek
  * hlavičky tabulky, věta v buňce); struktura Markdownu / CSV zůstává mimo klíče.
  */
-import { CLS, PLAT, devById, modules, dtFor, usedClasses, interlockDevs, DO_ROLES, } from "./model.js";
+import { CLS, PLAT, devById, modules, wireNo, dtFor, usedClasses, interlockDevs, DO_ROLES, } from "./model.js";
 import { bomCsv, bomMd } from "./bom.js";
 import { tr, N_, today } from "./i18n.js";
 import { genFor } from "./codegen.js";
@@ -179,8 +179,8 @@ export function docIOcsv(prj) {
     return l.join("\n");
 }
 export function svorkyCSV(prj) {
-    const l = [tr("Svorka;Modul;Kanál;Adresa;Tag;Komentář")];
-    modules(prj).forEach((m, mi) => m.ch.forEach((e, i) => l.push("X" + (mi + 1) + ":" + (i + 1) + ";" + m.dir + m.idx + ";" + i + ";" + e.addr + ";" + e.tag + ";" + (e.cmt || ""))));
+    const l = [tr("Svorka;Modul;Kanál;Adresa;Tag;Vodič;Komentář")];
+    modules(prj).forEach((m, mi) => m.ch.forEach((e, i) => l.push("X" + (mi + 1) + ":" + (i + 1) + ";" + m.dir + m.idx + ";" + i + ";" + e.addr + ";" + e.tag + ";" + wireNo(mi + 1, i) + ";" + (e.cmt || ""))));
     return l.join("\n");
 }
 export function docAlarmCsv(prj) {

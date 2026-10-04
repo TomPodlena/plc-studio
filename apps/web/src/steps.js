@@ -1,7 +1,7 @@
 /* Renderery kroků workflow. ctx = { S, save, render } — stav vlastní app.js.
    Texty pro uživatele jdou přes tr() (český text = klíč překladu); struktura HTML zůstává mimo klíče. */
 import {
-  PLAT, CLS, esc, blankProject, devById, nextName, syncIO, autoAddr, modules,
+  PLAT, CLS, esc, blankProject, devById, nextName, syncIO, autoAddr, modules, wireNo,
   validateProject, sanitizeTag, genFor, allProjectFiles,
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
   sampleSmall, sampleComplex, tr, N_, getLang, DO_ROLES, stepTitle,
@@ -483,7 +483,7 @@ export function makeSteps(ctx) {
         "<div class='row'><button class='small' data-svg='" + i + "'>" + tr("Stáhnout SVG") + "</button><button class='small' data-dxf='" + i + "'>" + tr("Stáhnout DXF") + "</button></div>";
     });
     const c2 = card(el, "·", tr("Elektrické zapojení I/O"), inner +
-      "<p class='warnbox'>" + tr("<b>Pozor:</b> NC/NO kontakty dle sloupce NC v kroku I/O; čísla vodičů -W1xx dle potenciálových řad. Jištění, průřezy, relé na výstupech s větší zátěží a stínění analogů doplní projektant elektro — toto je podklad, ne výrobní dokumentace. DXF otevře EPLAN / AutoCAD / LibreCAD.") + "</p>");
+      "<p class='warnbox'>" + tr("<b>Pozor:</b> NC/NO kontakty dle sloupce NC v kroku I/O; čísla vodičů podle svorkovnice (X1 → -W101…, X2 → -W201…). Jištění, průřezy, relé na výstupech s větší zátěží a stínění analogů doplní projektant elektro — toto je podklad, ne výrobní dokumentace. DXF otevře EPLAN / AutoCAD / LibreCAD.") + "</p>");
     c2.querySelectorAll("[data-svg]").forEach(b => b.addEventListener("click", () => {
       const i = +b.dataset.svg;
       downloadFile(String(i + 1).padStart(2, "0") + "_" + mods[i].dir + mods[i].idx + "_X" + (i + 1) + ".svg", sheetSVG(p, mods[i], i + 1, i + 1, mods.length));
@@ -495,10 +495,10 @@ export function makeSteps(ctx) {
     let rowsHtml = "";
     mods.forEach((m, mi) => m.ch.forEach((e, i) => {
       const d = devById(p, e.devId) || {};
-      rowsHtml += "<tr><td class='mono'><b>X" + (mi + 1) + ":" + (i + 1) + "</b></td><td class='mono'>" + m.dir + m.idx + "</td><td class='mono'>" + i + "</td><td class='mono'>" + esc(e.addr) + "</td><td class='mono'>" + esc(e.tag) + "</td><td style='color:var(--muted);font-size:.78rem'>" + esc((d.name ? d.name + " · " : "") + (e.cmt || "")) + "</td></tr>";
+      rowsHtml += "<tr><td class='mono'><b>X" + (mi + 1) + ":" + (i + 1) + "</b></td><td class='mono'>" + m.dir + m.idx + "</td><td class='mono'>" + i + "</td><td class='mono'>" + esc(e.addr) + "</td><td class='mono'>" + esc(e.tag) + "</td><td class='mono'>" + wireNo(mi + 1, i) + "</td><td style='color:var(--muted);font-size:.78rem'>" + esc((d.name ? d.name + " · " : "") + (e.cmt || "")) + "</td></tr>";
     }));
     const c3 = card(el, "·", tr("Svorkovnice"),
-      "<div class='tablewrap'><table><thead><tr><th>" + tr("Svorka") + "</th><th>" + tr("Modul") + "</th><th>" + tr("Kanál") + "</th><th>" + tr("Adresa") + "</th><th>" + tr("Tag") + "</th><th>" + tr("Zařízení / komentář") + "</th></tr></thead><tbody>" + rowsHtml + "</tbody></table></div>" +
+      "<div class='tablewrap'><table><thead><tr><th>" + tr("Svorka") + "</th><th>" + tr("Modul") + "</th><th>" + tr("Kanál") + "</th><th>" + tr("Adresa") + "</th><th>" + tr("Tag") + "</th><th>" + tr("Vodič") + "</th><th>" + tr("Zařízení / komentář") + "</th></tr></thead><tbody>" + rowsHtml + "</tbody></table></div>" +
       "<div class='row'><button class='small' id='bCsv'>" + tr("Stáhnout svorkovnici (CSV)") + "</button><span class='hint' style='margin:0'>" + tr("Podklad pro projektanta elektro.") + "</span></div>");
     c3.querySelector("#bCsv").addEventListener("click", () => downloadFile("03_svorkovnice.csv", svorkyCSV(p)));
   }

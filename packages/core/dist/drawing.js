@@ -2,10 +2,13 @@
  * PLCdesk — výkresy: jedna geometrie (ops) renderovaná do SVG (náhled)
  * i DXF R12 (EPLAN / AutoCAD / LibreCAD).
  * Konvence: rámeček s mřížkovými referencemi, popisové pole, značení -M1
- * (IEC 81346), čísla vodičů -W1xx, NC/NO kontakty (IEC 60617).
+ * (IEC 81346), čísla vodičů -W<svorkovnice><svorka> (`wireNo`), NC/NO kontakty (IEC 60617).
  */
-import { CLS, PLAT, devById, modules, esc, stripDia } from "./model.js";
+import { CLS, PLAT, devById, modules, wireNo, esc, stripDia } from "./model.js";
 import { trx, N_, today } from "./i18n.js";
+/* Označení revize projektu pro sloupec „Rev“ popisového pole — dodá revision.ts (bez revize undefined → „0.1“). */
+let sheetRev = null;
+export function setSheetRevision(fn) { sheetRev = fn; }
 function todayCz() { return today(true); }
 /** Text pro DXF R12: bez diakritiky a jen ASCII — typografické znaky nahradí nejbližší ASCII. */
 function dxfText(s) {
@@ -60,10 +63,9 @@ export function sheetOps(prj, mod, xnum, page, total, meta) {
     Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 });
     Tx(tx + 187, ty + 48, date, { size: 9 });
     Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 });
-    Tx(tx + 337, ty + 48, "0.1", { size: 9 });
+    Tx(tx + 337, ty + 48, meta?.rev ?? sheetRev?.(prj) ?? "0.1", { size: 9 });
     /* potenciály a karta PLC */
     const yEnd = top + rows * rh - 12;
-    const wBase = { DI: 101, DO: 201, AI: 301, AO: 401 }[mod.dir];
     const isIn = (mod.dir === "DI" || mod.dir === "AI");
     if (isIn) {
         Ln(80, top - 28, 80, yEnd, "r");
@@ -82,7 +84,7 @@ export function sheetOps(prj, mod, xnum, page, total, meta) {
         cur = e.key;
         const y = top + i * rh + 12;
         const d = devById(prj, e.devId) || { name: "", desc: "" };
-        const wn = "-W" + (wBase + i);
+        const wn = wireNo(xnum, i);
         if (mod.dir === "DI") {
             Ln(80, y, 300, y);
             Ln(300, y, 324, y - 13, "s"); // pohyblivý kontakt (IEC 60617)
@@ -232,7 +234,7 @@ export function circuitSheetOps(s) {
     Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 });
     Tx(tx + 187, ty + 48, s.date || todayCz(), { size: 9 });
     Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 });
-    Tx(tx + 337, ty + 48, "0.1", { size: 9 });
+    Tx(tx + 337, ty + 48, s.rev ?? "0.1", { size: 9 });
     Tx(40, 52, s.title, { k: "b", size: 12 });
     Tx(40, 68, s.note.slice(0, 130), { k: "m", size: 9 });
     /* logika */
@@ -336,14 +338,14 @@ export function svgBlock(prj, mods) {
     /* Blok = skupina <g> s odkazem (data-dev / data-mod) a popisem v <title>:
        prohlížeč z něj udělá bublinu, desktop podle něj blok rozklikne. */
     const box = (x, y, w, t1, t2, acc, attrs = "", title = "") => "<g" + attrs + ">" + (title ? "<title>" + esc(title) + "</title>" : "") +
-        '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + bh + '" rx="5" fill="' + (acc ? "var(--chip, #eee)" : "none") + '" stroke="' + (acc ? "var(--accent, #00707e)" : "var(--line, #999)") + '"/>' +
+        '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + bh + '" rx="5" fill="' + (acc ? "var(--chip, #eee)" : "none") + '" stroke="' + (acc ? "var(--accent, #2457C5)" : "var(--line, #999)") + '"/>' +
         sT(x + 8, y + 14, t1, TXT + ";font-weight:600") + (t2 ? sT(x + 8, y + 27, String(t2).slice(0, 34), MUT) : "") + "</g>";
     const devTitle = (d) => d.name + " — " + (d.desc || trx(CLS[d.cls].label)) + "\n" + trx(CLS[d.cls].label) + "\n" +
         prj.io.filter(e => e.devId === d.id).map(e => e.dir + "  " + e.tag + "  " + e.addr).join("\n");
     let s = "";
     const plcH = (mods.length + 2) * (bh + g) + 14;
-    s += '<rect x="340" y="' + (top - 10) + '" width="300" height="' + plcH + '" rx="8" fill="none" stroke="var(--accent, #00707e)" stroke-width="1.5"/>';
-    s += sT(350, top - 18, "PLC", TXT + ";font-weight:700;fill:var(--accent, #00707e)");
+    s += '<rect x="340" y="' + (top - 10) + '" width="300" height="' + plcH + '" rx="8" fill="none" stroke="var(--accent, #2457C5)" stroke-width="1.5"/>';
+    s += sT(350, top - 18, "PLC", TXT + ";font-weight:700;fill:var(--accent, #2457C5)");
     s += sT(640, top - 18, trx("zdroje signálů →  PLC  → akční členy"), MUT, "end");
     s += box(352, yy(0), 276, trx("PS — zdroj 24 V DC"), trx("napájení modulů a snímačů"), false);
     s += box(352, yy(1), 276, "CPU", prj.platforms.map(p => PLAT[p].cpu).join(" · ") || "—", true);

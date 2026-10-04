@@ -6,6 +6,9 @@ import type { SolutionConcept } from "./concept.js";
 import type { ApprovalRecord } from "./approval.js";
 import type { CommissioningRecord } from "./commission.js";
 import type { SafetyCfg } from "./safety.js";
+import type { RevisionRecord } from "./revision.js";
+import type { QuoteCfg } from "./quote.js";
+import type { CompanyLibrary } from "./library.js";
 export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics";
 export type DeviceClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "DI" | "DO";
 export type Dir = "DI" | "DO" | "AI" | "AO";
@@ -37,6 +40,8 @@ export interface Device {
     setpoint?: number;
     /** DO: vazba výstupu na stav stroje (maják chod/porucha, zámek krytů…). */
     role?: DoRole;
+    /** typ z firemní knihovny (`LibDeviceType.id`, viz library.ts) */
+    libType?: string;
 }
 export interface IoEntry {
     key: string;
@@ -92,6 +97,12 @@ export interface Project {
     commissioning?: Record<string, CommissioningRecord>;
     /** Bezpečnostní funkce: parametry výpočtu, volby a úpravy návrhu (viz safety.ts). */
     safety?: SafetyCfg;
+    /** Nabídka (interní): ceník, sazby, parametry odhadu hodin (viz quote.ts). */
+    quote?: QuoteCfg;
+    /** Kopie firemní knihovny (typy zařízení, šablony FB, hlavička; viz library.ts). */
+    library?: CompanyLibrary;
+    /** Revize projektu (nejstarší první): zmrazený obsah a stav schválení (viz revision.ts). */
+    revisions?: RevisionRecord[];
 }
 export interface BomLineCfg {
     brand?: string;
@@ -165,6 +176,13 @@ export declare function dtFor(e: IoEntry): "BOOL" | "INT";
 /** Převod kanonické (Siemens) adresy na notaci cílové platformy. */
 export declare function addrFor(plat: PlatformKey, e: IoEntry): string;
 export declare function addrOrd(e: IoEntry): number;
+/**
+ * Číslo vodiče kanálu: stovky = svorkovnice X<n> (pořadí modulu z `modules()`), zbytek = svorka
+ * X<n>:<k> — X1:1 → -W101, X2:3 → -W203, X10:1 → -W1001. Unikátní v celém projektu (modul má
+ * nejvýš 16 kanálů) a stabilní: změna jednoho modulu nepřečísluje vodiče ostatních.
+ * Jediný zdroj pro výkresy (SVG/DXF), seznam svorek dokumentace a export EPLAN.
+ */
+export declare function wireNo(xnum: number, ch: number): string;
 /** Rozdělení I/O do modulů (DI16 / DO16 / AI8 / AO4) pro schémata a FDS. */
 export declare function modules(prj: Project): IoModule[];
 export interface ValidationIssue {

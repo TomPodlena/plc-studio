@@ -30,6 +30,9 @@ _VARS = {
     "chip": theme.FIELD,
     "accent": theme.ACCENT,
     "err": theme.ERR,
+    "sig-in": theme.SIG_IN,      # sémantika signálů jako web (--sig-in / --sig-out / --sig-an)
+    "sig-out": theme.SIG_OUT,
+    "sig-an": theme.SIG_AN,
 }
 _DESCENT = 0.22  # podíl výšky písma pod účařím (Consolas) — SVG kotví text na účaří
 _META_KEYS = ("dev", "mod", "step")           # celočíselné odkazy

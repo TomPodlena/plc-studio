@@ -244,6 +244,15 @@ export function addrOrd(e) {
         return 999999;
     return m[1] ? 100000 + (+m[2]) : (+m[2]) * 8 + (+(m[3] || 0));
 }
+/**
+ * Číslo vodiče kanálu: stovky = svorkovnice X<n> (pořadí modulu z `modules()`), zbytek = svorka
+ * X<n>:<k> — X1:1 → -W101, X2:3 → -W203, X10:1 → -W1001. Unikátní v celém projektu (modul má
+ * nejvýš 16 kanálů) a stabilní: změna jednoho modulu nepřečísluje vodiče ostatních.
+ * Jediný zdroj pro výkresy (SVG/DXF), seznam svorek dokumentace a export EPLAN.
+ */
+export function wireNo(xnum, ch) {
+    return "-W" + (xnum * 100 + ch + 1);
+}
 /** Rozdělení I/O do modulů (DI16 / DO16 / AI8 / AO4) pro schémata a FDS. */
 export function modules(prj) {
     const per = { DI: 16, DO: 16, AI: 8, AO: 4 };

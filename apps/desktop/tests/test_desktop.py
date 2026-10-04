@@ -1734,6 +1734,7 @@ class GuiTest(unittest.TestCase):
     def test_import_wizard_foreign_samples_review_and_skip(self):
         """Cizí vzorky (TIA, Logix, GX Works3, I/O list): revize, zdroje, odškrtnutí, převzetí."""
         self.app.load_sample("small")
+        # kořen test-data = podklady importu; podsložky (real/, quote/ …) mají jiný účel
         data = Path(__file__).resolve().parents[3] / "packages" / "core" / "test-data"
         paths = sorted(str(p) for p in data.iterdir() if p.is_file())
         self.assertGreaterEqual(len(paths), 5)
@@ -2236,8 +2237,7 @@ class GuiTest(unittest.TestCase):
         self.root.update()
         ent = next(e for e in self.find(ttk.Entry) if e.winfo_ismapped() and e.grid_info().get("column") == 2)
         ent.insert(0, "Vlastní s.r.o.")
-        ent.event_generate("<Return>")
-        self.root.update()
+        self.key(ent, "<Return>")      # klávesa jde do okna s fokusem — bez něj se Enter ztratí
         tv = self._bom_table().tv
         self.assertEqual(tv.set("-K1:contactor", "brand"), "Vlastní s.r.o.")
         self.assertEqual(tv.set("-K2:contactor", "brand"), brand)

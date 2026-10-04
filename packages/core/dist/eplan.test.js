@@ -1,0 +1,168 @@
+/** Testy exportu do EPLAN (eplan.ts) — node:test, bez závislostí. */
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { withLang } from "./i18n.js";
+import { modules } from "./model.js";
+import { svorkyCSV, allProjectFiles } from "./docs.js";
+import { buildBom } from "./bom.js";
+import { sheetOps, opsToDXF } from "./drawing.js";
+import { sampleSmall, sampleComplex } from "./samples.js";
+import { registerSafetyModule } from "./safety.js";
+import { eplanFiles, eplanCards, eplanTerminals, eplanAml, eplanDevicesCsv, eplanTerminalsCsv, eplanWiresCsv, eplanAmlName } from "./eplan.js";
+import "./safety_docs.js";
+import { sampleNames, loadSampleFile, xmlProblem } from "./exp_util.test.js";
+/** Řádky CSV s čárkou a uvozovkami. */
+function csvRows(s) {
+    const out = [];
+    let row = [], cur = "", q = false;
+    const t = s.replace(/^﻿/, "");
+    for (let i = 0; i < t.length; i++) {
+        const c = t[i];
+        if (q) {
+            if (c === '"' && t[i + 1] === '"') {
+                cur += '"';
+                i++;
+            }
+            else if (c === '"')
+                q = false;
+            else
+                cur += c;
+            continue;
+        }
+        if (c === '"')
+            q = true;
+        else if (c === ",") {
+            row.push(cur);
+            cur = "";
+        }
+        else if (c === "\r" && t[i + 1] === "\n") {
+            row.push(cur);
+            out.push(row);
+            row = [];
+            cur = "";
+            i++;
+        }
+        else
+            cur += c;
+    }
+    if (cur || row.length) {
+        row.push(cur);
+        out.push(row);
+    }
+    return out;
+}
+const ASCII = /^[\x20-\x7E]*$/;
+test("EPLAN: všech 12 příkladů — AutomationML well-formed, tagy a kanály 1:1, vazby na existující ID", () => {
+    for (const n of sampleNames()) {
+        const p = loadSampleFile(n);
+        const files = eplanFiles(p);
+        assert.deepEqual(files.map(f => f.name), [eplanAmlName(p), "eplan_zarizeni.csv", "eplan_svorky.csv", "eplan_vodice.csv", "README_EPLAN.txt"], n);
+        const aml = files[0].body;
+        assert.equal(xmlProblem(aml), "", n + ": XML");
+        assert.match(aml, /<CAEXFile FileName="[^"]+" SchemaVersion="2\.15"/);
+        assert.ok(aml.includes('DocumentIdentifier="AR APC" Version="1.4.0"'));
+        const tags = [...aml.matchAll(/<ExternalInterface Name="([^"]+)" ID="([^"]+)" RefBaseClassPath="AutomationProjectConfigurationInterfaceClassLib\/Tag">/g)];
+        const chans = [...aml.matchAll(/RefBaseClassPath="AutomationProjectConfigurationInterfaceClassLib\/Channel"/g)];
+        const links = [...aml.matchAll(/<InternalLink Name="[^"]+" RefPartnerSideA="([^":]+):([^"]+)" RefPartnerSideB="([^":]+):([^"]+)" \/>/g)];
+        assert.equal(tags.length, p.io.length, n + ": tag na každý signál");
+        assert.equal(chans.length, p.io.length, n + ": kanál na každý signál");
+        assert.equal(links.length, p.io.length, n + ": vazba kanál ↔ tag");
+        assert.deepEqual(new Set(tags.map(t => t[1])), new Set(p.io.map(e => e.tag)));
+        const elIds = new Set([...aml.matchAll(/<InternalElement Name="[^"]*" ID="([^"]+)"/g)].map(m => m[1]));
+        for (const l of links) {
+            assert.ok(elIds.has(l[1]) && elIds.has(l[3]), n + ": ID vazby");
+            assert.ok(p.io.some(e => e.tag === l[4]), n + ": tag vazby");
+        }
+        for (const c of eplanCards(p))
+            assert.ok(aml.includes('<Attribute Name="ProductDesignation IEC" AttributeDataType="xs:string"><Value>' + c.dt + "</Value>"), n + ": " + c.dt);
+    }
+});
+test("EPLAN: označení shodná s výkresy (svorky X, vodiče -W) a kusovníkem; ASCII označení", () => {
+    for (const n of sampleNames()) {
+        const p = loadSampleFile(n);
+        const cards = eplanCards(p);
+        const mods = modules(p);
+        assert.equal(cards.length, mods.length);
+        const terms = eplanTerminals(p, cards);
+        /* seznam svorek dokumentace (X1:1 …) = svorky EPLAN (-X1:1 …) */
+        const doc = svorkyCSV(p).split("\n").slice(1).map(l => l.split(";")[0]);
+        assert.deepEqual(terms.map(t => t.dt), doc.map(x => "-" + x), n + ": svorky = dokumentace");
+        /* výkres modulu nese stejné svorky a čísla vodičů */
+        mods.forEach((m, i) => {
+            const texts = new Set(sheetOps(p, m, i + 1, i + 1, mods.length).O.filter(o => o.t === "t").map(o => o.s));
+            for (const t of terms.filter(x => x.card === cards[i].dt)) {
+                assert.ok(texts.has(t.dt.slice(1)), n + ": svorka " + t.dt + " ve výkresu");
+                assert.ok([...texts].some(s => s === t.wire || s.endsWith(" " + t.wire)), n + ": vodič " + t.wire + " ve výkresu");
+            }
+        });
+        /* označení zařízení = řádky kusovníku (karty rozepsané -A2.1 …) */
+        const bomTags = new Set(buildBom(p).lines.map(l => l.tag));
+        const dev = csvRows(eplanDevicesCsv(p, cards));
+        assert.equal(dev[0][0], "Device tag");
+        for (const r of dev.slice(1)) {
+            assert.ok(ASCII.test(r[0]), n + ": ASCII " + r[0]);
+            assert.ok(bomTags.has(r[0].replace(/\.\d+$/, "")) && bomTags.has(r[9]), n + ": " + r[0] + " v kusovníku");
+        }
+        for (const c of cards)
+            assert.ok(dev.some(r => r[0] === c.dt), n + ": karta " + c.dt + " v seznamu zařízení");
+        const tr = csvRows(eplanTerminalsCsv(p, cards));
+        assert.equal(tr.length - 1, p.io.length);
+        for (const r of tr.slice(1))
+            for (const k of [0, 2, 3, 8])
+                assert.ok(ASCII.test(r[k]), n + ": ASCII " + r[k]);
+        const wr = csvRows(eplanWiresCsv(p, cards));
+        assert.equal(wr.length - 1, p.io.length);
+        for (const r of wr.slice(1))
+            assert.match(r[0], /^-W\d{3,}$/);
+    }
+});
+test("vodiče -W: unikátní v celém projektu a shodné ve výkresech (SVG i DXF), svorkovnici a EPLAN — všechny příklady", () => {
+    for (const n of sampleNames()) {
+        const p = loadSampleFile(n);
+        const mods = modules(p);
+        /* výkresy: každý kanál nese právě jedno číslo vodiče, X<n>:<k> → -W<n·100+k> */
+        const drawn = [];
+        mods.forEach((m, i) => {
+            const ops = sheetOps(p, m, i + 1, i + 1, mods.length);
+            const ws = ops.O.filter(o => o.t === "t").flatMap(o => o.s.match(/-W\d+/g) || []);
+            assert.equal(ws.length, m.ch.length, n + ": " + m.dir + m.idx + " — vodič na každém kanálu");
+            ws.forEach((w, k) => assert.equal(w, "-W" + ((i + 1) * 100 + k + 1), n + ": " + m.dir + m.idx + " kanál " + k));
+            const dxf = opsToDXF(ops);
+            for (const w of ws)
+                assert.ok(dxf.includes("\n" + w + "\n") || dxf.includes(" " + w + "\n"), n + ": " + w + " v DXF");
+            drawn.push(...ws);
+        });
+        assert.equal(drawn.length, p.io.length, n + ": počet vodičů = počet signálů");
+        const dup = drawn.filter((w, i) => drawn.indexOf(w) !== i);
+        assert.deepEqual(dup, [], n + ": duplicitní čísla vodičů");
+        /* svorkovnice dokumentace (sloupec Vodič) a EPLAN nesou stejná čísla ve stejném pořadí */
+        const doc = svorkyCSV(p).split("\n").slice(1).map(l => l.split(";")[5]);
+        assert.deepEqual(doc, drawn, n + ": svorkovnice = výkresy");
+        assert.deepEqual(eplanTerminals(p).map(t => t.wire), drawn, n + ": EPLAN = výkresy");
+    }
+});
+test("EPLAN: přihlášení s modulem a bez češtiny v cizích jazycích", () => {
+    const off = registerSafetyModule();
+    try {
+        const p = sampleComplex();
+        const all = allProjectFiles(p);
+        for (const s of ["eplan_" + eplanAmlName(p), "eplan_zarizeni.csv", "eplan_svorky.csv", "eplan_vodice.csv", "eplan_README_EPLAN.txt"])
+            assert.ok(all.some(f => f.save === s && f.group === "EPLAN"), s);
+    }
+    finally {
+        off();
+    }
+    const CZ = /[ěščřžůďťňĚŠČŘŽŮĎŤŇ]/;
+    for (const l of ["en", "de", "es", "zh"])
+        withLang(l, () => {
+            for (const mk of [sampleSmall, sampleComplex]) {
+                const p = l === "zh" ? withLang("en", mk) : mk();
+                for (const f of eplanFiles(p)) {
+                    const m = f.body.match(CZ);
+                    assert.ok(!m, l + " / " + f.name + ": „" + (m ? f.body.slice(Math.max(0, m.index - 60), m.index + 40) : "") + "“");
+                    assert.ok(!/\{[a-z][A-Za-z]*\}/.test(f.body), l + " / " + f.name + ": zástupný znak");
+                }
+                assert.equal(xmlProblem(eplanAml(p)), "");
+            }
+        });
+});

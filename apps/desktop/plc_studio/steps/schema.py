@@ -151,9 +151,9 @@ def render(app, parent) -> None:
     info = ttk.Frame(t3)
     info.pack(fill="x", pady=(0, 6))
     note_box(t3, _(
-        "Pozor: NC/NO kontakty dle sloupce NC v kroku I/O; čísla vodičů -W1xx dle "
-        "potenciálových řad. Jištění, průřezy, relé na výstupech s větší zátěží a stínění "
-        "analogů doplní projektant elektro — toto je podklad, ne výrobní dokumentace. "
+        "Pozor: NC/NO kontakty dle sloupce NC v kroku I/O; čísla vodičů podle "
+        "svorkovnice (X1 → -W101…, X2 → -W201…). Jištění, průřezy, relé na výstupech "
+        "s větší zátěží a stínění analogů doplní projektant elektro — toto je podklad, ne výrobní dokumentace. "
         "DXF otevře EPLAN / AutoCAD / LibreCAD."), warn=True, side="bottom")
 
     def show_info() -> None:
@@ -206,12 +206,13 @@ def render(app, parent) -> None:
                command=lambda: save_file(app, "03_svorkovnice.csv", data["csv"])).pack(side="left")
     tbl = Table(t4, [("svorka", _("Svorka"), 80, False), ("modul", _("Modul"), 70, False),
                      ("kanal", _("Kanál"), 60, False), ("addr", _("Adresa"), 90, False),
-                     ("tag", _("Tag"), 220, True),
+                     ("tag", _("Tag"), 220, True), ("wire", _("Vodič"), 70, False),
                      ("cmt", _("Zařízení / komentář"), 420, True)],
                 height=12)
     tbl.pack(fill="both", expand=True)
     for r in rows:
-        tbl.add(r["key"], (r["svorka"], r["modul"], r["kanal"], r["addr"], r["tag"], r["cmt"]))
+        tbl.add(r["key"], (r["svorka"], r["modul"], r["kanal"], r["addr"], r["tag"], r["wire"],
+                           r["cmt"]))
 
     def with_row(action) -> None:
         r = terms.get(tbl.selected())

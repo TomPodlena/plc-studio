@@ -16,7 +16,10 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
   (`importers.ts`), výkresy ops→SVG/DXF (`drawing.ts`), dokumentace (`docs.ts`), ukázky (`samples.ts`),
   simulace procesu a ověření programu (`sim.ts`), funkční a časový diagram (`flow.ts`),
   kusovník komponent (`bom.ts` + katalog `catalog.ts` / `catalog_data.ts`), odkazy na dokumentaci
-  platforem (`platform_refs.ts`).
+  platforem (`platform_refs.ts`), schvalování (`approval.ts`), oživení (`commission.ts`), bezpečnostní
+  funkce a program (`safety*.ts`), PLCopen XML (`plcopen.ts`), L5X (`logix.ts`), koncepty (`concept.ts`),
+  emulace překladu a běhu (`emu/`), HMI (`hmi*.ts`), revize (`revision.ts`), nabídka (`quote.ts`),
+  firemní knihovna (`library.ts`), exporty SISTEMA (`sistema.ts`) a EPLAN (`eplan.ts`).
   Jádro musí běžet v prohlížeči i Node — žádné závislosti nepřidávat.
 - `apps/web` — aplikace: statické HTML + ES moduly nad `packages/core/dist` (bez bundleru,
   záměrně — budoucí přechod na Vite/React je OK, ale core zůstává oddělené).
@@ -35,7 +38,8 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
 
 ```bash
 pnpm -C packages/core build   # tsc → dist (dist je commitnutý, po změně core přegeneruj a commitni)
-pnpm -C packages/core test    # node --test, 59+ testů, bez závislostí
+pnpm -C packages/core test    # build + node --test dist/*.test.js: 139 testů v 8 souborech (~75 s), bez závislostí
+node --test "packages/core/dist/*.test.js"   # totéž bez buildu; testy berou samples/ a test-data/ relativně k dist
 npx -y -p typescript tsc -p packages/core/tsconfig.json   # build bez pnpm (ověřeno: tsc 7 dává shodný dist)
 npx http-server . -p 8080     # → http://localhost:8080/apps/web/
 # desktop (z apps/desktop; na vývojové stanici pinovat Python311, ne bare `python`):
@@ -113,6 +117,70 @@ node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s
   Výsledek se cachuje (projekt × volby × jazyk). Simulátor zapisuje vstupy stroje přes `setModel`
   (sledování změn) a snímky ukládá jen při změně stavu — při úpravách scanu to dodržet.
 
+## Emulace překladu a běhu (`src/emu/`)
+
+- `emulateCompile(prj, plat)` ověří **skutečný výstup `genFor`** (SCL, ST, L5X, plochý ST UniLogic):
+  lexer + parser IEC 61131-3 (`lexer.ts`, `parser.ts`), načtení souborů platformy (`load.ts`) a pravidla
+  dialektů se zdrojem u každého pravidla (`dialects.ts`: `EMU_DIALECTS`, `EMU_RULES`, `EMU_SRC`) →
+  `EmuFinding` (error / warn / info, soubor:řádek:sloupec). `emulateRun` / `emulateRunMany` / `emulateAll`
+  přeložený kód spustí scan po scanu proti modelu stroje simulátoru ve scénářích `verifyProject`
+  (`emuScenarios`) a porovná chování kód ↔ návrh (`diffs`); `emulateFiles` / `emulateRunFiles` pro
+  vlastní soubory. Cache podle otisku přeloženého programu (komentáře a jazyk ho nemění).
+- Testy (`emu.test.ts`): 12 příkladů × 8 platforem × 5 jazyků bez chyby překladu a bez rozdílu proti
+  návrhu, mutační testy (vložené chyby kódu musí emulátor chytit), výkon `emulateAll` největšího příkladu.
+- **Emulátor ≠ překladač výrobce.** Výhradu nese dokument `15_emulace_prekladu.md` (`emuDocMd`) i každé UI,
+  které výsledek ukáže — neodstraňovat; reálný import v IDE je dál nutný. Dokument je opt-in:
+  `registerEmuModule()` (import jádra nic nepřihlašuje; celá matice je výpočetně drahá).
+- Běh staví program přes `new Function` (`compile.ts`). Stránka s CSP bez `'unsafe-eval'` ho zakáže →
+  kontrola překladu funguje dál, běh vrátí nález `runtime` („Interní chyba emulátoru…“), nespadne.
+  Při nasazení webu s CSP buď povolit `'unsafe-eval'`, nebo běh emulace pouštět ve workeru / v desktopu.
+
+## HMI (`hmi.ts`, `hmi_view.ts`, `hmi_export.ts`, `hmi_docs.ts`, `hmi_xlsx.ts`)
+
+- Jeden model `buildHmi(prj)` → tagy, alarmy, obrazovky. **Nic se neopisuje:** tagy řízení z deklarací
+  generátoru (`ctrlDecls`), proměnné bloků ze šablon (`parseFbTemplate`), alarmy = `docAlarmCsv` (stejné
+  kódy a texty), kroky = `stepTitle` / `stepCondText`. Každý tag ukazuje na proměnnou, kterou program
+  deklaruje (test: příklady × platformy × jazyky). Program se kvůli HMI nemění — meze a žádané hodnoty
+  jsou v HMI jen ke čtení (globální proměnné pro zápis = fáze 2).
+- Výstupy: SVG náhledy obrazovek, `hmiJson`, webové HMI `hmiWebHtml`, exporty výrobců `hmiFiles(prj, plat)`
+  (WinCC: Openness XML + listy Excel přes vlastní zápis .xlsx `hmi_xlsx.ts`; FactoryTalk View CSV/XML;
+  CODESYS / Machine Expert Visu; TwinCAT HMI; GT Designer3; Sysmac NA; Unitronics bez exportu) se stavem `unverified` / `reference` / `stub` a zdroji (`hmiExportSpec`).
+  Dokument `16_hmi.md` a soubory se přidají po `registerHmiModule()` (opt-in, klienti ve fázi 3).
+
+## Revize a změnové řízení (`revision.ts`)
+
+- `createRevision(prj, kdo, poznámka)` → `prj.revisions` (označení A, B… nebo 01, 02…; zmrazený obsah bez
+  revizí/schválení/oživení a stav schválení `approvalsAt`). `diffProjects(a, b)` / `diffRevisions` /
+  `changesSinceRevision`: změny po položkách, třída kosmetická / funkční / bezpečnostní; dotčené položky
+  ze **skutečných otisků** `approval.ts` (levně `maybe`, `exact` spustí ověření). `retestScope()` = NÁVRH
+  rozsahu opakovaných zkoušek (FAT, kroky oživení, validace bezpečnostních funkcí) — potvrzuje člověk.
+- Přihlašuje se sám při importu: `17_zmeny.md` (jen s revizí) a sloupec Rev popisového pole výkresů
+  (`setSheetRevision`, bez revize „0.1“).
+
+## Nabídka a firemní knihovna (`quote.ts`, `library.ts`)
+
+- **Nabídka** (interní podklad): kusovník oceněný **vlastním ceníkem uživatele** (`parsePriceList` — český
+  Excel se středníkem, desetinná čárka, měna ve sloupci/záhlaví; párování objednací kód → typ+značka →
+  kategorie) + odhad hodin z projektu × sazby uživatele (`QUOTE_PARAM_INFO` vysvětluje parametry).
+  **Ceny se nikdy nevymýšlí** — bez ceníku / kurzu / sazby prázdné a položka v `unpriced`. `18_nabidka.md`
+  jen na volbu `prj.quote.inDocs`. Testovací ceník: `test-data/quote/` (kořen `test-data/` = podklady importu).
+- **Knihovna** (`plcdesk-library`, verze `LIBRARY_SCHEMA`; export/import, kopie v `prj.library`): vlastní
+  typy zařízení (díly kusovníku přes `registerBomProvider`, časy kroků), šablony FB se **stejným
+  rozhraním** jako vestavěné (`validateFbTemplate`, ST jen ASCII), firemní hlavička, výchozí volby.
+  `libraryOverrides(prj, plat)` říká, co nahradit — zapojení do `genFor` je fáze 2; simulace dál zrcadlí
+  vestavěné šablony (vlastní blok simulací ověřen není).
+
+## Exporty SISTEMA a EPLAN (`sistema.ts`, `eplan.ts`)
+
+- **SISTEMA**: `sistemaModel` (funkce → subsystémy → kanály → bloky, označení shodná s kusovníkem a výkresem
+  bezpečnostního okruhu) → `.ssm` (XML tiOPF, struktura SISTEMA 2.0.8 / ISO 13849-1:2015, kontrola proti
+  `ssm_21.xsd`), `sistemaCsv` (předpis pro ruční zadání), `19_sistema.md` (porovnání PL PLCdesk × SISTEMA).
+  Kategorie a PL se v SISTEMA potvrzují ručně. Stav `SISTEMA_VERIFIED` = neověřeno importem.
+- **EPLAN**: AutomationML AR APC 1.4.0 (`eplanAml`), seznam zařízení z kusovníku, svorky `-X<n>:<k>` a vodiče
+  (`wireNo`) shodné s výkresy; stav `EPLAN_VERIFIED` = neověřeno importem (licence není). AML v2 = fáze 2.
+- Oba exporty se přihlašují s bezpečnostním modulem (`addSafetyRegistration`). Testy používají pomůcky
+  `exp_util.test.ts` (příklady, přísná kontrola well-formed XML).
+
 ## Vícejazyčnost
 
 - **Zdrojový jazyk je čeština a český text je klíčem překladu** (jako gettext). Chybějící překlad
@@ -131,7 +199,8 @@ node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s
 - Katalogy: `packages/core/src/i18n/{en,de,es,zh}.ts` (tělo = JSON, společné pro jádro, web
   i desktop — desktop dostane katalog z mostu v `init`). Udržuje je `scripts/i18n.py`:
   `check` (chybějící / přebývající klíče, zástupné znaky), `missing <jazyk>`, `merge <jazyk> soubor.json`,
-  `prune`. Po přidání textu: `missing` → přeložit → `merge` → build jádra. Úplnost hlídají testy
+  `prune`. Sběr klíčů prochází `packages/core/src` rekurzivně (i `emu/`; bez testů a katalogů `i18n/`),
+  `apps/web/src`, `bridge.mjs` a `plc_studio/`. Testy jádra překlady neberou odjinud než z katalogů. Po přidání textu: `missing` → přeložit → `merge` → build jádra. Úplnost hlídají testy
   (jádro: žádná čeština ve výstupech jiných jazyků; desktop: `CatalogTest` a průchod všemi kroky).
 - Jazyk je stav jádra (`setLang`); desktop ho drží v `settings.json`, web v `localStorage`
   (`plcstudio.lang`, parametr adresy `?lang=en`). **Obsah projektu se nepřekládá** (názvy, popisy,
@@ -150,7 +219,11 @@ node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s
 - Tagy: `<Zařízení>_<signál>`; `sanitizeTag()`/`validateProject()` hlídá přenositelnost (ASCII pro
   Rockwell/GX Works3/Sysmac). Generovaný kód: stavové automaty s timeouty, statusy 16#0000/8001/8002.
 - Výkresy: jedna geometrie (ops) → SVG náhled + DXF R12; konvence ECAD (rámeček, popisové pole,
-  -M1 dle IEC 81346, -W1xx čísla vodičů, NC/NO dle IEC 60617). DXF texty bez diakritiky.
+  -M1 dle IEC 81346, čísla vodičů, NC/NO dle IEC 60617). DXF texty bez diakritiky.
+  **Čísla vodičů** jen z `wireNo(xnum, kanál)` (model.ts): stovky = svorkovnice X<n> → X1:1 = -W101,
+  X2:3 = -W203, X10:1 = -W1001 — unikátní v projektu a stabilní při změně jiného modulu. Používají ho
+  výkresy, svorkovnice (`svorkyCSV`, sloupec Vodič; tabulky Schéma ve webu i desktopu) a `eplan.ts`;
+  unikátnost a shodu na všech příkladech hlídá test v `eplan.test.ts`.
 - **Navrhovat vše, platí jen schválené** (rozhodnutí uživatele 2026-10-03, nahrazuje dřívější „nikdy
   negenerovat safety logiku“): aplikace NAVRHUJE procesní logiku, bezpečnostní funkce (nebezpečí, PLr,
   architektura, komponenty, zapojení) včetně **bezpečnostního programu** pro bezpečnostní PLC z
@@ -237,7 +310,7 @@ Hotovo: PLCopen XML (TC6), import stávajících zařízení (reverse + AI, delt
 bezpečnostní funkce + program po schválení, schvalování, oživení, web PLCdesk (apps/site, Cloudflare
 workers.dev, licenční API, Stripe/Paddle), přenosná verze 0.1.0 (GitHub Releases).
 
-**Fáze 1 — rozpracováno 2026-10-04 (nové moduly jádra):**
+**Fáze 1 — ✅ hotovo 2026-10-04 (integrace jádra: překlady sloučené, dist, testy; UI nových modulů = fáze 3):**
 1. Emulátory překladu a běhu všech 8 platforem (`emu/`) — dialektová kontrola skutečného kódu + interpret
    proti modelu stroje (kód ↔ návrh); emulátor ≠ překladač výrobce
 2. HMI (`hmi.ts`) — tagy, alarmy, obrazovky, exporty WinCC / FactoryTalk / CODESYS Visu / GT / NA / web HMI
@@ -247,7 +320,8 @@ workers.dev, licenční API, Stripe/Paddle), přenosná verze 0.1.0 (GitHub Rele
 
 **Fáze 2:** servoosy (PLCopen Motion) a pohony po síti (PROFINET / EtherCAT, IO-Link, vzdálené I/O);
 volitelný styl kódu „OOP“ pro CODESYS / TwinCAT / WAGO (rozhraní, metody, ošetření chyb, pokyny k tasku)
-+ WAGO jako varianta CODESYS — vše ověřené emulátory.
++ WAGO jako varianta CODESYS — vše ověřené emulátory. Navazuje na fázi 1: knihovna FB do `genFor`
+(`libraryOverrides`), globální proměnné pro zápis z HMI (meze, žádané hodnoty), FX5 časovače nad 32,7 s.
 **EPLAN AML v2** (zadání `docs/eplan-aml-export.md`): perzistentní `guid` v modelu (Project, Device,
 modul, IoEntry — přidělit při vzniku, doplnit při načtení starých projektů; nikdy negenerovat až při
 exportu), hierarchie stanice/rack/slot, sítě a porty s InternalLink v nejbližším společném rodiči,

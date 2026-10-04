@@ -2,7 +2,7 @@
  * PLCdesk — výkresy: jedna geometrie (ops) renderovaná do SVG (náhled)
  * i DXF R12 (EPLAN / AutoCAD / LibreCAD).
  * Konvence: rámeček s mřížkovými referencemi, popisové pole, značení -M1
- * (IEC 81346), čísla vodičů -W1xx, NC/NO kontakty (IEC 60617).
+ * (IEC 81346), čísla vodičů -W<svorkovnice><svorka> (`wireNo`), NC/NO kontakty (IEC 60617).
  */
 import { Project, IoModule } from "./model.js";
 /** `io` = klíč signálu, ke kterému prvek patří (interaktivní náhledy; DXF ho ignoruje). */
@@ -42,10 +42,13 @@ export interface SheetOps {
     H: number;
     O: Op[];
 }
+/** `rev` = označení revize do popisového pole (jinak z `setSheetRevision`, výchozí „0.1“). */
 export interface SheetMeta {
     projectName: string;
     date: string;
+    rev?: string;
 }
+export declare function setSheetRevision(fn: ((prj: Project) => string | undefined) | null): void;
 export declare function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number, total: number, meta?: SheetMeta): SheetOps;
 /** Render ops do SVG; barvy přes CSS proměnné stránky (téma). */
 export declare function opsToSVG(sh: SheetOps, label: string): string;
@@ -79,6 +82,8 @@ export interface CircuitSheet {
         kind: "contactors" | "sto" | "valve" | "other";
     }>;
     reset: string | null;
+    /** Označení revize do popisového pole (výchozí „0.1“). */
+    rev?: string;
 }
 export declare function circuitSheetOps(s: CircuitSheet): SheetOps;
 export declare function circuitSheetSVG(s: CircuitSheet): string;

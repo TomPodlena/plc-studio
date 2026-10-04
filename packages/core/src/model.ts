@@ -6,6 +6,9 @@ import type { SolutionConcept } from "./concept.js";
 import type { ApprovalRecord } from "./approval.js";
 import type { CommissioningRecord } from "./commission.js";
 import type { SafetyCfg } from "./safety.js";
+import type { RevisionRecord } from "./revision.js";
+import type { QuoteCfg } from "./quote.js";
+import type { CompanyLibrary } from "./library.js";
 import { N_, tr } from "./i18n.js";
 
 export type PlatformKey =
@@ -37,6 +40,8 @@ export interface Device {
   setpoint?: number;
   /** DO: vazba výstupu na stav stroje (maják chod/porucha, zámek krytů…). */
   role?: DoRole;
+  /** typ z firemní knihovny (`LibDeviceType.id`, viz library.ts) */
+  libType?: string;
 }
 
 export interface IoEntry {
@@ -83,6 +88,12 @@ export interface Project {
   commissioning?: Record<string, CommissioningRecord>;
   /** Bezpečnostní funkce: parametry výpočtu, volby a úpravy návrhu (viz safety.ts). */
   safety?: SafetyCfg;
+  /** Nabídka (interní): ceník, sazby, parametry odhadu hodin (viz quote.ts). */
+  quote?: QuoteCfg;
+  /** Kopie firemní knihovny (typy zařízení, šablony FB, hlavička; viz library.ts). */
+  library?: CompanyLibrary;
+  /** Revize projektu (nejstarší první): zmrazený obsah a stav schválení (viz revision.ts). */
+  revisions?: RevisionRecord[];
 }
 
 export interface BomLineCfg { brand?: string; type?: string; orderCode?: string; supplier?: string; qty?: number; note?: string; }
@@ -321,6 +332,16 @@ export function addrOrd(e: IoEntry): number {
   const m = (e.addr || "").match(/%[IQ](W)?(\d+)(?:\.(\d+))?/);
   if (!m) return 999999;
   return m[1] ? 100000 + (+m[2]) : (+m[2]) * 8 + (+(m[3] || 0));
+}
+
+/**
+ * Číslo vodiče kanálu: stovky = svorkovnice X<n> (pořadí modulu z `modules()`), zbytek = svorka
+ * X<n>:<k> — X1:1 → -W101, X2:3 → -W203, X10:1 → -W1001. Unikátní v celém projektu (modul má
+ * nejvýš 16 kanálů) a stabilní: změna jednoho modulu nepřečísluje vodiče ostatních.
+ * Jediný zdroj pro výkresy (SVG/DXF), seznam svorek dokumentace a export EPLAN.
+ */
+export function wireNo(xnum: number, ch: number): string {
+  return "-W" + (xnum * 100 + ch + 1);
 }
 
 /** Rozdělení I/O do modulů (DI16 / DO16 / AI8 / AO4) pro schémata a FDS. */

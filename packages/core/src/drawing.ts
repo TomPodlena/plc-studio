@@ -2,9 +2,9 @@
  * PLCdesk — výkresy: jedna geometrie (ops) renderovaná do SVG (náhled)
  * i DXF R12 (EPLAN / AutoCAD / LibreCAD).
  * Konvence: rámeček s mřížkovými referencemi, popisové pole, značení -M1
- * (IEC 81346), čísla vodičů -W1xx, NC/NO kontakty (IEC 60617).
+ * (IEC 81346), čísla vodičů -W<svorkovnice><svorka> (`wireNo`), NC/NO kontakty (IEC 60617).
  */
-import { Project, IoModule, Device, CLS, PLAT, devById, modules, esc, stripDia } from "./model.js";
+import { Project, IoModule, Device, CLS, PLAT, devById, modules, wireNo, esc, stripDia } from "./model.js";
 import { trx, N_, today } from "./i18n.js";
 
 /* Texty výkresů jdou přes `trx()` — stejná geometrie se píše i do DXF R12, proto musí
@@ -20,7 +20,12 @@ export type Op =
 
 export interface SheetOps { W: number; H: number; O: Op[]; }
 
-export interface SheetMeta { projectName: string; date: string; }
+/** `rev` = označení revize do popisového pole (jinak z `setSheetRevision`, výchozí „0.1“). */
+export interface SheetMeta { projectName: string; date: string; rev?: string; }
+
+/* Označení revize projektu pro sloupec „Rev“ popisového pole — dodá revision.ts (bez revize undefined → „0.1“). */
+let sheetRev: ((prj: Project) => string | undefined) | null = null;
+export function setSheetRevision(fn: ((prj: Project) => string | undefined) | null): void { sheetRev = fn; }
 
 function todayCz(): string { return today(true); }
 
@@ -62,11 +67,10 @@ export function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number
   Tx(tx + 337, ty + 10, trx("List"), { k: "m", size: 8 }); Tx(tx + 337, ty + 22, page + " / " + total, { size: 9 });
   Tx(tx + 7, ty + 36, trx("Kreslil"), { k: "m", size: 8 }); Tx(tx + 7, ty + 48, trx("PLCdesk (návrh k revizi)"), { size: 9 });
   Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 }); Tx(tx + 187, ty + 48, date, { size: 9 });
-  Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 }); Tx(tx + 337, ty + 48, "0.1", { size: 9 });
+  Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 }); Tx(tx + 337, ty + 48, meta?.rev ?? sheetRev?.(prj) ?? "0.1", { size: 9 });
 
   /* potenciály a karta PLC */
   const yEnd = top + rows * rh - 12;
-  const wBase = { DI: 101, DO: 201, AI: 301, AO: 401 }[mod.dir];
   const isIn = (mod.dir === "DI" || mod.dir === "AI");
   if (isIn) {
     Ln(80, top - 28, 80, yEnd, "r"); Tx(80, top - 36, "L+ (24 V DC)", { anchor: "middle", k: "b", size: 10 });
@@ -81,7 +85,7 @@ export function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number
     cur = e.key;
     const y = top + i * rh + 12;
     const d = devById(prj, e.devId) || { name: "", desc: "" };
-    const wn = "-W" + (wBase + i);
+    const wn = wireNo(xnum, i);
     if (mod.dir === "DI") {
       Ln(80, y, 300, y);
       Ln(300, y, 324, y - 13, "s");                       // pohyblivý kontakt (IEC 60617)
@@ -182,6 +186,8 @@ export interface CircuitSheet {
   inputs: Array<{ sf: string; dev: string; label: string; tags: string[]; kind: "nc2" | "ossd" | "twohand" | "single" }>;
   outputs: Array<{ id: string; label: string; tags: string[]; fbk: string[]; kind: "contactors" | "sto" | "valve" | "other" }>;
   reset: string | null;
+  /** Označení revize do popisového pole (výchozí „0.1“). */
+  rev?: string;
 }
 
 export function circuitSheetOps(s: CircuitSheet): SheetOps {
@@ -208,7 +214,7 @@ export function circuitSheetOps(s: CircuitSheet): SheetOps {
   Tx(tx + 337, ty + 10, trx("List"), { k: "m", size: 8 }); Tx(tx + 337, ty + 22, "1 / 1", { size: 9 });
   Tx(tx + 7, ty + 36, trx("Kreslil"), { k: "m", size: 8 }); Tx(tx + 7, ty + 48, trx("PLCdesk (návrh k revizi)"), { size: 9 });
   Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 }); Tx(tx + 187, ty + 48, s.date || todayCz(), { size: 9 });
-  Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 }); Tx(tx + 337, ty + 48, "0.1", { size: 9 });
+  Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 }); Tx(tx + 337, ty + 48, s.rev ?? "0.1", { size: 9 });
   Tx(40, 52, s.title, { k: "b", size: 12 });
   Tx(40, 68, s.note.slice(0, 130), { k: "m", size: 9 });
   /* logika */
@@ -293,14 +299,14 @@ export function svgBlock(prj: Project, mods: IoModule[]): string {
      prohlížeč z něj udělá bublinu, desktop podle něj blok rozklikne. */
   const box = (x: number, y: number, w: number, t1: string, t2: string, acc: boolean, attrs = "", title = "") =>
     "<g" + attrs + ">" + (title ? "<title>" + esc(title) + "</title>" : "") +
-    '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + bh + '" rx="5" fill="' + (acc ? "var(--chip, #eee)" : "none") + '" stroke="' + (acc ? "var(--accent, #00707e)" : "var(--line, #999)") + '"/>' +
+    '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + bh + '" rx="5" fill="' + (acc ? "var(--chip, #eee)" : "none") + '" stroke="' + (acc ? "var(--accent, #2457C5)" : "var(--line, #999)") + '"/>' +
     sT(x + 8, y + 14, t1, TXT + ";font-weight:600") + (t2 ? sT(x + 8, y + 27, String(t2).slice(0, 34), MUT) : "") + "</g>";
   const devTitle = (d: Device) => d.name + " — " + (d.desc || trx(CLS[d.cls].label)) + "\n" + trx(CLS[d.cls].label) + "\n" +
     prj.io.filter(e => e.devId === d.id).map(e => e.dir + "  " + e.tag + "  " + e.addr).join("\n");
   let s = "";
   const plcH = (mods.length + 2) * (bh + g) + 14;
-  s += '<rect x="340" y="' + (top - 10) + '" width="300" height="' + plcH + '" rx="8" fill="none" stroke="var(--accent, #00707e)" stroke-width="1.5"/>';
-  s += sT(350, top - 18, "PLC", TXT + ";font-weight:700;fill:var(--accent, #00707e)");
+  s += '<rect x="340" y="' + (top - 10) + '" width="300" height="' + plcH + '" rx="8" fill="none" stroke="var(--accent, #2457C5)" stroke-width="1.5"/>';
+  s += sT(350, top - 18, "PLC", TXT + ";font-weight:700;fill:var(--accent, #2457C5)");
   s += sT(640, top - 18, trx("zdroje signálů →  PLC  → akční členy"), MUT, "end");
   s += box(352, yy(0), 276, trx("PS — zdroj 24 V DC"), trx("napájení modulů a snímačů"), false);
   s += box(352, yy(1), 276, "CPU", prj.platforms.map(p => PLAT[p].cpu).join(" · ") || "—", true);
