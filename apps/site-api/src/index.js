@@ -158,6 +158,93 @@ async function handleLatestRelease(env) {
   return json(manifest, 200, { 'Cache-Control': 'public, max-age=300' });
 }
 
+// --- úklid starých buildů ---------------------------------------------
+// V R2 držíme jen poslední 3 verze. Starší se po vydání nové mažou:
+// na stažení se používá vždy manifest, takže starý build nikdo nepotřebuje,
+// a nechat je tam znamená jen platit za uložiště.
+
+const KEEP_RELEASES = 3;
+
+// z klíče 'win/PLCdesk-1.2.3-portable.zip' vytáhne '1.2.3'
+function verFromKey(key) {
+  const m = /-(\d+\.\d+\.\d+)(?:[-.]|$)/.exec(key);
+  return m ? m[1] : null;
+}
+
+function cmpVer(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] !== pb[i]) return pb[i] - pa[i]; // sestupně, nejnovější první
+  }
+  return 0;
+}
+
+async function listAll(env, prefix) {
+  const out = [];
+  let cursor;
+  do {
+    const page = await env.RELEASES.list({ prefix, cursor });
+    out.push(...page.objects);
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  return out;
+}
+
+/**
+ * Smaže buildy starší než poslední `keep` verze.
+ * Manifest ani nic bez čísla verze v názvu se nemaže.
+ */
+export async function pruneReleases(env, keep = KEEP_RELEASES) {
+  const objects = await listAll(env, 'win/');
+
+  const byVersion = new Map();
+  for (const o of objects) {
+    const v = verFromKey(o.key);
+    if (!v) continue; // soubory bez verze v názvu necháváme být
+    if (!byVersion.has(v)) byVersion.set(v, []);
+    byVersion.get(v).push(o.key);
+  }
+
+  const versions = [...byVersion.keys()].sort(cmpVer);
+  const stale = versions.slice(keep);
+  const deleted = stale.flatMap((v) => byVersion.get(v));
+
+  for (const key of deleted) {
+    await env.RELEASES.delete(key);
+  }
+  return { kept: versions.slice(0, keep), removed: stale, deleted };
+}
+
+// Vydání nové verze: zapíše manifest a hned uklidí staré buildy.
+// Binárky se nahrávají zvlášť přes `wrangler r2 object put` — tohle je
+// krok, který je zveřejní.
+async function handleAdminRelease(req, env) {
+  if (req.headers.get('X-Admin-Token') !== env.ADMIN_TOKEN) {
+    return json({ error: 'unauthorized' }, 401);
+  }
+  const manifest = await req.json().catch(() => null);
+  if (!manifest?.version || !manifest?.assets) {
+    return json({ error: 'Chybí version nebo assets.' }, 400);
+  }
+
+  // ověřit, že soubory z manifestu v R2 opravdu leží — ať autoupdater
+  // neukáže verzi, kterou si pak nikdo nestáhne
+  for (const [channel, asset] of Object.entries(manifest.assets)) {
+    const head = await env.RELEASES.head(asset.key);
+    if (!head) {
+      return json({ error: `V R2 chybí ${asset.key} (kanál ${channel}).` }, 409);
+    }
+  }
+
+  await env.RELEASES.put('latest.json', JSON.stringify(manifest, null, 2), {
+    httpMetadata: { contentType: 'application/json' },
+  });
+
+  const prune = await pruneReleases(env);
+  return json({ ok: true, version: manifest.version, ...prune });
+}
+
 // ------------------------------------------------------------- licence
 
 async function handleActivate(req, env) {
@@ -482,6 +569,16 @@ export default {
           return handleStripeWebhook(req, env); // bez CORS, volá Stripe
         case 'POST /api/admin/license':
           res = await handleAdminLicense(req, env);
+          break;
+        case 'POST /api/admin/release':
+          res = await handleAdminRelease(req, env);
+          break;
+        case 'POST /api/admin/releases/prune':
+          if (req.headers.get('X-Admin-Token') !== env.ADMIN_TOKEN) {
+            res = json({ error: 'unauthorized' }, 401);
+          } else {
+            res = json({ ok: true, ...(await pruneReleases(env)) });
+          }
           break;
         default:
           res = json({ error: 'not found' }, 404);

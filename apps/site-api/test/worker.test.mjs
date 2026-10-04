@@ -43,6 +43,28 @@ const RELEASES = {
     const body = files.get(key);
     return { body, size: body.length, text: async () => body };
   },
+  async head(key) {
+    return files.has(key) ? { key, size: files.get(key).length } : null;
+  },
+  async put(key, value) {
+    files.set(key, value);
+    return { key };
+  },
+  async delete(key) {
+    files.delete(key);
+  },
+  // stránkuje po 2 záznamech, ať se otestuje i průchod kurzorem
+  async list({ prefix = '', cursor } = {}) {
+    const keys = [...files.keys()].filter((k) => k.startsWith(prefix)).sort();
+    const from = cursor ? Number(cursor) : 0;
+    const page = keys.slice(from, from + 2);
+    const next = from + 2;
+    return {
+      objects: page.map((key) => ({ key, size: files.get(key).length })),
+      truncated: next < keys.length,
+      cursor: String(next),
+    };
+  },
 };
 
 const env = {
@@ -213,6 +235,41 @@ await check('subscription.deleted → zrušeno a zamčeno', async () => {
   });
   const key = db.prepare("SELECT key FROM licenses WHERE stripe_sub_id='sub_1'").get().key;
   eq((await call('POST', '/api/license/activate', { key, device_hash: 'stroj-D' })).status, 403, 'status');
+});
+
+console.log('\nvydani verze a uklid buildu');
+await check('publikace verze, jejiz soubor v R2 neni, je odmitnuta', async () => {
+  const r = await call('POST', '/api/admin/release',
+    { version: '9.9.9', assets: { portable: { key: 'win/neexistuje.zip', filename: 'x.zip' } } },
+    { 'X-Admin-Token': 'test-admin' });
+  eq(r.status, 409, 'status');
+});
+await check('drzi se jen posledni 3 verze, starsi se mazou', async () => {
+  // pet verzi v R2, zamerne v nahodnem poradi a s dvojici souboru u kazde
+  for (const v of ['1.0.0', '1.2.0', '1.10.0', '1.3.0', '2.0.1']) {
+    files.set(`win/PLCdesk-${v}-portable.zip`, `zip ${v}`);
+    files.set(`win/PLCdesk-${v}.msi`, `msi ${v}`);
+  }
+  const r = await call('POST', '/api/admin/release', {
+    version: '2.0.1',
+    assets: { portable: { key: 'win/PLCdesk-2.0.1-portable.zip', filename: 'PLCdesk-2.0.1-portable.zip' } },
+  }, { 'X-Admin-Token': 'test-admin' });
+  eq(r.status, 200, 'status');
+  const d = await r.json();
+  // 1.10.0 je novejsi nez 1.3.0 — porovnava se po cislech, ne jako text
+  eq(d.kept, ['2.0.1', '1.10.0', '1.3.0'], 'ponechane verze');
+  eq(d.removed, ['1.2.0', '1.0.0'], 'smazane verze');
+  if (files.has('win/PLCdesk-1.0.0-portable.zip')) throw new Error('stary build zustal');
+  if (files.has('win/PLCdesk-1.2.0.msi')) throw new Error('stary msi zustalo');
+  if (!files.has('win/PLCdesk-1.10.0-portable.zip')) throw new Error('smazana ponechana verze');
+});
+await check('manifest uklid prezije', async () => {
+  if (!files.has('latest.json')) throw new Error('manifest smazan');
+  const r = await call('GET', '/api/release/latest');
+  eq((await r.json()).version, '2.0.1', 'verze v manifestu');
+});
+await check('prune bez tokenu odmitnut', async () => {
+  eq((await call('POST', '/api/admin/releases/prune')).status, 401, 'status');
 });
 
 console.log('\nostatní');

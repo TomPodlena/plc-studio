@@ -16,8 +16,34 @@ něco jiného — backend marketingového webu a licencí, běží na Cloudflare
 Až vznikne `apps/api`, bude dobré rozhodnout, kde bude bydlet Stripe; teď je
 ve `site-api`, protože s ním přímo souvisí vydání licence.
 
-Testy: `cd apps/site-api && npm test` → 23 scénářů, všechny procházejí.
+Testy: `cd apps/site-api && npm test` → 27 scénářů, všechny procházejí.
 Běží proti SQLite místo D1, takže nepotřebují Cloudflare účet.
+
+## Vydání nové verze aplikace
+
+Binárky se nahrají do R2, pak se zveřejní manifestem:
+
+```bash
+wrangler r2 object put plcdesk-releases/win/PLCdesk-1.2.0-portable.zip \
+  --file=PLCdesk-1.2.0-portable.zip
+
+curl -X POST https://api.plcdesk.io/api/admin/release \
+  -H "X-Admin-Token: $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"version":"1.2.0","released":"2026-11-01",
+       "assets":{"portable":{"key":"win/PLCdesk-1.2.0-portable.zip",
+                             "filename":"PLCdesk-1.2.0-portable.zip","sha256":"…"}}}'
+```
+
+Endpoint napřed ověří, že soubory z manifestu v R2 opravdu leží (jinak by
+autoupdater nabídl verzi, kterou si nikdo nestáhne), zapíše manifest a hned
+**smaže buildy starší než poslední tři verze**. Odpověď vypíše, co zůstalo
+a co šlo pryč. Starší build nikdo nepotřebuje — ke stažení se vždy použije
+manifest — a držet je v R2 znamená jen platit za uložiště.
+
+Verze se porovnávají po číslech, ne jako text, takže 1.10.0 je novější než
+1.3.0. Soubory bez čísla verze v názvu se nemažou. Úklid jde spustit i zvlášť:
+`POST /api/admin/releases/prune`. Počet držených verzí je `KEEP_RELEASES`
+v `apps/site-api/src/index.js`.
 
 ## Co zbývá udělat
 
