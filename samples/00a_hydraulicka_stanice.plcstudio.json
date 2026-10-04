@@ -262,9 +262,7 @@
   "nextId": 8,
   "guid": "2ee05aba-09d9-4ced-a842-fc6e9deae4a7",
   "moduleGuids": {
-   "DI1": "475ff190-d9e4-4423-9e9d-3f08703fa421",
-   "DO1": "60c2128d-3b08-4d38-9f9d-70ef2838d9b6",
-   "AI1": "dca0aed0-7a82-46f7-8537-f8994f18051b"
+   "S0.2": "dca0aed0-7a82-46f7-8537-f8994f18051b"
   }
  }
 }

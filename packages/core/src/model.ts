@@ -10,7 +10,8 @@ import type { RevisionRecord } from "./revision.js";
 import type { QuoteCfg } from "./quote.js";
 import type { CompanyLibrary } from "./library.js";
 import { N_, tr } from "./i18n.js";
-import { newGuid, fillGuids, moduleKey, ioGuidFor, isGuid } from "./guid.js";
+import { newGuid, fillGuids, ioGuidFor, isGuid } from "./guid.js";
+import { hwLayout, hwAssign, hwGroups, hwNative, hwIssues, type HwModule } from "./hardware.js";
 
 export type PlatformKey =
   | "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics"
@@ -86,7 +87,11 @@ export interface IoEntry {
   sig: string;
   dir: Dir;
   tag: string;
-  addr: string;   // kanonicky v Siemens notaci (%I0.0, %IW64); pro ostatní platformy převádí addrFor()
+  /**
+   * Přidělený kanál jako kanonická adresa (Siemens notace, %I0.0 / %IW64) v sestavě hardwaru
+   * platformy `prj.hw.plat` (hardware.ts). Výstupy čtou adresu ze sestavy (`addrFor`, `hwAddrText`).
+   */
+  addr: string;
   cmt: string;
   nc?: boolean;   // jen DI: rozpínací kontakt (bezpečnostní prvky)
   /** Trvalý identifikátor (viz guid.ts): odvozený z GUID zařízení a signálu při vzniku řádku. */
@@ -144,8 +149,16 @@ export interface Project {
   revisions?: RevisionRecord[];
   /** Trvalý identifikátor projektu (viz guid.ts) — přidělen v `blankProject`, export ho jen čte. */
   guid?: string;
-  /** GUID I/O karet podle klíče karty „<směr><pořadí>“ (DI1, DO2…; viz `modules()` a guid.ts). */
+  /**
+   * GUID fyzických modulů sestavy (I/O karty, hlavy vzdálených stanic) podle klíče „S<stanice>.<slot>“
+   * (hardware.ts `HwModule.key`, guid.ts). Starší klíče „<směr><pořadí>“ (DI1…) se při načtení převedou.
+   */
   moduleGuids?: Record<string, string>;
+  /**
+   * Značka adres: `io[].addr` patří sestavě platformy `plat` podle pravidel verze `ver` (hardware.ts
+   * `HW_VER`) — jen pak jsou připnutím. Chybí u starších projektů → adresy se přidělí znovu.
+   */
+  hw?: { plat: PlatformKey; ver: number };
   /**
    * Styl kódu (výchozí classic). OOP platí jen pro platformy s `PLAT[…].oop` (CODESYS, TwinCAT,
    * Schneider, WAGO, Delta AX); ostatní platformy ho ignorují. Chování programu je v obou
@@ -161,9 +174,19 @@ export interface BomCfg {
   lines?: Record<string, BomLineCfg>;
 }
 
+/**
+ * Kanálová skupina modulu (modul × směr) ze sestavy hardware.ts — jeden list zapojení a jedna
+ * svorkovnice X<n>. `ch[i]` je na kanálu `chNo[i]` modulu `hw`; `idx` = pořadí skupiny ve směru (DI1…).
+ */
 export interface IoModule {
   dir: Dir; idx: number; ch: IoEntry[];
-  /** GUID karty z `Project.moduleGuids` (karta nemá v modelu vlastní objekt — identita = DI1, DO2…). */
+  /** čísla kanálů modulu pro `ch` (stejná délka) */
+  chNo?: number[];
+  /** počet kanálů tohoto směru na modulu (katalog) */
+  cap?: number;
+  /** fyzický modul sestavy */
+  hw?: HwModule;
+  /** GUID fyzického modulu z `Project.moduleGuids` (klíč `hw.key`). */
   guid?: string;
 }
 
@@ -496,38 +519,32 @@ export function syncIO(prj: Project): void {
  * Export GUID nikdy negeneruje (jen čte); volá se při vzniku objektů (`syncIO`) a při načtení.
  */
 export function ensureGuids(prj: Project): boolean {
-  return fillGuids(prj, modules(prj));
+  return fillGuids(prj, hwLayout(prj).modules);
 }
 
-/** Doplní (force=true: přepíše) adresy v Siemens notaci. */
+/**
+ * Přidělí adresy podle sestavy hardwaru (hardware.ts `hwAssign`): nové signály dostanou volný kanál,
+ * připnuté a cizí adresy zůstanou; `force` = přečíslovat vše (pořadí signálů zůstane).
+ */
 export function autoAddr(prj: Project, force: boolean): void {
-  let di = 0, dq = 0, ai = 64, ao = 64;
-  const taken = new Set(force ? [] : prj.io.filter(e => e.addr).map(e => e.addr));
-  const next = (dir: Dir): string => {
-    for (;;) {
-      let a: string;
-      if (dir === "DI") { a = "%I" + (di >> 3) + "." + (di & 7); di++; }
-      else if (dir === "DO") { a = "%Q" + (dq >> 3) + "." + (dq & 7); dq++; }
-      else if (dir === "AI") { a = "%IW" + ai; ai += 2; }
-      else { a = "%QW" + ao; ao += 2; }
-      if (!taken.has(a)) return a;
-    }
-  };
-  for (const e of prj.io) {
-    if (force || !e.addr) { e.addr = next(e.dir); taken.add(e.addr); }
-  }
+  hwAssign(prj, force);
 }
 
 export function dtFor(e: IoEntry): "BOOL" | "INT" {
   return (e.dir === "AI" || e.dir === "AO") ? "INT" : "BOOL";
 }
 
-/** Převod kanonické (Siemens) adresy na notaci cílové platformy. */
-export function addrFor(plat: PlatformKey, e: IoEntry): string {
-  const a = e.addr || "";
+/** Adresa signálu v notaci cílové platformy — kanál sestavy hardwaru platformy (hardware.ts). */
+export function addrFor(plat: PlatformKey, e: IoEntry, prj: Project): string {
+  return hwNative(prj, plat, e);
+}
+
+/** Převod kanonické (Siemens) adresy `a` signálu směru `dir` na notaci cílové platformy. */
+export function nativeAddr(plat: PlatformKey, a: string, dir: Dir): string {
+  a = a || "";
   if (plat === "siemens") return a;
   /* TwinCAT: pevné adresy nedoporučuje — AT %I* / %Q* a nalinkování na kanály svorek */
-  if (plat === "beckhoff") return e.dir === "DI" || e.dir === "AI" ? "%I*" : "%Q*";
+  if (plat === "beckhoff") return dir === "DI" || dir === "AI" ? "%I*" : "%Q*";
   /* WAGO e!COCKPIT: kanály lokální sběrnice se v I/O mapování přiřazují proměnným (obraz procesu
      řadí analogy před digitály, adresy se mění s osazením) — v kódu bez pevné adresy AT */
   if (plat === "wago") return "";
@@ -553,30 +570,21 @@ export function addrOrd(e: IoEntry): number {
 }
 
 /**
- * Číslo vodiče kanálu: stovky = svorkovnice X<n> (pořadí modulu z `modules()`), zbytek = svorka
- * X<n>:<k> — X1:1 → -W101, X2:3 → -W203, X10:1 → -W1001. Unikátní v celém projektu (modul má
- * nejvýš 16 kanálů) a stabilní: změna jednoho modulu nepřečísluje vodiče ostatních.
+ * Číslo vodiče kanálu: stovky = svorkovnice X<n> (pořadí kanálové skupiny z `modules()`), zbytek =
+ * svorka X<n>:<k> — X1:1 → -W101, X2:3 → -W203, X10:1 → -W1001. Unikátní v celém projektu (skupina
+ * má nejvýš 16 kanálů) a stabilní: změna jednoho modulu nepřečísluje vodiče ostatních.
  * Jediný zdroj pro výkresy (SVG/DXF), seznam svorek dokumentace a export EPLAN.
  */
 export function wireNo(xnum: number, ch: number): string {
   return "-W" + (xnum * 100 + ch + 1);
 }
 
-/** Rozdělení I/O do modulů (DI16 / DO16 / AI8 / AO4) pro schémata a FDS. */
+/**
+ * Kanálové skupiny modulů sestavy hardwaru (hardware.ts): vestavěné I/O CPU, karty lokálního racku
+ * a vzdálených stanic, po směrech — pro schémata, svorkovnice a FDS. Počty a typy = kusovník.
+ */
 export function modules(prj: Project): IoModule[] {
-  const per: Record<Dir, number> = { DI: 16, DO: 16, AI: 8, AO: 4 };
-  const mods: IoModule[] = [];
-  for (const dir of ["DI", "DO", "AI", "AO"] as Dir[]) {
-    const list = prj.io.filter(e => e.dir === dir).sort((a, b) => addrOrd(a) - addrOrd(b));
-    let idx = 1;
-    for (let i = 0; i < list.length; i += per[dir]) {
-      const m: IoModule = { dir, idx: idx++, ch: list.slice(i, i + per[dir]) };
-      const g = prj.moduleGuids?.[moduleKey(m)];
-      if (g) m.guid = g;
-      mods.push(m);
-    }
-  }
-  return mods;
+  return hwGroups(prj);
 }
 
 /* --------------------------------------------------- validace & sanitizace */
@@ -682,5 +690,7 @@ export function validateProject(prj: Project): ValidationIssue[] {
   }
   for (const [t, c] of tags) if (c > 1) out.push({ level: "error", where: t, msg: tr("Duplicitní tag.") });
   for (const [a, c] of addrs) if (c > 1) out.push({ level: "error", where: a, msg: tr("Duplicitní adresa.") });
+  /* sestava hardwaru: projekt se do platformy nevejde, cizí adresy, nepasující volby modulů */
+  out.push(...hwIssues(prj));
   return out;
 }

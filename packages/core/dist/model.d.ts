@@ -9,6 +9,7 @@ import type { SafetyCfg } from "./safety.js";
 import type { RevisionRecord } from "./revision.js";
 import type { QuoteCfg } from "./quote.js";
 import type { CompanyLibrary } from "./library.js";
+import { type HwModule } from "./hardware.js";
 export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics" | "wago" | "delta";
 /** Styl generovaného kódu: klasické FB (výchozí) nebo OOP (rozhraní, dědičnost) — viz codegen_oop.ts. */
 export type CodeStyle = "classic" | "oop";
@@ -76,6 +77,10 @@ export interface IoEntry {
     sig: string;
     dir: Dir;
     tag: string;
+    /**
+     * Přidělený kanál jako kanonická adresa (Siemens notace, %I0.0 / %IW64) v sestavě hardwaru
+     * platformy `prj.hw.plat` (hardware.ts). Výstupy čtou adresu ze sestavy (`addrFor`, `hwAddrText`).
+     */
     addr: string;
     cmt: string;
     nc?: boolean;
@@ -147,8 +152,19 @@ export interface Project {
     revisions?: RevisionRecord[];
     /** Trvalý identifikátor projektu (viz guid.ts) — přidělen v `blankProject`, export ho jen čte. */
     guid?: string;
-    /** GUID I/O karet podle klíče karty „<směr><pořadí>“ (DI1, DO2…; viz `modules()` a guid.ts). */
+    /**
+     * GUID fyzických modulů sestavy (I/O karty, hlavy vzdálených stanic) podle klíče „S<stanice>.<slot>“
+     * (hardware.ts `HwModule.key`, guid.ts). Starší klíče „<směr><pořadí>“ (DI1…) se při načtení převedou.
+     */
     moduleGuids?: Record<string, string>;
+    /**
+     * Značka adres: `io[].addr` patří sestavě platformy `plat` podle pravidel verze `ver` (hardware.ts
+     * `HW_VER`) — jen pak jsou připnutím. Chybí u starších projektů → adresy se přidělí znovu.
+     */
+    hw?: {
+        plat: PlatformKey;
+        ver: number;
+    };
     /**
      * Styl kódu (výchozí classic). OOP platí jen pro platformy s `PLAT[…].oop` (CODESYS, TwinCAT,
      * Schneider, WAGO, Delta AX); ostatní platformy ho ignorují. Chování programu je v obou
@@ -169,11 +185,21 @@ export interface BomCfg {
     brand?: Record<string, string>;
     lines?: Record<string, BomLineCfg>;
 }
+/**
+ * Kanálová skupina modulu (modul × směr) ze sestavy hardware.ts — jeden list zapojení a jedna
+ * svorkovnice X<n>. `ch[i]` je na kanálu `chNo[i]` modulu `hw`; `idx` = pořadí skupiny ve směru (DI1…).
+ */
 export interface IoModule {
     dir: Dir;
     idx: number;
     ch: IoEntry[];
-    /** GUID karty z `Project.moduleGuids` (karta nemá v modelu vlastní objekt — identita = DI1, DO2…). */
+    /** čísla kanálů modulu pro `ch` (stejná délka) */
+    chNo?: number[];
+    /** počet kanálů tohoto směru na modulu (katalog) */
+    cap?: number;
+    /** fyzický modul sestavy */
+    hw?: HwModule;
+    /** GUID fyzického modulu z `Project.moduleGuids` (klíč `hw.key`). */
     guid?: string;
 }
 export declare const PLAT: Record<PlatformKey, PlatformInfo>;
@@ -279,20 +305,28 @@ export declare function syncIO(prj: Project): void;
  * Export GUID nikdy negeneruje (jen čte); volá se při vzniku objektů (`syncIO`) a při načtení.
  */
 export declare function ensureGuids(prj: Project): boolean;
-/** Doplní (force=true: přepíše) adresy v Siemens notaci. */
+/**
+ * Přidělí adresy podle sestavy hardwaru (hardware.ts `hwAssign`): nové signály dostanou volný kanál,
+ * připnuté a cizí adresy zůstanou; `force` = přečíslovat vše (pořadí signálů zůstane).
+ */
 export declare function autoAddr(prj: Project, force: boolean): void;
 export declare function dtFor(e: IoEntry): "BOOL" | "INT";
-/** Převod kanonické (Siemens) adresy na notaci cílové platformy. */
-export declare function addrFor(plat: PlatformKey, e: IoEntry): string;
+/** Adresa signálu v notaci cílové platformy — kanál sestavy hardwaru platformy (hardware.ts). */
+export declare function addrFor(plat: PlatformKey, e: IoEntry, prj: Project): string;
+/** Převod kanonické (Siemens) adresy `a` signálu směru `dir` na notaci cílové platformy. */
+export declare function nativeAddr(plat: PlatformKey, a: string, dir: Dir): string;
 export declare function addrOrd(e: IoEntry): number;
 /**
- * Číslo vodiče kanálu: stovky = svorkovnice X<n> (pořadí modulu z `modules()`), zbytek = svorka
- * X<n>:<k> — X1:1 → -W101, X2:3 → -W203, X10:1 → -W1001. Unikátní v celém projektu (modul má
- * nejvýš 16 kanálů) a stabilní: změna jednoho modulu nepřečísluje vodiče ostatních.
+ * Číslo vodiče kanálu: stovky = svorkovnice X<n> (pořadí kanálové skupiny z `modules()`), zbytek =
+ * svorka X<n>:<k> — X1:1 → -W101, X2:3 → -W203, X10:1 → -W1001. Unikátní v celém projektu (skupina
+ * má nejvýš 16 kanálů) a stabilní: změna jednoho modulu nepřečísluje vodiče ostatních.
  * Jediný zdroj pro výkresy (SVG/DXF), seznam svorek dokumentace a export EPLAN.
  */
 export declare function wireNo(xnum: number, ch: number): string;
-/** Rozdělení I/O do modulů (DI16 / DO16 / AI8 / AO4) pro schémata a FDS. */
+/**
+ * Kanálové skupiny modulů sestavy hardwaru (hardware.ts): vestavěné I/O CPU, karty lokálního racku
+ * a vzdálených stanic, po směrech — pro schémata, svorkovnice a FDS. Počty a typy = kusovník.
+ */
 export declare function modules(prj: Project): IoModule[];
 export interface ValidationIssue {
     /** info = jen upozornění na způsob řešení (nic není potřeba opravit) */

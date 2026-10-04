@@ -233,6 +233,8 @@ def render(app, parent) -> None:
     ttk.Button(add_row, text=_("Přidat zařízení"), style="Accent.TButton", command=add
                ).pack(side="left")
     ent_desc.bind("<Return>", lambda _e: add())
+    from .knihovna import add_controls               # „Přidat z knihovny“ (jen s připojenou knihovnou)
+    add_controls(app, add_row)
     if app.ui.get("dev_cls") in app.CLS:     # po přidání zůstaň u stejné třídy
         var_cls.set(app.CLS[app.ui["dev_cls"]]["label"])
 

@@ -83,7 +83,7 @@ export function genPLCopenXML(prj, plat = "codesys") {
     pous.push(parseStPou(genMainIEC(prj, plat)));
     let gvl = "";
     for (const e of prj.io) {
-        const at = addrFor(plat, e);
+        const at = addrFor(plat, e, prj);
         gvl += varXml({ name: e.tag, type: dtFor(e), address: at || undefined, comment: e.cmt || undefined }, "            ");
     }
     return `<?xml version="1.0" encoding="utf-8"?>

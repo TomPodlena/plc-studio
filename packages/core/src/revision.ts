@@ -580,8 +580,16 @@ function rawDiff(x: Project, y: Project): Raw[] {
 
   /* firemní knihovna (šablony bloků mění generovaný kód) */
   const libX = (x as unknown as Record<string, unknown>).library ?? null, libY = (y as unknown as Record<string, unknown>).library ?? null;
+  /* čitelně: název a verze knihovny (při změně obsahu téže verze „upraveno“) */
+  const libTxt = (l: unknown, other: unknown): string | null => {
+    if (!l) return null;
+    const o = l as { name?: string; version?: string };
+    const t = [o.name || tr("knihovna"), o.version ? "v" + o.version : ""].filter(Boolean).join(" ");
+    const p = (other || {}) as { name?: string; version?: string };
+    return other && p.name === o.name && p.version === o.version && !same(l, other) ? t + " (" + tr("upraveno") + ")" : t;
+  };
   if (!same(libX, libY))
-    push({ area: "project", op: "change", field: "library", before: libX ? "✓" : null, after: libY ? "✓" : null, a: { ref: "library" }, b: { ref: "library" }, floor: "functional", cand: F(), devs: [], tags: [] });
+    push({ area: "project", op: "change", field: "library", before: libTxt(libX, null), after: libTxt(libY, libX), a: { ref: "library" }, b: { ref: "library" }, floor: "functional", cand: F(), devs: [], tags: [] });
 
   /* koncept */
   if (!same(x.concept ?? null, y.concept ?? null))
@@ -1015,6 +1023,8 @@ function diffApprovals(prj: Project, from: string): Record<string, ApprovalRecor
 /* ================================================================ registrace */
 
 registerDocProvider("revision", {
+  /* řádek revize pod nadpisem dokumentů (bez revize nic — výstup beze změny) */
+  header: prj => revisionHeaderMd(prj),
   docs: (prj, items) => (prj.revisions && prj.revisions.length
     ? [{ path: CHANGES_FILE, tab: tr("Změny"), title: tr("revize projektu, změny od poslední revize a rozsah opakovaných zkoušek"), body: changesMd(prj, { items }) }]
     : []),

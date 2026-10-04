@@ -13,30 +13,33 @@
  *     ├ Subnet „PN_IE_1“ (Type Ethernet = sběrnicový systém 20308; název = fyzická síť 20413, unikátní)
  *     └ Device  stanice PLC (ID stanice 20408 bez „.“; TypeIdentifier System:Device.S71200 / S71500 / ET200SP / Generic)
  *       └ DeviceItem Rack „Rack_0“ (System:Rack.<rodina>; karta na racku 20410 = vnoření + PositionNumber)
- *         ├ DeviceItem CPU -A1 (slot 1, DeviceItemType CPU, OrderNumber s mezerou u Siemens)
+ *         ├ DeviceItem CPU -A1 (slot ze sestavy, DeviceItemType CPU, OrderNumber s mezerou u Siemens)
+ *         │ ├ vestavěné I/O: BuiltIn podmodul „DI 14/DQ 10“ (PositionNumber 1, Address po směrech, kanály — TIA V17)
  *         │ ├ CommunicationInterface „PROFINET_interface_1“ (Label X1, LogicalEndPoint_Interface)
  *         │ │ ├ Node „E1“ (Type Ethernet, NetworkAddress; NodeEthernet: maska, ProfinetDeviceName; LogicalEndPoint_Node)
  *         │ │ ├ IoSystem „PROFINET_IO_system“ (logická síť 20414; Number = MasterSystemID 20334)
  *         │ │ └ CommunicationPort „Port_1“ (Label P1 R)
  *         │ └ TagTable „PLCdesk“ → Tag (ID = GUID signálu; LogicalAddress bez směru; volitelně ComplexTag = UDT)
- *         └ DeviceItem karty -A2 … (slot 2…, ID = GUID karty)
+ *         └ DeviceItem karty -A2 … (slot ze sestavy, ID = GUID karty)
  *           └ Siemens: BuiltIn podmodul (PositionNumber 1) s Address a kanály (jako TIA Portal V18/V21);
  *             ostatní: Address a kanály přímo na kartě (jako EPLAN 2.7.3 / TwinCAT)
- *             → ExternalInterface „Channel_DI_0“ … všechny kanály karty (ID poziční z GUID karty)
- *   InternalLink kanál ↔ tag v Rack_0, Node ↔ Subnet v AutomationProject (nejbližší společný rodič, §10).
+ *             → ExternalInterface „Channel_DI_0“ … všechny kanály karty podle katalogu (ID poziční z GUID karty)
+ *     └ Device  vzdálená stanice (Siemens: System:Device.ET200SP) → Rack_0 → hlava -A10 (HeadModule, slot 0;
+ *       Siemens: BusAdapter slot 127 s rozhraním X1, uzlem IE1 a porty P1/P2 R) → karty od slotu 1 → server modul
+ *   InternalLink kanál ↔ tag v nejbližším společném rodiči (Rack_0, u vzdálených stanic AutomationProject),
+ *   Node ↔ Subnet a rozhraní stanice ↔ IoSystem CPU (PROFINET) v AutomationProject (§10, jako TIA V18).
  *
- * Model nemá vzdálené stanice ani IO-Link mastery → karty sedí v lokálním racku CPU (vnoření); síť
- * PROFINET nese jen rozhraní CPU (IO controller s IO systémem bez zařízení). Vzdálené stanice / IO-Link
- * přibudou, až je bude model znát (stejný strom: Device stanice + Node ↔ Subnet + IoSystem).
+ * Sestava (stanice, sloty, typy, kanály, adresy) je hardware.ts `hwLayout` — export nic nepočítá sám.
+ * Vzdálené stanice na EtherCAT (Beckhoff EK1100, Omron NX-ECC203) jsou bez uzlu sítě (doplní se v EPLAN).
  *
  * GUID: export je jen čte (guid.ts) — chybějící GUID nahradí deterministickým zástupcem z názvu a
  * validateEplan to hlásí. Objekty bez vlastního záznamu (stanice, rack, CPU, rozhraní, síť) mají GUID
  * odvozený z GUID projektu. Stav: neověřeno importem do EPLAN (EPLAN_VERIFIED v eplan.ts).
  */
-import { type Project, type Dir, type IoEntry, addrFor } from "./model.js";
+import { type Project, type IoEntry, type PlatformKey } from "./model.js";
 import { type EplanCard } from "./eplan.js";
 export interface EplanAmlOptions {
-    /** karty z `eplanCards` (jinak se spočítají) */
+    /** karty z `eplanCards` (export čte sestavu hardwaru přímo; pole zůstává kvůli kompatibilitě volání) */
     cards?: EplanCard[];
     /** symbolické adresy jako UDT (ComplexTag = zařízení, Tag = signál) místo plochých tagů `<zařízení>_<signál>` */
     udt?: boolean;
@@ -52,8 +55,6 @@ export interface EplanIssue {
 }
 /** Část cesty CAEX: při znacích @ . : / v hranatých závorkách, „[“ a „]“ escapované (AR APC 5.2.8). */
 export declare const amlPathPart: (s: string) => string;
-/** Počet kanálů karty (stejné dělení jako `modules()` v model.ts: DI16 / DO16 / AI8 / AO4). */
-export declare const CARD_CHANNELS: Record<Dir, number>;
 /**
  * Objednací číslo do TypeIdentifier. Siemens (6ES7 / 6AG1 / 6GKx) s mezerou po 4. znaku — tak je
  * zapisuje TIA Portal (V17–V21) i kmenová data EPLAN (Siemens 109766653); katalog PLCdesk nese
@@ -65,7 +66,9 @@ export declare function amlOrderNumber(code: string): string;
  * CODESYS %IX0.0 → 0.0; TwinCAT %I* (linkování) → bez adresy; Mitsubishi X10 / Y10 beze změny
  * (písmeno je součást operandu). Směr nese IoType.
  */
-export declare function amlLogicalAddress(plat: Parameters<typeof addrFor>[0], e: IoEntry): string;
+export declare function amlLogicalAddress(plat: PlatformKey, e: IoEntry, prj: Project): string;
+/** LogicalAddress z adresy v notaci platformy (viz `amlLogicalAddress`). */
+export declare function amlAddress(a: string): string;
 /**
  * Rodina stanice pro TypeIdentifier Device / Rack (AR APC 5.1.4 „family identifier“; hodnoty jako
  * TIA Portal: System:Device.S71200, System:Rack.S71200 …). Jiní výrobci a neznámé CPU: Generic.

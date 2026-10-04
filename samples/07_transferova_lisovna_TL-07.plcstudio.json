@@ -1005,15 +1005,13 @@
   "nextId": 57,
   "guid": "0adffe64-42e8-439c-8ddb-ef85d4846aba",
   "moduleGuids": {
-   "DI1": "bb9025f0-ffe7-4b27-8f31-a10c408e7555",
-   "DI2": "f5604eef-195a-405b-a916-6f34df773599",
-   "DI3": "ef483200-a07d-4afd-8484-a6ca6755b534",
-   "DI4": "84cc690f-02e3-45fb-a66c-c1fd6d4c8807",
-   "DO1": "27e49517-d37b-49b7-bb4a-e6d728cbcc39",
-   "DO2": "e681977e-75b5-4f4f-b6fa-95bf05f516aa",
-   "AI1": "3e9b896c-1f02-492b-b4ab-453ef2830325",
-   "AI2": "d0f59d03-1b95-4b3c-b1d5-db99ba35ca19",
-   "AO1": "fb6a61ad-7d3e-4c28-b6b5-9753a7ab138f"
+   "S0.2": "bb9025f0-ffe7-4b27-8f31-a10c408e7555",
+   "S0.3": "f5604eef-195a-405b-a916-6f34df773599",
+   "S0.4": "ef483200-a07d-4afd-8484-a6ca6755b534",
+   "S0.5": "27e49517-d37b-49b7-bb4a-e6d728cbcc39",
+   "S0.6": "3e9b896c-1f02-492b-b4ab-453ef2830325",
+   "S0.7": "d0f59d03-1b95-4b3c-b1d5-db99ba35ca19",
+   "S0.8": "fb6a61ad-7d3e-4c28-b6b5-9753a7ab138f"
   }
  }
 }

@@ -95,7 +95,7 @@ export function genPLCopenXML(prj: Project, plat: PlatformKey = "codesys"): stri
 
   let gvl = "";
   for (const e of prj.io) {
-    const at = addrFor(plat, e);
+    const at = addrFor(plat, e, prj);
     gvl += varXml({ name: e.tag, type: dtFor(e), address: at || undefined, comment: e.cmt || undefined }, "            ");
   }
 

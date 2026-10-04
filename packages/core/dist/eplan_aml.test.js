@@ -3,9 +3,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { withLang } from "./i18n.js";
-import { blankProject, syncIO, modules, ensureGuids } from "./model.js";
+import { blankProject, syncIO, ensureGuids, nativeAddr } from "./model.js";
 import { newGuid, derivedGuid, isGuid, moduleKey } from "./guid.js";
-import { genEplanAml, validateEplan, validateAml, amlStructure, amlOrderNumber, amlLogicalAddress, stationFamily } from "./eplan_aml.js";
+import { hwLayout } from "./hardware.js";
+import { genEplanAml, validateEplan, validateAml, amlStructure, amlOrderNumber, amlAddress, stationFamily } from "./eplan_aml.js";
 import { approvalItems } from "./approval.js";
 import { createRevision, modifiedSinceRevision, diffProjects, revisionContent } from "./revision.js";
 import { genFor } from "./codegen.js";
@@ -50,7 +51,7 @@ test("GUID: přidělení při vzniku (blankProject, syncIO), stálost po přejme
     const d = p.devices[0];
     assert.ok(isGuid(d.guid));
     assert.ok(p.io.every(e => isGuid(e.guid)));
-    assert.ok(modules(p).every(m => isGuid(m.guid) && p.moduleGuids[moduleKey(m)] === m.guid));
+    assert.ok(hwLayout(p).modules.filter(m => (m.kind === "io" && !m.builtin) || m.kind === "head").every(m => isGuid(m.guid) && p.moduleGuids[moduleKey({ dir: "DI", idx: 0, hw: m })] === m.guid));
     const before = JSON.stringify([p.guid, d.guid, p.io.map(e => e.guid), p.moduleGuids]);
     /* přejmenování zařízení i tagu GUID nemění; opakovaný syncIO / ensureGuids také ne */
     d.name = "M10";
@@ -72,7 +73,7 @@ test("GUID: příklady samples/ mají GUID uložené v souboru → stejné ID p�
         assert.ok(raw.devices.every((d) => isGuid(d.guid)), n + ": GUID zařízení v souboru");
         const a = loadSampleFile(n), b = loadSampleFile(n);
         assert.equal(ensureGuids(a), false, n + ": nic nechybí");
-        assert.ok(modules(a).every(m => raw.moduleGuids[moduleKey(m)] === m.guid), n + ": GUID karet v souboru");
+        assert.ok(hwLayout(a).modules.filter(m => (m.kind === "io" && !m.builtin) || m.kind === "head").every(m => raw.moduleGuids[m.key] === m.guid), n + ": GUID karet v souboru");
         assert.deepEqual(ids(genEplanAml(a, { now: NOW })), ids(genEplanAml(b, { now: NOW })), n);
         assert.equal(genEplanAml(a, { now: NOW }), genEplanAml(b, { now: NOW }), n + ": export deterministický");
     }
@@ -95,15 +96,18 @@ test("EPLAN AML: hierarchie stanice → rack → CPU/karty → kanál, ID z GUID
     const aml = genEplanAml(p, { now: NOW });
     const ih = aml.slice(aml.indexOf("<InstanceHierarchy"));
     assert.ok(ih.includes('ID="' + p.guid + '"'), "projekt = GUID projektu");
-    for (const m of modules(p))
-        assert.ok(ih.includes('ID="' + m.guid + '"'), "karta " + moduleKey(m));
+    for (const m of hwLayout(p).modules.filter(m => (m.kind === "io" && !m.builtin) || m.kind === "head"))
+        assert.ok(ih.includes('ID="' + m.guid + '"'), "karta " + m.key);
     /* tag = GUID signálu; kanál = poziční ID z GUID karty (Channel_<směr>_<n>), všechny kanály karty */
     for (const e of p.io)
         assert.ok(ih.includes('<ExternalInterface Name="' + e.tag + '" ID="' + e.guid + '" RefBaseClassPath="AutomationProjectConfigurationInterfaceClassLib/Tag"'), e.tag);
-    const cap = { DI: 16, DO: 16, AI: 8, AO: 4 };
-    for (const m of modules(p))
-        for (let i = 0; i < cap[m.dir]; i++)
-            assert.ok(ih.includes('<ExternalInterface Name="Channel_' + m.dir + "_" + i + '" ID="' + derivedGuid(m.guid, "ch:" + m.dir + ":" + i) + '"'), moduleKey(m) + " " + i);
+    /* kanály podle katalogu: karta = GUID karty, vestavěné I/O = podmodul CPU (odvozený z GUID projektu) */
+    const L = hwLayout(p);
+    for (const m of L.modules.filter(x => x.kind === "io"))
+        for (const k of m.channels) {
+            const mid = m.builtin ? derivedGuid(derivedGuid(p.guid, "cpu:1"), "builtin:1") : m.guid;
+            assert.ok(ih.includes('<ExternalInterface Name="Channel_' + k.dir + "_" + k.no + '" ID="' + derivedGuid(mid, "ch:" + k.dir + ":" + k.no) + '"'), m.key + " " + k.dir + k.no);
+        }
     /* role jen jako SupportedRoleClass (jako exporty EPLAN / TIA), žádné RoleRequirements */
     assert.ok(!ih.includes("<RoleRequirements"));
     /* pořadí vnoření */
@@ -194,7 +198,7 @@ test("validateAml: odhalí duplicitní ID, neexistující partnera, link mimo ne
     assert.deepEqual(validateAml(ok, { strict: true }), []);
     const has = (xml, re, level = "error") => validateAml(xml, { strict: true }).some(i => i.level === level && re.test(i.msg));
     /* Siemens: kanály na BuiltIn podmodulu karty (ID = GUID karty + PositionNumber 1) */
-    const card = derivedGuid(modules(p)[0].guid, "builtin:1");
+    const card = ok.match(/RefPartnerSideA="([^":]+):Channel_DI_0"/)[1];
     /* duplicitní ID */
     assert.ok(has(ok.replace('ID="' + p.io[1].guid + '"', 'ID="' + p.io[0].guid + '"'), /Duplicitní ID/));
     /* partner neexistuje / rozhraní neexistuje */
@@ -334,15 +338,15 @@ test("EPLAN AML: objednací čísla Siemens, LogicalAddress bez směru, rodina s
     assert.equal(amlOrderNumber("6EP1332-4BA00"), "6EP1332-4BA00", "SITOP beze změny (tak ho exportuje TIA V21)");
     assert.equal(amlOrderNumber("1769-L33ER"), "1769-L33ER");
     assert.equal(amlOrderNumber("EL1008"), "EL1008");
-    const e = (addr, dir) => ({ addr, dir });
-    assert.equal(amlLogicalAddress("siemens", e("%I0.0", "DI")), "0.0");
-    assert.equal(amlLogicalAddress("siemens", e("%Q12.7", "DO")), "12.7");
-    assert.equal(amlLogicalAddress("siemens", e("%IW64", "AI")), "W64");
-    assert.equal(amlLogicalAddress("siemens", e("%QW80", "AO")), "W80");
-    assert.equal(amlLogicalAddress("codesys", e("%I1.2", "DI")), "1.2");
-    assert.equal(amlLogicalAddress("codesys", e("%IW64", "AI")), "W32");
-    assert.equal(amlLogicalAddress("beckhoff", e("%I0.0", "DI")), "");
-    assert.equal(amlLogicalAddress("rockwell", e("%I0.0", "DI")), "");
+    const la = (plat, addr, dir) => amlAddress(nativeAddr(plat, addr, dir));
+    assert.equal(la("siemens", "%I0.0", "DI"), "0.0");
+    assert.equal(la("siemens", "%Q12.7", "DO"), "12.7");
+    assert.equal(la("siemens", "%IW64", "AI"), "W64");
+    assert.equal(la("siemens", "%QW80", "AO"), "W80");
+    assert.equal(la("codesys", "%I1.2", "DI"), "1.2");
+    assert.equal(la("codesys", "%IW64", "AI"), "W32");
+    assert.equal(la("beckhoff", "%I0.0", "DI"), "");
+    assert.equal(la("rockwell", "%I0.0", "DI"), "");
     assert.equal(stationFamily("siemens", "6ES7212-1AG50-0XB0"), "S71200");
     assert.equal(stationFamily("siemens", "6ES7 511-1AK02-0AB0"), "S71500");
     assert.equal(stationFamily("siemens", "6ES7512-1DK01-0AB0"), "ET200SP");
@@ -355,10 +359,10 @@ test("EPLAN AML: karty se všemi kanály, neobsazené bez linku; tečka v názvu
     const s = amlStructure(genEplanAml(p, { now: NOW }));
     assert.equal(s[0].name, "Linka 2_0 v1_3", "konfigurační projekt 20161 bez tečky");
     assert.ok(s.filter(e => roleIs(e, "Device")).every(e => !e.name.includes(".")), "ID stanice 20408 bez tečky");
-    const cap = { DI: 16, DO: 16, AI: 8, AO: 4 };
-    for (const m of modules(p)) {
-        const holder = s.find(e => e.parent?.id === m.guid && e.attrs.BuiltIn?.value === "true");
-        assert.equal(holder.ifaces.filter(i => short(i.cls) === "Channel").length, cap[m.dir], moduleKey(m));
+    /* všechny kanály karty podle katalogu (Siemens: na BuiltIn podmodulu karty), vestavěné I/O pod CPU */
+    for (const m of hwLayout(p).modules.filter(x => x.kind === "io")) {
+        const holder = m.builtin ? s.find(e => e.name === "DI 8/DQ 6" && e.attrs.BuiltIn?.value === "true") : s.find(e => e.parent?.id === m.guid && e.attrs.BuiltIn?.value === "true");
+        assert.equal(holder.ifaces.filter(i => short(i.cls) === "Channel").length, m.channels.length, m.key);
     }
     const links = s.flatMap(e => e.links).filter(l => /:Channel_/.test(l.a));
     assert.equal(links.length, p.io.length, "link jen u obsazených kanálů");

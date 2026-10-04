@@ -1,7 +1,8 @@
 /** Testy jádra — node:test, bez externích závislostí. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blankProject, syncIO, autoAddr, addrFor, sanitizeTag, validateProject, modules, dtFor, ioOf, PLAT, enableInputs, } from "./model.js";
+import { blankProject, syncIO, autoAddr, addrFor, sanitizeTag, validateProject, modules, dtFor, ioOf, PLAT, enableInputs, nativeAddr, } from "./model.js";
+import { hwAddr } from "./hardware.js";
 import { genFor, genTagFile, seqBody, parseFbTemplate, ST_MOTOR, ST_VENTIL, SCL_MOTOR, SCL_VENTIL, TPL_COMMENTS, templateComments, trComments, timeLit } from "./codegen.js";
 import { logixProblems } from "./logix.js";
 import { LANGS, fill, getLang, setLang, tr, trx, withLang, formatDate, formatDateTime } from "./i18n.js";
@@ -38,15 +39,17 @@ test("autoAddr(force) přečísluje od nuly, AI slovní adresy sudé", () => {
         assert.equal((+m[1]) % 2, 0, "AI adresa sudá: " + e.addr);
     }
 });
-test("addrFor převádí notace platforem", () => {
-    const e = { addr: "%I1.3", dir: "DI" };
-    assert.equal(addrFor("beckhoff", e), "%I*", "TwinCAT: AT %I* a nalinkování");
-    assert.equal(addrFor("beckhoff", { addr: "%Q0.1", dir: "DO" }), "%Q*");
-    assert.equal(addrFor("codesys", e), "%IX1.3");
-    assert.equal(addrFor("mitsubishi", e), "X13", "FX5: X/Y osmičkově (%I1.3 = 11. vstup = X13)");
-    assert.equal(addrFor("rockwell", e), "");
-    const w = { addr: "%IW64", dir: "AI" };
-    assert.equal(addrFor("codesys", w), "%IW32", "CODESYS: %IW = index slova (Siemens bajt 64 → slovo 32)");
+test("nativeAddr převádí notace platforem", () => {
+    assert.equal(nativeAddr("beckhoff", "%I1.3", "DI"), "%I*", "TwinCAT: AT %I* a nalinkování");
+    assert.equal(nativeAddr("beckhoff", "%Q0.1", "DO"), "%Q*");
+    assert.equal(nativeAddr("codesys", "%I1.3", "DI"), "%IX1.3");
+    assert.equal(nativeAddr("mitsubishi", "%I1.3", "DI"), "X13", "FX5: X/Y osmičkově (%I1.3 = 11. vstup = X13)");
+    assert.equal(nativeAddr("rockwell", "%I1.3", "DI"), "");
+    assert.equal(nativeAddr("codesys", "%IW64", "AI"), "%IW32", "CODESYS: %IW = index slova (Siemens bajt 64 → slovo 32)");
+    /* addrFor = kanál sestavy hardwaru platformy (hardware.ts) v její notaci */
+    const p = sampleSmall();
+    const e = p.io.find(x => x.dir === "DI");
+    assert.equal(addrFor("codesys", e, p), nativeAddr("codesys", hwAddr(p, "codesys", e), "DI"));
 });
 test("sanitizeTag a validace chytí diakritiku a duplicity", () => {
     assert.equal(sanitizeTag("Čerpadlo 1 běh"), "Cerpadlo_1_beh");
@@ -87,13 +90,13 @@ test("Rockwell Tags.csv: hlavička, ASCII, atributy, escapování $, REAL analog
     assert.ok(f.body.includes('"Cerpadlo $$1 $QA$Q - 50 degC - beh"'), "escapování $ a uvozovek");
     assert.ok(f.body.includes('ALIAS,,M1_fbkRunning,') && f.body.includes('"Local:1:I.Pt00.Data"'), "alias DI na bod modulu 5069");
     assert.ok(f.body.includes('ALIAS,,B1_raw,') && /B1_raw,.*"Local:3:I\.Ch00\.Data","\(RADIX := Float/.test(f.body), "analog = REAL kanál");
-    assert.ok(/remark,"I\/O .*1: 5069-IB16 \(DI 0-15\), 2: 5069-OB16 \(DO 0-15\), 3: 5069-IF8/.test(f.body), "předpoklad osazení slotů v remark");
+    assert.ok(/remark,"I\/O .*Local:1 5069-IB16 \(DI 16\), Local:2 5069-OB16 \(DO 16\), Local:3 5069-IF8 \(AI 8\)/.test(f.body), "osazení slotů ze sestavy v remark");
     assert.ok(f.body.includes('TAG,PLCdesk,tonSeq10,"","FBD_TIMER"') && f.body.includes('TAG,PLCdesk,instM1,"","FB_Motor"'), "programové tagy se SCOPE");
     for (const l of lines.slice(hdr + 2))
         assert.ok(/,"\([^"]*ExternalAccess := Read\/Write\)"$/.test(l), "vyplněné ATTRIBUTES: " + l);
-    /* adresa, kterou nejde převést → běžný tag (REAL / BOOL) */
+    /* aliasy jsou kanály sestavy Rockwell (hardware.ts) — ruční adresa Siemens (platforma hardwaru) je nemění */
     p.io.find(e => e.tag === "B2_raw").addr = "%IW63";
-    assert.ok(/^TAG,,B2_raw,.*"REAL"/m.test(genTagFile(p, "rockwell").body));
+    assert.ok(/^ALIAS,,B2_raw,.*"Local:3:I\.Ch0\d\.Data"/m.test(genTagFile(p, "rockwell").body));
 });
 test("Rockwell: L5X (AOI + tagy + rutina ST) je well-formed a bez konstrukcí, které Logix nemá", () => {
     /* nezávislá kontrola párování značek (bez knihoven) */
@@ -408,7 +411,7 @@ test("Unitronics: plochý ST pro UniLogic — bez FB, stav v globálních tazíc
     ])
         assert.ok(st.includes(want), "chybí: " + want);
     const tags = genFor(p, "unitronics")["Tags.csv"];
-    for (const row of ['"M1_outRun","BIT","I/O DO","%Q0.0"', '"B1_raw","INT16","I/O AI","%IW64"', '"seqStep","INT16","Program"', '"instY1_tonOpen","TON"', '"tonSeq10","TON"', '"instM1_status","UINT16"']) {
+    for (const row of ['"M1_outRun","BIT","I/O DO","-A1 DO 0"', '"B1_raw","INT16","I/O AI","-A1 AI 0"', '"seqStep","INT16","Program"', '"instY1_tonOpen","TON"', '"tonSeq10","TON"', '"instM1_status","UINT16"']) {
         assert.ok(tags.includes(row), "chybí řádek " + row);
     }
     assert.ok(allProjectFiles(p).some(f => f.save === "unitronics_Machine.st" && f.group === "PLC — Unitronics"));
@@ -1073,8 +1076,11 @@ function loadSample(prefix) {
 }
 const filesOf = (o) => Object.entries(o).map(([name, text]) => ({ name, text }));
 const clonePrj = (p) => JSON.parse(JSON.stringify(p));
-/** Srovnatelný obraz projektu: zařízení (jméno, třída, volby, rozsahy, meze, role), I/O, E-stop, blokování, sekvence. */
-function rtView(p) {
+/**
+ * Srovnatelný obraz projektu: zařízení (jméno, třída, volby, rozsahy, meze, role), I/O, E-stop, blokování, sekvence.
+ * Adresy v sestavě hardwaru platformy `plat` (hardware.ts) — výstup platformy nese kanály její sestavy.
+ */
+function rtView(p, plat) {
     const dn = (id) => (p.devices.find(d => d.id === id) || { name: "" }).name;
     return {
         devs: p.devices.map(d => {
@@ -1084,7 +1090,7 @@ function rtView(p) {
             return JSON.stringify({ name: d.name, cls: d.cls, opt, rng: an ? [d.rmin, d.rmax] : null, lim: d.cls === "AnalogIn" ? [d.limLo ?? null, d.limHi ?? null] : null,
                 sp: d.cls === "AnalogOut" ? d.setpoint ?? null : null, role: d.cls === "DO" ? d.role ?? null : null });
         }),
-        io: p.io.map(e => dn(e.devId) + "." + e.sig + "=" + e.tag + "@" + e.addr + ":" + e.dir),
+        io: p.io.map(e => dn(e.devId) + "." + e.sig + "=" + e.tag + "@" + (plat ? hwAddr(p, plat, e) : e.addr) + ":" + e.dir),
         estop: dn(p.program.estop),
         locks: interlockDevs(p).map(d => d.name),
         seq: p.program.seq.map(s => { const k = seqCond(p, s).kind; return [s.act === "wait" ? "" : dn(s.dev), s.act, k, k === "none" ? null : s.timeS].join("/"); }),
@@ -1094,8 +1100,8 @@ test("import: round-trip vlastních výstupů — 8 platforem × ukázky a pří
     const projects = [["sampleSmall", sampleSmall()], ["sampleComplex", sampleComplex()],
         ...["00a", "03", "07", "10"].map(n => [n, loadSample(n)])];
     projects.forEach(([name, p], pi) => {
-        const want = rtView(p);
         for (const plat of PLATS_ALL) {
+            const want = rtView(p, plat);
             const ex = extractFiles(filesOf(genFor(p, plat)));
             assert.equal(ex.platform, plat, name + "/" + plat + ": platforma");
             assert.equal(ex.unparsed.length, 0, name + "/" + plat + ": vše přečteno");
@@ -1122,28 +1128,30 @@ test("import: round-trip v dalších jazycích (komentáře generátoru přelož
             p.devices.find(d => d.name === "H2").role = "fault";
             p.devices.find(d => d.name === "B1").limHi = 220;
             p.devices.find(d => d.name === "U1").setpoint = 35.5;
-            const want = rtView(p);
             for (const plat of PLATS_ALL)
-                assert.deepEqual(rtView(inferProject(extractFiles(filesOf(genFor(p, plat)))).prj), want, l + "/" + plat);
+                assert.deepEqual(rtView(inferProject(extractFiles(filesOf(genFor(p, plat)))).prj), rtView(p, plat), l + "/" + plat);
         });
 });
 test("import: adresy — přesně tam, kde je výstup nese; jinak doplněné a hlášené", () => {
     const p = sampleSmall();
+    /* ruční adresy platformy hardwaru (Siemens): mimo kanály sestavy = cizí adresy, kód je nese */
     const set = { M1_fbkRunning: "%I4.3", M1_outRun: "%Q2.6", B1_raw: "%IW80", Y1_fbkClosed: "%I1.7" };
     for (const e of p.io)
         if (set[e.tag])
             e.addr = set[e.tag];
     const all = Object.keys(set);
+    /* ostatní platformy nesou kanál SVÉ sestavy (hardware.ts); Unitronics / Omron / TwinCAT / WAGO bez adres */
     const carry = {
-        siemens: all, rockwell: all, codesys: all, schneider: all, unitronics: all,
+        siemens: all, rockwell: all, codesys: all, schneider: all, unitronics: [],
         mitsubishi: ["M1_fbkRunning", "M1_outRun", "Y1_fbkClosed"], beckhoff: [], omron: [],
         /* profily CODESYS: WAGO bez AT (I/O mapování), Delta AX adresy CODESYS */
         wago: [], delta: all,
     };
     for (const plat of PLATS_ALL) {
         const r = inferProject(extractFiles(filesOf(genFor(p, plat))));
+        const want = (t) => plat === "siemens" ? set[t] : hwAddr(p, plat, p.io.find(e => e.tag === t));
         for (const t of carry[plat])
-            assert.equal(r.prj.io.find(e => e.tag === t).addr, set[t], plat + " " + t);
+            assert.equal(r.prj.io.find(e => e.tag === t).addr, want(t), plat + " " + t);
         const lost = all.filter(t => !carry[plat].includes(t));
         for (const t of lost)
             assert.equal(r.evidence["io:" + t].conf, "guess", plat + " " + t + ": adresa odhadem");
@@ -1164,11 +1172,12 @@ test("import: kanonické adresy (inverze addrFor) a pomocné parsery", () => {
     assert.equal(canonAddr("X1F"), "%I3.7", "hexadecimálně (iQ-R)");
     assert.equal(canonAddr("Y7"), "%Q0.7");
     assert.equal(canonAddr("%I*"), "");
-    for (const e of sampleComplex().io)
+    const sc = sampleComplex();
+    for (const e of sc.io)
         for (const plat of ["siemens", "codesys", "mitsubishi"]) {
-            const a = addrFor(plat, e);
+            const a = addrFor(plat, e, sc);
             if (a)
-                assert.equal(canonAddr(a, plat), e.addr, plat + " " + e.tag);
+                assert.equal(canonAddr(a, plat), hwAddr(sc, plat, e), plat + " " + e.tag);
         }
     assert.equal(parseTimeLit("T#1S500MS"), 1.5);
     assert.equal(parseTimeLit("t#2m"), 120);

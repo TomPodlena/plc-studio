@@ -15,7 +15,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox
 
-from . import theme
+from . import theme, updates
 from .app import STEPS, App
 from .bridge import BridgeError
 from .i18n import _
@@ -86,6 +86,8 @@ def _smoke(app: App, shots: Path | None) -> int:
             scen = range(3) if app.prj["program"]["seq"] else [0]
             return [("_0", {"prog_tab": 0}), ("_1", {"prog_tab": 1})] + [
                 (f"_2{t}", {"prog_tab": 2, "sim_tab": t}) for t in scen]
+        if step == 7 and app.prj["devices"]:              # Generovat: kód, HMI, emulace, SISTEMA a EPLAN
+            return [(f"_{t}", {"gen_tab": t}) for t in range(4)]
         if step == 10 and app.prj["devices"]:             # Bezpečnost: funkce, nebezpečí, … výkres
             return [(f"_{t}", {"safety": {"tab": t}}) for t in range(5)]
         return [("", {})]
@@ -163,6 +165,8 @@ def main(argv: list[str] | None = None) -> int:
         return _smoke(app, Path(args.shots) if args.shots else None)
     if args.project:
         app.open_project(args.project)
+    # kontrola aktualizací na pozadí (nejvýš jednou denně, bez sítě tiše nic) — ne v --smoke
+    root.after(2000, lambda: updates.start_check(app))
     root.mainloop()
     return 0
 

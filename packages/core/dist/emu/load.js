@@ -381,7 +381,7 @@ function loadRockwell(prj, files, d, out) {
             const c = csvRow(r);
             if (!known.has((c[2] || "").toUpperCase()))
                 out.push({ level: "error", rule: "tag-table", file: "Tags.csv", line: i + 1, col: 1, platform: d.plat, msg: tr("Tags.csv: tag {name} není v L5X", { name: c[2] }) });
-            if (c[0] === "ALIAS" && !/^Local:\d+:[IO]\.(Pt|Ch)\d{2}\.Data$/.test(c[5] || ""))
+            if (c[0] === "ALIAS" && !/^(Local|RIO\d+):\d+:[IO]\.(Pt|Ch)\d{2}\.Data$/.test(c[5] || ""))
                 out.push({ level: "error", rule: "address", file: "Tags.csv", line: i + 1, col: 1, platform: d.plat, source: SRC.rm014, msg: tr("Tags.csv: alias {name} → {spec} není bod modulu 5069 (Local:slot:I.Ptnn.Data / Chnn.Data)", { name: c[2], spec: c[5] }) });
         });
     }

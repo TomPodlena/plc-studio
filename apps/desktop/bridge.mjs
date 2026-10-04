@@ -7,9 +7,14 @@ import * as core from "../../packages/core/dist/index.js";
 import * as ai from "../web/src/ai.js";
 import * as importAi from "../web/src/import_ai.js";
 import * as safety from "../web/src/safety_view.js";
+import { BIZ_OPS } from "./bridge_biz.mjs";
+import { OUT_OPS, emuGate } from "./bridge_out.mjs";
 
 /* Bezpečnostní modul (položky ke schválení, kroky validace, dokumenty, kusovník) — jako ve webu. */
 core.registerSafetyModule();
+/* HMI: dokument 16_hmi.md a soubory HMI v sadě projektu (levné). Emulace (dokument 15) je drahá —
+   přihlásí se až po výslovném ověření (operace emu.finish v bridge_out.mjs, emuGate). */
+core.registerHmiModule();
 
 /* ---------------------------------------------------------------- mini DOM
    Importéry SimaticML a L5X potřebují DOMParser, který v Node není. Stačí jim
@@ -148,8 +153,8 @@ const OPS = {
       const d = core.devById(prj, e.devId) || {};
       rows.push({
         key: e.key, devId: e.devId, sheet: mi,
-        svorka: "X" + (mi + 1) + ":" + (i + 1), modul: m.dir + m.idx, kanal: i,
-        addr: e.addr, tag: e.tag, wire: core.wireNo(mi + 1, i), cmt: (d.name ? d.name + " · " : "") + (e.cmt || ""),
+        svorka: "X" + (mi + 1) + ":" + (i + 1), modul: (m.hw ? m.hw.dt + " " : "") + m.dir + m.idx, kanal: m.chNo ? m.chNo[i] : i,
+        addr: core.hwAddrText(prj, e), tag: e.tag, wire: core.wireNo(mi + 1, i), cmt: (d.name ? d.name + " · " : "") + (e.cmt || ""),
       });
     }));
     return {
@@ -157,7 +162,7 @@ const OPS = {
       block: mods.length ? core.svgBlock(prj, mods) : "",
       flow: core.svgFlow(prj, prj.program.seq.length ? core.simulate(prj) : null),
       sheets: mods.map((m, i) => ({
-        title: core.tr("{mod} — svorkovnice X{n}", { mod: m.dir + m.idx, n: i + 1 }),
+        title: core.tr("{mod} — svorkovnice X{n}", { mod: (m.hw ? m.hw.dt + " " : "") + m.dir + m.idx, n: i + 1 }),
         base: sheetName(m, i),
         svg: core.sheetSVG(prj, m, i + 1, i + 1, mods.length),
         dxf: core.sheetDXF(prj, m, i + 1, i + 1, mods.length),
@@ -172,7 +177,7 @@ const OPS = {
     core.syncIO(prj);
     const map = {};
     core.modules(prj).forEach((m, mi) => m.ch.forEach((e, i) => {
-      map[e.key] = { svorka: "X" + (mi + 1) + ":" + (i + 1), modul: m.dir + m.idx, kanal: i, sheet: mi };
+      map[e.key] = { svorka: "X" + (mi + 1) + ":" + (i + 1), modul: (m.hw ? m.hw.dt + " " : "") + m.dir + m.idx, kanal: m.chNo ? m.chNo[i] : i, sheet: mi };
     }));
     return { prj, map };
   },
@@ -301,6 +306,7 @@ const OPS = {
   },
 
   files({ prj }) {
+    emuGate(prj);       // dokument 15 jen pro projekt, pro který emulace proběhla
     core.syncIO(prj);
     return { prj, files: core.allProjectFiles(prj) };
   },
@@ -346,6 +352,11 @@ const OPS = {
     const proposal = importAi.importNorm(raw, ex, files.map(({ data, ...f }) => f), { base });
     return { proposal, merged: exact ? core.mergeProposals(exact, proposal) : null };
   },
+
+  /* Revize (revision.*), nabídka (quote.*) a firemní knihovna (library.*) — bridge_biz.mjs. */
+  ...BIZ_OPS,
+  /* HMI (hmi*), emulace kódu (emu.*), exporty SISTEMA a EPLAN (exports) — bridge_out.mjs. */
+  ...OUT_OPS,
 };
 
 /* ---------------------------------------------------------------- smyčka */

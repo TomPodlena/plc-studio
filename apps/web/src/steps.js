@@ -7,6 +7,7 @@ import {
   sampleSmall, sampleComplex, tr, N_, getLang, DO_ROLES, stepTitle,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
   buildBom, bomOptions, bomPlatform, bomCsv, catKey, suppliersFor, SUPPLIERS, CATALOG_DATE, PLATFORM_REFS,
+  hwAddrText,
 } from "../../../packages/core/dist/index.js";
 import { $, card, copyText, downloadFile, downloadFiles, normProject, normAi } from "./util.js";
 import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, SAMPLE_DESC, AI_EXAMPLE } from "./ai.js";
@@ -500,7 +501,7 @@ export function makeSteps(ctx) {
       ${["DI", "DO", "AI", "AO"].map(d => "<span class='stat'>" + d + " <b>" + p.io.filter(e => e.dir === d).length + "</b></span>").join("")}
     </div>
     <div class="tablewrap"><table><thead><tr><th>${tr("Zařízení")}</th><th>${tr("Směr")}</th><th>${tr("Tag")}</th><th>${tr("Adresa")}</th><th>NC</th><th>${tr("Komentář")}</th></tr></thead><tbody>${rows || "<tr><td colspan='6' class='hint'>" + tr("žádná zařízení") + "</td></tr>"}</tbody></table></div>
-    <div class="row"><button class="small" id="bRenum">${tr("Přečíslovat adresy od nuly")}</button><span class="hint" style="margin:0">${tr("Adresy v Siemens notaci — pro ostatní platformy se převedou automaticky. NC = rozpínací kontakt (promítne se do schématu). Duplicity červeně.")}</span></div>
+    <div class="row"><button class="small" id="bRenum">${tr("Přečíslovat adresy od nuly")}</button><span class="hint" style="margin:0">${tr("Adresy přiděluje sestava hardwaru (kanál modulu, zápis v Siemens notaci); ruční adresa kanál připne, adresa mimo sestavu zůstane s upozorněním. Pro ostatní platformy se převedou automaticky. NC = rozpínací kontakt (promítne se do schématu). Duplicity červeně.")}</span></div>
     ${issuesHtml}`);
     c.querySelectorAll("input[data-k]").forEach(i => i.addEventListener("change", e => {
       const en = p.io.find(x => x.key === e.target.dataset.k);
@@ -532,7 +533,7 @@ export function makeSteps(ctx) {
     const mods = modules(p);
     const bd = svgBlock(p, mods);
     const c1 = card(el, "06", tr("Blokové schéma systému"),
-      "<div class='tablewrap'><figure style='margin:0'>" + bd + "<figcaption class='hint'>" + tr("Zdroje signálů → moduly PLC → akční členy; moduly navrženy z počtu I/O (DI16 / DO16 / AI8 / AO4).") + "</figcaption></figure></div>" +
+      "<div class='tablewrap'><figure style='margin:0'>" + bd + "<figcaption class='hint'>" + tr("Zdroje signálů → moduly PLC → akční členy; moduly ze sestavy hardwaru (vestavěné I/O CPU, karty a vzdálené stanice podle katalogu — stejně jako kusovník).") + "</figcaption></figure></div>" +
       "<div class='row'><button class='small' id='cpBd'>" + tr("Kopírovat SVG") + "</button><button class='small' id='dlBd'>" + tr("Stáhnout SVG") + "</button></div>");
     c1.querySelector("#cpBd").addEventListener("click", () => copyText(bd, c1.querySelector("#cpBd")));
     c1.querySelector("#dlBd").addEventListener("click", () => downloadFile("00_blokove_schema.svg", bd));
@@ -556,7 +557,7 @@ export function makeSteps(ctx) {
     let rowsHtml = "";
     mods.forEach((m, mi) => m.ch.forEach((e, i) => {
       const d = devById(p, e.devId) || {};
-      rowsHtml += "<tr><td class='mono'><b>X" + (mi + 1) + ":" + (i + 1) + "</b></td><td class='mono'>" + m.dir + m.idx + "</td><td class='mono'>" + i + "</td><td class='mono'>" + esc(e.addr) + "</td><td class='mono'>" + esc(e.tag) + "</td><td class='mono'>" + wireNo(mi + 1, i) + "</td><td style='color:var(--muted);font-size:.78rem'>" + esc((d.name ? d.name + " · " : "") + (e.cmt || "")) + "</td></tr>";
+      rowsHtml += "<tr><td class='mono'><b>X" + (mi + 1) + ":" + (i + 1) + "</b></td><td class='mono'>" + esc((m.hw ? m.hw.dt + " " : "") + m.dir + m.idx) + "</td><td class='mono'>" + (m.chNo ? m.chNo[i] : i) + "</td><td class='mono'>" + esc(hwAddrText(p, e)) + "</td><td class='mono'>" + esc(e.tag) + "</td><td class='mono'>" + wireNo(mi + 1, i) + "</td><td style='color:var(--muted);font-size:.78rem'>" + esc((d.name ? d.name + " · " : "") + (e.cmt || "")) + "</td></tr>";
     }));
     const c3 = card(el, "·", tr("Svorkovnice"),
       "<div class='tablewrap'><table><thead><tr><th>" + tr("Svorka") + "</th><th>" + tr("Modul") + "</th><th>" + tr("Kanál") + "</th><th>" + tr("Adresa") + "</th><th>" + tr("Tag") + "</th><th>" + tr("Vodič") + "</th><th>" + tr("Zařízení / komentář") + "</th></tr></thead><tbody>" + rowsHtml + "</tbody></table></div>" +

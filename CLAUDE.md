@@ -143,7 +143,8 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
 ## Kusovník komponent (základní verze; stavba v CADu = verze PRO)
 
 - `buildBom(prj)` (`bom.ts`): položky z návrhu s označením dle IEC 81346 — PLC a moduly platformy
-  `bomPlatform()` (Unitronics: HMI v CPU, kombinovaný AI/AO modul), ke každému zařízení jeho díly
+  `bomPlatform()` = sestava hardwaru `hwLayout` (CPU, karty, hlavy a příslušenství vzdálených stanic;
+  Unitronics: HMI v CPU, kombinovaný AI/AO modul), ke každému zařízení jeho díly
   (motor → `-Q` jistič motoru + `-K` stykač, válec → rozváděč + válec + snímače polohy, analog podle
   jednotky a popisu…), rozvaděč. Bezpečnostní prvky jen jako HW řádek `safety` s výhradou
   „EN ISO 13849, návrh k revizi" — **žádná bezpečnostní logika**. Výstupy `bomCsv` (středník, BOM
@@ -155,6 +156,52 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   `catalog_data.ts` (+ `platform_refs.ts` z `data/platform_refs.json`); objednací kód jen s URL
   zdroje, ceny se neuvádějí; české popisy jsou klíče překladu (N_). Po přegenerování build jádra,
   `i18n.py missing/merge`, testy. Desktop: krok `steps/kusovnik.py` + operace mostu `bom`, `refs`.
+
+## Sestava hardwaru (hardware.ts)
+
+- **Jediný zdroj pravdy o modulech.** `hwLayout(prj, plat)` → stanice (CPU s lokálním rackem, vzdálené
+  stanice s hlavou), moduly s položkou katalogu (`opt`, objednací kód, kanály z `hw.ch`), vestavěné I/O
+  CPU jako modul `builtin` a přiřazení KAŽDÉHO signálu jednomu kanálu (stanice, slot, kanál) s kanonickou
+  adresou. Nikdo jiný moduly nepočítá: `modules()` = kanálové skupiny (modul × směr, `chNo`, `cap`, `hw`),
+  `autoAddr` = `hwAssign`, `addrFor(plat, e, prj)` = `hwNative`, kusovník (řádky PLC = moduly sestavy,
+  `-A1` CPU, `-A2…-A5` karty po typech, vzdálená stanice s: hlava `-A(10s)`, karty `-A(10s+2…5)`, .k při
+  více kusech), výkresy / svorkovnice / I/O list (`hwAddrText`), EPLAN (stanice, rack, sloty, BuiltIn,
+  ET 200SP s IM, BusAdapterem a serverem v síti PROFINET), Rockwell aliasy (`lxSpecOf`: `Local:<slot>`,
+  `RIO<n>:<slot>`), validace (`hwIssues`: nevejde se = chyba pro každou platformu projektu).
+- **Data v katalogu** (`data/catalog/plc.json`, pole `hw` se zdrojem `hwSrc`): CPU `builtin`, `slots`
+  (sběrnice → max. modulů), `maxPts` (FX5), `remote` (sběrnice vzdálených stanic), `family`; modul `ch`,
+  `bus`, `also` (zabírá i další limit), `pts`; hlava `head`, `slots`, `net`, `acc` (BusAdapter, server,
+  BaseUnit). Ověřeno 2026-10-04 (datasheety výrobců, viz `hwSrc`); limity neověřené rešerší: CX7000 /
+  EK1100 64 svorek, WAGO 750-362 64 modulů, TM3BCEIP 7 a NX-ECC203 63 (jen souhrn datasheetu).
+- **Pravidla:** CPU = volba v kusovníku (`prj.bom`), jinak první CPU katalogu, do kterého se I/O vejdou
+  lokálně, jinak to s největší lokální kapacitou + vzdálené stanice. Nejdřív vestavěné I/O, pak karty
+  (DI, DO, AI, AO) do limitu racku, přebytek do vzdálených stanic (hlava z `plc_coupler` se `hw.head` =
+  `hw.remote` CPU). Modul = volba uživatele pro řádek / kategorii, pokud se hodí do racku (jinak první
+  vhodná + info). Siemens: S7-1200 G2 (1212C 8 DI / 6 DQ, 6 modulů; 1214C 14 / 10, 10 modulů; bez
+  vestavěných analogů) se SM řady G2 v racku CPU, přebytek do **ET 200SP s IM 155-6 PN ST** (32 modulů,
+  PROFINET) — zvoleno místo S7-1500: kódy ověřené v katalogu, CPU zůstává, typické decentrální řešení
+  stroje, TIA V18 vzor. Rockwell 5069-L306ER (8) / L320ER (16) / L330ER (31), přebytek 5069-AENTR;
+  FX5U 16/16 + 2 AI / 1 AO (0–10 V), vpravo 12 modulů (napájení z CPU), 4 ADP, 8 inteligentních, 256
+  bodů, vzdálené I/O v katalogu nejsou (→ „nevejde se“); M241 14/10 + 7 TM3 (+ TM3BCEIP); NX1P2 14/10
+  + 8 NX (+ NX-ECC203); US5 10 DI / 12 DO / 2 AI + 80 Uni-I/O (UIA-0402N = 4 AI + 2 AO v jednom);
+  CX7000 8/4 + EL; PFC200 64 modulů 750; AX-308E 16/8 + 32 AS (z toho 16 analog).
+- **Adresy:** S7-1200 výchozí adresy TIA (vestavěné od I0.0 / Q0.0; SM ve slotu s digitálně od
+  8 + 4 (s − 2), analogově od 96 + 16 (s − 2); vzdálené moduly první volný blok, analog od 64) — výchozí
+  návrh, neověřeno u G2; ostatní lineárně (digitální po celých bajtech za sebou — FX5 X/Y osmičkově
+  od X20 za vestavěnými —, analog od slova 64). Kanonická adresa → notace platformy `nativeAddr`.
+- **Uložené adresy = připnutí.** `e.addr` je kanál v sestavě platformy hardwaru (`hwPlatform` = volba
+  kusovníku, jinak první platforma); značka `prj.hw = {plat, ver: HW_VER}` říká, že adresy jsou platné.
+  Bez značky (starší projekt) / po změně platformy hardwaru / po změně `HW_VER` se přidělí znovu (pořadí
+  zůstane). Ruční adresa na kanálu sestavy ho připne; adresa mimo sestavu (import skutečného stroje) se
+  respektuje — kód ji použije, výkres ji ukáže, `validateProject` upozorní. Import nastaví značku.
+  Ostatní platformy projektu mají vlastní sestavu (bez připnutí, pořadí podle `e.addr`). Web
+  `normProject` značku zachovává.
+- **GUID modulů:** klíč `S<stanice>.<slot>` v `prj.moduleGuids` (karty a hlavy); vestavěné I/O, CPU,
+  BusAdapter a server odvozeně. Dřívější klíče `DI1…` převede `fillGuids` (n-tá karta téhož směru).
+- Testy `hardware.test.ts`: 13 příkladů × 10 platforem — signál právě na jednom kanálu, bez kolize
+  adres, kanály = katalog, limity racků, kusovník = sestava, výkresy / svorkovnice / EPLAN shodné,
+  validateEplan bez chyb; pravidla Siemens / FX5 / Rockwell / Omron / Unitronics, „nevejde se“,
+  připnutí a migrace GUID. XSD CAEX 2.15 (lxml): 260 souborů (příklady × platformy × ploché / UDT).
 
 ## Import stávajícího zařízení (reverse engineering + AI)
 
@@ -317,6 +364,10 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   Kategorie a PL se v SISTEMA potvrzují ručně. Stav `SISTEMA_VERIFIED` = neověřeno importem.
 - **EPLAN**: AutomationML AR APC 1.4.0 (`eplanAml`), seznam zařízení z kusovníku, svorky `-X<n>:<k>` a vodiče
   (`wireNo`) shodné s výkresy; stav `EPLAN_VERIFIED` = neověřeno importem (licence není). AML v2 = fáze 2.
+  Stanice, sloty, vestavěné I/O a vzdálené stanice jsou ze sestavy hardware.ts (viz „Sestava hardwaru“).
+- **Hlavičky dokumentů:** pod nadpis každého `.md` z `docFiles` jde firemní hlavička knihovny
+  (`libraryDocHeader`) a řádky `DocProvider.header` (revize: `revisionHeaderMd`); bez knihovny a revize
+  beze změny (golden).
 - Oba exporty se přihlašují s bezpečnostním modulem (`addSafetyRegistration`). Testy používají pomůcky
   `exp_util.test.ts` (příklady, přísná kontrola well-formed XML).
 
@@ -346,6 +397,13 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   komentáře I/O — vznikají v jazyce platném při vytvoření). Prompt AI návrháře zůstává český,
   jen dostane pokyn, v jakém jazyce psát texty pro uživatele.
 - Logika nesmí záviset na přeloženém textu (porovnávat stavy / klíče, ne popisky).
+- Tvary podle čísla: klíč nese tvary oddělené „|“ (`"{n} soubor|{n} soubory|{n} souborů"`), web
+  `trn()` (`apps/web/src/plural.js`), desktop `_n()` (`plc_studio/i18n.py`); pravidla cs 1 / 2–4 / 5+,
+  en/de/es 1 / ostatní, zh jeden tvar. Nesestavovat plurál ručně z podmínek.
+- Moduly s dokumenty v klientech: `registerSafetyModule()` a `registerHmiModule()` při startu (web
+  `app.js`, desktop `bridge.mjs`); emulace NE — dokument 15 se přidá až po výslovném ověření
+  („Ověřit kód emulací“) a jen pro tu podobu projektu (`emuGate`), jinak by každé překreslení
+  dokumentace pouštělo drahé `emulateAll`.
 - Nový jazyk: přidat do `Lang`, `LANGS`, `DICT` a `LOCALE` v `i18n.ts`, do `LANGS` ve
   `scripts/i18n.py` a v `plc_studio/i18n.py`, založit katalog a přeložit; testy jazyky berou
   z `LANGS` (desktopový test má jejich seznam vypsaný).

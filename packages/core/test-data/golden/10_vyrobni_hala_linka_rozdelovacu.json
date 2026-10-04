@@ -113,8 +113,8 @@
    "size": 35963
   },
   "code-oop/schneider/GVL_IO.st": {
-   "sha256": "4bc89df76b306139785e93ddd17330e6a46ff297f9284ff60d25941d15a31a5a",
-   "size": 14519
+   "sha256": "693657c9e05dca27aa45e83168d09cea51696cbf0c5b058e32c08982965ffa24",
+   "size": 14521
   },
   "code-oop/schneider/Gen_Library.st": {
    "sha256": "0552c441799843d214a36ec89b052cc4100784807de991a89384be5160c88f8e",
@@ -125,8 +125,8 @@
    "size": 32258
   },
   "code-oop/schneider/PLCopen_Import.xml": {
-   "sha256": "1bf2342bd08f9e4508e0ece7d5b0d49d957b4a8d45520a02987425c04fb50143",
-   "size": 184614
+   "sha256": "1c164c646e3cc47116c3120b79889d28c8b67ef7d91806f35c6cdcbde59d76c3",
+   "size": 184616
   },
   "code-oop/schneider/README.txt": {
    "sha256": "8819c9bb5b94c18a2ff2aebff3809ed13dbf665c3c85b11cdee153f1f6639128",
@@ -257,16 +257,16 @@
    "size": 289557
   },
   "code/rockwell/README.txt": {
-   "sha256": "9ef6c662f2903b27522479cc6c2b0d530ad7747a5e052a5f307834be23d77439",
-   "size": 4331
+   "sha256": "42a62036541282e553767c9686314adf12f892ea5dfa7d319d240e4db5cacda3",
+   "size": 4463
   },
   "code/rockwell/Tags.csv": {
-   "sha256": "bee88c46e25ac11df721926ee5a5ef6e9576eb4b705b6db1062b9a6dfa165149",
-   "size": 54658
+   "sha256": "ec3443b48d16d0a1cd4df3cc4bdaf6de87e7ba595ecc2214690ac31c30b371cb",
+   "size": 54692
   },
   "code/schneider/GVL_IO.st": {
-   "sha256": "4bc89df76b306139785e93ddd17330e6a46ff297f9284ff60d25941d15a31a5a",
-   "size": 14519
+   "sha256": "693657c9e05dca27aa45e83168d09cea51696cbf0c5b058e32c08982965ffa24",
+   "size": 14521
   },
   "code/schneider/Gen_Library.st": {
    "sha256": "77c59f2617671531e3e32e9351e1022eb4bc6ce2405b45383586cb5470c130df",
@@ -277,16 +277,16 @@
    "size": 68853
   },
   "code/schneider/PLCopen_Import.xml": {
-   "sha256": "8a482c03c05aaca37c8d4510c3b20c922afaa07109d62e1000a68f03405ca31c",
-   "size": 155637
+   "sha256": "c995f795f75e6298597d6d92d619b883dd3e45eccf7042d2340dad1dd3c29124",
+   "size": 155639
   },
   "code/schneider/README.txt": {
    "sha256": "bc9f583f6717b7cf895ece2a0864bd580967c80dd8c0bed7aeccae93568b498c",
    "size": 1652
   },
   "code/siemens/Gen_IO.xml": {
-   "sha256": "c05a3f7b35b30cc92e2d99cf61f4ce12fbd3af5e486be423f0813b5854cdcfd6",
-   "size": 140622
+   "sha256": "7a02ef8a5a1ada0f140296aca70f04da18d12b376f6b081405e5caed70506eb9",
+   "size": 140708
   },
   "code/siemens/Gen_Library.scl": {
    "sha256": "5cf0a25aeff0c167b4128194e9d23c8557757016b3271c5cb26762aad46ebd7b",
@@ -297,8 +297,8 @@
    "size": 68240
   },
   "code/siemens/Gen_Tags.tsv": {
-   "sha256": "e0ba80daaff39bd0fca0abdbce175a216b680d450ffaafecc2f6e8c9a2ef8b0e",
-   "size": 12263
+   "sha256": "cbd5a89f1bbca68a60bced41ba04e8c41c391c4df261d27d229ed8d7510f2c8c",
+   "size": 12349
   },
   "code/siemens/README.txt": {
    "sha256": "4647a9729dbbab339b739985b0a3f170d692b859675fe6bfb84de61f12c6ec54",
@@ -313,8 +313,8 @@
    "size": 3105
   },
   "code/unitronics/Tags.csv": {
-   "sha256": "3e3309a0e9df22aa23dc5de54522a87226efe626ae8de45f3341789535004bb7",
-   "size": 77524
+   "sha256": "ca70ffcd74255f6436a22a9da60cd871d0d5571baa741ef7b300c956eb0ae6d3",
+   "size": 78444
   },
   "code/wago/GVL_IO.st": {
    "sha256": "7e7d975ba3bca439c0dd5159c4f9a99ff088fb8b2572436d6bf96a2c2d245865",
@@ -341,24 +341,24 @@
    "size": 2472
   },
   "docs/01_funkcni_specifikace_FDS.md": {
-   "sha256": "38230845d0336dfa806dd3890002d983173af3a5248c5821e6c5fa2308f6f766",
-   "size": 31786
+   "sha256": "36c636b0c93a6d40a27efe448f0dd5fcb3830ce2e67d3ff27d4fc9cdbd1087f2",
+   "size": 34020
   },
   "docs/02_io_list.csv": {
-   "sha256": "c430ed16ef4cb4b755645ca8842f482fedec16f84ec0fe94c510616a7482d747",
-   "size": 13535
+   "sha256": "2018640e91196f5593cb6aed11357e747307cb99c9d09c36432032e8a6b0ceb7",
+   "size": 13621
   },
   "docs/03_svorkovnice.csv": {
-   "sha256": "9a15bdca476b8dcb96e036dbdbcd5c86b0c1c724bbd0fbad60e9ed9a80528b2d",
-   "size": 14830
+   "sha256": "86aadb43dbad94072d76867a00f27002222a634add3e58d642ef4596a7c13354",
+   "size": 19749
   },
   "docs/04_seznam_alarmu.csv": {
    "sha256": "880024d9a445d379c3c81a2afa2b4f18d4fe6e9758bc824de0d392f699e3b8e6",
    "size": 43930
   },
   "docs/05_testovaci_protokol_FAT.md": {
-   "sha256": "f8847b24956c83c298b5dfbaf6955a9544df3cce2af85e8865604142b35ac51d",
-   "size": 37143
+   "sha256": "13e7493efcd0df1c2459d19c58bd1ac49ecb145d910db76d97be8aca2b9fa42b",
+   "size": 37245
   },
   "docs/06_navod_k_obsluze.md": {
    "sha256": "95be1c48f31d0984a2d67871d4bcc884a49ed1a6c2a91b2d418c0baecf679727",
@@ -373,24 +373,24 @@
    "size": 60936
   },
   "docs/09_kusovnik.csv": {
-   "sha256": "bc4c4ad08a86c82429782f7796b7f7e9d9619dd027ad4878118cf68286dff448",
-   "size": 43164
+   "sha256": "c6c3b022f14ed0a2950346da1b61e91e4f3e0f4779e699aa3099927e2eb8db3e",
+   "size": 44124
   },
   "docs/09_kusovnik.md": {
-   "sha256": "0f685b5b54aab219e9c0ab27b834a564d91d3c679f749f6c2ce328fe7e47b07e",
-   "size": 44943
+   "sha256": "a08ce33e4b61decb85c66711054d63032811eb3631b82eb40f883ab395362f43",
+   "size": 45963
   },
   "docs/11_schvaleni.md": {
-   "sha256": "53d11746aa08859981b8d922ff76481333d3c15c64127a7c75d0996fc9b3736a",
+   "sha256": "6a5b32e4b88d8e1059d0b38101922ca1036a0e3d048113ee67cc94b77c0a7f5a",
    "size": 31664
   },
   "docs/12_protokol_ozivovani.csv": {
-   "sha256": "b2439a116e7ab8ec500449525cb9775199e9df9756e45b3034a4854638b6005c",
-   "size": 147309
+   "sha256": "1079ddd88f9cb129319a61a6ba2d25a9275600ecb6012e3aaf94531e62c8e550",
+   "size": 147445
   },
   "docs/12_protokol_ozivovani.md": {
-   "sha256": "f7828d1473cce453a623f915d2d932329c5a7ed5f3134b3be7d06f48b5959abf",
-   "size": 148764
+   "sha256": "4f818e8333dd8d46e9eeb62f24fd3394e2fc98d1f4e5916222246c9b5d2fb8c1",
+   "size": 148900
   }
  },
  "en": {
@@ -507,8 +507,8 @@
    "size": 35751
   },
   "code-oop/schneider/GVL_IO.st": {
-   "sha256": "71fcaa08243c14ddd7161149323e12e27e889bea5464e435f54c1edbcf7bc78e",
-   "size": 14442
+   "sha256": "0e5204f65a14f1f4ed94014aec1e06eced0fa8bf59e93d64a05fc7ae7437ff60",
+   "size": 14444
   },
   "code-oop/schneider/Gen_Library.st": {
    "sha256": "a7be9982059f1dc8059d57df7414249b8e5dfd20819edfe36cae465e2bdc0eeb",
@@ -519,8 +519,8 @@
    "size": 32507
   },
   "code-oop/schneider/PLCopen_Import.xml": {
-   "sha256": "fe4d292b749a77afd2071902af9e5d09c6320ad5cec10014b3d1b9f0ab2e48cf",
-   "size": 184930
+   "sha256": "e3c47516003246222f59f652e1102bbfaa2f92b33bcfa6175353a638b7844832",
+   "size": 184932
   },
   "code-oop/schneider/README.txt": {
    "sha256": "b127ff5860442e5df4bd8cd274791817a5064a90cedef2ea29802ef7645b27a6",
@@ -651,16 +651,16 @@
    "size": 289547
   },
   "code/rockwell/README.txt": {
-   "sha256": "58c18add21ce249256af192c649d66be8857fd87151c2b0b7b93fef7e4830045",
-   "size": 4498
+   "sha256": "e365a4979b2f6f88930136081ff35620520993acc17777f218d5c3dad102517b",
+   "size": 4644
   },
   "code/rockwell/Tags.csv": {
-   "sha256": "4892cdb02d19aefce773623e889f4b503e04b9f18bc440f3a1a57d27d6f14cb1",
-   "size": 54918
+   "sha256": "f0e3ef4ef076d84b7a1af7c8685c761cdb354bcfe09838e1fd075bc55aa89964",
+   "size": 54952
   },
   "code/schneider/GVL_IO.st": {
-   "sha256": "71fcaa08243c14ddd7161149323e12e27e889bea5464e435f54c1edbcf7bc78e",
-   "size": 14442
+   "sha256": "0e5204f65a14f1f4ed94014aec1e06eced0fa8bf59e93d64a05fc7ae7437ff60",
+   "size": 14444
   },
   "code/schneider/Gen_Library.st": {
    "sha256": "00d0e64058fe970860f8f6854ecc535f840970237c48ada8e17f65f56431dd0b",
@@ -671,16 +671,16 @@
    "size": 68854
   },
   "code/schneider/PLCopen_Import.xml": {
-   "sha256": "db59c1ecd1471a69c9f1cab8a70f65cdc469aa1910b35da2f4d7f8657082ba6f",
-   "size": 155469
+   "sha256": "0cee6fa3802b6559e0e4c3e56d8543fc0dc0f9582181df604167c925b12c3768",
+   "size": 155471
   },
   "code/schneider/README.txt": {
    "sha256": "c53e45654458e6253e8b453d04cbe5df92dcc5c80f360620245d458b0e1e659f",
    "size": 1719
   },
   "code/siemens/Gen_IO.xml": {
-   "sha256": "17c3c4987a8a655f9f99dd42ca946415d0b3667b7455543dded64de046fa1ccc",
-   "size": 140444
+   "sha256": "6dfd1dddca5ddb0d47504a2de68e00e40e3c93e2ba1198d3f7ef4a633cbd819b",
+   "size": 140530
   },
   "code/siemens/Gen_Library.scl": {
    "sha256": "773bf7465392db626dc886a5b48f4de05e4483f31a05b6bf72277ea3eef01e15",
@@ -691,8 +691,8 @@
    "size": 67791
   },
   "code/siemens/Gen_Tags.tsv": {
-   "sha256": "459b178fcf4e884ea799e3eb32bb9eaa8e15672d6d4322706670735f2ce80429",
-   "size": 12085
+   "sha256": "73b3c6876e509c8cc52d5a1e1b36da86c725cc5172f9988505d9627ad0150e9b",
+   "size": 12171
   },
   "code/siemens/README.txt": {
    "sha256": "0050474246a6444866ebf0507bdba1080f3b6b00a91e05e4ad906318c10a3403",
@@ -707,8 +707,8 @@
    "size": 3239
   },
   "code/unitronics/Tags.csv": {
-   "sha256": "013a829433f713720d7cc6cb16bcd5fda23a0856c1da384f967e91373c275b4e",
-   "size": 78356
+   "sha256": "6dc982d0fed85e163c44ae04823c101fae345bc1ce035efa6483e4f190a7c450",
+   "size": 79276
   },
   "code/wago/GVL_IO.st": {
    "sha256": "74594e5d2ac5f3723ac1ecb364d7cc0460bb1dfce8473eb0b1303d122b186179",
@@ -735,24 +735,24 @@
    "size": 2544
   },
   "docs/01_funkcni_specifikace_FDS.md": {
-   "sha256": "a0c77a9757be79de16cc40cd34b929ae25a32429129468da0197be494635de25",
-   "size": 30048
+   "sha256": "d87c812e0de7e64be670dd7fbd18ff608f6b89b21ab0ffab2b8150b439acf6b2",
+   "size": 32338
   },
   "docs/02_io_list.csv": {
-   "sha256": "087b048974f68dc44f26fb45bd766e57e85916f6a32a22f776874a3922596542",
-   "size": 13352
+   "sha256": "624eb875cd6d058ff0c6b11324c425d57cdb2cdfa13e2a6705eae9fce8b16441",
+   "size": 13438
   },
   "docs/03_svorkovnice.csv": {
-   "sha256": "ca3b8e96354ae3d465aef60489c748dd55ede1b697eaa3b7f3f5ee2fdd5b8723",
-   "size": 14652
+   "sha256": "9daf60026d9f06a833f5386c5b88d04651e3df32c63eaa7477c6f2fe8159fe77",
+   "size": 19573
   },
   "docs/04_seznam_alarmu.csv": {
    "sha256": "836e30661dc337a88fc13a94a63280cc3bbd316822862a88f3b97b9714c54517",
    "size": 44597
   },
   "docs/05_testovaci_protokol_FAT.md": {
-   "sha256": "7045e964d803d51c43aac1f6408d537c22d7766ba6931ac825a1b16c47125d06",
-   "size": 36734
+   "sha256": "0204056b74b50275c57f5b291bfda556a3c90edd08df894b2f0cc1006cf184a6",
+   "size": 36836
   },
   "docs/06_navod_k_obsluze.md": {
    "sha256": "6c8f7aefab805b8b187f0c32b6bb6162e684a827c644f668dfea2c025ef1bf10",
@@ -767,24 +767,24 @@
    "size": 59503
   },
   "docs/09_kusovnik.csv": {
-   "sha256": "41ba996677763231e989f8f3d8d130c8a4ca2f012c38c94fa23d0f8727cd5322",
-   "size": 42489
+   "sha256": "2a8190bf3545fbc220da0e59353ae191a6fa31d491b6026952879528cb964eee",
+   "size": 43408
   },
   "docs/09_kusovnik.md": {
-   "sha256": "d390f37b6ccbf49486b36dbea404f05e2fb12fc294f4791522be89c803e32197",
-   "size": 43993
+   "sha256": "9e563022a8a8f1064917b83435673b22fe407e444a82cc2c3a939035122065f5",
+   "size": 44968
   },
   "docs/11_schvaleni.md": {
-   "sha256": "7d9718cd33d9c8940bc90cfc3d111f96bc2706d7ce608eacfee531c76ec449cd",
+   "sha256": "d3fea683a0d1f88d71f6e652ae4556fd0de3259c8d14046738bb58c7d0fca63b",
    "size": 29770
   },
   "docs/12_protokol_ozivovani.csv": {
-   "sha256": "9f7f6812a1c8d119ba291dcce4c12ad7902bc7d5a58c140137c616dce42183e5",
-   "size": 151203
+   "sha256": "ba414a8ae30ac4479e8df66ae81c053cc6ab7112850243080b61076e8558a090",
+   "size": 151339
   },
   "docs/12_protokol_ozivovani.md": {
-   "sha256": "e80252cd6ae7a6ba93af048c468f567f87e1afa69839c68a03b63de59bafb266",
-   "size": 154600
+   "sha256": "8a5cd406fa6d12dcce2ca33baec794a4fe55551ca185efe9e56806e8dd8cb459",
+   "size": 154736
   }
  },
  "de": {
@@ -901,8 +901,8 @@
    "size": 36748
   },
   "code-oop/schneider/GVL_IO.st": {
-   "sha256": "fd23d359989ae6fb571255dae9c0f9581587f11f855f41cb2fbeb46668a53d63",
-   "size": 14558
+   "sha256": "5dd4a23238aef8f24eafb6084f468691585ce1d5527f7a533a4421bd1f197406",
+   "size": 14560
   },
   "code-oop/schneider/Gen_Library.st": {
    "sha256": "5d779ca4a8290f57c6c7112f3e55136fcaa1fa2cad26e6184960761547511b7f",
@@ -913,8 +913,8 @@
    "size": 32800
   },
   "code-oop/schneider/PLCopen_Import.xml": {
-   "sha256": "1b50138937ee0f65a95797bdb5d74f341cded0ffdca9043836b07bc408042a34",
-   "size": 186210
+   "sha256": "0efa636e65ff4dc51bb2f626bd0eaf7f75d582f2395b6afdf1a1a683f4fa5e10",
+   "size": 186212
   },
   "code-oop/schneider/README.txt": {
    "sha256": "b66fa499d5d14f1ebf9e5b19bc93f6078562b571b4b2ce0eabdc7ef42c5aaa1f",
@@ -1045,16 +1045,16 @@
    "size": 290880
   },
   "code/rockwell/README.txt": {
-   "sha256": "657887535d565f11f162ab87d123e22262c3211ccda68a1a435ef0b7ea4ca156",
-   "size": 4754
+   "sha256": "e99f94b5762c6171b13238ce418d3759ec7f1ae266208bd0721bf8e9e5b301a3",
+   "size": 4910
   },
   "code/rockwell/Tags.csv": {
-   "sha256": "d8f51c738cd5b96038e7dd1804fdfa8a19e7ccd94e4e71d08f7883e47401151c",
-   "size": 54690
+   "sha256": "8170b4d141a0df179d9e209ec6b4fd892f7670df56175e16833f86e2a870406a",
+   "size": 54724
   },
   "code/schneider/GVL_IO.st": {
-   "sha256": "fd23d359989ae6fb571255dae9c0f9581587f11f855f41cb2fbeb46668a53d63",
-   "size": 14558
+   "sha256": "5dd4a23238aef8f24eafb6084f468691585ce1d5527f7a533a4421bd1f197406",
+   "size": 14560
   },
   "code/schneider/Gen_Library.st": {
    "sha256": "8cd30c406e7398a85a43f2c0ce7bb569a5afca2f18394e158edfbaec40e2976a",
@@ -1065,16 +1065,16 @@
    "size": 70130
   },
   "code/schneider/PLCopen_Import.xml": {
-   "sha256": "0257f8186e4841c32b3349b55f626292304682b517a541fa6361c5ba1d45fe05",
-   "size": 156925
+   "sha256": "32e0d2f57a1308c30d8445c43cbad73894037f81eb6f6bf139ca2a913576ebda",
+   "size": 156927
   },
   "code/schneider/README.txt": {
    "sha256": "ed61dad3bbe0e9f9f86324335444c0d3111ff27ea59d8a048e039c117a727bd6",
    "size": 1867
   },
   "code/siemens/Gen_IO.xml": {
-   "sha256": "f358e98756efeb9cc13b3a942779396ed200493a080dc1b53627639fa06f8b6d",
-   "size": 140590
+   "sha256": "c8f3e980023a2cfb00f836d8c99323657cab6e083f6594dfa1369b010ace88b2",
+   "size": 140676
   },
   "code/siemens/Gen_Library.scl": {
    "sha256": "e6328aa22a9cbb6954004c7ad124105fb2618ae04a74e38223373ece381eb969",
@@ -1085,8 +1085,8 @@
    "size": 68991
   },
   "code/siemens/Gen_Tags.tsv": {
-   "sha256": "e92d5a154cfe9663062a6fe5709c021e05630f718411baaa94ed6995d1fdcb9e",
-   "size": 12231
+   "sha256": "5131424aac162693629d01af0bc15a5e59faacec660035dc929a772b8e3b6b85",
+   "size": 12317
   },
   "code/siemens/README.txt": {
    "sha256": "98f5993989c0de384faa7a13e69d210a3f56217c8dc1ef6bc9bc57fa2ffec7df",
@@ -1101,8 +1101,8 @@
    "size": 3526
   },
   "code/unitronics/Tags.csv": {
-   "sha256": "fac28f5c2d45edfa647f9659110865dbd621a051637f49c44e24d77db7b8f599",
-   "size": 81170
+   "sha256": "0ba2203cb965754274f94c976c7011a7c9fc65176b6653a5498962383a08bc3f",
+   "size": 82090
   },
   "code/wago/GVL_IO.st": {
    "sha256": "3a0dfad314b01961f93a0f4f7e4cc3feaa848437c0ddb3220eb90ae7a57d14e1",
@@ -1129,24 +1129,24 @@
    "size": 2580
   },
   "docs/01_funkcni_specifikace_FDS.md": {
-   "sha256": "1264584eb8d9f9c17cb9e80d2b6a1956f9dba46dde4cde725ce45bce06b80ab6",
-   "size": 31737
+   "sha256": "51e3293ff8ed3a49a92fc7d1d16854f5a6ad55f6a084fe9cd9c82196e9d59029",
+   "size": 34109
   },
   "docs/02_io_list.csv": {
-   "sha256": "a1fd6ce145837fd9a966023d4cf7661cac3f5d5a77ef3c1977246ca95e0b4f25",
-   "size": 13503
+   "sha256": "2dcce3fad9e135e65f21a22bded85e2248128aed1db0250433c225e5e1b46633",
+   "size": 13589
   },
   "docs/03_svorkovnice.csv": {
-   "sha256": "09518a0383a7e1fca6897094e04d2a0aa3925a58eaf0c0c7ebfa1665de4ecc87",
-   "size": 14806
+   "sha256": "6878dd8ae9e87db0d2124bea30565568abe3f9e3c306b331ee44afec69c93188",
+   "size": 19715
   },
   "docs/04_seznam_alarmu.csv": {
    "sha256": "177b42556a9d05e93458135332dbdd6292e0db22bd9466d4b6c74778b4d57459",
    "size": 52611
   },
   "docs/05_testovaci_protokol_FAT.md": {
-   "sha256": "d8d1bcb8fc7afd390de39a0cb3ace1d85cd75845d434a540e792047e01433c96",
-   "size": 38310
+   "sha256": "e28cea5310b94ff0c9b135b197fe949f0274117137e3f5f698c3282c1fe75e68",
+   "size": 38412
   },
   "docs/06_navod_k_obsluze.md": {
    "sha256": "2a393a924ac995816f1b69285a14003bb8cc981a4dad6aeff6b9060312581b60",
@@ -1161,24 +1161,24 @@
    "size": 68286
   },
   "docs/09_kusovnik.csv": {
-   "sha256": "804533491841c8f4279f31f56c36f1b13e51f0b58b9210efd50db6fc28b4f04b",
-   "size": 43324
+   "sha256": "864603731bc9fb8da033be7196be9dadbe64e7bdbcf982dbe5828bccb2d4d9ef",
+   "size": 44263
   },
   "docs/09_kusovnik.md": {
-   "sha256": "777fcd3a601c7057b6141d54f0599ee3040ea4038da2deae9a2408c9837c186b",
-   "size": 44720
+   "sha256": "3c7813dbf7ab8bc4048cb374221d2b70c21f95fa682373e350bf769c5e013e97",
+   "size": 45711
   },
   "docs/11_schvaleni.md": {
-   "sha256": "83a29670a965546ae1d8ad6fc455fd94153c8fc6f34eede7a3c5bb3ee297f2e0",
+   "sha256": "0edd5e3416e1c121dfe6f2e5647af7c1896a772ad524984561b0e85e4e8374e0",
    "size": 31781
   },
   "docs/12_protokol_ozivovani.csv": {
-   "sha256": "68adc76180303f536dfc7c068cc4dbd69cf585be429c57100936666b16d2a132",
-   "size": 162490
+   "sha256": "921010f182731a3f0183ec14395c35f4b851476a6badb0b1a60d900a89352f26",
+   "size": 162626
   },
   "docs/12_protokol_ozivovani.md": {
-   "sha256": "8441fdd6cad55e9decea6c72b98b077c9d491c17136566a625403c26613bb9ef",
-   "size": 164106
+   "sha256": "33a5932565bea41c07d12efb4f1d63a1c7e7de0b82644fbddf47c5149339d2a9",
+   "size": 164242
   }
  },
  "es": {
@@ -1295,8 +1295,8 @@
    "size": 36311
   },
   "code-oop/schneider/GVL_IO.st": {
-   "sha256": "dc3e2b7e72c115681f377e7b4080db34e0408373018d833bc735b014c031d4d8",
-   "size": 14725
+   "sha256": "9a4d262740c8d9ec38d715864076925be7fcef65e4353eebbeed35dd1331df02",
+   "size": 14727
   },
   "code-oop/schneider/Gen_Library.st": {
    "sha256": "87eb836bcd5bdfcd88f4e2f0fa45ae06cb15e6eb2b53f8b8b09133927d25c332",
@@ -1307,8 +1307,8 @@
    "size": 33200
   },
   "code-oop/schneider/PLCopen_Import.xml": {
-   "sha256": "50fdbd6176461acc5c4d5dfaf161c8a2a08d840c6b2d695ca15fc3d7272b959d",
-   "size": 186825
+   "sha256": "6dbff86e08d78a82ce5109ab5e71fb8635dca0d011f8a7ae658382a55696aec8",
+   "size": 186827
   },
   "code-oop/schneider/README.txt": {
    "sha256": "4280a26e1715764b76ca8ce5ecaaa7189946118074cd3495a499591f7cbe4495",
@@ -1439,16 +1439,16 @@
    "size": 291013
   },
   "code/rockwell/README.txt": {
-   "sha256": "22aad370384d10110f118d370c5c40b04544179275516acaaf64794c9de281b1",
-   "size": 4902
+   "sha256": "4f73b83b3f67f62ef3c05432e16c36463e32c469708a2533f9ca9494017d76f2",
+   "size": 5041
   },
   "code/rockwell/Tags.csv": {
-   "sha256": "f46d8ba6c88e7dc86b743e54e9fce5770d0ab9f47dd02042bfbd6768f15dad44",
-   "size": 55287
+   "sha256": "265a1a4ae938b4e175c67b9895a879b11f9b515519fcadb3819600e208e79e43",
+   "size": 55321
   },
   "code/schneider/GVL_IO.st": {
-   "sha256": "dc3e2b7e72c115681f377e7b4080db34e0408373018d833bc735b014c031d4d8",
-   "size": 14725
+   "sha256": "9a4d262740c8d9ec38d715864076925be7fcef65e4353eebbeed35dd1331df02",
+   "size": 14727
   },
   "code/schneider/Gen_Library.st": {
    "sha256": "0740830b9da5714dd46ca3580c6e6674b187662d428b599c88f0ac4fea91f15b",
@@ -1459,16 +1459,16 @@
    "size": 70031
   },
   "code/schneider/PLCopen_Import.xml": {
-   "sha256": "c806a3ec44dcc756c737032eb23d2018581429cfba09d68f63a6f5f1dda77ca2",
-   "size": 156945
+   "sha256": "07859511ecd84dd394007a4d206a9d58bf83a786a295f2eb59f3ba73beb6e43f",
+   "size": 156947
   },
   "code/schneider/README.txt": {
    "sha256": "28d0fc6c693e3b0a6441bf708147da0e5d7d43509425b5b4e69127936bf3eddd",
    "size": 1931
   },
   "code/siemens/Gen_IO.xml": {
-   "sha256": "5e3da4b47365b86f9652331ec3cc595787bf6e5d2f3f69dd3497581339e7b620",
-   "size": 140726
+   "sha256": "e44417c5b6bc9d53e0f7865138ac3dd14f6893ddb1f5e6c90b611f03842fb8b8",
+   "size": 140812
   },
   "code/siemens/Gen_Library.scl": {
    "sha256": "426a3cafe615d6558a8c3fbe232c035c9ea9ba29636763546768a703b5828518",
@@ -1479,8 +1479,8 @@
    "size": 68970
   },
   "code/siemens/Gen_Tags.tsv": {
-   "sha256": "57a263f356723d6b69a33874bf47fe241194ee3976502ba58cfe25128df778ab",
-   "size": 12367
+   "sha256": "95573b823cf5caeb547d04a14e4653285f36d85bf3b5c1f5b28eeaba6ed37b69",
+   "size": 12453
   },
   "code/siemens/README.txt": {
    "sha256": "205fcda8f84c69a7d2aad346865521e88a83f9c266aa8c1e0ecc4b5698270b80",
@@ -1495,8 +1495,8 @@
    "size": 3638
   },
   "code/unitronics/Tags.csv": {
-   "sha256": "ba4684ea3e0ef56a44ee80dfb228125c358739c8ffab780cf91a566061c062f8",
-   "size": 81155
+   "sha256": "ee6cacec9b4f1afa7bcdc4fcae1284f2a51e9a4258202b159c9e7edaafe86c96",
+   "size": 82075
   },
   "code/wago/GVL_IO.st": {
    "sha256": "84d605ccdba122ab0208fbbb510eb3bc7e62704a54f03bdb96d2600b55501d0d",
@@ -1523,24 +1523,24 @@
    "size": 2800
   },
   "docs/01_funkcni_specifikace_FDS.md": {
-   "sha256": "1654b34de93d2e2eccf74c227423771dd189aa7555c31864d85688573cb3af90",
-   "size": 33602
+   "sha256": "c472413b5e8f17d01c39b422907c9cc45c89a037830e480e0382b2cc640034d6",
+   "size": 35871
   },
   "docs/02_io_list.csv": {
-   "sha256": "e03b2e2c3dc7786281b043944311bccf9d7eaf641939396eb1f92b771040c201",
-   "size": 13652
+   "sha256": "a49987a83d0d53adf2c89f8defaf83a874333e7bb227ddb88264f9550865c6a5",
+   "size": 13738
   },
   "docs/03_svorkovnice.csv": {
-   "sha256": "d116e1a00ff114592440a3040d8abb2decbb51370902ef81b1a2ffb7c6174290",
-   "size": 14946
+   "sha256": "c26b15589d5c8d8ebd0b60d1c6cf15ba5a259eaf92f94a50a5f21443fcc275f2",
+   "size": 19863
   },
   "docs/04_seznam_alarmu.csv": {
    "sha256": "0416042d96710f23a111eb5493726f8f0e11f764ff47404c84a9f13e6eb5b561",
    "size": 48738
   },
   "docs/05_testovaci_protokol_FAT.md": {
-   "sha256": "461147f4d4705fa5a45cbfeb7330c3894c183607765d589f39cbc556e4b0e792",
-   "size": 40208
+   "sha256": "a2901cb92cf31d6a935b4b1686a0af5db4cf3e407674edf266e999923a445c7a",
+   "size": 40310
   },
   "docs/06_navod_k_obsluze.md": {
    "sha256": "d9ef05b009e9ccd6b94ef3272c1a3ec7737c1cc49084277f3d572bc37f273b87",
@@ -1555,24 +1555,24 @@
    "size": 65081
   },
   "docs/09_kusovnik.csv": {
-   "sha256": "6aa5923451a78b0df37df7453789246518f2063c7cb2857396b2281ed9809b81",
-   "size": 44752
+   "sha256": "1245b83375f034a0a0bac74e3b571871e52d386449c57b742c3597927605784f",
+   "size": 45728
   },
   "docs/09_kusovnik.md": {
-   "sha256": "914efc4870685e8d63bfaa3fc4db7295ebe450644fcbf142079c68cf73e0e97e",
-   "size": 45897
+   "sha256": "ed5d1c5b4af352d698dd2e49c07e49bfe913b45bae305ea6fc35eb4589a99843",
+   "size": 46925
   },
   "docs/11_schvaleni.md": {
-   "sha256": "ac44996bed37d879f27017e9b4287e41e2a017d965605d944fdeb0fc8a377619",
+   "sha256": "0b096b846c688af8bd94d4f51529a318bccbb62eaa6f1f3d65eab96bdd2d6f50",
    "size": 32021
   },
   "docs/12_protokol_ozivovani.csv": {
-   "sha256": "be8e828a72fd26df8f14d0412bd07d764a264d5c68efd083cf9c594f148c802f",
-   "size": 163291
+   "sha256": "7ae07780c3aa84d9e6858ace79d19be80adfd2f93c07258d4f935234724a25af",
+   "size": 163427
   },
   "docs/12_protokol_ozivovani.md": {
-   "sha256": "a344055697b65095561171af6b66a208c8e3b3a69b396cd38a9b8e34d8b76087",
-   "size": 163256
+   "sha256": "b65ec47710ac66eaea81a7834e0e604db22dd3573e972457cdab556723efccc7",
+   "size": 163392
   }
  },
  "zh": {
@@ -1689,8 +1689,8 @@
    "size": 35751
   },
   "code-oop/schneider/GVL_IO.st": {
-   "sha256": "e66a0827941436d7a38a42df66b48c1cb2046d4bfbe5e969ce3a427506340b35",
-   "size": 14656
+   "sha256": "7e343eef79d95b8e3fa8b91028c403c2a5bd2f1be4425e54a8205469fff1dc8e",
+   "size": 14658
   },
   "code-oop/schneider/Gen_Library.st": {
    "sha256": "a7be9982059f1dc8059d57df7414249b8e5dfd20819edfe36cae465e2bdc0eeb",
@@ -1701,8 +1701,8 @@
    "size": 32507
   },
   "code-oop/schneider/PLCopen_Import.xml": {
-   "sha256": "2df37d8d143156f1f1592b445dcca4c63ea9103e3b006d46b14652458f6d8834",
-   "size": 185144
+   "sha256": "ce771494007a3f4fe1922fedd63b052dd055d4acbe018da80cbd2710df6a19b5",
+   "size": 185146
   },
   "code-oop/schneider/README.txt": {
    "sha256": "18ef7f899dfebddd7a455664a74650d34c454d1d43e479f9a57a2baf9f24a9aa",
@@ -1833,16 +1833,16 @@
    "size": 289083
   },
   "code/rockwell/README.txt": {
-   "sha256": "ce7423175e04e08471c2133cf558611a7977a1a7a9a7dddbb93bd67fd8a16ac9",
-   "size": 4380
+   "sha256": "48b0c5f981eb3d7cf9cefbbf2f0e843c03bcfe1f575af59190525b8fac2dd1a8",
+   "size": 4540
   },
   "code/rockwell/Tags.csv": {
-   "sha256": "8542a6f71b41e1d14e3f2d19bab432decf9d86e565d835d635b998086d50c377",
-   "size": 54454
+   "sha256": "6a0658e00d5d611138b10cb254d86c5ac035fb05d0e4e3cb2fb8e82c9ff1704e",
+   "size": 54488
   },
   "code/schneider/GVL_IO.st": {
-   "sha256": "e66a0827941436d7a38a42df66b48c1cb2046d4bfbe5e969ce3a427506340b35",
-   "size": 14656
+   "sha256": "7e343eef79d95b8e3fa8b91028c403c2a5bd2f1be4425e54a8205469fff1dc8e",
+   "size": 14658
   },
   "code/schneider/Gen_Library.st": {
    "sha256": "00d0e64058fe970860f8f6854ecc535f840970237c48ada8e17f65f56431dd0b",
@@ -1853,16 +1853,16 @@
    "size": 68854
   },
   "code/schneider/PLCopen_Import.xml": {
-   "sha256": "c3ceb73447aec5f21603e1edacce1f452a9cbf2f2b90108b7182766c876b8636",
-   "size": 155683
+   "sha256": "56bf3de1f1a2b26f8c47602a660d723b3a7ef6d6311700e517e170819d7e6404",
+   "size": 155685
   },
   "code/schneider/README.txt": {
    "sha256": "c5efb2ffd3f388f4b951fb36323ece006fe9b5133adfdb0cf8db1c4a86c935a9",
    "size": 1636
   },
   "code/siemens/Gen_IO.xml": {
-   "sha256": "7d4d9096d44e8bfe699fc96c36381a9318ab951220cbdfc1e8bedb81c48cef86",
-   "size": 140658
+   "sha256": "6af8fd575a2e43ecce9aea7628b2ee0097ef9457cbce0c6d51d31ae1ad872b66",
+   "size": 140744
   },
   "code/siemens/Gen_Library.scl": {
    "sha256": "773bf7465392db626dc886a5b48f4de05e4483f31a05b6bf72277ea3eef01e15",
@@ -1873,8 +1873,8 @@
    "size": 67791
   },
   "code/siemens/Gen_Tags.tsv": {
-   "sha256": "4b6f07d7ff6058aa53e6204d1795a63ece8f1c11ce597260571b484bc13fd2b7",
-   "size": 12299
+   "sha256": "9173e2f91c73a905d5511af71240681c5314cf25e3d08bebc285ee02f57c3e8d",
+   "size": 12385
   },
   "code/siemens/README.txt": {
    "sha256": "df55af2ac76903b998cee73f4013f2a1b148d330e47bc3489ab4493386433fec",
@@ -1889,8 +1889,8 @@
    "size": 3035
   },
   "code/unitronics/Tags.csv": {
-   "sha256": "35dfdaccdd1721900759bf34f95646339005b5150450d6681cd930a761a539e9",
-   "size": 77892
+   "sha256": "8110dd70711ef35f554c89c41dd1d6266ddecc8df95b33b323bbc95d788a6ee7",
+   "size": 78812
   },
   "code/wago/GVL_IO.st": {
    "sha256": "15752d37379f8ab0b8174c857d0d3ed6d118b3f400487f080045611f18c40b27",
@@ -1917,24 +1917,24 @@
    "size": 2271
   },
   "docs/01_funkcni_specifikace_FDS.md": {
-   "sha256": "aff1c43aefe1a6025f4bcd44b28034e0f9e58df1cfda896c0ad07a86db2cb6fb",
-   "size": 30074
+   "sha256": "ad1441d3f4ccff586c1efa87f4c7028f615f4c2706f56c7a0d4fbded4323d1d4",
+   "size": 32551
   },
   "docs/02_io_list.csv": {
-   "sha256": "9691846b0ff6195a8f450c52fc8d2931c93781757c86afafa536b3619875e05f",
-   "size": 13567
+   "sha256": "ffca31c96eb9045f8b064bb7f0101aa51a757d9df2d7a1e62965f86b60433348",
+   "size": 13653
   },
   "docs/03_svorkovnice.csv": {
-   "sha256": "b411f2d37159f64be46c19dd56cd890d5149599655e2926a0d6aa7aab87e9333",
-   "size": 14866
+   "sha256": "4c2459645fd9648de74c911fbf3f0db8d96938ab6871bf7386b02ec841e97308",
+   "size": 19784
   },
   "docs/04_seznam_alarmu.csv": {
    "sha256": "9fbaf1fe772e645cbba99776308895fdd7966db212b9258c1a1020018e47a635",
    "size": 44826
   },
   "docs/05_testovaci_protokol_FAT.md": {
-   "sha256": "9ea68abb9da6752c616bb17662e0c7deb3253d3262c3cade5a3c3f383d3328c4",
-   "size": 33722
+   "sha256": "7202de1a1ec3e5c2b2367b5d88d5284f3cb5ef454d877385c22b2ba6f1c9cba3",
+   "size": 33824
   },
   "docs/06_navod_k_obsluze.md": {
    "sha256": "ddedad75422ce113cc98861e376df251999d234a3cdce3e978cccd206a0c8fdb",
@@ -1949,24 +1949,24 @@
    "size": 60217
   },
   "docs/09_kusovnik.csv": {
-   "sha256": "75000f50e75328a15a2b1f29265b72d4cb3bf7eea3c2fd84954a3304b1d14c01",
-   "size": 41629
+   "sha256": "bb888e938ad19610e518bb47fb424894ab2f8daf8f1dc5dca7d42e0641a77756",
+   "size": 42556
   },
   "docs/09_kusovnik.md": {
-   "sha256": "66c1edf14e771d9bb1927f9b239db9e9b372985187f1c41243a89380bd9230e8",
-   "size": 43561
+   "sha256": "4ea3881953988ef0e3e30bea139555074da628b5a04241545d7083d245b944d1",
+   "size": 44544
   },
   "docs/11_schvaleni.md": {
-   "sha256": "11f3978af26bc7c1c38df3dab71d6db23b361f644111cfd3a422c9f7f9356e5a",
+   "sha256": "adca9b93fa09cf720d68c69293502673297264b0d3c113ea9d22de19b63e68a6",
    "size": 29780
   },
   "docs/12_protokol_ozivovani.csv": {
-   "sha256": "5e6b80a91bfe962ce0970b54e65709b14851cff1658fd23de7aa4cdfc6dca69a",
-   "size": 139415
+   "sha256": "53dfca8c09e38c8c2e338bf6da8b39eb7c81e52e4d43501df94110035463bc87",
+   "size": 139551
   },
   "docs/12_protokol_ozivovani.md": {
-   "sha256": "956a64f0f2bc925e286c259234e7ffa0065b90d31427e9db44a162538c44b940",
-   "size": 144043
+   "sha256": "a5dbaf5a001c3478a86aae6a2559470aacc211ca4e5795a10826758c6cb13adb",
+   "size": 144179
   }
  }
 }

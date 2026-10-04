@@ -13,21 +13,24 @@
  *     ├ Subnet „PN_IE_1“ (Type Ethernet = sběrnicový systém 20308; název = fyzická síť 20413, unikátní)
  *     └ Device  stanice PLC (ID stanice 20408 bez „.“; TypeIdentifier System:Device.S71200 / S71500 / ET200SP / Generic)
  *       └ DeviceItem Rack „Rack_0“ (System:Rack.<rodina>; karta na racku 20410 = vnoření + PositionNumber)
- *         ├ DeviceItem CPU -A1 (slot 1, DeviceItemType CPU, OrderNumber s mezerou u Siemens)
+ *         ├ DeviceItem CPU -A1 (slot ze sestavy, DeviceItemType CPU, OrderNumber s mezerou u Siemens)
+ *         │ ├ vestavěné I/O: BuiltIn podmodul „DI 14/DQ 10“ (PositionNumber 1, Address po směrech, kanály — TIA V17)
  *         │ ├ CommunicationInterface „PROFINET_interface_1“ (Label X1, LogicalEndPoint_Interface)
  *         │ │ ├ Node „E1“ (Type Ethernet, NetworkAddress; NodeEthernet: maska, ProfinetDeviceName; LogicalEndPoint_Node)
  *         │ │ ├ IoSystem „PROFINET_IO_system“ (logická síť 20414; Number = MasterSystemID 20334)
  *         │ │ └ CommunicationPort „Port_1“ (Label P1 R)
  *         │ └ TagTable „PLCdesk“ → Tag (ID = GUID signálu; LogicalAddress bez směru; volitelně ComplexTag = UDT)
- *         └ DeviceItem karty -A2 … (slot 2…, ID = GUID karty)
+ *         └ DeviceItem karty -A2 … (slot ze sestavy, ID = GUID karty)
  *           └ Siemens: BuiltIn podmodul (PositionNumber 1) s Address a kanály (jako TIA Portal V18/V21);
  *             ostatní: Address a kanály přímo na kartě (jako EPLAN 2.7.3 / TwinCAT)
- *             → ExternalInterface „Channel_DI_0“ … všechny kanály karty (ID poziční z GUID karty)
- *   InternalLink kanál ↔ tag v Rack_0, Node ↔ Subnet v AutomationProject (nejbližší společný rodič, §10).
+ *             → ExternalInterface „Channel_DI_0“ … všechny kanály karty podle katalogu (ID poziční z GUID karty)
+ *     └ Device  vzdálená stanice (Siemens: System:Device.ET200SP) → Rack_0 → hlava -A10 (HeadModule, slot 0;
+ *       Siemens: BusAdapter slot 127 s rozhraním X1, uzlem IE1 a porty P1/P2 R) → karty od slotu 1 → server modul
+ *   InternalLink kanál ↔ tag v nejbližším společném rodiči (Rack_0, u vzdálených stanic AutomationProject),
+ *   Node ↔ Subnet a rozhraní stanice ↔ IoSystem CPU (PROFINET) v AutomationProject (§10, jako TIA V18).
  *
- * Model nemá vzdálené stanice ani IO-Link mastery → karty sedí v lokálním racku CPU (vnoření); síť
- * PROFINET nese jen rozhraní CPU (IO controller s IO systémem bez zařízení). Vzdálené stanice / IO-Link
- * přibudou, až je bude model znát (stejný strom: Device stanice + Node ↔ Subnet + IoSystem).
+ * Sestava (stanice, sloty, typy, kanály, adresy) je hardware.ts `hwLayout` — export nic nepočítá sám.
+ * Vzdálené stanice na EtherCAT (Beckhoff EK1100, Omron NX-ECC203) jsou bez uzlu sítě (doplní se v EPLAN).
  *
  * GUID: export je jen čte (guid.ts) — chybějící GUID nahradí deterministickým zástupcem z názvu a
  * validateEplan to hlásí. Objekty bez vlastního záznamu (stanice, rack, CPU, rozhraní, síť) mají GUID
@@ -36,9 +39,10 @@
 import { PLAT, devById, addrFor, dtFor, stripDia, devSignals, devRef } from "./model.js";
 import { tr, today, withLang, getLang, LANGS } from "./i18n.js";
 import { buildBom, bomPlatform } from "./bom.js";
-import { derivedGuid, isGuid, moduleKey } from "./guid.js";
+import { derivedGuid, isGuid } from "./guid.js";
 import { ROLE, IFACE, LEP, DEVICE_ITEM_TYPES, SUBNET_TYPE, AML_LANG, AML_LIBS, REQUIRED, ARAPC_VERSION } from "./eplan/spec/arapc.js";
-import { eplanCards, eplanAmlName, EPLAN_VERIFIED } from "./eplan.js";
+import { eplanAmlName, EPLAN_VERIFIED } from "./eplan.js";
+import { hwLayout, hwLineId, hwTypeText, HW_DIRS } from "./hardware.js";
 const xe = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const ascii = (s) => stripDia(String(s ?? "")).replace(/[^\x20-\x7E]/g, "?");
 /** Část cesty CAEX: při znacích @ . : / v hranatých závorkách, „[“ a „]“ escapované (AR APC 5.2.8). */
@@ -77,8 +81,6 @@ function lca(a, b) {
 function link(name, a, ai, b, bi) { lca(a, b).links.push({ name, a, ai, b, bi }); }
 const ioType = (d) => (d === "DI" || d === "AI" ? "Input" : "Output");
 const isAnalog = (d) => d === "AI" || d === "AO";
-/** Počet kanálů karty (stejné dělení jako `modules()` v model.ts: DI16 / DO16 / AI8 / AO4). */
-export const CARD_CHANNELS = { DI: 16, DO: 16, AI: 8, AO: 4 };
 /** Konfigurační projekt (20161) a ID stanice (20408) nesmí obsahovat tečku (TechTip Overview of the PLC properties). */
 const noDot = (s) => s.replace(/\./g, "_");
 /**
@@ -96,8 +98,11 @@ export function amlOrderNumber(code) {
  * CODESYS %IX0.0 → 0.0; TwinCAT %I* (linkování) → bez adresy; Mitsubishi X10 / Y10 beze změny
  * (písmeno je součást operandu). Směr nese IoType.
  */
-export function amlLogicalAddress(plat, e) {
-    const a = addrFor(plat, e);
+export function amlLogicalAddress(plat, e, prj) {
+    return amlAddress(addrFor(plat, e, prj));
+}
+/** LogicalAddress z adresy v notaci platformy (viz `amlLogicalAddress`). */
+export function amlAddress(a) {
     if (/^%[IQ]\*$/.test(a))
         return "";
     const m = a.match(/^%[IQ]([XBWD]?)(\d+(?:\.\d+)?)$/);
@@ -131,11 +136,29 @@ function fnText(d, e) {
         return e.cmt || "";
     return ["-" + devRef(d), [d.desc, sigLabel(d, e.sig)].filter(Boolean).join(" – ")].filter(Boolean).join(" ");
 }
+/** Adresa modulu (AR APC Address, OrderedListType): položka na směr — StartAddress (bajt), Length (bity), IoType. */
+function addressAttr(m) {
+    let n = 0, items = "";
+    for (const d of HW_DIRS) {
+        const chs = m.channels.filter(k => k.dir === d);
+        if (!chs.length)
+            continue;
+        const bb = byteBit(chs[0].addr) || { byte: 0, bit: 0 };
+        const len = isAnalog(d) ? chs.length * 16 : Math.ceil(chs.length / 8) * 8;
+        items += '<Attribute Name="' + (++n) + '">' + val("StartAddress", bb.byte, "xs:int").xml + val("Length", len, "xs:int").xml
+            + val("IoType", ioType(d)).xml + val("BitOffset", isAnalog(d) ? 0 : bb.bit, "xs:int").xml + "</Attribute>";
+    }
+    return { name: "Address", xml: '<Attribute Name="Address"><RefSemantic CorrespondingAttributePath="OrderedListType" />' + items + "</Attribute>" };
+}
+/** Název vestavěného I/O podmodulu jako v TIA Portal („DI 14/DQ 10“, „AI 2“). */
+const builtinName = (m) => HW_DIRS.filter(d => (m.ch[d] || 0) > 0).map(d => (d === "DO" ? "DQ" : d === "AO" ? "AQ" : d) + " " + m.ch[d]).join("/");
 function build(prj, opts) {
-    const cards = opts.cards || eplanCards(prj);
-    const plat = prj.platforms[0] || "siemens";
-    const bomPlat = bomPlatform(prj);
+    /* platforma hardwaru (kusovník) = sestava, adresy, rodina stanice */
+    const plat = bomPlatform(prj);
+    const bomPlat = plat;
+    const L = hwLayout(prj, plat);
     const lines = buildBom(prj).lines;
+    const lineOf = (m) => lines.find(l => l.id === hwLineId(m.bomTag, m.cat));
     const cpuLine = lines.find(l => l.tag === "-A1");
     const rawName = ascii(prj.meta.name || "PLCdesk").trim() || "PLCdesk";
     /* konfigurační projekt EPLAN (20161) = název AutomationProject — bez tečky */
@@ -159,7 +182,7 @@ function build(prj, opts) {
     const subnet = network ? ie(project, subnetName, G("subnet:" + subnetName), ROLE.Subnet, [val("Type", SUBNET_TYPE.ethernet)]) : undefined;
     if (subnet)
         subnet.ifaces.push({ name: LEP.subnet, id: derivedGuid(subnet.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
-    /* stanice (ID stanice EPLAN 20408 = název Device, bez tečky); TypeIdentifier = rodina */
+    /* stanice CPU (ID stanice EPLAN 20408 = název Device, bez tečky); TypeIdentifier = rodina */
     const station = ie(project, noDot(ascii(PLAT[bomPlat].name) + " -A1"), G("station:1"), ROLE.Device, [
         val("TypeIdentifier", "System:Device." + family),
         ml("Comment", tr("Stanice PLC navržená v PLCdesk (návrh k revizi)"), perLang(() => tr("Stanice PLC navržená v PLCdesk (návrh k revizi)"))),
@@ -170,10 +193,11 @@ function build(prj, opts) {
         val("TypeIdentifier", "System:Rack." + family), iec("LocationIdentifier IEC", "+1"),
     ]);
     const cpu = ie(rack, "-A1", G("cpu:1"), ROLE.DeviceItem, [
-        val("TypeName", PLAT[bomPlat].cpu), val("DeviceItemType", "CPU"), val("PositionNumber", 1, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
+        val("TypeName", PLAT[bomPlat].cpu), val("DeviceItemType", "CPU"), val("PositionNumber", L.cpu.slot, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
         ...(typeId(cpuLine) ? [val("TypeIdentifier", typeId(cpuLine))] : []), val("Manufacturer", maker),
         val("Comment", [cpuLine?.type, cpuLine?.desc].filter(Boolean).join(" — ")), iec("ProductDesignation IEC", "-A1"), iec("LocationIdentifier IEC", "+1"),
     ]);
+    let ioSystem;
     if (network && subnet) {
         const pn = ie(cpu, "PROFINET_interface_1", G("cpu:1/if:X1"), ROLE.CommunicationInterface, [
             val("TypeName", "PROFINET interface"), val("PositionNumber", 32768, "xs:int"), val("BuiltIn", "true", "xs:boolean"), val("Label", "X1"),
@@ -185,8 +209,8 @@ function build(prj, opts) {
         ]);
         node.support.push(ROLE.NodeEthernet);
         node.ifaces.push({ name: LEP.node, id: derivedGuid(node.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
-        const ios = ie(pn, "PROFINET_IO_system", G("cpu:1/if:X1/iosystem:100"), ROLE.IoSystem, [val("Number", 100, "xs:int")]);
-        ios.ifaces.push({ name: LEP.ioSystem, id: derivedGuid(ios.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
+        ioSystem = ie(pn, "PROFINET_IO_system", G("cpu:1/if:X1/iosystem:100"), ROLE.IoSystem, [val("Number", 100, "xs:int")]);
+        ioSystem.ifaces.push({ name: LEP.ioSystem, id: derivedGuid(ioSystem.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
         const port = ie(pn, "Port_1", G("cpu:1/if:X1/port:1"), ROLE.CommunicationPort, [
             val("TypeName", "Port"), val("PositionNumber", 32769, "xs:int"), val("BuiltIn", "true", "xs:boolean"), val("Label", "P1 R"),
         ]);
@@ -194,17 +218,20 @@ function build(prj, opts) {
         link("Link_" + subnetName + "_E1", node, LEP.node, subnet, LEP.subnet);
     }
     const table = ie(cpu, "PLCdesk", G("tagtable:PLCdesk"), ROLE.TagTable, [val("AssignToDefault", "false", "xs:boolean")]);
-    /* symbolické adresy: tag na každý signál (ID = GUID signálu), vícejazyčný funkční text */
+    /* symbolické adresy: tag na každý signál s kanálem (ID = GUID signálu), vícejazyčný funkční text */
     const tagOwner = new Map();
     const udtOf = new Map();
-    for (const c of cards)
-        for (const e of c.mod.ch) {
+    for (const m of L.modules)
+        for (const k of m.channels) {
+            const e = k.io;
+            if (!e)
+                continue;
             const d = devById(prj, e.devId);
             const dg = isGuid(e.guid) ? e.guid : derivedGuid(pg, "io-unsaved:" + e.key);
             const def = [d ? "-" + devRef(d) : "", e.cmt || d?.desc || ""].filter(Boolean).join(" ");
             const per = perLang(() => fnText(d, e));
             per[cur] = def; // aktuální jazyk = komentář z I/O tabulky (úpravy uživatele)
-            const la = amlLogicalAddress(plat, e);
+            const la = amlLogicalAddress(plat, e, prj);
             const tag = {
                 name: e.tag, id: dg, cls: IFACE.Tag, attrs: [
                     val("DataType", dtFor(e), "xs:string", val("Customized", "false", "xs:boolean").xml),
@@ -228,43 +255,131 @@ function build(prj, opts) {
                 tagOwner.set(e, { el: table, name: e.tag });
             }
         }
-    /* I/O karty v racku se všemi kanály (neobsazené bez tagu); ID kanálu poziční z GUID karty, link kanál ↔ tag */
-    for (const c of cards) {
-        const key = moduleKey(c.mod);
-        const id = isGuid(c.mod.guid) ? c.mod.guid : isGuid(prj.moduleGuids?.[key]) ? prj.moduleGuids[key] : derivedGuid(pg, "card-unsaved:" + key);
-        const bb = c.mod.ch.map(e => byteBit(e.addr)).filter((x) => !!x);
-        const start = bb.length ? Math.min(...bb.map(x => x.byte)) : 0;
-        const bit = bb.length ? Math.min(...bb.filter(x => x.byte === start).map(x => x.bit)) : 0;
-        const width = isAnalog(c.mod.dir) ? 16 : 1;
-        const nCh = Math.max(CARD_CHANNELS[c.mod.dir], c.mod.ch.length);
-        const address = {
-            name: "Address", xml: '<Attribute Name="Address"><RefSemantic CorrespondingAttributePath="OrderedListType" /><Attribute Name="1">'
-                + val("StartAddress", start, "xs:int").xml + val("Length", nCh * width, "xs:int").xml + val("IoType", ioType(c.mod.dir)).xml
-                + val("BitOffset", isAnalog(c.mod.dir) ? 0 : bit, "xs:int").xml + "</Attribute></Attribute>",
-        };
-        const comment = ml("Comment", c.mod.dir + c.mod.idx + " — " + tr("svorkovnice {x}", { x: "-X" + c.xnum }), perLang(() => c.mod.dir + c.mod.idx + " — " + tr("svorkovnice {x}", { x: "-X" + c.xnum })));
-        const card = ie(rack, c.dt, id, ROLE.DeviceItem, [
-            val("TypeName", c.line?.type || c.line?.item || c.mod.dir),
-            val("PositionNumber", c.position, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
-            ...(typeId(c.line) ? [val("TypeIdentifier", typeId(c.line))] : []), val("Manufacturer", c.line?.brand || ""),
-            comment, iec("ProductDesignation IEC", c.dt), iec("LocationIdentifier IEC", "+1"),
-            ...(hierarchical ? [] : [address]),
+    /* kanály modulu (všechny podle katalogu, neobsazené bez tagu); ID kanálu poziční z GUID modulu */
+    const channels = (holder, m, mid) => {
+        for (const k of m.channels) {
+            const chName = "Channel_" + k.dir + "_" + k.no;
+            holder.ifaces.push({
+                name: chName, id: derivedGuid(mid, "ch:" + k.dir + ":" + k.no), cls: IFACE.Channel, attrs: [
+                    val("Type", isAnalog(k.dir) ? "Analog" : "Digital"), val("IoType", ioType(k.dir)), val("Number", k.no, "xs:int"), val("Length", isAnalog(k.dir) ? 16 : 1, "xs:int"),
+                ],
+            });
+            const t = k.io && tagOwner.get(k.io);
+            if (k.io && t)
+                link("Link_" + k.io.tag, holder, chName, t.el, t.name);
+        }
+    };
+    const xOf = (m) => L.groups.map((g, i) => (g.hw === m ? "-X" + (i + 1) : "")).filter(Boolean).join(", ");
+    const moduleId = (m) => isGuid(m.guid) ? m.guid : isGuid(prj.moduleGuids?.[m.key]) ? prj.moduleGuids[m.key] : derivedGuid(pg, "card-unsaved:" + m.key);
+    /* vestavěné I/O CPU: Siemens BuiltIn podmodul CPU (PositionNumber 1, Address po směrech; TIA Portal V17
+       S7-1200), ostatní ploše jako karty — Address a kanály přímo na CPU (EPLAN 2.7.3) */
+    for (const m of L.modules.filter(x => x.builtin)) {
+        const bid = derivedGuid(G("cpu:1"), "builtin:1");
+        if (hierarchical) {
+            const bi = ie(cpu, builtinName(m), bid, ROLE.DeviceItem, [
+                val("PositionNumber", 1, "xs:int"), val("BuiltIn", "true", "xs:boolean"), addressAttr(m),
+            ]);
+            channels(bi, m, bid);
+        }
+        else {
+            cpu.attrs.push(addressAttr(m));
+            channels(cpu, m, bid);
+        }
+    }
+    /* I/O karta v racku: Siemens karta → BuiltIn podmodul s adresou a kanály (TIA V18/V21), ostatní ploše */
+    const card = (parent, m, loc) => {
+        const id = moduleId(m);
+        const ln = lineOf(m);
+        const x = xOf(m);
+        const comment = ml("Comment", m.dt + (x ? " — " + tr("svorkovnice {x}", { x }) : ""), perLang(() => m.dt + (x ? " — " + tr("svorkovnice {x}", { x }) : "")));
+        const el = ie(parent, m.dt, id, ROLE.DeviceItem, [
+            val("TypeName", ln?.type || hwTypeText(m)),
+            val("PositionNumber", m.slot, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
+            ...(typeId(ln) ? [val("TypeIdentifier", typeId(ln))] : []), val("Manufacturer", ln?.brand || ""),
+            comment, iec("ProductDesignation IEC", m.dt), iec("LocationIdentifier IEC", loc),
+            ...(hierarchical ? [] : [addressAttr(m)]),
         ]);
         /* BuiltIn podmodul: identita = GUID karty + PositionNumber (AR APC 5.1.5) */
         const io = hierarchical
-            ? ie(card, c.dt, derivedGuid(id, "builtin:1"), ROLE.DeviceItem, [val("PositionNumber", 1, "xs:int"), val("BuiltIn", "true", "xs:boolean"), address])
-            : card;
-        for (let i = 0; i < nCh; i++) {
-            const chName = "Channel_" + c.mod.dir + "_" + i;
-            io.ifaces.push({
-                name: chName, id: derivedGuid(id, "ch:" + c.mod.dir + ":" + i), cls: IFACE.Channel, attrs: [
-                    val("Type", isAnalog(c.mod.dir) ? "Analog" : "Digital"), val("IoType", ioType(c.mod.dir)), val("Number", i, "xs:int"), val("Length", width, "xs:int"),
-                ],
-            });
-            const e = c.mod.ch[i];
-            const t = e && tagOwner.get(e);
-            if (e && t)
-                link("Link_" + e.tag, io, chName, t.el, t.name);
+            ? ie(el, m.dt, derivedGuid(id, "builtin:1"), ROLE.DeviceItem, [val("PositionNumber", 1, "xs:int"), val("BuiltIn", "true", "xs:boolean"), addressAttr(m)])
+            : el;
+        channels(io, m, id);
+    };
+    for (const m of L.stations[0].modules)
+        if (m.kind === "io" && !m.builtin)
+            card(rack, m, "+1");
+    /* vzdálené stanice: Device → Rack_0 → hlava (HeadModule, slot 0) + karty od slotu 1 (+ server modul);
+       Siemens ET 200SP: rozhraní PROFINET na BusAdapteru (slot 127) jako v TIA Portal V18 */
+    for (const s of L.stations.filter(x => x.remote)) {
+        const h = s.head;
+        const hid = moduleId(h);
+        const hl = lineOf(h);
+        const loc = "+" + (s.no + 1);
+        const fam = plat === "siemens" ? s.family : "Generic";
+        const label = ascii((h.opt?.series || [])[0] || hwTypeText(h)).replace(/\s+IM.*$/, "");
+        const dev = ie(project, noDot(label + " " + h.dt), derivedGuid(hid, "station"), ROLE.Device, [
+            val("TypeIdentifier", "System:Device." + fam),
+            ml("Comment", tr("Vzdálená stanice {dt} navržená v PLCdesk (návrh k revizi)", { dt: h.dt }), perLang(() => tr("Vzdálená stanice {dt} navržená v PLCdesk (návrh k revizi)", { dt: h.dt }))),
+            val("Manufacturer", hl?.brand || maker),
+        ]);
+        const rk = ie(dev, "Rack_0", derivedGuid(hid, "rack:0"), ROLE.DeviceItem, [
+            val("TypeName", "Rack"), val("PositionNumber", 0, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
+            val("TypeIdentifier", "System:Rack." + fam), iec("LocationIdentifier IEC", loc),
+        ]);
+        const head = ie(rk, h.dt, hid, ROLE.DeviceItem, [
+            val("TypeName", hl?.type || hwTypeText(h)), val("DeviceItemType", "HeadModule"), val("PositionNumber", 0, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
+            ...(typeId(hl) ? [val("TypeIdentifier", typeId(hl))] : []), val("Manufacturer", hl?.brand || ""),
+            val("Comment", [hl?.type, s.net].filter(Boolean).join(" — ")), iec("ProductDesignation IEC", h.dt), iec("LocationIdentifier IEC", loc),
+        ]);
+        if (plat === "siemens")
+            ie(head, h.dt, derivedGuid(hid, "builtin:0"), ROLE.DeviceItem, [val("PositionNumber", 0, "xs:int"), val("BuiltIn", "true", "xs:boolean")]);
+        /* síť: IP sítě (PROFINET, EtherNet/IP, Modbus TCP) = uzel v PN_IE_1; EtherCAT bez uzlu (doplní se v EPLAN) */
+        const ipNet = network && subnet && s.net && s.net !== "EtherCAT";
+        const ba = s.modules.find(m => m.kind === "acc" && m.cat === "plc_busadapter");
+        let ifParent = head;
+        if (ba) {
+            const bl = lineOf(ba) || lines.find(l => l.cat === "plc_busadapter");
+            ifParent = ie(head, ascii(ba.opt?.typical ? tr(ba.opt.typical).split(" – ")[0] : "BusAdapter"), derivedGuid(hid, "acc:" + ba.slot), ROLE.DeviceItem, [
+                val("TypeName", ascii(ba.opt?.typical ? tr(ba.opt.typical).split(" – ")[0] : "BusAdapter")), val("PositionNumber", ba.slot, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
+                ...(ba.opt?.orderCode ? [val("TypeIdentifier", "OrderNumber:" + amlOrderNumber(ba.opt.orderCode))] : typeId(bl) ? [val("TypeIdentifier", typeId(bl))] : []),
+            ]);
+        }
+        if (ipNet && subnet) {
+            const ip = "192.168.0." + (10 + s.no);
+            const pn = ie(ifParent, s.net === "PROFINET" ? "PROFINET_interface" : "Ethernet_interface", derivedGuid(hid, "if:X1"), ROLE.CommunicationInterface, [
+                val("TypeName", s.net + " interface"), val("PositionNumber", 1, "xs:int"), val("BuiltIn", "true", "xs:boolean"), val("Label", "X1"),
+            ]);
+            pn.ifaces.push({ name: LEP.iface, id: derivedGuid(pn.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
+            const node = ie(pn, "IE1", derivedGuid(hid, "if:X1/node"), ROLE.Node, [
+                val("Type", SUBNET_TYPE.ethernet), val("NetworkAddress", ip), val("SubnetMask", "255.255.255.0"), val("IpProtocolSelection", "Project"),
+                val("ProfinetDeviceName", ascii(h.dt.replace(/^-/, "") + "-io").toLowerCase()),
+            ]);
+            node.support.push(ROLE.NodeEthernet);
+            node.ifaces.push({ name: LEP.node, id: derivedGuid(node.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
+            for (const p of [1, 2]) {
+                const port = ie(pn, "Port_" + p, derivedGuid(hid, "if:X1/port:" + p), ROLE.CommunicationPort, [
+                    val("TypeName", "Port"), val("PositionNumber", p, "xs:int"), val("BuiltIn", "true", "xs:boolean"), val("Label", "P" + p + " R"),
+                ]);
+                port.ifaces.push({ name: "CommunicationPortInterface", id: derivedGuid(port.id, "CommunicationPortInterface"), cls: IFACE.CommunicationPortInterface, attrs: [] });
+            }
+            link("Link_" + subnetName + "_" + noDot(h.dt.replace(/^-/, "")), node, LEP.node, subnet, LEP.subnet);
+            /* IO zařízení PROFINET v IO systému CPU (TIA V18: LogicalEndPoint_Interface ↔ LogicalEndPoint_IoSystem) */
+            if (s.net === "PROFINET" && ioSystem)
+                link("Link_IoSystem_" + noDot(h.dt.replace(/^-/, "")), pn, LEP.iface, ioSystem, LEP.ioSystem);
+        }
+        for (const m of s.modules) {
+            if (m.kind === "io")
+                card(rk, m, loc);
+            else if (m.kind === "acc" && m.cat === "plc_server") {
+                const sid = derivedGuid(hid, "acc:" + m.slot);
+                const name = ascii(m.opt?.typical ? tr(m.opt.typical).split(" – ")[0] : "Server module");
+                const el = ie(rk, name, sid, ROLE.DeviceItem, [
+                    val("TypeName", name), val("PositionNumber", m.slot, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
+                    ...(m.opt?.orderCode ? [val("TypeIdentifier", "OrderNumber:" + amlOrderNumber(m.opt.orderCode))] : []),
+                ]);
+                if (plat === "siemens")
+                    ie(el, name, derivedGuid(sid, "builtin:1"), ROLE.DeviceItem, [val("PositionNumber", 1, "xs:int"), val("BuiltIn", "true", "xs:boolean")]);
+            }
         }
     }
     return { root: project, name, projectId: pg };
@@ -551,14 +666,11 @@ export function validateEplan(prj, opts = {}) {
     const noIo = prj.io.filter(e => !isGuid(e.guid)).map(e => e.tag);
     if (noIo.length)
         W(noIo.slice(0, 5).join(", ") + (noIo.length > 5 ? " …" : ""), tr("Signály bez GUID: {n}.", { n: noIo.length }) + " " + hint);
-    const cards = opts.cards || eplanCards(prj);
-    const noMod = cards.filter(c => !isGuid(c.mod.guid) && !isGuid(prj.moduleGuids?.[moduleKey(c.mod)])).map(c => c.dt);
+    const L = hwLayout(prj, bomPlatform(prj));
+    const noMod = L.modules.filter(m => ((m.kind === "io" && !m.builtin) || m.kind === "head") && !isGuid(m.guid) && !isGuid(prj.moduleGuids?.[m.key])).map(m => m.dt);
     if (noMod.length)
         W(noMod.join(", "), tr("I/O karty bez GUID: {n}.", { n: noMod.length }) + " " + hint);
-    const plat = prj.platforms[0] || "siemens";
-    if (plat === "siemens")
-        for (const e of prj.io)
-            if (!e.addr)
-                W(e.tag, tr("Signál nemá adresu — EPLAN kanál nepřiřadí."));
-    return [...out, ...validateAml(genEplanAml(prj, { ...opts, cards }), { strict: true })];
+    for (const e of L.overflow)
+        W(e.tag, tr("Signál nemá kanál (do sestavy se nevejde) — EPLAN ho nepřiřadí."));
+    return [...out, ...validateAml(genEplanAml(prj, opts), { strict: true })];
 }

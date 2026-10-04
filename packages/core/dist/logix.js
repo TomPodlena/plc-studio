@@ -19,6 +19,7 @@ import { stripDia } from "./model.js";
 import { parseFbTemplate, trComments, fbTemplate, stCtx, renderSeq, renderWiring, renderFault, enableText, freeLine, declNote, cmtSafe, stCallNotes, codeLibrary, portText, } from "./codegen.js";
 import { buildIR, irBlocks, IR_CLASS_ORDER } from "./ir.js";
 import { tr, trx } from "./i18n.js";
+import { hwLayout, lxSpecOf } from "./hardware.js";
 /** Název importovaného programu a jeho hlavní rutiny. */
 export const LX_PROGRAM = "PLCdesk";
 export const LX_ROUTINE = "MainRoutine";
@@ -128,57 +129,30 @@ export function lxDialect(st) {
         .replace(/\bIF TRUE THEN ([^\n]*?) END_IF;/g, "$1")
         .replace(/\bTRUE\b/g, "1").replace(/\bFALSE\b/g, "0"));
 }
-const PER = { DI: 16, DO: 16, AI: 8, AO: 4 };
-const CAT = { DI: "5069-IB16", DO: "5069-OB16", AI: "5069-IF8", AO: "5069-OF4" };
-/** Pořadové číslo kanálu z kanonické adresy (%I0.4 → 4, %IW66 → 1); nelze-li odvodit, −1. */
-function chanOf(e) {
-    const a = e.addr || "";
-    let m;
-    if (e.dir === "DI" && (m = a.match(/^%I(\d+)\.([0-7])$/)))
-        return +m[1] * 8 + +m[2];
-    if (e.dir === "DO" && (m = a.match(/^%Q(\d+)\.([0-7])$/)))
-        return +m[1] * 8 + +m[2];
-    if ((e.dir === "AI" && (m = a.match(/^%IW(\d+)$/))) || (e.dir === "AO" && (m = a.match(/^%QW(\d+)$/)))) {
-        const w = +m[1];
-        return w >= 64 && w % 2 === 0 ? (w - 64) / 2 : -1;
-    }
-    return -1;
-}
 /**
- * Body modulů pro aliasy I/O: z kanonické adresy se odvodí kanál, z něj modul a bod
- * (DI/DO po 16, AI po 8, AO po 4). Sloty se číslují od 1: nejdřív moduly DI, pak DO, AI, AO.
- * Když adresu nejde převést nebo by modulů bylo víc než 31, alias se pro tag negeneruje.
+ * Body modulů pro aliasy I/O ze sestavy hardwaru Rockwell (hardware.ts): Local:<slot>:I.Pt00.Data
+ * u lokálních modulů (CPU slot 0, moduly 1…), RIO<n>:<slot>:… u vzdálených stanic s adaptérem
+ * EtherNet/IP. Signál bez kanálu (nevejde se) alias nedostane.
  */
 export function lxIoMap(prj) {
-    const need = { DI: 0, DO: 0, AI: 0, AO: 0 };
-    for (const e of prj.io) {
-        const c = chanOf(e);
-        if (c >= 0)
-            need[e.dir] = Math.max(need[e.dir], Math.floor(c / PER[e.dir]) + 1);
-    }
-    const slots = [], base = { DI: 0, DO: 0, AI: 0, AO: 0 };
-    let next = 1;
-    for (const dir of ["DI", "DO", "AI", "AO"]) {
-        base[dir] = next;
-        for (let i = 0; i < need[dir]; i++)
-            slots.push({ slot: next++, dir, module: CAT[dir], first: i * PER[dir] });
-    }
+    const L = hwLayout(prj, "rockwell");
+    const slots = [];
+    for (const m of L.modules)
+        if (m.kind === "io" && !m.builtin) {
+            const dir = ["DI", "DO", "AI", "AO"].find(d => (m.ch[d] || 0) > 0);
+            slots.push({ rack: m.station === 0 ? "Local" : "RIO" + m.station, slot: m.slot, dir, module: m.opt?.orderCode || m.custom || dir, channels: m.ch[dir] || 0 });
+        }
     const spec = new Map();
-    if (slots.length > 31)
-        return { slots: [], spec };
     for (const e of prj.io) {
-        const c = chanOf(e);
-        if (c < 0)
-            continue;
-        const slot = base[e.dir] + Math.floor(c / PER[e.dir]), pt = String(c % PER[e.dir]).padStart(2, "0");
-        const io = e.dir === "DI" || e.dir === "AI" ? "I" : "O";
-        spec.set(e.key, "Local:" + slot + ":" + io + "." + (e.dir === "DI" || e.dir === "DO" ? "Pt" : "Ch") + pt + ".Data");
+        const s = lxSpecOf(L.ch.get(e));
+        if (s)
+            spec.set(e.key, s);
     }
     return { slots, spec };
 }
-/** Osazení slotů jedním řádkem (ASCII, bez jazykových slov): „1: 5069-IB16 (DI 0-15), 2: …". */
+/** Osazení slotů jedním řádkem (ASCII, bez jazykových slov): „Local:1 5069-IB16 (DI 16), …". */
 export function lxSlotText(prj) {
-    return lxIoMap(prj).slots.map(s => s.slot + ": " + s.module + " (" + s.dir + " " + s.first + "-" + (s.first + PER[s.dir] - 1) + ")").join(", ");
+    return lxIoMap(prj).slots.map(s => s.rack + ":" + s.slot + " " + s.module + " (" + s.dir + " " + s.channels + ")").join(", ");
 }
 /** Datový typ I/O tagu v Logix (analogy 5069 = REAL v jednotkách modulu). */
 export function lxIoType(e) {
@@ -234,7 +208,7 @@ export function genLogixRoutine(prj) {
         /* volné signály: místo adres Siemens bod modulu (alias), pokud jde odvodit */
         free: e => {
             const s = spec.get(e.key);
-            return freeLine(c, e).replace(/\(\*\s+%[IQ]W?\d+(?:\.\d+)?\s*/, "(*   ").replace(/\s*\*\)$/, (s ? "  [" + s + "]" : "") + " *)");
+            return freeLine(c, e, prj).replace(/\(\*\s+%[IQ]W?\d+(?:\.\d+)?\s*/, "(*   ").replace(/\s*\*\)$/, (s ? "  [" + s + "]" : "") + " *)");
         },
     });
     const fault = renderFault(ir, c);

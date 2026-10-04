@@ -33,23 +33,24 @@ export declare function lxCsvEsc(s: string): string;
  * (příklady PM007 používají 1/0), `IF TRUE THEN x END_IF;` → `x`.
  */
 export declare function lxDialect(st: string): string;
-/** Předpokládané osazení lokálních slotů (moduly Compact 5000 I/O). */
+/** Osazení slotu modulem Compact 5000 I/O (sestava hardware.ts): `rack` = Local nebo RIO<n>. */
 export interface LxSlot {
+    rack: string;
     slot: number;
     dir: Dir;
     module: string;
-    first: number;
+    channels: number;
 }
 /**
- * Body modulů pro aliasy I/O: z kanonické adresy se odvodí kanál, z něj modul a bod
- * (DI/DO po 16, AI po 8, AO po 4). Sloty se číslují od 1: nejdřív moduly DI, pak DO, AI, AO.
- * Když adresu nejde převést nebo by modulů bylo víc než 31, alias se pro tag negeneruje.
+ * Body modulů pro aliasy I/O ze sestavy hardwaru Rockwell (hardware.ts): Local:<slot>:I.Pt00.Data
+ * u lokálních modulů (CPU slot 0, moduly 1…), RIO<n>:<slot>:… u vzdálených stanic s adaptérem
+ * EtherNet/IP. Signál bez kanálu (nevejde se) alias nedostane.
  */
 export declare function lxIoMap(prj: Project): {
     slots: LxSlot[];
     spec: Map<string, string>;
 };
-/** Osazení slotů jedním řádkem (ASCII, bez jazykových slov): „1: 5069-IB16 (DI 0-15), 2: …". */
+/** Osazení slotů jedním řádkem (ASCII, bez jazykových slov): „Local:1 5069-IB16 (DI 16), …". */
 export declare function lxSlotText(prj: Project): string;
 /** Datový typ I/O tagu v Logix (analogy 5069 = REAL v jednotkách modulu). */
 export declare function lxIoType(e: IoEntry): string;

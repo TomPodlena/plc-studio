@@ -1,16 +1,24 @@
 /* PLCdesk — aplikační shell: stav, navigace, render, jazyk. */
-import { blankProject, sampleComplex, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule } from "../../../packages/core/dist/index.js";
+import { blankProject, sampleComplex, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule } from "../../../packages/core/dist/index.js";
 import { seedFromProject, SAMPLE_DESC } from "./ai.js";
 import { makeSteps } from "./steps.js";
 import { makeImportWizard } from "./import_wizard.js";
 import { makeSafetyStep } from "./safety_step.js";
-import { makeApprovalStep, approvalBadge } from "./approval_step.js";
+import { makeApprovalStep, approvalBadge, setApproverSource } from "./approval_step.js";
+import { makeBizSteps } from "./biz_steps.js";
+import { approverNames } from "./biz_view.js";
 import { makeCommissionStep } from "./commission_step.js";
 import { $, normProject, normAi } from "./util.js";
+import { makeGenTabs } from "./gen_tabs.js";
+import { emuGate } from "./emu_step.js";
+import { trn } from "./plural.js";
 
 /* Bezpečnostní modul: položky ke schválení (nebezpečí, funkce, návrh, program), kroky validace
    v oživení, dokumenty 13/14, bezpečnostní program a položky kusovníku. */
 registerSafetyModule();
+/* HMI: dokument 16_hmi.md a soubory HMI v sadě projektu (levné). Emulace (dokument 15) je drahá —
+   přihlásí se až po výslovném ověření v kroku Generovat → Emulace kódu (emu_step.js, emuGate). */
+registerHmiModule();
 
 const LS_KEY = "plcstudio.state";
 const LANG_KEY = "plcstudio.lang";
@@ -68,8 +76,13 @@ const steps = makeSteps({ S, save, render, openImport: () => wizard && wizard.op
 wizard = makeImportWizard({ S, save, render });
 const sctx = { S, save, render, showBadge };
 const safety = makeSafetyStep(sctx), approval = makeApprovalStep(sctx), commission = makeCommissionStep(sctx);
-const RENDERERS = [steps.rProjekt, steps.rAI, steps.rPlat, steps.rDev, steps.rIO, steps.rSchema, steps.rProg, steps.rGen, steps.rDocs, steps.rBom,
-  safety.rSafety, approval.rApproval, commission.rCommission];
+const genTabs = makeGenTabs(sctx, steps.rGen);   // Generovat: Kód / HMI / Emulace / SISTEMA a EPLAN
+/* revize a knihovna (krok Projekt), přidání z knihovny (Zařízení), Kusovník / Nabídka — biz_steps.js */
+const biz = makeBizSteps(sctx);
+setApproverSource(() => approverNames(S.prj));   // schvalovatelé z firemní knihovny projektu
+const RENDERERS = [el => { steps.rProjekt(el); biz.rRevisions(el); biz.rLibrary(el); }, steps.rAI, steps.rPlat,
+  el => { steps.rDev(el); biz.rDevLibrary(el); }, steps.rIO, steps.rSchema, steps.rProg, genTabs.rGenTabs, steps.rDocs,
+  el => biz.rBomTabs(el, steps.rBom), safety.rSafety, approval.rApproval, commission.rCommission];
 
 /* ---------------------------------------------------------------- odznak „Neschváleno: N"
    pending + stale ze schvalování; počítá se odloženě po vykreslení a jen při změně projektu
@@ -100,7 +113,8 @@ $("badgeApproval").addEventListener("click", () => { S.step = STEP_APPROVAL; sav
 /* Statické texty hlavičky a patičky (v index.html jsou česky jako výchozí). */
 function renderStatic() {
   $("badgeTagline").textContent = tr("AI návrh · schéma · kód · dokumentace");
-  $("badgePlat").textContent = tr("{n} platforem", { n: Object.keys(PLAT).length });
+  /* počet platforem vybraných v projektu (ne všech, které PLCdesk umí) */
+  $("badgePlat").textContent = trn(S.prj.platforms.length, N_("{n} platforma|{n} platformy|{n} platforem"));
   $("stepper").setAttribute("aria-label", tr("Kroky návrhu"));
   $("lang").setAttribute("aria-label", tr("Jazyk rozhraní"));
   $("lang").value = getLang();
@@ -109,6 +123,7 @@ function renderStatic() {
 }
 
 function render() {
+  emuGate(S.prj);   // dokument 15 jen pro projekt, pro který emulace proběhla
   renderStatic();
   const nav = $("stepper");
   nav.innerHTML = STEPS.map((s, i) => "<button class='" + (i === S.step ? "on" : (stepDone(i) ? "done" : "")) + "' data-i='" + i + "'>" + (i + 1) + " · " + tr(s) + "</button>").join("")
@@ -132,6 +147,7 @@ function render() {
   r($("view"));
   wizard.render();
   showBadge();
+  biz.updateBadge();   // označení revize v hlavičce („B*“ = změněno od revize)
   scheduleBadge();
   window.scrollTo({ top: 0 });
 }

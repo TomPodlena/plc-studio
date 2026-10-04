@@ -2,6 +2,7 @@
 import { tr, blankProject, CLS, PLAT, isGuid, ensureGuids } from "../../../packages/core/dist/index.js";
 import { aiNorm } from "./ai.js";
 import { normSafety } from "./safety_view.js";
+import { normBiz } from "./biz_view.js";
 
 const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
 /**
@@ -87,6 +88,15 @@ export function normProject(raw) {
   /* bezpečnostní data (úpravy návrhu funkcí, parametry výpočtu) */
   const sf = normSafety(raw.safety);
   if (sf) p.safety = sf;
+  /* revize, volby nabídky a kopie firemní knihovny (biz_view.js) */
+  normBiz(raw, p);
+  /* časy modelu stroje pro simulaci (i výchozí z firemní knihovny) a zvolený koncept řešení */
+  if (isObj(raw.sim)) {
+    const s = {};
+    for (const f of ["motorDelay", "valveTravel"]) if (Number.isFinite(raw.sim[f]) && raw.sim[f] > 0) s[f] = raw.sim[f];
+    if (Object.keys(s).length) p.sim = s;
+  }
+  if (isObj(raw.concept)) p.concept = raw.concept;
   p.nextId = Math.max(Number.isFinite(raw.nextId) ? raw.nextId : 1, ...p.devices.map(d => d.id + 1));
   /* GUID (export EPLAN páruje podle nich): převzít uložené, chybějící doplnit — nikdy při exportu */
   if (isGuid(raw.guid)) p.guid = raw.guid;
@@ -94,6 +104,8 @@ export function normProject(raw) {
     const mg = Object.fromEntries(Object.entries(raw.moduleGuids).filter(([, g]) => isGuid(g)));
     if (Object.keys(mg).length) p.moduleGuids = mg;
   }
+  /* značka sestavy hardwaru: adresy I/O patří platformě `plat` (hardware.ts) — bez ní se přidělí znovu */
+  if (isObj(raw.hw) && raw.hw.plat in PLAT && Number.isInteger(raw.hw.ver)) p.hw = { plat: raw.hw.plat, ver: raw.hw.ver };
   /* migrace: starý projekt bez GUID → doplnit; volající ho podle `guidsAdded` uloží (projekt změněn) */
   const hadGuid = isGuid(raw.guid);
   const added = ensureGuids(p);

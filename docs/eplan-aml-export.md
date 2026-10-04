@@ -212,12 +212,36 @@ Skript C# pro skriptovací stroj EPLAN (bez licence API), shodná kopie jde v sa
 
 **Neověřeno:** skript nebyl spuštěn (bez EPLAN); zda konvertor TIA19 přijme soubor, který nepochází z TIA (kontroly konzistence TIA), i zda obecný konvertor čte AR APC 1.4.0 hierarchii Siemens. Makra a díly (kmenová data) jsou u zákazníka; generování schématu PLC může vyžadovat licenci „PLC & Bus Extension“. Formát LANGUAGE (`cs_CZ`) převzat z příkladu `de_DE`.
 
-### Otevřený bod: konzistence hardwaru v modelu a kusovníku (samostatný úkol)
+### Hardware — vyřešeno sestavou hardwaru (2026-10-04)
 
-Export přenáší, co model a kusovník obsahují — a ty jsou pro Siemens vnitřně nekonzistentní. Import do EPLAN (konvertor TIA) nebo TIA by to odhalil:
+Body 1–3 níže řeší `packages/core/src/hardware.ts` (`hwLayout`, CLAUDE.md „Sestava hardwaru“) — jeden zdroj pro
+model, kusovník, výkresy, svorkovnice, generátor i tento export:
+
+1. **Siemens:** S7-1200 G2 (1212C / 1214C podle počtu I/O) se signálovými moduly **řady G2** (SM 1221 DI16
+   `6ES7221-1BH50-0XB0`, SM 1222 DQ16 `6ES7222-5BH50-0XB0`, SM 1231 AI8 `6ES7231-4HF50-0XB0`, SM 1232 AQ8
+   `6ES7232-4HF50-0XB0`) v racku CPU do limitu CPU (6 / 10 modulů podle datasheetu); přebytek do stanic
+   **ET 200SP s IM 155-6 PN ST** (max. 32 modulů) na `PN_IE_1` přesně podle vzorku TIA V18: Device
+   `System:Device.ET200SP` → `Rack_0` (`System:Rack.ET200SP`) → HeadModule `-A10` (slot 0, BuiltIn podmodul 0)
+   + BusAdapter `BA 2xRJ45` (slot 127) s rozhraním X1, uzlem `IE1` a porty P1 R / P2 R → karty ET 200SP od slotu 1
+   (hierarchicky, BuiltIn podmodul s Address a kanály) → server modul; linky Node ↔ Subnet a
+   `LogicalEndPoint_Interface` ↔ `LogicalEndPoint_IoSystem` CPU v AutomationProject. Kusovník: hlava, BusAdapter,
+   BaseUnit světlá (1×) a tmavé (n − 1).
+2. **Balení karet:** počet kanálů každého modulu je z katalogu (`hw.ch`), export dává kartě všechny její kanály
+   (AI 4×U/I = 4 kanály, AQ 8 = 8 …), kusovník počítá moduly sestavy.
+3. **Vestavěné I/O CPU** se obsazují první (S7-1200: DI od `%I0.0`, DQ od `%Q0.0`; G2 nemá vestavěné analogy);
+   v AML BuiltIn podmodul CPU `DI 14/DQ 10` (PositionNumber 1, Address s položkami Input/Output, kanály
+   `Channel_DI_n` / `Channel_DO_n` — jako TIA V17). Ostatní výrobci (plochý model EPLAN 2.7.3): Address a kanály
+   vestavěných I/O přímo na CPU.
+
+Ověřeno: `validateEplan` bez chyb a XSD CAEX 2.15 (lxml) na 260 souborech (13 příkladů × 10 platforem × ploché /
+UDT). Vzdálené stanice na EtherCAT (Beckhoff EK1100, Omron NX-ECC203) jsou bez uzlu sítě (EtherCAT nemá IP; doplní
+se v EPLAN). Importem v EPLAN ani TIA dál neověřeno; výchozí adresy S7-1200 G2 (slot 2 = I8.0 / IW96) jsou běžné
+výchozí adresy TIA, dokladem Siemens pro G2 neověřené.
+
+Původní popis problému (pro kontext):
 
 1. **ET 200SP karty v racku S7-1200.** Kusovník pro Siemens volí CPU S7-1200 G2 (`6ES7212-1AG50-0XB0`) a karty ET 200SP (`6ES7131-6BH01-0BA0` DI 16, `6ES7132-6BH01` DQ 16, `6ES7134-6HD01` AI 4, `6ES7135-6HD00/-6FB00` AQ 4/2). ET 200SP se do racku S7-1200 nezasouvá (S7-1200 má signálové moduly SM 12xx). **Návrh:** buď karty S7-1200 SM (SM 1221 / 1222 / 1231 / 1232) v racku CPU, nebo — častější u strojů — samostatná **stanice ET 200SP s IM 155-6 PN** (Device `System:Device.ET200SP` → Rack `System:Rack.ET200SP` → HeadModule IM 155-6 PN ST/HF s BusAdapterem a rozhraním X1 → karty od slotu 1 + server modul), připojená na `PN_IE_1` a IO systém CPU (Node ↔ Subnet, `LogicalEndPoint_Interface` ↔ `LogicalEndPoint_IoSystem`, jako TIA V18 vzorek).
 2. **Balení karet vs. kusovník.** `modules()` dělí I/O po DI16 / DO16 / **AI8** / **AO4**, export tedy dává kartě AI 8 kanálů — ale katalogová karta je AI **4**×U/I (a AQ **2**×I u `-6FB00`). Počet karet v kusovníku = počet modulů, takže chybí karty a kanály 4–7 neexistují. **Návrh:** velikost karty brát z katalogové položky kusovníku (počet kanálů jako vlastnost položky katalogu), `modules()` řídit touto velikostí (pro výkresy, svorky, EPLAN i kusovník jedním zdrojem) a kusovník počítat `ceil(n / kanálů)`.
 3. **Vestavěné I/O CPU.** CPU 1212C má 8 DI / 6 DQ (1214C 14/10, 2 AI) vestavěných; model je ignoruje a vše dává na karty. **Návrh:** volitelně obsadit nejdřív vestavěné I/O — v AML jako BuiltIn DeviceItem pod CPU (`DI 8/DQ 6_1`, PositionNumber 1, `Address` se dvěma položkami Input/Output, kanály `Channel_DI_n` / `Channel_DO_n` — přesně podle TIA V17 vzorku) a adresy %I0.0… / %Q0.0… přidělovat od vestavěných.
 
-Do té doby export záměrně nemění hardware (karty = kusovník, adresy = model); README_EPLAN uvádí obecně, že objednací čísla jsou typické volby z kusovníku a ne projekt elektro.
+(Stav před 2026-10-04 — vyřešeno výše; README_EPLAN dál uvádí, že objednací čísla jsou typické volby z kusovníku a ne projekt elektro.)

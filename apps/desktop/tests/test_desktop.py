@@ -654,7 +654,8 @@ class GuiTest(unittest.TestCase):
         self.click("Přidat zařízení")
         b1 = self.app.prj["devices"][1]
         self.assertEqual((b1["cls"], b1["unit"], b1["rmin"], b1["rmax"]), ("AnalogIn", "bar", 0, 250))
-        self.assertEqual(self.app.prj["io"][-1]["addr"], "%IW64")
+        # S7-1200 G2 nemá vestavěné analogy → SM 1231 ve slotu 2 (sestava hardwaru, výchozí adresy TIA)
+        self.assertEqual(self.app.prj["io"][-1]["addr"], "%IW96")
 
         tbl = self.table()
         tbl._on_edit(str(d["id"]), "desc", "Nový popis")
@@ -870,7 +871,7 @@ class GuiTest(unittest.TestCase):
         self.root.update()
         self.assertEqual((self.app.step, self.app.ui["schema_tab"]), (5, 2))
         self.assertEqual(self.app.ui["wire_sel"], out_key)
-        self.assertTrue(self.find(ttk.Combobox)[0].get().startswith("DO1"))
+        self.assertIn("DO1", self.find(ttk.Combobox)[0].get())    # „-A1 DO1 — svorkovnice X2“
         sheet = self.find(SvgView)[2]
         marked = [m for m, mark in zip(sheet.metas(), sheet._marks()) if mark == "sel"]
         self.assertEqual([m["io"] for m in marked], [out_key])
@@ -910,7 +911,7 @@ class GuiTest(unittest.TestCase):
         self.canvas_click(view, lambda m: m.get("mod") == 2 and "dev" not in m)
         nb = self.find(ttk.Notebook)[0]
         self.assertEqual(nb.index(nb.select()), 2)
-        self.assertTrue(self.find(ttk.Combobox)[0].get().startswith("AI1"))
+        self.assertIn("AI1", self.find(ttk.Combobox)[0].get())
 
     def test_flow_diagram_step_click_and_wiring_channel_click(self):
         self.app.load_sample("small")

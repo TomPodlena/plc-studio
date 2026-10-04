@@ -7,8 +7,10 @@
  */
 import { CLS, PLAT, devById, modules, wireNo, dtFor, usedClasses, interlockDevs, DO_ROLES, codeStyleFor, isMotionClass, hasRange, ioOf, rampStepOf, tolOf, tolTicksOf, selBitsOf, maxRecord, stepSp, } from "./model.js";
 import { bomCsv, bomMd } from "./bom.js";
+import { hwAddrText, hwTypeText, hwSummary, hwPlatform } from "./hardware.js";
 import { tr, N_, today } from "./i18n.js";
 import { genFor, codeLibrary } from "./codegen.js";
+import { libraryDocHeader } from "./library.js";
 import { oopInProject, oopProgram, oopClassSvg, OOP_CLASS_SVG } from "./codegen_oop.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
 import { conceptMd } from "./concept.js";
@@ -206,8 +208,8 @@ export function docFDSMd(prj) {
         L.push("| " + d.name + " | " + tr(CLS[d.cls].label) + " | " + (d.desc || "") + " | " + (par || "—") + " |");
     }
     L.push("", "## " + tr("4. I/O bilance a moduly"), ["DI", "DO", "AI", "AO"].map(dd => dd + ": " + prj.io.filter(e => e.dir === dd).length).join(" · "), tr("Navržené moduly: {list}", {
-        list: mods.map((m, i) => tr("{mod} (svorkovnice X{x}, {n} kanálů)", { mod: m.dir + m.idx, x: i + 1, n: m.ch.length })).join(", ") || "—",
-    }), "", "## " + tr("5. Režimy a ovládání"), "- " + tr("**RUČNĚ** (`modeAuto` = FALSE) — povely na jednotlivá zařízení z HMI: `manRun_<motor>`, `manOpen_<ventil>` (specifikace HMI: doplnit)")
+        list: mods.map((m, i) => tr("{mod} (svorkovnice X{x}, {n} kanálů)", { mod: (m.hw ? m.hw.dt + " " : "") + m.dir + m.idx, x: i + 1, n: m.ch.length })).join(", ") || "—",
+    }), "", tr("Sestava hardwaru ({plat}; počty a typy = kusovník, adresy = výchozí návrh k ověření v IDE):", { plat: PLAT[hwPlatform(prj)].name }), "", ...hwSummary(prj).map(x => "    " + x), "", "## " + tr("5. Režimy a ovládání"), "- " + tr("**RUČNĚ** (`modeAuto` = FALSE) — povely na jednotlivá zařízení z HMI: `manRun_<motor>`, `manOpen_<ventil>` (specifikace HMI: doplnit)")
         + (prj.devices.some(d => isMotionClass(d.cls)) ? "; " + tr("měnič `manRun_<měnič>` (výchozí otáčky), polohovací pohon `manHome_<pohon>` (referenční jízda), proporcionální ventil `manOn_<ventil>` (výchozí žádaná)") : ""), "- " + tr("**AUTO** (`modeAuto` = TRUE) — automatická sekvence dle kap. 6; start (`cmdAutoStart`) podmíněn centrálním uvolněním a stavem bez poruchy; ruční povely jsou v AUTO neúčinné"), "- " + tr("**Kvitace** (`cmdAck`) — zruší poruchu stroje i poruchy bloků po odstranění příčiny"), interlockDevs(prj).length
         ? "- " + tr("**Centrální uvolnění** (`enable`) — {estop} AND blokovací vstupy: {list}. FALSE kteréhokoli z nich zastaví stroj: bloky vypnou výstupy, sekvence se vrátí do kroku 0; po obnovení je nutný nový start", {
             estop: estopTxt(prj), list: interlockDevs(prj).map(d => d.name + (d.desc ? " – " + d.desc : "")).join(", "),
@@ -227,13 +229,14 @@ export function docIOcsv(prj) {
     const l = [tr("Tag;Adresa;Směr;Datový typ;Zařízení;Komentář")];
     for (const e of prj.io) {
         const d = devById(prj, e.devId);
-        l.push([e.tag, e.addr, e.dir, dtFor(e), d ? d.name : "", e.cmt || ""].join(";"));
+        l.push([e.tag, hwAddrText(prj, e), e.dir, dtFor(e), d ? d.name : "", e.cmt || ""].join(";"));
     }
     return l.join("\n");
 }
 export function svorkyCSV(prj) {
-    const l = [tr("Svorka;Modul;Kanál;Adresa;Tag;Vodič;Komentář")];
-    modules(prj).forEach((m, mi) => m.ch.forEach((e, i) => l.push("X" + (mi + 1) + ":" + (i + 1) + ";" + m.dir + m.idx + ";" + i + ";" + e.addr + ";" + e.tag + ";" + wireNo(mi + 1, i) + ";" + (e.cmt || ""))));
+    const l = [tr("Svorka;Modul;Kanál;Adresa;Tag;Vodič;Komentář;Označení;Typ")];
+    modules(prj).forEach((m, mi) => m.ch.forEach((e, i) => l.push("X" + (mi + 1) + ":" + (i + 1) + ";" + m.dir + m.idx + ";" + (m.chNo?.[i] ?? i) + ";" + hwAddrText(prj, e) + ";" + e.tag + ";" + wireNo(mi + 1, i) + ";" + (e.cmt || "")
+        + ";" + (m.hw?.dt || "") + ";" + (m.hw ? (m.hw.opt?.orderCode || m.hw.custom || hwTypeText(m.hw)) : ""))));
     return l.join("\n");
 }
 export function docAlarmCsv(prj) {
@@ -315,7 +318,7 @@ export function docFATMd(prj) {
             : e.dir === "DO" ? tr("Vynutit výstup z PLC, ověřit akční člen")
                 : e.dir === "AI" ? tr("Zdroj signálu (kalibrátor), ověřit hodnotu a škálování")
                     : tr("Vynutit hodnotu, změřit výstup");
-        s += "| X" + (mi + 1) + ":" + (i + 1) + " | " + e.addr + " | " + e.tag + " | " + how + " | ☐ |\n";
+        s += "| X" + (mi + 1) + ":" + (i + 1) + " | " + hwAddrText(prj, e) + " | " + e.tag + " | " + how + " | ☐ |\n";
     }));
     s += "\n## " + tr("2. Funkční testy zařízení") + "\n";
     for (const d of prj.devices) {
@@ -502,6 +505,12 @@ export function docFiles(prj, items = approvalItems(prj)) {
     for (const p of docProviders)
         if (p.docs)
             out.push(...p.docs(prj, items));
+    /* hlavička pod nadpisem dokumentů Markdown: firemní hlavička knihovny a řádek revize (bez nich beze změny) */
+    const head = [libraryDocHeader(prj).trim(), ...docProviders.map(p => (p.header ? p.header(prj) : "").trim())].filter(Boolean).join("\n\n");
+    if (head)
+        for (const f of out)
+            if (f.path.endsWith(".md"))
+                f.body = stampBody(f.body, head);
     return out;
 }
 const docProviders = [];

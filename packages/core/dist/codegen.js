@@ -22,6 +22,7 @@ import { genPLCopenXML } from "./plcopen.js";
 import { genRockwellL5X, genLogixRoutine, genLogixTagsCsv, lxSlotText, lxTplProblems, LX_PROGRAM, LX_SOFTWARE_REVISION } from "./logix.js";
 /* library.ts a codegen.ts se importují navzájem: knihovna se čte až uvnitř funkcí */
 import { libraryOverrides, fbInterface } from "./library.js";
+import { hwChannelText } from "./hardware.js";
 /* ------------------------------------------------------------ šablony SCL */
 export const SCL_MOTOR = `FUNCTION_BLOCK "FB_Motor"
 { S7_Optimized_Access := 'TRUE' }
@@ -1254,16 +1255,16 @@ function roleLine(c, tag, role, expr) {
     return c.R(tag) + " := " + expr + "; " + c.cm(trx("vazba na stav stroje: {role}", { role: trx(DO_ROLE_TECH[role]) }));
 }
 /** Řádek volného signálu (komentář s adresou platformy) v IEC ST / SCL. */
-export function freeLine(c, e) {
+export function freeLine(c, e, prj) {
     const sie = c.sie;
-    return "    " + (sie ? "//" : "(*") + "   " + ((sie ? e.addr : addrFor(c.plat, e)) || "").padEnd(8) + " " + c.R(e.tag) + "  " + (sie ? e.cmt : cmtSafe(e.cmt) + " *)");
+    return "    " + (sie ? "//" : "(*") + "   " + (addrFor(c.plat, e, prj) || "").padEnd(8) + " " + c.R(e.tag) + "  " + (sie ? e.cmt : cmtSafe(e.cmt) + " *)");
 }
 /**
  * Instance, volání bloků / rolí a volné signály z IR (pořadí zařízení; bez vstupů uvolnění).
  * `o.call` / `o.free` = jiný zápis volání bloku / řádku volného signálu (Logix).
  */
 export function renderWiring(ir, c, o = {}) {
-    const call = o.call || ((b) => stCall(b, c)), freeOf = o.free || ((e) => freeLine(c, e));
+    const call = o.call || ((b) => stCall(b, c)), freeOf = o.free || ((e) => freeLine(c, e, ir.prj));
     const inst = [], calls = [], free = [];
     for (const it of ir.devices) {
         const title = "    " + c.cm(devTitle(it.dev));
@@ -1330,7 +1331,7 @@ export function genSiemensTagsXml(prj) {
     const nid = () => (id++).toString();
     let x = '<?xml version="1.0" encoding="utf-8"?>\n<Document>\n  <Engineering version="V21" />\n  <SW.Tags.PlcTagTable ID="' + nid() + '">\n    <AttributeList>\n      <Name>Gen_IO</Name>\n    </AttributeList>\n    <ObjectList>\n';
     for (const e of prj.io) {
-        x += '      <SW.Tags.PlcTag ID="' + nid() + '" CompositionName="Tags">\n        <AttributeList>\n          <DataTypeName>' + (dtFor(e) === "INT" ? "Int" : "Bool") + '</DataTypeName>\n          <LogicalAddress>' + xmlEsc(e.addr) + '</LogicalAddress>\n          <Name>' + xmlEsc(e.tag) + '</Name>\n        </AttributeList>\n';
+        x += '      <SW.Tags.PlcTag ID="' + nid() + '" CompositionName="Tags">\n        <AttributeList>\n          <DataTypeName>' + (dtFor(e) === "INT" ? "Int" : "Bool") + '</DataTypeName>\n          <LogicalAddress>' + xmlEsc(addrFor("siemens", e, prj)) + '</LogicalAddress>\n          <Name>' + xmlEsc(e.tag) + '</Name>\n        </AttributeList>\n';
         if (e.cmt)
             x += '        <ObjectList>\n          <MultilingualText ID="' + nid() + '" CompositionName="Comment">\n            <ObjectList>\n              <MultilingualTextItem ID="' + nid() + '" CompositionName="Items">\n                <AttributeList>\n                  <Culture>' + TIA_CULTURE[getLang()] + '</Culture>\n                  <Text>' + xmlEsc(e.cmt) + '</Text>\n                </AttributeList>\n              </MultilingualTextItem>\n            </ObjectList>\n          </MultilingualText>\n        </ObjectList>\n';
         x += '      </SW.Tags.PlcTag>\n';
@@ -1341,7 +1342,7 @@ export function genSiemensTagsXml(prj) {
 export function genSiemensTagsTSV(prj) {
     const l = ["Name\tData Type\tLogical Address\tComment"];
     for (const e of prj.io)
-        l.push([e.tag, dtFor(e) === "INT" ? "Int" : "Bool", e.addr, e.cmt || ""].join("\t"));
+        l.push([e.tag, dtFor(e) === "INT" ? "Int" : "Bool", addrFor("siemens", e, prj), e.cmt || ""].join("\t"));
     return l.join("\n");
 }
 export function genLibrary(prj, plat) {
@@ -1414,7 +1415,7 @@ END_DATA_BLOCK
 export function genGVL(prj, plat) {
     const lines = ["(* GVL_IO - " + stripDia(trx("globální proměnné / fyzické I/O - generováno PLCdesk")) + " *)", "{attribute 'qualified_only'}", "VAR_GLOBAL"];
     for (const e of prj.io) {
-        const at = addrFor(plat, e);
+        const at = addrFor(plat, e, prj);
         lines.push("    " + e.tag + (at ? " AT " + at : "") + " : " + dtFor(e) + ";" + (e.cmt ? " (* " + cmtSafe(e.cmt) + " *)" : ""));
     }
     lines.push("END_VAR");
@@ -1464,7 +1465,7 @@ export function genTagFile(prj, plat) {
         const row = (name, type, cmt, assign) => ['"' + name + '"', '"' + type + '"', '"VAR_GLOBAL"', '"' + uniAscii(cmt).replace(/"/g, "'") + '"', '"' + assign + '"', '"1"'].join(",");
         const l = ['"Label Name","Data Type","Class","Comment","Assign (Device/Label)","Access from External Device"'];
         for (const e of prj.io)
-            l.push(row(e.tag, dtFor(e) === "INT" ? "Word [Signed]" : "Bit", e.cmt || "", addrFor(plat, e)));
+            l.push(row(e.tag, dtFor(e) === "INT" ? "Word [Signed]" : "Bit", e.cmt || "", addrFor(plat, e, prj)));
         for (const v of hmiVars)
             l.push(row(v.name, MT[v.type] || v.type, v.note, ""));
         return { name: "GlobalLabels.csv", body: l.join("\n") };
@@ -1531,10 +1532,12 @@ a Verify Controller (hlavně FBD_TIMER v AOI, výchozí hodnoty parametrů a ver
   modulů: vlastnosti tagu → Type: Alias → Alias For (např. M1_fbkRunning → Local:1:I.Pt00.Data
   u modulů 5069 / CompactLogix 5380; u starších modulů 1769 je to Local:1:I.Data.0), nebo
   importem Tags.csv (níže). Navržený bod modulu je v popisu každého I/O tagu.`), tr(`Tags.csv (náhradní cesta): Tools → Import → Tags and Logic Comments. I/O jsou v něm ALIAS
-  na Local:<slot>:I.Pt<nn>.Data (DI/DO) a Ch<nn>.Data (AI/AO) podle předpokládaného osazení
-  lokálních slotů: {slots}. Moduly musí v I/O Configuration existovat dřív než import; když se
-  osazení liší, uprav sloupec SPECIFIER. Programové tagy mají SCOPE {prog}, instance bloků
-  (FB_*) projdou jen tehdy, když jsou AOI už v projektu (z L5X). Soubor needituj v Excelu.`, { slots: lxSlotText(prj) || tr("(nejde odvodit z adres — aliasy doplň ručně)"), prog: LX_PROGRAM }), tr("MainRoutine.st: totéž tělo rutiny jako v L5X, bez deklarací — pro ruční vložení do ST rutiny."), tr(`Analogy: moduly 5069-IF8 / 5069-OF4 dávají a berou Chxx.Data jako REAL. V konfiguraci modulu
+  na Local:<slot>:I.Pt<nn>.Data (DI/DO) a Ch<nn>.Data (AI/AO), u vzdálených stanic na
+  RIO<n>:<slot>:… (adaptér EtherNet/IP pojmenuj v I/O Configuration RIO<n>), podle osazení
+  ze sestavy hardwaru PLCdesk: {slots}. Moduly musí v I/O Configuration existovat dřív než
+  import; když se osazení liší, uprav sloupec SPECIFIER. Programové tagy mají SCOPE {prog},
+  instance bloků (FB_*) projdou jen tehdy, když jsou AOI už v projektu (z L5X). Soubor
+  needituj v Excelu.`, { slots: lxSlotText(prj) || tr("(bez I/O modulů)"), prog: LX_PROGRAM }), tr("MainRoutine.st: totéž tělo rutiny jako v L5X, bez deklarací — pro ruční vložení do ST rutiny."), tr(`Analogy: moduly 5069-IF8 / 5069-OF4 dávají a berou Chxx.Data jako REAL. V konfiguraci modulu
   nastav Low/High Engineering 0–100 (procenta rozsahu); bloky přepočítají 0–100 % na
   scaleMin…scaleMax (rawMax = 100.0).`), tr("Stavová slova status jsou DINT: 16#8001 blokováno, 16#8002 porucha (do INT se 16#8001 nevejde)."), tr(`Nejkratší test: nový projekt CompactLogix 5380 (např. 5069-L306ER) s moduly podle osazení
   výše → Import Program (L5X) → Verify Controller bez chyb → Logix Echo nebo emulátor: modeAuto := 1,
@@ -1706,7 +1709,7 @@ export function uniTags(prj) {
     const ir = buildIR(prj), lib = codeLibrary(prj, "unitronics");
     const out = [];
     for (const e of prj.io)
-        out.push({ name: e.tag, type: dtFor(e) === "INT" ? "INT16" : "BIT", group: "I/O " + e.dir, hint: e.addr, cmt: (e.cmt || "").replace(/\s*[–—-]\s*$/, "") });
+        out.push({ name: e.tag, type: dtFor(e) === "INT" ? "INT16" : "BIT", group: "I/O " + e.dir, hint: hwChannelText(prj, "unitronics", e), cmt: (e.cmt || "").replace(/\s*[–—-]\s*$/, "") });
     /* názvy skupin: stejné klíče dosazuje do svého textu README (genReadme) */
     const gProg = trx("Program"), gTimer = trx("Program – časovač"), gBlock = trx("Blok");
     out.push({ name: "enable", type: "BIT", group: gProg, hint: "", cmt: trx("centrální uvolnění (E-stop TRUE = v pořádku)") });

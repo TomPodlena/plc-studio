@@ -163,6 +163,21 @@ def render(app, parent) -> None:
                          (_("platformy"), plats)):
         ttk.Label(stats, text=f"{label}  {value}", style="Stat.TLabel").pack(side="left", padx=(0, 6))
 
+    # revize a změnové řízení + firemní knihovna (fáze 3B — revize.py, knihovna.py)
+    from . import knihovna, revize
+    pui = app.ui.setdefault("projekt", {})
+    nb = ttk.Notebook(body)
+    nb.pack(fill="both", expand=True, pady=(12, 0))
+    t_rev = ttk.Frame(nb, padding=(0, 6, 0, 0))
+    t_lib = ttk.Frame(nb, padding=(0, 6, 0, 0))
+    nb.add(t_rev, text=_("Revize a změny"))
+    nb.add(t_lib, text=_("Firemní knihovna"))
+    revize.build(app, t_rev)
+    knihovna.build(app, t_lib)
+    if pui.get("tab") in (0, 1):
+        nb.select(pui["tab"])
+    nb.bind("<<NotebookTabChanged>>", lambda _e: pui.update(tab=nb.index("current")))
+
     note_box(body, _(
         "Projdi kroky zleva doprava — návrh se průběžně ukládá a mezi kroky se "
         "můžeš kdykoli vracet a vstupy upřesňovat; výstupy se vždy přepočítají. "

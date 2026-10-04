@@ -1,5 +1,6 @@
 import { PlatformKey, Project } from "./model.js";
-import { CatalogBrand } from "./catalog.js";
+import { CatalogBrand, brandOptId } from "./catalog.js";
+export { brandOptId };
 export interface BomLine {
     /** stabilní klíč řádku: označení + kategorie (pro volby uživatele a pro CAD v PRO) */
     id: string;
@@ -32,8 +33,6 @@ export interface Bom {
     plat: PlatformKey;
     lines: BomLine[];
 }
-/** Identifikace volby z katalogu (značka + kód / řada) — hodnota v `prj.bom.brand` / `lines[].brand`. */
-export declare function brandOptId(b: CatalogBrand): string;
 /** Nabídka katalogu pro řádek kusovníku (kategorie + platforma). */
 export declare function bomOptions(cat: string, plat: PlatformKey): Array<{
     id: string;

@@ -34,4 +34,5 @@ export * from "./sistema.js";
 export * from "./eplan.js";
 export * from "./eplan_aml.js";
 export * from "./guid.js";
+export * from "./hardware.js";
 export * from "./emu/index.js";

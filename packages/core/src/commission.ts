@@ -15,6 +15,7 @@ import { Project, Device, IoEntry, devById, ioOf, interlockDevs, enableInputs, m
 import { seqCond, manVarOf } from "./codegen.js";
 import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_POS_ACK, T_POS_MOVE, type SimFault } from "./sim.js";
 import { tr, N_, today, formatDateTime } from "./i18n.js";
+import { hwAddrText } from "./hardware.js";
 import { contentHash, registerApprovalProvider, approvalStamp, verifyDesign, verifyDesignCached, isVerified, APPROVAL_FILE, type ApprovalItem, type ApprovalOptions } from "./approval.js";
 
 export type CommissionResult = "ok" | "nok" | "na";
@@ -109,7 +110,7 @@ function limitText(w: { wd: number; n: number } | null, T: number): { lim: numbe
 function ioStep(prj: Project, e: IoEntry, role: { estop: boolean; lock: boolean }): CommissioningStep {
   const d = devById(prj, e.devId);
   const dn = d ? d.name : "?";
-  const base = { id: "io:" + dn + "." + e.sig, phase: 2, title: e.tag + " (" + (e.addr || "—") + ")" + (e.cmt ? " — " + e.cmt : ""), signals: [e.tag], devId: d?.id, data: { tag: e.tag, addr: e.addr || "", dir: e.dir, nc: !!e.nc } };
+  const base = { id: "io:" + dn + "." + e.sig, phase: 2, title: e.tag + " (" + (hwAddrText(prj, e) || "—") + ")" + (e.cmt ? " — " + e.cmt : ""), signals: [e.tag], devId: d?.id, data: { tag: e.tag, addr: hwAddrText(prj, e), dir: e.dir, nc: !!e.nc } };
   const p = { tag: e.tag, dev: dn, desc: d?.desc || dn };
   if (e.dir === "DI") {
     const expectNC = tr("PLC čte {tag} = TRUE v klidu (rozpínací kontakt) a FALSE při aktivaci.", p);

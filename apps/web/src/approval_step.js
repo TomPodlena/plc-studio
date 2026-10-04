@@ -6,6 +6,7 @@ import {
   approvalSummary, approvalOrphans, tuningProposals, applyTuningResult, approveMany, approvalsMd, APPROVAL_GROUPS, APPROVAL_FILE,
 } from "../../../packages/core/dist/index.js";
 import { card, downloadFile } from "./util.js";
+import { revisionAffected } from "./biz_view.js";
 
 /* ---------------------------------------------------------------- společné (i pro Bezpečnost a Oživení) */
 
@@ -17,9 +18,17 @@ export function approverName() {
 export function setApproverName(v) {
   try { if (v) localStorage.setItem(NAME_KEY, v); else localStorage.removeItem(NAME_KEY); } catch { /* bez úložiště */ }
 }
-/** Pole se jménem (stejná hodnota ve Schválení i Oživení). */
+/* Jména schvalovatelů z firemní knihovny projektu (app.js nastaví zdroj — biz_view.approverNames). */
+let approverSource = () => [];
+export function setApproverSource(fn) { approverSource = typeof fn === "function" ? fn : () => []; }
+/** Pole se jménem (stejná hodnota ve Schválení i Oživení); s knihovnou i výběr schvalovatele. */
 export function nameFieldHtml(label) {
-  return "<label class='f apname'>" + label + "<input type='text' id='apName' autocomplete='name' maxlength='80' value='" + esc(approverName()) + "' placeholder='" + esc(tr("jméno a příjmení")) + "'></label>";
+  let names = [];
+  try { names = approverSource() || []; } catch { names = []; }
+  const cur = approverName();
+  const pick = names.length ? "<select id='apPick' aria-label='" + esc(tr("Schvalovatel z firemní knihovny")) + "' title='" + esc(tr("Schvalovatel z firemní knihovny")) + "'><option value=''>" + esc(tr("— z knihovny —")) + "</option>" +
+    names.map(n => "<option" + (n === cur ? " selected" : "") + ">" + esc(n) + "</option>").join("") + "</select>" : "";
+  return "<label class='f apname'>" + label + "<span class='apnamerow'><input type='text' id='apName' autocomplete='name' maxlength='80' value='" + esc(cur) + "' placeholder='" + esc(tr("jméno a příjmení")) + "'>" + pick + "</span></label>";
 }
 /**
  * Připojí pole se jménem: uloží ho a přepne tlačítka, která jméno potřebují
@@ -34,6 +43,8 @@ export function wireNameField(root) {
     if (w) w.hidden = has;
   };
   inp.addEventListener("input", () => { setApproverName(inp.value.trim()); sync(); });
+  const pick = root.querySelector("#apPick");
+  if (pick) pick.addEventListener("change", () => { if (!pick.value) return; inp.value = pick.value; setApproverName(pick.value); sync(); });
   sync();
 }
 /** Okamžik záznamu v místním čase (YYYY-MM-DD HH:MM) — nezávislé na jazyku. */
@@ -72,7 +83,7 @@ function noteSummary(prj, sum) { badgeKey = JSON.stringify(prj); badgeSum = sum;
 export function makeApprovalStep(ctx) {
   const { S, save, render } = ctx;
   /* pohled (drží se mezi překresleními): filtr, otevřené skupiny, počet zobrazených návrhů ladění, rozepsané poznámky */
-  const view = { filter: "all", open: {}, more: 50, notes: {}, err: {}, pick: new Set() };
+  const view = { filter: "all", open: {}, more: 50, notes: {}, err: {}, pick: new Set(), rev: { id: "", invalid: new Set() } };
   const rerender = () => { const y = window.scrollY; render(); window.scrollTo({ top: y }); };
   const FILTERS = () => [["all", tr("vše")], ["open", tr("k rozhodnutí (čeká, změněno po schválení)")], ["stale", approvalStatusLabel("stale")], ["rejected", approvalStatusLabel("rejected")], ["approved", approvalStatusLabel("approved")]];
   const pass = st => view.filter === "all" || (view.filter === "open" ? st === "missing" || st === "proposed" || st === "stale" : st === view.filter);
@@ -85,9 +96,11 @@ export function makeApprovalStep(ctx) {
     const blockedR = st === "rejected";
     const btn = (a, label, blocked, cls = "small") => "<button class='" + cls + "' data-a='" + a + "' data-needname data-blocked='" + (blocked ? 1 : 0) + "'" + (blocked || !name ? " disabled" : "") + ">" + label + "</button>";
     const pickable = st !== "approved" && it.ready !== false;
-    return "<tr data-key='" + esc(it.key) + "' class='ap-" + ST_CLASS[st] + "'>" +
+    const revChg = view.rev.invalid.has(it.key);
+    return "<tr data-key='" + esc(it.key) + "' class='ap-" + ST_CLASS[st] + (revChg ? " ap-revchg" : "") + "'>" +
       "<td><input type='checkbox' data-pick aria-label='" + esc(tr("vybrat")) + "'" + (pickable ? "" : " disabled") + (pickable && view.pick.has(it.key) ? " checked" : "") + "></td>" +
       "<td class='aptitle'><b>" + esc(it.title) + "</b>" + (it.required ? "" : " <span class='hint' style='margin:0'>(" + tr("nepovinná") + ")</span>") +
+      (revChg ? " <span class='st st-stale revchip' title='" + esc(tr("Při vydání revize {rev} byla položka platně schválená; změna od revize ji zneplatňuje (nebo může zneplatnit) — znovu posoudit a schválit.", { rev: view.rev.id })) + "'>" + esc(tr("dotčeno změnou od revize {rev}", { rev: view.rev.id })) + "</span>" : "") +
       "<div class='apsum'>" + esc(it.summary) + "</div>" +
       (it.ready === false ? "<div class='apwarn'>" + esc(it.notReady || tr("Položku zatím nelze schválit.")) + "</div>" : "") +
       "<div class='errtxt' data-err" + (view.err[it.key] ? "" : " hidden") + ">" + esc(view.err[it.key] || "") + "</div></td>" +
@@ -110,6 +123,10 @@ export function makeApprovalStep(ctx) {
     const status = new Map(items.map(i => [i.key, approvalStatus(p, i)]));
     const tun = new Map(tuningProposals(p).map(t => [t.approvalKey, t]));
     const orphans = approvalOrphans(p, items);
+    /* položky dotčené změnou od poslední revize (revision.ts) — zvýraznit */
+    let aff = { rev: "", invalid: [] };
+    try { aff = revisionAffected(p, items); } catch (e) { console.warn("revision affected:", e); }
+    view.rev = { id: aff.rev, invalid: new Set(aff.invalid) };
 
     const stat = (label, n, cls) => "<span class='stat st-" + cls + "'>" + esc(label) + " <b>" + n + "</b></span>";
     let blockHtml;
@@ -155,6 +172,7 @@ export function makeApprovalStep(ctx) {
     </div>
     <div class="stats">${stat(approvalStatusLabel("approved"), sum.approved, "ok")}${stat(approvalStatusLabel("stale"), sum.stale, "stale")}${stat(approvalStatusLabel("rejected"), sum.rejected, "rej")}${stat(approvalStatusLabel("proposed"), sum.pending, "wait")}<span class="stat">${tr("celkem <b>{n}</b>", { n: sum.total })}</span></div>
     ${blockHtml}
+    ${view.rev.invalid.size ? "<p class='warnbox' id='apRevNote'>" + tr("Změna od revize {rev} se dotýká {n} položek, které byly při vydání revize platně schválené — jsou označené „dotčeno změnou od revize“. Přehled změn a rozsah opakovaných zkoušek je v kroku Projekt.", { rev: esc(view.rev.id), n: view.rev.invalid.size }) + "</p>" : ""}
     <div class="row">
       <label class="f" style="flex-direction:row;gap:8px;align-items:center">${tr("Zobrazit")}
         <select id="apFilter">${FILTERS().map(([v, l]) => "<option value='" + v + "'" + (v === view.filter ? " selected" : "") + ">" + esc(l) + "</option>").join("")}</select></label>

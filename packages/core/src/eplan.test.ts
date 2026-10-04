@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { withLang, type Lang } from "./i18n.js";
 import { modules } from "./model.js";
+import { hwLayout } from "./hardware.js";
 import { svorkyCSV, allProjectFiles } from "./docs.js";
 import { buildBom } from "./bom.js";
 import { sheetOps, opsToDXF } from "./drawing.js";
@@ -43,11 +44,11 @@ test("EPLAN: všech 12 příkladů — AutomationML well-formed, tagy a kanály 
     const chans = [...aml.matchAll(/RefBaseClassPath="AutomationProjectConfigurationInterfaceClassLib\/Channel"/g)];
     /* vazby kanál ↔ tag (Link_<tag>); vazba uzlu PROFINET na podsíť se počítá zvlášť */
     const links = [...aml.matchAll(/<InternalLink Name="Link_([^"]+)" RefPartnerSideA="([^":]+):([^"]+)" RefPartnerSideB="([^":]+):([^"]+)" \/>/g)]
-      .filter(m => !m[1].startsWith("PN_IE_")).map(m => [m[0], m[2], m[3], m[4], m[5]]);
+      .filter(m => !m[1].startsWith("PN_IE_") && !m[1].startsWith("IoSystem_")).map(m => [m[0], m[2], m[3], m[4], m[5]]);
     assert.equal([...aml.matchAll(/<InternalLink Name="Link_PN_IE_1_E1"/g)].length, 1, n + ": uzel PROFINET ↔ podsíť");
     assert.equal(tags.length, p.io.length, n + ": tag na každý signál");
-    const cap = { DI: 16, DO: 16, AI: 8, AO: 4 } as const;
-    assert.equal(chans.length, modules(p).reduce((s, m) => s + cap[m.dir], 0), n + ": všechny kanály karet");
+    /* všechny kanály modulů sestavy (počet podle katalogu, vč. vestavěných I/O CPU) */
+    assert.equal(chans.length, hwLayout(p).modules.reduce((s, m) => s + m.channels.length, 0), n + ": všechny kanály karet");
     assert.equal(links.length, p.io.length, n + ": vazba kanál ↔ tag");
     assert.deepEqual(new Set(tags.map(t => t[1])), new Set(p.io.map(e => e.tag)));
     const elIds = new Set([...aml.matchAll(/<InternalElement Name="[^"]*" ID="([^"]+)"/g)].map(m => m[1]));
@@ -69,7 +70,7 @@ test("EPLAN: označení shodná s výkresy (svorky X, vodiče -W) a kusovníkem;
     /* výkres modulu nese stejné svorky a čísla vodičů */
     mods.forEach((m, i) => {
       const texts = new Set(sheetOps(p, m, i + 1, i + 1, mods.length).O.filter(o => o.t === "t").map(o => (o as { s: string }).s));
-      for (const t of terms.filter(x => x.card === cards[i].dt)) {
+      for (const t of terms.filter(x => x.strip === "-X" + cards[i].xnum)) {
         assert.ok(texts.has(t.dt.slice(1)), n + ": svorka " + t.dt + " ve výkresu");
         assert.ok([...texts].some(s => s === t.wire || s.endsWith(" " + t.wire)), n + ": vodič " + t.wire + " ve výkresu");
       }

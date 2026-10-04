@@ -37,6 +37,8 @@ export declare function docFiles(prj: Project, items?: ApprovalItem[]): DocFile[
 export interface DocProvider {
     docs?: (prj: Project, items: ApprovalItem[]) => DocFile[];
     files?: (prj: Project, items: ApprovalItem[]) => ProjectFile[];
+    /** řádky Markdownu pod nadpis každého dokumentu .md (např. revize); prázdný text = nic */
+    header?: (prj: Project) => string;
 }
 export declare function registerDocProvider(name: string, p: DocProvider): () => void;
 /** Dokument konceptu řešení — číslo za pevnou sadou 00–09. */

@@ -7,6 +7,7 @@
 import { Project, Device, DeviceClass, SeqStep, CLS, devById, ioOf, esc, enableInputs, interlockDevs } from "./model.js";
 import { SimResult, stepTitle, stepCondText, stepWatchdog } from "./sim.js";
 import { tr, N_ } from "./i18n.js";
+import { hwAddrText } from "./hardware.js";
 
 const TXT = "font-family:ui-monospace,monospace;font-size:12px;fill:currentColor";
 const MUT = "font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)";
@@ -72,9 +73,9 @@ export function svgMachine(prj: Project): string {
           sT(x + 10, y + 33, (d.desc || clsLabel).slice(0, 44), MUT);
         io.forEach((e, i) => {
           const yy = y + 54 + i * 17;
-          s += '<g data-io="' + esc(e.key) + '"><title>' + esc(e.tag + "  " + e.addr + "\n" + (e.cmt || "")) + "</title>" +
+          s += '<g data-io="' + esc(e.key) + '"><title>' + esc(e.tag + "  " + hwAddrText(prj, e) + "\n" + (e.cmt || "")) + "</title>" +
             '<circle cx="' + (x + 16) + '" cy="' + (yy - 4) + '" r="4.5" fill="none" stroke="currentColor" stroke-width="1.2"/>' +
-            sT(x + 28, yy, e.dir, MUT) + sT(x + 52, yy, e.tag.slice(0, 26), TXT) + sT(x + cw - 10, yy, e.addr, MUT, "end") + "</g>";
+            sT(x + 28, yy, e.dir, MUT) + sT(x + 52, yy, e.tag.slice(0, 26), TXT) + sT(x + cw - 10, yy, hwAddrText(prj, e), MUT, "end") + "</g>";
         });
         s += "</g>";
       });
@@ -170,7 +171,7 @@ export function svgTiming(prj: Project, run: SimResult): string {
   rows.forEach(({ e, d }, i) => {
     const y = yRow(i);
     const ref = ' data-io="' + esc(e.key) + '" data-dev="' + d.id + '"';
-    s += "<g" + ref + "><title>" + esc(e.tag + "  " + e.addr + "\n" + d.name + " — " + (e.cmt || d.desc)) + "</title>" +
+    s += "<g" + ref + "><title>" + esc(e.tag + "  " + hwAddrText(prj, e) + "\n" + d.name + " — " + (e.cmt || d.desc)) + "</title>" +
       sT(20, y + 14, e.tag.slice(0, 22), TXT) + "</g>" + ln(x0, y + rh - 3, x1, y + rh - 3, "var(--line, #999)", 0.6);
     let on: number | null = null;
     const bar = (a: number, b: number) =>

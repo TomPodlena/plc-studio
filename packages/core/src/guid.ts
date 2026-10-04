@@ -7,9 +7,10 @@
  *
  *   Project.guid          náhodný (v4), při vzniku projektu (`blankProject`)
  *   Device.guid           náhodný (v4), při vzniku zařízení (`syncIO` / `ensureGuids` hned po přidání)
- *   Project.moduleGuids   náhodný (v4) pro každou I/O kartu; karta nemá v modelu vlastní objekt (vzniká
- *                         z I/O tabulky v `modules()`), její identita je klíč „<směr><pořadí>“ (DI1, DO2…)
- *                         — stejný klíč jako označení karty ve výkresech a dokumentaci
+ *   Project.moduleGuids   náhodný (v4) pro každou I/O kartu a hlavu vzdálené stanice; modul nemá v modelu
+ *                         vlastní objekt (vzniká v sestavě hardware.ts), jeho identita je místo v sestavě
+ *                         „S<stanice>.<slot>“ (S0.2, S1.0 …); dřívější klíče „<směr><pořadí>“ (DI1…) převede
+ *                         `fillGuids` (n-tá karta téhož směru)
  *   IoEntry.guid          odvozený (UUIDv8, RFC 9562) z GUID zařízení + signálu: signál JE „zařízení ×
  *                         signál“, takže GUID přežije přejmenování tagu i přečíslování id zařízení a je
  *                         stabilní i u projektů, které I/O tabulku neukládají (příklady samples/)
@@ -62,8 +63,13 @@ export function derivedGuid(parent: string, role: string): string {
   return fmt(hex(b));
 }
 
-/** Klíč identity I/O karty (DI1, DO2 …) — viz `modules()`. */
-export const moduleKey = (m: Pick<IoModule, "dir" | "idx">): string => m.dir + m.idx;
+/**
+ * Klíč identity fyzického modulu (hardware.ts): „S<stanice>.<slot>“ — u kanálové skupiny
+ * (`IoModule` z `modules()`) klíč jejího modulu; bez sestavy dřívější „<směr><pořadí>“.
+ */
+export const moduleKey = (m: Pick<IoModule, "dir" | "idx"> & { hw?: { key: string } }): string => m.hw ? m.hw.key : m.dir + m.idx;
+/** Dřívější klíč karty (DI1, AO2 …) před sestavou hardwaru — převádí `fillGuids`. */
+const LEGACY_KEY = /^(DI|DO|AI|AO)\d+$/;
 
 /** GUID signálu: odvozený z GUID zařízení a signálu. */
 export const ioGuidFor = (devGuid: string, sig: string): string => derivedGuid(devGuid, "io:" + sig);
@@ -72,9 +78,12 @@ export const ioGuidFor = (devGuid: string, sig: string): string => derivedGuid(d
  * Doplní chybějící (a opraví neplatné či duplicitní) GUID projektu, zařízení, I/O karet a signálů.
  * Existující platné GUID nikdy nemění. Vrací true, když něco doplnila — volající pak projekt
  * označí jako změněný (uloží). Volá se při vzniku objektů (`syncIO`) a při načtení projektu.
- * `mods` = karty projektu (z `modules()`), jinak se karty neřeší.
+ * `mods` = moduly sestavy hardwaru (`hwLayout(prj).modules`), jinak se moduly neřeší. GUID dostanou
+ * I/O karty a hlavy vzdálených stanic (vestavěné I/O, CPU a příslušenství se odvozují při exportu).
+ * Migrace: GUID pod dřívějším klíčem karty (DI1…) přejde na kartu sestavy se stejným `legacy`
+ * klíčem (n-tá karta téhož směru); dřívější klíče se pak odstraní.
  */
-export function fillGuids(prj: Project, mods?: IoModule[]): boolean {
+export function fillGuids(prj: Project, mods?: Array<{ key: string; kind: string; builtin: boolean; legacy?: string; guid?: string }>): boolean {
   let changed = false;
   if (!isGuid(prj.guid)) { prj.guid = newGuid(); changed = true; }
   const seen = new Set<string>([prj.guid.toLowerCase()]);
@@ -97,10 +106,17 @@ export function fillGuids(prj: Project, mods?: IoModule[]): boolean {
   }
   if (mods) {
     const mg = prj.moduleGuids && typeof prj.moduleGuids === "object" ? prj.moduleGuids : {};
-    for (const m of mods) {
-      const k = moduleKey(m);
-      if (!isGuid(mg[k])) { mg[k] = newGuid(); changed = true; }
+    const own = mods.filter(m => (m.kind === "io" && !m.builtin) || m.kind === "head");
+    const legacy = Object.keys(mg).filter(k => LEGACY_KEY.test(k));
+    for (const m of own) {
+      if (isGuid(mg[m.key]) && take(mg[m.key])) { m.guid = mg[m.key]; continue; }
+      const old = m.legacy && LEGACY_KEY.test(m.legacy) ? mg[m.legacy] : undefined;
+      mg[m.key] = old && take(old) ? old : newGuid();
+      seen.add(mg[m.key].toLowerCase());
+      m.guid = mg[m.key];
+      changed = true;
     }
+    for (const k of legacy) { delete mg[k]; changed = true; }
     if (Object.keys(mg).length) prj.moduleGuids = mg;
   }
   return changed;

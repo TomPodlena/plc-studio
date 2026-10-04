@@ -9,6 +9,7 @@ import { registerSafetyModule, unregisterSafetyModule, proposeSafety } from "./s
 import { docFiles } from "./docs.js";
 import { sheetSVG, sheetDXF } from "./drawing.js";
 import { sampleSmall } from "./samples.js";
+import { attachLibrary, blankLibrary } from "./library.js";
 import { createRevision, listRevisions, revisionSnapshot, revisionContent, nextRevisionId, latestRevision, modifiedSinceRevision, revisionLabel, diffProjects, diffRevisions, changesSinceRevision, retestScope, changesMd, revisionTableMd, CHANGES_FILE, } from "./revision.js";
 const SAMPLES = new URL("../../../samples/", import.meta.url); // dist/ → kořen repozitáře
 const SAMPLE_NAMES = readdirSync(SAMPLES).filter(f => f.endsWith(".plcstudio.json")).sort();
@@ -332,4 +333,23 @@ test("i18n: zpráva o změnách bez češtiny v cizích jazycích", () => {
         }
     });
     setLang("cs");
+});
+test("dokumenty: firemní hlavička knihovny a řádek revize pod nadpisem (bez nich beze změny); změna knihovny čitelně", () => {
+    const p = sampleSmall();
+    const fds = (x) => docFiles(x).find(f => f.path.startsWith("01_")).body;
+    const plain = fds(p);
+    assert.ok(!plain.includes("ACME"), "bez knihovny beze změny");
+    const before = clone(p);
+    attachLibrary(p, { ...blankLibrary("ACME standard"), version: "2.1.0", company: { name: "ACME Automation s.r.o.", approvers: [{ name: "Ing. Novák" }] } }, false);
+    const withLib = fds(p);
+    assert.equal(withLib.split("\n")[0], plain.split("\n")[0], "nadpis zůstává první");
+    assert.ok(withLib.split("\n").slice(1, 6).some(l => l.includes("**ACME Automation s.r.o.**")), "hlavička firmy pod nadpisem");
+    assert.ok(docFiles(p).filter(f => f.path.endsWith(".md")).every(f => f.body.includes("ACME Automation s.r.o.")), "ve všech dokumentech .md");
+    assert.ok(!docFiles(p).find(f => f.path.endsWith(".csv")).body.includes("ACME"), "CSV beze změny");
+    const lib = diffProjects(before, p).changes.find(c => c.field === "library");
+    assert.match(lib.text, /ACME standard v2\.1\.0/, "změna knihovny s názvem a verzí");
+    const rev = createRevision(p, "Tester", "vydání");
+    if (!p.revisions?.length)
+        p.revisions = [rev];
+    assert.ok(fds(p).includes("**" + withLang("cs", () => "Revize") + " " + rev.id + "**"), "řádek revize pod nadpisem");
 });

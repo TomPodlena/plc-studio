@@ -105,11 +105,21 @@ class Table(ttk.Frame):
     ``columns`` = seznam ``(klíč, nadpis, šířka, roztáhnout)``. ``editable`` =
     klíče sloupců, které jdou upravit; změnu hlásí ``on_edit(iid, klíč, hodnota)``.
     ``on_click(iid, klíč)`` hlásí jednoduchý klik (např. přepnutí zaškrtnutí).
+    ``ellipsis=True``: text, který se do sloupce nevejde, se zkrátí s „…“ (Treeview sám řeže
+    uprostřed slova) a celý se ukáže v bublině po najetí myší; celou hodnotu vrací ``full()``.
     """
 
     def __init__(self, parent, columns, *, height: int = 8, editable=(),
-                 on_edit=None, on_click=None, tree: bool = False):
+                 on_edit=None, on_click=None, tree: bool = False, ellipsis: bool = False):
         super().__init__(parent)
+        self._ellipsis = ellipsis
+        self._full: dict[str, dict[str, str]] = {}    # iid → {sloupec / "#0": celý text}
+        self._heads: dict[str, str] = {}               # sloupec → celý nadpis
+        self._fit_job = None
+        self._tip: tk.Toplevel | None = None
+        self._tip_job = None
+        self._tip_cell: tuple | None = None
+        self.tip_text = ""
         self._keys = [c[0] for c in columns]
         self._editable = set(editable)
         self._on_edit = on_edit
@@ -146,11 +156,19 @@ class Table(ttk.Frame):
             self.tv.bind("<Double-1>", self._begin_edit)
         if on_click:
             self.tv.bind("<ButtonRelease-1>", self._click)
+        if ellipsis:
+            self.tv.bind("<Configure>", lambda _e: self._schedule_fit(), add="+")
+            self.tv.bind("<ButtonRelease-1>", self._after_resize, add="+")
+            self.tv.bind("<Motion>", self._on_motion, add="+")
+            self.tv.bind("<Leave>", lambda _e: self._hide_tip(), add="+")
+            self.tv.bind("<Destroy>", lambda _e: self._hide_tip(), add="+")
 
     # --- data --------------------------------------------------------------------
 
     def clear(self) -> None:
         self._cancel_edit()
+        self._hide_tip()
+        self._full.clear()
         self.tv.delete(*self.tv.get_children())
 
     def add(self, iid, values, tags=(), parent: str = "", text: str = "", open_: bool = True):
@@ -160,8 +178,160 @@ class Table(ttk.Frame):
                 if need > self._fixed[key]:
                     self._fixed[key] = need
                     self.tv.column(key, width=need)
-        return self.tv.insert(parent, "end", iid=str(iid), values=values, tags=tags,
-                              text=text, open=open_)
+        out = self.tv.insert(parent, "end", iid=str(iid), values=values, tags=tags,
+                             text=text, open=open_)
+        if self._ellipsis:
+            full = {k: "" if v is None else str(v) for k, v in zip(self._keys, values)}
+            full["#0"] = text
+            self._full[out] = full
+            self._fit_row(out)
+        return out
+
+    def full(self, iid, key: str) -> str:
+        """Celý text buňky (i zkrácené s „…“); ``key`` "#0" = text stromového sloupce."""
+        iid = str(iid)
+        if iid in self._full and key in self._full[iid]:
+            return self._full[iid][key]
+        return self.tv.item(iid, "text") if key == "#0" else self.tv.set(iid, key)
+
+    def set_cell(self, iid, key: str, value) -> None:
+        """Změní hodnotu buňky (u ``ellipsis`` i celý text a zkrácení)."""
+        iid = str(iid)
+        if iid in self._full:
+            self._full[iid][key] = "" if value is None else str(value)
+            self._fit_row(iid)
+        elif key == "#0":
+            self.tv.item(iid, text=value)
+        else:
+            self.tv.set(iid, key, value)
+
+    # --- zkrácení textu s „…“ a bublina s celým textem --------------------------------
+
+    def _clip(self, text: str, room: int) -> str:
+        """Nejdelší začátek textu, který se s „…“ vejde do ``room`` px."""
+        f = self._cell_font
+        if not text or f.measure(text) <= room:
+            return text
+        lo, hi = 0, len(text)
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if f.measure(text[:mid].rstrip() + "…") <= room:
+                lo = mid
+            else:
+                hi = mid - 1
+        return text[:lo].rstrip() + "…"
+
+    def _room(self, iid: str, key: str) -> int:
+        width = int(self.tv.column(key, "width"))
+        if key != "#0":
+            return width - 12
+        depth, p = 0, self.tv.parent(iid)
+        while p:
+            depth, p = depth + 1, self.tv.parent(p)
+        return width - 20 * (depth + 1) - 10          # odsazení úrovně + značka rozbalení
+
+    def _fit_row(self, iid: str) -> None:
+        full = self._full.get(iid)
+        if not full or not self.tv.exists(iid):
+            return
+        for key, text in full.items():
+            shown = self._clip(text, self._room(iid, key))
+            if key == "#0":
+                if self.tv.item(iid, "text") != shown:
+                    self.tv.item(iid, text=shown)
+            elif self.tv.set(iid, key) != shown:
+                self.tv.set(iid, key, shown)
+
+    def fit(self) -> None:
+        """Přepočítá zkrácení všech řádků i nadpisů (po změně šířky sloupců)."""
+        self._fit_job = None
+        if not self.tv.winfo_exists():
+            return
+        for iid in list(self._full):
+            self._fit_row(iid)
+        self._fit_heads()
+
+    def _fit_heads(self) -> None:
+        """Nadpisy sloupců také s „…“ (Treeview je jinak usekne uprostřed slova). Nadpis, který
+        mezitím přepsal volající (šipka řazení), se bere jako nový celý text."""
+        f = tkfont.Font(font=theme.FONT_DIM)
+        for key in ("#0", *self._keys):
+            cur = str(self.tv.heading(key, "text"))
+            full = self._heads.get(key)
+            if not (full and cur.endswith("…") and full.startswith(cur[:-1].rstrip())):
+                full = cur
+            self._heads[key] = full
+            room = int(self.tv.column(key, "width")) - 14
+            shown = full
+            if full and f.measure(full) > room:
+                lo, hi = 0, len(full)
+                while lo < hi:
+                    mid = (lo + hi + 1) // 2
+                    if f.measure(full[:mid].rstrip() + "…") <= room:
+                        lo = mid
+                    else:
+                        hi = mid - 1
+                shown = full[:lo].rstrip() + "…"
+            if shown != cur:
+                self.tv.heading(key, text=shown)
+
+    def _schedule_fit(self) -> None:
+        if self._fit_job is None:
+            self._fit_job = self.tv.after_idle(self.fit)
+
+    def _after_resize(self, event) -> None:
+        if self.tv.identify_region(event.x, event.y) in ("separator", "heading"):
+            self._schedule_fit()
+
+    def _cell_key(self, col: str) -> str | None:
+        if col == "#0":
+            return "#0"
+        n = col[1:]
+        return self._keys[int(n) - 1] if n.isdigit() and 0 < int(n) <= len(self._keys) else None
+
+    def _on_motion(self, event) -> None:
+        iid = self.tv.identify_row(event.y)
+        key = self._cell_key(self.tv.identify_column(event.x)) if iid else None
+        cell = (iid, key) if key else None
+        if cell == self._tip_cell:
+            return
+        self._hide_tip()
+        self._tip_cell = cell
+        if not cell or iid not in self._full:
+            return
+        text = self._full[iid].get(key, "")
+        shown = self.tv.item(iid, "text") if key == "#0" else self.tv.set(iid, key)
+        if text and shown != text:
+            self._tip_job = self.tv.after(450, self._show_tip, event.x_root, event.y_root, text)
+
+    def _show_tip(self, x: int, y: int, text: str) -> None:
+        self._tip_job = None
+        if not self.tv.winfo_exists():
+            return
+        tip = tk.Toplevel(self.tv)
+        tip.wm_overrideredirect(True)
+        tip.attributes("-topmost", True)
+        tk.Label(tip, text=text, bg="#FFFFFF", fg=theme.FG, font=theme.FONT_DIM, justify="left",
+                 wraplength=520, padx=8, pady=5, highlightthickness=1,
+                 highlightbackground=theme.BORDER).pack()
+        tip.wm_geometry(f"+{x + 14}+{y + 16}")
+        self._tip = tip
+        self.tip_text = text            # pro testy
+
+    def _hide_tip(self) -> None:
+        if self._tip_job is not None:
+            try:
+                self.tv.after_cancel(self._tip_job)
+            except tk.TclError:
+                pass
+            self._tip_job = None
+        if self._tip is not None:
+            try:
+                self._tip.destroy()
+            except tk.TclError:
+                pass
+            self._tip = None
+        self._tip_cell = None
 
     def selected(self) -> str | None:
         sel = self.tv.selection()
@@ -215,7 +385,7 @@ class Table(ttk.Frame):
         ed = tk.Entry(self.tv, bg="#FFFFFF", fg=theme.FG, relief="flat", font=theme.FONT_UI,
                       highlightthickness=1, highlightbackground=theme.ACCENT,
                       highlightcolor=theme.ACCENT, insertbackground=theme.FG)
-        ed.insert(0, self.tv.set(iid, key))
+        ed.insert(0, self.full(iid, key))           # celý text, ne zkrácený s „…“
         ed.select_range(0, "end")
         ed.place(x=x, y=y, width=w, height=h)
         ed.focus_set()
@@ -226,7 +396,7 @@ class Table(ttk.Frame):
                 return
             value = ed.get()
             self._cancel_edit()
-            if value != self.tv.set(iid, key) and self._on_edit:
+            if value != self.full(iid, key) and self._on_edit:
                 self._on_edit(iid, key, value)
 
         ed.bind("<Return>", commit)

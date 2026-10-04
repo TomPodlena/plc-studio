@@ -24,7 +24,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from . import ai_client, theme
 from .bridge import BridgeError
-from .i18n import N_, _
+from .i18n import N_, _, _n
 from .widgets import Table, note_box, scrolled_text, set_text, wrap_label
 
 PAGES = [N_("Podklady"), N_("Rozpoznáno"), N_("Analýza AI"), N_("Kontrola a převzetí")]
@@ -364,7 +364,10 @@ class ImportWizard:
             S.update(sig=sig, ex=res["ex"], exact=res["proposal"], ai=None, merged=None,
                      est=None, est_key=None, skip=set(), tab=0)
             n = len(res["proposal"]["prj"]["devices"])
-            S["msg"] = ("ok", _("Rozpoznáno: {n} zařízení z {f} souborů.", n=n, f=len(inputs)))
+            # tvar podle čísla (z 1 souboru / ze 2 souborů…; angl. 1 device / 2 devices)
+            S["msg"] = ("ok", _n(n, N_("Rozpoznáno: {n} zařízení|Rozpoznáno: {n} zařízení|"
+                                       "Rozpoznáno: {n} zařízení")) + " "
+                        + _n(len(inputs), N_("z {n} souboru.|ze {n} souborů.|z {n} souborů.")))
         S["page"] = 1
         self.render()
         return True

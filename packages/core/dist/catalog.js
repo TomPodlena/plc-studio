@@ -8,10 +8,19 @@
 import { N_ } from "./i18n.js";
 import { CATALOG_DATA, SUPPLIERS_DATA } from "./catalog_data.js";
 export const CATALOG_DATE = "2026-10-02";
+/** Identifikace volby z katalogu (značka + kód / řada) — hodnota v `prj.bom.brand` / `lines[].brand`. */
+export function brandOptId(b) {
+    const what = b.orderCode || (b.series || [])[0] || "";
+    return what ? b.brand + " · " + what : b.brand;
+}
 /** Kategorie kusovníku (pořadí = pořadí skupin v kusovníku). PLC moduly mají klíč `<kat>@<platforma>`. */
 export const CAT_LABEL = {
     plc_cpu: N_("Řídicí systém PLC (CPU)"),
     plc_coupler: N_("Hlava vzdálených I/O"),
+    plc_busadapter: N_("Sběrnicový adaptér (BusAdapter)"),
+    plc_server: N_("Server modul (zakončení stanice)"),
+    plc_baseunit_first: N_("BaseUnit světlá (otevírá potenciálovou skupinu)"),
+    plc_baseunit: N_("BaseUnit tmavá"),
     plc_di: N_("Modul digitálních vstupů"),
     plc_do: N_("Modul digitálních výstupů"),
     plc_ai: N_("Modul analogových vstupů"),

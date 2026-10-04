@@ -1,5 +1,6 @@
 import { blankProject, devSignals, autoAddr, sanitizeTag, stripDia, roleExpr, ensureGuids } from "./model.js";
 import { tr, trIn, N_, LANGS } from "./i18n.js";
+import { hwPlatform, HW_VER } from "./hardware.js";
 import { parseXml, xmlAll, xmlChild, xmlText, splitDelimited, guessDelimiter, canonAddr, isMemAddr, } from "./importers.js";
 /* ====================================================================== pomocné */
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -291,6 +292,8 @@ function exSdf(f, t, sink) {
     return { fmt: tr("STEP 7 — tabulka symbolů (SDF)"), note: n ? undefined : tr("Bez symbolů vstupů a výstupů.") };
 }
 /* ------------------------------------------------------------------- Rockwell L5X */
+/** Rack našeho výstupu Rockwell: lokální Local, vzdálené stanice RIO<n> (hardware.ts `lxSpecOf`). */
+const OUR_RACK = /^(Local|RIO\d+)$/i;
 /** Body modulů Rockwell (alias / popis) → kanonické adresy (inverze `lxIoMap`, jinak pořadím). */
 export function rockwellAddrs(specs, analog) {
     const pts = [];
@@ -302,12 +305,12 @@ export function rockwellAddrs(specs, analog) {
         let ch = -1, an = false, ours = false, k;
         if ((k = mem.match(/^Pt(\d+)\.Data$/i))) {
             ch = +k[1];
-            ours = /^Local$/i.test(m[1].split(":")[0]);
+            ours = OUR_RACK.test(m[1].split(":")[0]);
         }
         else if ((k = mem.match(/^Ch(\d+)\.?Data$/i))) {
             ch = +k[1];
             an = true;
-            ours = /^Local$/i.test(m[1].split(":")[0]) && /\.Data$/.test(mem);
+            ours = OUR_RACK.test(m[1].split(":")[0]) && /\.Data$/.test(mem);
         }
         else if ((k = mem.match(/^(?:Data|Slot)\[(\d+)\]\.(\d+)$/i)))
             ch = +k[1] * 32 + +k[2];
@@ -329,27 +332,32 @@ export function rockwellAddrs(specs, analog) {
     const addr = new Map(), dir = new Map();
     const canon = (d, c) => d === "DI" ? "%I" + (c >> 3) + "." + (c & 7) : d === "DO" ? "%Q" + (c >> 3) + "." + (c & 7)
         : (d === "AI" ? "%IW" : "%QW") + (64 + 2 * c);
-    /* náš generátor (inverze lxIoMap): moduly Local, sloty od 1 — DI, pak DO, AI, AO; báze směru = max slot předchozího + 1 */
+    /* náš generátor (inverze lxIoMap ze sestavy hardware.ts): moduly Compact 5000 v racku Local (sloty od 1)
+       a ve vzdálených stanicích RIO<n>; kanonické adresy lineárně po směrech v pořadí (stanice, slot) —
+       každý modul jen jeden směr, šířka modulu = DI16 / DO16 / AI8 / AO4 */
+    const rackNo = (mod) => { const r = mod.split(":")[0]; return /^Local$/i.test(r) ? 0 : +(r.match(/\d+$/) || ["0"])[0]; };
     let exact = pts.length > 0 && pts.every(p => p.ours && p.ch < PER[p.dir]);
-    const base = { DI: 1, DO: 1, AI: 1, AO: 1 };
     if (exact) {
-        let next = 1;
-        for (const d of ORDER) {
-            const s = [...new Set(pts.filter(p => p.dir === d).map(p => p.slot))].sort((a, b) => a - b);
-            base[d] = next;
-            if (s.length) {
-                if (s[0] < next)
-                    exact = false;
-                next = s[s.length - 1] + 1;
+        const mods = [...new Set(pts.map(p => p.mod))].sort((a, b) => rackNo(a) - rackNo(b) || (+(a.split(":")[1] || 0)) - (+(b.split(":")[1] || 0)));
+        const off = { DI: 0, DO: 0, AI: 0, AO: 0 };
+        const start = new Map();
+        for (const md of mods) {
+            const ds = new Set(pts.filter(p => p.mod === md).map(p => p.dir));
+            if (ds.size !== 1) {
+                exact = false;
+                break;
             }
+            const d = [...ds][0];
+            start.set(md, off[d]);
+            off[d] += PER[d];
         }
-    }
-    if (exact) {
-        for (const p of pts) {
-            dir.set(p.tag, p.dir);
-            addr.set(p.tag, canon(p.dir, (p.slot - base[p.dir]) * PER[p.dir] + p.ch));
+        if (exact) {
+            for (const p of pts) {
+                dir.set(p.tag, p.dir);
+                addr.set(p.tag, canon(p.dir, start.get(p.mod) + p.ch));
+            }
+            return { addr, dir, exact };
         }
-        return { addr, dir, exact };
     }
     /* cizí projekt: každý modul (rack + slot) dostane vlastní souvislý rozsah kanálů daného směru (pořadí modulů) */
     for (const d of ORDER) {
@@ -2239,6 +2247,10 @@ export function inferProject(ex, base) {
                     noAddr.push(tag);
             }
         }
+        /* adresy z podkladů = připnutí v sestavě platformy podkladů (hardware.ts); chybějící se doplní */
+        if (ex.platform)
+            prj.platforms = [ex.platform];
+        prj.hw = { plat: hwPlatform(prj), ver: HW_VER };
         autoAddr(prj, false);
         prj._noAddr = noAddr;
     }
@@ -2543,6 +2555,9 @@ export function inferProject(ex, base) {
         else
             seenAddr.set(e.addr, e);
     }
+    /* adresy z podkladů patří platformě podkladů — značka sestavy je bere jako připnutí (hardware.ts);
+       adresa mimo kanály navržené sestavy zůstane (skutečný stroj), validace na ni upozorní */
+    prj.hw = { plat: hwPlatform(prj), ver: HW_VER };
     if (prj.io.some(e => !e.addr))
         autoAddr(prj, false);
     for (const e of prj.io) {

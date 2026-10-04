@@ -306,10 +306,10 @@
   "concept": null,
   "guid": "8efa0d6d-5c31-4d93-8d15-cfc1c4b236f7",
   "moduleGuids": {
-   "DI1": "92ba960b-cc89-485d-b35d-bb4ab076ef4f",
-   "DO1": "9a659618-eeff-45fa-a25a-5df165a65d31",
-   "AI1": "c72c049f-65d9-4f9b-bf7c-26b3bd0d0520",
-   "AO1": "7e8ca0ee-e915-401a-bde4-41e6a95f8fc8"
+   "S0.2": "92ba960b-cc89-485d-b35d-bb4ab076ef4f",
+   "S0.3": "9a659618-eeff-45fa-a25a-5df165a65d31",
+   "S0.4": "c72c049f-65d9-4f9b-bf7c-26b3bd0d0520",
+   "S0.5": "7e8ca0ee-e915-401a-bde4-41e6a95f8fc8"
   }
  }
 }

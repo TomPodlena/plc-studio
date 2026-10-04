@@ -10,8 +10,10 @@ import {
   isMotionClass, hasRange, ioOf, rampStepOf, tolOf, tolTicksOf, selBitsOf, maxRecord, stepSp,
 } from "./model.js";
 import { bomCsv, bomMd } from "./bom.js";
+import { hwAddrText, hwTypeText, hwSummary, hwPlatform } from "./hardware.js";
 import { tr, N_, today } from "./i18n.js";
 import { genFor, codeLibrary } from "./codegen.js";
+import { libraryDocHeader } from "./library.js";
 import { oopInProject, oopProgram, oopClassSvg, OOP_CLASS_SVG, type OopPou } from "./codegen_oop.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
 import { conceptMd } from "./concept.js";
@@ -208,8 +210,12 @@ export function docFDSMd(prj: Project): string {
     "## " + tr("4. I/O bilance a moduly"),
     (["DI", "DO", "AI", "AO"] as const).map(dd => dd + ": " + prj.io.filter(e => e.dir === dd).length).join(" · "),
     tr("Navržené moduly: {list}", {
-      list: mods.map((m, i) => tr("{mod} (svorkovnice X{x}, {n} kanálů)", { mod: m.dir + m.idx, x: i + 1, n: m.ch.length })).join(", ") || "—",
+      list: mods.map((m, i) => tr("{mod} (svorkovnice X{x}, {n} kanálů)", { mod: (m.hw ? m.hw.dt + " " : "") + m.dir + m.idx, x: i + 1, n: m.ch.length })).join(", ") || "—",
     }),
+    "",
+    tr("Sestava hardwaru ({plat}; počty a typy = kusovník, adresy = výchozí návrh k ověření v IDE):", { plat: PLAT[hwPlatform(prj)].name }),
+    "",
+    ...hwSummary(prj).map(x => "    " + x),
     "",
     "## " + tr("5. Režimy a ovládání"),
     "- " + tr("**RUČNĚ** (`modeAuto` = FALSE) — povely na jednotlivá zařízení z HMI: `manRun_<motor>`, `manOpen_<ventil>` (specifikace HMI: doplnit)")
@@ -253,15 +259,16 @@ export function docIOcsv(prj: Project): string {
   const l = [tr("Tag;Adresa;Směr;Datový typ;Zařízení;Komentář")];
   for (const e of prj.io) {
     const d = devById(prj, e.devId);
-    l.push([e.tag, e.addr, e.dir, dtFor(e), d ? d.name : "", e.cmt || ""].join(";"));
+    l.push([e.tag, hwAddrText(prj, e), e.dir, dtFor(e), d ? d.name : "", e.cmt || ""].join(";"));
   }
   return l.join("\n");
 }
 
 export function svorkyCSV(prj: Project): string {
-  const l = [tr("Svorka;Modul;Kanál;Adresa;Tag;Vodič;Komentář")];
+  const l = [tr("Svorka;Modul;Kanál;Adresa;Tag;Vodič;Komentář;Označení;Typ")];
   modules(prj).forEach((m, mi) => m.ch.forEach((e, i) =>
-    l.push("X" + (mi + 1) + ":" + (i + 1) + ";" + m.dir + m.idx + ";" + i + ";" + e.addr + ";" + e.tag + ";" + wireNo(mi + 1, i) + ";" + (e.cmt || ""))));
+    l.push("X" + (mi + 1) + ":" + (i + 1) + ";" + m.dir + m.idx + ";" + (m.chNo?.[i] ?? i) + ";" + hwAddrText(prj, e) + ";" + e.tag + ";" + wireNo(mi + 1, i) + ";" + (e.cmt || "")
+      + ";" + (m.hw?.dt || "") + ";" + (m.hw ? (m.hw.opt?.orderCode || m.hw.custom || hwTypeText(m.hw)) : ""))));
   return l.join("\n");
 }
 
@@ -339,7 +346,7 @@ export function docFATMd(prj: Project): string {
       : e.dir === "DO" ? tr("Vynutit výstup z PLC, ověřit akční člen")
       : e.dir === "AI" ? tr("Zdroj signálu (kalibrátor), ověřit hodnotu a škálování")
       : tr("Vynutit hodnotu, změřit výstup");
-    s += "| X" + (mi + 1) + ":" + (i + 1) + " | " + e.addr + " | " + e.tag + " | " + how + " | ☐ |\n";
+    s += "| X" + (mi + 1) + ":" + (i + 1) + " | " + hwAddrText(prj, e) + " | " + e.tag + " | " + how + " | ☐ |\n";
   }));
   s += "\n## " + tr("2. Funkční testy zařízení") + "\n";
   for (const d of prj.devices) {
@@ -522,6 +529,9 @@ export function docFiles(prj: Project, items: ApprovalItem[] = approvalItems(prj
   /* koncept řešení (AI nadstavba) jen když je zvolený */
   if (prj.concept) out.push({ path: CONCEPT_FILE, tab: tr("Koncept"), title: tr("koncept řešení (AI návrh k revizi)"), body: conceptMd(prj) });
   for (const p of docProviders) if (p.docs) out.push(...p.docs(prj, items));
+  /* hlavička pod nadpisem dokumentů Markdown: firemní hlavička knihovny a řádek revize (bez nich beze změny) */
+  const head = [libraryDocHeader(prj).trim(), ...docProviders.map(p => (p.header ? p.header(prj) : "").trim())].filter(Boolean).join("\n\n");
+  if (head) for (const f of out) if (f.path.endsWith(".md")) f.body = stampBody(f.body, head);
   return out;
 }
 
@@ -533,6 +543,8 @@ export function docFiles(prj: Project, items: ApprovalItem[] = approvalItems(prj
 export interface DocProvider {
   docs?: (prj: Project, items: ApprovalItem[]) => DocFile[];
   files?: (prj: Project, items: ApprovalItem[]) => ProjectFile[];
+  /** řádky Markdownu pod nadpis každého dokumentu .md (např. revize); prázdný text = nic */
+  header?: (prj: Project) => string;
 }
 const docProviders: Array<DocProvider & { name: string }> = [];
 export function registerDocProvider(name: string, p: DocProvider): () => void {

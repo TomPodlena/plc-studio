@@ -558,11 +558,11 @@
   "nextId": 31,
   "guid": "1de18fb9-89b9-41eb-a9ff-f1e31900945d",
   "moduleGuids": {
-   "DI1": "34647fd0-50db-4ad2-b096-61e3b2dc28d8",
-   "DI2": "a919cf87-60c6-457d-9965-4546f48ee1cc",
-   "DO1": "f80238bc-d4cb-4ec7-b8bc-aec29a1b41c9",
-   "AI1": "33eaa405-0c43-4aed-ad47-036059d902bd",
-   "AO1": "eb919d3c-7878-4201-908a-939062cbaa53"
+   "S0.2": "34647fd0-50db-4ad2-b096-61e3b2dc28d8",
+   "S0.3": "a919cf87-60c6-457d-9965-4546f48ee1cc",
+   "S0.4": "f80238bc-d4cb-4ec7-b8bc-aec29a1b41c9",
+   "S0.5": "33eaa405-0c43-4aed-ad47-036059d902bd",
+   "S0.6": "eb919d3c-7878-4201-908a-939062cbaa53"
   }
  }
 }

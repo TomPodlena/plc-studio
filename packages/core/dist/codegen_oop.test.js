@@ -38,9 +38,9 @@ test("profily CODESYS: WAGO a Delta AX — základ codesys, rodina CODESYS, OOP;
     assert.equal(codeStyleFor(oop(p), "siemens"), "classic", "OOP jen kde ho platforma umí");
     /* adresy: Delta = CODESYS notace, WAGO bez AT (I/O mapování) */
     const e = p.io.find(x => x.dir === "DI"), w = p.io.find(x => x.dir === "AI");
-    assert.equal(addrFor("delta", e), addrFor("codesys", e));
-    assert.equal(addrFor("delta", w), addrFor("codesys", w));
-    assert.equal(addrFor("wago", e), "");
+    assert.equal(addrFor("delta", e, p), addrFor("codesys", e, p));
+    assert.equal(addrFor("delta", w, p), addrFor("codesys", w, p));
+    assert.equal(addrFor("wago", e, p), "");
     assert.doesNotMatch(genFor(p, "wago")["GVL_IO.st"], /\bAT\b/, "WAGO GVL bez pevných adres");
     assert.match(genFor(p, "delta")["GVL_IO.st"], /AT %IX/, "Delta GVL s adresami CODESYS");
 });

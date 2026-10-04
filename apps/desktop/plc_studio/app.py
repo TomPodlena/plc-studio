@@ -20,7 +20,7 @@ from tkinter import font as tkfont
 
 from . import i18n, project, theme
 from .bridge import BridgeError, CoreBridge
-from .i18n import N_, _
+from .i18n import N_, _, _n
 from .steps import RENDERERS, render_help
 
 STEPS = [N_("Projekt"), N_("AI návrh"), N_("Platformy"), N_("Zařízení"), N_("I/O"),
@@ -215,9 +215,9 @@ class App:
                      padx=0, pady=0, bd=0).pack(side="left")
         self._proj_lbl = ttk.Label(line, text="", style="Section.TLabel")
         self._proj_lbl.pack(side="left", padx=(10, 0))
-        ttk.Label(titles, text=_("AI návrh · schéma · kód · dokumentace · {n} platforem",
-                                 n=len(self.PLAT)),
-                  style="Dim.TLabel").pack(anchor="w")
+        # podtitulek: počet platforem vybraných v projektu (obnoví update_title)
+        self._sub_lbl = ttk.Label(titles, text="", style="Dim.TLabel")
+        self._sub_lbl.pack(anchor="w")
 
         # logo v hlavičce zatím ne (rozhodnutí uživatele 2026-10-02); theme.load_logo() zůstává
         # jazyk okna i generovaných výstupů
@@ -240,6 +240,9 @@ class App:
                                    padx=8, pady=3, bg=theme.WARN_BG, fg=theme.WARN)
         self._badge_lbl.bind("<Button-1>", lambda _e: self.goto(STEP_APPROVAL))
         self._badge_lbl.invoke = lambda: self.goto(STEP_APPROVAL)
+        # označení revize („Rev. B“, „Rev. B*“ = změněno od revize) → krok Projekt (steps/revize.py)
+        from .steps import revize
+        self._rev_lbl = revize.header_badge(self, head)
         titles.pack(side="left", fill="x", expand=True)
         self._titles = titles
         titles.bind("<Configure>", lambda _e: self.update_title())
@@ -362,6 +365,8 @@ class App:
                 text = text.rstrip() + "…"
         self._proj_lbl.configure(text=text)
         self.root.title(f"PLCdesk — {name}" if name else "PLCdesk")
+        self._sub_lbl.configure(text=_("AI návrh · schéma · kód · dokumentace") + " · " + _n(
+            len(self.prj["platforms"]), N_("{n} platforma|{n} platformy|{n} platforem")))
 
     # --- lišta kroků ------------------------------------------------------------------
 
@@ -471,6 +476,8 @@ class App:
             ttk.Label(self.view, text="⚠ " + _("Krok se nepodařilo vykreslit: {exc}", exc=exc),
                       style="Err.TLabel").pack(anchor="w")
         self.schedule_badge()
+        from .steps import revize
+        revize.update_badge(self, getattr(self, "_rev_lbl", None), before=self._titles)
 
     # --- stavový řádek, schránka, chyby ---------------------------------------------------
 
@@ -602,4 +609,10 @@ class App:
             self._write_json("settings.json", self.settings)
         finally:
             self.bridge.close()
+            # naplánované úlohy (odznak, stavový řádek…) by po zničení okna volaly neexistující příkazy
+            try:
+                for job in self.root.tk.splitlist(self.root.tk.call("after", "info")):
+                    self.root.after_cancel(job)
+            except tk.TclError:
+                pass
             self.root.destroy()

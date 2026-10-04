@@ -7,6 +7,7 @@ import webbrowser
 
 from .. import theme
 from ..i18n import N_, _
+from ..updates import about_bar
 from ..widgets import card, scrolled_text
 
 # Oddíly: (nadpis, [odstavce]); odstavec začínající "• " je odrážka,
@@ -231,6 +232,7 @@ def _insert_refs(app, txt) -> None:
 
 def render(app, parent) -> None:
     body = card(parent, "?", _("Škola PLC — nápověda pro začátečníky"))
+    about_bar(app, body)            # verze a volba kontroly aktualizací (updates.py)
     frm, txt = scrolled_text(body, height=20, bg=theme.BG, spacing1=2, spacing3=4)
     frm.pack(fill="both", expand=True)
     txt.tag_configure("h", foreground=theme.PRIMARY, font=theme.FONT_CARD, spacing1=14, spacing3=6)

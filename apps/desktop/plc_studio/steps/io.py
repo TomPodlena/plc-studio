@@ -33,8 +33,8 @@ def render(app, parent) -> None:
     issues_txt.tag_configure("info", foreground=theme.DIM)     # způsob řešení, nic k opravě
 
     # nápověda pod nástroji na vlastním řádku — vedle odkazů se v užším okně nevejde
-    wrap_label(body, _("Úprava dvojklikem do buňky, NC kliknutím. Adresy v Siemens notaci. "
-                       "Duplicity červeně."), side="bottom", pady=(4, 0))
+    wrap_label(body, _("Úprava dvojklikem do buňky, NC kliknutím. Adresy přiděluje sestava hardwaru "
+                       "(ruční adresa kanál připne). Duplicity červeně."), side="bottom", pady=(4, 0))
     tools = ttk.Frame(body)
     tools.pack(side="bottom", fill="x", pady=(6, 0))
 

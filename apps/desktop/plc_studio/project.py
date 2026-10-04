@@ -139,7 +139,34 @@ def normalize(prj, blank: dict, classes, platforms) -> dict:
             out[key] = clean
         else:
             out.pop(key, None)
+    normalize_biz(prj, out)
     return out
+
+
+def normalize_biz(prj: dict, out: dict) -> None:
+    """Revize, volby nabídky a kopie firemní knihovny: jen v tvaru, se kterým jádro počítá
+    (podrobná kontrola je v ``biz_view.js`` / jádře; tady jen, aby rozbitý soubor neshodil kroky)."""
+    revs = prj.get("revisions")
+    if isinstance(revs, list):
+        ok = [r for r in revs if isinstance(r, dict) and all(isinstance(r.get(k), str) for k in
+                                                            ("id", "date", "by", "hash", "snapshot"))
+              and r["by"].strip()]
+        for r in ok:
+            if not isinstance(r.get("approvalsAt"), dict):
+                r["approvalsAt"] = {}
+            if not isinstance(r.get("note"), str):
+                r["note"] = ""
+        if ok:
+            out["revisions"] = ok
+        else:
+            out.pop("revisions", None)
+    else:
+        out.pop("revisions", None)
+    if not isinstance(prj.get("quote"), dict):
+        out.pop("quote", None)
+    lib = prj.get("library")
+    if not (isinstance(lib, dict) and lib.get("format") == "plcdesk-library"):
+        out.pop("library", None)
 
 
 APPROVAL_STATES = {"proposed", "approved", "rejected"}

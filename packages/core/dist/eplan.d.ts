@@ -12,9 +12,10 @@
  *   eplanReadme(prj)       postup importu a stav ověření
  *   eplanFiles(prj)        všechny soubory (název → obsah)
  *
- * Označení se berou ze stejných pravidel jako výkresy (drawing.ts: svorkovnice X<modul>, vodiče
- * `wireNo` z model.ts: X1:1 → -W101, X2:1 → -W201 …) a kusovník (bom.ts: -A1 CPU, -A2 DI, -A3 DO,
- * -A4 AI, -A5 AO; víc karet téže řady = -A2.1, -A2.2 …). Stav ověření: `EPLAN_VERIFIED`.
+ * Označení se berou ze sestavy hardwaru (hardware.ts) jako výkresy (drawing.ts: svorkovnice X<skupina>,
+ * vodiče `wireNo` z model.ts: X1:1 → -W101, X2:1 → -W201 …) a kusovník (bom.ts: -A1 CPU s vestavěnými
+ * I/O, -A2 DI, -A3 DO, -A4 AI, -A5 AO; víc karet téže řady = -A2.1, -A2.2 …; vzdálená stanice s = hlava
+ * -A(10s), karty -A(10s+2) …). Stav ověření: `EPLAN_VERIFIED`.
  */
 import { Project, IoModule, Dir } from "./model.js";
 import { type BomLine } from "./bom.js";
@@ -23,13 +24,15 @@ export declare const EPLAN_VERIFIED: string;
 export declare const EPLAN_SOURCES: string[];
 /** Konvertor EPLAN pro import (plcservice CONVERTERID): Siemens → TIA Portal 19 (AR APC 1.4.0), jinak obecný AML EPLAN. */
 export declare function eplanConverterId(prj: Project): string;
+/** Kanálová skupina modulu sestavy (hardware.ts) s označením a řádkem kusovníku — jedna svorkovnice. */
 export interface EplanCard {
-    /** Označení karty dle IEC 81346 (-A2 / -A2.1 …) a řádek kusovníku, ze kterého vychází. */
+    /** Označení modulu dle IEC 81346 (-A1 vestavěné I/O, -A2 / -A2.1, -A12 …) a skupina řádku kusovníku. */
     dt: string;
     bomTag: string;
     mod: IoModule;
-    /** Číslo svorkovnice X<n> (pořadí modulu jako ve výkresech). */
+    /** Číslo svorkovnice X<n> (pořadí kanálové skupiny jako ve výkresech). */
     xnum: number;
+    /** pozice modulu v racku (slot) */
     position: number;
     line: BomLine | undefined;
 }

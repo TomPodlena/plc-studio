@@ -195,9 +195,8 @@
   "nextId": 11,
   "guid": "8b1a7935-d462-4580-91fc-21669b1963e6",
   "moduleGuids": {
-   "DI1": "e718cb26-ddab-46fe-b756-df7f8ce0cbd9",
-   "DO1": "29787c37-ff33-4d54-88ee-10bb7c11af47",
-   "AI1": "25f79a31-2cc2-4f30-bc2e-03b87ed711f7"
+   "S0.2": "e718cb26-ddab-46fe-b756-df7f8ce0cbd9",
+   "S0.3": "25f79a31-2cc2-4f30-bc2e-03b87ed711f7"
   }
  }
 }

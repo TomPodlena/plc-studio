@@ -91,6 +91,13 @@ def _own_meta(el) -> dict:
     return meta
 
 
+def _path_points(d: str) -> list[float]:
+    """Body jednoduché cesty (absolutní M / L / Z — symboly HMI); jiné příkazy = prázdné."""
+    if re.search(r"[^MLZmlz\d.,\s-]", d):
+        return []
+    return [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", d)]
+
+
 def parse_svg(svg: str) -> dict:
     """SVG text → ``{"w", "h", "items", "metas"}``.
 
@@ -128,12 +135,18 @@ def parse_svg(svg: str) -> dict:
                           _color(el.get("stroke")), _color(el.get("fill")),
                           f(el, "stroke-width", 1), idx))
         elif tag == "text":
+            # styl má přednost, jinak prezentační atributy (náhledy HMI: font-size="12" fill=…)
             st = _style(el)
-            size = float(re.sub(r"[^\d.]", "", st.get("font-size", "11")) or 11)
-            bold = st.get("font-weight", "") in ("600", "700", "bold")
+            size = float(re.sub(r"[^\d.]", "", st.get("font-size") or el.get("font-size") or "11") or 11)
+            bold = (st.get("font-weight") or el.get("font-weight") or "") in ("600", "700", "bold")
             items.append(("text", f(el, "x"), f(el, "y"), "".join(el.itertext()),
                           size, bold, el.get("text-anchor") or "start",
-                          _color(st.get("fill"), theme.FG), idx))
+                          _color(st.get("fill") or el.get("fill"), theme.FG), idx))
+        elif tag == "path":
+            pts = _path_points(el.get("d") or "")
+            if len(pts) >= 4:
+                items.append(("poly", pts, _color(el.get("stroke")), _color(el.get("fill")),
+                              f(el, "stroke-width", 1), idx))
         if tag != "text":
             for child in el:
                 walk(child, inherited, idx)
@@ -456,6 +469,12 @@ class SvgView(ttk.Frame):
                         fill = mark[0]                  # kontrolka svítí plnou barvou
                 c.create_oval((cx - r) * s, (cy - r) * s, (cx + r) * s, (cy + r) * s,
                               outline=stroke, fill=fill, width=max(1, round(width * s)), tags=tags)
+            elif kind == "poly":
+                _k, pts, stroke, fill, width, _i = it
+                if mark:
+                    stroke, width = mark[0], max(width, mark[1])
+                c.create_polygon(*[v * s for v in pts], outline=stroke, fill=fill,
+                                 width=max(1, round(width * s)), tags=tags)
             elif kind == "rect":
                 _k, x, y, w, h, stroke, fill, width, _i = it
                 hollow = fill in ("", theme.FIELD)

@@ -1,0 +1,48 @@
+/* PLCdesk — revize, nabídka a firemní knihovna (biz_steps.js). Jen tokeny ze styles.css. */
+
+/* odznak revize v hlavičce: „Rev. B“, rozpracováno „Rev. B*“ oranžově */
+button.revbadge{border:1px solid var(--accent);color:var(--accent);background:var(--surface);font-weight:600;cursor:pointer;line-height:1.4}
+button.revbadge.mod{border-color:var(--warn);color:var(--warn)}
+button.revbadge:hover{background:color-mix(in srgb,currentColor 10%,var(--surface))}
+
+/* tlačítko pro výběr souboru (input type=file schovaný v labelu) */
+label.filebtn{display:inline-flex;cursor:pointer}
+label.filebtn span.button{font-family:var(--font-body);font-size:.75rem;font-weight:500;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:4px 10px;border-radius:8px;line-height:1.5}
+label.filebtn span.button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+label.filebtn:hover span.button{filter:brightness(1.05)}
+label.filebtn:focus-within span.button{outline:2px solid var(--accent);outline-offset:2px}
+
+/* štítky tříd změn a párování cen (st-ok / st-stale / st-rej / st-wait jsou ve styles.css) */
+.st-warn{color:var(--warn)} .st-err{color:var(--err)} .st-info{color:var(--accent)}
+#revTable tr.revwip td{background:color-mix(in srgb,var(--warn) 6%,transparent)}
+#revDiff td{vertical-align:top}
+#revDiff tr.rc-safety td:first-child{box-shadow:inset 3px 0 var(--err)}
+#revDiff tr.rc-functional td:first-child{box-shadow:inset 3px 0 var(--warn)}
+#revDiff tr.rc-cosmetic td:first-child{box-shadow:inset 3px 0 var(--ok)}
+
+/* zvýraznění po prokliku z revize (Schválení, Oživení) a trvalé označení dotčených položek */
+tr.revfocus td{background:color-mix(in srgb,var(--warn) 12%,transparent)}
+.cmrow.revfocus{background:color-mix(in srgb,var(--warn) 9%,var(--surface));border-color:var(--warn)}
+tr.ap-revchg td.aptitle{background:color-mix(in srgb,var(--warn) 6%,transparent)}
+.st.revchip{margin-left:6px;font-weight:500}
+
+/* výběr schvalovatele z knihovny vedle pole se jménem */
+.apnamerow{display:flex;gap:6px;align-items:center;min-width:0}
+.apnamerow input{flex:1 1 auto;min-width:0}
+.apnamerow select{flex:0 1 auto;max-width:220px}
+
+/* nabídka */
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px 14px;margin-top:6px;align-items:end}
+.qgrid input{width:100%!important}
+.qtotals{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:6px}
+.qt{display:flex;flex-direction:column;gap:2px;background:var(--chip);border-radius:8px;padding:8px 12px;min-width:0}
+.qt span{font-size:.74rem;color:var(--muted)}
+.qt b{font-family:var(--font-mono);font-size:.9rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.qt.sum{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.qt.sum b{color:var(--accent)}
+th.num,td.num{text-align:right}
+.noprice{color:var(--err);font-weight:700}
+table.qmat tr.qm-none td{background:color-mix(in srgb,var(--err) 6%,transparent)}
+table.qmat tr.qm-cat td{background:color-mix(in srgb,var(--warn) 6%,transparent)}
+#qParamTable td{vertical-align:top}
+#qParamTable td .apsum{max-width:60ch}

@@ -1051,11 +1051,10 @@
   "nextId": 30,
   "guid": "4d7da1db-a851-4d03-ba0d-31e0fbe974c0",
   "moduleGuids": {
-   "DI1": "71be2910-1bcc-4625-8723-e9defc165c48",
-   "DI2": "3dc2f0d2-f51b-4ddd-9e39-d99ac2710884",
-   "DO1": "7d9af84b-a0be-46d7-9e0e-64d29fd68bc1",
-   "AI1": "f2788e4a-9a5e-470b-a506-da0be0bf7f5d",
-   "AO1": "d6031dc4-159d-4db9-a9e0-6c4c360cd3a0"
+   "S0.2": "71be2910-1bcc-4625-8723-e9defc165c48",
+   "S0.3": "7d9af84b-a0be-46d7-9e0e-64d29fd68bc1",
+   "S0.4": "f2788e4a-9a5e-470b-a506-da0be0bf7f5d",
+   "S0.5": "d6031dc4-159d-4db9-a9e0-6c4c360cd3a0"
   }
  }
 }

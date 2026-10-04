@@ -523,7 +523,7 @@ export function genPLCopenOopXML(prj: Project, plat: PlatformKey, prog: OopProgr
   for (const p of prog.pous) for (const b of p.blocks) if (b.kind === "const") for (const v of b.vars) if (/^\d+$/.test(v.init || "")) consts[v.name] = +v.init!;
   let gvl = "";
   for (const e of prj.io) {
-    const at = addrFor(plat, e);
+    const at = addrFor(plat, e, prj);
     gvl += '            <variable name="' + esc(e.tag) + '"' + (at ? ' address="' + esc(at) + '"' : "") + ">\n              <type>" + typeXml(dtFor(e), {}) + "</type>\n"
       + (e.cmt ? '              <documentation><xhtml xmlns="http://www.w3.org/1999/xhtml">' + esc(e.cmt) + "</xhtml></documentation>\n" : "") + "            </variable>\n";
   }

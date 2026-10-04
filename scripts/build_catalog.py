@@ -62,6 +62,14 @@ def load() -> tuple[dict, list, list[str]]:
                 if any(x["brand"] == b["brand"] and (x.get("orderCode") or x.get("typical") or "") == same for x in lst):
                     problems.append(f"{f.name}: {key}: {b['brand']} {same} dvakrát — ponechán první záznam")
                     continue
+                hw = b.get("hw")
+                if hw is not None:
+                    if not isinstance(hw, dict):
+                        problems.append(f"{f.name}: {key}/{b['brand']}: hw musí být objekt")
+                    elif cat in ("plc_di", "plc_do", "plc_ai", "plc_ao") and not (hw.get("ch") and hw.get("bus")):
+                        problems.append(f"{f.name}: {key}/{b['brand']}: modul bez hw.ch / hw.bus — sestava ho nepoužije")
+                    elif hw.get("hwSrc") and not str(hw["hwSrc"]).startswith("http"):
+                        problems.append(f"{f.name}: {key}/{b['brand']}: hw.hwSrc není URL")
                 if b.get("orderCode") and not str(b.get("src", "")).startswith("http"):
                     problems.append(f"{f.name}: {key}/{b['brand']}: kód bez zdroje — vynechán")
                     b = {k: v for k, v in b.items() if k != "orderCode"}
@@ -86,6 +94,9 @@ def brand_ts(b: dict) -> str:
     if b.get("priceLevel") in ("nízká", "střední", "vysoká"):
         parts.append(f"priceLevel: {json.dumps(b['priceLevel'], ensure_ascii=False)}")
     parts.append("suppliers: [" + ", ".join(lit(str(x)) for x in b.get("suppliers") or []) + "]")
+    if b.get("hw"):
+        # hardwarová data sestavy (hardware.ts) — technické hodnoty, nepřekládají se
+        parts.append("hw: " + json.dumps(b["hw"], ensure_ascii=False, sort_keys=True))
     return "{ " + ", ".join(parts) + " }"
 
 

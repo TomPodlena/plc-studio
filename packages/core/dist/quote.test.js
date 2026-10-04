@@ -78,7 +78,8 @@ test("párování: objednací kód, typ + značka, kategorie; nepárované v unp
     assert.equal(by("-K0:safety_relay").unitPrice, undefined, "„na dotaz“ = bez ceny");
     assert.ok(q.unpriced.some(u => u.id === "-K0:safety_relay"));
     assert.ok(q.unpriced.some(u => u.id === "-M1:pump"));
-    assert.deepEqual(q.unusedPrices, [13], "XYZ-999 nepasuje");
+    /* karta ET 200SP DI se nepoužije (malý stroj má DI ve vestavěných I/O CPU, sestava hardware.ts) a XYZ-999 nepasuje */
+    assert.deepEqual(q.unusedPrices, [6, 13], "ET 200SP DI a XYZ-999 nepasují");
     /* bez kurzu se EUR položka neocení — kurz se nevymýšlí */
     const q2 = buildQuote(p, { prices, rates: RATES });
     assert.equal(q2.material.find(l => l.bomId === "-Y1:valve_solenoid").unitPrice, undefined);

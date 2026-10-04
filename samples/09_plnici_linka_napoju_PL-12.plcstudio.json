@@ -2022,20 +2022,19 @@
   "nextId": 112,
   "guid": "8a24c436-d17b-4edf-82ff-142c12b44917",
   "moduleGuids": {
-   "DI1": "7575228b-094a-4bdf-b63e-502a3e4afd4c",
-   "DI2": "75036303-bbf7-47fb-9c81-ce9baa0210c0",
-   "DI3": "4cb88ab9-62c5-4bd4-8868-2b8156ba3ba0",
-   "DI4": "d09b1b2b-a88b-434b-9950-3c5d97d1e519",
-   "DI5": "4edb3cbb-793d-4921-bcfc-d3f11c2ca6ba",
-   "DI6": "f50f8879-b529-4315-a2b0-7a915631647d",
-   "DI7": "b1cb18c3-1d25-4531-af0e-64705adcdb62",
-   "DO1": "5f498dca-aa98-4c6a-91a6-3b9ea7f14f31",
-   "DO2": "b73443af-210d-4b30-a79a-763e06505ff1",
-   "DO3": "00b6fd02-90c9-4f0e-9f87-29f858a5978b",
-   "AI1": "eac1c326-f6a6-4d14-a05e-a8cd2cbefbd4",
-   "AI2": "c6d78f0c-3eba-4520-83ad-d1097d90617d",
-   "AI3": "bd2c45fc-fdb1-4c4a-ab28-52198df91cf4",
-   "AO1": "32bfced2-7c5c-4d61-b59e-49dd6c94fb0c"
+   "S0.2": "7575228b-094a-4bdf-b63e-502a3e4afd4c",
+   "S0.3": "75036303-bbf7-47fb-9c81-ce9baa0210c0",
+   "S0.4": "4cb88ab9-62c5-4bd4-8868-2b8156ba3ba0",
+   "S0.5": "d09b1b2b-a88b-434b-9950-3c5d97d1e519",
+   "S0.6": "4edb3cbb-793d-4921-bcfc-d3f11c2ca6ba",
+   "S0.7": "f50f8879-b529-4315-a2b0-7a915631647d",
+   "S0.8": "5f498dca-aa98-4c6a-91a6-3b9ea7f14f31",
+   "S0.9": "b73443af-210d-4b30-a79a-763e06505ff1",
+   "S0.10": "eac1c326-f6a6-4d14-a05e-a8cd2cbefbd4",
+   "S0.11": "c6d78f0c-3eba-4520-83ad-d1097d90617d",
+   "S1.0": "9f9352aa-d370-4719-8118-4b52d6737166",
+   "S1.1": "bd2c45fc-fdb1-4c4a-ab28-52198df91cf4",
+   "S1.2": "32bfced2-7c5c-4d61-b59e-49dd6c94fb0c"
   }
  }
 }

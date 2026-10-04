@@ -12,11 +12,13 @@
  *   eplanReadme(prj)       postup importu a stav ověření
  *   eplanFiles(prj)        všechny soubory (název → obsah)
  *
- * Označení se berou ze stejných pravidel jako výkresy (drawing.ts: svorkovnice X<modul>, vodiče
- * `wireNo` z model.ts: X1:1 → -W101, X2:1 → -W201 …) a kusovník (bom.ts: -A1 CPU, -A2 DI, -A3 DO,
- * -A4 AI, -A5 AO; víc karet téže řady = -A2.1, -A2.2 …). Stav ověření: `EPLAN_VERIFIED`.
+ * Označení se berou ze sestavy hardwaru (hardware.ts) jako výkresy (drawing.ts: svorkovnice X<skupina>,
+ * vodiče `wireNo` z model.ts: X1:1 → -W101, X2:1 → -W201 …) a kusovník (bom.ts: -A1 CPU s vestavěnými
+ * I/O, -A2 DI, -A3 DO, -A4 AI, -A5 AO; víc karet téže řady = -A2.1, -A2.2 …; vzdálená stanice s = hlava
+ * -A(10s), karty -A(10s+2) …). Stav ověření: `EPLAN_VERIFIED`.
  */
-import { Project, IoModule, Dir, PLAT, PlatformKey, devById, modules, wireNo, addrFor, dtFor, stripDia, devRef } from "./model.js";
+import { Project, IoModule, Dir, PLAT, devById, wireNo, dtFor, stripDia, devRef } from "./model.js";
+import { hwLayout, hwLineId, hwAddrText, HW_DIRS } from "./hardware.js";
 import { tr, N_, today } from "./i18n.js";
 import { buildBom, bomPlatform, type BomLine } from "./bom.js";
 import { registerDocProvider, type ProjectFile } from "./docs.js";
@@ -43,17 +45,15 @@ export function eplanConverterId(prj: Project): string {
 /* ================================================================ označení */
 
 const ascii = (s: string) => stripDia(String(s ?? "")).replace(/[^\x20-\x7E]/g, "?");
-/** Řada karet v kusovníku podle směru (Unitronics: analogy v jednom kombinovaném modulu -A4). */
-function bomTagOf(dir: Dir, plat: PlatformKey): string {
-  return dir === "DI" ? "-A2" : dir === "DO" ? "-A3" : dir === "AI" ? "-A4" : plat === "unitronics" ? "-A4" : "-A5";
-}
 
+/** Kanálová skupina modulu sestavy (hardware.ts) s označením a řádkem kusovníku — jedna svorkovnice. */
 export interface EplanCard {
-  /** Označení karty dle IEC 81346 (-A2 / -A2.1 …) a řádek kusovníku, ze kterého vychází. */
+  /** Označení modulu dle IEC 81346 (-A1 vestavěné I/O, -A2 / -A2.1, -A12 …) a skupina řádku kusovníku. */
   dt: string; bomTag: string;
   mod: IoModule;
-  /** Číslo svorkovnice X<n> (pořadí modulu jako ve výkresech). */
+  /** Číslo svorkovnice X<n> (pořadí kanálové skupiny jako ve výkresech). */
   xnum: number;
+  /** pozice modulu v racku (slot) */
   position: number;
   line: BomLine | undefined;
 }
@@ -68,26 +68,22 @@ export interface EplanTerminal {
 export function eplanCards(prj: Project): EplanCard[] {
   const plat = bomPlatform(prj);
   const lines = buildBom(prj).lines;
-  const mods = modules(prj);
-  const count: Record<string, number> = {};
-  for (const m of mods) { const t = bomTagOf(m.dir, plat); count[t] = (count[t] || 0) + 1; }
-  const seen: Record<string, number> = {};
-  return mods.map((m, i) => {
-    const bomTag = bomTagOf(m.dir, plat);
-    const k = (seen[bomTag] = (seen[bomTag] || 0) + 1);
-    return { dt: count[bomTag] > 1 ? bomTag + "." + k : bomTag, bomTag, mod: m, xnum: i + 1, position: i + 2, line: lines.find(l => l.tag === bomTag) };
+  const L = hwLayout(prj, plat);
+  return L.groups.map((m, i) => {
+    const hw = m.hw!;
+    return { dt: hw.dt, bomTag: hw.bomTag, mod: m, xnum: i + 1, position: hw.slot, line: lines.find(l => l.id === hwLineId(hw.bomTag, hw.cat)) };
   });
 }
 
 /** Svorky a vodiče podle výkresů: svorka X<n>:<k>, vodič `wireNo(n, k − 1)` (X1:1 → -W101, X2:1 → -W201 …). */
 export function eplanTerminals(prj: Project, cards: EplanCard[] = eplanCards(prj)): EplanTerminal[] {
-  const plat = prj.platforms[0] || "siemens";
+  const plat = bomPlatform(prj);
   const out: EplanTerminal[] = [];
   for (const c of cards) c.mod.ch.forEach((e, i) => {
     const d = devById(prj, e.devId);
     out.push({
-      strip: "-X" + c.xnum, no: i + 1, dt: "-X" + c.xnum + ":" + (i + 1), card: c.dt, channel: i, dir: c.mod.dir,
-      addr: addrFor(plat, e), tag: e.tag, device: d ? "-" + devRef(d) : "", desc: d?.desc || e.cmt || "", wire: wireNo(c.xnum, i),
+      strip: "-X" + c.xnum, no: i + 1, dt: "-X" + c.xnum + ":" + (i + 1), card: c.dt, channel: c.mod.chNo?.[i] ?? i, dir: c.mod.dir,
+      addr: hwAddrText(prj, e, plat), tag: e.tag, device: d ? "-" + devRef(d) : "", desc: d?.desc || e.cmt || "", wire: wireNo(c.xnum, i),
     });
   });
   return out;
@@ -233,12 +229,15 @@ const DEV_HEAD = ["Device tag", "Function text", "Manufacturer", "Type number", 
 /** Seznam zařízení z kusovníku: karty rozepsané na -A2.1 …, svorky a kabely v samostatných seznamech. */
 export function eplanDevicesCsv(prj: Project, cards: EplanCard[] = eplanCards(prj)): string {
   const lines = buildBom(prj).lines.filter(l => !l.excluded);
+  const L = hwLayout(prj, bomPlatform(prj));
   const rows: unknown[][] = [DEV_HEAD];
   for (const l of lines) {
     if (l.tag === "-W1xx" || l.tag === "-X1" || l.tag.startsWith("+")) continue;
-    const exp = cards.filter(c => c.bomTag === l.tag && c.dt !== c.bomTag);
+    /* karty sestavy rozepsané po kusech (-A2.1, -A2.2 …), skupiny svorkovnic v popisu */
+    const exp = L.modules.filter(m => m.kind === "io" && !m.builtin && m.bomTag === l.tag && m.cat === l.cat && m.dt !== l.tag);
     const remark = [l.safety ? tr("bezpečnostní prvek — návrh k revizi (EN ISO 13849)") : "", l.note].filter(Boolean).join("; ");
-    if (exp.length) for (const c of exp) rows.push([c.dt, l.desc + " (" + c.mod.dir + c.mod.idx + ")", l.brand, l.type, l.orderCode, "", 1, l.item, remark, l.tag]);
+    const grp = (m: typeof exp[number]) => cards.filter(c => c.mod.hw === m).map(c => c.mod.dir + c.mod.idx).join(", ");
+    if (exp.length) for (const m of exp) rows.push([m.dt, l.desc + (grp(m) ? " (" + grp(m) + ")" : ""), l.brand, l.type, l.orderCode, "", 1, l.item, remark, l.tag]);
     else rows.push([ascii(l.tag), l.desc, l.brand, l.type, l.orderCode, "", l.qty, l.item, remark, l.tag]);
   }
   return csv(rows);
@@ -269,6 +268,9 @@ export function eplanAmlName(prj: Project): string {
 /** README: postup importu do EPLAN a stav ověření. */
 export function eplanReadme(prj: Project, cards: EplanCard[] = eplanCards(prj)): string {
   const n = cards.reduce((s, c) => s + c.mod.ch.length, 0);
+  const HL = hwLayout(prj, bomPlatform(prj));
+  const nCards = HL.modules.filter(m => m.kind === "io" && !m.builtin).length;
+  const nRemote = HL.stations.filter(s => s.remote).length;
   const issues = validateEplan(prj, { cards });
   const nErr = issues.filter(i => i.level === "error").length, nWarn = issues.length - nErr;
   const L = [
@@ -278,7 +280,8 @@ export function eplanReadme(prj: Project, cards: EplanCard[] = eplanCards(prj)):
     tr("Stav: {state}.", { state: tr(EPLAN_VERIFIED) }),
     "",
     tr("Obsah"),
-    "  " + eplanAmlName(prj) + "  — " + tr("stanice PLC (rack, CPU -A1 s rozhraním PROFINET a sítí PN_IE_1), {cards} I/O karet, {n} kanálů a symbolických adres s vícejazyčnými funkčními texty (AutomationML AR APC 1.4.0)", { cards: cards.length, n }),
+    "  " + eplanAmlName(prj) + "  — " + tr("stanice PLC (rack, CPU -A1 s rozhraním PROFINET a sítí PN_IE_1), {cards} I/O karet, {n} kanálů a symbolických adres s vícejazyčnými funkčními texty (AutomationML AR APC 1.4.0)", { cards: nCards, n })
+      + (nRemote ? "; " + tr("vzdálené stanice: {n}", { n: nRemote }) : ""),
     "  eplan_zarizeni.csv     — " + tr("seznam zařízení z kusovníku (označení IEC 81346, výrobce, typ, objednací číslo)"),
     "  eplan_svorky.csv       — " + tr("svorky -X<n>:<k> s kartou, kanálem, adresou, tagem a vodičem (shodně s výkresy)"),
     "  eplan_vodice.csv       — " + tr("vodiče -W1xx: zařízení → svorka (podklad)"),
@@ -307,7 +310,7 @@ export function eplanReadme(prj: Project, cards: EplanCard[] = eplanCards(prj)):
     "   - " + tr("Skript ani konvertory nejsou ověřeny v EPLAN; makra a díly (kmenová data) jsou u zákazníka. Generování schématu PLC může vyžadovat licenci EPLAN „PLC & Bus Extension“."),
     "   - " + tr("Objednací čísla jsou typické volby z kusovníku PLCdesk — podklad k poptávce, ne projekt elektro."),
     "   - " + tr("Katalog objednacích čísel dílů EPLAN (Data Portal) zatím není — bez shody s kmenovými daty EPLAN makro nenajde a stránku nenakreslí; karty přiřaď ručně."),
-    "   - " + tr("Vzdálené stanice, IO-Link a pohony model zatím nezná — export nese lokální rack CPU a rozhraní PROFINET CPU."),
+    "   - " + tr("Sestava hardwaru (stanice, sloty, typy karet, vestavěné I/O CPU, vzdálené stanice) je návrh PLCdesk podle katalogu — adresy jsou výchozí návrh, v IDE je ověř. IO-Link a pohony po síti model zatím nezná; vzdálené stanice na EtherCAT jsou bez uzlu sítě (doplň v EPLAN)."),
     "   - " + tr("Bezpečnostní prvky jsou jen hardware podle návrhu (EN ISO 13849, návrh k revizi)."),
     "",
     tr("Zdroje formátů"),

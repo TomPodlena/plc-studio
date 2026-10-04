@@ -193,7 +193,7 @@ export declare function portText(p: IrPort, c: StCtx): string;
 /** Volání instance bloku v IEC ST / SCL (`instM1(enable := …, outRun => …);`). */
 export declare function stCall(b: IrFb, c: StCtx): string;
 /** Řádek volného signálu (komentář s adresou platformy) v IEC ST / SCL. */
-export declare function freeLine(c: StCtx, e: IoEntry): string;
+export declare function freeLine(c: StCtx, e: IoEntry, prj: Project): string;
 /**
  * Instance, volání bloků / rolí a volné signály z IR (pořadí zařízení; bez vstupů uvolnění).
  * `o.call` / `o.free` = jiný zápis volání bloku / řádku volného signálu (Logix).

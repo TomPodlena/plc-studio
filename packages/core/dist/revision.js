@@ -491,8 +491,17 @@ function rawDiff(x, y) {
     }
     /* firemní knihovna (šablony bloků mění generovaný kód) */
     const libX = x.library ?? null, libY = y.library ?? null;
+    /* čitelně: název a verze knihovny (při změně obsahu téže verze „upraveno“) */
+    const libTxt = (l, other) => {
+        if (!l)
+            return null;
+        const o = l;
+        const t = [o.name || tr("knihovna"), o.version ? "v" + o.version : ""].filter(Boolean).join(" ");
+        const p = (other || {});
+        return other && p.name === o.name && p.version === o.version && !same(l, other) ? t + " (" + tr("upraveno") + ")" : t;
+    };
     if (!same(libX, libY))
-        push({ area: "project", op: "change", field: "library", before: libX ? "✓" : null, after: libY ? "✓" : null, a: { ref: "library" }, b: { ref: "library" }, floor: "functional", cand: F(), devs: [], tags: [] });
+        push({ area: "project", op: "change", field: "library", before: libTxt(libX, null), after: libTxt(libY, libX), a: { ref: "library" }, b: { ref: "library" }, floor: "functional", cand: F(), devs: [], tags: [] });
     /* koncept */
     if (!same(x.concept ?? null, y.concept ?? null))
         push({ area: "concept", op: "change", field: "concept", before: x.concept ? x.concept.nazev || "✓" : null, after: y.concept ? y.concept.nazev || "✓" : null, a: { ref: "concept" }, b: { ref: "concept" }, floor: "cosmetic", cand: [], devs: [], tags: [] });
@@ -960,6 +969,8 @@ function diffApprovals(prj, from) {
 }
 /* ================================================================ registrace */
 registerDocProvider("revision", {
+    /* řádek revize pod nadpisem dokumentů (bez revize nic — výstup beze změny) */
+    header: prj => revisionHeaderMd(prj),
     docs: (prj, items) => (prj.revisions && prj.revisions.length
         ? [{ path: CHANGES_FILE, tab: tr("Změny"), title: tr("revize projektu, změny od poslední revize a rozsah opakovaných zkoušek"), body: changesMd(prj, { items }) }]
         : []),

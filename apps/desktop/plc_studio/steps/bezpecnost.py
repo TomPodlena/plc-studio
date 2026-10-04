@@ -12,6 +12,7 @@ zjednodušený (ověřit v SISTEMA), program neověřený v cílovém IDE, valid
 from __future__ import annotations
 
 import tkinter as tk
+from tkinter import font as tkfont
 from tkinter import messagebox, ttk
 
 from .. import theme
@@ -311,7 +312,7 @@ def _render_functions(app, parent, v: dict, ui: dict, var_note, buttons: list) -
     left.grid(row=0, column=0, sticky="nsew")
     tbl = Table(left, [("plr", "PLr", 50, False), ("pl", _("PL dosažené"), 70, False),
                        ("fn", _("Funkce (PLr)"), 110, False), ("design", _("Návrh"), 110, False),
-                       ("who", _("Kdo a kdy"), 130, True)], height=10, tree=True)
+                       ("who", _("Kdo a kdy"), 130, True)], height=10, tree=True, ellipsis=True)
     tbl.tv.heading("#0", text=_("Funkce"), anchor="w")
     tbl.tv.column("#0", width=280, stretch=True)
     tbl.pack(fill="both", expand=True)
@@ -346,15 +347,19 @@ def _render_functions(app, parent, v: dict, ui: dict, var_note, buttons: list) -
                                        labels[1] if len(labels) > 1 else labels[0]))
     var_title, var_inputs = tk.StringVar(), tk.StringVar()
     add._vars = (var_kind, var_title, var_inputs)
-    ttk.Label(add, text=_("Druh funkce"), style="Dim.TLabel").grid(row=1, column=0, sticky="w")
-    ttk.Label(add, text=_("Název"), style="Dim.TLabel").grid(row=1, column=1, sticky="w", padx=(6, 0))
-    ttk.Label(add, text=_("Vstupy (označení)"), style="Dim.TLabel").grid(row=1, column=2, sticky="w", padx=(6, 0))
+    # druh funkce na vlastním řádku přes celou šířku — německé názvy druhů jsou dlouhé a pole
+    # pro název by vedle nich nezbylo; šířka z nejdelšího přeloženého popisku v pixelech
+    ttk.Label(add, text=_("Druh funkce"), style="Dim.TLabel").grid(row=1, column=0, columnspan=3, sticky="w")
+    ui_font = tkfont.Font(font=theme.FONT_UI)
     cb = ttk.Combobox(add, textvariable=var_kind, values=labels, state="readonly",
-                      width=min(max(len(x) for x in labels) + 1, 42))
-    cb.grid(row=2, column=0, sticky="ew")
-    ttk.Entry(add, textvariable=var_title, width=22).grid(row=2, column=1, sticky="ew", padx=(6, 0))
-    ttk.Entry(add, textvariable=var_inputs, width=14).grid(row=2, column=2, sticky="ew", padx=(6, 0))
-    add.columnconfigure(1, weight=1)
+                      width=min(max(ui_font.measure(x) for x in labels) // ui_font.measure("0") + 4, 64))
+    cb.grid(row=2, column=0, columnspan=3, sticky="ew")
+    ttk.Label(add, text=_("Název"), style="Dim.TLabel").grid(row=3, column=0, sticky="w", pady=(4, 0))
+    ttk.Label(add, text=_("Vstupy (označení)"), style="Dim.TLabel").grid(row=3, column=1, sticky="w",
+                                                                      padx=(6, 0), pady=(4, 0))
+    ttk.Entry(add, textvariable=var_title, width=22).grid(row=4, column=0, sticky="ew")
+    ttk.Entry(add, textvariable=var_inputs, width=18).grid(row=4, column=1, sticky="ew", padx=(6, 0))
+    add.columnconfigure(0, weight=1)
 
     def do_add() -> None:
         kind = kinds[labels.index(var_kind.get())]["id"]
@@ -371,7 +376,7 @@ def _render_functions(app, parent, v: dict, ui: dict, var_note, buttons: list) -
         app.set_status(_("Přidána funkce: {kind}", kind=var_kind.get()))
 
     ttk.Button(add, text=_("Přidat funkci"), width=-6, command=do_add
-               ).grid(row=2, column=3, sticky="w", padx=(6, 0))
+               ).grid(row=4, column=2, sticky="w", padx=(6, 0))
 
     # detail vybrané funkce
     side = ttk.Frame(main, width=PANEL_W)
@@ -727,7 +732,7 @@ def _render_hazards(app, parent, v: dict, ui: dict, var_note, buttons: list) -> 
                          "řeší. Identifikaci nebezpečí a volbu opatření (ISO 12100) potvrzuje "
                          "odpovědná osoba — aplikace nerozhoduje, že je riziko přijatelné."))
     tbl = Table(parent, [("text", _("Nebezpečí"), 360, True), ("devs", _("Zařízení"), 160, False),
-                         ("fns", _("Funkce"), 140, False)], height=8)
+                         ("fns", _("Funkce"), 140, False)], height=8, ellipsis=True)
     tbl.pack(fill="both", expand=True, pady=(6, 6))
     tbl.tv.tag_configure("nofn", foreground=theme.ERR)
     for i, h in enumerate(v["hazards"]):

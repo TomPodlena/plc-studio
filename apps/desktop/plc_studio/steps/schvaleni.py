@@ -34,7 +34,12 @@ def name_bar(parent, app, label: str, on_change=None) -> ttk.Entry:
     """Pole se jménem odpovědné osoby; mění ``settings.json`` průběžně."""
     ttk.Label(parent, text=label).pack(side="left")
     var = tk.StringVar(value=approver(app))
-    ent = ttk.Entry(parent, textvariable=var, width=26)
+    from .knihovna import approver_names              # schvalovatelé z firemní knihovny projektu
+    names = approver_names(app)
+    if names:            # výběr ze jmen knihovny, ale dá se napsat i jiné jméno
+        ent = ttk.Combobox(parent, textvariable=var, values=names, width=26)
+    else:
+        ent = ttk.Entry(parent, textvariable=var, width=26)
     ent._var = var                                     # držet proměnnou naživu (GC)
     ent.pack(side="left", padx=(6, 0))
 
@@ -146,13 +151,19 @@ def render(app, parent) -> None:
     main.columnconfigure(0, weight=1)
     main.rowconfigure(0, weight=1)
     tbl = Table(main, [("status", _("Stav"), 150, False), ("who", _("Kdo a kdy"), 150, False),
-                       ("sum", _("Co se schvaluje"), 260, True)], height=10, tree=True)
+                       ("sum", _("Co se schvaluje"), 260, True)], height=10, tree=True,
+                ellipsis=True)
     tbl.tv.heading("#0", text=_("Položka"), anchor="w")
     tbl.tv.column("#0", width=300, stretch=True)
     tbl.tv.configure(selectmode="extended")             # hromadné schválení vybraných (Ctrl/Shift)
     tbl.grid(row=0, column=0, sticky="nsew")
     for st, color in STATUS_COLOR.items():
         tbl.tv.tag_configure(st, foreground=color)
+    # položky dotčené změnou od poslední revize (revision.ts) — podbarvit
+    from .revize import affected
+    aff = affected(app)
+    rev_inv = set(aff["invalid"])
+    tbl.tv.tag_configure("revchg", background=theme.WARN_BG)
     for g, label in data["groups"].items():
         its = [it for it in items if it["group"] == g]
         if not its:
@@ -162,7 +173,13 @@ def render(app, parent) -> None:
                       open_=open_)
         for it in its:
             tbl.add(it["key"], (it["statusLabel"], when(it["rec"]), it["summary"]), parent=gid,
-                    text=it["title"], tags=(it["status"],))
+                    text=it["title"], tags=(it["status"], *(("revchg",) if it["key"] in rev_inv else ())))
+    if rev_inv:
+        tk.Label(t_items, text=_("Podbarvené položky: změna od revize {rev} se dotýká {n} položek, které byly při "
+                                 "vydání revize platně schválené — znovu posoudit a schválit. Přehled změn je "
+                                 "v kroku Projekt.", rev=aff["rev"], n=len(rev_inv)),
+                 bg=theme.WARN_BG, fg=theme.FG, font=theme.FONT_DIM, anchor="w", justify="left", padx=8, pady=4,
+                 wraplength=1000).pack(fill="x", before=main)
 
     def on_toggle(opened: bool):
         def h(_e=None):
@@ -245,7 +262,8 @@ def render(app, parent) -> None:
             stat.configure(text=it["statusLabel"] + ("" if it["required"] else
                                                       "  · " + _("nepovinná")),
                            fg=STATUS_COLOR.get(it["status"], GREY))
-            summ.configure(text=it["summary"])
+            summ.configure(text=it["summary"] + ("\n⚠ " + _("dotčeno změnou od revize {rev}", rev=aff["rev"])
+                                                 if it["key"] in rev_inv else ""))
             rec = it["rec"]
             lines = []
             if rec:
@@ -443,7 +461,7 @@ def _render_orphans(app, parent, data: dict) -> None:
                          "zůstávají jako historie, dokud je nesmažeš."))
     tbl = Table(parent, [("key", _("Klíč"), 220, True), ("state", _("Stav"), 120, False),
                          ("who", _("Kdo a kdy"), 160, False), ("note", _("Poznámka"), 200, True)],
-                height=6)
+                height=6, ellipsis=True)
     tbl.pack(fill="both", expand=True, pady=(6, 6))
     for o in data["orphans"]:
         rec = o["rec"] or {}
