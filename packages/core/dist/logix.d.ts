@@ -7,9 +7,10 @@
  * (dílčí import programu: AOI + tagy + rutina ST) a k tomu tělo rutiny a Tags.csv.
  *
  * Logika se tu NEPÍŠE znovu: AOI vznikají z týchž šablon ST_MOTOR / ST_VENTIL / … přes
- * `parseFbTemplate()` a `lxDialect()`, hlavní rutina z výstupu `seqBody` / `wiring` /
- * `faultBlock` / `enableExpr` (stejné pořadí jako IEC MAIN, tedy i jako simulátor:
- * enable → sekvence → časovače kroků za CASE → instance → porucha stroje).
+ * `parseFbTemplate()` a `lxDialect()`, hlavní rutina z mezivrstvy `buildIR()` (ir.ts) přes
+ * společné ST renderery (`renderSeq` / `renderWiring` / `renderFault`, volání bloků jako členy
+ * instance — `lxCallIr`), stejné pořadí jako IEC MAIN, tedy i jako simulátor:
+ * enable → sekvence → časovače kroků za CASE → instance → porucha stroje.
  *
  * Zdroje: 1756-PM007 (ST), 1756-RM003 (TONR, FBD_TIMER), 1756-PM010 (AOI), 1756-RM014 (L5X, CSV),
  * 5000-UM004 / 5069-UM005 (tagy modulů 5069). Výstup není ověřen importem ve Studiu 5000.
@@ -56,7 +57,7 @@ export interface LxTag {
     type: string;
     desc: string;
 }
-/** Programové tagy: uvolnění, řízení stroje (ctrlDecls) a instance AOI. */
+/** Programové tagy: uvolnění, řízení stroje (deklarace IR) a instance AOI. */
 export declare function lxProgramTags(prj: Project): LxTag[];
 /**
  * Tělo hlavní rutiny MainRoutine (Logix ST, jen příkazy) — k ručnímu vložení do ST rutiny;

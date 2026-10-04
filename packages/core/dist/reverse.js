@@ -1,4 +1,4 @@
-import { blankProject, devSignals, autoAddr, sanitizeTag, stripDia, roleExpr } from "./model.js";
+import { blankProject, devSignals, autoAddr, sanitizeTag, stripDia, roleExpr, ensureGuids } from "./model.js";
 import { tr, trIn, N_, LANGS } from "./i18n.js";
 import { parseXml, xmlAll, xmlChild, xmlText, splitDelimited, guessDelimiter, canonAddr, isMemAddr, } from "./importers.js";
 /* ====================================================================== pomocné */
@@ -2163,6 +2163,10 @@ export function inferProject(ex, base) {
                 dev.limLo = d.dev.limLo;
             if (d.dev.setpoint !== undefined)
                 dev.setpoint = d.dev.setpoint;
+            /* opakovaný import do existujícího projektu: zařízení se stejným označením si nechá GUID */
+            const bd = base?.devices.find(x => up(x.name) === up(d.name));
+            if (bd?.guid)
+                dev.guid = bd.guid;
             prj.devices.push(dev);
             ev("dev:" + d.name, d.conf, d.src.slice(0, 4), d.note);
         }
@@ -2510,6 +2514,7 @@ export function inferProject(ex, base) {
     }
     const noAddr = prj._noAddr || [];
     delete prj._noAddr;
+    ensureGuids(prj); // GUID nových zařízení, signálů a karet (guid.ts)
     const missing = computeMissing(prj, evidence, { noAddr, enableFound, seqFound, hasCode: pous.length > 0, unparsed: ex.unparsed.map(f => f.name), skipped: ex.skipped });
     return { prj, evidence, conflicts, missing };
 }

@@ -2,7 +2,7 @@
 
 Zadání modulu, který z projektu PLCdesk vygeneruje soubor `.aml` ve formátu **AutomationML AR APC**, jejž EPLAN Electric P8 naimportuje a vyrobí z něj nativní dokumentaci.
 
-Stav: zadání, neimplementováno. Verze dokumentu 2026-10-03.
+Stav: **implementováno v2 (2026-10-04), neověřeno importem do EPLAN** — licence EPLAN ani zlatý vzorek z P8 nejsou k dispozici; výstup je kontrolován schématem CAEX 2.15 (XSD) a vlastní validací §13. Viz „Implementace v2“ na konci. Verze zadání 2026-10-03.
 
 ## 1. Proč
 
@@ -157,3 +157,16 @@ Bez balíčku 7 zhruba **8 dní**. CAEX je plochý XML bez binárních částí,
 - EPLAN: [výměna dat AML](https://www.eplan.help/en-us/Infoportal/Content/Plattform/2022/Content/htm/plcgui_k_amlbusdatenaustausch.htm) · [TechTip PLC data exchange](https://www.eplan.help/techtipps/en-us/SPS/TechTip-PLC-data-exchange.pdf) · [TechTip přehled vlastností PLC](https://eplan.help/techtipps/en-us/SPS/TechTip-Overview-of-the-PLC-properties.pdf)
 - [AMLEngine2.1](https://github.com/AutomationML/AMLEngine2.1) · [PyAutomationML](https://github.com/CIIRC-ISI/PyAutomationML) · [reálný vzorek AML](https://github.com/amlModeling/iafCaseStudy)
 - [PLCnext Engineer — import AML APC](https://engineer.plcnext.help/latest/ImportExport_AutomationML.htm)
+
+## Implementace v2 (2026-10-04)
+
+**Stav: neověřeno importem do EPLAN.** Licenci EPLAN nemáme a zlatý vzorek (§3 bod 2) chybí — rozhodnutí uživatele: postupovat podle tohoto zadání a knihovny AR APC. Import v PLCnext Engineer (§15 bod 5) nezkoušen: jde o instalaci celé aplikace do systému (instalátor Phoenix Contact), vývojová stanice nemá práva správce a podmínky stažení se nepodařilo ověřit. (Kontrola, zda PLCnext Engineer zmapuje typy Siemens apod. na svůj katalog, tím také chybí.)
+
+- **Kód:** `packages/core/src/eplan_aml.ts` — `genEplanAml(prj, opts)` (volby `udt`, `network`, `now`), `validateEplan(prj)`, `validateAml(xml)`; `eplan.ts` (`eplanAml`, `eplanFiles`, README) ho volá. Testy `eplan_aml.test.ts`, `eplan.test.ts`.
+- **Knihovna (§3):** `packages/core/src/eplan/spec/arapc.ts` — doslovné cesty rolí a rozhraní, povinné atributy, výřez definic tříd do výstupu, URL a SHA-256 archivu. Archiv ani PDF neuvádějí licenci (jen „© AutomationML consortium“), proto se soubor `AutomationML_ARAPC_Libraries_AMLEd1_1.4.0.aml` do repozitáře neukládá.
+- **GUID (§9):** `packages/core/src/guid.ts`. `Project.guid` (v `blankProject`), `Device.guid` (při vzniku / `syncIO`), GUID I/O karet v `Project.moduleGuids` — karta není v modelu samostatný objekt, její identita je klíč `<směr><pořadí>` (DI1, DO2…, stejně jako ve výkresech), `IoEntry.guid` odvozený (UUIDv8) z GUID zařízení + signálu, takže přežije přejmenování tagu i zařízení. Stanice, rack, CPU, rozhraní PROFINET a síť mají GUID odvozený z GUID projektu. `ensureGuids(prj)` doplní chybějící při načtení (web `normProject` → uložení, desktop `set_project` → uložení); export GUID nikdy negeneruje (chybějící jen nahradí deterministickým zástupcem a `validateEplan` to hlásí). Otisky schvalování GUID neobsahují, revize ho vyřazuje z porovnání. Příklady `samples/` mají GUID uložené (doplněno jednorázově skriptem).
+- **Hierarchie (§6, §7, §10):** AutomationProject (konfigurační projekt) → Subnet `PN_IE_1` (Type `Ethernet`) a Device stanice → `Rack_0` (`System:Rack.Generic`, PositionNumber = slot) → CPU `-A1` s CommunicationInterface `X1` (Node + NodeEthernet, IoSystem `Number` 100 = MasterSystemID, CommunicationPort `P1 R`) a TagTable; karty `-A2…` s kanály. Linky v nejbližším společném rodiči: kanál ↔ tag v `Rack_0`, Node ↔ Subnet v AutomationProject. Model nemá vzdálené stanice ani IO-Link mastery → jen lokální rack; Local-Bus jako samostatná síť se neexportuje (osazení racku nese vnoření a PositionNumber).
+- **UDT (§7):** volba `udt: true` → ComplexTag (Name = zařízení, DataType = `UDT_<třída>`), Tag = signál. Výchozí jsou ploché tagy `<zařízení>_<signál>`, shodné s generovaným kódem.
+- **Funkční texty (§8):** atribut `Comment` podle BPR Multilingual expressions — výchozí hodnota (komentář z I/O tabulky) + `aml-lang=cs-CZ / en-US / de-DE / es-ES / zh-CN`; popis zařízení se nepřekládá, popisek signálu ano.
+- **Validace (§13):** unikátní ID (GUID), rozložitelné `RefPartnerSideA/B` (escapování 5.2.8), rozhraní na partnerovi, link v nejbližším společném rodiči, povinné atributy podle rolí, unikátní název stanice a fyzické sítě, unikátní UDT + symbolická adresa v CPU (bez ohledu na velikost písmen), GUID v modelu. Všech 12 příkladů projde bez nálezu a schématem CAEX 2.15 (lxml).
+- **Odloženo:** §11 katalog objednacích čísel EPLAN; GUID 2 [1…12] (podzařízení karet); pohony (ARE Drive); vzdálené stanice / IO-Link (až je model bude znát).

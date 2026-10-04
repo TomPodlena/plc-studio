@@ -154,6 +154,12 @@ class App:
 
         ``ValueError``, když se projekt použít nedá (pak zůstane původní)."""
         self.prj = project.normalize(prj, self.core("blankProject"), self.CLS, self.PLAT)
+        # GUID objektů (export EPLAN podle nich páruje): starý projekt bez nich doplnit jádrem
+        # a označit jako změněný (uložit) — export je nikdy negeneruje
+        res = self.bridge.request("call", fn="ensureGuids", args=[self.prj])
+        self.prj = res["args"][0]
+        if res["result"] or not isinstance(prj.get("guid"), str):
+            self.save()
         self.ai = self._normalize_ai(ai)
 
     def _normalize_ai(self, ai) -> dict:

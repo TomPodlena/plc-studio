@@ -1,6 +1,7 @@
 export * from "./i18n.js";
 export * from "./model.js";
 export * from "./codegen.js";
+export * from "./ir.js";
 export * from "./logix.js";
 export * from "./importers.js";
 export * from "./reverse.js";
@@ -30,4 +31,6 @@ export * from "./hmi_xlsx.js";
 export * from "./hmi_docs.js";
 export * from "./sistema.js";
 export * from "./eplan.js";
+export * from "./eplan_aml.js";
+export * from "./guid.js";
 export * from "./emu/index.js";

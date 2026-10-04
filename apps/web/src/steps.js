@@ -127,11 +127,14 @@ export function makeSteps(ctx) {
     const pr = S.ai.last;
     if (!pr || !pr.devices.length) return;
     const p = prj();
+    /* zařízení se stejným označením a třídou si nechá GUID (identita pro opakovaný export do EPLAN) */
+    const oldGuid = Object.fromEntries(p.devices.filter(d => d.guid).map(d => [d.name + "|" + d.cls, d.guid]));
     p.devices = []; p.io = []; p.nextId = 1;
     const byName = {};
     for (const d of pr.devices) {
       const name = d.name && !byName[d.name] ? d.name : nextName(p, d.cls);
       const nd = { id: p.nextId++, name, cls: d.cls, desc: d.desc, opt: d.opt, unit: d.unit, rmin: d.rmin, rmax: d.rmax };
+      if (oldGuid[name + "|" + d.cls]) nd.guid = oldGuid[name + "|" + d.cls];
       // meze měření, žádaná hodnota a role výstupu (aiNorm je už pustil jen u správné třídy)
       if (d.cls === "AnalogIn") { if (Number.isFinite(d.limHi)) nd.limHi = d.limHi; if (Number.isFinite(d.limLo)) nd.limLo = d.limLo; }
       if (d.cls === "AnalogOut" && Number.isFinite(d.setpoint)) nd.setpoint = d.setpoint;

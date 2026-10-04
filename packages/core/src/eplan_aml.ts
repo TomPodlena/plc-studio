@@ -1,0 +1,415 @@
+/**
+ * PLCdesk → EPLAN Electric P8: AutomationML AR APC 1.4.0 (CAEX 2.15) — zadání docs/eplan-aml-export.md.
+ *
+ *   genEplanAml(prj, opts)   soubor .aml (EPLAN: Import PLC dat, formát „AutomationML AR APC“)
+ *   validateEplan(prj, opts) nálezy kontroly (§13): unikátní ID, rozlišitelné RefPartnerSideA/B a link
+ *                            v nejbližším společném rodiči, povinné atributy, unikátní UDT + symbolická
+ *                            adresa v CPU, unikátní název fyzické sítě, GUID v modelu
+ *   validateAml(xml)         táž kontrola nad hotovým textem AML (i cizím)
+ *
+ * Hierarchie (§6):
+ *   InstanceHierarchy
+ *   └ AutomationProject  (ID = Project.guid; konfigurační projekt EPLAN 20161 = název projektu)
+ *     ├ Subnet „PN_IE_1“ (Type Ethernet = sběrnicový systém 20308; název = fyzická síť 20413, unikátní)
+ *     └ Device  stanice PLC
+ *       └ DeviceItem Rack „Rack_0“ (System:Rack.Generic; karta na racku 20410 = vnoření + PositionNumber)
+ *         ├ DeviceItem CPU -A1 (slot 1)
+ *         │ ├ CommunicationInterface „PROFINET_interface_1“ (Label X1)
+ *         │ │ ├ Node (Type Ethernet, NetworkAddress; NodeEthernet: maska, ProfinetDeviceName)
+ *         │ │ ├ IoSystem „PROFINET_IO_system“ (logická síť 20414; Number = MasterSystemID 20334)
+ *         │ │ └ CommunicationPort „Port_1“ (Label P1 R)
+ *         │ └ TagTable „PLCdesk“ → Tag (symbolická adresa; volitelně ComplexTag = UDT 20618/20619)
+ *         └ DeviceItem karty -A2 … (slot 2…, ID = GUID karty) → ExternalInterface Channel (ID = GUID signálu)
+ *   InternalLink kanál ↔ tag v Rack_0, Node ↔ Subnet v AutomationProject (nejbližší společný rodič, §10).
+ *
+ * Model nemá vzdálené stanice ani IO-Link mastery → karty sedí v lokálním racku CPU (vnoření); síť
+ * PROFINET nese jen rozhraní CPU (IO controller s IO systémem bez zařízení). Vzdálené stanice / IO-Link
+ * přibudou, až je bude model znát (stejný strom: Device stanice + Node ↔ Subnet + IoSystem).
+ *
+ * GUID: export je jen čte (guid.ts) — chybějící GUID nahradí deterministickým zástupcem z názvu a
+ * validateEplan to hlásí. Objekty bez vlastního záznamu (stanice, rack, CPU, rozhraní, síť) mají GUID
+ * odvozený z GUID projektu. Stav: neověřeno importem do EPLAN (EPLAN_VERIFIED v eplan.ts).
+ */
+import { type Project, type Dir, type IoEntry, type Device, PLAT, devById, addrFor, dtFor, stripDia, devSignals } from "./model.js";
+import { tr, today, withLang, getLang, LANGS, type Lang } from "./i18n.js";
+import { buildBom, bomPlatform, type BomLine } from "./bom.js";
+import { derivedGuid, isGuid, moduleKey } from "./guid.js";
+import { ROLE, IFACE, SUBNET_TYPE, AML_LANG, AML_LIBS, REQUIRED, ARAPC_VERSION } from "./eplan/spec/arapc.js";
+import { eplanCards, eplanAmlName, EPLAN_VERIFIED, type EplanCard } from "./eplan.js";
+
+export interface EplanAmlOptions {
+  /** karty z `eplanCards` (jinak se spočítají) */
+  cards?: EplanCard[];
+  /** symbolické adresy jako UDT (ComplexTag = zařízení, Tag = signál) místo plochých tagů `<zařízení>_<signál>` */
+  udt?: boolean;
+  /** rozhraní PROFINET CPU, IO systém a podsíť (výchozí ano) */
+  network?: boolean;
+  /** čas zápisu do hlavičky (testy) */
+  now?: Date;
+}
+
+export interface EplanIssue { level: "error" | "warn"; where: string; msg: string; }
+
+/* ================================================================ strom */
+
+interface Attr { name: string; xml: string; }
+interface Ei { name: string; id: string; cls: string; attrs: Attr[]; }
+interface Ie {
+  name: string; id: string; role: string; support: string[];
+  attrs: Attr[]; ifaces: Ei[]; kids: Ie[]; links: Link[]; parent?: Ie;
+}
+interface Link { name: string; a: Ie; ai: string; b: Ie; bi: string; }
+
+const xe = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const ascii = (s: string) => stripDia(String(s ?? "")).replace(/[^\x20-\x7E]/g, "?");
+/** Část cesty CAEX: při znacích @ . : / v hranatých závorkách, „[“ a „]“ escapované (AR APC 5.2.8). */
+export const amlPathPart = (s: string) => /[@.:/[\]]/.test(s) ? "[" + s.replace(/\[/g, "\\[").replace(/\]/g, "\\]") + "]" : s;
+
+const val = (name: string, value: unknown, type = "xs:string", sub = ""): Attr =>
+  ({ name, xml: '<Attribute Name="' + xe(name) + '" AttributeDataType="' + type + '"><Value>' + xe(value) + "</Value>" + sub + "</Attribute>" });
+/** Vícejazyčný atribut (BPR Multilingual expressions): výchozí hodnota + podatributy „aml-lang=…“. */
+function ml(name: string, def: string, per: Partial<Record<Lang, string>>): Attr {
+  const sub = (Object.keys(per) as Lang[]).filter(l => per[l]).map(l =>
+    '<Attribute Name="aml-lang=' + AML_LANG[l] + '" AttributeDataType="xs:string"><Value>' + xe(per[l]) + "</Value></Attribute>").join("");
+  return { name, xml: '<Attribute Name="' + xe(name) + '" AttributeDataType="xs:string"><Value>' + xe(def) + "</Value>" + sub + "</Attribute>" };
+}
+const LANG_LIST = () => Object.keys(LANGS) as Lang[];
+/** Text ve všech jazycích UI (technické texty se překládají, obsah projektu ne). */
+const perLang = (fn: () => string): Partial<Record<Lang, string>> => Object.fromEntries(LANG_LIST().map(l => [l, withLang(l, fn)]));
+
+function ie(parent: Ie | undefined, name: string, id: string, role: string, attrs: Attr[] = []): Ie {
+  const n: Ie = { name, id, role, support: [], attrs, ifaces: [], kids: [], links: [], parent };
+  if (parent) parent.kids.push(n);
+  return n;
+}
+function ancestors(n: Ie): Ie[] { const out: Ie[] = []; for (let x: Ie | undefined = n; x; x = x.parent) out.push(x); return out; }
+/** Nejbližší společný rodič dvou prvků (sám prvek, když jsou obě strany na něm). */
+function lca(a: Ie, b: Ie): Ie {
+  const as = new Set(ancestors(a));
+  for (const x of ancestors(b)) if (as.has(x)) return x;
+  throw new Error("AML: no common parent");
+}
+function link(name: string, a: Ie, ai: string, b: Ie, bi: string): void { lca(a, b).links.push({ name, a, ai, b, bi }); }
+
+const ioType = (d: Dir) => (d === "DI" || d === "AI" ? "Input" : "Output");
+const isAnalog = (d: Dir) => d === "AI" || d === "AO";
+function byteBit(a: string): { byte: number; bit: number } | null {
+  const m = String(a || "").match(/^%[IQ]W?(\d+)(?:\.(\d+))?$/);
+  return m ? { byte: +m[1], bit: +(m[2] || 0) } : null;
+}
+
+/** Popisek signálu v aktuálním jazyce (běh / povel chod …). */
+function sigLabel(d: Device, sig: string): string { return (devSignals(d).find(s => s[0] === sig) || [])[2] || ""; }
+/** Funkční text kanálu: -M1 + popis zařízení (obsah projektu, nepřekládá se) + popisek signálu (překládá se). */
+function fnText(d: Device | undefined, e: IoEntry): string {
+  if (!d) return e.cmt || "";
+  return ["-" + d.name, [d.desc, sigLabel(d, e.sig)].filter(Boolean).join(" – ")].filter(Boolean).join(" ");
+}
+
+interface Built { root: Ie; name: string; projectId: string; }
+
+function build(prj: Project, opts: EplanAmlOptions): Built {
+  const cards = opts.cards || eplanCards(prj);
+  const plat = prj.platforms[0] || "siemens";
+  const bomPlat = bomPlatform(prj);
+  const lines = buildBom(prj).lines;
+  const cpuLine = lines.find(l => l.tag === "-A1");
+  const name = ascii(prj.meta.name || "PLCdesk").trim() || "PLCdesk";
+  /* GUID projektu; bez něj deterministický zástupce z názvu (validateEplan hlásí) */
+  const pg = isGuid(prj.guid) ? prj.guid : derivedGuid("plcdesk-unsaved", name);
+  const G = (role: string) => derivedGuid(pg, role);
+  const typeId = (l: BomLine | undefined) => (l?.orderCode ? "OrderNumber:" + ascii(l.orderCode) : "");
+  const maker = cpuLine?.brand || PLAT[bomPlat].name.split(" ")[0];
+  const cur = getLang();
+
+  const project = ie(undefined, name, pg, ROLE.AutomationProject, [
+    val("ProjectManufacturer", "PLCdesk"), val("ProjectSign", name), val("ProjectRevision", "0.1"),
+    val("ProjectInformation", tr("Export PLCdesk {date} — {state}", { date: today(true), state: tr(EPLAN_VERIFIED) })),
+  ]);
+  const network = opts.network !== false;
+  const subnetName = "PN_IE_1";
+  const subnet = network ? ie(project, subnetName, G("subnet:" + subnetName), ROLE.Subnet, [val("Type", SUBNET_TYPE.ethernet)]) : undefined;
+  if (subnet) subnet.ifaces.push({ name: "LogicalEndPoint", id: derivedGuid(subnet.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
+
+  const station = ie(project, ascii(PLAT[bomPlat].name) + " -A1", G("station:1"), ROLE.Device, [
+    ...(typeId(cpuLine) ? [val("TypeIdentifier", typeId(cpuLine))] : []),
+    ml("Comment", tr("Stanice PLC navržená v PLCdesk (návrh k revizi)"), perLang(() => tr("Stanice PLC navržená v PLCdesk (návrh k revizi)"))),
+    val("Manufacturer", maker),
+  ]);
+  const rack = ie(station, "Rack_0", G("rack:0"), ROLE.DeviceItem, [
+    val("TypeName", "Rack"), val("DeviceItemType", "Rack"), val("PositionNumber", 0, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
+    val("TypeIdentifier", "System:Rack.Generic"), val("LocationIdentifier IEC", "+1"),
+  ]);
+  const cpu = ie(rack, "-A1", G("cpu:1"), ROLE.DeviceItem, [
+    val("TypeName", PLAT[bomPlat].cpu), val("DeviceItemType", "CPU"), val("PositionNumber", 1, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
+    ...(typeId(cpuLine) ? [val("TypeIdentifier", typeId(cpuLine))] : []), val("Manufacturer", maker),
+    val("Comment", [cpuLine?.type, cpuLine?.desc].filter(Boolean).join(" — ")), val("ProductDesignation IEC", "-A1"), val("LocationIdentifier IEC", "+1"),
+  ]);
+  if (network && subnet) {
+    const pn = ie(cpu, "PROFINET_interface_1", G("cpu:1/if:X1"), ROLE.CommunicationInterface, [
+      val("TypeName", "PROFINET interface"), val("PositionNumber", 32768, "xs:int"), val("BuiltIn", "true", "xs:boolean"), val("Label", "X1"),
+    ]);
+    pn.ifaces.push({ name: "LogicalEndPoint", id: derivedGuid(pn.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
+    const node = ie(pn, "E1", G("cpu:1/if:X1/node"), ROLE.Node, [
+      val("Type", SUBNET_TYPE.ethernet), val("NetworkAddress", "192.168.0.1"),
+      val("SubnetMask", "255.255.255.0"), val("IpProtocolSelection", "Project"), val("ProfinetDeviceName", "plc-1"),
+    ]);
+    node.support.push(ROLE.NodeEthernet);
+    node.ifaces.push({ name: "LogicalEndPoint", id: derivedGuid(node.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
+    const ios = ie(pn, "PROFINET_IO_system", G("cpu:1/if:X1/iosystem:100"), ROLE.IoSystem, [val("Number", 100, "xs:int")]);
+    ios.ifaces.push({ name: "LogicalEndPoint", id: derivedGuid(ios.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
+    const port = ie(pn, "Port_1", G("cpu:1/if:X1/port:1"), ROLE.CommunicationPort, [
+      val("TypeName", "Port"), val("PositionNumber", 32769, "xs:int"), val("BuiltIn", "true", "xs:boolean"), val("Label", "P1 R"),
+    ]);
+    port.ifaces.push({ name: "CommunicationPortInterface", id: derivedGuid(port.id, "CommunicationPortInterface"), cls: IFACE.CommunicationPortInterface, attrs: [] });
+    link("Link_" + subnetName + "_E1", node, "LogicalEndPoint", subnet, "LogicalEndPoint");
+  }
+  const table = ie(cpu, "PLCdesk", G("tagtable:PLCdesk"), ROLE.TagTable, [val("AssignToDefault", "false", "xs:boolean")]);
+
+  /* symbolické adresy: tag na každý signál, vícejazyčný funkční text */
+  const tagOwner = new Map<IoEntry, { el: Ie; name: string }>();
+  const udtOf = new Map<number, Ie>();
+  for (const c of cards) for (const e of c.mod.ch) {
+    const d = devById(prj, e.devId);
+    const dg = isGuid(e.guid) ? e.guid : derivedGuid(pg, "io-unsaved:" + e.key);
+    const def = [d ? "-" + d.name : "", e.cmt || d?.desc || ""].filter(Boolean).join(" ");
+    const per = perLang(() => fnText(d, e));
+    per[cur] = def;    // aktuální jazyk = komentář z I/O tabulky (úpravy uživatele)
+    const tag: Ei = {
+      name: e.tag, id: derivedGuid(dg, "tag"), cls: IFACE.Tag, attrs: [
+        val("DataType", dtFor(e), "xs:string", val("Customized", "false", "xs:boolean").xml),
+        val("IoType", ioType(e.dir)), val("LogicalAddress", addrFor(plat, e)), ml("Comment", def, per),
+      ],
+    };
+    if (opts.udt && d) {
+      let ct = udtOf.get(d.id);
+      if (!ct) {
+        ct = ie(table, d.name, derivedGuid(isGuid(d.guid) ? d.guid : derivedGuid(pg, "dev-unsaved:" + d.id), "udt"), ROLE.ComplexTag, [
+          val("DataType", "UDT_" + d.cls), val("Comment", d.desc || ""),
+        ]);
+        udtOf.set(d.id, ct);
+      }
+      tag.name = e.sig;
+      ct.ifaces.push(tag);
+      tagOwner.set(e, { el: ct, name: e.sig });
+    } else {
+      table.ifaces.push(tag);
+      tagOwner.set(e, { el: table, name: e.tag });
+    }
+  }
+
+  /* I/O karty v racku, kanály s ID = GUID signálu, link kanál ↔ tag */
+  for (const c of cards) {
+    const key = moduleKey(c.mod);
+    const id = isGuid(c.mod.guid) ? c.mod.guid : isGuid(prj.moduleGuids?.[key]) ? prj.moduleGuids![key] : derivedGuid(pg, "card-unsaved:" + key);
+    const bb = c.mod.ch.map(e => byteBit(e.addr)).filter((x): x is { byte: number; bit: number } => !!x);
+    const start = bb.length ? Math.min(...bb.map(x => x.byte)) : 0;
+    const bit = bb.length ? Math.min(...bb.filter(x => x.byte === start).map(x => x.bit)) : 0;
+    const width = isAnalog(c.mod.dir) ? 16 : 1;
+    const address: Attr = {
+      name: "Address", xml: '<Attribute Name="Address"><RefSemantic CorrespondingAttributePath="OrderedListType" /><Attribute Name="1">'
+        + val("StartAddress", start, "xs:int").xml + val("Length", c.mod.ch.length * width, "xs:int").xml + val("IoType", ioType(c.mod.dir)).xml
+        + val("BitOffset", isAnalog(c.mod.dir) ? 0 : bit, "xs:int").xml + "</Attribute></Attribute>",
+    };
+    const card = ie(rack, c.dt, id, ROLE.DeviceItem, [
+      val("TypeName", c.line?.type || c.line?.item || c.mod.dir),
+      val("DeviceItemType", isAnalog(c.mod.dir) ? "AnalogModule" : "DigitalModule", "xs:string", val("Customized", "true", "xs:boolean").xml),
+      val("PositionNumber", c.position, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
+      ...(typeId(c.line) ? [val("TypeIdentifier", typeId(c.line))] : []), val("Manufacturer", c.line?.brand || ""),
+      ml("Comment", c.mod.dir + c.mod.idx + " — " + tr("svorkovnice {x}", { x: "-X" + c.xnum }),
+        perLang(() => c.mod.dir + c.mod.idx + " — " + tr("svorkovnice {x}", { x: "-X" + c.xnum }))),
+      val("ProductDesignation IEC", c.dt), val("LocationIdentifier IEC", "+1"), address,
+    ]);
+    c.mod.ch.forEach((e, i) => {
+      const chName = c.mod.dir + "_" + i;
+      card.ifaces.push({
+        name: chName, id: isGuid(e.guid) ? e.guid : derivedGuid(pg, "io-unsaved:" + e.key), cls: IFACE.Channel, attrs: [
+          val("Type", isAnalog(c.mod.dir) ? "Analog" : "Digital"), val("IoType", ioType(c.mod.dir)), val("Number", i, "xs:int"), val("Length", width, "xs:int"),
+        ],
+      });
+      const t = tagOwner.get(e);
+      if (t) link("Link_" + e.tag, card, chName, t.el, t.name);
+    });
+  }
+  return { root: project, name, projectId: pg };
+}
+
+function render(n: Ie): string {
+  return '<InternalElement Name="' + xe(n.name) + '" ID="' + n.id + '">'
+    + n.attrs.map(a => a.xml).join("")
+    + n.ifaces.map(i => '<ExternalInterface Name="' + xe(i.name) + '" ID="' + i.id + '" RefBaseClassPath="' + i.cls + '">' + i.attrs.map(a => a.xml).join("") + "</ExternalInterface>").join("")
+    + n.kids.map(render).join("")
+    + n.support.map(s => '<SupportedRoleClass RefRoleClassPath="' + s + '" />').join("")
+    + n.links.map(l => '<InternalLink Name="' + xe(l.name) + '" RefPartnerSideA="' + l.a.id + ":" + amlPathPart(l.ai) + '" RefPartnerSideB="' + l.b.id + ":" + amlPathPart(l.bi) + '" />').join("")
+    + '<RoleRequirements RefBaseRoleClassPath="' + n.role + '" /></InternalElement>';
+}
+
+/** AutomationML AR APC 1.4.0 (CAEX 2.15): stanice, rack, CPU s rozhraním PROFINET, karty, kanály, symbolické adresy. */
+export function genEplanAml(prj: Project, opts: EplanAmlOptions = {}): string {
+  const { root, name, projectId } = build(prj, opts);
+  const now = (opts.now || new Date()).toISOString().slice(0, 19);
+  return '<?xml version="1.0" encoding="utf-8"?>\r\n'
+    + '<CAEXFile FileName="' + xe(eplanAmlName(prj)) + '" SchemaVersion="2.15" xsi:noNamespaceSchemaLocation="CAEX_ClassModel_V2.15.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+    + '<AdditionalInformation AutomationMLVersion="2.0" />'
+    + '<AdditionalInformation DocumentVersions="Recommendations"><Document DocumentIdentifier="AR APC" Version="' + ARAPC_VERSION + '" /></AdditionalInformation>'
+    + "<AdditionalInformation><WriterHeader><WriterName>PLCdesk</WriterName><WriterID>" + derivedGuid("plcdesk", "writer") + "</WriterID><WriterVendor>PLCdesk</WriterVendor>"
+    + "<WriterVendorURL>https://plcdesk.app</WriterVendorURL><WriterVersion>0.2</WriterVersion><WriterRelease>0.2</WriterRelease>"
+    + "<LastWritingDateTime>" + now + "</LastWritingDateTime><WriterProjectTitle>" + xe(name) + "</WriterProjectTitle><WriterProjectID>" + projectId + "</WriterProjectID></WriterHeader></AdditionalInformation>"
+    + '<InstanceHierarchy Name="' + xe(name) + '"><Version>0.2</Version>' + render(root) + "</InstanceHierarchy>"
+    + AML_LIBS + "</CAEXFile>\r\n";
+}
+
+/* ================================================================ validace (§13) */
+
+interface XNode { tag: string; at: Record<string, string>; kids: XNode[]; text: string; parent?: XNode; }
+const unent = (s: string) => s.replace(/&(amp|lt|gt|quot|apos);/g, (_m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" } as Record<string, string>)[e]);
+
+function parseXml(src: string): XNode | string {
+  const root: XNode = { tag: "#doc", at: {}, kids: [], text: "" };
+  let cur = root;
+  const re = /<\?[\s\S]*?\?>|<!--[\s\S]*?-->|<\/([^\s>]+)\s*>|<([A-Za-z_][\w:.-]*)((?:\s+[^\s=/>]+\s*=\s*"[^"]*")*)\s*(\/?)>|([^<]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src))) {
+    if (m[1] !== undefined) { if (cur.tag !== m[1]) return "</" + m[1] + ">"; cur = cur.parent!; }
+    else if (m[2] !== undefined) {
+      const n: XNode = { tag: m[2], at: {}, kids: [], text: "", parent: cur };
+      for (const a of (m[3] || "").matchAll(/([^\s=/>]+)\s*=\s*"([^"]*)"/g)) n.at[a[1]] = unent(a[2]);
+      cur.kids.push(n);
+      if (!m[4]) cur = n;
+    } else if (m[5] !== undefined) cur.text += unent(m[5]);
+  }
+  return cur === root ? root : "<" + cur.tag + ">";
+}
+const kidsOf = (n: XNode, tag: string) => n.kids.filter(k => k.tag === tag);
+const attrsOf = (n: XNode): Map<string, string> => new Map(kidsOf(n, "Attribute").map(a => [a.at.Name, (kidsOf(a, "Value")[0]?.text ?? "").trim()]));
+/** Rozdělí „ID:rozhraní“ podle AR APC 5.2.8 (části v [] s escapovanými \[ \]). */
+function splitRef(s: string): [string, string] | null {
+  const parts: string[] = [];
+  let i = 0;
+  while (i <= s.length) {
+    if (s[i] === "[") {
+      let j = i + 1, out = "";
+      for (; j < s.length && s[j] !== "]"; j++) { if (s[j] === "\\" && (s[j + 1] === "[" || s[j + 1] === "]")) { out += s[++j]; } else out += s[j]; }
+      if (j >= s.length) return null;
+      parts.push(out); i = j + 1;
+      if (i < s.length && s[i] !== ":") return null;
+      i++;
+    } else {
+      const j = s.indexOf(":", i);
+      parts.push(j < 0 ? s.slice(i) : s.slice(i, j));
+      if (j < 0) break;
+      i = j + 1;
+    }
+  }
+  return parts.length === 2 ? [parts[0], parts[1]] : null;
+}
+
+/** Kontrola hotového AML (CAEX 2.15 / AR APC) bez schématu: ID, odkazy, povinné atributy, unikátnost. */
+export function validateAml(xml: string): EplanIssue[] {
+  const out: EplanIssue[] = [];
+  const E = (where: string, msg: string) => out.push({ level: "error", where, msg });
+  const doc = parseXml(xml.replace(/^﻿/, ""));
+  if (typeof doc === "string") { E("XML", tr("AML není well-formed XML ({at}).", { at: doc })); return out; }
+  const file = kidsOf(doc, "CAEXFile")[0];
+  if (!file) { E("XML", tr("Chybí kořen CAEXFile.")); return out; }
+  if (file.at.SchemaVersion !== "2.15") E("CAEXFile", tr("SchemaVersion musí být 2.15 (AutomationML Edition 1)."));
+  const ihs = kidsOf(file, "InstanceHierarchy");
+  if (!ihs.length) { E("CAEXFile", tr("Chybí InstanceHierarchy.")); return out; }
+  const ids = new Map<string, XNode>();
+  const ies: XNode[] = [];
+  const walk = (n: XNode) => {
+    for (const k of n.kids) {
+      if (k.tag === "InternalElement" || k.tag === "ExternalInterface") {
+        const id = k.at.ID || "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) E(k.at.Name || k.tag, tr("ID „{id}“ není GUID.", { id }));
+        else if (ids.has(id.toLowerCase())) E(k.at.Name || k.tag, tr("Duplicitní ID {id}.", { id }));
+        else ids.set(id.toLowerCase(), k);
+        if (k.tag === "InternalElement") ies.push(k);
+      }
+      walk(k);
+    }
+  };
+  ihs.forEach(walk);
+  const roleOf = (n: XNode) => kidsOf(n, "RoleRequirements")[0]?.at.RefBaseRoleClassPath || "";
+  const knownRoles = new Set<string>(Object.values(ROLE));
+  const knownIfaces = new Set<string>(Object.values(IFACE));
+  const need = (n: XNode, key: string) => {
+    const a = attrsOf(n);
+    for (const r of REQUIRED[key] || []) if (!a.get(r)) E(n.at.Name || key, tr("Chybí povinný atribut {attr} ({cls}).", { attr: r, cls: key.split("/").pop() }));
+  };
+  const devNames = new Map<string, number>(), subnets = new Map<string, number>();
+  for (const n of ies) {
+    const role = roleOf(n);
+    if (!role) E(n.at.Name || "?", tr("Prvek nemá RoleRequirements."));
+    else if (!knownRoles.has(role)) E(n.at.Name || "?", tr("Neznámá role {role}.", { role }));
+    need(n, role);
+    if (role === ROLE.Device) devNames.set(n.at.Name, (devNames.get(n.at.Name) || 0) + 1);
+    if (role === ROLE.Subnet) subnets.set(n.at.Name, (subnets.get(n.at.Name) || 0) + 1);
+    if (attrsOf(n).has("Address")) {
+      const addr = kidsOf(n, "Attribute").find(a => a.at.Name === "Address")!;
+      for (const it of kidsOf(addr, "Attribute")) if (!attrsOf(it).get("IoType")) E(n.at.Name, tr("Adresa karty bez IoType."));
+    }
+    for (const ei of kidsOf(n, "ExternalInterface")) {
+      const cls = ei.at.RefBaseClassPath || "";
+      if (!knownIfaces.has(cls)) E(ei.at.Name || "?", tr("Neznámá třída rozhraní {cls}.", { cls }));
+      need(ei, cls);
+    }
+  }
+  for (const [n, c] of devNames) if (c > 1) E(n, tr("Název stanice (Device) není v projektu unikátní."));
+  for (const [n, c] of subnets) if (c > 1) E(n, tr("Název fyzické sítě není v projektu unikátní."));
+  /* odkazy: obě strany existují, rozhraní je na daném prvku a link leží v nejbližším společném rodiči */
+  const ieAnc = (n: XNode) => { const a: XNode[] = []; for (let x: XNode | undefined = n; x && x.tag !== "InstanceHierarchy"; x = x.parent) if (x.tag === "InternalElement") a.push(x); return a; };
+  for (const n of ies) for (const l of kidsOf(n, "InternalLink")) {
+    const side = (ref: string | undefined, s: string): XNode | null => {
+      const p = splitRef(ref || "");
+      if (!p) { E(l.at.Name || "InternalLink", tr("RefPartnerSide{s} „{ref}“ nelze rozložit.", { s, ref: ref || "" })); return null; }
+      const el = ids.get(p[0].toLowerCase());
+      if (!el || el.tag !== "InternalElement") { E(l.at.Name || "InternalLink", tr("RefPartnerSide{s}: prvek {id} neexistuje.", { s, id: p[0] })); return null; }
+      if (!kidsOf(el, "ExternalInterface").some(x => x.at.Name === p[1])) { E(l.at.Name || "InternalLink", tr("RefPartnerSide{s}: rozhraní {iface} na prvku {el} neexistuje.", { s, iface: p[1], el: el.at.Name })); return null; }
+      return el;
+    };
+    const a = side(l.at.RefPartnerSideA, "A"), b = side(l.at.RefPartnerSideB, "B");
+    if (a && b) {
+      const as = new Set(ieAnc(a));
+      const common = ieAnc(b).find(x => as.has(x));
+      if (common !== n) E(l.at.Name || "InternalLink", tr("InternalLink neleží v nejbližším společném rodiči ({el}).", { el: common?.at.Name || "—" }));
+    }
+  }
+  /* UDT + symbolická adresa unikátní v rámci CPU (EPLAN 20618 + symbolická adresa) */
+  for (const cpu of ies.filter(n => roleOf(n) === ROLE.DeviceItem && attrsOf(n).get("DeviceItemType") === "CPU")) {
+    const seen = new Map<string, number>();
+    const scan = (n: XNode, udt: string) => {
+      for (const k of n.kids) {
+        if (k.tag === "ExternalInterface" && k.at.RefBaseClassPath === IFACE.Tag) {
+          const key = (udt ? udt + "." : "") + k.at.Name;
+          seen.set(key.toUpperCase(), (seen.get(key.toUpperCase()) || 0) + 1);
+        } else if (k.tag === "InternalElement") {
+          const r = roleOf(k);
+          if (r === ROLE.TagTable) scan(k, "");
+          else if (r === ROLE.ComplexTag) scan(k, (udt ? udt + "." : "") + k.at.Name);
+        }
+      }
+    };
+    scan(cpu, "");
+    for (const [k, c] of seen) if (c > 1) E(cpu.at.Name + " / " + k, tr("UDT a symbolická adresa nejsou v CPU unikátní."));
+  }
+  return out;
+}
+
+/** Nálezy exportu do EPLAN: GUID v modelu (export je negeneruje) + kontrola vygenerovaného AML. */
+export function validateEplan(prj: Project, opts: EplanAmlOptions = {}): EplanIssue[] {
+  const out: EplanIssue[] = [];
+  const W = (where: string, msg: string) => out.push({ level: "warn", where, msg });
+  const hint = tr("GUID se přiděluje při vzniku objektu a ukládá s projektem — otevři a ulož projekt, ať se doplní (jinak druhý import do EPLAN objekty neaktualizuje, ale zduplikuje).");
+  if (!isGuid(prj.guid)) W(tr("projekt"), tr("Projekt nemá GUID.") + " " + hint);
+  const noDev = prj.devices.filter(d => !isGuid(d.guid)).map(d => d.name);
+  if (noDev.length) W(noDev.slice(0, 5).join(", ") + (noDev.length > 5 ? " …" : ""), tr("Zařízení bez GUID: {n}.", { n: noDev.length }) + " " + hint);
+  const noIo = prj.io.filter(e => !isGuid(e.guid)).map(e => e.tag);
+  if (noIo.length) W(noIo.slice(0, 5).join(", ") + (noIo.length > 5 ? " …" : ""), tr("Signály bez GUID: {n}.", { n: noIo.length }) + " " + hint);
+  const cards = opts.cards || eplanCards(prj);
+  const noMod = cards.filter(c => !isGuid(c.mod.guid) && !isGuid(prj.moduleGuids?.[moduleKey(c.mod)])).map(c => c.dt);
+  if (noMod.length) W(noMod.join(", "), tr("I/O karty bez GUID: {n}.", { n: noMod.length }) + " " + hint);
+  const plat = prj.platforms[0] || "siemens";
+  if (plat === "siemens") for (const e of prj.io) if (!e.addr) W(e.tag, tr("Signál nemá adresu — EPLAN kanál nepřiřadí."));
+  return [...out, ...validateAml(genEplanAml(prj, { ...opts, cards }))];
+}

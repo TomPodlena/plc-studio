@@ -20,7 +20,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "31020667-01b8-4361-85cb-5480da96771e"
    },
    {
     "id": 2,
@@ -33,7 +34,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "7c739538-7c1f-4728-a16c-9621a7debdc1"
    },
    {
     "id": 3,
@@ -46,7 +48,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "31fccab3-8128-49ab-b33f-021f30af557c"
    },
    {
     "id": 4,
@@ -59,7 +62,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "a9d2e252-3ae1-48c2-9271-2002c0c03fbc"
    },
    {
     "id": 5,
@@ -72,7 +76,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "ccdfa352-e07b-472e-8473-eec7816a95c3"
    },
    {
     "id": 6,
@@ -85,7 +90,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "d0d05073-70b8-4c6e-b203-0312f9de0ce5"
    },
    {
     "id": 7,
@@ -98,7 +104,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "21a6f95d-0d3d-4bd1-9b86-90f250910aa1"
    },
    {
     "id": 8,
@@ -111,7 +118,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "3396bb82-2d15-45ff-8844-9e9789a4287b"
    },
    {
     "id": 9,
@@ -124,7 +132,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "ea415d66-1542-4fcb-a9da-d428bb95aab6"
    },
    {
     "id": 10,
@@ -137,7 +146,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "33f9d9ae-282d-4598-a9b8-d56acad03054"
    },
    {
     "id": 11,
@@ -148,7 +158,8 @@
     "unit": "bar",
     "rmin": 0,
     "rmax": 250,
-    "limHi": 220
+    "limHi": 220,
+    "guid": "f6d49347-322e-4860-b26a-e8d0c6f8b75c"
    },
    {
     "id": 12,
@@ -160,7 +171,8 @@
     "rmin": 0,
     "rmax": 100,
     "limLo": 10,
-    "limHi": 60
+    "limHi": 60,
+    "guid": "885c4b4a-58c2-44e4-b3e5-becee8a79053"
    },
    {
     "id": 13,
@@ -171,7 +183,8 @@
     "unit": "kN",
     "rmin": 0,
     "rmax": 400,
-    "limHi": 350
+    "limHi": 350,
+    "guid": "44dd697e-6436-4f73-9ce9-80ff4f457675"
    },
    {
     "id": 14,
@@ -182,7 +195,8 @@
     "unit": "mm",
     "rmin": 0,
     "rmax": 500,
-    "limHi": 460
+    "limHi": 460,
+    "guid": "54815e21-e26e-4c3b-9602-1cff687f06df"
    },
    {
     "id": 15,
@@ -193,7 +207,8 @@
     "unit": "l/min",
     "rmin": 0,
     "rmax": 60,
-    "limLo": 5
+    "limLo": 5,
+    "guid": "726ca9fa-a1bf-4d49-8392-8da4081af1db"
    },
    {
     "id": 16,
@@ -204,7 +219,8 @@
     "unit": "%",
     "rmin": 0,
     "rmax": 100,
-    "setpoint": 70
+    "setpoint": 70,
+    "guid": "18b3f51f-317e-4a62-8985-348cc5d920df"
    },
    {
     "id": 17,
@@ -215,7 +231,8 @@
     "unit": "%",
     "rmin": 0,
     "rmax": 100,
-    "setpoint": 60
+    "setpoint": 60,
+    "guid": "8abcfa77-e0d6-41e6-8e54-843d251c547f"
    },
    {
     "id": 18,
@@ -225,7 +242,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "8ad3ec87-3030-4ebd-a016-9ba7ac542d0c"
    },
    {
     "id": 19,
@@ -235,7 +253,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "c89d5743-2ddd-4e10-931a-66987b45aab4"
    },
    {
     "id": 20,
@@ -245,7 +264,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "df7e4fe9-6843-4e36-8364-3e4e95ba0816"
    },
    {
     "id": 21,
@@ -255,7 +275,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "77916bb4-6898-409a-ba58-32c4bc799d54"
    },
    {
     "id": 22,
@@ -265,7 +286,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "26ad35e1-f45e-4da2-9a89-603cee4752f3"
    },
    {
     "id": 23,
@@ -275,7 +297,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "dc9d68c0-9c13-4813-8c1c-ff1e84e56c7a"
    },
    {
     "id": 24,
@@ -285,7 +308,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "dacc50c3-fcc5-420f-8dd1-05765f4d0704"
    },
    {
     "id": 25,
@@ -295,7 +319,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "564c75b0-a9ce-4ddf-b504-4fc55d369406"
    },
    {
     "id": 26,
@@ -306,7 +331,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "run"
+    "role": "run",
+    "guid": "75cf1293-77f1-4c4f-aac6-c21d0b4285c0"
    },
    {
     "id": 27,
@@ -317,7 +343,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "fault"
+    "role": "fault",
+    "guid": "c3358e82-b4dd-41ee-9e5d-a8d3b3a3fc5a"
    },
    {
     "id": 28,
@@ -328,7 +355,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "fault"
+    "role": "fault",
+    "guid": "2f27a7a9-4fc8-40d4-9d9a-a9cbb382f3e9"
    },
    {
     "id": 29,
@@ -339,7 +367,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "lock"
+    "role": "lock",
+    "guid": "9b7ed512-461f-403b-9f73-9c604dc47d03"
    }
   ],
   "io": [
@@ -351,7 +380,8 @@
     "tag": "M1_fbkRunning",
     "addr": "%I0.0",
     "cmt": "Vstupní pásový dopravník – běh",
-    "nc": false
+    "nc": false,
+    "guid": "ef71adb3-9e8a-8dee-a91d-1ab5d300c064"
    },
    {
     "key": "1:fault",
@@ -361,7 +391,8 @@
     "tag": "M1_fault",
     "addr": "%I0.1",
     "cmt": "Vstupní pásový dopravník – porucha",
-    "nc": false
+    "nc": false,
+    "guid": "f197ff52-572e-847d-8d64-98b1d3b2c072"
    },
    {
     "key": "1:outRun",
@@ -371,7 +402,8 @@
     "tag": "M1_outRun",
     "addr": "%Q0.0",
     "cmt": "Vstupní pásový dopravník – povel chod",
-    "nc": false
+    "nc": false,
+    "guid": "c3ef5056-9a78-8012-bf6b-e8ca69cd1295"
    },
    {
     "key": "2:fbkRunning",
@@ -381,7 +413,8 @@
     "tag": "M2_fbkRunning",
     "addr": "%I0.2",
     "cmt": "Výstupní pásový dopravník – běh",
-    "nc": false
+    "nc": false,
+    "guid": "8c6c09e7-62fc-8bf3-9f5c-05727965466a"
    },
    {
     "key": "2:fault",
@@ -391,7 +424,8 @@
     "tag": "M2_fault",
     "addr": "%I0.3",
     "cmt": "Výstupní pásový dopravník – porucha",
-    "nc": false
+    "nc": false,
+    "guid": "068d5d1e-f769-8ce7-96f7-74c1ce51b135"
    },
    {
     "key": "2:outRun",
@@ -401,7 +435,8 @@
     "tag": "M2_outRun",
     "addr": "%Q0.1",
     "cmt": "Výstupní pásový dopravník – povel chod",
-    "nc": false
+    "nc": false,
+    "guid": "9cd23fdc-c415-8be9-a54b-12312c2e46ee"
    },
    {
     "key": "3:outRun",
@@ -411,7 +446,8 @@
     "tag": "M3_outRun",
     "addr": "%Q0.2",
     "cmt": "Vibrační podavač dílů – povel chod",
-    "nc": false
+    "nc": false,
+    "guid": "e31bd732-cb3e-80f1-a5b4-a4ca9ef3402e"
    },
    {
     "key": "4:fbkRunning",
@@ -421,7 +457,8 @@
     "tag": "M4_fbkRunning",
     "addr": "%I0.4",
     "cmt": "Čerpadlo hydraulického agregátu – běh",
-    "nc": false
+    "nc": false,
+    "guid": "7048325e-d411-8879-a8c5-0cd4969af950"
    },
    {
     "key": "4:fault",
@@ -431,7 +468,8 @@
     "tag": "M4_fault",
     "addr": "%I0.5",
     "cmt": "Čerpadlo hydraulického agregátu – porucha",
-    "nc": false
+    "nc": false,
+    "guid": "3c8a499e-224b-84ae-8914-4ce68017f335"
    },
    {
     "key": "4:outRun",
@@ -441,7 +479,8 @@
     "tag": "M4_outRun",
     "addr": "%Q0.3",
     "cmt": "Čerpadlo hydraulického agregátu – povel chod",
-    "nc": false
+    "nc": false,
+    "guid": "891785db-812a-8a77-9ef7-7c0a192576c4"
    },
    {
     "key": "5:fbkOpen",
@@ -451,7 +490,8 @@
     "tag": "Y1_fbkOpen",
     "addr": "%I0.6",
     "cmt": "Lisovací válec – otevřeno",
-    "nc": false
+    "nc": false,
+    "guid": "859edeea-b1ae-8c21-8ca6-d70b9989f983"
    },
    {
     "key": "5:fbkClosed",
@@ -461,7 +501,8 @@
     "tag": "Y1_fbkClosed",
     "addr": "%I0.7",
     "cmt": "Lisovací válec – zavřeno",
-    "nc": false
+    "nc": false,
+    "guid": "54868678-42d8-85ea-bee6-0b9d33574b3a"
    },
    {
     "key": "5:outOpen",
@@ -471,7 +512,8 @@
     "tag": "Y1_outOpen",
     "addr": "%Q0.4",
     "cmt": "Lisovací válec – povel otevřít",
-    "nc": false
+    "nc": false,
+    "guid": "2b3c7435-4799-89da-b484-cc1b86ccce37"
    },
    {
     "key": "6:fbkOpen",
@@ -481,7 +523,8 @@
     "tag": "Y2_fbkOpen",
     "addr": "%I1.0",
     "cmt": "Upínací válec levý – otevřeno",
-    "nc": false
+    "nc": false,
+    "guid": "bc945d09-fca9-8654-b6a9-1975e1c17b24"
    },
    {
     "key": "6:fbkClosed",
@@ -491,7 +534,8 @@
     "tag": "Y2_fbkClosed",
     "addr": "%I1.1",
     "cmt": "Upínací válec levý – zavřeno",
-    "nc": false
+    "nc": false,
+    "guid": "bb33dc76-ef5b-851b-aca4-2ee44edbec93"
    },
    {
     "key": "6:outOpen",
@@ -501,7 +545,8 @@
     "tag": "Y2_outOpen",
     "addr": "%Q0.5",
     "cmt": "Upínací válec levý – povel otevřít",
-    "nc": false
+    "nc": false,
+    "guid": "0725b403-3c5c-8eb5-b2f4-a67acebebed6"
    },
    {
     "key": "7:fbkOpen",
@@ -511,7 +556,8 @@
     "tag": "Y3_fbkOpen",
     "addr": "%I1.2",
     "cmt": "Upínací válec pravý – otevřeno",
-    "nc": false
+    "nc": false,
+    "guid": "29b05b25-2746-8c5b-96ae-09d1a143fb77"
    },
    {
     "key": "7:fbkClosed",
@@ -521,7 +567,8 @@
     "tag": "Y3_fbkClosed",
     "addr": "%I1.3",
     "cmt": "Upínací válec pravý – zavřeno",
-    "nc": false
+    "nc": false,
+    "guid": "a5da3fa8-1623-82b9-a0b2-d7a653e9e98e"
    },
    {
     "key": "7:outOpen",
@@ -531,7 +578,8 @@
     "tag": "Y3_outOpen",
     "addr": "%Q0.6",
     "cmt": "Upínací válec pravý – povel otevřít",
-    "nc": false
+    "nc": false,
+    "guid": "202a1331-6060-8d18-bac8-94127e5847af"
    },
    {
     "key": "8:fbkOpen",
@@ -541,7 +589,8 @@
     "tag": "Y4_fbkOpen",
     "addr": "%I1.4",
     "cmt": "Manipulátor — přesuv do lisu – otevřeno",
-    "nc": false
+    "nc": false,
+    "guid": "a4df8139-a637-8648-be58-8b1b5726f390"
    },
    {
     "key": "8:fbkClosed",
@@ -551,7 +600,8 @@
     "tag": "Y4_fbkClosed",
     "addr": "%I1.5",
     "cmt": "Manipulátor — přesuv do lisu – zavřeno",
-    "nc": false
+    "nc": false,
+    "guid": "c4d88792-40df-829e-bbde-2eb7004b1d28"
    },
    {
     "key": "8:outOpen",
@@ -561,7 +611,8 @@
     "tag": "Y4_outOpen",
     "addr": "%Q0.7",
     "cmt": "Manipulátor — přesuv do lisu – povel otevřít",
-    "nc": false
+    "nc": false,
+    "guid": "02a5b831-4ed2-828b-9475-baa1b35684ae"
    },
    {
     "key": "9:fbkOpen",
@@ -571,7 +622,8 @@
     "tag": "Y5_fbkOpen",
     "addr": "%I1.6",
     "cmt": "Vakuová přísavka manipulátoru – otevřeno",
-    "nc": false
+    "nc": false,
+    "guid": "29b3a261-6991-8e95-9b8f-54441e43e9de"
    },
    {
     "key": "9:outOpen",
@@ -581,7 +633,8 @@
     "tag": "Y5_outOpen",
     "addr": "%Q1.0",
     "cmt": "Vakuová přísavka manipulátoru – povel otevřít",
-    "nc": false
+    "nc": false,
+    "guid": "b6dae493-d3e4-87ca-9e87-7f3579c927e8"
    },
    {
     "key": "10:outOpen",
@@ -591,7 +644,8 @@
     "tag": "Y6_outOpen",
     "addr": "%Q1.1",
     "cmt": "Značicí jednotka (razicí válec) – povel otevřít",
-    "nc": false
+    "nc": false,
+    "guid": "39cd10f8-b8be-8e51-92a8-9edff3160931"
    },
    {
     "key": "11:raw",
@@ -601,7 +655,8 @@
     "tag": "B1_raw",
     "addr": "%IW64",
     "cmt": "Tlak hydrauliky – bar",
-    "nc": false
+    "nc": false,
+    "guid": "37737b0a-d158-8951-bc29-58024c41a978"
    },
    {
     "key": "12:raw",
@@ -611,7 +666,8 @@
     "tag": "B2_raw",
     "addr": "%IW66",
     "cmt": "Teplota oleje – °C",
-    "nc": false
+    "nc": false,
+    "guid": "63985592-b3b2-82c4-b6d3-c3c14d0f8813"
    },
    {
     "key": "13:raw",
@@ -621,7 +677,8 @@
     "tag": "B3_raw",
     "addr": "%IW68",
     "cmt": "Lisovací síla (tenzometr) – kN",
-    "nc": false
+    "nc": false,
+    "guid": "702fe975-4de6-8e24-b30d-3c385d061fed"
    },
    {
     "key": "14:raw",
@@ -631,7 +688,8 @@
     "tag": "B4_raw",
     "addr": "%IW70",
     "cmt": "Poloha lisu (lineární snímač) – mm",
-    "nc": false
+    "nc": false,
+    "guid": "f5236c62-3b7c-8dbc-a38e-699b749afa03"
    },
    {
     "key": "15:raw",
@@ -641,7 +699,8 @@
     "tag": "B5_raw",
     "addr": "%IW72",
     "cmt": "Průtok chlazení – l/min",
-    "nc": false
+    "nc": false,
+    "guid": "f1b84d3a-8513-8169-adc2-b34ef6279a61"
    },
    {
     "key": "16:raw",
@@ -651,7 +710,8 @@
     "tag": "U1_raw",
     "addr": "%QW64",
     "cmt": "Proporcionální ventil tlaku – %",
-    "nc": false
+    "nc": false,
+    "guid": "34ac59e3-1e1e-8da4-b2f9-641c2899f4f1"
    },
    {
     "key": "17:raw",
@@ -661,7 +721,8 @@
     "tag": "U2_raw",
     "addr": "%QW66",
     "cmt": "Žádaná rychlost dopravníku M2 – %",
-    "nc": false
+    "nc": false,
+    "guid": "ae894682-83db-83ed-a02b-169e5bd4fa82"
    },
    {
     "key": "18:in",
@@ -671,7 +732,8 @@
     "tag": "S1_in",
     "addr": "%I1.7",
     "cmt": "Nouzové zastavení (NC) – ",
-    "nc": true
+    "nc": true,
+    "guid": "8b789352-2fd2-86ec-b3d1-34e15a0730b1"
    },
    {
     "key": "19:in",
@@ -681,7 +743,8 @@
     "tag": "S2_in",
     "addr": "%I2.0",
     "cmt": "Kryt levý zavřen (NC) – ",
-    "nc": true
+    "nc": true,
+    "guid": "71e10c1d-edb1-86b4-9bcd-fca584a202df"
    },
    {
     "key": "20:in",
@@ -691,7 +754,8 @@
     "tag": "S3_in",
     "addr": "%I2.1",
     "cmt": "Kryt pravý zavřen (NC) – ",
-    "nc": true
+    "nc": true,
+    "guid": "d6c01342-3ca4-888c-9f90-51d4fd755870"
    },
    {
     "key": "21:in",
@@ -701,7 +765,8 @@
     "tag": "S4_in",
     "addr": "%I2.2",
     "cmt": "Světelná závora volná (NC) – ",
-    "nc": true
+    "nc": true,
+    "guid": "a08d0302-ebcf-87d9-9436-69bc8276ec99"
    },
    {
     "key": "22:in",
@@ -711,7 +776,8 @@
     "tag": "S5_in",
     "addr": "%I2.3",
     "cmt": "Dvouruční spouštění — tlačítko A – ",
-    "nc": false
+    "nc": false,
+    "guid": "ec0dc646-1a19-82f6-85f5-d803bae497d3"
    },
    {
     "key": "23:in",
@@ -721,7 +787,8 @@
     "tag": "S6_in",
     "addr": "%I2.4",
     "cmt": "Dvouruční spouštění — tlačítko B – ",
-    "nc": false
+    "nc": false,
+    "guid": "3e19ffcb-fa9c-8c79-b2df-15f322cc752c"
    },
    {
     "key": "24:in",
@@ -731,7 +798,8 @@
     "tag": "S7_in",
     "addr": "%I2.5",
     "cmt": "Díl v pozici pod manipulátorem – ",
-    "nc": false
+    "nc": false,
+    "guid": "5b47ceb8-3633-830f-84ea-1272ad7fe851"
    },
    {
     "key": "25:in",
@@ -741,7 +809,8 @@
     "tag": "S8_in",
     "addr": "%I2.6",
     "cmt": "Zásobník dílů — zásoba OK (snímač minima) – ",
-    "nc": false
+    "nc": false,
+    "guid": "6ae5f836-a364-8913-ba21-5991c51221ef"
    },
    {
     "key": "26:out",
@@ -751,7 +820,8 @@
     "tag": "H1_out",
     "addr": "%Q1.2",
     "cmt": "Maják zelená — chod – ",
-    "nc": false
+    "nc": false,
+    "guid": "ee7ad937-4bd5-8527-8292-2130ac670b3c"
    },
    {
     "key": "27:out",
@@ -761,7 +831,8 @@
     "tag": "H2_out",
     "addr": "%Q1.3",
     "cmt": "Maják červená — porucha – ",
-    "nc": false
+    "nc": false,
+    "guid": "9499a431-8a4b-840c-88b4-3bf3bbc20499"
    },
    {
     "key": "28:out",
@@ -771,7 +842,8 @@
     "tag": "H3_out",
     "addr": "%Q1.4",
     "cmt": "Houkačka — porucha – ",
-    "nc": false
+    "nc": false,
+    "guid": "c29cb88c-af7f-8770-a1f2-382c59ed6c26"
    },
    {
     "key": "29:out",
@@ -781,7 +853,8 @@
     "tag": "H4_out",
     "addr": "%Q1.5",
     "cmt": "Elektromagnetický zámek krytů (zamčeno během cyklu) – ",
-    "nc": false
+    "nc": false,
+    "guid": "fe4cde37-7718-8e97-99f9-fcd1878bb134"
    }
   ],
   "program": {
@@ -975,6 +1048,14 @@
     }
    ]
   },
-  "nextId": 30
+  "nextId": 30,
+  "guid": "4d7da1db-a851-4d03-ba0d-31e0fbe974c0",
+  "moduleGuids": {
+   "DI1": "71be2910-1bcc-4625-8723-e9defc165c48",
+   "DI2": "3dc2f0d2-f51b-4ddd-9e39-d99ac2710884",
+   "DO1": "7d9af84b-a0be-46d7-9e0e-64d29fd68bc1",
+   "AI1": "f2788e4a-9a5e-470b-a506-da0be0bf7f5d",
+   "AO1": "d6031dc4-159d-4db9-a9e0-6c4c360cd3a0"
+  }
  }
 }

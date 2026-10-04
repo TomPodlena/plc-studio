@@ -70,6 +70,10 @@ export declare function contentHash(content: unknown): string;
  * stroje) znovu nespouští. Popisy zařízení a komentáře I/O zůstávají: jsou v textech nálezů
  * ověření a jejich změna má texty obnovit.
  */
+/** Kopie objektu bez pole `guid` (GUID není obsah návrhu — otisky, revize a ověření ho ignorují). */
+export declare function noGuid<T extends {
+    guid?: string;
+}>(o: T): T;
 export declare function designView(prj: Project): Project;
 /** Ověření simulací nad návrhem (sdílená cache s dokumentací a s levným souhrnem). */
 export declare function verifyDesign(prj: Project): VerifyResult;

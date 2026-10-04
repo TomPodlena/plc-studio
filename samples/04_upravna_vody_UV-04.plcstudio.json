@@ -20,7 +20,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "1747207e-bb56-4775-8342-e44d85450e92"
    },
    {
     "id": 2,
@@ -33,7 +34,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "9b8e2207-5ef1-4f60-a2ac-0e6394dab303"
    },
    {
     "id": 3,
@@ -46,7 +48,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "fbcceeab-1f99-41ee-ae5b-5ee1551dbe31"
    },
    {
     "id": 4,
@@ -59,7 +62,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "e4bc42ab-c6f4-426f-a948-5053b71ea5bf"
    },
    {
     "id": 5,
@@ -72,7 +76,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "6257a21b-1815-4f2b-b191-e217731fecec"
    },
    {
     "id": 6,
@@ -85,7 +90,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "f73d46fe-a084-4bae-8611-0def6eda85da"
    },
    {
     "id": 7,
@@ -96,7 +102,8 @@
     "unit": "bar",
     "rmin": 0,
     "rmax": 10,
-    "limHi": 6.0
+    "limHi": 6,
+    "guid": "fb5b0d66-4b3a-4c68-b92e-f0915462bd32"
    },
    {
     "id": 8,
@@ -107,7 +114,8 @@
     "unit": "m3/h",
     "rmin": 0,
     "rmax": 60,
-    "limHi": 50
+    "limHi": 50,
+    "guid": "84fdda78-2d17-48df-b11e-862c2f7c41c1"
    },
    {
     "id": 9,
@@ -118,7 +126,8 @@
     "unit": "m",
     "rmin": 0,
     "rmax": 20,
-    "limLo": 2.0
+    "limLo": 2,
+    "guid": "74c7caf3-327e-4416-b1bf-2b6540cade79"
    },
    {
     "id": 10,
@@ -129,7 +138,8 @@
     "unit": "m",
     "rmin": 0,
     "rmax": 5,
-    "limHi": 4.5
+    "limHi": 4.5,
+    "guid": "c333aa71-f40d-40e1-99f6-24526223d50d"
    },
    {
     "id": 11,
@@ -140,7 +150,8 @@
     "unit": "kPa",
     "rmin": 0,
     "rmax": 100,
-    "limHi": 60
+    "limHi": 60,
+    "guid": "4788c52c-94a1-49c5-8ee5-7ea1b5dd651f"
    },
    {
     "id": 12,
@@ -151,7 +162,8 @@
     "unit": "%",
     "rmin": 0,
     "rmax": 100,
-    "setpoint": 80
+    "setpoint": 80,
+    "guid": "d60d82bc-e2de-415d-a275-664c92c9668e"
    },
    {
     "id": 13,
@@ -161,7 +173,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "ea863b5d-9dd1-4e67-a4e2-92989693250d"
    },
    {
     "id": 14,
@@ -171,7 +184,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "32b0abed-dc17-4ac1-9af7-b145e4d9372d"
    },
    {
     "id": 15,
@@ -181,7 +195,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "0291b079-6858-4b3e-ab30-4ec9d72861d4"
    },
    {
     "id": 16,
@@ -191,7 +206,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "ed01a4ea-f288-4f14-a301-81052822f02c"
    },
    {
     "id": 17,
@@ -201,7 +217,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "041975f4-842b-4ca0-8456-b0c888e793db"
    },
    {
     "id": 18,
@@ -212,7 +229,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "fault"
+    "role": "fault",
+    "guid": "6afe331d-444d-4204-b111-128a8c4f9682"
    }
   ],
   "io": [],
@@ -312,6 +330,14 @@
     }
    ]
   },
-  "nextId": 19
+  "nextId": 19,
+  "guid": "8374c507-3311-4f47-968a-6e3896ad0a99",
+  "moduleGuids": {
+   "DI1": "c8e7e160-8fcc-4ce1-960e-cd1581ee1944",
+   "DI2": "b6e171fb-467b-486f-9c90-447609fb10f2",
+   "DO1": "d008c43a-e322-4220-9118-8d092dfe98cd",
+   "AI1": "7237982a-0d04-485c-aaa2-88bd7e2ba13d",
+   "AO1": "9f8cf4be-7ba6-4cc0-b8cc-3cd1bc06a36d"
+  }
  }
 }

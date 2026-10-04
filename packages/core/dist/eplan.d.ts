@@ -18,6 +18,7 @@
  */
 import { Project, IoModule, Dir } from "./model.js";
 import { type BomLine } from "./bom.js";
+import { type EplanAmlOptions } from "./eplan_aml.js";
 export declare const EPLAN_VERIFIED: string;
 export declare const EPLAN_SOURCES: string[];
 export interface EplanCard {
@@ -47,8 +48,11 @@ export interface EplanTerminal {
 export declare function eplanCards(prj: Project): EplanCard[];
 /** Svorky a vodiče podle výkresů: svorka X<n>:<k>, vodič `wireNo(n, k − 1)` (X1:1 → -W101, X2:1 → -W201 …). */
 export declare function eplanTerminals(prj: Project, cards?: EplanCard[]): EplanTerminal[];
-/** AutomationML AR APC (CAEX 2.15) s PLC, kartami, kanály a symbolickými adresami. */
-export declare function eplanAml(prj: Project, cards?: EplanCard[]): string;
+/**
+ * AutomationML AR APC (CAEX 2.15): stanice, rack, CPU s rozhraním PROFINET, karty, kanály
+ * a symbolické adresy — generátor a kontrola jsou v eplan_aml.ts (`genEplanAml`, `validateEplan`).
+ */
+export declare function eplanAml(prj: Project, cards?: EplanCard[], opts?: EplanAmlOptions): string;
 /** Seznam zařízení z kusovníku: karty rozepsané na -A2.1 …, svorky a kabely v samostatných seznamech. */
 export declare function eplanDevicesCsv(prj: Project, cards?: EplanCard[]): string;
 /** Svorky (-X<n>:<k>) s kartou, kanálem, adresou, symbolickou adresou, cílem a vodičem. */

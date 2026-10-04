@@ -24,7 +24,7 @@
  */
 import { PLAT, CLS, DO_ROLES, devById, interlockDevs, enableInputs } from "./model.js";
 import { tr, N_, formatDate, today } from "./i18n.js";
-import { canonicalJson, fnv1a64, approvalItems, designView } from "./approval.js";
+import { canonicalJson, fnv1a64, approvalItems, designView, noGuid } from "./approval.js";
 import { commissioningPlan, COMMISSION_PHASES } from "./commission.js";
 import { proposeSafety, safetyModuleRegistered } from "./safety.js";
 import { stepTitle } from "./sim.js";
@@ -38,6 +38,11 @@ export function revisionContent(prj) {
     for (const k of CONTENT_KEYS)
         if (prj[k] !== undefined)
             o[k] = prj[k];
+    /* GUID (guid.ts) je identita objektu, ne obsah: doplnění při migraci není změna projektu */
+    if (Array.isArray(o.devices))
+        o.devices = o.devices.map(noGuid);
+    if (Array.isArray(o.io))
+        o.io = o.io.map(noGuid);
     return JSON.parse(canonicalJson(o));
 }
 const contentKey = (prj) => canonicalJson(revisionContent(prj));

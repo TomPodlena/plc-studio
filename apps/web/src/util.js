@@ -1,5 +1,5 @@
 /* Drobné UI utility. */
-import { tr, blankProject, CLS, PLAT } from "../../../packages/core/dist/index.js";
+import { tr, blankProject, CLS, PLAT, isGuid, ensureGuids } from "../../../packages/core/dist/index.js";
 import { aiNorm } from "./ai.js";
 import { normSafety } from "./safety_view.js";
 
@@ -77,6 +77,16 @@ export function normProject(raw) {
   const sf = normSafety(raw.safety);
   if (sf) p.safety = sf;
   p.nextId = Math.max(Number.isFinite(raw.nextId) ? raw.nextId : 1, ...p.devices.map(d => d.id + 1));
+  /* GUID (export EPLAN páruje podle nich): převzít uložené, chybějící doplnit — nikdy při exportu */
+  if (isGuid(raw.guid)) p.guid = raw.guid;
+  if (isObj(raw.moduleGuids)) {
+    const mg = Object.fromEntries(Object.entries(raw.moduleGuids).filter(([, g]) => isGuid(g)));
+    if (Object.keys(mg).length) p.moduleGuids = mg;
+  }
+  /* migrace: starý projekt bez GUID → doplnit; volající ho podle `guidsAdded` uloží (projekt změněn) */
+  const hadGuid = isGuid(raw.guid);
+  const added = ensureGuids(p);
+  Object.defineProperty(p, "guidsAdded", { value: added || !hadGuid, enumerable: false });
   return p;
 }
 

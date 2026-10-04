@@ -1,4 +1,5 @@
 import { N_, tr } from "./i18n.js";
+import { newGuid, fillGuids, moduleKey, ioGuidFor, isGuid } from "./guid.js";
 export const PLAT = {
     siemens: { name: "Siemens SIMATIC", ide: "TIA Portal V17–V21", cpu: "S7-1200 / S7-1500", lang: "SCL", imp: N_("externí zdroje .scl + SimaticML XML (Openness) + TSV tagů") },
     rockwell: { name: "Rockwell Allen-Bradley", ide: "Studio 5000", cpu: "CompactLogix / ControlLogix", lang: "ST", imp: N_("ST rutiny + CSV import tagů / L5X") },
@@ -65,6 +66,7 @@ export function blankProject() {
         program: { modes: true, estop: "", seq: [], interlocks: [] },
         nextId: 1,
         concept: null,
+        guid: newGuid(),
     };
 }
 export function devById(prj, id) {
@@ -163,6 +165,9 @@ export function devSignals(d) {
 export function syncIO(prj) {
     const fresh = [];
     for (const d of prj.devices) {
+        /* nové zařízení dostane GUID hned (z něj se odvozují GUID jeho signálů) */
+        if (!isGuid(d.guid))
+            d.guid = newGuid();
         for (const [sig, dir, lbl] of devSignals(d)) {
             const key = d.id + ":" + sig;
             const old = prj.io.find(e => e.key === key);
@@ -172,11 +177,21 @@ export function syncIO(prj) {
                 addr: "",
                 cmt: [d.desc, lbl].filter(Boolean).join(" – "), // DI/DO bez popisku signálu: bez visící pomlčky
                 nc: dir === "DI" && /\bNC\b/i.test(d.desc || ""),
+                guid: ioGuidFor(d.guid, sig),
             });
         }
     }
     prj.io = fresh;
     autoAddr(prj, false);
+    ensureGuids(prj);
+}
+/**
+ * Doplní chybějící GUID projektu, zařízení, I/O karet a signálů (viz guid.ts); platné nemění.
+ * Vrací true, když něco doplnila — při načtení starého projektu ho volající označí jako změněný.
+ * Export GUID nikdy negeneruje (jen čte); volá se při vzniku objektů (`syncIO`) a při načtení.
+ */
+export function ensureGuids(prj) {
+    return fillGuids(prj, modules(prj));
 }
 /** Doplní (force=true: přepíše) adresy v Siemens notaci. */
 export function autoAddr(prj, force) {
@@ -261,7 +276,11 @@ export function modules(prj) {
         const list = prj.io.filter(e => e.dir === dir).sort((a, b) => addrOrd(a) - addrOrd(b));
         let idx = 1;
         for (let i = 0; i < list.length; i += per[dir]) {
-            mods.push({ dir, idx: idx++, ch: list.slice(i, i + per[dir]) });
+            const m = { dir, idx: idx++, ch: list.slice(i, i + per[dir]) };
+            const g = prj.moduleGuids?.[moduleKey(m)];
+            if (g)
+                m.guid = g;
+            mods.push(m);
         }
     }
     return mods;

@@ -7,18 +7,20 @@
  * (dílčí import programu: AOI + tagy + rutina ST) a k tomu tělo rutiny a Tags.csv.
  *
  * Logika se tu NEPÍŠE znovu: AOI vznikají z týchž šablon ST_MOTOR / ST_VENTIL / … přes
- * `parseFbTemplate()` a `lxDialect()`, hlavní rutina z výstupu `seqBody` / `wiring` /
- * `faultBlock` / `enableExpr` (stejné pořadí jako IEC MAIN, tedy i jako simulátor:
- * enable → sekvence → časovače kroků za CASE → instance → porucha stroje).
+ * `parseFbTemplate()` a `lxDialect()`, hlavní rutina z mezivrstvy `buildIR()` (ir.ts) přes
+ * společné ST renderery (`renderSeq` / `renderWiring` / `renderFault`, volání bloků jako členy
+ * instance — `lxCallIr`), stejné pořadí jako IEC MAIN, tedy i jako simulátor:
+ * enable → sekvence → časovače kroků za CASE → instance → porucha stroje.
  *
  * Zdroje: 1756-PM007 (ST), 1756-RM003 (TONR, FBD_TIMER), 1756-PM010 (AOI), 1756-RM014 (L5X, CSV),
  * 5000-UM004 / 5069-UM005 (tagy modulů 5069). Výstup není ověřen importem ve Studiu 5000.
  */
-import { Project, IoEntry, Dir, DeviceClass, stripDia } from "./model.js";
+import { Project, IoEntry, Dir, stripDia } from "./model.js";
 import {
-  ST_MOTOR, ST_VENTIL, ST_AI, ST_AO, parseFbTemplate, trComments, ctrlDecls, wiring, seqBody,
-  faultBlock, enableExpr,
+  parseFbTemplate, trComments, fbTemplate, stCtx, renderSeq, renderWiring, renderFault, enableText,
+  freeLine, declNote, cmtSafe, stCallNotes, type StCtx,
 } from "./codegen.js";
+import { buildIR, irBlocks, irText, type IrFb, type IrFbClass } from "./ir.js";
 import { trx } from "./i18n.js";
 
 /** Název importovaného programu a jeho hlavní rutiny. */
@@ -29,10 +31,8 @@ export const LX_SOFTWARE_REVISION = "32.00";
 
 /* Pozor: logix.ts a codegen.ts se importují navzájem — na úrovni modulu se proto
    nesmí sahat na konstanty z codegen.ts (šablony se berou až uvnitř funkcí). */
-const tplOf = (cls: string): string | undefined =>
-  ({ Motor: ST_MOTOR, Ventil: ST_VENTIL, AnalogIn: ST_AI, AnalogOut: ST_AO } as Record<string, string>)[cls];
+const tplOf = (cls: IrFbClass): string => fbTemplate(cls, "st");
 const AOI_OF: Record<string, string> = { Motor: "FB_Motor", Ventil: "FB_Ventil", AnalogIn: "FB_AnalogIn", AnalogOut: "FB_AnalogOut" };
-const CLS_OF_AOI: Record<string, string> = { FB_Motor: "Motor", FB_Ventil: "Ventil", FB_AnalogIn: "AnalogIn", FB_AnalogOut: "AnalogOut" };
 
 /** Výchozí hodnoty, které se pro Logix liší od šablony: analogy 5069 dávají REAL 0–100 % (rozsah modulu). */
 const LX_INIT: Record<string, string> = { rawMax: "100.0" };
@@ -196,67 +196,41 @@ export function lxIoType(e: IoEntry): string {
 
 export interface LxTag { name: string; type: string; desc: string; }
 
-/** Programové tagy: uvolnění, řízení stroje (ctrlDecls) a instance AOI. */
+/** Programové tagy: uvolnění, řízení stroje (deklarace IR) a instance AOI. */
 export function lxProgramTags(prj: Project): LxTag[] {
+  const ir = buildIR(prj);
   const out: LxTag[] = [{ name: "enable", type: "BOOL", desc: trx("centrální uvolnění (E-stop TRUE = v pořádku)") }];
-  for (const line of ctrlDecls(prj, "rockwell").split("\n")) {
-    const m = line.match(/^\s*(\w+)\s*:\s*(\w+);\s*(?:\(\*\s*(.*?)\s*\*\))?/);
-    if (m) out.push({ name: m[1], type: m[2] === "TON" ? "FBD_TIMER" : m[2] === "INT" ? "DINT" : m[2], desc: m[3] || "" });
-  }
-  for (const i of wiring(prj, "rockwell").inst) out.push({ name: i.n, type: i.t, desc: "" });
+  for (const d of ir.decls) out.push({ name: d.name, type: d.type === "TON" ? "FBD_TIMER" : d.type === "INT" ? "DINT" : d.type, desc: cmtSafe(declNote(d)).trim() });
+  for (const b of irBlocks(ir)) out.push({ name: b.inst, type: b.fb, desc: "" });
   return out;
 }
 
 /* ---------------------------------------------------------- hlavní rutina */
 
 /**
- * Volání instance IEC `instM1(enable := …, outRun => M1_outRun);` → členy instance Logix:
- * `instM1.enable := …; FB_Motor(instM1); M1_outRun := instM1.outRun;`. Nezapojené vstupy
- * s výchozí hodnotou se přiřadí výslovně (nezávisí na datech tagu po importu).
+ * Volání instance bloku v Logixu: AOI se volá s instancí a parametry jsou její členy —
+ * `instM1.enable := …; FB_Motor(instM1); M1_outRun := instM1.outRun;` (IEC `instM1(… => …)`
+ * Logix nemá). Komentáře zůstávají u vstupu, ke kterému patří (náhrada chybějícího hlášení,
+ * žádaná hodnota), komentář celého volání za voláním. Nezapojené vstupy s výchozí hodnotou se
+ * přiřadí výslovně (nezávisí na datech tagu po importu); nezapojené výstupy se nečtou.
  */
-function lxCall(call: string, types: Map<string, string>): string {
-  const m = /\b(inst\w+)\(/.exec(call);
-  if (!m || !types.has(m[1])) return call;
-  const inst = m[1], aoi = types.get(inst)!;
-  const lineStart = call.lastIndexOf("\n", m.index) + 1;
-  const ind = (call.slice(lineStart, m.index).match(/^[ \t]*/) || [""])[0];
-  const args: Array<{ text: string; cmts: string[] }> = [{ text: "", cmts: [] }];
-  let i = m.index + m[0].length, depth = 1;
-  while (i < call.length && depth > 0) {
-    if (call.startsWith("(*", i)) {
-      const end = call.indexOf("*)", i + 2);
-      const cm = call.slice(i, end + 2);
-      const cur = args[args.length - 1];
-      (cur.text.trim() || args.length === 1 ? cur : args[args.length - 2]).cmts.push(cm);
-      i = end + 2; continue;
-    }
-    const ch = call[i];
-    if (ch === "(") depth++;
-    else if (ch === ")") { if (--depth === 0) break; }
-    else if (ch === "," && depth === 1) { args.push({ text: "", cmts: [] }); i++; continue; }
-    args[args.length - 1].text += ch;
-    i++;
-  }
-  let j = i + 1;
-  while (call[j] === " ") j++;
-  if (call[j] === ";") j++;
-  const trailing = call.slice(j).replace(/^[ \t]*/, "");
+function lxCallIr(b: IrFb, c: StCtx): string {
+  const ind = "    ";
+  const notes = stCallNotes(b, c);
   const ins: string[] = [], outs: string[] = [], wired = new Set<string>();
-  for (const a of args) {
-    const p = a.text.trim().match(/^(\w+)\s*(:=|=>)\s*([\s\S]+)$/);
-    if (!p) continue;
-    const cm = a.cmts.length ? " " + a.cmts.join(" ") : "";
-    wired.add(p[1]);
-    if (p[2] === ":=") ins.push(ind + inst + "." + p[1] + " := " + p[3].trim() + ";" + cm);
-    else if (!/^tempUnused/.test(p[3].trim())) outs.push(ind + p[3].trim() + " := " + inst + "." + p[1] + ";" + cm);
+  for (const p of b.inputs) {
+    wired.add(p.name);
+    const n = notes.port[p.name];
+    ins.push(ind + b.inst + "." + p.name + " := " + irText(p.expr, c) + ";" + (n !== undefined ? " " + c.cm(n) : ""));
   }
-  const cls = CLS_OF_AOI[aoi], tpl = tplOf(cls);
-  if (tpl) for (const v of parseFbTemplate(tpl).vars) {
+  for (const o of b.outputs) if (o.tag) outs.push(ind + c.R(o.tag) + " := " + b.inst + "." + o.name + ";");
+  for (const v of parseFbTemplate(tplOf(b.cls)).vars) {
     if (v.kind === "in" && !wired.has(v.name) && (v.init || LX_INIT[v.name]))
-      ins.push(ind + inst + "." + v.name + " := " + lxInitOf(v.name, lxType(cls, v.type), v.init) + ";");
+      ins.push(ind + b.inst + "." + v.name + " := " + lxInitOf(v.name, lxType(b.cls, v.type), v.init) + ";");
   }
-  const callLine = ind + aoi + "(" + inst + ");" + (trailing ? " " + trailing : "");
-  return call.slice(0, lineStart) + [...ins, callLine, ...outs].join("\n");
+  const callLine = ind + b.fb + "(" + b.inst + ");" + (notes.after !== undefined ? " " + c.cm(notes.after) : "");
+  /* renderWiring odsadí první řádek volání sám (jako `instM1(…` u IEC) */
+  return [...ins, callLine, ...outs].join("\n").slice(ind.length);
 }
 
 /**
@@ -264,35 +238,34 @@ function lxCall(call: string, types: Map<string, string>): string {
  * totéž je v L5X. Tagy jsou v L5X (programové + I/O) a v Tags.csv.
  */
 export function genLogixRoutine(prj: Project): string {
-  const plat = "rockwell" as const;
-  const { inst, calls, free } = wiring(prj, plat);
-  const types = new Map(inst.map(x => [x.n, x.t]));
-  const fault = faultBlock(prj, plat);
+  const ir = buildIR(prj), c = stCtx("rockwell");
   const { spec } = lxIoMap(prj);
-  /* volné signály: místo adres Siemens bod modulu (alias), pokud jde odvodit */
-  const freeLx = free.map(l => {
-    const e = prj.io.find(x => new RegExp("\\s" + x.tag + "\\s").test(l));
-    if (!e) return l;
-    const s = spec.get(e.key);
-    return l.replace(/\(\*\s+%[IQ]W?\d+(?:\.\d+)?\s*/, "(*   ").replace(/\s*\*\)$/, (s ? "  [" + s + "]" : "") + " *)");
+  const { calls, free } = renderWiring(ir, c, {
+    call: b => lxCallIr(b, c),
+    /* volné signály: místo adres Siemens bod modulu (alias), pokud jde odvodit */
+    free: e => {
+      const s = spec.get(e.key);
+      return freeLine(c, e).replace(/\(\*\s+%[IQ]W?\d+(?:\.\d+)?\s*/, "(*   ").replace(/\s*\*\)$/, (s ? "  [" + s + "]" : "") + " *)");
+    },
   });
+  const fault = renderFault(ir, c);
   const body = `(* ${trx("MainRoutine - logika stroje pro Rockwell Logix 5000 (ST), generováno PLCdesk.")}
    ${trx("Jen příkazy: tagy a Add-On Instructions jsou v PLCdesk_Program.L5X (nebo Tags.csv).")}
    ${trx("Návrh k revizi — E-stop je jen informativní signál, bezpečnostní funkce patří do safety obvodu.")} *)
 
-    enable := ${enableExpr(prj, plat)};
+    enable := ${enableText(ir, c)};
 
-${seqBody(prj, plat)}${calls.map(c => lxCall(c, types)).join("\n\n")}${fault ? "\n\n" + fault.trimEnd() : ""}
+${renderSeq(ir, c)}${calls.join("\n\n")}${fault ? "\n\n" + fault.trimEnd() : ""}
 
     (* ${trx("Volné signály (DI/DO) pro vlastní logiku:")} *)
-${freeLx.join("\n") || "    (*   " + trx("žádné") + " *)"}
+${free.join("\n") || "    (*   " + trx("žádné") + " *)"}
 `;
   return lxAscii(lxDialect(body));
 }
 
 /* ------------------------------------------------------------------ AOI */
 
-function aoiXml(cls: DeviceClass): string {
+function aoiXml(cls: IrFbClass): string {
   const tpl = tplOf(cls)!, name = AOI_OF[cls];
   const { vars, body } = parseFbTemplate(tpl);
   const head = (tpl.match(/\(\*([\s\S]*?)\*\)/) || ["", ""])[0];
@@ -352,7 +325,7 @@ export function genRockwellL5X(prj: Project): string {
   x += '<Controller Use="Context" Name="' + LX_PROGRAM + '">\n';
   x += '  <DataTypes Use="Context">\n  </DataTypes>\n';
   x += '  <AddOnInstructionDefinitions Use="Context">\n';
-  for (const c of ["Motor", "Ventil", "AnalogIn", "AnalogOut"] as DeviceClass[]) if (classes.has(c)) x += aoiXml(c);
+  for (const c of ["Motor", "Ventil", "AnalogIn", "AnalogOut"] as IrFbClass[]) if (classes.has(c)) x += aoiXml(c);
   x += "  </AddOnInstructionDefinitions>\n";
   x += '  <Tags Use="Context">\n';
   for (const e of prj.io) {

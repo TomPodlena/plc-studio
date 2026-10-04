@@ -12,7 +12,7 @@
  * `enable` — žádná bezpečnostní logika se tu neodvozuje ani negeneruje.
  */
 import type { Dir, PlatformKey, Project, Device, DeviceClass, IoEntry, SeqStep, SeqAct, DoRole } from "./model.js";
-import { blankProject, devSignals, autoAddr, sanitizeTag, stripDia, roleExpr } from "./model.js";
+import { blankProject, devSignals, autoAddr, sanitizeTag, stripDia, roleExpr, ensureGuids } from "./model.js";
 import { tr, trIn, N_, LANGS, type Lang } from "./i18n.js";
 import {
   parseXml, xmlAll, xmlChild, xmlText, splitDelimited, guessDelimiter, canonAddr, isMemAddr, type XmlNode,
@@ -1794,6 +1794,9 @@ export function inferProject(ex: Extracted, base?: Project): ImportProposal {
       if (d.dev.limHi !== undefined) dev.limHi = d.dev.limHi;
       if (d.dev.limLo !== undefined) dev.limLo = d.dev.limLo;
       if (d.dev.setpoint !== undefined) dev.setpoint = d.dev.setpoint;
+      /* opakovaný import do existujícího projektu: zařízení se stejným označením si nechá GUID */
+      const bd = base?.devices.find(x => up(x.name) === up(d.name));
+      if (bd?.guid) dev.guid = bd.guid;
       prj.devices.push(dev);
       ev("dev:" + d.name, d.conf, d.src.slice(0, 4), d.note);
     }
@@ -2056,6 +2059,7 @@ export function inferProject(ex: Extracted, base?: Project): ImportProposal {
 
   const noAddr = (prj as Project & { _noAddr?: string[] })._noAddr || [];
   delete (prj as Project & { _noAddr?: string[] })._noAddr;
+  ensureGuids(prj);   // GUID nových zařízení, signálů a karet (guid.ts)
   const missing = computeMissing(prj, evidence, { noAddr, enableFound, seqFound, hasCode: pous.length > 0, unparsed: ex.unparsed.map(f => f.name), skipped: ex.skipped });
   return { prj, evidence, conflicts, missing };
 }

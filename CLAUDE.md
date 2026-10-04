@@ -49,7 +49,29 @@ python -m plc_studio --smoke               # projde všechny kroky a skončí
 python scripts/i18n.py check               # texty v kódu × katalogy překladů (viz Vícejazyčnost)
 node scripts/check_samples.mjs [soubor -v]  # příklady samples/: generování 8 platforem + ověření simulací
 node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s)
+node scripts/golden.mjs [--code] [--dump DIR]  # výstupy generátoru × referenční otisky (viz Mezivrstva)
 ```
+
+## Mezivrstva generátoru (ir.ts) a referenční test
+
+- `buildIR(prj)` (`ir.ts`) = program stroje nezávislý na platformě: deklarace řízení (`IR_CTRL`:
+  modeAuto, cmdAutoStart, cmdAck, machineFault, faultStep, seqStep, `manRun_*` / `manOpen_*`),
+  uvolnění, sekvence (operace kroku, povel, podmínka ze `seqCond`, hlídací čas, časovač), instance
+  bloků s typovanými porty a výrazy zapojení, role DO (`roleIr` = `roleExpr`, hlídá test), meze
+  a žádané hodnoty, porucha stroje, pořadí `IR_EVAL_ORDER` (enable → sekvence → časovače → bloky
+  → porucha). Renderery jen píšou text: `codegen.ts` (`stCtx` + `renderSeq` / `renderDecls` /
+  `renderWiring` / `stCall` / `renderFault` / `renderEnable`; Siemens, IEC, Unitronics),
+  `logix.ts` (`lxCallIr`). Logika bloků zůstává v šablonách — text bloku jen přes
+  `fbTemplate(cls, dialekt)` (sem patří i `libraryOverrides`). Starší funkce (`seqBody`,
+  `wiring`, `ctrlDecls`…) jsou obaly nad IR. Příprava 2b/2c (nové třídy, akce kroků, OOP
+  renderer, knihovna) je popsaná v hlavičce `ir.ts`.
+- **Referenční (golden) test** `golden.test.ts` + `scripts/golden.mjs`: otisky SHA-256 všech
+  souborů `genFor` (8 platforem) a `docFiles` pro 12 příkladů + `sampleSmall` / `sampleComplex`
+  × 5 jazyků v `packages/core/test-data/golden/` (pevný čas, výstup je deterministický).
+  **Výstup generátoru se mění jen vědomě:** po záměrné změně `node scripts/golden.mjs --write`
+  (~6 min, dokumentace s ověřením simulací) a v commitu zdůvodnit, co a proč se změnilo.
+  Při refaktoringu musí zůstat zelený beze změny reference (`--dump DIR` uloží plné výstupy
+  pro diff dvou stavů kódu).
 
 ## Funkce stroje v modelu (generátor ↔ simulátor ↔ ověření)
 
@@ -216,6 +238,12 @@ node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s
 ## Konvence a pravidla
 
 - Kanonické adresy I/O v Siemens notaci (%I0.0, %IW64); převody per platforma přes `addrFor()`.
+- **GUID objektů** (`guid.ts`, export EPLAN AML v2 `eplan_aml.ts` podle nich páruje opakovaný import):
+  `Project.guid`, `Device.guid`, `Project.moduleGuids` (karta = klíč DI1, DO2…), `IoEntry.guid` (odvozený
+  ze zařízení + signálu). Přidělují se při vzniku (`blankProject`, `syncIO`, import), chybějící doplní
+  `ensureGuids()` při načtení (projekt pak uložit); **export je nikdy negeneruje**. Nový objekt / místo
+  vzniku projektu = zajistit GUID; kopie zařízení dostane nový. Otisky schvalování a revize GUID ignorují
+  (`noGuid`), výstupy `genFor` ho nečtou. `samples/` mají GUID uložené.
 - Tagy: `<Zařízení>_<signál>`; `sanitizeTag()`/`validateProject()` hlídá přenositelnost (ASCII pro
   Rockwell/GX Works3/Sysmac). Generovaný kód: stavové automaty s timeouty, statusy 16#0000/8001/8002.
 - Výkresy: jedna geometrie (ops) → SVG náhled + DXF R12; konvence ECAD (rámeček, popisové pole,

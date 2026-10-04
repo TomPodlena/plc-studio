@@ -42,6 +42,8 @@ export interface Device {
     role?: DoRole;
     /** typ z firemní knihovny (`LibDeviceType.id`, viz library.ts) */
     libType?: string;
+    /** Trvalý identifikátor (viz guid.ts) — přidělen jednou při vzniku, export ho jen čte. */
+    guid?: string;
 }
 export interface IoEntry {
     key: string;
@@ -52,6 +54,8 @@ export interface IoEntry {
     addr: string;
     cmt: string;
     nc?: boolean;
+    /** Trvalý identifikátor (viz guid.ts): odvozený z GUID zařízení a signálu při vzniku řádku. */
+    guid?: string;
 }
 export interface SeqStep {
     dev: number;
@@ -103,6 +107,10 @@ export interface Project {
     library?: CompanyLibrary;
     /** Revize projektu (nejstarší první): zmrazený obsah a stav schválení (viz revision.ts). */
     revisions?: RevisionRecord[];
+    /** Trvalý identifikátor projektu (viz guid.ts) — přidělen v `blankProject`, export ho jen čte. */
+    guid?: string;
+    /** GUID I/O karet podle klíče karty „<směr><pořadí>“ (DI1, DO2…; viz `modules()` a guid.ts). */
+    moduleGuids?: Record<string, string>;
 }
 export interface BomLineCfg {
     brand?: string;
@@ -121,6 +129,8 @@ export interface IoModule {
     dir: Dir;
     idx: number;
     ch: IoEntry[];
+    /** GUID karty z `Project.moduleGuids` (karta nemá v modelu vlastní objekt — identita = DI1, DO2…). */
+    guid?: string;
 }
 export declare const PLAT: Record<PlatformKey, PlatformInfo>;
 /** Tabulka platforem s texty v nastaveném jazyce (`PLAT` drží české klíče překladu). */
@@ -170,6 +180,12 @@ export declare function devSignals(d: Device): Array<[sig: string, dir: Dir, lab
  * projektu, při přepnutí jazyka se nepřekládá.
  */
 export declare function syncIO(prj: Project): void;
+/**
+ * Doplní chybějící GUID projektu, zařízení, I/O karet a signálů (viz guid.ts); platné nemění.
+ * Vrací true, když něco doplnila — při načtení starého projektu ho volající označí jako změněný.
+ * Export GUID nikdy negeneruje (jen čte); volá se při vzniku objektů (`syncIO`) a při načtení.
+ */
+export declare function ensureGuids(prj: Project): boolean;
 /** Doplní (force=true: přepíše) adresy v Siemens notaci. */
 export declare function autoAddr(prj: Project, force: boolean): void;
 export declare function dtFor(e: IoEntry): "BOOL" | "INT";

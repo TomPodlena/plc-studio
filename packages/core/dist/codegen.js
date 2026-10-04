@@ -2,31 +2,19 @@
  * PLCdesk — generování zdrojových souborů programu pro cílové platformy.
  * Siemens: SCL (external sources) + SimaticML XML + TSV tagů.
  * Ostatní: IEC 61131-3 ST + platformní soubor tagů (GVL / CSV / tab).
+ *
+ * Hlavní program se skládá z mezivrstvy `buildIR()` (ir.ts): tady jsou renderery IR do ST
+ * (Siemens SCL, IEC ST, plochý ST Unitronics); Logix ST píše logix.ts nad stejným IR.
+ * Šablony bloků (SCL_* / ST_*) zůstávají zdrojem logiky bloků.
  */
-import { PLAT, devById, ioOf, usedClasses, instName, dtFor, addrFor, xmlEsc, stripDia, enableInputs, interlockDevs, isDiWait, roleExpr, } from "./model.js";
+import { PLAT, usedClasses, dtFor, addrFor, xmlEsc, stripDia, } from "./model.js";
+import { buildIR, irText, cmdIr, IR_CTRL, } from "./ir.js";
+/* pomocné funkce sekvence a řízení žijí v ir.ts; odsud se dál exportují (veřejné API jádra) */
+export { limitedAnalogs, waitedDis, actuators, seqVarOf, manVarOf, seqVars, seqCond, seqTimedSteps, } from "./ir.js";
 /** Role výstupů — krátké popisky do komentářů generovaného kódu (trx). */
 const DO_ROLE_TECH = {
     run: N_("chod"), fault: N_("porucha"), ready: N_("připraveno"), stopped: N_("stop"), lock: N_("zámek krytů"), auto: N_("AUTO"),
 };
-/** Analogové vstupy s mezemi — jejich alarm je součástí poruchy stroje. */
-export function limitedAnalogs(prj) {
-    return prj.devices.filter(d => d.cls === "AnalogIn" && (Number.isFinite(d.limHi) || Number.isFinite(d.limLo)));
-}
-/** Alarmové výstupy bloků analogů s mezemi (`instB1.alarmHi`…). */
-function alarmRefs(prj, L) {
-    const out = [];
-    for (const d of limitedAnalogs(prj)) {
-        if (Number.isFinite(d.limHi))
-            out.push(L(instName(d)) + ".alarmHi");
-        if (Number.isFinite(d.limLo))
-            out.push(L(instName(d)) + ".alarmLo");
-    }
-    return out;
-}
-/** Digitální vstupy, na které čeká sekvence. */
-export function waitedDis(prj) {
-    return new Set(prj.program.seq.filter(isDiWait).map(s => s.dev));
-}
 import { tr, trx, N_, getLang } from "./i18n.js";
 import { genPLCopenXML } from "./plcopen.js";
 import { genRockwellL5X, genLogixRoutine, genLogixTagsCsv, lxSlotText, LX_PROGRAM, LX_SOFTWARE_REVISION } from "./logix.js";
@@ -396,6 +384,18 @@ ELSIF rawReal > INT_TO_REAL(rawMax) THEN
 END_IF;
 rawValue := REAL_TO_INT(rawReal);
 END_FUNCTION_BLOCK`;
+const FB_TEMPLATES = {
+    scl: { Motor: SCL_MOTOR, Ventil: SCL_VENTIL, AnalogIn: SCL_AI, AnalogOut: SCL_AO },
+    st: { Motor: ST_MOTOR, Ventil: ST_VENTIL, AnalogIn: ST_AI, AnalogOut: ST_AO },
+};
+/**
+ * Šablona bloku třídy — jediné místo, kde renderery (Gen_Library, AOI v L5X, plochá logika
+ * Unitronics) berou zdroj logiky bloku. Sem se ve fázi 2c napojí vlastní šablony z firemní
+ * knihovny (`libraryOverrides`, stejné rozhraní); simulace dál zrcadlí vestavěné šablony.
+ */
+export function fbTemplate(cls, dialect) {
+    return FB_TEMPLATES[dialect][cls];
+}
 /* ------------------------------------------------ překlad komentářů šablon */
 /* Šablony jsou konstanty modulu (čte je parseFbTemplate, simulátor i testy), proto se
    nepřekládají při sestavení, ale až ve výstupu: `trComments()` přeloží těla komentářů.
@@ -493,50 +493,14 @@ function fmtR(v) {
     }
     return Number.isInteger(n) ? n + ".0" : String(n);
 }
-/* --------------------------------------------------------------- sekvence */
-/** Zařízení s funkčním blokem a povelem (motory, ventily). */
-export function actuators(prj) {
-    return prj.devices.filter(d => d.cls === "Motor" || d.cls === "Ventil");
-}
-/** Proměnná povelu ze sekvence / ručního povelu z HMI pro dané zařízení. */
-export function seqVarOf(d) { return (d.cls === "Motor" ? "seqRun_" : "seqOpen_") + d.name; }
-export function manVarOf(d) { return (d.cls === "Motor" ? "manRun_" : "manOpen_") + d.name; }
-export function seqVars(prj) {
-    const vars = new Set();
-    for (const s of prj.program.seq) {
-        const d = devById(prj, s.dev);
-        if (d && (d.cls === "Motor" || d.cls === "Ventil"))
-            vars.add(seqVarOf(d));
-    }
-    return [...vars];
-}
-export function seqCond(prj, s) {
-    if (s.act === "wait" || (s.cond === "time" && !isDiWait(s)))
-        return { kind: "time" };
-    const d = devById(prj, s.dev);
-    if (!d)
-        return { kind: "none" };
-    const io = ioOf(prj, d);
-    if (isDiWait(s)) { // čekání na snímač / tlačítko (hlídací čas = timeS)
-        const e = d.cls === "DI" ? (io.in || Object.values(io)[0]) : undefined;
-        return e ? { kind: "fbk", io: e, neg: s.act === "waitOff" } : { kind: "none" };
-    }
-    if (d.cls === "Motor")
-        return io.fbkRunning ? { kind: "fbk", io: io.fbkRunning, neg: s.act !== "start" } : { kind: "none" };
-    if (d.cls === "Ventil") {
-        if (s.act === "open" && io.fbkOpen)
-            return { kind: "fbk", io: io.fbkOpen };
-        if (s.act === "close" && io.fbkClosed)
-            return { kind: "fbk", io: io.fbkClosed };
-    }
-    return { kind: "none" };
-}
-/** Kroky s časovačem: výdrž / přechod časem, nebo hlídání kroku se zpětným hlášením. */
-export function seqTimedSteps(prj) {
-    const list = [];
-    prj.program.seq.forEach((s, i) => { if (seqCond(prj, s).kind !== "none")
-        list.push(10 + i * 10); });
-    return list;
+export function stCtx(plat) {
+    const sie = plat === "siemens";
+    return {
+        plat, sie, L: locFn(plat), R: refFn(plat), real: fmtR,
+        cm: sie ? (t) => "// " + t : (t) => "(* " + cmtSafe(t) + " *)",
+        /* plochá logika Unitronics: stav instance je v globálních tazích s předponou instance */
+        ...(plat === "unitronics" ? { M: (inst, port) => inst + "_" + port } : {}),
+    };
 }
 /**
  * Časový literál IEC: celé sekundy `T#5S`, jinak sekundy + milisekundy `T#1S500MS`
@@ -547,61 +511,59 @@ export function timeLit(seconds) {
     const s = Math.floor(ms / 1000), rest = ms % 1000;
     return rest ? "T#" + (s ? s + "S" : "") + rest + "MS" : "T#" + s + "S";
 }
-export function seqBody(prj, plat) {
-    const L = locFn(plat), R = refFn(plat);
-    const steps = prj.program.seq;
-    if (!steps.length)
+/** Sekvence (CASE) a časovače kroků z IR. */
+export function renderSeq(ir, c) {
+    const seq = ir.seq;
+    if (!seq)
         return "";
+    const L = c.L, C = IR_CTRL, x = (e) => irText(e, c);
     const semi = ";"; // GX Works3, Sysmac a Logix vyžadují END_IF;
-    const cmt = plat === "siemens" ? (t) => "// " + t : (t) => "(* " + cmtSafe(t) + " *)";
-    let b = "    " + cmt("--- " + trx("Automatická sekvence (režim AUTO)") + " ---") + "\n";
-    b += "    " + cmt(trx("Vypnutí AUTO, ztráta uvolnění nebo porucha stroje: sekvence do kroku 0, povely vypnout")) + "\n";
-    b += "    IF NOT " + L("modeAuto") + " OR NOT " + L("enable") + " OR " + L("machineFault") + " THEN\n";
-    b += "        " + L("seqStep") + " := 0;\n";
-    for (const v of seqVars(prj))
+    let b = "    " + c.cm("--- " + trx("Automatická sekvence (režim AUTO)") + " ---") + "\n";
+    b += "    " + c.cm(trx("Vypnutí AUTO, ztráta uvolnění nebo porucha stroje: sekvence do kroku 0, povely vypnout")) + "\n";
+    b += "    IF " + x(seq.abort) + " THEN\n";
+    b += "        " + L(C.seqStep) + " := 0;\n";
+    for (const v of seq.outputs)
         b += "        " + L(v) + " := FALSE;\n";
     b += "    END_IF;\n\n";
-    b += "    CASE " + L("seqStep") + " OF\n";
-    b += "        0: " + cmt(trx("čekání na start")) + "\n";
-    b += "            IF " + L("modeAuto") + " AND " + L("enable") + " AND NOT " + L("machineFault") + " AND " + L("cmdAutoStart") + " THEN " + L("seqStep") + " := 10; END_IF" + semi + "\n";
-    steps.forEach((s, i) => {
-        const n = 10 + i * 10, next = (i === steps.length - 1) ? 0 : 10 + (i + 1) * 10;
-        const d = devById(prj, s.dev);
-        const c = seqCond(prj, s);
-        let title = trx("krok"), action = "";
-        if (s.act === "wait")
-            title = trx("výdrž {t} s", { t: s.timeS || 1 });
-        else if (isDiWait(s))
-            title = s.act === "waitOn" ? trx("čekat na {dev}", { dev: d ? d.name : "?" }) : trx("čekat na {dev} = FALSE", { dev: d ? d.name : "?" });
-        else if (d && d.cls === "Motor") {
-            title = s.act === "start" ? trx("{dev} start", { dev: d.name }) : trx("{dev} stop", { dev: d.name });
-            action = "            " + L(seqVarOf(d)) + " := " + (s.act === "start" ? "TRUE" : "FALSE") + ";\n";
+    b += "    CASE " + L(C.seqStep) + " OF\n";
+    b += "        0: " + c.cm(trx("čekání na start")) + "\n";
+    b += "            IF " + x(seq.start) + " THEN " + L(C.seqStep) + " := 10; END_IF" + semi + "\n";
+    for (const s of seq.steps) {
+        const dev = s.dev ? s.dev.name : "?";
+        const title = s.op === "dwell" ? trx("výdrž {t} s", { t: s.timeS }) :
+            s.op === "waitOn" ? trx("čekat na {dev}", { dev }) :
+                s.op === "waitOff" ? trx("čekat na {dev} = FALSE", { dev }) :
+                    s.op === "run" ? trx("{dev} start", { dev }) :
+                        s.op === "stop" ? trx("{dev} stop", { dev }) :
+                            s.op === "open" ? trx("{dev} otevřít", { dev }) :
+                                s.op === "close" ? trx("{dev} zavřít", { dev }) : trx("krok");
+        b += "        " + s.n + ": " + c.cm(trx("Krok {n}: {title}", { n: s.index + 1, title })) + "\n";
+        if (s.set)
+            b += "            " + L(s.set.var) + " := " + (s.set.value ? "TRUE" : "FALSE") + ";\n";
+        const go = L(C.seqStep) + " := " + s.next + ";";
+        if (s.cond.kind === "time") {
+            b += "            IF " + L(s.timer) + ".Q THEN " + go + " END_IF" + semi + "\n";
         }
-        else if (d && d.cls === "Ventil") {
-            title = s.act === "open" ? trx("{dev} otevřít", { dev: d.name }) : trx("{dev} zavřít", { dev: d.name });
-            action = "            " + L(seqVarOf(d)) + " := " + (s.act === "open" ? "TRUE" : "FALSE") + ";\n";
-        }
-        b += "        " + n + ": " + cmt(trx("Krok {n}: {title}", { n: i + 1, title })) + "\n" + action;
-        const go = L("seqStep") + " := " + next + ";";
-        if (c.kind === "time") {
-            b += "            IF " + L("tonSeq" + n) + ".Q THEN " + go + " END_IF" + semi + "\n";
-        }
-        else if (c.kind === "fbk") {
-            b += "            IF " + (c.neg ? "NOT " : "") + R(c.io.tag) + " THEN " + go + "\n";
-            b += "            ELSIF " + L("tonSeq" + n) + ".Q THEN " + L("machineFault") + " := TRUE; " + L("faultStep") + " := " + n + "; " + cmt(trx("timeout kroku {t} s", { t: s.timeS || 1 })) + "\n";
+        else if (s.cond.kind === "fbk") {
+            b += "            IF " + (s.cond.neg ? "NOT " : "") + c.R(s.cond.io.tag) + " THEN " + go + "\n";
+            b += "            ELSIF " + L(s.timer) + ".Q THEN " + L(C.machineFault) + " := TRUE; " + L(C.faultStep) + " := " + s.n + "; " + c.cm(trx("timeout kroku {t} s", { t: s.timeS })) + "\n";
             b += "            END_IF" + semi + "\n";
         }
         else {
-            const why = d && d.cls === "Ventil" ? trx("bez koncového snímače") : d && d.cls === "Motor" ? trx("bez zpětného hlášení") : trx("bez podmínky");
-            b += "            IF TRUE THEN " + go + " END_IF" + semi + " " + cmt(why) + "\n";
+            const cls = s.dev && s.dev.cls;
+            const why = cls === "Ventil" ? trx("bez koncového snímače") : cls === "Motor" ? trx("bez zpětného hlášení") : trx("bez podmínky");
+            b += "            IF TRUE THEN " + go + " END_IF" + semi + " " + c.cm(why) + "\n";
         }
-    });
+    }
     b += "    END_CASE;\n\n";
-    for (const n of seqTimedSteps(prj)) {
-        const s = prj.program.seq[(n - 10) / 10];
-        b += "    " + L("tonSeq" + n) + "(IN := (" + L("seqStep") + " = " + n + "), PT := " + timeLit(s.timeS || 1) + ");\n";
+    for (const s of seq.steps) {
+        if (s.timer)
+            b += "    " + L(s.timer) + "(IN := (" + L(C.seqStep) + " = " + s.n + "), PT := " + timeLit(s.timeS) + ");\n";
     }
     return b + "\n";
+}
+export function seqBody(prj, plat) {
+    return renderSeq(buildIR(prj), stCtx(plat));
 }
 /* Surový rozsah analogu dle platformy (typický modul; TODO ověřit podle skutečného modulu).
    Předává se vždy — FX5 nezná počáteční hodnoty a výchozí 27648 je rozsah Siemens. */
@@ -615,131 +577,155 @@ function rawMaxArg(plat) {
 export function cmtSafe(t) {
     return stripDia(t).replace(/[–—]/g, "-").replace(/[\r\n]+/g, " ").replace(/\(\*/g, "( *").replace(/\*\)/g, "* )");
 }
+/** Text komentáře deklarace řízení (přeložený, s „TODO:" u vstupů z HMI); bez komentáře "". */
+export function declNote(d) {
+    return d.note ? (d.todo ? "TODO: " : "") + trx(d.note) : "";
+}
+/** Typ deklarace v ST platformy (časovač kroku v SCL = TON_TIME). */
+function declType(t, sie) {
+    return t === "TON" ? (sie ? "TON_TIME" : "TON") : t;
+}
+/** Deklarace řízení stroje z IR: režimy, kvitace, ruční povely, porucha a sekvence. */
+export function renderDecls(ir, c) {
+    return ir.decls.map(d => {
+        const head = d.name + " : " + declType(d.type, c.sie) + ";";
+        if (!d.note)
+            return "    " + head;
+        /* pevné proměnné řízení zarovnané do sloupce, ruční povely (proměnná délka) ne */
+        return "    " + (d.group === "man" ? head : head.padEnd(20)) + "  " + c.cm(declNote(d));
+    }).join("\n");
+}
 /** Deklarace řízení stroje: režimy, kvitace, ruční povely, porucha a sekvence. */
 export function ctrlDecls(prj, plat) {
-    const out = [];
-    const hasSeq = prj.program.seq.length > 0, acts = actuators(prj);
-    const c = (t) => plat === "siemens" ? "// " + t : "(* " + cmtSafe(t) + " *)";
-    if (hasSeq) {
-        out.push("    modeAuto : BOOL;      " + c("TODO: " + trx("přepínač režimu (HMI); FALSE = ruční režim")));
-        out.push("    cmdAutoStart : BOOL;  " + c("TODO: " + trx("tlačítko start auto")));
-    }
-    /* stejná podmínka jako u faultBlock / roleExpr: meze analogů a DO s vazbou na stav stroje */
-    if (hasSeq || acts.length || limitedAnalogs(prj).length || prj.devices.some(d => d.cls === "DO" && d.role)) {
-        out.push("    cmdAck : BOOL;        " + c("TODO: " + trx("tlačítko kvitace poruchy (HMI)")));
-        out.push("    machineFault : BOOL;  " + c(trx("porucha stroje (chyba bloku / timeout kroku); drží do kvitace")));
-    }
-    for (const d of acts)
-        out.push("    " + manVarOf(d) + " : BOOL;  " + c("TODO: " + (hasSeq ? trx("ruční povel z HMI (platí při vypnutém AUTO)") : trx("ruční povel z HMI"))));
-    if (hasSeq) {
-        out.push("    faultStep : INT;      " + c(trx("krok sekvence, ve kterém vypršel čas (diagnostika)")));
-        out.push("    seqStep : INT;");
-        for (const v of seqVars(prj))
-            out.push("    " + v + " : BOOL;");
-        for (const n of seqTimedSteps(prj))
-            out.push("    tonSeq" + n + " : " + (plat === "siemens" ? "TON_TIME" : "TON") + ";");
-    }
-    return out.join("\n");
+    return renderDecls(buildIR(prj), stCtx(plat));
 }
 /** Výraz „povel zapnout": sekvence NEBO ruční povel (v ručním režimu). */
 export function cmdExpr(prj, plat, d) {
-    const L = locFn(plat);
-    if (!prj.program.seq.length)
-        return L(manVarOf(d));
-    const man = "(" + L(manVarOf(d)) + " AND NOT " + L("modeAuto") + ")";
-    return seqVars(prj).includes(seqVarOf(d)) ? L(seqVarOf(d)) + " OR " + man : man;
+    return irText(cmdIr(prj, d), stCtx(plat));
 }
 /** Zachycení poruchy bloků a kvitace — volá se ZA instancemi (čerstvé výstupy error). */
-export function faultBlock(prj, plat) {
-    const L = locFn(plat), acts = actuators(prj);
-    const alarms = alarmRefs(prj, L);
-    if (!acts.length && !prj.program.seq.length && !alarms.length)
+export function renderFault(ir, c) {
+    const f = ir.fault;
+    if (!f)
         return "";
-    const cmt = plat === "siemens" ? (t) => "// " + t : (t) => "(* " + cmtSafe(t) + " *)";
-    const anyErr = [...acts.map(d => L(instName(d)) + ".error"), ...alarms].join(" OR ");
-    let b = "    " + cmt("--- " + trx("Porucha stroje a kvitace") + " ---") + "\n";
+    const L = c.L, C = IR_CTRL;
+    const anyErr = f.errors.map(e => irText(e, c)).join(" OR ");
+    let b = "    " + c.cm("--- " + trx("Porucha stroje a kvitace") + " ---") + "\n";
     if (anyErr)
-        b += "    IF " + anyErr + " THEN " + L("machineFault") + " := TRUE; END_IF;\n";
-    b += "    IF " + L("cmdAck") + (anyErr ? " AND NOT (" + anyErr + ")" : "") + " THEN " + L("machineFault") + " := FALSE;" +
-        (prj.program.seq.length ? " " + L("faultStep") + " := 0;" : "") + " END_IF;\n";
+        b += "    IF " + anyErr + " THEN " + L(C.machineFault) + " := TRUE; END_IF;\n";
+    b += "    IF " + L(C.cmdAck) + (anyErr ? " AND NOT (" + anyErr + ")" : "") + " THEN " + L(C.machineFault) + " := FALSE;" +
+        (f.resetFaultStep ? " " + L(C.faultStep) + " := 0;" : "") + " END_IF;\n";
     return b;
 }
-export function wiring(prj, plat) {
-    const R = refFn(plat), L = locFn(plat);
+export function faultBlock(prj, plat) {
+    return renderFault(buildIR(prj), stCtx(plat));
+}
+/** Pomocná proměnná pro nezapojený výstup bloku (jinak varování IDE). */
+export function tempVarOf(t) { return t === "INT" ? "tempUnused2" : "tempUnused"; }
+/** Meze AnalogIn v argumentech volání; FX5 nezná počáteční hodnoty → předat vždy (jinak 0 = trvalá porucha). */
+function limArgs(b, c) {
+    const allLim = c.plat === "mitsubishi", x = (n) => irText(b.inputs.find(p => p.name === n).expr, c);
+    const has = (n) => b.inputs.some(p => p.name === n);
+    return (has("limitHi") ? ", limitHi := " + x("limitHi") : allLim ? ", limitHi := 1.0E+6" : "")
+        + (has("limitLo") ? ", limitLo := " + x("limitLo") : allLim ? ", limitLo := -1.0E+6" : "");
+}
+/**
+ * Komentáře volání bloku (text bez značek komentáře): `port` = za vstupem (náhrada chybějícího
+ * hlášení, žádaná hodnota), `after` = za celým voláním (AnalogIn: jednotky a mez). Společné
+ * pro zápis IEC / SCL (`stCall`) i Logix (členy instance), aby komentáře seděly stejně.
+ */
+export function stCallNotes(b, c) {
+    const port = {};
+    if (b.cls === "Motor" && b.inputs.some(p => p.name === "fbkRunning" && p.src === "default"))
+        port.fbkRunning = trx("bez zpětného hlášení");
+    if (b.cls === "AnalogOut")
+        port.value = b.setpoint !== undefined ? trx("žádaná hodnota") + " " + (b.dev.unit || "") : "TODO: " + trx("žádaná hodnota");
+    if (b.cls === "AnalogIn") {
+        const lim = limArgs(b, c);
+        return { port, after: (b.dev.unit || trx("jednotky dle snímače")) + (lim ? "; " + trx("překročení meze = porucha stroje") : "") };
+    }
+    return { port };
+}
+/** Volání instance bloku v IEC ST / SCL (`instM1(enable := …, outRun => …);`). */
+export function stCall(b, c) {
+    const L = c.L, x = (n) => irText(b.inputs.find(p => p.name === n).expr, c);
+    const outOf = (n) => { const o = b.outputs.find(p => p.name === n); return o.tag ? c.R(o.tag) : L(tempVarOf(o.type)); };
+    const notes = stCallNotes(b, c);
+    /* analogy: zhuštěné rozložení (škálování na jednom řádku), rawMax dle platformy */
+    if (b.cls === "AnalogIn") {
+        return L(b.inst) + "(rawValue := " + x("rawValue") + ",\n" +
+            "        scaleMin := " + x("scaleMin") + ", scaleMax := " + x("scaleMax") + rawMaxArg(c.plat) + limArgs(b, c) + "); " + c.cm(notes.after);
+    }
+    if (b.cls === "AnalogOut") {
+        return L(b.inst) + "(value := " + x("value") + ", " + c.cm(notes.port.value) + "\n" +
+            "        scaleMin := " + x("scaleMin") + ", scaleMax := " + x("scaleMax") + rawMaxArg(c.plat) + ",\n" +
+            "        rawValue => " + outOf("rawValue") + ");";
+    }
+    /* obecné rozložení (i pro nové třídy): port na řádek, komentář za čárkou */
+    const parts = [
+        ...b.inputs.map(p => ({ text: p.name + " := " + irText(p.expr, c), note: notes.port[p.name] })),
+        ...b.outputs.map(o => ({ text: o.name + " => " + outOf(o.name), note: undefined })),
+    ];
+    return L(b.inst) + "(" + parts.map((p, i) => i < parts.length - 1
+        ? p.text + "," + (p.note ? " " + c.cm(p.note) : "") + "\n        "
+        : p.text + ");").join("") + (notes.after !== undefined ? " " + c.cm(notes.after) : "");
+}
+/** Titulek zařízení v komentáři nad voláním (IEC / SCL). */
+function devTitle(d) {
+    return (d.name + (d.desc ? " – " + d.desc : "")).replace(/[\r\n]+/g, " ");
+}
+/** Přiřazení výstupu s rolí (stav stroje). */
+function roleLine(c, tag, role, expr) {
+    return c.R(tag) + " := " + expr + "; " + c.cm(trx("vazba na stav stroje: {role}", { role: trx(DO_ROLE_TECH[role]) }));
+}
+/** Řádek volného signálu (komentář s adresou platformy) v IEC ST / SCL. */
+export function freeLine(c, e) {
+    const sie = c.sie;
+    return "    " + (sie ? "//" : "(*") + "   " + ((sie ? e.addr : addrFor(c.plat, e)) || "").padEnd(8) + " " + c.R(e.tag) + "  " + (sie ? e.cmt : cmtSafe(e.cmt) + " *)");
+}
+/**
+ * Instance, volání bloků / rolí a volné signály z IR (pořadí zařízení; bez vstupů uvolnění).
+ * `o.call` / `o.free` = jiný zápis volání bloku / řádku volného signálu (Logix).
+ */
+export function renderWiring(ir, c, o = {}) {
+    const call = o.call || ((b) => stCall(b, c)), freeOf = o.free || ((e) => freeLine(c, e));
     const inst = [], calls = [], free = [];
-    const cm = (t) => plat === "siemens" ? "// " + t : "(* " + cmtSafe(t) + " *)";
-    const locked = new Set([...interlockDevs(prj).map(d => d.id), prj.program.estop]); // E-stop a blokování jsou v enable, ne volné
-    const waited = waitedDis(prj);
-    for (const d of prj.devices) {
-        if (locked.has(d.id))
-            continue;
-        const io = ioOf(prj, d);
-        const title = (d.name + (d.desc ? " – " + d.desc : "")).replace(/[\r\n]+/g, " ");
-        const c = plat === "siemens" ? "    // " + title : "    (* " + cmtSafe(title) + " *)";
-        if (d.cls === "Motor") {
-            inst.push({ n: instName(d), t: "FB_Motor" });
-            const cmd = cmdExpr(prj, plat, d);
-            calls.push(c + "\n    " + L(instName(d)) + "(enable := " + L("enable") + ",\n" +
-                "        cmdStart := " + cmd + ",\n" +
-                "        cmdStop := NOT (" + cmd + "),\n" +
-                "        reset := " + L("cmdAck") + ",\n" +
-                "        fbkRunning := " + (io.fbkRunning ? R(io.fbkRunning.tag) : "TRUE") + "," + (io.fbkRunning ? "" : " " + cm(trx("bez zpětného hlášení"))) + "\n" +
-                "        fault := " + (io.fault ? R(io.fault.tag) : "FALSE") + ",\n" +
-                "        outRun => " + (io.outRun ? R(io.outRun.tag) : L("tempUnused")) + ");");
+    for (const it of ir.devices) {
+        const title = "    " + c.cm(devTitle(it.dev));
+        if (it.kind === "fb") {
+            inst.push({ n: it.inst, t: it.fb });
+            calls.push(title + "\n    " + call(it));
         }
-        else if (d.cls === "Ventil") {
-            inst.push({ n: instName(d), t: "FB_Ventil" });
-            const cmd = cmdExpr(prj, plat, d);
-            calls.push(c + "\n    " + L(instName(d)) + "(enable := " + L("enable") + ",\n" +
-                "        cmdOpen := " + cmd + ",\n" +
-                "        cmdClose := NOT (" + cmd + "),\n" +
-                "        reset := " + L("cmdAck") + ",\n" +
-                "        fbkOpen := " + (io.fbkOpen ? R(io.fbkOpen.tag) : "TRUE") + ",\n" +
-                "        fbkClosed := " + (io.fbkClosed ? R(io.fbkClosed.tag) : "TRUE") + ",\n" +
-                "        outOpen => " + (io.outOpen ? R(io.outOpen.tag) : L("tempUnused")) + ");");
+        else if (it.kind === "role") {
+            const expr = irText(it.expr, c);
+            for (const e of it.outs)
+                calls.push(title + "\n    " + roleLine(c, e.tag, it.role, expr));
         }
-        else if (d.cls === "AnalogIn") {
-            inst.push({ n: instName(d), t: "FB_AnalogIn" });
-            /* FX5 nepodporuje počáteční hodnoty proměnných → meze předat vždy (jinak 0 = trvalá porucha) */
-            const allLim = plat === "mitsubishi";
-            const lim = (Number.isFinite(d.limHi) ? ", limitHi := " + fmtR(d.limHi) : allLim ? ", limitHi := 1.0E+6" : "")
-                + (Number.isFinite(d.limLo) ? ", limitLo := " + fmtR(d.limLo) : allLim ? ", limitLo := -1.0E+6" : "");
-            calls.push(c + "\n    " + L(instName(d)) + "(rawValue := " + (io.raw ? R(io.raw.tag) : "0") + ",\n" +
-                "        scaleMin := " + fmtR(d.rmin) + ", scaleMax := " + fmtR(d.rmax) + rawMaxArg(plat) + lim + "); " +
-                cm((d.unit || trx("jednotky dle snímače")) + (lim ? "; " + trx("překročení meze = porucha stroje") : "")));
+        else if (it.kind === "free") {
+            for (const e of it.io)
+                free.push(freeOf(e));
         }
-        else if (d.cls === "AnalogOut") {
-            inst.push({ n: instName(d), t: "FB_AnalogOut" });
-            const sp = Number.isFinite(d.setpoint);
-            calls.push(c + "\n    " + L(instName(d)) + "(value := " + (sp ? fmtR(d.setpoint) : "0.0") + ", " + cm(sp ? trx("žádaná hodnota") + " " + (d.unit || "") : "TODO: " + trx("žádaná hodnota")) + "\n" +
-                "        scaleMin := " + fmtR(d.rmin) + ", scaleMax := " + fmtR(d.rmax) + rawMaxArg(plat) + ",\n" +
-                "        rawValue => " + (io.raw ? R(io.raw.tag) : L("tempUnused2")) + ");");
-        }
-        else if (d.cls === "DO" && d.role) {
-            for (const e of Object.values(io)) {
-                calls.push(c + "\n    " + R(e.tag) + " := " + roleExpr(d.role, prj.program.seq.length > 0, L) + "; " + cm(trx("vazba na stav stroje: {role}", { role: trx(DO_ROLE_TECH[d.role]) })));
-            }
-        }
-        else if (d.cls === "DI" && waited.has(d.id)) {
-            continue; // vstup čte sekvence (krok čekání)
-        }
-        else {
-            for (const e of Object.values(io)) {
-                free.push("    " + (plat === "siemens" ? "//" : "(*") + "   " + ((plat === "siemens" ? e.addr : addrFor(plat, e)) || "").padEnd(8) + " " + R(e.tag) + "  " + (plat === "siemens" ? e.cmt : cmtSafe(e.cmt) + " *)"));
-            }
-        }
+        /* enableInput: čte enable; seqInput: čte krok čekání */
     }
     return { inst, calls, free };
 }
+export function wiring(prj, plat) {
+    return renderWiring(buildIR(prj), stCtx(plat));
+}
+/** Nezapojené výstupy bloků → potřebné pomocné proměnné (BOOL / INT). */
+export function irUnused(ir) {
+    const outs = ir.devices.flatMap(it => it.kind === "fb" ? it.outputs.filter(o => !o.tag) : []);
+    return { bool: outs.some(o => tempVarOf(o.type) === "tempUnused"), int: outs.some(o => tempVarOf(o.type) === "tempUnused2") };
+}
 /**
- * Výraz centrálního uvolnění: E-stop AND blokovací vstupy (kryty, závory…) + komentář.
+ * Výraz centrálního uvolnění: E-stop AND blokovací vstupy (kryty, závory…) + poznámka.
  * FALSE kteréhokoli vstupu = enable FALSE → bloky vypnou výstupy, sekvence do kroku 0.
  */
-export function enableExpr(prj, plat) {
-    const R = refFn(plat), sie = plat === "siemens";
-    const ins = enableInputs(prj);
+export function renderEnable(ir, c) {
+    const sie = c.sie;
+    const ins = ir.enable.inputs;
     if (!ins.length)
-        return "TRUE " + (sie ? "// TODO: " + trx("napojit bezpečnostní okruh!") : "(* TODO: " + stripDia(trx("napojit bezpečnostní okruh!")) + " *)");
+        return { expr: "TRUE", note: "TODO: " + (sie ? trx("napojit bezpečnostní okruh!") : stripDia(trx("napojit bezpečnostní okruh!"))) };
     const notes = [];
     if (ins.some(x => x.estop))
         notes.push(sie ? trx("E-stop NC: TRUE = OK — doplň celý bezpečnostní okruh!")
@@ -751,7 +737,15 @@ export function enableExpr(prj, plat) {
         const t = trx("blokování {list}: FALSE = stroj stojí", { list: il.map(x => x.dev.name).join(", ") });
         notes.push(sie ? t : stripDia(t));
     }
-    return ins.map(x => R(x.io.tag)).join(" AND ") + " " + (sie ? "// " + notes.join("; ") : "(* " + notes.join("; ") + " *)");
+    return { expr: ins.map(x => c.R(x.tag)).join(" AND "), note: notes.join("; ") };
+}
+/** Uvolnění jako text pro přiřazení `enable := …` (výraz + komentář). */
+export function enableText(ir, c) {
+    const e = renderEnable(ir, c);
+    return e.expr + " " + (c.sie ? "// " + e.note : "(* " + e.note + " *)");
+}
+export function enableExpr(prj, plat) {
+    return enableText(buildIR(prj), stCtx(plat));
 }
 /* ------------------------------------------------------- soubory: Siemens */
 /** Kultura komentáře tagu v SimaticML — musí být mezi jazyky projektu TIA (Project languages). */
@@ -782,24 +776,24 @@ export function genLibrary(prj, plat) {
         ? "// Gen_Library.scl – " + trx("knihovna šablon (generováno PLCdesk)") + "\n// " + trx("Import: External source files → Generate blocks from source (PŘED Gen_Main)")
         : "(* Gen_Library.st - " + stripDia(trx("knihovna šablon (generováno PLCdesk)")) + " - " + PLAT[plat].name + " *)";
     parts.push(hdr, "");
-    const T = plat === "siemens"
-        ? { Motor: SCL_MOTOR, Ventil: SCL_VENTIL, AnalogIn: SCL_AI, AnalogOut: SCL_AO }
-        : { Motor: ST_MOTOR, Ventil: ST_VENTIL, AnalogIn: ST_AI, AnalogOut: ST_AO };
+    const dia = plat === "siemens" ? "scl" : "st";
     /* komentáře šablon se překládají až tady; IEC ST zůstává bez diakritiky */
     const fix = plat === "siemens" ? undefined : stripDia;
     for (const c of ["Motor", "Ventil", "AnalogIn", "AnalogOut"])
         if (u.has(c))
-            parts.push(trComments(T[c], fix), "");
+            parts.push(trComments(fbTemplate(c, dia), fix), "");
     if (parts.length <= 2)
         parts.push(plat === "siemens" ? "// (" + trx("žádné instancované třídy zařízení") + ")" : "(* " + cmtSafe(trx("žádné instancované třídy zařízení")) + " *)");
     return parts.join("\n");
 }
 export function genMainSiemens(prj) {
-    const { inst, calls, free } = wiring(prj, "siemens");
-    const decl = ctrlDecls(prj, "siemens"), fault = faultBlock(prj, "siemens");
+    const ir = buildIR(prj), c = stCtx("siemens");
+    const { inst, calls, free } = renderWiring(ir, c);
+    const decl = renderDecls(ir, c), fault = renderFault(ir, c), en = renderEnable(ir, c);
     let v = inst.map(i => '    ' + i.n + ' : "' + i.t + '";').join("\n");
     if (decl)
         v += (v ? "\n" : "") + decl;
+    const tmp = tmpDecl(ir, "Bool", "Int");
     return `// ${trx("Gen_Main.scl – strojní blok (multi-instance). Import PO Gen_Library.scl.")}
 
 FUNCTION_BLOCK "FB_Machine"
@@ -812,11 +806,11 @@ VAR
     enable : Bool;
 ${v || "    // " + trx("žádné instance")}
 END_VAR
-${tmpDecl(calls, "Bool", "Int") ? "VAR_TEMP" + tmpDecl(calls, "Bool", "Int") + "\nEND_VAR\n" : ""}
+${tmp ? "VAR_TEMP" + tmp + "\nEND_VAR\n" : ""}
 BEGIN
     #enable := #enableIn;
 
-${seqBody(prj, "siemens")}${calls.join("\n\n") || "    ;"}${fault ? "\n\n" + fault.trimEnd() : ""}
+${renderSeq(ir, c)}${calls.join("\n\n") || "    ;"}${fault ? "\n\n" + fault.trimEnd() : ""}
 
     // ${trx("Volné signály (DI/DO) pro vlastní logiku:")}
 ${free.join("\n") || "    //   (" + trx("žádné") + ")"}
@@ -829,8 +823,8 @@ BEGIN
 END_DATA_BLOCK
 
 (* --- ${trx("Vložit do OB1 (Main)")} ---------------------------------
-   "InstMachine"(enableIn := ${enableExpr(prj, "siemens").split("//")[0].trim()});
-   // ${enableExpr(prj, "siemens").split("//").slice(1).join("//").trim()}
+   "InstMachine"(enableIn := ${en.expr});
+   // ${en.note.trim()}
    ----------------------------------------------------------- *)`;
 }
 /* ----------------------------------------------------------- soubory: IEC */
@@ -844,13 +838,14 @@ export function genGVL(prj, plat) {
     return lines.join("\n");
 }
 /** Deklarace pomocných proměnných jen pro výstupy, které se nečtou (jinak varování IDE). */
-function tmpDecl(calls, b, i) {
-    const all = calls.join("\n");
-    return (/\btempUnused\b/.test(all) ? "\n    tempUnused : " + b + ";" : "") + (/\btempUnused2\b/.test(all) ? "\n    tempUnused2 : " + i + ";" : "");
+function tmpDecl(ir, b, i) {
+    const u = irUnused(ir);
+    return (u.bool ? "\n    " + tempVarOf("BOOL") + " : " + b + ";" : "") + (u.int ? "\n    " + tempVarOf("INT") + " : " + i + ";" : "");
 }
 export function genMainIEC(prj, plat) {
-    const { inst, calls, free } = wiring(prj, plat);
-    const decl = ctrlDecls(prj, plat), fault = faultBlock(prj, plat);
+    const ir = buildIR(prj), c = stCtx(plat);
+    const { inst, calls, free } = renderWiring(ir, c);
+    const decl = renderDecls(ir, c), fault = renderFault(ir, c);
     let v = inst.map(i => "    " + i.n + " : " + i.t + ";").join("\n");
     if (decl)
         v += (v ? "\n" : "") + decl;
@@ -858,12 +853,12 @@ export function genMainIEC(prj, plat) {
 PROGRAM MAIN
 VAR
     enable : BOOL;
-${v || "    (* " + stripDia(trx("žádné instance")) + " *)"}${tmpDecl(calls, "BOOL", "INT")}
+${v || "    (* " + stripDia(trx("žádné instance")) + " *)"}${tmpDecl(ir, "BOOL", "INT")}
 END_VAR
 
-enable := ${enableExpr(prj, plat)};
+enable := ${enableText(ir, c)};
 
-${seqBody(prj, plat)}${calls.join("\n\n") || ";"}${fault ? "\n\n" + fault.trimEnd() : ""}
+${renderSeq(ir, c)}${calls.join("\n\n") || ";"}${fault ? "\n\n" + fault.trimEnd() : ""}
 
 (* ${stripDia(trx("Volné signály (DI/DO) pro vlastní logiku:"))} *)
 ${free.join("\n") || "(*   " + stripDia(trx("žádné")) + " *)"}
@@ -1030,26 +1025,29 @@ export function inlineFb(tpl, inst, wired, outs) {
     return uniDialect(lines.map(l => l ? "    " + l : l).join("\n"));
 }
 const UNI_TYPE = { BOOL: "BIT", INT: "INT16", WORD: "UINT16", REAL: "REAL", TON: "TON" };
-const FB_TPL = { Motor: ST_MOTOR, Ventil: ST_VENTIL, AnalogIn: ST_AI, AnalogOut: ST_AO };
+/**
+ * Zařazení zařízení v ploché logice Unitronics: vstupy uvolnění se nerozepisují, jen E-stop
+ * se počítá podle svého zařazení bez uvolnění (vypisuje se i mezi volnými signály).
+ */
+function uniItems(ir) {
+    return ir.devices.flatMap(it => it.kind !== "enableInput" ? [it] : it.estop ? [it.alt] : []);
+}
 /** Tagy k založení v UniLogic: fyzické I/O + stav programu (řízení, instance, časovače). */
 export function uniTags(prj) {
+    const ir = buildIR(prj);
     const out = [];
     for (const e of prj.io)
         out.push({ name: e.tag, type: dtFor(e) === "INT" ? "INT16" : "BIT", group: "I/O " + e.dir, hint: e.addr, cmt: (e.cmt || "").replace(/\s*[–—-]\s*$/, "") });
     /* názvy skupin: stejné klíče dosazuje do svého textu README (genReadme) */
     const gProg = trx("Program"), gTimer = trx("Program – časovač"), gBlock = trx("Blok");
     out.push({ name: "enable", type: "BIT", group: gProg, hint: "", cmt: trx("centrální uvolnění (E-stop TRUE = v pořádku)") });
-    for (const line of ctrlDecls(prj, "unitronics").split("\n")) {
-        const m = line.match(/^\s*(\w+)\s*:\s*(\w+);\s*(?:\(\*\s*(.*?)\s*\*\))?/);
-        if (m)
-            out.push({ name: m[1], type: UNI_TYPE[m[2]] || m[2], group: m[2] === "TON" ? gTimer : gProg, hint: "", cmt: m[3] || "" });
-    }
-    for (const d of prj.devices) {
-        const tpl = FB_TPL[d.cls];
-        if (!tpl)
+    for (const d of ir.decls)
+        out.push({ name: d.name, type: UNI_TYPE[d.type] || d.type, group: d.type === "TON" ? gTimer : gProg, hint: "", cmt: cmtSafe(declNote(d)).trim() });
+    for (const b of uniItems(ir)) {
+        if (b.kind !== "fb")
             continue;
-        for (const v of parseFbTemplate(tpl).vars) {
-            out.push({ name: instName(d) + "_" + v.name, type: UNI_TYPE[v.type] || v.type, group: v.type === "TON" ? gTimer : gBlock + " " + d.name, hint: "", cmt: d.name + ": " + v.name });
+        for (const v of parseFbTemplate(fbTemplate(b.cls, "st")).vars) {
+            out.push({ name: b.inst + "_" + v.name, type: UNI_TYPE[v.type] || v.type, group: v.type === "TON" ? gTimer : gBlock + " " + b.dev.name, hint: "", cmt: b.dev.name + ": " + v.name });
         }
     }
     return out;
@@ -1063,62 +1061,58 @@ export function genUnitronicsTags(prj) {
 }
 /** Logika stroje jako tělo jedné ST funkce pro UniLogic (stav v globálních tazích). */
 export function genMainUnitronics(prj) {
-    const plat = "unitronics";
-    const parts = [];
+    const ir = buildIR(prj), c = stCtx("unitronics");
+    const x = (b, n) => irText(b.inputs.find(p => p.name === n).expr, c);
+    const parts = [], free = [];
     /* komentáře šablony se překládají až PO rozepsání — inlineFb přepisuje názvy proměnných
        i uvnitř komentářů a přeložený text by mohl některý z nich obsahovat (reset, error…) */
-    const fb = (tpl, inst, wired, outs) => trComments(inlineFb(tpl, inst, wired, outs), stripDia);
-    for (const d of prj.devices) {
-        const io = ioOf(prj, d), inst = instName(d);
+    const fb = (b, skip = []) => {
+        const wired = {}, outs = {};
+        for (const p of b.inputs)
+            if (!skip.includes(p.name))
+                wired[p.name] = irText(p.expr, c);
+        for (const o of b.outputs)
+            if (o.tag)
+                outs[o.name] = o.tag;
+        return trComments(inlineFb(fbTemplate(b.cls, "st"), b.inst, wired, outs), stripDia);
+    };
+    for (const it of uniItems(ir)) {
+        const d = it.dev;
         const title = "    (* " + cmtSafe(d.name + (d.desc ? " - " + d.desc : "")) + " *)";
-        if (d.cls === "Motor") {
-            const cmd = cmdExpr(prj, plat, d);
-            parts.push(title + "\n" + fb(ST_MOTOR, inst, {
-                enable: "enable", cmdStart: cmd, cmdStop: "NOT (" + cmd + ")", reset: "cmdAck",
-                fbkRunning: io.fbkRunning ? io.fbkRunning.tag : "TRUE", fault: io.fault ? io.fault.tag : "FALSE",
-            }, io.outRun ? { outRun: io.outRun.tag } : {}));
+        if (it.kind === "fb" && (it.cls === "Motor" || it.cls === "Ventil")) {
+            parts.push(title + "\n" + fb(it));
         }
-        else if (d.cls === "Ventil") {
-            const cmd = cmdExpr(prj, plat, d);
-            parts.push(title + "\n" + fb(ST_VENTIL, inst, {
-                enable: "enable", cmdOpen: cmd, cmdClose: "NOT (" + cmd + ")", reset: "cmdAck",
-                fbkOpen: io.fbkOpen ? io.fbkOpen.tag : "TRUE", fbkClosed: io.fbkClosed ? io.fbkClosed.tag : "TRUE",
-            }, io.outOpen ? { outOpen: io.outOpen.tag } : {}));
+        else if (it.kind === "fb" && it.cls === "AnalogIn") {
+            const tag = it.inst + "_value";
+            parts.push(title + "  (* " + (d.unit ? trx("hodnota v {unit}: {tag}", { unit: d.unit, tag }) : trx("hodnota v jednotkách snímače: {tag}", { tag })) + " *)\n" + fb(it));
         }
-        else if (d.cls === "AnalogIn") {
-            const tag = inst + "_value";
-            parts.push(title + "  (* " + (d.unit ? trx("hodnota v {unit}: {tag}", { unit: d.unit, tag }) : trx("hodnota v jednotkách snímače: {tag}", { tag })) + " *)\n" + fb(ST_AI, inst, {
-                rawValue: io.raw ? io.raw.tag : "0", scaleMin: fmtR(d.rmin), scaleMax: fmtR(d.rmax),
-                ...(Number.isFinite(d.limHi) ? { limitHi: fmtR(d.limHi) } : {}), ...(Number.isFinite(d.limLo) ? { limitLo: fmtR(d.limLo) } : {}),
-            }, {}));
+        else if (it.kind === "fb" && it.cls === "AnalogOut") {
+            /* žádaná hodnota se zapisuje přímo do tagu value (bez ní ji zapisuje uživatel) */
+            const sp = it.setpoint !== undefined;
+            parts.push(title + "  (* " + (sp ? trx("žádaná hodnota") + " " + (d.unit || "") : "TODO: " + trx("žádanou hodnotu zapisuj do {tag}", { tag: it.inst + "_value" })) + " *)\n"
+                + (sp ? "    " + it.inst + "_value := " + x(it, "value") + ";\n" : "") + fb(it, ["value"]));
         }
-        else if (d.cls === "AnalogOut") {
-            const sp = Number.isFinite(d.setpoint);
-            parts.push(title + "  (* " + (sp ? trx("žádaná hodnota") + " " + (d.unit || "") : "TODO: " + trx("žádanou hodnotu zapisuj do {tag}", { tag: inst + "_value" })) + " *)\n"
-                + (sp ? "    " + inst + "_value := " + fmtR(d.setpoint) + ";\n" : "") + fb(ST_AO, inst, {
-                scaleMin: fmtR(d.rmin), scaleMax: fmtR(d.rmax),
-            }, io.raw ? { rawValue: io.raw.tag } : {}));
+        else if (it.kind === "role") {
+            const expr = irText(it.expr, c);
+            for (const e of it.outs)
+                parts.push(title + "  (* " + trx("vazba na stav stroje: {role}", { role: trx(DO_ROLE_TECH[it.role]) }) + " *)\n    "
+                    + e.tag + " := " + expr + ";");
         }
-        else if (d.cls === "DO" && d.role) {
-            for (const e of Object.values(io))
-                parts.push(title + "  (* " + trx("vazba na stav stroje: {role}", { role: trx(DO_ROLE_TECH[d.role]) }) + " *)\n    "
-                    + e.tag + " := " + roleExpr(d.role, prj.program.seq.length > 0, v => v) + ";");
+        else if (it.kind === "free") {
+            for (const e of it.io)
+                free.push("    (*   " + e.tag + "  " + (e.cmt || "") + " *)");
         }
     }
-    const locked = new Set(interlockDevs(prj).map(d => d.id));
-    const waited = waitedDis(prj);
-    const free = prj.devices.filter(d => (d.cls === "DI" || d.cls === "DO") && !locked.has(d.id) && !waited.has(d.id) && !(d.cls === "DO" && d.role))
-        .flatMap(d => Object.values(ioOf(prj, d)).map(e => "    (*   " + e.tag + "  " + (e.cmt || "") + " *)"));
-    const fault = faultBlock(prj, plat).replace(/\b(inst\w+)\.(error|alarmHi|alarmLo)\b/g, "$1_$2");
+    const fault = renderFault(ir, c);
     /* texty jsou tu s diakritikou — čisté ASCII z nich (i z překladu) dělá až uniAscii() na konci */
     const st = `(* ${trx(`Machine.st - logika stroje pro Unitronics UniLogic (UniStream), jazyk ST.
    Generováno PLCdesk. Obsah vlož do JEDNÉ ST funkce volané každý scan.
    ST funkce v UniLogic nemá vlastní paměť: všechny tagy z Tags.csv založ jako
    GLOBÁLNÍ. Bloky zařízení jsou proto rozepsané přímo zde (předpona instX_).`)} *)
 
-    enable := ${enableExpr(prj, plat)};
+    enable := ${enableText(ir, c)};
 
-${seqBody(prj, plat)}${parts.join("\n\n") || "    ;"}${fault ? "\n\n" + fault.trimEnd() : ""}
+${renderSeq(ir, c)}${parts.join("\n\n") || "    ;"}${fault ? "\n\n" + fault.trimEnd() : ""}
 
     (* ${trx("Volné signály (DI/DO) pro vlastní logiku:")} *)
 ${free.join("\n") || "    (*   " + trx("žádné") + " *)"}

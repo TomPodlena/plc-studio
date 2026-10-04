@@ -20,7 +20,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "ff4aebf6-4e0d-4d6a-9bdc-cf78312bef99"
    },
    {
     "id": 2,
@@ -33,7 +34,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "a59def1d-d7a2-4996-b5ae-60b9b9a4ee7f"
    },
    {
     "id": 3,
@@ -46,7 +48,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "739d6e18-cad7-4634-aead-f54e1d99b13a"
    },
    {
     "id": 4,
@@ -57,7 +60,8 @@
     "unit": "%",
     "rmin": 0,
     "rmax": 100,
-    "limHi": 90
+    "limHi": 90,
+    "guid": "3ce9ae48-7e42-4ff7-835b-c41e9829be73"
    },
    {
     "id": 5,
@@ -68,7 +72,8 @@
     "unit": "°C",
     "rmin": 0,
     "rmax": 100,
-    "limHi": 80
+    "limHi": 80,
+    "guid": "4c355bda-d631-49f4-8568-0464604995d0"
    },
    {
     "id": 6,
@@ -78,7 +83,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "9b3c9008-e06c-4cbf-87eb-1b3aa6186067"
    },
    {
     "id": 7,
@@ -88,7 +94,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "4b524786-9fc6-484f-ae1c-5c4caf1bb4d7"
    },
    {
     "id": 8,
@@ -98,7 +105,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "8fdad31c-49a9-4330-9ca2-1581aa7f9576"
    },
    {
     "id": 9,
@@ -109,7 +117,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "run"
+    "role": "run",
+    "guid": "2992d03b-848f-431a-9079-a234778cee8c"
    },
    {
     "id": 10,
@@ -120,7 +129,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "fault"
+    "role": "fault",
+    "guid": "07505432-3eba-40db-b7b9-b22176e54e19"
    }
   ],
   "io": [],
@@ -182,6 +192,12 @@
     }
    ]
   },
-  "nextId": 11
+  "nextId": 11,
+  "guid": "8b1a7935-d462-4580-91fc-21669b1963e6",
+  "moduleGuids": {
+   "DI1": "e718cb26-ddab-46fe-b756-df7f8ce0cbd9",
+   "DO1": "29787c37-ff33-4d54-88ee-10bb7c11af47",
+   "AI1": "25f79a31-2cc2-4f30-bc2e-03b87ed711f7"
+  }
  }
 }

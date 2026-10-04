@@ -10,6 +10,7 @@ import type { RevisionRecord } from "./revision.js";
 import type { QuoteCfg } from "./quote.js";
 import type { CompanyLibrary } from "./library.js";
 import { N_, tr } from "./i18n.js";
+import { newGuid, fillGuids, moduleKey, ioGuidFor, isGuid } from "./guid.js";
 
 export type PlatformKey =
   | "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics";
@@ -42,6 +43,8 @@ export interface Device {
   role?: DoRole;
   /** typ z firemní knihovny (`LibDeviceType.id`, viz library.ts) */
   libType?: string;
+  /** Trvalý identifikátor (viz guid.ts) — přidělen jednou při vzniku, export ho jen čte. */
+  guid?: string;
 }
 
 export interface IoEntry {
@@ -53,6 +56,8 @@ export interface IoEntry {
   addr: string;   // kanonicky v Siemens notaci (%I0.0, %IW64); pro ostatní platformy převádí addrFor()
   cmt: string;
   nc?: boolean;   // jen DI: rozpínací kontakt (bezpečnostní prvky)
+  /** Trvalý identifikátor (viz guid.ts): odvozený z GUID zařízení a signálu při vzniku řádku. */
+  guid?: string;
 }
 
 export interface SeqStep { dev: number; act: SeqAct; cond: SeqCond; timeS: number; }
@@ -94,6 +99,10 @@ export interface Project {
   library?: CompanyLibrary;
   /** Revize projektu (nejstarší první): zmrazený obsah a stav schválení (viz revision.ts). */
   revisions?: RevisionRecord[];
+  /** Trvalý identifikátor projektu (viz guid.ts) — přidělen v `blankProject`, export ho jen čte. */
+  guid?: string;
+  /** GUID I/O karet podle klíče karty „<směr><pořadí>“ (DI1, DO2…; viz `modules()` a guid.ts). */
+  moduleGuids?: Record<string, string>;
 }
 
 export interface BomLineCfg { brand?: string; type?: string; orderCode?: string; supplier?: string; qty?: number; note?: string; }
@@ -103,7 +112,11 @@ export interface BomCfg {
   lines?: Record<string, BomLineCfg>;
 }
 
-export interface IoModule { dir: Dir; idx: number; ch: IoEntry[]; }
+export interface IoModule {
+  dir: Dir; idx: number; ch: IoEntry[];
+  /** GUID karty z `Project.moduleGuids` (karta nemá v modelu vlastní objekt — identita = DI1, DO2…). */
+  guid?: string;
+}
 
 export const PLAT: Record<PlatformKey, PlatformInfo> = {
   siemens:    { name: "Siemens SIMATIC", ide: "TIA Portal V17–V21", cpu: "S7-1200 / S7-1500", lang: "SCL", imp: N_("externí zdroje .scl + SimaticML XML (Openness) + TSV tagů") },
@@ -178,6 +191,7 @@ export function blankProject(): Project {
     program: { modes: true, estop: "", seq: [], interlocks: [] },
     nextId: 1,
     concept: null,
+    guid: newGuid(),
   };
 }
 
@@ -269,6 +283,8 @@ export function devSignals(d: Device): Array<[sig: string, dir: Dir, label: stri
 export function syncIO(prj: Project): void {
   const fresh: IoEntry[] = [];
   for (const d of prj.devices) {
+    /* nové zařízení dostane GUID hned (z něj se odvozují GUID jeho signálů) */
+    if (!isGuid(d.guid)) d.guid = newGuid();
     for (const [sig, dir, lbl] of devSignals(d)) {
       const key = d.id + ":" + sig;
       const old = prj.io.find(e => e.key === key);
@@ -278,11 +294,22 @@ export function syncIO(prj: Project): void {
         addr: "",
         cmt: [d.desc, lbl].filter(Boolean).join(" – "),   // DI/DO bez popisku signálu: bez visící pomlčky
         nc: dir === "DI" && /\bNC\b/i.test(d.desc || ""),
+        guid: ioGuidFor(d.guid, sig),
       });
     }
   }
   prj.io = fresh;
   autoAddr(prj, false);
+  ensureGuids(prj);
+}
+
+/**
+ * Doplní chybějící GUID projektu, zařízení, I/O karet a signálů (viz guid.ts); platné nemění.
+ * Vrací true, když něco doplnila — při načtení starého projektu ho volající označí jako změněný.
+ * Export GUID nikdy negeneruje (jen čte); volá se při vzniku objektů (`syncIO`) a při načtení.
+ */
+export function ensureGuids(prj: Project): boolean {
+  return fillGuids(prj, modules(prj));
 }
 
 /** Doplní (force=true: přepíše) adresy v Siemens notaci. */
@@ -352,7 +379,10 @@ export function modules(prj: Project): IoModule[] {
     const list = prj.io.filter(e => e.dir === dir).sort((a, b) => addrOrd(a) - addrOrd(b));
     let idx = 1;
     for (let i = 0; i < list.length; i += per[dir]) {
-      mods.push({ dir, idx: idx++, ch: list.slice(i, i + per[dir]) });
+      const m: IoModule = { dir, idx: idx++, ch: list.slice(i, i + per[dir]) };
+      const g = prj.moduleGuids?.[moduleKey(m)];
+      if (g) m.guid = g;
+      mods.push(m);
     }
   }
   return mods;

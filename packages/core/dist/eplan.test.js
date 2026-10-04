@@ -63,7 +63,10 @@ test("EPLAN: všech 12 příkladů — AutomationML well-formed, tagy a kanály 
         assert.ok(aml.includes('DocumentIdentifier="AR APC" Version="1.4.0"'));
         const tags = [...aml.matchAll(/<ExternalInterface Name="([^"]+)" ID="([^"]+)" RefBaseClassPath="AutomationProjectConfigurationInterfaceClassLib\/Tag">/g)];
         const chans = [...aml.matchAll(/RefBaseClassPath="AutomationProjectConfigurationInterfaceClassLib\/Channel"/g)];
-        const links = [...aml.matchAll(/<InternalLink Name="[^"]+" RefPartnerSideA="([^":]+):([^"]+)" RefPartnerSideB="([^":]+):([^"]+)" \/>/g)];
+        /* vazby kanál ↔ tag (Link_<tag>); vazba uzlu PROFINET na podsíť se počítá zvlášť */
+        const links = [...aml.matchAll(/<InternalLink Name="Link_([^"]+)" RefPartnerSideA="([^":]+):([^"]+)" RefPartnerSideB="([^":]+):([^"]+)" \/>/g)]
+            .filter(m => !m[1].startsWith("PN_IE_")).map(m => [m[0], m[2], m[3], m[4], m[5]]);
+        assert.equal([...aml.matchAll(/<InternalLink Name="Link_PN_IE_1_E1"/g)].length, 1, n + ": uzel PROFINET ↔ podsíť");
         assert.equal(tags.length, p.io.length, n + ": tag na každý signál");
         assert.equal(chans.length, p.io.length, n + ": kanál na každý signál");
         assert.equal(links.length, p.io.length, n + ": vazba kanál ↔ tag");
@@ -158,8 +161,10 @@ test("EPLAN: přihlášení s modulem a bez češtiny v cizích jazycích", () =
             for (const mk of [sampleSmall, sampleComplex]) {
                 const p = l === "zh" ? withLang("en", mk) : mk();
                 for (const f of eplanFiles(p)) {
-                    const m = f.body.match(CZ);
-                    assert.ok(!m, l + " / " + f.name + ": „" + (m ? f.body.slice(Math.max(0, m.index - 60), m.index + 40) : "") + "“");
+                    /* vícejazyčné texty AML nesou i češtinu záměrně (aml-lang=cs-CZ) */
+                    const body = f.body.replace(/<Attribute Name="aml-lang=cs-CZ" AttributeDataType="xs:string"><Value>[^<]*<\/Value><\/Attribute>/g, "");
+                    const m = body.match(CZ);
+                    assert.ok(!m, l + " / " + f.name + ": „" + (m ? body.slice(Math.max(0, m.index - 60), m.index + 40) : "") + "“");
                     assert.ok(!/\{[a-z][A-Za-z]*\}/.test(f.body), l + " / " + f.name + ": zástupný znak");
                 }
                 assert.equal(xmlProblem(eplanAml(p)), "");

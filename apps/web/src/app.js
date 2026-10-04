@@ -38,6 +38,7 @@ function load() {
     S.prj = normProject(d.prj || {});
     S.ai = normAi(d.ai);
     S.step = d.step === "help" || (Number.isInteger(d.step) && d.step >= 0 && d.step < STEPS.length) ? d.step : 0;
+    if (S.prj.guidsAdded) save();   // migrace: doplněné GUID (core guid.ts) hned uložit — projekt změněn
   } catch { /* poškozený stav: začni znovu */ }
   return true;
 }

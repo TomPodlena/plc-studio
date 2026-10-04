@@ -77,10 +77,18 @@ const devName = (prj, id) => (devById(prj, id) || { name: "" }).name;
  * stroje) znovu nespouští. Popisy zařízení a komentáře I/O zůstávají: jsou v textech nálezů
  * ověření a jejich změna má texty obnovit.
  */
+/** Kopie objektu bez pole `guid` (GUID není obsah návrhu — otisky, revize a ověření ho ignorují). */
+export function noGuid(o) {
+    if (!o || o.guid === undefined)
+        return o;
+    const { guid: _g, ...rest } = o;
+    return rest;
+}
 export function designView(prj) {
     return {
         meta: { name: "", desc: "", takt: prj.meta.takt },
-        platforms: prj.platforms, devices: prj.devices, io: prj.io, program: prj.program,
+        /* bez GUID (guid.ts): identita objektů, ne obsah — doplnění GUID nesmí spouštět ověření znovu */
+        platforms: prj.platforms, devices: prj.devices.map(noGuid), io: prj.io.map(noGuid), program: prj.program,
         nextId: prj.nextId, sim: prj.sim,
     };
 }

@@ -20,7 +20,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "ec2766f5-0048-435f-8606-6f0c56e4221d"
    },
    {
     "id": 2,
@@ -33,7 +34,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "d8cbfb12-ee7a-4f08-a325-1f666503c039"
    },
    {
     "id": 3,
@@ -44,7 +46,8 @@
     "unit": "bar",
     "rmin": 0,
     "rmax": 250,
-    "limHi": 210
+    "limHi": 210,
+    "guid": "0fae0de5-6a2d-4cf1-87f0-4409b087826b"
    },
    {
     "id": 4,
@@ -56,7 +59,8 @@
     "rmin": 0,
     "rmax": 100,
     "limLo": 10,
-    "limHi": 60
+    "limHi": 60,
+    "guid": "9eb19337-5391-4ab7-8a16-37944e8c5e73"
    },
    {
     "id": 5,
@@ -66,7 +70,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "d26cca50-97f6-486b-b422-3ee5a5232d88"
    },
    {
     "id": 6,
@@ -76,7 +81,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "3772fed2-2d0d-42d1-9493-befa281763c5"
    },
    {
     "id": 7,
@@ -87,7 +93,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "ready"
+    "role": "ready",
+    "guid": "9980e48d-eb76-417e-954e-af914b0096f8"
    }
   ],
   "io": [
@@ -99,7 +106,8 @@
     "tag": "M1_fbkRunning",
     "addr": "%I0.0",
     "cmt": "Čerpadlo hydrauliky – běh",
-    "nc": false
+    "nc": false,
+    "guid": "b9a15f1e-1d9a-8395-ac79-4a940ec3a3d9"
    },
    {
     "key": "1:fault",
@@ -109,7 +117,8 @@
     "tag": "M1_fault",
     "addr": "%I0.1",
     "cmt": "Čerpadlo hydrauliky – porucha",
-    "nc": false
+    "nc": false,
+    "guid": "05f09b89-1acb-81c1-83a0-9b7d83e93db4"
    },
    {
     "key": "1:outRun",
@@ -119,7 +128,8 @@
     "tag": "M1_outRun",
     "addr": "%Q0.0",
     "cmt": "Čerpadlo hydrauliky – povel chod",
-    "nc": false
+    "nc": false,
+    "guid": "b7201adf-cfeb-8958-9138-fd9cf2a17eb5"
    },
    {
     "key": "2:fbkOpen",
@@ -129,7 +139,8 @@
     "tag": "Y1_fbkOpen",
     "addr": "%I0.2",
     "cmt": "Ventil upínání – otevřeno",
-    "nc": false
+    "nc": false,
+    "guid": "5f9e710b-f534-8d1d-b954-035431bc66fb"
    },
    {
     "key": "2:fbkClosed",
@@ -139,7 +150,8 @@
     "tag": "Y1_fbkClosed",
     "addr": "%I0.3",
     "cmt": "Ventil upínání – zavřeno",
-    "nc": false
+    "nc": false,
+    "guid": "cf57420c-f242-8651-bef1-5003ed202b31"
    },
    {
     "key": "2:outOpen",
@@ -149,7 +161,8 @@
     "tag": "Y1_outOpen",
     "addr": "%Q0.1",
     "cmt": "Ventil upínání – povel otevřít",
-    "nc": false
+    "nc": false,
+    "guid": "22231bdd-8b32-8161-8c45-23adb0e323dc"
    },
    {
     "key": "3:raw",
@@ -159,7 +172,8 @@
     "tag": "B1_raw",
     "addr": "%IW64",
     "cmt": "Tlak hydrauliky – bar",
-    "nc": false
+    "nc": false,
+    "guid": "48153ddf-0db7-8917-9d06-b99664fed7ea"
    },
    {
     "key": "4:raw",
@@ -169,7 +183,8 @@
     "tag": "B2_raw",
     "addr": "%IW66",
     "cmt": "Teplota oleje – °C",
-    "nc": false
+    "nc": false,
+    "guid": "a7132979-7f1c-89ec-95c9-13fb99933483"
    },
    {
     "key": "5:in",
@@ -179,7 +194,8 @@
     "tag": "S1_in",
     "addr": "%I0.4",
     "cmt": "Nouzové zastavení (NC) – ",
-    "nc": true
+    "nc": true,
+    "guid": "26bee68f-148a-8c8b-98b9-38fc1c1a88cb"
    },
    {
     "key": "6:in",
@@ -189,7 +205,8 @@
     "tag": "S2_in",
     "addr": "%I0.5",
     "cmt": "Kryt zkušebního prostoru zavřen (NC) – ",
-    "nc": true
+    "nc": true,
+    "guid": "4c01d108-d6f7-8663-bb11-cb92de13dc9d"
    },
    {
     "key": "7:out",
@@ -199,7 +216,8 @@
     "tag": "H1_out",
     "addr": "%Q0.2",
     "cmt": "Signálka Připraveno – ",
-    "nc": false
+    "nc": false,
+    "guid": "a9c7f7b9-b3c3-86b8-83a0-2d38e62ef2c3"
    }
   ],
   "program": {
@@ -241,6 +259,12 @@
     }
    ]
   },
-  "nextId": 8
+  "nextId": 8,
+  "guid": "2ee05aba-09d9-4ced-a842-fc6e9deae4a7",
+  "moduleGuids": {
+   "DI1": "475ff190-d9e4-4423-9e9d-3f08703fa421",
+   "DO1": "60c2128d-3b08-4d38-9f9d-70ef2838d9b6",
+   "AI1": "dca0aed0-7a82-46f7-8537-f8994f18051b"
+  }
  }
 }

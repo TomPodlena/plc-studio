@@ -10,6 +10,7 @@ Spuštění (z apps/desktop):  python -m unittest discover -s tests -v
 from __future__ import annotations
 
 import json
+import re
 import os
 import sys
 import tempfile
@@ -517,7 +518,9 @@ class GuiTest(unittest.TestCase):
                 def strip_names(body: str) -> str:
                     for s in sorted(suppliers, key=len, reverse=True):
                         body = body.replace(s, "")
-                    return body
+                    # vícejazyčné texty AML (EPLAN) nesou češtinu záměrně jako variantu aml-lang=cs-CZ
+                    return re.sub(r'<Attribute Name="aml-lang=cs-CZ" AttributeDataType="xs:string">'
+                                  r'<Value>[^<]*</Value></Attribute>', "", body)
 
                 self.assertFalse([f["save"] for f in docs if czech & set(strip_names(f["body"]))],
                                  f"{lang}: nepřeložená dokumentace")
@@ -1616,6 +1619,31 @@ class GuiTest(unittest.TestCase):
             self.assertFalse(self.app.open_project(bad))
         err.assert_called_once()
         self.assertEqual(self.app.prj, want)                 # vadný soubor návrh nezničí
+
+    def test_old_project_gets_guids_once(self):
+        """Starý projekt bez GUID: GUID doplní jádro při načtení, uloží se a podruhé se nemění."""
+        self.app.load_sample("small")
+        old = json.loads(json.dumps(self.app.prj))
+        for key in ("guid", "moduleGuids"):
+            old.pop(key, None)
+        for item in old["devices"] + old["io"]:
+            item.pop("guid", None)
+        path = Path(tempfile.mkdtemp(), "old.plcstudio.json")
+        path.write_text(json.dumps({"prj": old}), encoding="utf-8")
+        self.assertTrue(self.app.open_project(path))
+        guid = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+        prj = self.app.prj
+        self.assertRegex(prj["guid"], guid)
+        self.assertTrue(all(guid.match(x.get("guid", "")) for x in prj["devices"] + prj["io"]))
+        self.assertTrue(prj["moduleGuids"])
+        first = json.loads(json.dumps(prj))
+        self.app._flush()
+        saved = json.loads((self.app.home / "state.json").read_text(encoding="utf-8"))["prj"]
+        self.assertEqual(saved["guid"], first["guid"])        # migrace je uložená
+        self.app.set_project(saved)
+        self.assertEqual(self.app.prj["guid"], first["guid"])
+        self.assertEqual([d["guid"] for d in self.app.prj["devices"]], [d["guid"] for d in first["devices"]])
+        self.assertEqual(self.app.prj["moduleGuids"], first["moduleGuids"])
 
     def test_state_survives_restart(self):
         self.app.load_sample("small")

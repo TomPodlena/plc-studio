@@ -44,12 +44,16 @@ def apply_proposal(app) -> None:
     if not pr or not pr["devices"]:
         return
     p = app.prj
+    # zařízení se stejným označením a třídou si nechá GUID (identita pro opakovaný export do EPLAN)
+    old_guid = {(d["name"], d["cls"]): d["guid"] for d in p["devices"] if d.get("guid")}
     p["devices"], p["io"], p["nextId"] = [], [], 1
     by_name = {}
     for d in pr["devices"]:
         name = d["name"] or app.core("nextName", p, d["cls"])
         nd = {"id": p["nextId"], "name": name, "cls": d["cls"], "desc": d["desc"],
               "opt": d["opt"], "unit": d["unit"], "rmin": d["rmin"], "rmax": d["rmax"]}
+        if (name, d["cls"]) in old_guid:
+            nd["guid"] = old_guid[(name, d["cls"])]
         # meze měření, žádaná hodnota a role výstupu (aiNorm je pustí jen u správné třídy)
         for key in EXTRA.get(d["cls"], ()):
             if _is_num(d.get(key)):

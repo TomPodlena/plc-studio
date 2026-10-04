@@ -7,6 +7,9 @@ declare module "node:fs" {
   export function readFileSync(p: string | URL, enc: "utf8"): string;
   export function readdirSync(p: string | URL): string[];
 }
+declare module "node:crypto" {
+  export function createHash(alg: string): { update(s: string, enc?: string): { digest(enc: "hex"): string } };
+}
 declare module "node:assert/strict" {
   interface Assert {
     (value: unknown, message?: string): asserts value;

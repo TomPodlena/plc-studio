@@ -22,9 +22,9 @@
  * rozsah potvrzuje odpovědná osoba. Zpráva `17_zmeny.md` (přes `registerDocProvider`) a sloupec
  * revize v popisovém poli výkresů (`setSheetRevision` v drawing.ts) se přihlašují samy.
  */
-import { Project, Device, SeqStep, PLAT, CLS, DO_ROLES, devById, interlockDevs, enableInputs, type PlatformKey, type DeviceClass } from "./model.js";
+import { Project, Device, SeqStep, PLAT, CLS, DO_ROLES, devById, interlockDevs, enableInputs, type PlatformKey, type DeviceClass, type IoEntry } from "./model.js";
 import { tr, N_, formatDate, today } from "./i18n.js";
-import { canonicalJson, fnv1a64, approvalItems, designView, type ApprovalItem, type ApprovalRecord, type ApprovalState } from "./approval.js";
+import { canonicalJson, fnv1a64, approvalItems, designView, noGuid, type ApprovalItem, type ApprovalRecord, type ApprovalState } from "./approval.js";
 import { commissioningPlan, COMMISSION_PHASES, type CommissioningStep } from "./commission.js";
 import { proposeSafety, safetyModuleRegistered, type SafetyFunction, type SafetyProposal } from "./safety.js";
 import { stepTitle } from "./sim.js";
@@ -69,6 +69,9 @@ const CONTENT_KEYS = ["meta", "platforms", "devices", "io", "program", "nextId",
 export function revisionContent(prj: Project): Partial<Project> {
   const o: Record<string, unknown> = {};
   for (const k of CONTENT_KEYS) if ((prj as unknown as Record<string, unknown>)[k] !== undefined) o[k] = (prj as unknown as Record<string, unknown>)[k];
+  /* GUID (guid.ts) je identita objektu, ne obsah: doplnění při migraci není změna projektu */
+  if (Array.isArray(o.devices)) o.devices = (o.devices as Device[]).map(noGuid);
+  if (Array.isArray(o.io)) o.io = (o.io as IoEntry[]).map(noGuid);
   return JSON.parse(canonicalJson(o));
 }
 const contentKey = (prj: Project): string => canonicalJson(revisionContent(prj));

@@ -21,6 +21,7 @@ import { tr, N_, today } from "./i18n.js";
 import { buildBom, bomPlatform, type BomLine } from "./bom.js";
 import { registerDocProvider, type ProjectFile } from "./docs.js";
 import { addSafetyRegistration } from "./safety.js";
+import { genEplanAml, validateEplan, type EplanAmlOptions } from "./eplan_aml.js";
 
 export const EPLAN_VERIFIED = N_("neověřeno importem v EPLAN Electric P8 (licence EPLAN není k dispozici); AutomationML kontrolováno proti schématu CAEX 2.15 a knihovnám AR APC 1.4.0");
 export const EPLAN_SOURCES = [
@@ -86,132 +87,12 @@ export function eplanTerminals(prj: Project, cards: EplanCard[] = eplanCards(prj
 
 /* ================================================================ AutomationML AR APC */
 
-const xe = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-/** Deterministické ID (GUID) z klíče. */
-function idOf(key: string): string {
-  const h = (seed: number) => {
-    let x = 0x811c9dc5 ^ seed;
-    for (let i = 0; i < key.length; i++) { x ^= key.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; }
-    return (x >>> 0).toString(16).padStart(8, "0");
-  };
-  const s = h(11) + h(12) + h(13) + h(14);
-  return s.slice(0, 8) + "-" + s.slice(8, 12) + "-4" + s.slice(13, 16) + "-8" + s.slice(17, 20) + "-" + s.slice(20, 32);
-}
-/** Část cesty CAEX: při znacích @ . : / v hranatých závorkách, „[“ a „]“ escapované. */
-const pathPart = (s: string) => /[@.:/[\]]/.test(s) ? "[" + s.replace(/\[/g, "\\[").replace(/\]/g, "\\]") + "]" : s;
-
-const attr = (name: string, value: unknown, type = "xs:string", sub = "") =>
-  '<Attribute Name="' + xe(name) + '" AttributeDataType="' + type + '"><Value>' + xe(value) + "</Value>" + sub + "</Attribute>";
-
-/* Minimální výřez knihoven AR APC 1.4.0 (cesty tříd beze změny, aby je importér našel). */
-const AML_LIBS = [
-  '<InterfaceClassLib Name="AutomationMLInterfaceClassLib"><Version>2.2.2</Version>',
-  '<InterfaceClass Name="AutomationMLBaseInterface">',
-  '<InterfaceClass Name="ExternalDataConnector" RefBaseClassPath="AutomationMLBaseInterface"><Attribute Name="refURI" AttributeDataType="xs:anyURI" />',
-  '<InterfaceClass Name="PLCopenXMLInterface" RefBaseClassPath="ExternalDataConnector">',
-  '<InterfaceClass Name="VariableInterface" RefBaseClassPath="PLCopenXMLInterface" />',
-  "</InterfaceClass></InterfaceClass>",
-  '<InterfaceClass Name="Communication" RefBaseClassPath="AutomationMLBaseInterface"><InterfaceClass Name="SignalInterface" RefBaseClassPath="Communication" /></InterfaceClass>',
-  "</InterfaceClass></InterfaceClassLib>",
-  '<InterfaceClassLib Name="AutomationProjectConfigurationInterfaceClassLib"><Version>1.4.0</Version>',
-  '<InterfaceClass Name="Tag" RefBaseClassPath="AutomationMLInterfaceClassLib/AutomationMLBaseInterface/ExternalDataConnector/PLCopenXMLInterface/VariableInterface">',
-  '<Attribute Name="DataType" AttributeDataType="xs:string"><Attribute Name="Customized" AttributeDataType="xs:boolean"><DefaultValue>false</DefaultValue></Attribute></Attribute>',
-  '<Attribute Name="IoType" AttributeDataType="xs:string" /><Attribute Name="LogicalAddress" AttributeDataType="xs:string" /><Attribute Name="Comment" AttributeDataType="xs:string" />',
-  "</InterfaceClass>",
-  '<InterfaceClass Name="Channel" RefBaseClassPath="AutomationMLInterfaceClassLib/AutomationMLBaseInterface/Communication/SignalInterface">',
-  '<Attribute Name="Type" AttributeDataType="xs:string" /><Attribute Name="IoType" AttributeDataType="xs:string" /><Attribute Name="Number" AttributeDataType="xs:int" /><Attribute Name="Length" AttributeDataType="xs:int" />',
-  "</InterfaceClass></InterfaceClassLib>",
-  '<RoleClassLib Name="AutomationMLBaseRoleClassLib"><Version>2.2.2</Version><RoleClass Name="AutomationMLBaseRole"><RoleClass Name="Structure" RefBaseClassPath="AutomationMLBaseRole" /></RoleClass></RoleClassLib>',
-  '<RoleClassLib Name="CommunicationRoleClassLib"><Version>1.0.1</Version>',
-  '<RoleClass Name="PhysicalDevice" RefBaseClassPath="AutomationMLBaseRoleClassLib/AutomationMLBaseRole"><RoleClass Name="VariableList" RefBaseClassPath="AutomationMLBaseRoleClassLib/AutomationMLBaseRole" /></RoleClass>',
-  "</RoleClassLib>",
-  '<RoleClassLib Name="AutomationProjectConfigurationRoleClassLib"><Version>1.4.0</Version>',
-  '<RoleClass Name="AutomationProject" RefBaseClassPath="AutomationMLBaseRoleClassLib/AutomationMLBaseRole/Structure"><Attribute Name="ProjectManufacturer" AttributeDataType="xs:string" /><Attribute Name="ProjectSign" AttributeDataType="xs:string" /><Attribute Name="ProjectRevision" AttributeDataType="xs:string" /><Attribute Name="ProjectInformation" AttributeDataType="xs:string" /></RoleClass>',
-  '<RoleClass Name="Device" RefBaseClassPath="CommunicationRoleClassLib/PhysicalDevice"><Attribute Name="TypeIdentifier" AttributeDataType="xs:string" /><Attribute Name="Comment" AttributeDataType="xs:string" /><Attribute Name="Manufacturer" AttributeDataType="xs:string" /></RoleClass>',
-  '<RoleClass Name="DeviceItem" RefBaseClassPath="CommunicationRoleClassLib/PhysicalDevice"><Attribute Name="TypeName" AttributeDataType="xs:string" /><Attribute Name="DeviceItemType" AttributeDataType="xs:string" /><Attribute Name="PositionNumber" AttributeDataType="xs:int" /><Attribute Name="BuiltIn" AttributeDataType="xs:boolean" /><Attribute Name="TypeIdentifier" AttributeDataType="xs:string" /><Attribute Name="Manufacturer" AttributeDataType="xs:string" /><Attribute Name="Comment" AttributeDataType="xs:string" /><Attribute Name="ProductDesignation IEC" AttributeDataType="xs:string" /><Attribute Name="LocationIdentifier IEC" AttributeDataType="xs:string" /></RoleClass>',
-  '<RoleClass Name="TagTable" RefBaseClassPath="CommunicationRoleClassLib/PhysicalDevice/VariableList"><Attribute Name="AssignToDefault" AttributeDataType="xs:boolean" /></RoleClass>',
-  "</RoleClassLib>",
-].join("");
-
-const RC = "AutomationProjectConfigurationRoleClassLib/";
-const IC = "AutomationProjectConfigurationInterfaceClassLib/";
-/** Bajt a bit kanonické adresy (%I0.3 → 0/3, %IW64 → 64/0). */
-function byteBit(a: string): { byte: number; bit: number } | null {
-  const m = String(a || "").match(/^%[IQ]W?(\d+)(?:\.(\d+))?$/);
-  return m ? { byte: +m[1], bit: +(m[2] || 0) } : null;
-}
-const ioType = (d: Dir) => (d === "DI" || d === "AI" ? "Input" : "Output");
-const isAnalog = (d: Dir) => d === "AI" || d === "AO";
-
-/** AutomationML AR APC (CAEX 2.15) s PLC, kartami, kanály a symbolickými adresami. */
-export function eplanAml(prj: Project, cards: EplanCard[] = eplanCards(prj)): string {
-  const plat = prj.platforms[0] || "siemens";
-  const bomPlat = bomPlatform(prj);
-  const lines = buildBom(prj).lines;
-  const cpuLine = lines.find(l => l.tag === "-A1");
-  const name = ascii(prj.meta.name || "PLCdesk").trim() || "PLCdesk";
-  const fileName = eplanAmlName(prj);
-  const key = "plcdesk|" + name + "|";
-  const typeId = (l: BomLine | undefined) => (l?.orderCode ? "OrderNumber:" + ascii(l.orderCode) : "");
-  const tagTableId = idOf(key + "tagtable");
-  const cpuId = idOf(key + "cpu");
-  const items: string[] = [];
-  const links: string[] = [];
-  /* CPU s tabulkou tagů */
-  const tags = cards.flatMap(c => c.mod.ch.map(e => {
-    const d = devById(prj, e.devId);
-    const cmt = [d ? "-" + d.name : "", e.cmt || d?.desc || ""].filter(Boolean).join(" ");
-    return '<ExternalInterface Name="' + xe(e.tag) + '" ID="' + idOf(key + "tag|" + e.tag) + '" RefBaseClassPath="' + IC + 'Tag">'
-      + attr("DataType", dtFor(e), "xs:string", attr("Customized", "false", "xs:boolean"))
-      + attr("IoType", ioType(e.dir)) + attr("LogicalAddress", addrFor(plat, e)) + attr("Comment", cmt) + "</ExternalInterface>";
-  }));
-  items.push('<InternalElement Name="' + xe("-A1") + '" ID="' + cpuId + '">'
-    + attr("TypeName", PLAT[bomPlat].cpu) + attr("DeviceItemType", "CPU") + attr("PositionNumber", 1, "xs:int") + attr("BuiltIn", "false", "xs:boolean")
-    + (typeId(cpuLine) ? attr("TypeIdentifier", typeId(cpuLine)) : "") + attr("Manufacturer", cpuLine?.brand || PLAT[bomPlat].name.split(" ")[0])
-    + attr("Comment", [cpuLine?.type, cpuLine?.desc].filter(Boolean).join(" — ")) + attr("ProductDesignation IEC", "-A1") + attr("LocationIdentifier IEC", "+1")
-    + '<InternalElement Name="PLCdesk" ID="' + tagTableId + '">' + attr("AssignToDefault", "false", "xs:boolean") + tags.join("")
-    + '<RoleRequirements RefBaseRoleClassPath="' + RC + 'TagTable" /></InternalElement>'
-    + '<RoleRequirements RefBaseRoleClassPath="' + RC + 'DeviceItem" /></InternalElement>');
-  /* I/O karty s kanály */
-  for (const c of cards) {
-    const id = idOf(key + "card|" + c.dt);
-    const bb = c.mod.ch.map(e => byteBit(e.addr)).filter((x): x is { byte: number; bit: number } => !!x);
-    const start = bb.length ? Math.min(...bb.map(x => x.byte)) : 0;
-    const bit = bb.length ? Math.min(...bb.filter(x => x.byte === start).map(x => x.bit)) : 0;
-    const width = isAnalog(c.mod.dir) ? 16 : 1;
-    const addr = '<Attribute Name="Address"><RefSemantic CorrespondingAttributePath="OrderedListType" /><Attribute Name="1">'
-      + attr("StartAddress", start, "xs:int") + attr("Length", c.mod.ch.length * width, "xs:int") + attr("IoType", ioType(c.mod.dir)) + attr("BitOffset", isAnalog(c.mod.dir) ? 0 : bit, "xs:int")
-      + "</Attribute></Attribute>";
-    const chans = c.mod.ch.map((e, i) => {
-      const chName = c.mod.dir + "_" + i;
-      links.push('<InternalLink Name="' + xe("Link_" + e.tag) + '" RefPartnerSideA="' + id + ":" + pathPart(chName) + '" RefPartnerSideB="' + tagTableId + ":" + pathPart(e.tag) + '" />');
-      return '<ExternalInterface Name="' + chName + '" ID="' + idOf(key + "ch|" + c.dt + "|" + i) + '" RefBaseClassPath="' + IC + 'Channel">'
-        + attr("Type", isAnalog(c.mod.dir) ? "Analog" : "Digital") + attr("IoType", ioType(c.mod.dir)) + attr("Number", i, "xs:int") + attr("Length", width, "xs:int") + "</ExternalInterface>";
-    });
-    items.push('<InternalElement Name="' + xe(c.dt) + '" ID="' + id + '">'
-      + attr("TypeName", c.line?.type || c.line?.item || c.mod.dir) + attr("DeviceItemType", isAnalog(c.mod.dir) ? "AnalogModule" : "DigitalModule", "xs:string", attr("Customized", "true", "xs:boolean"))
-      + attr("PositionNumber", c.position, "xs:int") + attr("BuiltIn", "false", "xs:boolean")
-      + (typeId(c.line) ? attr("TypeIdentifier", typeId(c.line)) : "") + attr("Manufacturer", c.line?.brand || "")
-      + attr("Comment", c.mod.dir + c.mod.idx + " — " + tr("svorkovnice {x}", { x: "-X" + c.xnum })) + attr("ProductDesignation IEC", c.dt) + attr("LocationIdentifier IEC", "+1")
-      + addr + chans.join("")
-      + '<RoleRequirements RefBaseRoleClassPath="' + RC + 'DeviceItem" /></InternalElement>');
-  }
-  const dev = '<InternalElement Name="' + xe(ascii(PLAT[bomPlat].name) + " -A1") + '" ID="' + idOf(key + "device") + '">'
-    + (typeId(cpuLine) ? attr("TypeIdentifier", typeId(cpuLine)) : "") + attr("Comment", tr("Stanice PLC navržená v PLCdesk (návrh k revizi)")) + attr("Manufacturer", cpuLine?.brand || PLAT[bomPlat].name.split(" ")[0])
-    + items.join("") + links.join("")
-    + '<RoleRequirements RefBaseRoleClassPath="' + RC + 'Device" /></InternalElement>';
-  const project = '<InternalElement Name="' + xe(name) + '" ID="' + idOf(key + "project") + '">'
-    + attr("ProjectManufacturer", "PLCdesk") + attr("ProjectSign", name) + attr("ProjectRevision", "0.1") + attr("ProjectInformation", tr("Export PLCdesk {date} — {state}", { date: today(true), state: tr(EPLAN_VERIFIED) }))
-    + dev + '<RoleRequirements RefBaseRoleClassPath="' + RC + 'AutomationProject" /></InternalElement>';
-  return '<?xml version="1.0" encoding="utf-8"?>\r\n'
-    + '<CAEXFile FileName="' + xe(fileName) + '" SchemaVersion="2.15" xsi:noNamespaceSchemaLocation="CAEX_ClassModel_V2.15.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
-    + '<AdditionalInformation AutomationMLVersion="2.0" />'
-    + '<AdditionalInformation DocumentVersions="Recommendations"><Document DocumentIdentifier="AR APC" Version="1.4.0" /></AdditionalInformation>'
-    + "<AdditionalInformation><WriterHeader><WriterName>PLCdesk</WriterName><WriterID>" + idOf("plcdesk-writer") + "</WriterID><WriterVendor>PLCdesk</WriterVendor>"
-    + "<WriterVendorURL>https://plcdesk.app</WriterVendorURL><WriterVersion>0.1</WriterVersion><WriterRelease>0.1</WriterRelease>"
-    + "<LastWritingDateTime>" + new Date().toISOString().slice(0, 19) + "</LastWritingDateTime><WriterProjectTitle>" + xe(name) + "</WriterProjectTitle><WriterProjectID>" + idOf(key + "project") + "</WriterProjectID></WriterHeader></AdditionalInformation>"
-    + '<InstanceHierarchy Name="' + xe(name) + '"><Version>0.1</Version>' + project + "</InstanceHierarchy>"
-    + AML_LIBS + "</CAEXFile>\r\n";
+/**
+ * AutomationML AR APC (CAEX 2.15): stanice, rack, CPU s rozhraním PROFINET, karty, kanály
+ * a symbolické adresy — generátor a kontrola jsou v eplan_aml.ts (`genEplanAml`, `validateEplan`).
+ */
+export function eplanAml(prj: Project, cards: EplanCard[] = eplanCards(prj), opts: EplanAmlOptions = {}): string {
+  return genEplanAml(prj, { ...opts, cards });
 }
 
 /* ================================================================ CSV pro EPLAN */
@@ -260,6 +141,8 @@ export function eplanAmlName(prj: Project): string {
 /** README: postup importu do EPLAN a stav ověření. */
 export function eplanReadme(prj: Project, cards: EplanCard[] = eplanCards(prj)): string {
   const n = cards.reduce((s, c) => s + c.mod.ch.length, 0);
+  const issues = validateEplan(prj, { cards });
+  const nErr = issues.filter(i => i.level === "error").length, nWarn = issues.length - nErr;
   const L = [
     tr("PLCdesk — export do EPLAN Electric P8"),
     "==========================================",
@@ -267,7 +150,7 @@ export function eplanReadme(prj: Project, cards: EplanCard[] = eplanCards(prj)):
     tr("Stav: {state}.", { state: tr(EPLAN_VERIFIED) }),
     "",
     tr("Obsah"),
-    "  " + eplanAmlName(prj) + "  — " + tr("PLC -A1, {cards} I/O karet, {n} kanálů a symbolických adres (AutomationML AR APC 1.4.0)", { cards: cards.length, n }),
+    "  " + eplanAmlName(prj) + "  — " + tr("stanice PLC (rack, CPU -A1 s rozhraním PROFINET a sítí PN_IE_1), {cards} I/O karet, {n} kanálů a symbolických adres s vícejazyčnými funkčními texty (AutomationML AR APC 1.4.0)", { cards: cards.length, n }),
     "  eplan_zarizeni.csv     — " + tr("seznam zařízení z kusovníku (označení IEC 81346, výrobce, typ, objednací číslo)"),
     "  eplan_svorky.csv       — " + tr("svorky -X<n>:<k> s kartou, kanálem, adresou, tagem a vodičem (shodně s výkresy)"),
     "  eplan_vodice.csv       — " + tr("vodiče -W1xx: zařízení → svorka (podklad)"),
@@ -276,6 +159,9 @@ export function eplanReadme(prj: Project, cards: EplanCard[] = eplanCards(prj)):
     "   " + tr("Projektová data → PLC → Import PLC dat (nebo Exchange PLC data), formát „AutomationML AR APC“, soubor {file}.", { file: eplanAmlName(prj) }),
     "   " + tr("Karty se v EPLAN dohledají podle vlastnosti „Typové označení PLC“ (TypeIdentifier = OrderNumber:<objednací číslo z kusovníku>). Bez shody v katalogu dílů je založ / přiřaď ručně."),
     "   " + tr("Kanály nesou symbolickou adresu, adresu PLC a komentář; označení karet -A1, -A2 … je ve vlastnosti „ProductDesignation IEC“."),
+    "   " + tr("Opakovaný import: každý objekt nese stálý GUID z projektu PLCdesk (projekt, zařízení, karty, signály; stanice, rack, CPU a síť odvozeně z GUID projektu). Po úpravě I/O listu vyexportuj znovu — EPLAN má objekty podle GUID aktualizovat, ne zduplikovat (neověřeno importem do EPLAN)."),
+    "   " + tr("Kontrola exportu: {e} chyb, {w} upozornění (unikátní ID, odkazy InternalLink v nejbližším společném rodiči, povinné atributy, UDT + symbolická adresa v CPU, GUID).", { e: nErr, w: nWarn }),
+    ...issues.slice(0, 20).map(i => "     " + (i.level === "error" ? "✖ " : "⚠ ") + i.where + ": " + i.msg),
     "",
     tr("2) Seznam zařízení"),
     "   " + tr("Projektová data → Zařízení → Import, typ zdroje „Text“, soubor eplan_zarizeni.csv (čárka, UTF-8 s BOM)."),
@@ -288,6 +174,8 @@ export function eplanReadme(prj: Project, cards: EplanCard[] = eplanCards(prj)):
     tr("Omezení"),
     "   - " + tr("Neověřeno importem v EPLAN — první import zkontroluj a nálezy zapiš (README projektu)."),
     "   - " + tr("Objednací čísla jsou typické volby z kusovníku PLCdesk — podklad k poptávce, ne projekt elektro."),
+    "   - " + tr("Katalog objednacích čísel dílů EPLAN (Data Portal) zatím není — bez shody s kmenovými daty EPLAN makro nenajde a stránku nenakreslí; karty přiřaď ručně."),
+    "   - " + tr("Vzdálené stanice, IO-Link a pohony model zatím nezná — export nese lokální rack CPU a rozhraní PROFINET CPU."),
     "   - " + tr("Bezpečnostní prvky jsou jen hardware podle návrhu (EN ISO 13849, návrh k revizi)."),
     "",
     tr("Zdroje formátů"),
