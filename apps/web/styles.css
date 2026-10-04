@@ -1,16 +1,22 @@
-/* PLCdesk app — tokeny a layout (port z prototypu) */
+/* PLCdesk app — tokeny a layout (port z prototypu)
+   Barvy = značka PLCdesk (brand/README.md, azur). Stavové --ok/--warn/--err jsou oddělené od značky. */
+/* Barlow (OFL 1.1, fonts/OFL.txt) — jen logotyp; self-host, aplikace nic nestahuje */
+@font-face{font-family:"Barlow";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/barlow-400-latin.woff2) format("woff2")}
+@font-face{font-family:"Barlow";font-style:normal;font-weight:700;font-display:swap;src:url(fonts/barlow-700-latin.woff2) format("woff2")}
 :root{
-  --bg:#f3f5f6; --surface:#ffffff; --fg:#15262b; --muted:#5b7077; --line:#d4dde0;
-  --accent:#00707e; --accent-fg:#ffffff; --code-bg:#0e1b1f; --code-fg:#d7e4e8;
-  --ok:#1a7f37; --warn:#b45309; --err:#b3261e; --chip:#e3ecee;
+  --bg:#F5F6F9; --surface:#FFFFFF; --fg:#111A2E; --muted:#5A6881; --line:#D6DCE6;
+  --accent:#2457C5; --accent-fg:#FFFFFF; --code-bg:#0B1221; --code-fg:#D4DEF2;
+  --ok:#1a7f37; --warn:#b45309; --err:#b3261e; --chip:#E7ECF6;
   --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+  --font-brand:"Barlow","IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#101a1d; --surface:#17242a; --fg:#dde8eb; --muted:#8fa6ad; --line:#2a3b42;
-    --accent:#35b3c2; --accent-fg:#06272c; --code-bg:#0b1517; --code-fg:#cfe0e4;
-    --ok:#4ec977; --warn:#e0a84a; --err:#ef8b84; --chip:#213237;
+    /* tmavý akcent musí být světlejší #6E9BFF — #2457C5 má na tmavém pozadí jen 2,7 : 1 */
+    --bg:#0E1422; --surface:#161E31; --fg:#DDE3F0; --muted:#93A0BA; --line:#2A3550;
+    --accent:#6E9BFF; --accent-fg:#0B1221; --code-bg:#080D17; --code-fg:#C9D5EC;
+    --ok:#4ec977; --warn:#e0a84a; --err:#ef8b84; --chip:#1F2A42;
     color-scheme:dark;
   }
 }
@@ -19,7 +25,8 @@
 body{background:var(--bg);color:var(--fg);font-family:var(--font-body);line-height:1.5;margin:0;padding:0 16px 60px}
 .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 header.app{padding:24px 0 0;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px}
-header.app h1{font-size:1.4rem;font-weight:700;margin:0;letter-spacing:-.01em}
+header.app h1{font-size:1.4rem;font-weight:700;margin:0;letter-spacing:-.01em;font-family:var(--font-brand);display:flex;align-items:center;gap:8px;align-self:center;line-height:1}
+header.app h1 picture,header.app h1 img{display:block;height:28px;width:28px;flex:none}
 .badge{font-family:var(--font-mono);font-size:.7rem;background:var(--chip);padding:3px 9px;border-radius:999px;white-space:nowrap}
 #projName{color:var(--muted);font-size:.9rem;flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 header.app #lang{margin-left:auto;font-size:.75rem;padding:4px 8px;border-radius:999px;color:var(--muted);background:var(--surface)}

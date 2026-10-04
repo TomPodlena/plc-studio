@@ -15,7 +15,7 @@ from . import theme
 from .i18n import N_, _
 from .widgets import link
 
-DIR_COLOR = {"DI": "#1F6FB2", "DO": theme.ACCENT, "AI": "#7A4FB5", "AO": theme.WARN}
+DIR_COLOR = {"DI": theme.SIG_IN, "DO": theme.SIG_OUT, "AI": theme.SIG_AN, "AO": theme.WARN}
 ACT = {"start": N_("start"), "stop": N_("stop"), "open": N_("otevřít"), "close": N_("zavřít")}
 
 

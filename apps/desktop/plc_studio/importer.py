@@ -31,8 +31,8 @@ PAGES = [N_("Podklady"), N_("Rozpoznáno"), N_("Analýza AI"), N_("Kontrola a p�
 PASTE_NAME = "vlozeny_text.txt"      # vložený text = další soubor podkladů (cituje se jménem)
 
 CONF_LABEL = {"sure": N_("jisté"), "guess": N_("odhad"), "missing": N_("chybí doklad")}
-CONF_BG = {"sure": "#E5F3EA", "guess": theme.WARN_BG, "missing": theme.DANGER_BG}
-CONF_FG = {"sure": theme.ACCENT, "guess": theme.WARN, "missing": theme.ERR}
+CONF_BG = {"sure": theme.OK_BG, "guess": theme.WARN_BG, "missing": theme.DANGER_BG}
+CONF_FG = {"sure": theme.OK, "guess": theme.WARN, "missing": theme.ERR}
 
 ERRORS = {
     "no_key": N_("Chybí API klíč — zadej ho v kroku AI návrh."),

@@ -45,15 +45,19 @@ SIG = {"fbkRunning": N_("běh"), "fault": N_("porucha"), "outRun": N_("chod"),
        "fbkOpen": N_("otevřeno"), "fbkClosed": N_("zavřeno"), "outOpen": N_("otevřít"),
        "raw": N_("hodnota"), "in": N_("vstup"), "out": N_("výstup")}
 LEFT_CLS = ("DI", "AnalogIn")
-WIRE_OFF = "#C3CEC7"
-WIRE_DIM = "#E8EDEA"               # vodič mimo vybrané zařízení / modul
-WIRE_FOCUS = "#3E5A4A"             # vybraný vodič v klidu (FALSE)
-WIRE_IN, WIRE_OUT, WIRE_AN = "#1F6FB2", theme.ACCENT, "#7A4FB5"
-FILL = {"on": "#D5EFE0", "active": "#FFEFC2", "err": theme.DANGER_BG, "off": "#ECEFED", None: "#FFFFFF"}
-EDGE = {"on": theme.ACCENT, "active": theme.WARN, "err": theme.ERR, "off": "#9FB0A6", None: "#9FB0A6"}
+# Barvy stavu jsou sémantické (theme.SIG_* / STATE_*), ne značkový akcent: DI modrá,
+# DO zelená, analog fialová, aktivní žlutá/oranžová, porucha červená.
+WIRE_OFF = "#C3CAD6"
+WIRE_DIM = "#E6E9EF"               # vodič mimo vybrané zařízení / modul
+WIRE_FOCUS = "#3A4660"             # vybraný vodič v klidu (FALSE)
+WIRE_IN, WIRE_OUT, WIRE_AN = theme.SIG_IN, theme.SIG_OUT, theme.SIG_AN
+FILL = {"on": theme.STATE_ON_BG, "active": theme.STATE_ACTIVE_BG, "err": theme.DANGER_BG,
+        "off": theme.STATE_OFF_BG, None: "#FFFFFF"}
+EDGE = {"on": theme.STATE_ON, "active": theme.WARN, "err": theme.ERR, "off": theme.NEUTRAL,
+        None: theme.NEUTRAL}
 LAMP = "#F5C518"
-BTN_BG, BTN_EDGE = "#F1F5F2", "#9FB0A6"     # tlačítko vstupu v klidu
-KNOB_BG, KNOB_TRACK = "#F4F7F5", "#E4EAE6"
+BTN_BG, BTN_EDGE = theme.FIELD, theme.NEUTRAL     # tlačítko vstupu v klidu
+KNOB_BG, KNOB_TRACK = theme.FIELD, "#E3E7EE"
 SWEEP, START = 270, 225                       # potenciometr: úhel otáčení, začátek vlevo dole
 RAW_MAX = 27648
 
@@ -252,8 +256,8 @@ class Mimic(ttk.Frame):
         for idx, (x, y, w, h, m) in enumerate(self.mod_box):
             mt = (f"mod:{idx}",)                    # klik na modul = zvýraznit jeho vodiče
             self.items["mod"][idx] = c.create_rectangle(P(x), P(y), P(x + w), P(y + h),
-                                                        outline="#9FB0A6", fill="#FFFFFF", tags=mt)
-            c.create_rectangle(P(x), P(y), P(x + w), P(y + 18), outline="#9FB0A6", fill=theme.FIELD,
+                                                        outline=theme.NEUTRAL, fill="#FFFFFF", tags=mt)
+            c.create_rectangle(P(x), P(y), P(x + w), P(y + 18), outline=theme.NEUTRAL, fill=theme.FIELD,
                                tags=mt)
             c.create_text(P(x + 8), P(y + 9),
                           text=m["name"] + "  ·  " + _("{n} kanálů", n=len(m["ch"])),
@@ -289,7 +293,7 @@ class Mimic(ttk.Frame):
         x, y, w, h, side = self.dev_box[d["id"]]
         tag = f"dev:{d['id']}"
         it: dict = {"cls": d["cls"]}
-        it["rect"] = c.create_rectangle(P(x), P(y), P(x + w), P(y + h), outline="#9FB0A6",
+        it["rect"] = c.create_rectangle(P(x), P(y), P(x + w), P(y + h), outline=theme.NEUTRAL,
                                         fill="#FFFFFF", tags=(tag,))
         estop = self.prj["program"]["estop"] == d["id"]
         lock = d["id"] in self.locks
@@ -475,7 +479,7 @@ class Mimic(ttk.Frame):
                 c.coords(it["rotor"], P(mx - r * math.cos(a)), P(cy - r * math.sin(a)),
                          P(mx + r * math.cos(a)), P(cy + r * math.sin(a)))
                 self._set(it["body"], fill=theme.DANGER_BG if state["error"] else
-                          "#BFE6CF" if pos >= 1 else "#FFEFC2" if pos > 0 else "#FFFFFF")
+                          theme.STATE_ON_FULL if pos >= 1 else theme.STATE_ACTIVE_BG if pos > 0 else "#FFFFFF")
             elif d["cls"] == "Ventil":
                 self._set(it["state"], text=state["label"],
                           fill=theme.ERR if state["error"] else theme.DIM)
@@ -528,7 +532,7 @@ class Mimic(ttk.Frame):
             self._release.state(["!disabled"] if force else ["disabled"])
 
         plc = self.items["plc"]
-        self._set(plc["enable"], fill=theme.ACCENT if fr["enable"] else theme.ERR)
+        self._set(plc["enable"], fill=theme.STATE_ON if fr["enable"] else theme.ERR)
         auto = res.get("modeAuto", True)
         self._set(plc["mode"], text=_("režim: AUTO") if auto
                   else _("režim: RUČNĚ (povely z HMI)"))

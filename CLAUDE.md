@@ -233,10 +233,32 @@ pokyn k jazyku výstupu. Úkol pro app (apps/web):
 
 ## Roadmapa (pořadí)
 
-1. ~~PLCopen XML (TC6) export~~ ✅ hotovo v core (viz sekce PLCopen XML výše); zbývá IEC 61131-10 XML pro GX Works3 / Sysmac
-2. apps/api: účty, projekty v DB, CZ/EN, platby (Stripe)
-3. AI přes backend; AI z fotky P&ID
-4. Openness worker (import+kompilace do TIA na klik)
-5. Firemní knihovny šablon FB, HMI/UDT vrstva
+Hotovo: PLCopen XML (TC6), import stávajících zařízení (reverse + AI, delta protokol), kusovník,
+bezpečnostní funkce + program po schválení, schvalování, oživení, web PLCdesk (apps/site, Cloudflare
+workers.dev, licenční API, Stripe/Paddle), přenosná verze 0.1.0 (GitHub Releases).
+
+**Fáze 1 — rozpracováno 2026-10-04 (nové moduly jádra):**
+1. Emulátory překladu a běhu všech 8 platforem (`emu/`) — dialektová kontrola skutečného kódu + interpret
+   proti modelu stroje (kód ↔ návrh); emulátor ≠ překladač výrobce
+2. HMI (`hmi.ts`) — tagy, alarmy, obrazovky, exporty WinCC / FactoryTalk / CODESYS Visu / GT / NA / web HMI
+3. Revize a změnové řízení (`revision.ts`) — diff verzí, zpráva o změnách, rozsah opakovaných zkoušek
+4. Nabídka (`quote.ts`) — ceník uživatele, odhad hodin, interní podklad; firemní knihovna (`library.ts`)
+5. Exporty SISTEMA (`sistema.ts`) a EPLAN (`eplan.ts`, AutomationML + seznamy)
+
+**Fáze 2:** servoosy (PLCopen Motion) a pohony po síti (PROFINET / EtherCAT, IO-Link, vzdálené I/O);
+volitelný styl kódu „OOP“ pro CODESYS / TwinCAT / WAGO (rozhraní, metody, ošetření chyb, pokyny k tasku)
++ WAGO jako varianta CODESYS — vše ověřené emulátory.
+**EPLAN AML v2** (zadání `docs/eplan-aml-export.md`): perzistentní `guid` v modelu (Project, Device,
+modul, IoEntry — přidělit při vzniku, doplnit při načtení starých projektů; nikdy negenerovat až při
+exportu), hierarchie stanice/rack/slot, sítě a porty s InternalLink v nejbližším společném rodiči,
+vlastnosti EPLAN (§7), vícejazyčné funkční texty, kontrola unikátnosti UDT+adresa. Licenci EPLAN nemáme
+→ bez zlatého vzorku; ověření = vlastní strukturální kontrola (§13), XSD CAEX 2.15 + knihovna AR APC,
+import v PLCnext Engineer (zdarma). Výstup zůstává „neověřeno importem do EPLAN“. Katalog EPLAN part
+number (§11) až s přístupem k EPLAN Data Portal.
+**Fáze 3:** napojení do webu a desktopu, kontrola aktualizací (podpis instalátoru = placený certifikát,
+až po schválení), překlady, testy, commit.
+**Dál:** licence v aplikaci (Free 64 I/O, aktivace přes API); reálné ověření importu v CODESYS / TwinCAT
+(zdarma) a virtuální oživení se soft PLC (OPC UA / Modbus TCP); IEC 61131-10 XML pro GX Works3 / Sysmac;
+Openness worker (TIA na klik); apps/api (účty, projekty v DB); AI přes backend, AI z fotky P&ID.
 
 Kontext a rozhodnutí průběžně viz claude.ai projekt „PLC programovani" (koncept, review, produktové zhodnocení).

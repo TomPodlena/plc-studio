@@ -24,7 +24,7 @@ from .i18n import _
 
 # CSS proměnné webového tématu → paleta desktopu
 _VARS = {
-    "line": "#9FB0A6",
+    "line": theme.NEUTRAL,
     "muted": "#6B7A8C",
     "warn": theme.WARN,
     "chip": theme.FIELD,
@@ -35,15 +35,16 @@ _DESCENT = 0.22  # podíl výšky písma pod účařím (Consolas) — SVG kotv�
 _META_KEYS = ("dev", "mod", "step")           # celočíselné odkazy
 _PAPER = "#FFFFFF"
 
-# Značky: (obrys, tloušťka, výplň prázdných bloků)
+# Značky: (obrys, tloušťka, výplň prázdných bloků). „hot" / „sel" jsou UI (najetí, výběr)
+# → akcent značky; ostatní jsou stav → sémantické barvy (zelená = hotovo / sepnuto).
 MARKS = {
-    "hot": (theme.ACCENT, 2, "#EEF6F1"),
+    "hot": (theme.ACCENT, 2, theme.ACCENT_BG),
     "sel": (theme.ACCENT, 2, theme.TREE_SEL),
-    "active": (theme.WARN, 2, "#FFEFC2"),
-    "done": (theme.ACCENT, 1, "#E3F1E8"),
+    "active": (theme.WARN, 2, theme.STATE_ACTIVE_BG),
+    "done": (theme.OK, 1, theme.OK_BG),
     "err": (theme.ERR, 2, theme.DANGER_BG),
-    "on": (theme.ACCENT, 2, "#D5EFE0"),        # živá simulace: běží / otevřeno / signál TRUE
-    "off": ("#9FB0A6", 1, "#ECEFED"),          # blokováno (enable = FALSE)
+    "on": (theme.STATE_ON, 2, theme.STATE_ON_BG),   # živá simulace: běží / otevřeno / signál TRUE
+    "off": (theme.NEUTRAL, 1, theme.STATE_OFF_BG),  # blokováno (enable = FALSE)
 }
 
 

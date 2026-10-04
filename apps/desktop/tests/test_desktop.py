@@ -76,6 +76,34 @@ class CatalogTest(unittest.TestCase):
         self.assertEqual(tool.check(), [])
 
 
+def _contrast(a: str, b: str) -> float:
+    """Kontrastní poměr WCAG dvou barev #RRGGBB."""
+    def lum(h):
+        ch = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        ch = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in ch]
+        return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
+    hi, lo = sorted((lum(a), lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+class ThemeTest(unittest.TestCase):
+    def test_brand_and_state_colors(self):
+        """Značka PLCdesk (azur) a stavové barvy: čitelné a navzájem odlišné."""
+        self.assertEqual((theme.FG, theme.ACCENT, theme.FIELD, theme.BORDER),
+                         ("#111A2E", "#2457C5", "#F5F6F9", "#D6DCE6"))
+        for fg, bg in ((theme.FG, theme.BG), (theme.ACCENT, theme.BG),
+                       (theme.ACCENT_FG, theme.ACCENT), (theme.OK, theme.BG),
+                       (theme.DIM, theme.BG), (theme.ERR, theme.BG)):
+            self.assertGreaterEqual(_contrast(fg, bg), 4.5, (fg, bg))
+        # stav ≠ značkový akcent: DI modrá, DO zelená, analog fialová, aktivní, porucha
+        states = [theme.SIG_IN, theme.SIG_OUT, theme.SIG_AN, theme.WARN, theme.ERR]
+        self.assertEqual(len(set(states)), len(states))
+        self.assertNotIn(theme.ACCENT, states)
+        self.assertEqual(WIRE_IN, theme.SIG_IN)
+        self.assertEqual(WIRE_OUT, theme.SIG_OUT)
+        self.assertNotEqual(theme.STATE_ON, theme.ACCENT)
+
+
 class BridgeTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

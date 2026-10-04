@@ -19,7 +19,7 @@ from ..widgets import Table, card, note_box, save_file, wrap_label
 
 NAME_MAX = 60
 GREY = "#6B6C6E"            # „čeká“ — tmavší než DIM, ať jde řádek přečíst
-STATUS_COLOR = {"approved": theme.ACCENT, "stale": theme.WARN, "rejected": theme.ERR,
+STATUS_COLOR = {"approved": theme.OK, "stale": theme.WARN, "rejected": theme.ERR,
                 "missing": GREY, "proposed": GREY, "unverified": GREY}
 
 
@@ -77,7 +77,7 @@ def status_label(parent, item: dict, **kw) -> tk.Label:
 def summary_row(parent, s: dict) -> ttk.Frame:
     """Souhrn: počty podle stavů a povinné položky bez platného schválení."""
     row = ttk.Frame(parent)
-    for text, color in ((_("{n} schváleno", n=s["approved"]), theme.ACCENT),
+    for text, color in ((_("{n} schváleno", n=s["approved"]), theme.OK),
                         (_("{n} změněno po schválení", n=s["stale"]), theme.WARN),
                         (_("{n} zamítnuto", n=s["rejected"]), theme.ERR),
                         (_("{n} čeká", n=s["pending"]), GREY)):
@@ -88,7 +88,7 @@ def summary_row(parent, s: dict) -> ttk.Frame:
                  bg=theme.BG, fg=theme.WARN, font=theme.FONT_UI).pack(side="left", padx=(8, 0))
     else:
         tk.Label(row, text="✔ " + _("Všechny povinné položky jsou schválené."), bg=theme.BG,
-                 fg=theme.ACCENT, font=theme.FONT_UI).pack(side="left", padx=(8, 0))
+                 fg=theme.OK, font=theme.FONT_UI).pack(side="left", padx=(8, 0))
     return row
 
 

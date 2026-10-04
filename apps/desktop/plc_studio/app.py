@@ -200,7 +200,12 @@ class App:
         titles = ttk.Frame(head)         # balí se až po tlačítkách vpravo — dlouhý název
         line = ttk.Frame(titles)         # projektu je pak nevytlačí (zkrátí se sám)
         line.pack(anchor="w")
-        ttk.Label(line, text="PLCdesk", style="Header.TLabel").pack(side="left")
+        # logotyp PLCdesk = symbol + „PLC" tučně a „desk" normálně (brand/README.md);
+        # název produktu se nepřekládá
+        theme.brand_symbol(line).pack(side="left", padx=(0, 8))
+        for text, font in (("PLC", theme.FONT_HEADER), ("desk", theme.FONT_HEADER[:2])):
+            tk.Label(line, text=text, font=font, bg=theme.BG, fg=theme.PRIMARY,
+                     padx=0, pady=0, bd=0).pack(side="left")
         self._proj_lbl = ttk.Label(line, text="", style="Section.TLabel")
         self._proj_lbl.pack(side="left", padx=(10, 0))
         ttk.Label(titles, text=_("AI návrh · schéma · kód · dokumentace · {n} platforem",

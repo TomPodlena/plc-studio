@@ -145,7 +145,7 @@ def build(app, parent) -> None:
                    height=min(9, len(fbs) + 1))
     states.pack(fill="x", pady=(2, 8))
     states.tv.tag_configure("err", foreground=theme.ERR)
-    states.tv.tag_configure("on", foreground=theme.ACCENT)
+    states.tv.tag_configure("on", foreground=theme.STATE_ON)
     states.tv.tag_configure("off", foreground=theme.DIM)
     states.add("enable", ("enable", "", "", ""))
     for d in fbs:
@@ -268,7 +268,7 @@ def build(app, parent) -> None:
     mx: dict = {"tbl": None, "data": None}
     for _text, tag in LEVEL.values():
         checks_tbl.tv.tag_configure(tag, foreground={
-            "lv_ok": theme.ACCENT, "lv_info": theme.DIM, "lv_warn": theme.WARN,
+            "lv_ok": theme.OK, "lv_info": theme.DIM, "lv_warn": theme.WARN,
             "lv_err": theme.ERR}[tag])
     checks: list[dict] = []
 

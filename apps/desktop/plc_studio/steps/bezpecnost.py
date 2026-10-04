@@ -54,7 +54,7 @@ def _pl_color(pl, plr) -> str:
         return GREY
     if not pl:
         return theme.ERR
-    return theme.ACCENT if _rank(pl) >= _rank(plr) else theme.ERR
+    return theme.OK if _rank(pl) >= _rank(plr) else theme.ERR
 
 
 def _num(v) -> str:
@@ -267,7 +267,7 @@ def render(app, parent) -> None:
     sumrow.pack(fill="x", pady=(2, 6))
     chips = [(_("funkcí {n}", n=c["fns"]), theme.FG),
              (_("PL < PLr: {n}", n=c["low"]), theme.ERR if c["low"] else GREY),
-             (_("schváleno {n} z {m}", n=c["approved"], m=c["total"]), theme.ACCENT)]
+             (_("schváleno {n} z {m}", n=c["approved"], m=c["total"]), theme.OK)]
     if c["off"]:
         chips.insert(1, (_("vyřazeno {n}", n=c["off"]), GREY))
     for text, color in chips:
@@ -826,10 +826,10 @@ def _render_program(app, parent, v: dict, ui: dict, var_note, buttons: list) -> 
 
     cb.bind("<<ComboboxSelected>>", pick)
     state = pr["state"]
-    text, color = {"approved": (_("SCHVÁLENO"), theme.ACCENT),
+    text, color = {"approved": (_("SCHVÁLENO"), theme.OK),
                    "draft": (_("NESCHVÁLENO — návrh"), theme.ERR),
                    "pending": (_("čeká na schválení funkcí"), GREY)}[state]
-    st_lbl = tk.Label(top, text=text, bg=theme.WARN_BG if state != "approved" else theme.TREE_SEL,
+    st_lbl = tk.Label(top, text=text, bg=theme.WARN_BG if state != "approved" else theme.OK_BG,
                       fg=color, font=theme.FONT_ACCENT, padx=10, pady=3)
     st_lbl.pack(side="left")
     st_lbl._state = state

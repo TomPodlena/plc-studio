@@ -20,7 +20,7 @@ from .schvaleni import GREY, _file_name, approver, name_bar, when
 
 RESULTS = {"ok": N_("OK"), "nok": N_("Nevyhovuje"), "na": N_("N/A")}
 RESULT_SHORT = {"ok": "OK", "nok": "NOK", "na": "N/A"}
-RESULT_COLOR = {"ok": theme.ACCENT, "nok": theme.ERR, "na": GREY}
+RESULT_COLOR = {"ok": theme.OK, "nok": theme.ERR, "na": GREY}
 FILTERS = {"all": N_("vše ({n})"), "open": N_("bez výsledku ({n})"),
            "nok": N_("nevyhovuje ({n})")}
 TEXT_MAX = 300
@@ -87,14 +87,14 @@ def render(app, parent) -> None:
 
     sumrow = ttk.Frame(body)
     sumrow.pack(fill="x", pady=(2, 6))
-    for text, color in ((f"{s['ok']} OK", theme.ACCENT), (f"{s['nok']} NOK", theme.ERR),
+    for text, color in ((f"{s['ok']} OK", theme.OK), (f"{s['nok']} NOK", theme.ERR),
                         (f"{s['na']} N/A", GREY),
                         (_("{n} bez výsledku", n=s["open"]), theme.FG)):
         tk.Label(sumrow, text=text, bg=theme.FIELD, fg=color, font=theme.FONT_ACCENT,
                  padx=8, pady=2).pack(side="left", padx=(0, 6))
     tk.Label(sumrow, text=("✔ " + _("Všechny kroky jsou OK nebo N/A — oživení lze uzavřít."))
              if s["done"] else _("celkem {n} kroků", n=s["total"]), bg=theme.BG,
-             fg=theme.ACCENT if s["done"] else theme.DIM, font=theme.FONT_UI
+             fg=theme.OK if s["done"] else theme.DIM, font=theme.FONT_UI
              ).pack(side="left", padx=(8, 0))
 
     # --- plán po fázích -----------------------------------------------------------------------
