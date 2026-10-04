@@ -23,6 +23,8 @@ import {
 import { buildIR, irBlocks, irText, IR_CLASS_ORDER, type IrFb, type IrFbClass } from "./ir.js";
 import { tr, trx } from "./i18n.js";
 import { hwLayout, lxSpecOf } from "./hardware.js";
+import { axisTemplate, lxAxisLines, lxAxisMi } from "./axis_gen.js";
+import { axisObjName } from "./axis.js";
 
 /** Název importovaného programu a jeho hlavní rutiny. */
 export const LX_PROGRAM = "PLCdesk";
@@ -33,9 +35,9 @@ export const LX_SOFTWARE_REVISION = "32.00";
 /* Pozor: logix.ts a codegen.ts se importují navzájem — na úrovni modulu se proto
    nesmí sahat na konstanty z codegen.ts (šablony se berou až uvnitř funkcí). */
 /* `lib` = vlastní šablony firemní knihovny, které `codeLibrary` pro Logix pustil (`lxTplProblems`) */
-const tplOf = (cls: IrFbClass, lib?: CodeLibrary): string => fbTemplate(cls, "st", lib);
+const tplOf = (cls: IrFbClass, lib?: CodeLibrary): string => cls === "Axis" ? axisTemplate("lx") : fbTemplate(cls, "st", lib);
 const AOI_OF: Record<string, string> = { Motor: "FB_Motor", Ventil: "FB_Ventil", AnalogIn: "FB_AnalogIn", AnalogOut: "FB_AnalogOut",
-  Vfd: "FB_Vfd", PosDrive: "FB_PosDrive", PropValve: "FB_PropValve" };
+  Vfd: "FB_Vfd", PosDrive: "FB_PosDrive", PropValve: "FB_PropValve", Axis: "FB_Axis" };
 
 /** Výchozí hodnoty, které se pro Logix liší od šablony: analogy 5069 dávají REAL 0–100 % (rozsah modulu). */
 const LX_INIT: Record<string, string> = { rawMax: "100.0" };
@@ -182,6 +184,9 @@ export function lxProgramTags(prj: Project): LxTag[] {
   const out: LxTag[] = [{ name: "enable", type: "BOOL", desc: trx("centrální uvolnění (E-stop TRUE = v pořádku)") }];
   for (const d of ir.decls) out.push({ name: d.name, type: d.type === "TON" ? "FBD_TIMER" : d.type === "INT" ? "DINT" : d.type, desc: cmtSafe(declNote(d)).trim() });
   for (const b of irBlocks(ir)) out.push({ name: b.inst, type: b.fb, desc: "" });
+  /* servoosy: řídicí tagy instrukcí pohybu (každá instrukce vlastní — RM002 chyba 3 Execution Collision) */
+  for (const d of prj.devices.filter(x => x.cls === "Axis"))
+    for (const t of Object.values(lxAxisMi(d))) out.push({ name: t, type: "MOTION_INSTRUCTION", desc: trx("osa {dev}: instrukce pohybu", { dev: d.name }) });
   return out;
 }
 
@@ -198,7 +203,10 @@ function lxCallIr(b: IrFb, c: StCtx, lib?: CodeLibrary): string {
   const ind = "    ";
   const notes = stCallNotes(b, c);
   const ins: string[] = [], outs: string[] = [], wired = new Set<string>();
+  const axis = b.cls === "Axis" ? lxAxisLines(b.dev, b.inst) : null;
+  if (axis) ins.push(...axis.before.map(l => ind + l));
   for (const p of b.inputs) {
+    if (p.src === "axis") continue;                  // osa je v instrukcích hlavní rutiny, AOI ji nedostává
     wired.add(p.name);
     const n = notes.port[p.name];
     ins.push(ind + b.inst + "." + p.name + " := " + portText(p, c) + ";" + (n !== undefined ? " " + c.cm(n) : ""));
@@ -209,6 +217,7 @@ function lxCallIr(b: IrFb, c: StCtx, lib?: CodeLibrary): string {
       ins.push(ind + b.inst + "." + v.name + " := " + lxInitOf(v.name, lxType(b.cls, v.type, v.name), v.init) + ";");
   }
   const callLine = ind + b.fb + "(" + b.inst + ");" + (notes.after !== undefined ? " " + c.cm(notes.after) : "");
+  if (axis) outs.push(...axis.after.map(l => ind + l));
   /* renderWiring odsadí první řádek volání sám (jako `instM1(…` u IEC) */
   return [...ins, callLine, ...outs].join("\n").slice(ind.length);
 }
@@ -462,15 +471,19 @@ export function xmlProblems(xml: string): string[] {
   return errs;
 }
 
-const ST_KW = new Set(["IF", "THEN", "ELSIF", "ELSE", "END_IF", "CASE", "OF", "END_CASE", "AND", "OR", "NOT", "XOR", "MOD", "TONR"]);
+const ST_KW = new Set(["IF", "THEN", "ELSIF", "ELSE", "END_IF", "CASE", "OF", "END_CASE", "AND", "OR", "NOT", "XOR", "MOD", "TONR",
+  "MSO", "MSF", "MAFR", "MAH", "MAM", "MAJ", "MAS"]);
 const TIMER_MEMBERS = new Set(["PRE", "TimerEnable", "DN", "TT", "ACC", "Reset", "EnableIn", "EnableOut"]);
+/** Členy MOTION_INSTRUCTION a tagu osy, které hlavní rutina čte (MOTION-RM002). */
+const MI_MEMBERS = new Set(["EN", "DN", "ER", "PC", "IP", "AC", "ERR", "EXERR"]);
+const AXIS_TAG_MEMBERS = new Set(["ServoActionStatus", "DriveEnableStatus", "AxisHomedStatus", "AxisFault", "ActualPosition", "ActualVelocity"]);
 
 /**
  * Statická kontrola výstupu pro Logix (testy + scripts/check_samples.mjs): well-formed L5X,
  * žádné konstrukce IEC, které Logix nemá, TONR s PRE před voláním, každý identifikátor
  * v rutinách deklarovaný (tag, parametr / lokální tag AOI, člen FBD_TIMER), čisté ASCII.
  */
-export function logixProblems(files: Record<string, string>): string[] {
+export function logixProblems(files: Record<string, string>, axes: string[] = []): string[] {
   const errs: string[] = [];
   const x = files["PLCdesk_Program.L5X"];
   if (!x) return ["chybí PLCdesk_Program.L5X"];
@@ -500,6 +513,8 @@ export function logixProblems(files: Record<string, string>): string[] {
   routines.push({ where: "MainRoutine", st: lines(main), scope: id => tagType.get(id.toLowerCase()) });
   if (files["MainRoutine.st"] !== undefined && files["MainRoutine.st"].replace(/\s+$/, "") !== lines(main).replace(/\s+$/, ""))
     errs.push("MainRoutine.st se liší od rutiny v L5X");
+  /* tagy os (AXIS_CIP_DRIVE) zakládá uživatel v Motion Group — L5X je nenese, rutina je smí použít */
+  for (const a of axes) if (!tagType.has(a.toLowerCase())) tagType.set(a.toLowerCase(), "AXIS_CIP_DRIVE");
   for (const r of routines) for (const f of lxRoutineFindings(r.st, r.scope, aoi)) errs.push(r.where + ": " + f.text);
   return [...new Set(errs)];
 }
@@ -543,7 +558,8 @@ function lxRoutineFindings(st: string, scope: (id: string) => string | undefined
     if (!t) { F("undeclared", id, "nedeklarovaný identifikátor " + id); continue; }
     if (m[3]) {
       const member = m[3].slice(1);
-      const ok = t === "FBD_TIMER" ? TIMER_MEMBERS.has(member) : aoi.has(t) ? aoi.get(t)!.has(member.toLowerCase()) : false;
+      const ok = t === "FBD_TIMER" ? TIMER_MEMBERS.has(member) : t === "MOTION_INSTRUCTION" ? MI_MEMBERS.has(member)
+        : t === "AXIS_CIP_DRIVE" ? AXIS_TAG_MEMBERS.has(member) : aoi.has(t) ? aoi.get(t)!.has(member.toLowerCase()) : false;
       if (!ok) F("member", id + "." + member, id + " (" + t + ") nemá člen " + member);
     }
   }

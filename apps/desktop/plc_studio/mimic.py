@@ -175,7 +175,8 @@ class Mimic(ttk.Frame):
         for d in prj["devices"]:
             side = "L" if d["cls"] in LEFT_CLS else "R"
             n = max(1, len(self.io_of[d["id"]]))
-            h = max(36 + n * ROW + 6, 74 if d["cls"] in ("Motor", "Ventil", "AnalogIn", *MOTION_CLS) else 54)
+            h = max(36 + n * ROW + 6, 92 if d["cls"] == "Axis" else  # osa: vedení + poloha pod ním
+                    74 if d["cls"] in ("Motor", "Ventil", "AnalogIn", *MOTION_CLS) else 54)
             x = X_LEFT if side == "L" else X_RIGHT
             self.dev_box[d["id"]] = (x, y[side], W_DEV, h, side)
             for j, e in enumerate(self.io_of[d["id"]]):
@@ -377,6 +378,30 @@ class Mimic(ttk.Frame):
             it["value"] = c.create_text(P(x0), P(cy + 20), text="", anchor="w", fill=theme.FG,
                                         font=self._font(9.5, mono=True), tags=(tag,))
             it["geo"] = (x0, x1, cy)
+        elif d["cls"] == "Axis":                         # servoosa: vedení s polohami, vozík podle skutečné polohy
+            # spojení s PLC po síti (bez vodičů I/O): čárkovaně k hlavičce CPU
+            hx, hy, hw, hh = self.plc_head
+            c.create_line(P(x), P(y + 18), P(hx + hw + 30), P(y + 18), P(hx + hw + 30), P(hy + hh - 10),
+                          P(hx + hw), P(hy + hh - 10), fill=theme.PRIMARY, dash=(4, 3), width=max(1, round(1.2 * s)),
+                          tags=(tag,))
+            c.create_text(P(x - 4), P(y + 12), text=_("síť"), anchor="e", fill=theme.PRIMARY,
+                          font=self._font(9), tags=(tag,))
+            x0, x1 = gx - 30, gx + 76
+            c.create_rectangle(P(x0), P(cy - 3), P(x1), P(cy + 3), outline=theme.FG, fill=theme.FIELD, tags=(tag,))
+            ax = d.get("axis") or {}
+            pts = [p_["pos"] for p_ in ax.get("positions") or [] if isinstance(p_.get("pos"), (int, float))]
+            home = ax.get("homePos", 0)
+            lo = ax["limNeg"] if isinstance(ax.get("limNeg"), (int, float)) else min([home, ax.get("startPos", 0), *pts])
+            hi = ax["limPos"] if isinstance(ax.get("limPos"), (int, float)) else max([home, ax.get("startPos", 0), *pts])
+            span = (hi - lo) or 1
+            for v in [home, *pts]:                        # značky reference a pojmenovaných poloh
+                xx = x0 + 6 + (x1 - x0 - 12) * min(1, max(0, (v - lo) / span))
+                c.create_line(P(xx), P(cy + 5), P(xx), P(cy + 10), fill=theme.DIM, tags=(tag,))
+            c.create_text(P(x1 + 3), P(cy), text="M", anchor="w", fill=theme.FG, font=self._font(10, bold=True), tags=(tag,))
+            it["cart"] = c.create_rectangle(0, 0, 0, 0, outline=theme.FG, fill=theme.DIM, tags=(tag,))
+            it["value"] = c.create_text(P(x0), P(cy + 20), text="", anchor="w", fill=theme.FG,
+                                        font=self._font(9.5, mono=True), tags=(tag,))
+            it["geo"] = (x0, x1, cy)
         elif d["cls"] == "PropValve":                    # proporcionální ventil: šipka + sloupec skutečné hodnoty
             vx = gx - 8
             c.create_rectangle(P(vx), P(cy - 12), P(vx + 24), P(cy + 12), outline=theme.FG, fill="#FFFFFF",
@@ -560,6 +585,20 @@ class Mimic(ttk.Frame):
                 self._set(it["cart"], fill=theme.ERR if state["error"] else WIRE_OUT if state["busy"] else theme.DIM)
                 self._set(it["value"], text=(_("záznam {n}", n=rec) if rec is not None and rec > 0 else
                                              _("reference") if rec == 0 else _("jede…") if state["pos"] > 0 else "—"))
+            elif d["cls"] == "Axis":
+                self._set(it["state"], text=state["label"], fill=theme.ERR if state["error"] else theme.DIM)
+                x0, x1, cy = it["geo"]
+                cx = x0 + 6 + (x1 - x0 - 12) * state["pos"]     # pos = skutečná poloha v rozsahu limitů (jádro)
+                c.coords(it["cart"], P(cx - 7), P(cy - 8), P(cx + 7), P(cy + 8))
+                self._set(it["cart"], fill=theme.ERR if state["error"] else WIRE_OUT if state.get("moving") else
+                          theme.STATE_ON if state.get("powered") else theme.DIM)
+                unit = d.get("unit") or ""
+                txt = f"{state.get('value', 0):.1f} {unit}".strip()
+                if state.get("moving"):
+                    txt += f" → {state.get('cmd', 0):.4g}"
+                elif state.get("powered") and not state.get("homed"):
+                    txt += "  " + _("nereferováno")
+                self._set(it["value"], text=txt)
             elif d["cls"] == "PropValve":
                 self._set(it["state"], text=state["label"], fill=theme.ERR if state["error"] else theme.DIM)
                 x0, x1, cy = it["geo"]

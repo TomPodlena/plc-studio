@@ -18,10 +18,11 @@
  */
 import { ioOf, instName, stripDia, interlockDevs, isCodesysFamily, codeStyleFor } from "./model.js";
 import { tr, N_ } from "./i18n.js";
-import { ctrlDecls, actuators, manVarOf, parseFbTemplate, hmiGlobalPlat, motionHmiPorts, ST_MOTOR, ST_VENTIL, ST_AI, ST_AO, ST_VFD, ST_POSDRIVE, ST_PROPVALVE } from "./codegen.js";
-import { buildIR, irBlocks } from "./ir.js";
+import { ctrlDecls, actuators, manVarOf, parseFbTemplate, hmiGlobalPlat, motionHmiPorts, ST_MOTOR, ST_VENTIL, ST_AI, ST_AO, ST_VFD, ST_POSDRIVE, ST_PROPVALVE, ST_AXIS } from "./codegen.js";
+import { axisCfgOf } from "./axis.js";
+import { buildIR, irBlocks, manVarsOf } from "./ir.js";
 import { docAlarmCsv } from "./docs.js";
-import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE, MOTION_ERR, } from "./sim.js";
+import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE, T_AXIS_POWER, MOTION_ERR, } from "./sim.js";
 import { isMotionClass, rampStepOf, tolOf, tolTicksOf, selBitsOf, maxRecord } from "./model.js";
 /** Kód chyby bloku pohonu (errCode) — texty jako dokumentace. */
 const ERR_STATES = () => [{ value: 0, text: tr("bez chyby") }, ...Object.entries(MOTION_ERR).map(([k, t]) => ({ value: +k, text: tr(t) }))];
@@ -43,7 +44,7 @@ export function hmiCtrlNames(prj) {
 /** Proměnné šablony bloku třídy (vstupy, výstupy) — HMI smí číst jen to, co šablona má. */
 function fbVars(cls) {
     const tpl = cls === "Motor" ? ST_MOTOR : cls === "Ventil" ? ST_VENTIL : cls === "AnalogIn" ? ST_AI : cls === "AnalogOut" ? ST_AO
-        : cls === "Vfd" ? ST_VFD : cls === "PosDrive" ? ST_POSDRIVE : cls === "PropValve" ? ST_PROPVALVE : "";
+        : cls === "Vfd" ? ST_VFD : cls === "PosDrive" ? ST_POSDRIVE : cls === "PropValve" ? ST_PROPVALVE : cls === "Axis" ? ST_AXIS : "";
     return new Set(tpl ? parseFbTemplate(tpl).vars.filter(v => v.kind !== "var").map(v => v.name) : []);
 }
 function stepStates(prj) {
@@ -77,9 +78,21 @@ export function hmiTags(prj) {
             : d.cls === "PosDrive" ? tr("{dev}: ruční povel referenční jízda (platí mimo AUTO)", { dev })
                 : d.cls === "PropValve" ? tr("{dev}: ruční povel zapnout na výchozí žádanou (platí mimo AUTO)", { dev })
                     : tr("{dev}: ruční povel otevřít (platí mimo AUTO)", { dev });
-        if (ctrl.has(manVarOf(d)))
+        if (d.cls === "Axis") {
+            /* servoosa: regulace (přepínač), referování (tlačítko), pojezd ± (držet) */
+            const [pw, hm, jp, jn] = manVarsOf(d);
+            if (ctrl.has(pw))
+                M(pw, "BOOL", "dev", tr("{dev}: regulace osy zapnuta (ručně; v AUTO ji zapíná sekvence)", { dev }), { access: "RW", cmd: "toggle", dev });
+            if (ctrl.has(hm))
+                M(hm, "BOOL", "dev", tr("{dev}: ruční referování osy (platí mimo AUTO)", { dev }), { access: "RW", cmd: "momentary", dev });
+            if (ctrl.has(jp))
+                M(jp, "BOOL", "dev", tr("{dev}: ruční pojezd + (držet, platí mimo AUTO)", { dev }), { access: "RW", cmd: "momentary", dev });
+            if (ctrl.has(jn))
+                M(jn, "BOOL", "dev", tr("{dev}: ruční pojezd − (držet, platí mimo AUTO)", { dev }), { access: "RW", cmd: "momentary", dev });
+        }
+        else if (ctrl.has(manVarOf(d)))
             M(manVarOf(d), "BOOL", "dev", manTxt, { access: "RW", cmd: "toggle", dev });
-        if (isMotionClass(d.cls)) {
+        if (isMotionClass(d.cls) || d.cls === "Axis") {
             /* pohony fáze 2a: stejné výstupy bloku, jaké u Mitsubishi / Omron zrcadlí MAIN (motionHmiPorts) */
             const b = blocks.get(d.id);
             const u = d.unit || undefined;
@@ -97,7 +110,17 @@ export function hmiTags(prj) {
                 error: ["BOOL", tr("{dev}: porucha bloku", { dev })],
                 status: ["WORD", tr("{dev}: stavové slovo bloku", { dev }), { states: STATUS_STATES() }],
                 errCode: ["INT", tr("{dev}: kód chyby bloku", { dev }), { states: ERR_STATES() }],
+                /* servoosa (FB_Axis) */
+                powered: ["BOOL", tr("{dev}: regulace osy zapnuta", { dev })],
+                homed: ["BOOL", tr("{dev}: osa referována", { dev })],
+                doneId: ["INT", tr("{dev}: číslo kroku posledního dokončeného povelu", { dev })],
+                actPos: ["REAL", tr("{dev}: skutečná poloha osy", { dev }), { unit: u }],
+                moving: ["BOOL", tr("{dev}: osa jede", { dev })],
             };
+            if (d.cls === "Axis") {
+                TXT.done = ["BOOL", tr("{dev}: povel osy dokončen", { dev })];
+                TXT.busy = ["BOOL", tr("{dev}: osa provádí povel", { dev })];
+            }
             for (const port of b ? motionHmiPorts(b) : []) {
                 const t = TXT[port];
                 if (t && v.has(port))
@@ -170,7 +193,7 @@ export function hmiAlarms(prj, tags = hmiTags(prj)) {
     const byName = new Set(tags.map(t => t.name));
     const groups = new Map();
     for (const r of alarmRows(prj)) {
-        const m = r.code.match(/^A_(\w+?)_(START|RUN|FAULT|TRAVEL|POS|OPEN|HI|LO|READY|NOTHOMED|SPEED|TIMEOUT|DEV)$/);
+        const m = r.code.match(/^A_(\w+?)_(START|RUN|FAULT|TRAVEL|POS|OPEN|HI|LO|READY|NOTHOMED|SPEED|TIMEOUT|DEV|AXIS|POWER|CMD)$/);
         const seq = r.code.match(/^A_SEQ_(\d+)$/);
         let trigger, cls = "fault", dev = r.dev, key = r.code;
         if (seq) {
@@ -184,7 +207,12 @@ export function hmiAlarms(prj, tags = hmiTags(prj)) {
             const inst = instName(d), io = ioOf(prj, d);
             /* pohony fáze 2a: blok rozlišuje příčinu kódem chyby errCode (1 porucha … 6 odchylka) */
             const ERR = { FAULT: 1, READY: 2, NOTHOMED: 3, SPEED: 4, POS: 4, TIMEOUT: 5, DEV: 6 };
-            if (isMotionClass(d.cls) && ERR[m[2]]) {
+            /* servoosa: errCode 1 porucha osy, 2 regulace nezapnuta, 3 bez referování, 7 povel odmítnut */
+            const AXE = { AXIS: 1, POWER: 2, NOTHOMED: 3, CMD: 7 };
+            if (d.cls === "Axis" && AXE[m[2]]) {
+                trigger = { tag: inst + "_errCode", kind: "value", value: AXE[m[2]] };
+            }
+            else if (isMotionClass(d.cls) && ERR[m[2]]) {
                 trigger = m[2] === "FAULT" && io.fault ? { tag: io.fault.tag, kind: "bit" } : { tag: inst + "_errCode", kind: "value", value: ERR[m[2]] };
             }
             else
@@ -295,7 +323,7 @@ export function hmiScreens(prj, tags = hmiTags(prj), alarms = hmiAlarms(prj, tag
     };
     const pagesOf = [];
     /* --- Přehled: mimiky zařízení podle tříd, mřížka 8 × 5 --- */
-    const order = ["Motor", "Vfd", "PosDrive", "Ventil", "PropValve", "AnalogIn", "AnalogOut", "DI", "DO"];
+    const order = ["Motor", "Vfd", "PosDrive", "Axis", "Ventil", "PropValve", "AnalogIn", "AnalogOut", "DI", "DO"];
     const devs = [...prj.devices].sort((a, b) => order.indexOf(a.cls) - order.indexOf(b.cls));
     const estop = prj.program.estop, locked = new Set(interlockDevs(prj).map(d => d.id));
     const tile = (d, x, y) => {
@@ -309,6 +337,9 @@ export function hmiScreens(prj, tags = hmiTags(prj), alarms = hmiAlarms(prj, tag
             return { k: "motor", ...base, tags: pick({ run: T(inst + "_done"), fbk: io.homed && T(io.homed.tag), busy: T(inst + "_busy"), err: T(inst + "_error"), status: T(inst + "_status") }) };
         if (d.cls === "PropValve")
             return { k: "aout", ...base, unit: d.unit, min: d.rmin, max: d.rmax, tags: pick({ value: T(inst + (io.rawAct ? "_value" : "_spAct")) }) };
+        /* servoosa: jako pohon (osa jede / referováno) */
+        if (d.cls === "Axis")
+            return { k: "motor", ...base, tags: pick({ run: T(inst + "_moving"), fbk: T(inst + "_homed"), busy: T(inst + "_busy"), err: T(inst + "_error"), status: T(inst + "_status") }) };
         if (d.cls === "Ventil")
             return { k: "valve", ...base, tags: pick({ open: T(inst + "_outOpen"), fbkOpen: io.fbkOpen && T(io.fbkOpen.tag), fbkClosed: io.fbkClosed && T(io.fbkClosed.tag), busy: T(inst + "_busy"), err: T(inst + "_error"), status: T(inst + "_status") }) };
         if (d.cls === "AnalogIn")
@@ -356,7 +387,7 @@ export function hmiScreens(prj, tags = hmiTags(prj), alarms = hmiAlarms(prj, tag
                 return {
                     k: "manrow", x: 8 + Math.floor(i / 11) * 504, y: TOP + 50 + (i % 11) * 40, w: 496, h: 36, label: d.name, sub: d.desc || "", dev: d.name,
                     cmd: "toggle",
-                    tags: pick({ cmd: T(manVarOf(d)), run: T(inst + (d.cls === "Motor" || d.cls === "Vfd" ? "_outRun" : d.cls === "PosDrive" ? "_done" : d.cls === "PropValve" ? "_inTol" : "_outOpen")), busy: T(inst + "_busy"), err: T(inst + "_error"), status: T(inst + "_status") }),
+                    tags: pick({ cmd: T(manVarOf(d)), run: T(inst + (d.cls === "Motor" || d.cls === "Vfd" ? "_outRun" : d.cls === "PosDrive" ? "_done" : d.cls === "PropValve" ? "_inTol" : d.cls === "Axis" ? "_powered" : "_outOpen")), busy: T(inst + "_busy"), err: T(inst + "_error"), status: T(inst + "_status") }),
                 };
             }) : [{ k: "text", x: 8, y: TOP + 60, w: 600, h: 24, label: tr("Projekt nemá zařízení s ručním povelem.") }]),
         ]),
@@ -417,6 +448,14 @@ export function hmiScreens(prj, tags = hmiTags(prj), alarms = hmiAlarms(prj, tag
             for (const r of d.records || [])
                 rows.push([{ t: d.name }, { t: tr("Záznam {n}: {name}", { n: r.no, name: r.name || "" }) }, { t: fmtNum(r.pos) }, { t: "" }, { t: tr("nastavení v pohonu") }]);
             rows.push([{ t: d.name }, { t: tr("Potvrzení startu / jízda nejvýš") }, { t: T_POS_ACK + " / " + T_POS_MOVE }, { t: "s" }, { t: tr("blok FB_PosDrive") }]);
+        }
+        else if (d.cls === "Axis") {
+            const c = axisCfgOf(d);
+            rows.push([{ t: d.name }, { t: tr("Max. rychlost / zrychlení / zpomalení") }, { t: c.vMax + " / " + c.aMax + " / " + c.dMax }, { t: u + "/s, /s²" }, { t: tr("konfigurace osy v IDE") }]);
+            rows.push([{ t: d.name }, { t: tr("Softwarové limity") }, { t: fmtNum(c.limNeg) + " … " + fmtNum(c.limPos) }, { t: u }, { t: tr("konfigurace osy v IDE") }]);
+            for (const x of c.positions)
+                rows.push([{ t: d.name }, { t: tr("Poloha {name}", { name: x.name }) }, { t: fmtNum(x.pos) }, { t: u }, { t: cst }]);
+            rows.push([{ t: d.name }, { t: tr("Regulace zapnuta do") }, { t: String(T_AXIS_POWER) }, { t: "s" }, { t: tr("blok FB_Axis") }]);
         }
         else if (d.cls === "PropValve") {
             rows.push([{ t: d.name }, { t: tr("Rozsah žádané hodnoty") }, { t: fmtNum(d.rmin) + " … " + fmtNum(d.rmax) }, { t: u }, { t: cst }]);

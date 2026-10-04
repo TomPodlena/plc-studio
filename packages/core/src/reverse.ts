@@ -1001,7 +1001,7 @@ const COL_SYN: Array<[string, RegExp]> = [
  * Globální proměnné, které generátor PLCdesk u Mitsubishi / Omron deklaruje pro HMI (řízení stroje
  * a zrcadlo stavu bloků — codegen.ts `hmiGlobalVars`): nejsou to signály I/O, jen deklarace.
  */
-const OUR_HMI_GLOBAL = /^(enable|modeAuto|cmdAutoStart|cmdAck|machineFault|faultStep|seqStep|man(?:Run|Open)_[A-Za-z]\w*|inst[A-Za-z]\w*_(?:outRun|outOpen|busy|error|status|value|alarmHi|alarmLo|limitHi|limitLo))$/;
+const OUR_HMI_GLOBAL = /^(enable|modeAuto|cmdAutoStart|cmdAck|machineFault|faultStep|seqStep|man(?:Run|Open)_[A-Za-z]\w*|inst[A-Za-z]\w*_(?:outRun|outOpen|busy|error|status|value|alarmHi|alarmLo|limitHi|limitLo)|man(?:Power|Home|JogP|JogN)_[A-Za-z]\w*|inst[A-Za-z]\w*_(?:powered|homed|done|doneId|actPos|moving|errCode))$/;
 /** Deklarace bez signálů I/O jako blok VAR (typy pro rozbor kódu), jako u tagů Rockwell. */
 function pushDecls(sink: Sink, f: InputFile, decl: string[]): void {
   if (decl.length) sink.pous.push({ name: f.name + ":tags", kind: "routine", lang: "other", body: "VAR\n" + decl.join("\n") + "\nEND_VAR\n", src: { file: f.name, line: 1 } });
@@ -2114,6 +2114,10 @@ export function inferProject(ex: Extracted, base?: Project): ImportProposal {
   delete (prj as Project & { _noAddr?: string[] })._noAddr;
   ensureGuids(prj);   // GUID nových zařízení, signálů a karet (guid.ts)
   const missing = computeMissing(prj, evidence, { noAddr, enableFound, seqFound, hasCode: pous.length > 0, unparsed: ex.unparsed.map(f => f.name), skipped: ex.skipped });
+  /* servoosa (FB_Axis nad bloky MC): osa po síti nemá I/O a import ji zatím nepřenese — upozornit, nic nedomýšlet */
+  const axes = new Set<string>();
+  for (const pou of pous) for (const m of pou.body.matchAll(/\b(inst\w+)\s*:\s*"?FB_Axis\b/g)) axes.add(m[1].replace(/^inst/, ""));
+  for (const a of axes) missing.push(tr("Servoosa {dev} (FB_Axis nad bloky Motion Control): import osy zatím není — přidej ji ručně jako třídu Servoosa a doplň její konfiguraci a kroky pohybu.", { dev: a }));
   return { prj, evidence, conflicts, missing };
 }
 

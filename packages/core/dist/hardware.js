@@ -9,6 +9,10 @@ const CAT_OF = { DI: "plc_di", DO: "plc_do", AI: "plc_ai", AO: "plc_ao" };
 const TYPE_NO = { DI: 2, DO: 3, AI: 4, AO: 5 };
 const isIn = (d) => d === "DI" || d === "AI";
 const isAnalog = (d) => d === "AI" || d === "AO";
+/** Síť servopohonů podle platformy (Siemens PROFINET, TwinCAT / CODESYS / Sysmac / Delta EtherCAT…); "" = osy nepodporuje. */
+export function driveNet(plat) {
+    return { siemens: "PROFINET", beckhoff: "EtherCAT", codesys: "EtherCAT", delta: "EtherCAT", omron: "EtherCAT", wago: "EtherCAT / CANopen (CiA 402)", rockwell: "EtherNet/IP (CIP Motion)" }[plat] || "";
+}
 /* ================================================================ volby katalogu */
 /** Platforma hardwaru projektu: volba v kusovníku, jinak první zvolená platforma. */
 export function hwPlatform(prj) {
@@ -231,7 +235,7 @@ function signature(prj, plat) {
     const b = prj.bom || {};
     const lines = b.lines ? Object.entries(b.lines).filter(([k]) => /:plc_/.test(k)).map(([k, v]) => k + "=" + (v?.brand ?? "")) : [];
     return JSON.stringify([plat, hwPlatform(prj), prj.hw || null, b.brand || null, lines, prj.moduleGuids || null,
-        prj.io.map(e => e.key + "|" + e.dir + "|" + (e.addr || ""))]);
+        prj.io.map(e => e.key + "|" + e.dir + "|" + (e.addr || "")), prj.devices.filter(d => d.cls === "Axis").map(d => d.name)]);
 }
 /** Sestava hardwaru pro platformu (výchozí = platforma hardwaru projektu). Výsledek je cachovaný. */
 export function hwLayout(prj, plat = hwPlatform(prj)) {
@@ -258,7 +262,7 @@ function build(prj, plat) {
             need[e.dir]++;
     /* CPU: volba uživatele, jinak první, do kterého se I/O vejdou lokálně, jinak největší lokální kapacita */
     const cpuAll = brandsFor("plc_cpu", plat);
-    const cpuHw = cpuAll.filter(o => o.hw);
+    const cpuHw = cpuAll.filter(o => o.hw && o.hw.auto !== false);
     const asked = resolve(cpuAll, cpuAll, userPick(prj, plat, hwPlat, hwLineId("-A1", "plc_cpu"), "plc_cpu"));
     let cpuOpt = asked.opt, autoCpu = false;
     if (!cpuOpt && !asked.custom) {
@@ -356,7 +360,8 @@ function build(prj, plat) {
         const by = HW_DIRS.map(d => [d, overflow.filter(e => e.dir === d).length]).filter(x => x[1]).map(x => x[1] + " " + x[0]).join(", ");
         issues.push({ level: "error", where: PLAT[plat].name, msg: tr("Projekt se do platformy {plat} nevejde: {n} signálů bez kanálu ({dirs}). CPU {cpu} pojme {max} modulů a katalog nemá pro tuto platformu vzdálené I/O — zvol větší CPU nebo jinou platformu.", { plat: PLAT[plat].name, n: overflow.length, dirs: by, cpu: p.cpu.opt?.orderCode || p.cpu.custom || "—", max: Object.values(cpuOpt?.hw?.slots || {}).reduce((s, n) => s + N(n), 0) }) });
     }
-    return { plat, hwPlat, scheme, cpu: p.cpu, stations, modules, groups: groupsOf(modules), ch, overflow, issues, autoCpu };
+    const drives = prj.devices.filter(d => d.cls === "Axis").map(d => ({ dev: d.name, dt: "-TA" + (d.name.replace(/^\D+/, "") || d.name), net: driveNet(plat) }));
+    return { plat, hwPlat, scheme, cpu: p.cpu, stations, modules, groups: groupsOf(modules), ch, overflow, issues, autoCpu, drives };
 }
 /** Kanálové skupiny (modul × směr) s obsazenými kanály — pořadí = svorkovnice X1, X2 … */
 function groupsOf(modules) {
@@ -482,5 +487,7 @@ export function hwSummary(prj, plat = hwPlatform(prj)) {
             out.push("  " + tr("slot {slot}: {dt} {type} ({code}) — kanály {ch}", { slot: m.builtin ? head.slot : m.slot, dt: m.dt, type: hwTypeText(m), code: m.builtin ? tr("v CPU") : (m.opt?.orderCode || m.custom || "—"), ch: chs }));
         }
     }
+    for (const x of L.drives)
+        out.push(tr("Uzel sítě {net}: {dt} servoměnič osy {dev}", { net: x.net || tr("osa na této platformě není podporována"), dt: x.dt, dev: x.dev }));
     return out;
 }

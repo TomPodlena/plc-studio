@@ -1,6 +1,8 @@
 import { N_, tr } from "./i18n.js";
 import { newGuid, fillGuids, ioGuidFor, isGuid } from "./guid.js";
 import { hwLayout, hwAssign, hwGroups, hwNative, hwIssues } from "./hardware.js";
+import { axisCfgOf } from "./axis.js";
+import { axisSupport, axisDialect } from "./axis_gen.js";
 export const PLAT = {
     siemens: { name: "Siemens SIMATIC", ide: "TIA Portal V17–V21", cpu: "S7-1200 / S7-1500", lang: "SCL", imp: N_("externí zdroje .scl + SimaticML XML (Openness) + TSV tagů") },
     rockwell: { name: "Rockwell Allen-Bradley", ide: "Studio 5000", cpu: "CompactLogix / ControlLogix", lang: "ST", imp: N_("ST rutiny + CSV import tagů / L5X") },
@@ -28,7 +30,8 @@ export function supportsOop(plat) {
 }
 /** Styl kódu, který pro platformu skutečně platí (OOP jen kde ho platforma umí). */
 export function codeStyleFor(prj, plat) {
-    return prj.codeStyle === "oop" && supportsOop(plat) ? "oop" : "classic";
+    /* servoosa (FB_Axis s odkazem na objekt osy) se zatím generuje jen klasicky — validace to hlásí */
+    return prj.codeStyle === "oop" && supportsOop(plat) && !prj.devices.some(d => d.cls === "Axis") ? "oop" : "classic";
 }
 /** Tabulka platforem s texty v nastaveném jazyce (`PLAT` drží české klíče překladu). */
 export function platInfo() {
@@ -53,15 +56,39 @@ export const CLS = {
             ready: N_("hlášení připraven"), fault: N_("vstup poruchy"), rst: N_("výstup kvitace pohonu")
         } },
     PropValve: { prefix: "Y", label: N_("Proporcionální ventil (tlak / průtok)"), opts: { fbk: N_("analogová zpětná vazba skutečné hodnoty") } },
+    Axis: { prefix: "M", label: N_("Servoosa (polohování po síti, PLCopen Motion)"), opts: {} },
 };
 /** Pohony a proporcionální prvky fáze 2a (blok s analogovou žádanou / výběrem záznamu). */
 export function isMotionClass(cls) { return cls === "Vfd" || cls === "PosDrive" || cls === "PropValve"; }
+/** Servoosa (fáze 2b). */
+export function isAxisClass(cls) { return cls === "Axis"; }
+/** Akce kroku servoosy. */
+export function isAxisAct(act) {
+    return act === "moveAbs" || act === "moveRel" || act === "velocity" || act === "halt" || act === "waitInPos";
+}
+/**
+ * Cíl kroku osy: moveAbs = poloha (pojmenovaná `posRef` má přednost), moveRel = dráha,
+ * velocity = rychlost se znaménkem; jinak 0.
+ */
+export function stepAxisTarget(s, d) {
+    if (s.act === "velocity")
+        return Number(s.vel) || 0;
+    if (s.act !== "moveAbs" && s.act !== "moveRel")
+        return 0;
+    if (s.act === "moveAbs" && s.posRef && d) {
+        const p = axisCfgOf(d).positions.find(x => x.name === s.posRef);
+        if (p)
+            return p.pos;
+    }
+    return Number(s.pos) || 0;
+}
 /** Třídy s analogovým rozsahem (rmin / rmax / jednotka). */
 export function hasRange(cls) { return cls === "AnalogIn" || cls === "AnalogOut" || cls === "Vfd" || cls === "PropValve"; }
 /** Akce kroku, které třída zařízení umí (UI editoru kroků, validace). `wait` nemá zařízení. */
 export const ACTS_FOR = {
     Motor: ["start", "stop"], Ventil: ["open", "close"], DI: ["waitOn", "waitOff"], DO: [], AnalogIn: [], AnalogOut: [],
     Vfd: ["start", "stop"], PosDrive: ["home", "posRecord"], PropValve: ["setPressure", "setFlow"],
+    Axis: ["home", "moveAbs", "moveRel", "velocity", "halt", "waitInPos"],
 };
 /** Je akce proporcionálního ventilu (žádaná hodnota)? */
 export function isSpAct(act) { return act === "setPressure" || act === "setFlow"; }
@@ -74,6 +101,9 @@ export function devDefaults(cls) {
             records: [{ no: 1, name: tr("poloha 1") }, { no: 2, name: tr("poloha 2") }] };
     if (cls === "PropValve")
         return { unit: "bar", rmin: 0, rmax: 10, setpoint: 0, rampS: 0, tol: 0.3, tolTimeS: 1, opt: { fbk: true } };
+    if (cls === "Axis")
+        return { unit: "mm", rmin: 0, rmax: 0, opt: {}, axis: { vMax: 500, aMax: 2000, dMax: 2000, jerk: 0, vDef: 250, limNeg: 0, limPos: 400,
+                homePos: 0, posTol: 0.1, followMax: 5, jogVel: 50, positions: [{ name: tr("poloha 1"), pos: 100 }, { name: tr("poloha 2"), pos: 300 }] } };
     return {};
 }
 /**
@@ -81,7 +111,7 @@ export function devDefaults(cls) {
  * pohonu řadič -TA<n> (svorky řídicích signálů jsou na řadiči, ne na motoru), jinak zařízení samo.
  */
 export function devRef(d) {
-    if (d.cls === "Vfd" || d.cls === "PosDrive")
+    if (d.cls === "Vfd" || d.cls === "PosDrive" || d.cls === "Axis")
         return "TA" + (d.name.replace(/^\D+/, "") || d.name);
     return d.name || "";
 }
@@ -460,16 +490,17 @@ export function validateProject(prj) {
     for (const [i, s] of prj.program.seq.entries()) {
         const d = devById(prj, s.dev);
         const where = tr("krok {n}", { n: i + 1 });
-        const newAct = s.act === "home" || s.act === "posRecord" || isSpAct(s.act);
+        const newAct = s.act === "home" || s.act === "posRecord" || isSpAct(s.act) || isAxisAct(s.act);
         if (!d)
             continue;
-        if ((newAct || isMotionClass(d.cls)) && !ACTS_FOR[d.cls].includes(s.act))
+        if ((newAct || isMotionClass(d.cls) || d.cls === "Axis") && !ACTS_FOR[d.cls].includes(s.act))
             out.push({ level: "error", where, msg: tr("Akce „{act}“ neplatí pro zařízení {dev} ({cls}).", { act: s.act, dev: d.name, cls: tr(CLS[d.cls].label) }) });
         else if (d.cls === "PosDrive" && s.act === "posRecord" && !(Number.isInteger(s.rec) && s.rec >= 1 && s.rec <= maxRecord(d)))
             out.push({ level: "error", where, msg: tr("Číslo záznamu {dev} musí být 1 až {max} (záznam 0 = referenční poloha, jede se na ni akcí home).", { dev: d.name, max: maxRecord(d) }) });
         else if ((d.cls === "Vfd" && s.act === "start" || d.cls === "PropValve") && Number.isFinite(s.sp) && d.rmin < d.rmax && (s.sp < d.rmin || s.sp > d.rmax))
             out.push({ level: "warn", where, msg: tr("Žádaná hodnota kroku leží mimo rozsah {dev} ({min}–{max} {unit}).", { dev: d.name, min: d.rmin, max: d.rmax, unit: d.unit || "" }) });
     }
+    out.push(...axisIssues(prj));
     /* FX5 (GX Works3): TON bere PT jen 0–32 767 ms → delší čas kroku generátor píše časovačem
        TIMER_100_FB_M (předvolba INT × 100 ms, tj. nejvýš 3 276,7 s) — codegen.ts `fx5Timer100` */
     if (prj.platforms.includes("mitsubishi")) {
@@ -519,5 +550,97 @@ export function validateProject(prj) {
             out.push({ level: "error", where: a, msg: tr("Duplicitní adresa.") });
     /* sestava hardwaru: projekt se do platformy nevejde, cizí adresy, nepasující volby modulů */
     out.push(...hwIssues(prj));
+    return out;
+}
+/**
+ * Validace servoos (fáze 2b): podpora platforem projektu, konfigurace osy a kroky s pohybem.
+ * Nepodporovaná platforma = chyba (kód se pro ni negeneruje, README vysvětlí proč).
+ */
+export function axisIssues(prj) {
+    const out = [];
+    const axes = prj.devices.filter(d => d.cls === "Axis");
+    if (!axes.length)
+        return out;
+    for (const p of prj.platforms || []) {
+        const s = axisSupport(prj, p);
+        if (!s.ok)
+            out.push({ level: "error", where: PLAT[p]?.name || p, msg: tr("Platforma {plat} servoosu nepodporuje: {why}", { plat: PLAT[p]?.name || p, why: s.why }) });
+    }
+    if (prj.codeStyle === "oop" && (prj.platforms || []).some(supportsOop))
+        out.push({ level: "info", where: tr("styl kódu"), msg: tr("Projekt se servoosou se generuje ve stylu klasických FB (FB_Axis s odkazem na objekt osy) — styl OOP pro osy zatím není.") });
+    const plats = prj.platforms || [];
+    const s12 = plats.includes("siemens") && axisDialect(prj, "siemens") === "s12";
+    const lx = plats.includes("rockwell");
+    for (const d of axes) {
+        const c = axisCfgOf(d), a = d.axis || {};
+        const bad = (k) => a[k] !== undefined && !(Number(a[k]) > 0);
+        for (const k of ["vMax", "aMax", "dMax", "vDef", "posTol", "followMax", "jogVel"])
+            if (bad(k))
+                out.push({ level: "error", where: d.name, msg: tr("Osa {dev}: parametr {par} musí být kladné číslo.", { dev: d.name, par: k }) });
+        if (c.limNeg !== undefined && c.limPos !== undefined && c.limNeg >= c.limPos)
+            out.push({ level: "error", where: d.name, msg: tr("Osa {dev}: softwarový limit min musí být menší než max.", { dev: d.name }) });
+        if ((c.limNeg !== undefined && c.homePos < c.limNeg) || (c.limPos !== undefined && c.homePos > c.limPos))
+            out.push({ level: "warn", where: d.name, msg: tr("Osa {dev}: referenční poloha leží mimo softwarové limity.", { dev: d.name }) });
+        for (const p of c.positions)
+            if ((c.limNeg !== undefined && p.pos < c.limNeg) || (c.limPos !== undefined && p.pos > c.limPos))
+                out.push({ level: "error", where: d.name, msg: tr("Osa {dev}: pojmenovaná poloha {name} ({pos}) leží mimo softwarové limity.", { dev: d.name, name: p.name, pos: p.pos }) });
+        if (new Set(c.positions.map(p => p.name)).size !== c.positions.length)
+            out.push({ level: "error", where: d.name, msg: tr("Osa {dev}: pojmenované polohy musí mít různá jména.", { dev: d.name }) });
+    }
+    const seq = prj.program.seq;
+    const lastVel = new Map(); // osa → směr posledního kroku „rychlost“ bez zastavení / polohování
+    const moved = new Set();
+    seq.forEach((s, i) => {
+        const d = devById(prj, s.dev);
+        if (!d || d.cls !== "Axis")
+            return;
+        const c = axisCfgOf(d);
+        const where = tr("krok {n}", { n: i + 1 });
+        const p = { dev: d.name, n: i + 1 };
+        if (s.act === "waitInPos") {
+            if (!moved.has(d.id))
+                out.push({ level: "error", where, msg: tr("Krok {n}: osa {dev} před čekáním na dokončení nemá žádný pohyb v sekvenci.", p) });
+            return;
+        }
+        if (!ACTS_FOR.Axis.includes(s.act))
+            return;
+        moved.add(d.id);
+        if (s.act === "moveAbs") {
+            if (s.posRef && !c.positions.some(x => x.name === s.posRef))
+                out.push({ level: "error", where, msg: tr("Krok {n}: osa {dev} nemá pojmenovanou polohu „{name}“.", { ...p, name: s.posRef }) });
+            else if (!s.posRef && !Number.isFinite(Number(s.pos)))
+                out.push({ level: "error", where, msg: tr("Krok {n}: chybí cílová poloha osy {dev}.", p) });
+            const t = stepAxisTarget(s, d);
+            if ((c.limNeg !== undefined && t < c.limNeg) || (c.limPos !== undefined && t > c.limPos))
+                out.push({ level: "error", where, msg: tr("Krok {n}: cíl {pos} leží mimo softwarové limity osy {dev} — blok MC povel odmítne.", { ...p, pos: t }) });
+        }
+        if (s.act === "moveRel" && !Number.isFinite(Number(s.pos)))
+            out.push({ level: "error", where, msg: tr("Krok {n}: chybí dráha relativního pohybu osy {dev}.", p) });
+        if (s.act === "velocity") {
+            const v = Number(s.vel);
+            if (!Number.isFinite(v) || v === 0)
+                out.push({ level: "error", where, msg: tr("Krok {n}: krok „rychlost“ osy {dev} potřebuje nenulovou rychlost (znaménko = směr).", p) });
+            else if (Math.abs(v) > c.vMax)
+                out.push({ level: "error", where, msg: tr("Krok {n}: rychlost {v} překračuje max. rychlost osy {dev} ({max}).", { ...p, v, max: c.vMax }) });
+            if (lx)
+                out.push({ level: "error", where, msg: tr("Krok {n}: Rockwell Logix krok „rychlost“ nepodporuje (instrukce MAJ nemá bit „rychlost dosažena“) — použij polohování.", p) });
+            const dir = v >= 0 ? 1 : -1;
+            if (lastVel.get(d.id) === dir)
+                out.push({ level: "error", where, msg: tr("Krok {n}: dva kroky „rychlost“ osy {dev} stejným směrem bez zastavení mezi nimi — blok MC běžící povel znovu nespustí (Tc2_MC2), vlož krok „zastavit“ nebo polohování.", p) });
+            lastVel.set(d.id, dir);
+        }
+        else
+            lastVel.delete(d.id);
+        if ((s.act === "moveAbs" || s.act === "moveRel") && s.vel !== undefined && !(Number(s.vel) > 0 && Number(s.vel) <= c.vMax))
+            out.push({ level: "error", where, msg: tr("Krok {n}: rychlost pohybu osy {dev} musí být kladná a nejvýš {max}.", { ...p, max: c.vMax }) });
+        for (const [k, max] of [["acc", c.aMax], ["dec", c.dMax]]) {
+            if (s[k] === undefined)
+                continue;
+            if (!(Number(s[k]) > 0 && Number(s[k]) <= max))
+                out.push({ level: "error", where, msg: tr("Krok {n}: {par} osy {dev} musí být kladné a nejvýš {max}.", { ...p, par: k === "acc" ? tr("zrychlení") : tr("zpomalení"), max }) });
+            else if (s12)
+                out.push({ level: "error", where, msg: tr("Krok {n}: Siemens S7-1200 nemá u bloků MC vstup zrychlení / zpomalení (bere je z technologického objektu) — odeber je z kroku, nebo zvol CPU S7-1500.", p) });
+        }
+    });
     return out;
 }

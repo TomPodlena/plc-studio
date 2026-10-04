@@ -10,10 +10,11 @@ import type { RevisionRecord } from "./revision.js";
 import type { QuoteCfg } from "./quote.js";
 import type { CompanyLibrary } from "./library.js";
 import { type HwModule } from "./hardware.js";
+import { type AxisCfg } from "./axis.js";
 export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics" | "wago" | "delta";
 /** Styl generovaného kódu: klasické FB (výchozí) nebo OOP (rozhraní, dědičnost) — viz codegen_oop.ts. */
 export type CodeStyle = "classic" | "oop";
-export type DeviceClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "DI" | "DO" | "Vfd" | "PosDrive" | "PropValve";
+export type DeviceClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "DI" | "DO" | "Vfd" | "PosDrive" | "PropValve" | "Axis";
 export type Dir = "DI" | "DO" | "AI" | "AO";
 /**
  * Akce kroku: povel motoru / ventilu, výdrž, nebo čekání na digitální vstup (DI = TRUE / FALSE).
@@ -21,7 +22,7 @@ export type Dir = "DI" | "DO" | "AI" | "AO";
  * (referování) / posRecord (jízda na záznam `rec`); proporcionální ventil (PropValve):
  * setPressure / setFlow (žádaná hodnota `sp` — obě akce se chovají stejně, liší se popisem).
  */
-export type SeqAct = "start" | "stop" | "open" | "close" | "wait" | "waitOn" | "waitOff" | "home" | "posRecord" | "setPressure" | "setFlow";
+export type SeqAct = "start" | "stop" | "open" | "close" | "wait" | "waitOn" | "waitOff" | "home" | "posRecord" | "setPressure" | "setFlow" | "moveAbs" | "moveRel" | "velocity" | "halt" | "waitInPos";
 /** Vazba digitálního výstupu na stav stroje (generuje se do programu i do simulace). */
 export type DoRole = "run" | "fault" | "ready" | "stopped" | "lock" | "auto";
 export type SeqCond = "fbk" | "time";
@@ -66,6 +67,11 @@ export interface Device {
     records?: PosRecord[];
     /** PosDrive: model stroje pro simulaci — doba jízdy na záznam / referování [s]. */
     travelS?: number;
+    /**
+     * Axis: konfigurace servoosy (konfigurační list — nastavuje se v IDE: TO, osa NC / SoftMotion,
+     * Axis Settings, Motion Group); chybějící pole doplní `axisCfgOf` (axis.ts). Jednotky = `unit`.
+     */
+    axis?: Partial<AxisCfg>;
     /** typ z firemní knihovny (`LibDeviceType.id`, viz library.ts) */
     libType?: string;
     /** Trvalý identifikátor (viz guid.ts) — přidělen jednou při vzniku, export ho jen čte. */
@@ -98,6 +104,13 @@ export interface SeqStep {
     rev?: boolean;
     /** PosDrive posRecord: číslo záznamu (1 … 2^selBits − 1). */
     rec?: number;
+    /** Axis moveAbs: cílová poloha (nebo `posRef` = jméno pojmenované polohy osy); moveRel: dráha. */
+    pos?: number;
+    posRef?: string;
+    /** Axis: rychlost (velocity: se znaménkem = směr), zrychlení, zpomalení; bez zadání = výchozí z konfigurace osy. */
+    vel?: number;
+    acc?: number;
+    dec?: number;
 }
 /** Záznam polohovacího pohonu (dokumentace tabulky v pohonu). */
 export interface PosRecord {
@@ -221,6 +234,15 @@ export declare const CLS: Record<DeviceClass, {
 }>;
 /** Pohony a proporcionální prvky fáze 2a (blok s analogovou žádanou / výběrem záznamu). */
 export declare function isMotionClass(cls: DeviceClass): boolean;
+/** Servoosa (fáze 2b). */
+export declare function isAxisClass(cls: DeviceClass): boolean;
+/** Akce kroku servoosy. */
+export declare function isAxisAct(act: SeqAct): boolean;
+/**
+ * Cíl kroku osy: moveAbs = poloha (pojmenovaná `posRef` má přednost), moveRel = dráha,
+ * velocity = rychlost se znaménkem; jinak 0.
+ */
+export declare function stepAxisTarget(s: SeqStep, d: Device | undefined): number;
 /** Třídy s analogovým rozsahem (rmin / rmax / jednotka). */
 export declare function hasRange(cls: DeviceClass): boolean;
 /** Akce kroku, které třída zařízení umí (UI editoru kroků, validace). `wait` nemá zařízení. */
@@ -337,3 +359,8 @@ export interface ValidationIssue {
 /** Tag bezpečný pro všechny platformy: ASCII, bez mezer, nezačíná číslicí. */
 export declare function sanitizeTag(tag: string): string;
 export declare function validateProject(prj: Project): ValidationIssue[];
+/**
+ * Validace servoos (fáze 2b): podpora platforem projektu, konfigurace osy a kroky s pohybem.
+ * Nepodporovaná platforma = chyba (kód se pro ni negeneruje, README vysvětlí proč).
+ */
+export declare function axisIssues(prj: Project): ValidationIssue[];

@@ -58,7 +58,7 @@ def build(app, parent) -> None:
     by_id = {s["id"]: s for s in scenarios}
     st = {"run": None, "t": 0.0, "frame": -1, "playing": False, "job": None, "log_n": 0,
           "times": [], "cursor": None}
-    fbs = [d for d in app.prj["devices"] if d["cls"] in ("Motor", "Ventil", "Vfd", "PosDrive", "PropValve")]
+    fbs = [d for d in app.prj["devices"] if d["cls"] in ("Motor", "Ventil", "Vfd", "PosDrive", "PropValve", "Axis")]
     estop = app.dev_by_id(app.prj["program"]["estop"])
     enable_src = " AND ".join(d["name"] for d in app.prj["devices"]
                               if (estop and d["id"] == estop["id"])
@@ -379,6 +379,14 @@ def build(app, parent) -> None:
             tags=() if ok else ("err",))
         for d in fbs:
             s = fr["dev"][str(d["id"])]
+            if d["cls"] == "Axis":           # servoosa po síti: „výstup“ = osa jede, hlášení = poloha a stav
+                on = bool(s.get("moving"))
+                u = d.get("unit") or ""
+                fb = _("poloha {v} {unit}", v=f"{s.get('value', 0):g}", unit=u).strip() + "  " + "  ".join(
+                    f"{lbl} {ON if s.get(k) else OFF}" for k, lbl in (("powered", _("zapnuto")), ("homed", _("referováno"))))
+                states.tv.item(str(d["id"]), values=(d["name"], s["label"], ON if on else OFF, fb),
+                               tags=("err",) if s["error"] else ("on",) if on else ("off",))
+                continue
             mine = [e for e in app.prj["io"] if e["devId"] == d["id"]]
             out = next((e for e in mine if e["dir"] == "DO" and e["sig"] in ("outRun", "outOpen", "outStart")), None) \
                 or next((e for e in mine if e["dir"] == "DO"), None)

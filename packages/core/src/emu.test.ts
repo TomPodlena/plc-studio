@@ -8,6 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { blankProject, syncIO, validateProject, PLAT, type Project, type PlatformKey } from "./model.js";
+import { axisBlocked } from "./axis_gen.js";
 import { genFor } from "./codegen.js";
 import { setLang, LANGS, type Lang } from "./i18n.js";
 import { verifyProject, simulate } from "./sim.js";
@@ -22,7 +23,8 @@ const PLATS = Object.keys(PLAT) as PlatformKey[];
 function load(name: string): Project {
   const raw = JSON.parse(readFileSync(new URL(name, SAMPLE_DIR), "utf8"));
   const prj = Object.assign(blankProject(), raw.prj || raw) as Project;
-  prj.platforms = [...PLATS];
+  /* servoosa: platformy bez podpory osy kód negenerují (README) — v projektu nejsou */
+  prj.platforms = PLATS.filter(p => !axisBlocked(prj, p));
   syncIO(prj);
   return prj;
 }
@@ -38,15 +40,16 @@ test("emu: 12 příkladů × 8 platforem × 5 jazyků — překlad bez chyb, bě
   const t0 = Date.now();
   for (const f of list) {
     const prj = load(f);
+    const plats = prj.platforms;
     for (const l of Object.keys(LANGS) as Lang[]) {
       setLang(l);
-      for (const p of PLATS) {
+      for (const p of plats) {
         const c = emulateCompile(prj, p);
         assert.deepEqual(errs(c.findings), [], f + " / " + p + " / " + l + ": nálezy překladu");
       }
       /* běh: otisk kódu bez komentářů je napříč jazyky stejný → cache, jinak se běh zopakuje */
-      const r = emulateRunMany(prj, PLATS);
-      for (const p of PLATS) {
+      const r = emulateRunMany(prj, plats);
+      for (const p of plats) {
         const x = r[p]!;
         assert.equal(x.skipped, undefined, f + " / " + p + ": běh neproběhl");
         assert.ok(x.scenarios.length > 0, f + " / " + p + ": žádné scénáře");

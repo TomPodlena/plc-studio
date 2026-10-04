@@ -13,7 +13,8 @@ import math
 from .i18n import _
 
 ACTS = {"start", "stop", "open", "close", "wait", "waitOn", "waitOff",
-        "home", "posRecord", "setPressure", "setFlow"}   # + pohony fáze 2a (měnič, polohovací pohon, prop. ventil)
+        "home", "posRecord", "setPressure", "setFlow",   # + pohony fáze 2a (měnič, polohovací pohon, prop. ventil)
+        "moveAbs", "moveRel", "velocity", "halt", "waitInPos"}   # + servoosa (fáze 2b)
 CONDS = {"fbk", "time"}
 DO_ROLES = {"run", "fault", "ready", "stopped", "lock", "auto"}
 

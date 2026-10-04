@@ -5,6 +5,8 @@ import { xmlProblems } from "../logix.js";
 import { isCodesysFamily } from "../model.js";
 import { checkOopFiles } from "./oop_files.js";
 import { tr } from "../i18n.js";
+import { axisDialect } from "../axis_gen.js";
+import { axisCfgOf, axisObjName } from "../axis.js";
 const P = (file, line = 0, col = 0) => ({ file, line, col });
 /** Rozdělí řádek CSV (uvozovky, zdvojené uvozovky uvnitř). */
 export function csvRow(line, sep = ",") {
@@ -431,5 +433,10 @@ export function loadPlatform(prj, plat, files) {
         input = loadUnitronics(prj, files, d, findings);
     else
         input = loadIec(prj, files, d, findings);
+    /* servoosy: dialekt bloků MC a objekty os (TwinCAT: AXIS_REF v GVL_IO, jinde z konfigurace IDE) */
+    const axes = prj.devices.filter(x => x.cls === "Axis");
+    const dia = axes.length ? axisDialect(prj, plat) : null;
+    if (input && dia)
+        input.motion = { dialect: dia, axes: axes.map(x => ({ name: axisObjName(x), cfg: axisCfgOf(x), implicit: plat !== "beckhoff" })) };
     return { input, findings };
 }

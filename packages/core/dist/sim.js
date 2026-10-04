@@ -11,7 +11,8 @@
  * Co neověřuje: kód přeložený v cílovém IDE, HW konfiguraci, bezpečnostní
  * funkce. Nenahrazuje test v simulátoru platformy ani FAT.
  */
-import { CLS, devById, ioOf, enableInputs, interlockDevs, isDiWait, isMotionClass, rampStepOf, tolOf, tolTicksOf, travelOf, devSp, stepSp, instName, } from "./model.js";
+import { CLS, devById, ioOf, enableInputs, interlockDevs, isDiWait, isMotionClass, rampStepOf, tolOf, tolTicksOf, travelOf, devSp, stepSp, instName, stepAxisTarget, } from "./model.js";
+import { AX, AX_SIZE, MC_GEN, MC_GEN_SIZE, AXERR, axisCfgOf, axisInit, axisTick, mcCall } from "./axis.js";
 import { seqCond, limitedAnalogs, motionSeqVars, seqMotionDevs, motionStepSets } from "./codegen.js";
 import { tr, N_, getLang } from "./i18n.js";
 /** Timeouty šablon — musí odpovídat T#3S / T#5S v Gen_Library (hlídá test). */
@@ -25,10 +26,17 @@ export const T_POS_ACK = 1; // potvrzení startu / referování (T#1S)
 export const T_POS_MOVE = 30; // jízda / referování (T#30S)
 export const T_PROP_SETTLE = 5; // žádaná dosažena po doběhu rampy (T#5S)
 /** Předvolby časovačů bloků pohonů podle jména v `MotionState.tons` (emulátor: horizont a přeskočení klidu). */
-export const MOTION_TON_PT = { tick: T_TICK, fbk: T_VFD_SPEED, sel: T_POS_SEL, ack: T_POS_ACK, move: T_POS_MOVE, settle: T_PROP_SETTLE };
+/** Servoosa: regulace musí naběhnout do 5 s (T#5S v FB_Axis). */
+export const T_AXIS_POWER = 5;
+export const MOTION_TON_PT = { tick: T_TICK, fbk: T_VFD_SPEED, sel: T_POS_SEL, ack: T_POS_ACK, move: T_POS_MOVE, settle: T_PROP_SETTLE, power: T_AXIS_POWER };
 /** Kódy chyb bloků pohonů (errCode) — shodné se šablonami a s dokumentací. */
 export const MOTION_ERR = {
     1: N_("porucha pohonu"), 2: N_("pohon nepřipraven"), 3: N_("bez referování"), 4: N_("ztráta hlášení"), 5: N_("timeout"), 6: N_("odchylka skutečné hodnoty"),
+    7: N_("povel odmítnut (chyba bloku MC)"),
+};
+/** Příčina poruchy servoosy v modelu (hlášení simulace; v PLC je v diagnostice osy). */
+export const AXIS_ERR_CAUSE = {
+    [AXERR.DRIVE]: N_("porucha pohonu"), [AXERR.FOLLOW]: N_("chyba sledování (zaseknutá mechanika)"), [AXERR.COMM]: N_("ztráta komunikace"), [AXERR.LIMIT]: N_("softwarový limit"),
 };
 /** Nejdelší vnitřní timeout bloků (pro meze scénářů): ventil 5 s, pohony až 30 s jízdy (tu ale hlídá čas kroku). */
 const fr = Math.fround;
@@ -38,6 +46,8 @@ const VALVE_LABEL = { 0: N_("zavřeno"), 10: N_("otevírá"), 20: N_("otevřeno"
 const VFD_LABEL = { 0: N_("klid"), 10: N_("rozběh / změna otáček"), 20: N_("otáčky dosaženy"), 90: N_("porucha") };
 const POS_LABEL = { 0: N_("stojí"), 10: N_("výběr záznamu"), 20: N_("start"), 30: N_("jede"), 40: N_("start referování"), 45: N_("referuje"), 90: N_("porucha") };
 const PROP_LABEL = { 0: N_("vypnuto"), 10: N_("rampa"), 20: N_("v toleranci"), 90: N_("porucha") };
+const AXIS_LABEL = { 0: N_("vypnuto"), 10: N_("zapínání regulace"), 20: N_("připraveno"), 30: N_("referuje"), 40: N_("jede"), 50: N_("zastavuje"),
+    60: N_("ruční pojezd +"), 61: N_("ruční pojezd −"), 90: N_("porucha"), 95: N_("kvitace") };
 /** Časovač TON volaný jednou za scan. */
 class Ton {
     et = 0;
@@ -63,6 +73,10 @@ class Ton {
         return t;
     }
 }
+/** Bloky MC uvnitř FB_Axis v pořadí volání (= šablony axis_gen.ts). */
+const AXIS_BLOCKS = ["power", "home", "abs", "rel", "velP", "velN", "halt", "reset"];
+/** Instance bloku MC v paměti modelu osy simulátoru (objekt osy na 0, bloky za ním). */
+const axBlk = (k) => AX_SIZE + AXIS_BLOCKS.indexOf(k) * MC_GEN_SIZE;
 const round = (t) => Math.round(t * 1000) / 1000;
 /** Model procesu: za jak dlouho po vstupu do kroku „čekat na vstup" přijde očekávaný stav [s]. */
 export const DI_DELAY = 0.5;
@@ -107,6 +121,14 @@ function motionInit(d, dio, io) {
                 outSel3: false, outSel4: false, outSel5: false, actRec: 0, done: false, halted: false, errCode: 0 },
             m: { pos: -1, mv: false, mvT: 0, mvRec: 0, mvHome: false, homed: false, inPos: true, pStart: false, pHome: false } };
     }
+    if (d.cls === "Axis") {
+        const ax = new Float64Array(AX_SIZE + AXIS_BLOCKS.length * MC_GEN_SIZE);
+        axisInit(ax, 0, axisCfgOf(d));
+        return { tons: { power: new Ton() }, last: { home: false, reset: false },
+            v: { curId: 0, curMode: 0, jogBlock: false, velRun: false, done: false, doneId: 0, errCode: 0, powered: false, homed: false, actPos: fr(ax[AX.POS]),
+                moving: false, pwrOk: false, axErr: false, mvDone: false, mvErr: false, homeDone: false, haltDone: false, resetDone: false, resetErr: false },
+            m: {}, ax };
+    }
     set("rawAct", 0);
     return { tons: { tick: new Ton(), settle: new Ton() }, last: { on: false, reset: false },
         v: { spAct: 0, value: d.rmin, target: 0, spLast: 0, devCnt: 0, inTol: false, errCode: 0, frac: 0 },
@@ -120,6 +142,21 @@ export function stepTitle(prj, s) {
     if (d && d.cls === "Vfd" && s.act === "start") {
         const p = { dev, sp: stepSp(s, d), unit: d.unit || "" };
         return (s.rev && d.opt?.rev ? tr("{dev} start vzad {sp} {unit}", p) : tr("{dev} start {sp} {unit}", p)).trim();
+    }
+    if (d && d.cls === "Axis") {
+        const u = d.unit || "";
+        if (s.act === "home")
+            return tr("{dev} referování osy", { dev });
+        if (s.act === "moveAbs")
+            return (s.posRef ? tr("{dev} najet na {pos} {unit} ({name})", { dev, pos: stepAxisTarget(s, d), unit: u, name: s.posRef }) : tr("{dev} najet na {pos} {unit}", { dev, pos: stepAxisTarget(s, d), unit: u })).replace(/\s+/g, " ");
+        if (s.act === "moveRel")
+            return tr("{dev} posun o {pos} {unit}", { dev, pos: stepAxisTarget(s, d), unit: u }).replace(/\s+/g, " ");
+        if (s.act === "velocity")
+            return tr("{dev} rychlost {v} {unit}/s", { dev, v: stepAxisTarget(s, d), unit: u });
+        if (s.act === "halt")
+            return tr("{dev} zastavit osu", { dev });
+        if (s.act === "waitInPos")
+            return tr("{dev} čekat na dokončení pohybu", { dev });
     }
     if (s.act === "home")
         return tr("{dev} referenční jízda", { dev });
@@ -173,6 +210,7 @@ function exprText(e) {
         case "or": return e.args.map(exprText).join(" OR ");
         case "cmp": return exprText(e.a) + " " + e.op + " " + exprText(e.b);
         case "paren": return "(" + exprText(e.e) + ")";
+        case "axis": return e.name;
     }
 }
 /** Hlídací čas kroku [s] — jen u přechodu na zpětné hlášení; jinak null. */
@@ -189,7 +227,7 @@ export class Simulator {
     dt;
     motorDelay;
     valveTravel;
-    controls = { modeAuto: true, start: false, ack: false, estop: false, man: {}, frozen: [], fault: [], di: {}, ai: {}, force: {} };
+    controls = { modeAuto: true, start: false, ack: false, estop: false, man: {}, frozen: [], fault: [], comm: [], axMan: {}, di: {}, ai: {}, force: {} };
     events = [];
     frames = [];
     steps = [];
@@ -288,15 +326,17 @@ export class Simulator {
         /* --- instance bloků (pořadí jako v Gen_Main) -------------------------- */
         this.inSeq = new Set(seq.filter(s => s.act !== "wait" && !isDiWait(s)).map(s => s.dev));
         for (const d of prj.devices) {
-            if (d.cls !== "Motor" && d.cls !== "Ventil" && !isMotionClass(d.cls))
+            if (d.cls !== "Motor" && d.cls !== "Ventil" && !isMotionClass(d.cls) && d.cls !== "Axis")
                 continue;
             const f = {
                 d, io: ioOf(prj, d), auto: seq.length > 0 && this.inSeq.has(d.id),
                 step: 0, lastA: false, lastB: false, lastR: false, ton: new Ton(), ton2: new Ton(),
                 out: false, busy: false, error: false, blocked: false,
             };
-            if (isMotionClass(d.cls))
+            if (isMotionClass(d.cls) || d.cls === "Axis")
                 f.x = motionInit(d, f.io, io);
+            if (d.cls === "Axis")
+                io[axisMoveKey(d)] = false; // „výstup pohybu“ osy (osa jede) — pro zastavení a sepnuté výstupy
             this.insts.push(f);
             this.plant[d.id] = 0; // model stroje: 0..1 = rozběh / poloha
             if (d.cls === "Ventil" && f.io.fbkClosed)
@@ -308,7 +348,7 @@ export class Simulator {
         this.mResets = seq.length ? mdevs.flatMap(motionSeqVars) : [];
         for (const r of this.mResets)
             this.mseq[r.var] = r.type === "BOOL" ? false : 0;
-        this.mStepSets = seq.map(s => { const d = devById(prj, s.dev); return d && isMotionClass(d.cls) && s.act !== "wait" ? motionStepSets(d, s) : undefined; });
+        this.mStepSets = seq.map((s, i) => { const d = devById(prj, s.dev); return d && (isMotionClass(d.cls) || d.cls === "Axis") && s.act !== "wait" ? motionStepSets(d, s, 10 + i * 10) : undefined; });
         const moving = new Set(), passive = new Set();
         for (const d of prj.devices) {
             const dio = ioOf(prj, d);
@@ -327,7 +367,7 @@ export class Simulator {
                         passive.add(e.key);
                 }
         }
-        this.motionOuts = prj.io.filter(e => moving.has(e.key)).map(e => e.key);
+        this.motionOuts = [...prj.io.filter(e => moving.has(e.key)).map(e => e.key), ...prj.devices.filter(d => d.cls === "Axis").map(axisMoveKey)];
         this.passiveOuts = passive;
         for (const id of this.inSeq)
             this.seqVar[id] = false;
@@ -367,7 +407,8 @@ export class Simulator {
         Object.assign(c, this);
         const s = this, d = c;
         const ctl = this.controls;
-        d.controls = { ...ctl, man: { ...ctl.man }, frozen: [...ctl.frozen], fault: [...ctl.fault], di: { ...ctl.di }, ai: { ...ctl.ai }, force: { ...ctl.force } };
+        d.controls = { ...ctl, man: { ...ctl.man }, frozen: [...ctl.frozen], fault: [...ctl.fault], comm: [...ctl.comm], notReady: [...(ctl.notReady || [])],
+            axMan: Object.fromEntries(Object.entries(ctl.axMan).map(([k, v]) => [k, { ...v }])), di: { ...ctl.di }, ai: { ...ctl.ai }, force: { ...ctl.force } };
         d.events = [...this.events];
         d.frames = [...this.frames];
         d.errors = [...this.errors];
@@ -375,7 +416,8 @@ export class Simulator {
         for (const k of ["io", "model", "forced", "plant", "seqVar", "ilPrev", "mseq"])
             d[k] = { ...s[k] };
         d.insts = s.insts.map(f => ({ ...f, ton: f.ton.clone(), ton2: f.ton2.clone(),
-            ...(f.x ? { x: { tons: Object.fromEntries(Object.entries(f.x.tons).map(([k, t]) => [k, t.clone()])), last: { ...f.x.last }, v: { ...f.x.v }, m: { ...f.x.m } } } : {}) }));
+            ...(f.x ? { x: { tons: Object.fromEntries(Object.entries(f.x.tons).map(([k, t]) => [k, t.clone()])), last: { ...f.x.last }, v: { ...f.x.v }, m: { ...f.x.m },
+                    ...(f.x.ax ? { ax: f.x.ax.slice() } : {}) } } : {}) }));
         d.tonSeq = Object.fromEntries(Object.entries(s.tonSeq).map(([k, t]) => [k, t.clone()]));
         d.firstFault = this.firstFault ? { ...this.firstFault } : null;
         d.dirty = new Set(this.dirty);
@@ -393,12 +435,13 @@ export class Simulator {
     pressAck(duration = 0.3) { this.ackUntil = this.t + duration; }
     outputsOn() {
         /* signalizace s vazbou na stav stroje (maják, připraveno…) se nepočítá — svítit má; stejně tak
-           výstupy pohonů, které pohyb nespouští (povolení, výběr záznamu, HALT) */
-        return this.prj.io.filter(e => e.dir === "DO" && this.io[e.key] === true && !this.roles.some(r => r.key === e.key) && !this.passiveOuts.has(e.key)).map(e => e.key);
+           výstupy pohonů, které pohyb nespouští (povolení, výběr záznamu, HALT); servoosa = osa jede */
+        return [...this.prj.io.filter(e => e.dir === "DO" && this.io[e.key] === true && !this.roles.some(r => r.key === e.key) && !this.passiveOuts.has(e.key)).map(e => e.key),
+            ...this.prj.devices.filter(d => d.cls === "Axis" && this.io[axisMoveKey(d)] === true).map(axisMoveKey)];
     }
     devState(f) {
         const cls = f.d.cls;
-        const labels = cls === "Motor" ? MOTOR_LABEL : cls === "Vfd" ? VFD_LABEL : cls === "PosDrive" ? POS_LABEL : cls === "PropValve" ? PROP_LABEL : VALVE_LABEL;
+        const labels = cls === "Motor" ? MOTOR_LABEL : cls === "Vfd" ? VFD_LABEL : cls === "PosDrive" ? POS_LABEL : cls === "PropValve" ? PROP_LABEL : cls === "Axis" ? AXIS_LABEL : VALVE_LABEL;
         let pos = Math.round(this.plant[f.d.id] * 1000) / 1000;
         const extra = {};
         if (f.x) {
@@ -413,6 +456,17 @@ export class Simulator {
                 extra.value = r3(+m.act);
                 extra.cmd = r3(+v.spAct);
                 pos = r3(Math.min(1, Math.max(0, (+m.act - d.rmin) / span)));
+            }
+            else if (cls === "Axis") {
+                const ax = f.x.ax, c = axisCfgOf(d);
+                const lo = c.limNeg ?? Math.min(c.homePos, c.startPos, ...c.positions.map(p => p.pos)), hi = c.limPos ?? Math.max(c.homePos, c.startPos, ...c.positions.map(p => p.pos));
+                extra.value = r3(ax[AX.POS]);
+                extra.cmd = r3(ax[AX.KIND] ? ax[AX.TGT] : ax[AX.SP]);
+                extra.powered = !!v.powered;
+                extra.homed = !!ax[AX.HOMED];
+                extra.moving = !!v.moving;
+                extra.done = !!v.done;
+                pos = r3(Math.min(1, Math.max(0, (ax[AX.POS] - lo) / ((hi - lo) || 1))));
             }
             else {
                 extra.rec = +m.pos;
@@ -450,6 +504,7 @@ export class Simulator {
                 return e.op === "=" ? a === b : a !== b;
             }
             case "paren": return this.evalExpr(e.e);
+            case "axis": return 0;
         }
     }
     /**
@@ -458,6 +513,10 @@ export class Simulator {
      * mimo AUTO (bez sekvence jen ruční); vstupy z vrstvy `io` (co čte program).
      */
     motionScan(f, enable, ack, hasSeq, man, modeAuto) {
+        if (f.d.cls === "Axis") {
+            this.axisFbScan(f, enable, ack, hasSeq, man, modeAuto);
+            return;
+        }
         const x = f.x, v = x.v, L = x.last, T = x.tons, d = f.d, io = this.io, dt = this.dt, n = d.name;
         const inSeq = this.mInSeq.has(d.id);
         const sv = (k) => this.mseq[k + "_" + n];
@@ -771,6 +830,201 @@ export class Simulator {
         f.error = st === 90;
         this.writeOuts(f);
     }
+    /**
+     * Jeden scan FB_Axis — přesné zrcadlo šablon axis_gen.ts (`AXIS_SM`, čtení stavu na začátku, bloky
+     * MC na konci); bloky MC a osa = model axis.ts (týž, který emulátor spouští pod kódem platformy).
+     * Vstupy: povel sekvence (`mseq`), regulace v AUTO / ručně, ruční referování a pojezd jen mimo AUTO.
+     */
+    axisFbScan(f, enable, ack, hasSeq, man, modeAuto) {
+        const x = f.x, v = x.v, L = x.last, ax = x.ax, d = f.d, n = d.name, c = axisCfgOf(d);
+        const inSeq = this.mInSeq.has(d.id);
+        const am = this.controls.axMan[d.id] || {};
+        const manPower = man || !!am.power, manJogP = man || !!am.jogP;
+        const power = inSeq ? (modeAuto || manPower) : manPower;
+        const outAuto = (b) => hasSeq ? b && !modeAuto : b;
+        const manHome = outAuto(!!am.home), jogPos = outAuto(manJogP), jogNeg = outAuto(!!am.jogN);
+        const sv = (k) => inSeq ? +(this.mseq[k + "_" + n] ?? 0) : 0;
+        const cmdId = sv("seqCmd"), cmdMode = sv("seqMode"), target = fr(sv("seqTgt")), vel = fr(sv("seqVel")), acc = fr(sv("seqAcc")), dec = fr(sv("seqDec"));
+        const B = (k) => axBlk(k), G = MC_GEN;
+        const out = (k, port) => ax[B(k) + port] !== 0;
+        /* stav osy a bloků MC z minulého cyklu */
+        const pwrOk = out("power", G.status), axErr = ax[AX.ERR] !== 0, homed = ax[AX.HOMED] !== 0;
+        v.homed = homed;
+        v.actPos = fr(ax[AX.POS]);
+        let st = f.step, curId = +v.curId, curMode = +v.curMode, done = !!v.done, doneId = +v.doneId, errCode = +v.errCode;
+        let velRun = !!v.velRun, jogBlock = !!v.jogBlock;
+        const mvDone = (curMode === 1 && out("abs", G.done)) || (curMode === 2 && out("rel", G.done)) || (curMode === 3 && (out("velP", G.inVel) || out("velN", G.inVel)));
+        const mvErr = (st === 30 && out("home", G.err)) || (st === 40 && (out("abs", G.err) || out("rel", G.err) || out("velP", G.err) || out("velN", G.err)))
+            || (st === 50 && out("halt", G.err)) || ((st === 60 || st === 61) && (out("velP", G.err) || out("velN", G.err)));
+        const homeDone = out("home", G.done), haltDone = out("halt", G.done), resetDone = out("reset", G.done), resetErr = out("reset", G.err);
+        const trigHome = manHome && !L.home;
+        L.home = manHome;
+        const trigReset = ack && !L.reset;
+        L.reset = ack;
+        if (!jogPos && !jogNeg)
+            jogBlock = false;
+        if (!enable) {
+            st = 0;
+            done = false;
+            velRun = false;
+            errCode = 0;
+            if (jogPos || jogNeg)
+                jogBlock = true;
+        }
+        else {
+            switch (st) {
+                case 0:
+                    if (power)
+                        st = 10;
+                    break;
+                case 10:
+                    if (pwrOk)
+                        st = 20;
+                    if (!power)
+                        st = 0;
+                    break;
+                case 20:
+                    if (!power) {
+                        st = 0;
+                        velRun = false;
+                    }
+                    else if (cmdId !== curId) {
+                        curId = cmdId;
+                        curMode = cmdMode;
+                        done = false;
+                        if (cmdId === 0) {
+                            if (velRun)
+                                st = 50;
+                        }
+                        else if (cmdMode === 5) {
+                            st = 30;
+                            velRun = false;
+                        }
+                        else if (cmdMode === 4)
+                            st = 50;
+                        else if (cmdMode === 1 && !homed) {
+                            st = 90;
+                            errCode = 3;
+                        }
+                        else {
+                            st = 40;
+                            velRun = false;
+                        }
+                    }
+                    else if (trigHome) {
+                        curMode = 5;
+                        done = false;
+                        st = 30;
+                        velRun = false;
+                    }
+                    else if (jogPos && !jogBlock)
+                        st = 60;
+                    else if (jogNeg && !jogBlock)
+                        st = 61;
+                    break;
+                case 30:
+                    if (homeDone) {
+                        st = 20;
+                        done = true;
+                        doneId = curId;
+                    }
+                    break;
+                case 40:
+                    if (mvDone) {
+                        st = 20;
+                        done = true;
+                        doneId = curId;
+                        velRun = curMode === 3;
+                    }
+                    break;
+                case 50:
+                    if (haltDone) {
+                        st = 20;
+                        velRun = false;
+                        if (curMode === 4) {
+                            done = true;
+                            doneId = curId;
+                        }
+                    }
+                    break;
+                case 60:
+                    if (!jogPos) {
+                        st = 50;
+                        curMode = 0;
+                    }
+                    break;
+                case 61:
+                    if (!jogNeg) {
+                        st = 50;
+                        curMode = 0;
+                    }
+                    break;
+                case 90:
+                    velRun = false;
+                    if (trigReset)
+                        st = 95;
+                    break;
+                case 95:
+                    if (resetDone) {
+                        st = 0;
+                        errCode = 0;
+                    }
+                    else if (resetErr)
+                        st = 90;
+                    break;
+            }
+            if ((st === 30 || st === 40) && cmdId !== curId && (cmdId === 0 || cmdMode === 4)) {
+                curId = cmdId;
+                curMode = cmdMode;
+                done = false;
+                st = 50;
+            }
+            if (st !== 0 && st < 90 && axErr) {
+                st = 90;
+                errCode = 1;
+                velRun = false;
+            }
+            else if (st >= 30 && st < 90 && mvErr) {
+                st = 90;
+                errCode = 7;
+                velRun = false;
+            }
+        }
+        if (x.tons.power.call(st === 10, T_AXIS_POWER, this.dt)) {
+            st = 90;
+            errCode = 2;
+        }
+        /* povely bloků MC (na konci, jako šablona) */
+        const blk = (k, set) => {
+            const b = B(k);
+            for (const [key, val] of Object.entries(set))
+                ax[b + G[key]] = typeof val === "boolean" ? (val ? 1 : 0) : val;
+            mcCall(k, ax, b, 0, G, "sm3");
+        };
+        const exVel = st === 40 && curMode === 3;
+        const velAbs = st === 60 || st === 61 ? fr(c.jogVel) : target < 0 ? fr(-target) : target;
+        const vUse = vel > 0 ? vel : fr(c.vDef), aUse = acc > 0 ? acc : fr(c.aMax), dUse = dec > 0 ? dec : fr(c.dMax);
+        blk("power", { en: st >= 10 && st < 90, reg: true, drv: true });
+        blk("home", { exe: st === 30, pos: fr(c.homePos) });
+        blk("abs", { exe: st === 40 && curMode === 1, pos: target, vel: vUse, acc: aUse, dec: dUse });
+        blk("rel", { exe: st === 40 && curMode === 2, pos: target, vel: vUse, acc: aUse, dec: dUse });
+        blk("velP", { exe: (exVel && target >= 0) || st === 60, vel: velAbs, acc: aUse, dec: dUse });
+        blk("velN", { exe: (exVel && target < 0) || st === 61, vel: velAbs, acc: aUse, dec: dUse });
+        blk("halt", { exe: st === 50, dec: dUse });
+        blk("reset", { exe: st === 95 });
+        const moving = st === 30 || st === 40 || st === 60 || st === 61 || (st === 20 && velRun);
+        Object.assign(v, { curId, curMode, done, doneId, errCode, velRun, jogBlock, powered: st >= 20 && st < 90, moving });
+        f.step = st;
+        f.busy = st === 10 || (st >= 30 && st < 90);
+        f.error = st >= 90;
+        f.blocked = !enable;
+        f.out = moving;
+        const k = axisMoveKey(d);
+        if (this.io[k] !== moving) {
+            this.io[k] = moving;
+            this.chg = true;
+        }
+    }
     /** Výstupy bloku pohonu do I/O: DO podle jména výstupu bloku, AO = podíl rozsahu (0..27648, kanonicky). */
     writeOuts(f) {
         const v = f.x.v, io = this.io;
@@ -797,6 +1051,10 @@ export class Simulator {
      * Zamrzlé zařízení (zásah frozen) = zaseknutá mechanika: otáčky / poloha / tlak se nemění.
      */
     motionPlant(f, frozen) {
+        if (f.d.cls === "Axis") {
+            axisTick(f.x.ax, 0, this.dt);
+            return;
+        }
         const x = f.x, v = x.v, m = x.m, d = f.d, dt = this.dt;
         const span = (d.rmax - d.rmin) || 1;
         if (d.cls === "Vfd") {
@@ -912,6 +1170,22 @@ export class Simulator {
             events.push({ t: round(t), kind: c.estop ? "err" : "info", msg: c.estop ? tr("Stisk nouzového zastavení") : tr("Nouzové zastavení uvolněno") });
         }
         for (const f of this.insts) {
+            if (f.d.cls === "Axis") {
+                /* servoosa: zásahy jdou do modelu pohonu (porucha, komunikace, zaseknutá mechanika) */
+                const ax = f.x.ax, flt = c.fault.includes(f.d.id), lost = c.comm.includes(f.d.id), stuck = c.frozen.includes(f.d.id);
+                if (!!ax[AX.FAULT] !== flt)
+                    events.push({ t: round(t), kind: flt ? "err" : "info", dev: f.d.id, msg: flt ? tr("{dev}: porucha pohonu osy", { dev: f.d.name }) : tr("{dev}: porucha pohonu osy odezněla", { dev: f.d.name }) });
+                if (!!ax[AX.LOST] !== lost)
+                    events.push({ t: round(t), kind: lost ? "err" : "info", dev: f.d.id, msg: lost ? tr("{dev}: ztráta komunikace s pohonem", { dev: f.d.name }) : tr("{dev}: komunikace s pohonem obnovena", { dev: f.d.name }) });
+                const nrdy = (c.notReady || []).includes(f.d.id);
+                if (!!ax[AX.NRDY] !== nrdy)
+                    events.push({ t: round(t), kind: nrdy ? "err" : "info", dev: f.d.id, msg: nrdy ? tr("{dev}: pohon nepřipraven (STO aktivní / bez silového napájení)", { dev: f.d.name }) : tr("{dev}: pohon připraven", { dev: f.d.name }) });
+                ax[AX.FAULT] = flt ? 1 : 0;
+                ax[AX.LOST] = lost ? 1 : 0;
+                ax[AX.STUCK] = stuck ? 1 : 0;
+                ax[AX.NRDY] = nrdy ? 1 : 0;
+                continue;
+            }
             if (!f.io.fault)
                 continue;
             const want = c.fault.includes(f.d.id);
@@ -1101,7 +1375,8 @@ export class Simulator {
                     const st = this.devState(f);
                     if (st.error) {
                         this.errors.push({ dev: f.d.id, t: round(t) });
-                        events.push({ t: round(t), kind: "err", dev: f.d.id, msg: tr("{dev}: PORUCHA bloku (status 16#8002, {err})", { dev: f.d.name, err: tr(MOTION_ERR[+f.x.v.errCode] || "?") }) });
+                        const why = tr(MOTION_ERR[+f.x.v.errCode] || "?") + (f.x.ax && +f.x.v.errCode === 1 && f.x.ax[AX.ERRID] ? " — " + tr(AXIS_ERR_CAUSE[f.x.ax[AX.ERRID]] || "?") : "");
+                        events.push({ t: round(t), kind: "err", dev: f.d.id, msg: tr("{dev}: PORUCHA bloku (status 16#8002, {err})", { dev: f.d.name, err: why }) });
                     }
                     else
                         events.push({ t: round(t), kind: "dev", dev: f.d.id, msg: f.d.name + ": " + st.label });
@@ -1323,6 +1598,8 @@ export function seqEstimate(prj, motorDelay, valveTravel) {
         const d = devById(prj, s.dev);
         if (d && d.cls === "PosDrive")
             return a + travelOf(d) + 0.7;
+        if (d && d.cls === "Axis")
+            return a + axisStepEstimate(d, s);
         if (d && (d.cls === "Vfd" || d.cls === "PropValve"))
             return a + (Number(d.rampS) > 0 ? Number(d.rampS) * 1.2 : 0) + Math.max(motorDelay, valveTravel) + 0.5;
         return a + Math.max(motorDelay, valveTravel) + 0.5;
@@ -1350,6 +1627,8 @@ export function simulate(prj, options = {}, from) {
         c.estop = faults.some(f => f.kind === "estop" && t >= f.at - 1e-9 && !(f.release !== undefined && t >= f.release - 1e-9));
         c.fault = faults.filter(f => f.kind === "fault" && on(f, t)).map(f => f.dev);
         c.frozen = faults.filter(f => f.kind === "frozen" && on(f, t)).map(f => f.dev);
+        c.comm = faults.filter(f => f.kind === "comm" && on(f, t)).map(f => f.dev);
+        c.notReady = faults.filter(f => f.kind === "notReady" && on(f, t)).map(f => f.dev);
         c.modeAuto = !faults.some(f => f.kind === "manual" && on(f, t));
         if (faults.some(f => f.kind === "man"))
             c.man = Object.fromEntries(faults.filter(f => f.kind === "man" && on(f, t)).map(f => [f.dev, true]));
@@ -1467,7 +1746,7 @@ export function simScenarios(prj, base = {}) {
         const limit = (s.timeS || 1) + T_VALVE_TRAVEL; // hlídací čas kroku + nejdelší timeout bloku
         out.push({
             id: "frozen-" + run.i, step: run.i, dev: d.id,
-            label: tr("Krok {n}: {dev} bez zpětného hlášení", { n: run.i + 1, dev: d.name }),
+            label: d.cls === "Axis" ? tr("Krok {n}: osa {dev} zablokovaná (chyba sledování)", { n: run.i + 1, dev: d.name }) : tr("Krok {n}: {dev} bez zpětného hlášení", { n: run.i + 1, dev: d.name }),
             purpose: tr("výpadek zpětného hlášení {dev} při akci „{title}“", { dev: d.name, title: stepTitle(prj, s) }),
             opts: { ...base, faults: [{ kind: "frozen", dev: d.id, at: run.tStart }], maxTime: run.tStart + limit + 3 },
         });
@@ -1488,7 +1767,8 @@ export function simScenarios(prj, base = {}) {
     for (const run of nominal.steps) {
         const s = seq[run.i], d = devById(prj, s.dev);
         const drive = d && (d.cls === "Vfd" && s.act === "start" || d.cls === "PosDrive" && (s.act === "posRecord" || s.act === "home"));
-        if (!d || !(d.cls === "Motor" && s.act === "start" || drive) || seen.has(d.id) || !ioOf(prj, d).fault)
+        const axisMove = d && d.cls === "Axis" && (s.act === "moveAbs" || s.act === "moveRel" || s.act === "home" || s.act === "velocity");
+        if (!d || !(d.cls === "Motor" && s.act === "start" || drive || axisMove) || seen.has(d.id) || (!axisMove && !ioOf(prj, d).fault))
             continue;
         seen.add(d.id);
         const at = round((run.tEnd ?? run.tStart) + 0.5);
@@ -1498,6 +1778,21 @@ export function simScenarios(prj, base = {}) {
             purpose: tr("aktivace vstupu poruchy {dev} za chodu", { dev: d.name }),
             opts: { ...base, faults: [{ kind: "fault", dev: d.id, at }], maxTime: at + 4 },
         });
+        if (axisMove)
+            out.push({
+                id: "comm-" + d.id, step: run.i, dev: d.id,
+                label: tr("Ztráta komunikace osy {dev}", { dev: d.name }),
+                purpose: tr("přerušení komunikace s pohonem {dev} za chodu", { dev: d.name }),
+                opts: { ...base, faults: [{ kind: "comm", dev: d.id, at }], maxTime: at + 4 },
+            });
+        /* pohon nepřipraven už při zapnutí: regulace nenaběhne → po hlídacím čase T#5S porucha (bez startu cyklu) */
+        if (axisMove)
+            out.push({
+                id: "notready-" + d.id, step: run.i, dev: d.id,
+                label: tr("Pohon {dev} nepřipraven při zapnutí", { dev: d.name }),
+                purpose: tr("pohon {dev} nepřipraven (STO aktivní / bez silového napájení) — regulace nesmí zůstat viset", { dev: d.name }),
+                opts: { ...base, startAt: 99, faults: [{ kind: "notReady", dev: d.id, at: 0 }], maxTime: T_AXIS_POWER + 1.5 },
+            });
     }
     if (devById(prj, prj.program.estop) && nominal.cycleTime) {
         const at = round1(startAt + nominal.cycleTime / 2);
@@ -1542,7 +1837,9 @@ function stateAt(r, t) {
 export function matrixDevs(prj) {
     const io = (d) => ioOf(prj, d);
     return {
-        fault: prj.devices.filter(d => (d.cls === "Motor" || d.cls === "Vfd" || d.cls === "PosDrive") && io(d).fault),
+        /* servoosa: porucha pohonu je zásah do modelu pohonu (bez vstupu I/O); ztráta komunikace vlastní sloupec */
+        comm: prj.devices.filter(d => d.cls === "Axis"),
+        fault: prj.devices.filter(d => ((d.cls === "Motor" || d.cls === "Vfd" || d.cls === "PosDrive") && io(d).fault) || d.cls === "Axis"),
         lost: prj.devices.filter(d => (d.cls === "Motor" && io(d).fbkRunning) || (d.cls === "Vfd" && io(d).atSpeed)),
         lostv: prj.devices.filter(d => d.cls === "Ventil" && io(d).fbkOpen),
         lostp: prj.devices.filter(d => d.cls === "PosDrive" && io(d).inPos),
@@ -1551,14 +1848,35 @@ export function matrixDevs(prj) {
 }
 /** DO, které znamenají pohyb (po zastavení stroje musí být FALSE): motor, ventil, měnič chod, pohon start / referování. */
 export function motionOutKeys(prj) {
-    return prj.io.filter(e => e.dir === "DO" && prj.devices.some(d => d.id === e.devId && (d.cls === "Motor" || d.cls === "Ventil"
-        || (isMotionClass(d.cls) && (e.sig === "outRun" || e.sig === "outStart" || e.sig === "outHome"))))).map(e => e.key);
+    return [...prj.io.filter(e => e.dir === "DO" && prj.devices.some(d => d.id === e.devId && (d.cls === "Motor" || d.cls === "Ventil"
+            || (isMotionClass(d.cls) && (e.sig === "outRun" || e.sig === "outStart" || e.sig === "outHome"))))).map(e => e.key),
+        /* servoosa: „osa jede“ (FB_Axis moving) — zastavení = povel zastavit / odebrání regulace */
+        ...prj.devices.filter(d => d.cls === "Axis").map(axisMoveKey)];
 }
 /**
  * Zamrzlé hlášení (zaseknutá mechanika) v kroku jde zjistit? Proporcionální ventil jen se zpětnou
  * vazbou a se změnou žádané výrazně nad toleranci (malou změnu zaseknutý ventil „splní“); ostatní ano.
  */
 export function frozenDetectable(prj, s, d, nominal, run) {
+    if (d.cls === "Axis") {
+        /* zaseknutá mechanika osy = chyba sledování; zjistitelná, jen když osa v kroku ujede víc než mez chyby sledování */
+        const c = axisCfgOf(d), fr0 = stateAt(nominal, run.tStart - 1e-6), at = fr0 && fr0.dev[d.id] ? fr0.dev[d.id] : undefined;
+        const pos = at && at.value !== undefined ? at.value : c.startPos;
+        const lim = c.followMax + c.posTol;
+        if (s.act === "velocity")
+            return true;
+        if (s.act === "halt")
+            return false;
+        if (s.act === "home")
+            return Math.abs(c.homePos - pos) > lim;
+        if (s.act === "moveAbs")
+            return Math.abs(stepAxisTarget(s, d) - pos) > lim;
+        if (s.act === "moveRel")
+            return Math.abs(stepAxisTarget(s, d)) > lim;
+        if (s.act === "waitInPos")
+            return !!at && at.step >= 30 && at.step < 90 && at.cmd !== undefined && Math.abs(at.cmd - pos) > lim;
+        return false;
+    }
     if (d.cls !== "PropValve")
         return true;
     if (!ioOf(prj, d).rawAct)
@@ -1608,6 +1926,8 @@ export function stateMatrix(prj, base = {}, nominalRun, checkpoints) {
         cols.push({ id: "lostp", label: tr("ztráta „v poloze“") });
     if (mx.dev.length)
         cols.push({ id: "dev", label: tr("odchylka skutečné hodnoty") });
+    if (mx.comm.length)
+        cols.push({ id: "comm", label: tr("ztráta komunikace osy") });
     /* meze analogů: každá mez jako zkušební případ (hodnota 5 % rozsahu za mezí) */
     const limitCases = [];
     for (const d of limitedAnalogs(prj)) {
@@ -1631,7 +1951,7 @@ export function stateMatrix(prj, base = {}, nominalRun, checkpoints) {
     const nominal = nominalRun ?? simulate(prj, base);
     const dt = nominal.opts.dt, react = 3 * dt + 1e-9;
     const outs = motionOutKeys(prj);
-    const tagOf = (k) => (prj.io.find(e => e.key === k) || { tag: k }).tag;
+    const tagOf = (k) => (prj.io.find(e => e.key === k) || { tag: axisKeyTag(prj, k) }).tag;
     const stopped = (fr) => !!fr && fr.step === -1 && outs.every(k => fr.io[k] !== true);
     const na = { ok: null, text: "—", detail: "" };
     const mk = (id, label, purpose, opts) => ({ id, label, purpose, opts });
@@ -1722,6 +2042,9 @@ export function stateMatrix(prj, base = {}, nominalRun, checkpoints) {
             cells.lostp = na;
         if (mx.dev.length)
             cells.dev = na;
+        if (mx.comm.length) {
+            cells.comm = evalFault(mx.comm.map(d => mk("m-idle-comm-" + d.id, pre + " + " + tr("ztráta komunikace {dev}", { dev: d.name }), tr("ztráta komunikace s pohonem {dev} v klidu, pak START", { dev: d.name }), { ...o, faults: [{ kind: "comm", dev: d.id, at }] })), at, start);
+        }
         if (limitCases.length) {
             const share = limitCases.filter((_c, k) => k % (nominal.steps.length + 1) === 0);
             cells.limit = limitCell(share.map(lc => mk("m-idle-lim-" + lc.d.id + lc.dir, pre + " + " + lc.label, tr("{dev} mimo mez ({dir}) v klidu, pak START", { dev: lc.d.name, dir: lc.dir === "hi" ? "↑" : "↓" }), { ...o, faults: [{ kind: "analog", dev: lc.d.id, at, raw: lc.raw }] })), share, at, start);
@@ -1798,6 +2121,10 @@ export function stateMatrix(prj, base = {}, nominalRun, checkpoints) {
             const wait = Math.max(0, ...inTol.map(d => devDeadline(d, dt)));
             cells.dev = inTol.length ? evalFault(inTol.map(d => mk(id("dev-" + d.id), lab(tr("odchylka {dev}", { dev: d.name })), tr("skutečná hodnota {dev} mimo toleranci v kroku {n} (t = {t} s), pak START", { dev: d.name, n: run.i + 1, t: at }), { ...base, faults: [{ kind: "analog", dev: d.id, at, raw: devFaultRaw(d, fr.dev[d.id].cmd ?? d.rmin) }, { kind: "start", at: round(at + wait + 0.5) }], maxTime: round(at + wait + 0.9) })), at, round(at + wait)) : na;
         }
+        /* servoosa se zapnutou regulací → ztráta komunikace = porucha */
+        const live = mx.comm.filter(d => fr && fr.dev[d.id] && fr.dev[d.id].step >= 10 && fr.dev[d.id].step < 90);
+        if (mx.comm.length)
+            cells.comm = live.length ? evalFault(live.map(d => mk(id("comm-" + d.id), lab(tr("ztráta komunikace {dev}", { dev: d.name })), tr("ztráta komunikace s pohonem {dev} v kroku {n} (t = {t} s), pak START", { dev: d.name, n: run.i + 1, t: at }), { ...base, faults: [{ kind: "comm", dev: d.id, at }, { kind: "start", at: at + 1 }], maxTime: at + 1.4 })), at, at + 0.5) : na;
         if (limitCases.length) {
             const share = limitCases.filter((_c, k) => k % (nominal.steps.length + 1) === rowNo);
             cells.limit = share.length ? limitCell(share.map(lc => mk(id("lim-" + lc.d.id + lc.dir), lab(lc.label), tr("{dev} mimo mez ({dir}) v kroku {n} (t = {t} s), pak START", { dev: lc.d.name, dir: lc.dir === "hi" ? "↑" : "↓", n: run.i + 1, t: at }), { ...base, faults: [{ kind: "analog", dev: lc.d.id, at, raw: lc.raw }, { kind: "start", at: at + 1 }], maxTime: at + 1.4 })), share, at, at + 0.5) : na;
@@ -1840,7 +2167,7 @@ function conceptChecks(prj) {
         else if (d.cls === "AnalogOut" && !Number.isFinite(d.setpoint)) {
             out.push({ level: "warn", dev: d.id, title: tr("Žádaná hodnota {dev} ({desc}) není zadána", p), detail: tr("Výstup má v kódu TODO — bez žádané hodnoty zůstává na 0. Doplň zdroj (HMI, receptura, regulace).") });
         }
-        else if ((d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls)) && seq.length && !inSeq.has(d.id)) {
+        else if ((d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls) || d.cls === "Axis") && seq.length && !inSeq.has(d.id)) {
             out.push({ level: "warn", dev: d.id, title: tr("Zařízení {dev} ({desc}) automatický cyklus nepoužívá", p), detail: tr("V režimu AUTO stojí; ovládá se jen ručním povelem. Pokud má v cyklu pracovat, doplň krok sekvence.") });
         }
         /* pohony fáze 2a: referování, zpětná vazba */
@@ -1848,6 +2175,11 @@ function conceptChecks(prj) {
             const iMove = seq.findIndex(s => s.dev === d.id && s.act === "posRecord"), iHome = seq.findIndex(s => s.dev === d.id && s.act === "home");
             if (iMove >= 0 && (iHome < 0 || iHome > iMove))
                 extra.push({ level: "warn", dev: d.id, title: tr("Pohon {dev} ({desc}) jede na záznam bez referenční jízdy v cyklu", p), detail: tr("Blok odmítne jízdu bez referování (porucha „bez referování“). Doplň krok „referenční jízda“ před první jízdu, nebo pohon referuj ručně (manHome_{dev}) po každém zapnutí.", { dev: d.name }) });
+        }
+        if (d.cls === "Axis" && seq.length) {
+            const iMove = seq.findIndex(s => s.dev === d.id && s.act === "moveAbs"), iHome = seq.findIndex(s => s.dev === d.id && s.act === "home");
+            if (iMove >= 0 && (iHome < 0 || iHome > iMove))
+                extra.push({ level: "warn", dev: d.id, title: tr("Osa {dev} ({desc}) polohuje absolutně bez referování v cyklu", p), detail: tr("FB_Axis odmítne absolutní polohování bez referování (porucha „bez referování“). Doplň krok „referování“ před první polohování, nebo osu referuj ručně (manHome_{dev}) po každém zapnutí.", { dev: d.name }) });
         }
         if (d.cls === "PropValve" && !ioOf(prj, d).rawAct)
             extra.push({ level: "info", dev: d.id, title: tr("Proporcionální ventil {dev} ({desc}) bez zpětné vazby", p), detail: tr("Skutečná hodnota se neměří — krok přejde po doběhu rampy a odchylka se nehlídá. Pro hlídání tlaku / průtoku zapni analogovou zpětnou vazbu.") });
@@ -1881,7 +2213,7 @@ export function verifyProject(prj, base = {}) {
 function verifyUncached(prj, base) {
     const checks = [];
     const seq = prj.program.seq;
-    const tagOf = (key) => (prj.io.find(e => e.key === key) || { tag: key }).tag;
+    const tagOf = (key) => (prj.io.find(e => e.key === key) || { tag: axisKeyTag(prj, key) }).tag;
     const scenarios = simScenarios(prj, base);
     const estop = devById(prj, prj.program.estop);
     if (!estop) {
@@ -1993,7 +2325,7 @@ function verifyUncached(prj, base) {
         const at = sc.opts.faults[0].at;
         if (sc.id === "estop") {
             const after = r.frames.filter(fr => fr.t > at + 2 * r.opts.dt);
-            const live = prj.io.filter(e => e.dir === "DO" && !roleKeys.has(e.key) && after.some(fr => fr.io[e.key] === true)).map(e => e.tag);
+            const live = [...prj.io.filter(e => e.dir === "DO" && !roleKeys.has(e.key) && after.some(fr => fr.io[e.key] === true)).map(e => e.tag), ...axisLive(prj, after)];
             const restarted = after.some(fr => fr.step >= 0);
             if (!live.length && !restarted)
                 checks.push({ level: "ok", scenario: sc.id, title: tr("Nouzové zastavení vypne výstupy a cyklus se sám neobnoví"), detail: tr("Po stisku v čase {t} s jsou všechny výstupy bloků FALSE do jednoho scanu, sekvence je v kroku 0 a po uvolnění čeká na nový start. Pozor: skutečnou bezpečnost zajišťuje safety technika, ne program.", { t: at }) });
@@ -2003,7 +2335,7 @@ function verifyUncached(prj, base) {
         }
         if (sc.id.startsWith("interlock-") && d) {
             const after = r.frames.filter(fr => fr.t > at + 2 * r.opts.dt);
-            const live = prj.io.filter(e => e.dir === "DO" && !roleKeys.has(e.key) && after.some(fr => fr.io[e.key] === true)).map(e => e.tag);
+            const live = [...prj.io.filter(e => e.dir === "DO" && !roleKeys.has(e.key) && after.some(fr => fr.io[e.key] === true)).map(e => e.tag), ...axisLive(prj, after)];
             const restarted = after.some(fr => fr.step >= 0);
             if (!live.length && !restarted)
                 checks.push({ level: "ok", scenario: sc.id, dev: d.id, title: tr("Rozpojení blokování {dev} zastaví stroj a cyklus se sám neobnoví", { dev: d.name }), detail: tr("{dev} ({desc}) rozpojeno v čase {t} s: výstupy bloků vypnuté do jednoho scanu, sekvence v kroku 0; po obnovení stroj čeká na nový start.", { dev: d.name, desc: d.desc || d.name, t: at }) });
@@ -2021,7 +2353,9 @@ function verifyUncached(prj, base) {
         if (!d)
             continue;
         /* podmět nálezu (1. pád) — dosazuje se do titulků níže jako {what} */
-        const what = sc.id.startsWith("fault-") ? (d.cls === "Motor" ? tr("Porucha motoru {dev} za chodu", { dev: d.name }) : tr("Porucha pohonu {dev}", { dev: d.name })) : tr("Krok {n}: výpadek hlášení {dev}", { n: sc.step + 1, dev: d.name });
+        const what = sc.id.startsWith("fault-") ? (d.cls === "Motor" ? tr("Porucha motoru {dev} za chodu", { dev: d.name }) : tr("Porucha pohonu {dev}", { dev: d.name }))
+            : sc.id.startsWith("comm-") ? tr("Ztráta komunikace osy {dev}", { dev: d.name })
+                : sc.id.startsWith("notready-") ? tr("Pohon {dev} nepřipraven při zapnutí", { dev: d.name }) : d.cls === "Axis" ? tr("Krok {n}: osa {dev} zablokovaná (chyba sledování)", { n: sc.step + 1, dev: d.name }) : tr("Krok {n}: výpadek hlášení {dev}", { n: sc.step + 1, dev: d.name });
         if (!r.faulted) {
             const p = { n: (r.stalledStep ?? 0) + 1, tags: left.join(", ") };
             const detail = r.stalledStep !== null
@@ -2056,6 +2390,8 @@ export function docVerifyMd(prj) {
     s += "## 1. " + tr("Co simulace ověřuje") + "\n" + tr("Simulátor provádí scan po scanu logiku generovaných bloků (stavové automaty FB_Motor a FB_Ventil, timeouty {motor} s a {valve} s, sekvence CASE s hlídáním času kroků, porucha stroje a kvitace) proti modelu stroje.", { motor: T_MOTOR_FBK, valve: T_VALVE_TRAVEL }) + "\n";
     if (v.nominal)
         s += tr("Model stroje: zpětné hlášení motoru přijde {motor} s po sepnutí, ventil / válec se přestaví za {valve} s, scan {scan} ms.", { motor: v.nominal.opts.motorDelay, valve: v.nominal.opts.valveTravel, scan: v.nominal.opts.dt * 1000 }) + "\n";
+    if (prj.devices.some(d => d.cls === "Axis"))
+        s += tr("Servoosy: obálka FB_Axis nad bloky Motion Control platformy (zapnutí regulace, referování, polohování, rychlost, zastavení, ruční pojezd). Model osy: lichoběžníkový profil (rychlost, zrychlení, zpomalení — ryv se neuvažuje), pohon sleduje žádanou polohu, zaseknutá mechanika = chyba sledování, porucha pohonu a ztráta komunikace = porucha osy, odebrání regulace zastaví osu okamžitě. Stejný model bloků MC spouští emulátor pod kódem každé podporované platformy.") + "\n";
     if (prj.devices.some(d => isMotionClass(d.cls)))
         s += tr("Pohony a proporcionální prvky: bloky FB_Vfd / FB_PosDrive / FB_PropValve (rampa v PLC po taktech 0,1 s, potvrzení startu, hlídání odchylky). Model: měnič dosáhne otáček rychlostí celého rozsahu za dobu rozběhu motoru, polohovací pohon dojede za dobu jízdy zadanou u zařízení, skutečná hodnota ventilu sleduje žádanou po rampě; zamrzlé zařízení = zaseknutá mechanika.") + "\n";
     s += "\n" + tr("**Neověřuje** kód přeložený v cílovém IDE, HW konfiguraci, komunikaci ani bezpečnostní funkce. Nenahrazuje test v simulátoru platformy (PLCSIM, Logix Echo…) ani FAT.") + "\n\n";
@@ -2082,4 +2418,34 @@ export function docVerifyMd(prj) {
         s += "- " + icon[c.level] + " **" + c.title + "** — " + c.detail + "\n";
     s += "\n" + tr("Upozornění nejsou chyby generátoru, ale místa, kde návrh spoléhá na doplnění ručně nebo na rozhodnutí projektanta.");
     return s;
+}
+/** Klíč „výstupu pohybu“ servoosy ve snímku simulace (osa jede — FB_Axis výstup moving). */
+export function axisMoveKey(d) { return d.id + ":axMove"; }
+/** Odhad doby kroku servoosy pro strop simulace [s] (lichoběžník s rezervou). */
+function axisStepEstimate(d, s) {
+    const c = axisCfgOf(d);
+    const span = Math.abs((c.limPos ?? c.startPos + 400) - (c.limNeg ?? c.startPos - 400)) || 400;
+    const v = Number(s.vel) > 0 ? Number(s.vel) : c.vDef, a = Number(s.acc) > 0 ? Number(s.acc) : c.aMax, dd = Number(s.dec) > 0 ? Number(s.dec) : c.dMax;
+    const move = (dist) => dist / v + v / a + v / dd + 0.5;
+    if (s.act === "home")
+        return move(Math.max(span, Math.abs(c.startPos - c.homePos)));
+    if (s.act === "moveAbs")
+        return move(span);
+    if (s.act === "moveRel")
+        return move(Math.abs(stepAxisTarget(s, d)));
+    if (s.act === "velocity")
+        return Math.abs(stepAxisTarget(s, d)) / a + 0.5;
+    if (s.act === "halt")
+        return c.vMax / dd + 0.5;
+    return 0.5;
+}
+/** Osy, které po zásahu ještě jedou (pro nálezy E-stopu / blokování). */
+function axisLive(prj, frames) {
+    return prj.devices.filter(d => d.cls === "Axis" && frames.some(fr => fr.io[axisMoveKey(d)] === true)).map(d => tr("osa {dev} jede", { dev: d.name }));
+}
+/** Text pro klíč snímku (I/O tag, u servoosy „osa M3 jede“). */
+function axisKeyTag(prj, key) {
+    const m = /^(\d+):axMove$/.exec(key);
+    const d = m ? prj.devices.find(x => x.id === +m[1]) : undefined;
+    return d ? tr("osa {dev} jede", { dev: d.name }) : key;
 }

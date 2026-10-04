@@ -18,6 +18,7 @@ import { loadPlatform } from "./load.js";
 import { compile, Compiled } from "./compile.js";
 import { runPlatforms, EmuRunResult, EmuRunOptions } from "./run.js";
 import { bindEmuApi } from "./doc.js";
+import { axisBlocked, axisUnsupportedWhy } from "../axis_gen.js";
 
 export type { EmuFinding } from "./types.js";
 export type { EmuRunResult, EmuRunOptions, EmuDiff, EmuScenarioResult } from "./run.js";
@@ -79,6 +80,13 @@ function compileEntry(prj: Project, platform: PlatformKey, lang = getLang()): Co
   const key = JSON.stringify([prj, platform, lang]);
   const hit = compileCache.get(key);
   if (hit) return hit;
+  /* servoosa na platformě bez podpory: kód se negeneruje (jen README) — nic k překladu ani běhu */
+  if (axisBlocked(prj, platform)) {
+    const msg = withLang(lang, () => tr("Platforma servoosu nepodporuje — kód se negeneruje: {why}", { why: axisUnsupportedWhy(platform) }));
+    const e: CompiledEntry = { res: { platform, files: ["README.txt"], findings: [{ level: "error", rule: "axis-unsupported", file: "README.txt", line: 0, col: 0, msg, platform }], ok: false }, fp: "axis-blocked", rawMax: 27648 };
+    put(compileCache, key, e);
+    return e;
+  }
   /* soubory (komentáře, hlášení) v žádaném jazyce — klíč cache nese jazyk */
   const { files, r } = withLang(lang, () => { const files = genFor(prj, platform); return { files, r: emulateFiles(prj, platform, files) }; });
   const e: CompiledEntry = { res: r.res, prog: r.prog, fp: fingerprint(r.prog, files), rawMax: detectRawMax(files) };

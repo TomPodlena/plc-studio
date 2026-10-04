@@ -6,6 +6,9 @@
  */
 import type { Expr, Stmt, Pos, Unit, Pou, VarKind, EmuFinding } from "./types.js";
 import { Dialect, ElemInfo } from "./dialects.js";
+import { type AxisCfg, type McMap } from "../axis.js";
+import type { AxisDialect } from "../axis_gen.js";
+import { type McFbSpec } from "./motion.js";
 export type Ty = {
     k: "elem";
     name: string;
@@ -20,6 +23,7 @@ export type Ty = {
     fields: VarSym[];
     map: Map<string, VarSym>;
     size: number;
+    axis?: boolean;
 } | {
     k: "array";
     of: Ty;
@@ -90,6 +94,10 @@ export interface VarSym {
     constVal?: number;
     /** Výchozí hodnota z tabulky (L5X DefaultData) — číslo. */
     initNum?: number;
+    /** Parametr bloku typu objekt osy: odkaz (slot = adresa objektu + 1), ne kopie. */
+    byRef?: boolean;
+    /** Člen objektu osy — jen ke čtení (zapisuje model osy). */
+    ro?: boolean;
 }
 export interface FbDef {
     name: string;
@@ -122,6 +130,13 @@ export interface FbDef {
     /** Rozhraní uvedená v IMPLEMENTS tohoto bloku (zděděná se hledají přes `parent`). */
     itfs?: ItfDef[];
     props?: Map<string, PropSym>;
+    /** Blok Motion Control (model axis.ts): druh, rozložení instance, výklad dynamiky, směr rychlosti. */
+    mc?: {
+        key: string;
+        spec: McFbSpec;
+        map: McMap;
+        dirOff: number;
+    };
 }
 export declare function tyName(t: Ty): string;
 /** Jednotka předvolby časovačů TIMER_x_FB_M [ms]. */
@@ -166,6 +181,18 @@ export interface CompileInput {
         stmts: Stmt[];
         file: string;
     };
+    /**
+     * Servoosy: dialekt (bloky MC a typ objektu osy) a osy projektu s konfigurací. `implicit` = objekt
+     * osy vzniká v konfiguraci IDE (TO, osa SoftMotion / Sysmac, tag osy Logix), ne v kódu.
+     */
+    motion?: {
+        dialect: AxisDialect;
+        axes: Array<{
+            name: string;
+            cfg: AxisCfg;
+            implicit: boolean;
+        }>;
+    };
 }
 export interface TimerInfo {
     kind: string;
@@ -195,5 +222,10 @@ export interface Compiled {
     etMask: Uint8Array;
     /** Program čte uplynulý čas časovače (ET / ACC) — stav pak závisí na čase i bez změny vstupů. */
     readsTime: boolean;
+    /** Objekty os v paměti (jméno, adresa) — běh na ně zapisuje zásahy a volá model osy. */
+    axisObjs: Array<{
+        name: string;
+        base: number;
+    }>;
 }
 export declare function compile(inp: CompileInput): Compiled;

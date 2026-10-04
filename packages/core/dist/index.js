@@ -35,4 +35,6 @@ export * from "./eplan.js";
 export * from "./eplan_aml.js";
 export * from "./guid.js";
 export * from "./hardware.js";
+export { axisCfgOf, axisObjName, axisPositionsText, parseAxisPositions, AXERR } from "./axis.js";
+export * from "./axis_gen.js";
 export * from "./emu/index.js";

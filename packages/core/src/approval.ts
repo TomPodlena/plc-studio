@@ -17,9 +17,10 @@
  * položkou jen jako signály standardního programu (jako v generátoru).
  */
 import {
-  Project, Device, CLS, DO_ROLES, devById, interlockDevs, enableInputs, isDiWait, isMotionClass, tolOf, tolTicksOf, maxRecord,
+  Project, Device, CLS, DO_ROLES, devById, interlockDevs, enableInputs, isDiWait, isMotionClass, isAxisAct, tolOf, tolTicksOf, maxRecord,
 } from "./model.js";
 import { seqCond } from "./codegen.js";
+import { axisCfgOf } from "./axis.js";
 import { verifyProject, stepWatchdog, stepTitle, T_MOTOR_FBK, T_VALVE_TRAVEL, type VerifyResult } from "./sim.js";
 import { tr, N_, getLang, formatDate, formatDateTime } from "./i18n.js";
 
@@ -179,6 +180,8 @@ function deviceContent(d: Device): unknown {
     role: d.cls === "DO" ? d.role ?? null : undefined,
     /* pohony fáze 2a: volby signálů a parametry, které mění kód bloku nebo sekvenci (u ostatních tříd chybí → otisk beze změny) */
     motion: isMotionClass(d.cls) ? motionContent(d) : undefined,
+    /* servoosa: celá konfigurace (s výchozími hodnotami) — změna dynamiky, limitů nebo poloh = znovu ke schválení */
+    axis: d.cls === "Axis" ? { unit: d.unit || "", ...axisCfgOf(d) } : undefined,
   };
 }
 
@@ -209,7 +212,9 @@ function seqContent(prj: Project): unknown {
     modes: !!prj.program.modes,
     steps: prj.program.seq.map(s => {
       const c = seqCond(prj, s);
-      return { dev: s.act === "wait" ? "" : devName(prj, s.dev), act: s.act, cond: s.cond, kind: c.kind, sig: c.io ? c.io.tag : undefined, neg: c.neg || undefined, t: fin(s.timeS) };
+      return { dev: s.act === "wait" ? "" : devName(prj, s.dev), act: s.act, cond: s.cond, kind: c.kind, sig: c.io ? c.io.tag : undefined, neg: c.neg || undefined, t: fin(s.timeS),
+        /* krok servoosy: cíl a dynamika (u ostatních kroků chybí → otisk beze změny) */
+        ...(isAxisAct(s.act) || (s.act === "home" && devById(prj, s.dev)?.cls === "Axis") ? { pos: fin(s.pos), posRef: s.posRef, vel: fin(s.vel), acc: fin(s.acc), dec: fin(s.dec) } : {}) };
     }),
   };
 }
@@ -284,6 +289,12 @@ function deviceSummary(d: Device): string {
   }
   if (d.cls === "PropValve" && d.opt?.fbk !== false) parts.push(tr("tolerance ± {tol} po {t} s", { tol: tolOf(d), t: tolTicksOf(d) / 10 }));
   if (d.cls === "PosDrive") parts.push(tr("záznamy 1–{max}", { max: maxRecord(d) }) + ((d.records || []).length ? ": " + (d.records || []).map(r => r.no + " " + (r.name || "")).join(", ") : ""));
+  if (d.cls === "Axis") {
+    const a = axisCfgOf(d), u = d.unit || "";
+    parts.push(tr("max. {v} {unit}/s, zrychlení {a} {unit}/s²", { v: a.vMax, a: a.aMax, unit: u }));
+    if (a.limNeg !== undefined && a.limPos !== undefined) parts.push(tr("SW limity {lo} až {hi} {unit}", { lo: a.limNeg, hi: a.limPos, unit: u }).trim());
+    parts.push(tr("polohy: {list}", { list: a.positions.map(x => x.name + " @ " + x.pos).join("; ") || "—" }));
+  }
   return parts.join("; ");
 }
 
@@ -703,7 +714,7 @@ export function tuningProposals(prj: Project): TuningProposal[] {
       mk("setpoint-" + d.name, "setpoint", tr("Žádaná hodnota {dev} ({desc}) není zadána", p),
         tr("Bez žádané hodnoty zůstává výstup na 0. Zadej konstantu, nebo zdroj (HMI, receptura, regulace) doplň ručně."),
         { dev: d.name }, undefined, { dev: d.id });
-    } else if ((d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls)) && seq.length && !inSeq.has(d.id)) {
+    } else if ((d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls) || d.cls === "Axis") && seq.length && !inSeq.has(d.id)) {
       mk("idle-drive-" + d.name, "idle-drive", tr("Zařízení {dev} ({desc}) automatický cyklus nepoužívá", p),
         tr("V AUTO stojí, ovládá se jen ručním povelem. Pokud má v cyklu pracovat, doplň krok sekvence; jinak to potvrď schválením."),
         { dev: d.name }, undefined, { dev: d.id });

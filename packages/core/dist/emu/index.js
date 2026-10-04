@@ -5,6 +5,7 @@ import { loadPlatform } from "./load.js";
 import { compile } from "./compile.js";
 import { runPlatforms } from "./run.js";
 import { bindEmuApi } from "./doc.js";
+import { axisBlocked, axisUnsupportedWhy } from "../axis_gen.js";
 export { DIALECTS as EMU_DIALECTS, RULES as EMU_RULES, SRC as EMU_SRC } from "./dialects.js";
 export { emuScenarios } from "./run.js";
 /** Rozsah surové hodnoty analogu, se kterým počítá kód platformy (rawMax ve volání bloku; Siemens 27648). */
@@ -60,6 +61,13 @@ function compileEntry(prj, platform, lang = getLang()) {
     const hit = compileCache.get(key);
     if (hit)
         return hit;
+    /* servoosa na platformě bez podpory: kód se negeneruje (jen README) — nic k překladu ani běhu */
+    if (axisBlocked(prj, platform)) {
+        const msg = withLang(lang, () => tr("Platforma servoosu nepodporuje — kód se negeneruje: {why}", { why: axisUnsupportedWhy(platform) }));
+        const e = { res: { platform, files: ["README.txt"], findings: [{ level: "error", rule: "axis-unsupported", file: "README.txt", line: 0, col: 0, msg, platform }], ok: false }, fp: "axis-blocked", rawMax: 27648 };
+        put(compileCache, key, e);
+        return e;
+    }
     /* soubory (komentáře, hlášení) v žádaném jazyce — klíč cache nese jazyk */
     const { files, r } = withLang(lang, () => { const files = genFor(prj, platform); return { files, r: emulateFiles(prj, platform, files) }; });
     const e = { res: r.res, prog: r.prog, fp: fingerprint(r.prog, files), rawMax: detectRawMax(files) };

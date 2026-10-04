@@ -23,9 +23,13 @@ export declare const T_POS_ACK = 1;
 export declare const T_POS_MOVE = 30;
 export declare const T_PROP_SETTLE = 5;
 /** Předvolby časovačů bloků pohonů podle jména v `MotionState.tons` (emulátor: horizont a přeskočení klidu). */
+/** Servoosa: regulace musí naběhnout do 5 s (T#5S v FB_Axis). */
+export declare const T_AXIS_POWER = 5;
 export declare const MOTION_TON_PT: Record<string, number>;
 /** Kódy chyb bloků pohonů (errCode) — shodné se šablonami a s dokumentací. */
 export declare const MOTION_ERR: Record<number, string>;
+/** Příčina poruchy servoosy v modelu (hlášení simulace; v PLC je v diagnostice osy). */
+export declare const AXIS_ERR_CAUSE: Record<number, string>;
 /** Zásahy scénáře v čase: poruchy stroje a úkony obsluhy. */
 export type SimFault = 
 /** Od `at` (do `until`) zamrznou zpětná hlášení zařízení (vadný snímač, zaseknutý pohon, slepený stykač). */
@@ -35,9 +39,23 @@ export type SimFault =
     at: number;
     until?: number;
 }
-/** Od `at` (do `until`) je aktivní vstup poruchy motoru (vybavený jistič). */
+/** Od `at` (do `until`) je aktivní vstup poruchy motoru (vybavený jistič); u servoosy porucha pohonu. */
  | {
     kind: "fault";
+    dev: number;
+    at: number;
+    until?: number;
+}
+/** Od `at` (do `until`) má servoosa přerušenou komunikaci s pohonem (PROFINET / EtherCAT…). */
+ | {
+    kind: "comm";
+    dev: number;
+    at: number;
+    until?: number;
+}
+/** Od `at` (do `until`) je pohon servoosy nepřipraven (STO aktivní, bez silového napájení): regulace nenaběhne. */
+ | {
+    kind: "notReady";
     dev: number;
     at: number;
     until?: number;
@@ -121,6 +139,10 @@ export interface SimDevState {
     errCode?: number;
     /** PosDrive: blok hlásí dokončenou jízdu (done). */
     done?: boolean;
+    /** Servoosa: regulace zapnuta, referováno, osa jede (moving). */
+    powered?: boolean;
+    homed?: boolean;
+    moving?: boolean;
 }
 export interface SimFrame {
     t: number;
@@ -200,8 +222,22 @@ export interface SimControls {
     man: Record<number, boolean>;
     /** Zařízení se zamrzlým zpětným hlášením (vadný snímač, zaseknutý pohon). */
     frozen: number[];
-    /** Motory s aktivním vstupem poruchy (vybavený jistič). */
+    /** Motory s aktivním vstupem poruchy (vybavený jistič); u servoosy porucha pohonu. */
     fault: number[];
+    /** Servoosy s přerušenou komunikací s pohonem. */
+    comm: number[];
+    /** Servoosy s nepřipraveným pohonem (STO aktivní, bez silového napájení) — regulace nenaběhne. */
+    notReady?: number[];
+    /**
+     * Ruční povely servoosy z HMI (manPower_ / manHome_ / manJogP_ / manJogN_). `man[id]` u osy =
+     * regulace + pojezd + (scénáře ručního režimu).
+     */
+    axMan: Record<number, {
+        power?: boolean;
+        home?: boolean;
+        jogP?: boolean;
+        jogN?: boolean;
+    }>;
     /** Ruční hodnoty volných digitálních vstupů (klíč I/O → hodnota). */
     di: Record<string, boolean>;
     /** Ruční surové hodnoty analogových vstupů (klíč I/O → 0..27648). */
@@ -326,6 +362,12 @@ export declare class Simulator {
      * mimo AUTO (bez sekvence jen ruční); vstupy z vrstvy `io` (co čte program).
      */
     private motionScan;
+    /**
+     * Jeden scan FB_Axis — přesné zrcadlo šablon axis_gen.ts (`AXIS_SM`, čtení stavu na začátku, bloky
+     * MC na konci); bloky MC a osa = model axis.ts (týž, který emulátor spouští pod kódem platformy).
+     * Vstupy: povel sekvence (`mseq`), regulace v AUTO / ručně, ruční referování a pojezd jen mimo AUTO.
+     */
+    private axisFbScan;
     /** Výstupy bloku pohonu do I/O: DO podle jména výstupu bloku, AO = podíl rozsahu (0..27648, kanonicky). */
     private writeOuts;
     /**
@@ -450,6 +492,7 @@ export declare function matrixDevs(prj: Project): {
     lostv: Device[];
     lostp: Device[];
     dev: Device[];
+    comm: Device[];
 };
 /** DO, které znamenají pohyb (po zastavení stroje musí být FALSE): motor, ventil, měnič chod, pohon start / referování. */
 export declare function motionOutKeys(prj: Project): string[];
@@ -472,3 +515,7 @@ export declare function stateMatrix(prj: Project, base?: SimOptions, nominalRun?
 export declare function verifyProject(prj: Project, base?: SimOptions): VerifyResult;
 /** Protokol o ověření simulací (Markdown do dokumentace projektu). */
 export declare function docVerifyMd(prj: Project): string;
+/** Klíč „výstupu pohybu“ servoosy ve snímku simulace (osa jede — FB_Axis výstup moving). */
+export declare function axisMoveKey(d: {
+    id: number;
+}): string;

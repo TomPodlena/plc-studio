@@ -40,7 +40,7 @@ export const OOP_BASE = "FB_DeviceBase";
 export const OOP_SEQ = "FB_Sequence";
 /** Třída OOP podle třídy IR (Ventil → FB_Valve, ostatní jako klasika). */
 export const OOP_CLASSES = { Motor: "FB_Motor", Ventil: "FB_Valve", AnalogIn: "FB_AnalogIn", AnalogOut: "FB_AnalogOut",
-    Vfd: "FB_Vfd", PosDrive: "FB_PosDrive", PropValve: "FB_PropValve" };
+    Vfd: "FB_Vfd", PosDrive: "FB_PosDrive", PropValve: "FB_PropValve", Axis: "FB_Axis" };
 /** Pořadí tříd ve výpisu (= pořadí v Gen_Library klasického stylu). */
 const CLASS_ORDER = ["Motor", "Ventil", "AnalogIn", "AnalogOut", "Vfd", "PosDrive", "PropValve"]; // = IR_CLASS_ORDER (cyklický import — ne na úrovni modulu)
 /** Proměnné šablony, které přebírá základní třída (stav, kvitace) → jméno v FB_DeviceBase. */

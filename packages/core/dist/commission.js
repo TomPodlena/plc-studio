@@ -13,7 +13,8 @@
  */
 import { devById, ioOf, interlockDevs, enableInputs, modules, addrOrd, isMotionClass, devSp, tolOf, tolTicksOf } from "./model.js";
 import { seqCond, manVarOf } from "./codegen.js";
-import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_POS_ACK, T_POS_MOVE } from "./sim.js";
+import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_POS_ACK, T_POS_MOVE, T_AXIS_POWER } from "./sim.js";
+import { axisCfgOf, axisObjName } from "./axis.js";
 import { tr, N_, today, formatDateTime } from "./i18n.js";
 import { hwAddrText } from "./hardware.js";
 import { contentHash, registerApprovalProvider, approvalStamp, verifyDesign, verifyDesignCached, isVerified, APPROVAL_FILE } from "./approval.js";
@@ -166,6 +167,21 @@ export function commissioningPlan(prj, opts = {}) {
             add({ id: "drv:" + d.name + ":halt", phase: 3, devId: d.id, title: tr("{dev}: přerušení jízdy (HALT)", p), how: tr("Za jízdy vypni AUTO (přerušení sekvence).", p), expect: tr("Výstup HALT sepne a osa zastaví; nová jízda až novým povelem."), signals: [io.outHalt?.tag, "modeAuto"].filter(Boolean) });
             if (io.fault)
                 add({ id: "drv:" + d.name + ":fault", phase: 3, devId: d.id, title: tr("{dev}: porucha pohonu", p), how: tr("Vyvolej poruchu řadiče {dev} (např. odpojení motoru / chybový vstup).", p), expect: tr("Blok {dev} v poruše (alarm A_{dev}_FAULT); po odstranění a kvitaci (cmdAck) jde znovu ovládat.", p), signals: [io.fault.tag, "cmdAck"] });
+        }
+        else if (d.cls === "Axis") {
+            /* servoosa: konfigurace osy v IDE, regulace, referování, ruční pojezd, limity, polohy, chyby */
+            const c = axisCfgOf(d), u = d.unit || "mm";
+            const q = { ...p, obj: axisObjName(d), u, v: c.vMax, a: c.aMax, lim: c.limNeg !== undefined || c.limPos !== undefined ? (c.limNeg ?? "—") + " … " + (c.limPos ?? "—") + " " + u : tr("nenastaveny"),
+                home: c.homePos, fe: c.followMax, tol: c.posTol, jog: c.jogVel };
+            const inst = "inst" + d.name;
+            add({ id: "drv:" + d.name + ":config", phase: 3, devId: d.id, title: tr("{dev}: osa a pohon v IDE", p), how: tr("Založ osu {obj} podle konfiguračního listu v README (pohon, jednotky {u}, mechanika, max. rychlost {v} {u}/s, zrychlení {a} {u}/s², SW limity {lim}, referování, okno v poloze ± {tol} {u}, chyba sledování {fe} {u}) a otestuj pohon nástrojem výrobce (commissioning panel / NC online) s odpojenou mechanikou.", q), expect: tr("Osa v IDE bez chyby, pohon komunikuje, parametry zapsané a zálohované; jednotky ověřené ujetou dráhou (měřidlem)."), signals: [] });
+            add({ id: "drv:" + d.name + ":power", phase: 3, devId: d.id, title: tr("{dev}: zapnutí regulace", p), how: tr("V ručním režimu zapni regulaci (manPower_{dev}) a pak ji vypni.", p), expect: tr("{inst}.powered = TRUE do {t} s, osa drží polohu; po vypnutí regulace stojí (brzda, je-li).", { ...q, inst, t: T_AXIS_POWER }), signals: ["manPower_" + d.name, inst + ".powered"] });
+            add({ id: "drv:" + d.name + ":jog", phase: 3, devId: d.id, title: tr("{dev}: ruční pojezd a směr", p), how: tr("Se zajištěným pracovním prostorem drž manJogP_{dev}, pak manJogN_{dev} (pojezd {jog} {u}/s).", q), expect: tr("Osa jede jen při drženém tlačítku, směr + odpovídá rostoucí poloze {inst}.actPos; po puštění zastaví.", { ...q, inst }), signals: ["manJogP_" + d.name, "manJogN_" + d.name, inst + ".actPos"] });
+            add({ id: "drv:" + d.name + ":home", phase: 3, devId: d.id, title: tr("{dev}: referování", p), how: tr("V ručním režimu dej manHome_{dev}.", p), expect: tr("Osa najede na referenci, {inst}.homed = TRUE a poloha = {home} {u}; opakované referování dává stejnou polohu (zapiš rozptyl).", { ...q, inst }), signals: ["manHome_" + d.name, inst + ".homed"] });
+            add({ id: "drv:" + d.name + ":limits", phase: 3, devId: d.id, title: tr("{dev}: softwarové a koncové limity", p), how: tr("Po referování najeď ručním pojezdem pomalu k oběma softwarovým limitům ({lim}); hardwarové koncové spínače ověř zvlášť nástrojem pohonu.", q), expect: tr("Osa na softwarovém limitu zastaví (porucha osy, alarm A_{dev}_AXIS), před mechanickým dorazem zůstává rezerva; po kvitaci jde odjet zpět.", p), signals: [inst + ".errCode", "cmdAck"] });
+            if (c.positions.length)
+                add({ id: "drv:" + d.name + ":positions", phase: 3, devId: d.id, title: tr("{dev}: pojmenované polohy", p), how: tr("V cyklu krok po kroku najeď na polohy {list} a změř je.", { list: c.positions.map(x => x.name + " = " + x.pos + " " + u).join(", ") }), expect: tr("Skutečná poloha v okně ± {tol} {u}; polohy odpovídají mechanice (opravené hodnoty zapiš do projektu).", q), signals: [inst + ".actPos", inst + ".done"] });
+            add({ id: "drv:" + d.name + ":follow", phase: 3, devId: d.id, title: tr("{dev}: chyba sledování a porucha pohonu", p), how: tr("Pomalou jízdou proti zajištěné překážce (nebo snížením meze chyby sledování) vyvolej chybu sledování; pak vyvolej poruchu pohonu / přeruš komunikaci (odpoj kabel sítě).", p), expect: tr("Porucha osy (errCode 1, alarm A_{dev}_AXIS), regulace vypnuta, porucha stroje; po odstranění příčiny a kvitaci (cmdAck) se regulace znovu zapne.", p), signals: [inst + ".errCode", "machineFault", "cmdAck"] });
         }
         else if (d.cls === "PropValve") {
             const q = { ...p, min: d.rmin, max: d.rmax, unit: d.unit || "", tol: tolOf(d), t: tolTicksOf(d) / 10 };

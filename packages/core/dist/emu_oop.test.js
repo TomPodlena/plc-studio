@@ -12,6 +12,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { blankProject, syncIO, PLAT, supportsOop, instName } from "./model.js";
+import { axisBlocked } from "./axis_gen.js";
 import { genFor, actuators, manVarOf } from "./codegen.js";
 import { setLang, LANGS } from "./i18n.js";
 import { sampleSmall, sampleComplex } from "./samples.js";
@@ -44,12 +45,14 @@ test("emu OOP: 12 příkladů × 5 platforem × 5 jazyků — překlad bez chyb,
     const t0 = Date.now();
     for (const f of list) {
         const prj = load(f);
+        /* projekt se servoosou: generuje se klasicky (codeStyleFor), platformy bez podpory osy vynechat */
+        const plats = OOP_PLATS.filter(p => !axisBlocked(prj, p));
         for (const l of Object.keys(LANGS)) {
             setLang(l);
-            for (const p of OOP_PLATS)
+            for (const p of plats)
                 assert.deepEqual(errs(emulateCompile(prj, p).findings), [], f + " / " + p + " / " + l + ": nálezy překladu OOP");
-            const r = emulateRunMany(prj, OOP_PLATS);
-            for (const p of OOP_PLATS) {
+            const r = emulateRunMany(prj, plats);
+            for (const p of plats) {
                 const x = r[p];
                 assert.equal(x.skipped, undefined, f + " / " + p + ": běh neproběhl");
                 assert.ok(x.scenarios.length > 0, f + " / " + p);

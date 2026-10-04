@@ -1,5 +1,10 @@
 import { ELEM, TYPE_ALIAS, IEC_KEYWORDS, isWidening, SRC } from "./dialects.js";
 import { tr } from "../i18n.js";
+import { axisInit, mcCall, lxExec } from "../axis.js";
+import { AXIS_MEMBERS, AX_SIZE, MI_MEMBERS, MI_SIZE, MC_ENUMS, mcBlocks, mcPlatOf, LX_MOTION_INSTR } from "./motion.js";
+import { AXIS_TYPE } from "../axis_gen.js";
+/** Běhové funkce modelu os pro přeložený program (axis.ts). */
+const MC_RT = { mcCall, lxExec };
 /** Zdroje pravidel OOP (CODESYS / TwinCAT). */
 const SRC_OOP = SRC.cdsItf, SRC_ABS = SRC.tcAbstract, SRC_PROP = SRC.cdsProp, SRC_REF = SRC.tcItfRef;
 const LOGIX_TYPES = new Set(["BOOL", "SINT", "INT", "DINT", "LINT", "REAL"]);
@@ -109,6 +114,74 @@ export function compile(inp) {
     const itfs = new Map();
     const types = new Map();
     const pouByKey = new Map();
+    /* servoosy: vestavěné typy dialektu (objekt osy, výčty knihoven, MOTION_INSTRUCTION) a bloky MC */
+    const motion = inp.motion;
+    const builtinTypes = new Map();
+    const motionFbs = new Map();
+    const P0 = { file: "", line: 0, col: 0 };
+    const memberStruct = (name, list, size, ro) => {
+        /* vnořené skupiny (StatusBits.HomingDone) mají offset 0 a listy absolutní slot — jen jiná jména slotů modelu */
+        const root = { k: "struct", name, fields: [], map: new Map(), size };
+        for (const [path, type, slot] of list) {
+            const parts = path.split(".");
+            let cur = root;
+            for (const part of parts.slice(0, -1)) {
+                let f = cur.map.get(key(part));
+                if (!f) {
+                    const sub = { k: "struct", name: name + "_" + part, fields: [], map: new Map(), size: 0 };
+                    f = { name: part, key: key(part), kind: "var", ty: sub, pos: P0, off: 0, ro };
+                    cur.fields.push(f);
+                    cur.map.set(f.key, f);
+                }
+                cur = f.ty;
+            }
+            const leaf = { name: parts[parts.length - 1], key: key(parts[parts.length - 1]), kind: "var", ty: elem(type), pos: P0, off: slot, ro };
+            cur.fields.push(leaf);
+            cur.map.set(leaf.key, leaf);
+        }
+        return root;
+    };
+    if (motion) {
+        const dia = motion.dialect;
+        const axTy = memberStruct(AXIS_TYPE[dia], AXIS_MEMBERS[dia], AX_SIZE, true);
+        axTy.axis = true;
+        builtinTypes.set(key(AXIS_TYPE[dia]), axTy);
+        for (const [en, vals] of Object.entries(MC_ENUMS[dia] || {}))
+            builtinTypes.set(key(en), { k: "enum", name: en, values: new Map(Object.entries(vals).map(([n, v]) => [key(n), v])) });
+        if (dia === "lx")
+            builtinTypes.set("MOTION_INSTRUCTION", memberStruct("MOTION_INSTRUCTION", MI_MEMBERS, MI_SIZE, false));
+        for (const [n, sp] of Object.entries(mcBlocks(dia)))
+            motionFbs.set(n, sp);
+        for (const [k, t] of builtinTypes)
+            if (t.k === "enum")
+                types.set(k, t);
+    }
+    /** Definice bloku MC (standardní blok dialektu nad modelem osy). */
+    const mcDef = (K) => {
+        const ex = fbs.get(K);
+        if (ex)
+            return ex;
+        const sp = motionFbs.get(K);
+        const vars = [];
+        const map = { axis: -1, exe: -1, en: -1, reg: -1, drv: -1, epos: -1, eneg: -1, pos: -1, vel: -1, acc: -1, dec: -1,
+            done: -1, busy: -1, abort: -1, err: -1, errId: -1, status: -1, inVel: -1, prev: -1, ser: -1, st: -1, shown: -1 };
+        let dirOff = -1;
+        const all = [...sp.members, ["_prev", "BOOL", "var", "prev"], ["_ser", "LREAL", "var", "ser"], ["_st", "INT", "var", "st"], ["_shown", "BOOL", "var", "shown"]];
+        all.forEach(([nm, t, kind, sem], i) => {
+            const bt = builtinTypes.get(key(t));
+            const ty = bt || elem(t);
+            const v = { name: nm, key: key(nm), kind: kind, ty, pos: P0, off: i, ...(sem === "axis" ? { byRef: true } : {}) };
+            vars.push(v);
+            if (sem)
+                map[sem] = i;
+            if (key(nm) === "DIRECTION")
+                dirOff = i;
+        });
+        const def = { name: K, key: K, std: K, vars, map: new Map(vars.map(v => [v.key, v])), size: vars.length, methods: new Map(), js: "", laid: true,
+            mc: { key: K, spec: sp, map: map, dirOff } };
+        fbs.set(K, def);
+        return def;
+    };
     let jsN = 0, tidN = 0;
     const stdDef = (n) => {
         const K = key(n);
@@ -159,6 +232,10 @@ export function compile(inp) {
         }
         if (d.scl && (K === "TON" || K === "TOF" || K === "TP") && !quoted)
             add("warn", "ton-type", p, tr("Časovač typu {name}: TIA v exportu zdrojů pro S7-1200/1500 píše {name}_TIME — alias {name} v externím zdroji neověřen", { name: K }), "https://abedgnu.github.io/Automation-Notes/chapters/PLC/Siemens/exercises-solutions.html");
+        if (builtinTypes.has(K) && !quoted)
+            return builtinTypes.get(K);
+        if (motionFbs.has(K) && !quoted)
+            return { k: "fb", def: mcDef(K) };
         if (fbs.has(K)) {
             const f = fbs.get(K);
             layoutFb(f);
@@ -300,6 +377,9 @@ export function compile(inp) {
                 const ty = resolveSpec(v.type, "", def);
                 checkInstantiable(ty, v.pos);
                 const s = { name: v.name, key: K, kind: b.kind, ty, init: v.init, pos: v.pos, off };
+                /* objekt osy jako parametr bloku = odkaz (TO / AXIS_REF se předávají odkazem — S7-1200 Motion Control V6–V8, PLCopen VAR_IN_OUT) */
+                if (ty.k === "struct" && ty.axis && (b.kind === "in" || b.kind === "inout"))
+                    s.byRef = true;
                 if (b.kind === "const") {
                     s.constVal = v.init ? constOf(v.init, def) : undefined;
                     if (s.constVal === undefined)
@@ -311,7 +391,7 @@ export function compile(inp) {
                     add("error", "address", v.atPos, tr("AT adresa uvnitř bloku {fb} — fyzické adresy patří do globálních proměnných", { fb: def.name }), d.src.addr);
                 def.vars.push(s);
                 def.map.set(K, s);
-                off += sizeOf(ty);
+                off += s.byRef ? 1 : sizeOf(ty);
             }
         return off;
     }
@@ -597,6 +677,13 @@ export function compile(inp) {
                 gsize += sizeOf(ty);
                 nsTy.vars.set(K, s);
             }
+        }
+    /* objekty os z konfigurace IDE (technologický objekt, osa SoftMotion / Sysmac, tag osy Logix) */
+    if (motion)
+        for (const a of motion.axes) {
+            if (!a.implicit || globals.has(key(a.name)))
+                continue;
+            allocGlobal({ name: a.name, key: key(a.name), kind: "global", ty: builtinTypes.get(key(AXIS_TYPE[motion.dialect])), pos: P0 });
         }
     /* programy a instanční DB */
     const programs = new Map();
@@ -1121,6 +1208,11 @@ export function compile(inp) {
         }
         off = sym.off;
         let ty = sym.ty;
+        if (sym.byRef) { // odkaz na objekt osy: slot = adresa + 1
+            base = "(m[" + (absolute ? String(off) : base + "+" + off) + "]-1)";
+            off = 0;
+            absolute = false;
+        }
         if (sym.constVal !== undefined && path.length === 1 && !first.idx) {
             if (write)
                 add("error", "syntax", p, tr("Do konstanty {name} nelze zapisovat", { name: first.name }), d.src.syntax);
@@ -1205,12 +1297,30 @@ export function compile(inp) {
                 off += s.off;
                 ty = s.ty;
             }
+            else if (ty.k === "elem" && /^%X\d+$/i.test(PK) && (ty.info.cat === "bits" || ty.info.cat === "sint" || ty.info.cat === "uint")) {
+                /* SCL: bit slova (#Axis.StatusWord.%X5) — jen čtení */
+                const bit = +PK.slice(2);
+                if (!d.scl)
+                    add("error", "syntax", part.pos, tr("Bitový přístup {name} je zápis SCL (TIA)", { name: part.name }), d.src.syntax);
+                if (bit >= ty.info.bits)
+                    add("error", "fb-member", part.pos, tr("Bit {name} je mimo typ {type}", { name: part.name, type: tyName(ty) }), d.src.syntax);
+                if (write)
+                    add("error", "fb-member", part.pos, tr("Do bitu {name} člena osy nelze zapisovat", { name: part.name }), d.src.syntax);
+                if (i < path.length - 1) {
+                    add("error", "fb-member", part.pos, tr("Za bitem {name} nemůže být další člen", { name: part.name }), d.src.syntax);
+                    return { js: "0", ty: INT };
+                }
+                const at = absolute ? String(off) + dyn : base + "+" + off + dyn;
+                return { js: "((m[" + at + "]>>>" + bit + ")&1)", ty: BOOL };
+            }
             else if (ty.k === "struct") {
                 const s = ty.map.get(PK);
                 if (!s) {
                     add("error", "fb-member", part.pos, tr("Struktura {type} nemá člen {name}", { type: ty.name, name: part.name }), d.src.syntax);
                     return { js: "0", ty: INT };
                 }
+                if (s.ro && write)
+                    add("error", "fb-member", part.pos, tr("Člen {name} objektu osy je jen ke čtení (zapisuje ho technologický objekt / osa)", { name: part.name }), d.src.syntax);
                 off += s.off;
                 ty = s.ty;
             }
@@ -1344,6 +1454,7 @@ export function compile(inp) {
     }
     /* --------------------------------------------------------- příkazy */
     let loopId = 0;
+    const mcUsed = new Map();
     function stmts(list, cx, ind, loop) {
         return list.map(s => stmt(s, cx, ind, loop)).join("");
     }
@@ -1521,6 +1632,39 @@ export function compile(inp) {
                 return ind + "m[" + b + "+" + tdef.map.get("ENABLEIN").off + "]=1; " + tdef.js + "(" + b + ");\n";
             }
         }
+        /* Logix: instrukce pohybu MSO / MAM … (osa, MOTION_INSTRUCTION, operandy — MOTION-RM002) */
+        if (d.plat === "rockwell" && e.fn.length === 1 && LX_MOTION_INSTR[N] !== undefined) {
+            const want = LX_MOTION_INSTR[N];
+            if (e.args.length !== want || e.args.some(a => a.name)) {
+                add("error", "fb-param", e.pos, tr("{fn}: v ST má {n} pozičních operandů", { fn: N, n: want }), "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/motion-rm002_-en-p.pdf");
+                return "";
+            }
+            const ax = e.args[0], mi = e.args[1];
+            if (ax.e.k !== "ref" || mi.e.k !== "ref") {
+                add("error", "fb-param", e.pos, tr("{fn}: první dva operandy jsou tag osy a tag MOTION_INSTRUCTION", { fn: N }), "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/motion-rm002_-en-p.pdf");
+                return "";
+            }
+            const a = ref(ax.e.path, cx, false, ax.pos), m2 = ref(mi.e.path, cx, true, mi.pos);
+            if (!(a.ty.k === "struct" && a.ty.axis))
+                add("error", "fb-param", ax.pos, tr("{fn}: operand Axis musí být tag osy (AXIS_CIP_DRIVE)", { fn: N }), d.src.syntax);
+            if (!(m2.ty.k === "struct" && m2.ty.name === "MOTION_INSTRUCTION"))
+                add("error", "fb-param", mi.pos, tr("{fn}: operand Motion Control musí být tag MOTION_INSTRUCTION", { fn: N }), d.src.syntax);
+            const rest = e.args.slice(2).map(x => { const v = expr(x.e, cx); if (!isNum(v.ty) && !isBool(v.ty))
+                add("error", "fb-param", x.pos, tr("{fn}: operand musí být číslo nebo tag", { fn: N }), d.src.syntax); return v.js; });
+            if (!a.js.startsWith("m[") || !m2.js.startsWith("m["))
+                return "";
+            return ind + "mc.lxExec(" + JSON.stringify(N) + ", m, " + a.js.slice(2, -1) + ", " + m2.js.slice(2, -1) + ", [" + rest.join(",") + "]);\n";
+        }
+        /* Tc2_MC2: Axis.ReadStatus() — obnoví Axis.Status (akce AXIS_REF) */
+        if (e.fn.length >= 2 && key(e.fn[e.fn.length - 1].name) === "READSTATUS" && !e.args.length) {
+            const t = safeRefTy(e.fn.slice(0, -1), cx);
+            if (t && t.k === "struct" && t.axis) {
+                if (motion?.dialect !== "tc")
+                    add("error", "fb-member", e.pos, tr("ReadStatus je akce AXIS_REF knihovny Tc2_MC2 (TwinCAT)"), d.src.syntax);
+                const r = ref(e.fn.slice(0, -1), cx, false, e.pos);
+                return r.js.startsWith("m[") ? ind + "mc.mcCall(\"readStatus\", m, 0, " + r.js.slice(2, -1) + ", null, \"tc\");\n" : "";
+            }
+        }
         /* metoda: inst.M(), itf.M(), THIS^.M(), SUPER^.M(), M() uvnitř bloku */
         const mv = invoke(e, cx);
         if (mv)
@@ -1587,6 +1731,20 @@ export function compile(inp) {
                     add("error", "fb-param", a.pos, tr("{name} je výstup bloku {fb} — čte se =>, ne :=", { name: s.name, fb: def.name }), d.src.syntax);
                     return;
                 }
+                if (s.byRef) {
+                    /* objekt osy: předává se odkaz (adresa + 1) */
+                    if (a.e.k !== "ref") {
+                        add("error", "fb-param", a.pos, tr("Parametr {name} bloku {fb} musí dostat objekt osy, ne výraz", { name: s.name, fb: def.name }), d.src.syntax);
+                        return;
+                    }
+                    const t = ref(a.e.path, cx, false, a.pos);
+                    if (!t.js.startsWith("m["))
+                        return;
+                    if (tyName(t.ty) !== tyName(s.ty))
+                        add("error", "type-conv", a.pos, tr("Parametr {name}: objekt osy typu {a}, blok {fb} čeká {b}", { name: s.name, a: tyName(t.ty), b: tyName(s.ty), fb: def.name }), d.src.conv);
+                    ins.push("m[" + bv + "+" + s.off + "]=(" + t.js.slice(2, -1) + ")+1;");
+                    return;
+                }
                 if (s.kind === "inout") {
                     /* VAR_IN_OUT = odkaz: kopie dovnitř a po volání zpět (v jednom scanu bez souběhu totéž) */
                     if (a.e.k !== "ref") {
@@ -1615,8 +1773,14 @@ export function compile(inp) {
             for (const s of inputs)
                 if (s.kind === "inout" && !seenP.has(s.key))
                     add("error", "fb-param", e.pos, tr("VAR_IN_OUT {name} bloku {fb} musí být ve volání přiřazen", { name: s.name, fb: def.name }), d.src.syntax);
+        if (def.mc && !seenP.has("AXIS"))
+            add("error", "fb-param", e.pos, tr("Blok {fb}: parametr Axis (objekt osy) musí být ve volání přiřazen", { fb: def.name }), d.src.syntax);
         let call;
-        if (def.std) {
+        if (def.mc) {
+            mcUsed.set(def.key, def);
+            call = "mcFb(" + bv + "," + JSON.stringify(def.key) + ");";
+        }
+        else if (def.std) {
             helpersUsed.add(def.std);
             call = stdFn(def.std) + "(" + bv + ");";
         }
@@ -1722,6 +1886,40 @@ export function compile(inp) {
     };
     for (const g of globals.values())
         fill(g.ty, g.off, initVal(g));
+    /* objekty os: konfigurace z konfiguračního listu (jak ji uživatel zadá v IDE) a poloha po zapnutí */
+    const axisObjs = [];
+    if (motion)
+        for (const a of motion.axes) {
+            let g = globals.get(key(a.name));
+            if (!g)
+                for (const gg of globals.values())
+                    if (gg.ty.k === "ns" && gg.ty.vars.has(key(a.name))) {
+                        g = gg.ty.vars.get(key(a.name));
+                        break;
+                    }
+            const at = g ? { slot: g.off, ty: g.ty } : undefined;
+            if (!at || at.ty.k !== "struct" || !at.ty.axis) {
+                add("error", "undeclared", undefined, tr("Objekt osy {name} v programu chybí nebo nemá typ {type}", { name: a.name, type: AXIS_TYPE[motion.dialect] }));
+                continue;
+            }
+            axisInit(init, at.slot, a.cfg);
+            axisObjs.push({ name: a.name, base: at.slot });
+        }
+    const mcTable = [...mcUsed.values()].map(def => {
+        const mc = def.mc, sp = mc.spec;
+        return JSON.stringify(def.key) + ":{k:" + JSON.stringify(sp.kind) + ",M:" + JSON.stringify(mc.map) + ",p:" + JSON.stringify(mcPlatOf(motion.dialect)) +
+            ",dir:" + mc.dirOff + ",pos:" + JSON.stringify(sp.dir?.pos || []) + ",neg:" + JSON.stringify(sp.dir?.neg || []) + "}";
+    });
+    const mcSrc = mcTable.length ? `
+const MCD = {${mcTable.join(",")}};
+function mcFb(b, key) {
+  const d = MCD[key], p = m[b + d.M.axis];
+  if (!(p > 0)) { rt.err = rt.err || 'nullref'; return; }
+  let k = d.k;
+  if (k === "vel") { const v = d.dir >= 0 ? m[b + d.dir] : 0; k = d.neg.indexOf(v) >= 0 ? "velN" : d.pos.indexOf(v) >= 0 ? "velP" : (m[b + d.M.vel] < 0 ? "velN" : "velP"); }
+  mc.mcCall(k, m, b, p - 1, d.M, d.p);
+}
+` : "";
     /* --------------------------------------------------------- JS modul */
     const helpers = `
 const fr = Math.fround;
@@ -1750,7 +1948,7 @@ function tofr(b) { tonr(b); }
 function rtor(b) { tonr(b); }
 function noop(b) {}
 `;
-    const src = '"use strict";\nlet now = 0;\nconst rt = { err: "" };\n' + helpers + fnSrc.join("\n") + dispSrc.join("\n") + "\nreturn { scan(t) { now = t; " + entry + " }, rt };\n";
+    const src = '"use strict";\nlet now = 0;\nconst rt = { err: "" };\n' + helpers + mcSrc + fnSrc.join("\n") + dispSrc.join("\n") + "\nreturn { scan(t) { now = t; " + entry + " }, rt };\n";
     /* --------------------------------------------------------- adresy pro běh */
     const addr = (path) => {
         let s = globals.get(key(path[0]));
@@ -1790,12 +1988,12 @@ function noop(b) {}
     let make;
     if (ok) {
         try {
-            const factory = new Function("m", src);
-            make = (m) => factory(m);
+            const factory = new Function("m", "mc", src);
+            make = (m) => factory(m, MC_RT);
         }
         catch (e) {
             add("error", "runtime", undefined, tr("Interní chyba emulátoru při sestavení programu: {msg}", { msg: e.message }));
         }
     }
-    return { ok: ok && !!make, findings: out, size: gsize, init, src, make, addr, timers, etMask, readsTime };
+    return { ok: ok && !!make, findings: out, size: gsize, init, src, make, addr, timers, etMask, readsTime, axisObjs };
 }

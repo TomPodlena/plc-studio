@@ -49,7 +49,8 @@
  * Změna výstupu generátoru jen vědomě: referenční test `golden.test.ts`
  * (přegenerování `node scripts/golden.mjs --write`, zdůvodnění v commitu).
  */
-import { devById, ioOf, instName, enableInputs, interlockDevs, isDiWait, isMotionClass, isSpAct, stepSp, devSp, rampStepOf, tolOf, tolTicksOf, } from "./model.js";
+import { devById, ioOf, instName, enableInputs, interlockDevs, isDiWait, isMotionClass, isSpAct, stepSp, devSp, rampStepOf, tolOf, tolTicksOf, stepAxisTarget, } from "./model.js";
+import { axisCfgOf, axisObjName } from "./axis.js";
 import { N_ } from "./i18n.js";
 /* ir.ts a codegen.ts se importují navzájem: šablony se tu berou až uvnitř funkcí */
 import { fbTemplate, parseFbTemplate } from "./codegen.js";
@@ -79,6 +80,7 @@ export function irText(e, n) {
         case "or": return e.args.map(a => irText(a, n)).join(" OR ");
         case "cmp": return irText(e.a, n) + " " + e.op + " " + irText(e.b, n);
         case "paren": return "(" + irText(e.e, n) + ")";
+        case "axis": return n.A ? n.A(e.name) : e.name;
     }
 }
 /* ======================================================= řízení stroje */
@@ -89,7 +91,6 @@ export const IR_CTRL = {
 };
 /** Pořadí vyhodnocení v jednom scanu (generátor = simulátor). */
 export const IR_EVAL_ORDER = ["enable", "seq", "seqTimers", "blocks", "fault"];
-/* fáze 2b: | "Axis" */
 /** Třídy bloků: jméno FB; zdroj logiky = šablona třídy (`fbTemplate(cls, dialekt)` v codegen.ts). */
 export const IR_CLASSES = {
     Motor: { fb: "FB_Motor" },
@@ -99,15 +100,18 @@ export const IR_CLASSES = {
     Vfd: { fb: "FB_Vfd" },
     PosDrive: { fb: "FB_PosDrive" },
     PropValve: { fb: "FB_PropValve" },
+    Axis: { fb: "FB_Axis" },
 };
 /** Pořadí tříd v knihovně bloků (Gen_Library, AOI, OOP) — nové třídy za původními (golden). */
-export const IR_CLASS_ORDER = ["Motor", "Ventil", "AnalogIn", "AnalogOut", "Vfd", "PosDrive", "PropValve"];
+export const IR_CLASS_ORDER = ["Motor", "Ventil", "AnalogIn", "AnalogOut", "Vfd", "PosDrive", "PropValve", "Axis"];
 /** Typy portů bloku z vestavěné šablony IEC ST (vstupy, výstupy). */
 export function irPortTypes(cls) {
     const out = {};
     for (const v of parseFbTemplate(fbTemplate(cls, "st")).vars)
         if (v.kind !== "var")
             out[v.name] = v.type;
+    if (cls === "Axis")
+        out.Axis = "AXIS"; // VAR_IN_OUT (Siemens VAR_INPUT) — parseFbTemplate ho nečte
     return out;
 }
 /* ================================================ pomocné (sdílí i sim.ts) */
@@ -121,15 +125,28 @@ export function waitedDis(prj) {
 }
 /** Zařízení s funkčním blokem a povelem (motory, ventily, měniče, polohovací pohony, proporcionální ventily). */
 export function actuators(prj) {
-    return prj.devices.filter(d => d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls));
+    return prj.devices.filter(d => d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls) || d.cls === "Axis");
 }
 /** Proměnná povelu ze sekvence (BOOL) / ručního povelu z HMI pro dané zařízení. */
 export function seqVarOf(d) {
+    if (d.cls === "Axis")
+        return "seqCmd_" + d.name;
     return (d.cls === "Motor" || d.cls === "Vfd" ? "seqRun_" : d.cls === "PosDrive" ? "seqMove_" : d.cls === "PropValve" ? "seqOn_" : "seqOpen_") + d.name;
 }
 /** Ruční povel z HMI: motor / měnič chod, ventil otevřít, polohovací pohon referování, proporcionální ventil zapnout. */
 export function manVarOf(d) {
+    if (d.cls === "Axis")
+        return "manPower_" + d.name;
     return (d.cls === "Motor" || d.cls === "Vfd" ? "manRun_" : d.cls === "PosDrive" ? "manHome_" : d.cls === "PropValve" ? "manOn_" : "manOpen_") + d.name;
+}
+/**
+ * Ruční povely z HMI pro zařízení: u servoosy regulace (úroveň), referování (hrana) a ruční pojezd
+ * +/− (držet; po E-stopu / poruše až po puštění tlačítka), jinak jeden povel `manVarOf`.
+ */
+export function manVarsOf(d) {
+    if (d.cls === "Axis")
+        return ["manPower_", "manHome_", "manJogP_", "manJogN_"].map(p => p + d.name);
+    return [manVarOf(d)];
 }
 /** Povely sekvence motorů a ventilů (BOOL, pořadí prvního výskytu v sekvenci). */
 export function seqVars(prj) {
@@ -152,21 +169,40 @@ export function motionSeqVars(d) {
             { var: "seqRec_" + n, type: "INT", value: irInt(0) }];
     if (d.cls === "PropValve")
         return [{ var: "seqOn_" + n, type: "BOOL", value: irBool(false) }, { var: "seqSp_" + n, type: "REAL", value: irReal(devSp(d)) }];
+    if (d.cls === "Axis")
+        return [{ var: "seqCmd_" + n, type: "INT", value: irInt(0) }, { var: "seqMode_" + n, type: "INT", value: irInt(0) },
+            { var: "seqTgt_" + n, type: "REAL", value: irReal(0) }, { var: "seqVel_" + n, type: "REAL", value: irReal(0) },
+            { var: "seqAcc_" + n, type: "REAL", value: irReal(0) }, { var: "seqDec_" + n, type: "REAL", value: irReal(0) }];
     return [];
 }
-/** Pohony fáze 2a, které sekvence ovládá (pořadí prvního výskytu v sekvenci). */
+/** Pohony fáze 2a a servoosy, které sekvence ovládá (pořadí prvního výskytu v sekvenci). */
 export function seqMotionDevs(prj) {
     const out = [];
     for (const s of prj.program.seq) {
         const d = devById(prj, s.dev);
-        if (d && isMotionClass(d.cls) && s.act !== "wait" && !out.includes(d))
+        if (d && (isMotionClass(d.cls) || d.cls === "Axis") && s.act !== "wait" && !out.includes(d))
             out.push(d);
     }
     return out;
 }
-/** Povely kroku pohonu fáze 2a (prázdné u ostatních). Zrcadlo v simulátoru. */
-export function motionStepSets(d, s) {
+/** Režim povelu osy (vstup cmdMode FB_Axis): 1 absolutně, 2 relativně, 3 rychlost, 4 zastavit, 5 referovat. */
+export const AXIS_MODE = { moveAbs: 1, moveRel: 2, velocity: 3, halt: 4, home: 5 };
+/**
+ * Povely kroku pohonu fáze 2a / servoosy (prázdné u ostatních). Zrcadlo v simulátoru. `stepNo` = číslo
+ * kroku v programu (10, 20…) — u osy je to číslo povelu (cmdId), FB_Axis ho vrátí v doneId.
+ */
+export function motionStepSets(d, s, stepNo = 0) {
     const n = d.name;
+    if (d.cls === "Axis") {
+        const mode = AXIS_MODE[s.act];
+        if (!mode)
+            return []; // waitInPos: jen čeká
+        const r = (v) => irReal(Number(v) > 0 ? Number(v) : 0);
+        return [{ var: "seqTgt_" + n, type: "REAL", value: irReal(stepAxisTarget(s, d)) },
+            { var: "seqVel_" + n, type: "REAL", value: s.act === "velocity" ? irReal(0) : r(s.vel) },
+            { var: "seqAcc_" + n, type: "REAL", value: r(s.acc) }, { var: "seqDec_" + n, type: "REAL", value: r(s.dec) },
+            { var: "seqMode_" + n, type: "INT", value: irInt(mode) }, { var: "seqCmd_" + n, type: "INT", value: irInt(stepNo) }];
+    }
     if (d.cls === "Vfd") {
         if (s.act !== "start")
             return [{ var: "seqRun_" + n, type: "BOOL", value: irBool(false) }];
@@ -185,7 +221,7 @@ export function motionStepSets(d, s) {
     return [];
 }
 export function seqCond(prj, s) {
-    if (s.act === "wait" || (s.cond === "time" && !isDiWait(s)))
+    if (s.act === "wait" || (s.cond === "time" && !isDiWait(s) && s.act !== "waitInPos"))
         return { kind: "time" };
     const d = devById(prj, s.dev);
     if (!d)
@@ -202,6 +238,26 @@ export function seqCond(prj, s) {
     }
     if (d.cls === "PropValve")
         return isSpAct(s.act) ? { kind: "fbk", expr: irMember(inst, "inTol") } : { kind: "none" };
+    if (d.cls === "Axis") {
+        /* osa: povel = číslo kroku; hotovo = done AND doneId (čekání na dokončení = číslo posledního pohybu osy před krokem) */
+        const seq = prj.program.seq, i = seq.indexOf(s);
+        if (i < 0)
+            return { kind: "none" };
+        let k = i;
+        if (s.act === "waitInPos") {
+            k = -1;
+            for (let j = i - 1; j >= 0; j--)
+                if (seq[j].dev === d.id && AXIS_MODE[seq[j].act]) {
+                    k = j;
+                    break;
+                }
+        }
+        else if (!AXIS_MODE[s.act])
+            return { kind: "none" };
+        if (k < 0)
+            return { kind: "none" };
+        return { kind: "fbk", expr: irAnd(irMember(inst, "done"), irEq(irMember(inst, "doneId"), irInt(10 + k * 10))) };
+    }
     const io = ioOf(prj, d);
     if (isDiWait(s)) { // čekání na snímač / tlačítko (hlídací čas = timeS)
         const e = d.cls === "DI" ? (io.in || Object.values(io)[0]) : undefined;
@@ -292,8 +348,30 @@ function motionFbItem(prj, d, base, T) {
         rawMax, sig("rawAct", io.rawAct, irInt(0))];
     return { ...base, cmd, inputs, outputs: outs(["rawSp"], ["rawSp"]) };
 }
+/**
+ * Blok servoosy (FB_Axis): regulace v AUTO (osa v sekvenci) NEBO ručním povelem, povel sekvence
+ * (číslo kroku, režim, cíl, dynamika — 0 = výchozí z konfigurace), ruční referování a pojezd jen
+ * mimo AUTO, konfigurace osy jako parametry, objekt osy jako odkaz (`src: "axis"`).
+ */
+function axisFbItem(prj, d, base, T) {
+    const C = IR_CTRL, n = d.name, c = axisCfgOf(d);
+    const hasSeq = prj.program.seq.length > 0;
+    const inSeq = hasSeq && seqMotionDevs(prj).includes(d);
+    const port = (name, expr, src) => ({ name, type: T[name], expr, src });
+    const man = (v) => hasSeq ? irParen(irAnd(irVar(v + n), irNot(irVar(C.modeAuto)))) : irVar(v + n);
+    const power = inSeq ? irOr(irVar(C.modeAuto), irVar("manPower_" + n)) : irVar("manPower_" + n);
+    const sv = (k, dflt) => inSeq ? port(k, irVar({ cmdId: "seqCmd_", cmdMode: "seqMode_", cmdPos: "seqTgt_", cmdVel: "seqVel_", cmdAcc: "seqAcc_", cmdDec: "seqDec_" }[k] + n), "ctrl") : port(k, dflt, "default");
+    const inputs = [port("enable", irVar(C.enable), "ctrl"), port("power", power, "ctrl"),
+        sv("cmdId", irInt(0)), sv("cmdMode", irInt(0)), sv("cmdPos", irReal(0)), sv("cmdVel", irReal(0)), sv("cmdAcc", irReal(0)), sv("cmdDec", irReal(0)),
+        port("manHome", man("manHome_"), "ctrl"), port("jogPos", man("manJogP_"), "ctrl"), port("jogNeg", man("manJogN_"), "ctrl"),
+        port("reset", irVar(C.cmdAck), "ctrl"),
+        port("cfgVel", irReal(c.vDef), "param"), port("cfgAcc", irReal(c.aMax), "param"), port("cfgDec", irReal(c.dMax), "param"),
+        port("cfgJerk", irReal(c.jerk), "param"), port("jogVel", irReal(c.jogVel), "param"), port("homePos", irReal(c.homePos), "param"),
+        port("Axis", { k: "axis", name: axisObjName(d) }, "axis")];
+    return { ...base, cmd: power, inputs, outputs: [] };
+}
 function fbItem(prj, d) {
-    if (d.cls !== "Motor" && d.cls !== "Ventil" && d.cls !== "AnalogIn" && d.cls !== "AnalogOut" && !isMotionClass(d.cls))
+    if (d.cls !== "Motor" && d.cls !== "Ventil" && d.cls !== "AnalogIn" && d.cls !== "AnalogOut" && !isMotionClass(d.cls) && d.cls !== "Axis")
         return null;
     const cls = d.cls;
     const T = irPortTypes(cls);
@@ -305,6 +383,8 @@ function fbItem(prj, d) {
     const base = { kind: "fb", dev: d, cls, fb: IR_CLASSES[cls].fb, inst: instName(d) };
     if (isMotionClass(d.cls))
         return motionFbItem(prj, d, base, T);
+    if (d.cls === "Axis")
+        return axisFbItem(prj, d, base, T);
     if (cls === "Motor" || cls === "Ventil") {
         const cmd = cmdIr(prj, d);
         const [on, off] = cls === "Motor" ? ["cmdStart", "cmdStop"] : ["cmdOpen", "cmdClose"];
@@ -365,8 +445,17 @@ export function buildIR(prj) {
         decls.push({ name: C.cmdAck, type: "BOOL", group: "ctrl", todo: true, note: N_("tlačítko kvitace poruchy (HMI)") });
         decls.push({ name: C.machineFault, type: "BOOL", group: "ctrl", note: N_("porucha stroje (chyba bloku / timeout kroku); drží do kvitace") });
     }
-    for (const d of acts)
+    for (const d of acts) {
+        if (d.cls === "Axis") {
+            const [pw, hm, jp, jn] = manVarsOf(d);
+            decls.push({ name: pw, type: "BOOL", group: "man", todo: true, note: N_("regulace osy zapnuta (HMI); v AUTO zapíná osu sekvence") });
+            decls.push({ name: hm, type: "BOOL", group: "man", todo: true, note: hasSeq ? N_("ruční referování osy (hrana; platí při vypnutém AUTO)") : N_("ruční referování osy (hrana)") });
+            decls.push({ name: jp, type: "BOOL", group: "man", todo: true, note: hasSeq ? N_("ruční pojezd v kladném směru (držet; platí při vypnutém AUTO)") : N_("ruční pojezd v kladném směru (držet)") });
+            decls.push({ name: jn, type: "BOOL", group: "man", todo: true, note: hasSeq ? N_("ruční pojezd v záporném směru (držet; platí při vypnutém AUTO)") : N_("ruční pojezd v záporném směru (držet)") });
+            continue;
+        }
         decls.push({ name: manVarOf(d), type: "BOOL", group: "man", todo: true, note: hasSeq ? N_("ruční povel z HMI (platí při vypnutém AUTO)") : N_("ruční povel z HMI") });
+    }
     if (hasSeq) {
         decls.push({ name: C.faultStep, type: "INT", group: "ctrl", note: N_("krok sekvence, ve kterém vypršel čas (diagnostika)") });
         decls.push({ name: C.seqStep, type: "INT", group: "seq" });
@@ -405,6 +494,10 @@ export function buildIR(prj) {
                 else if (d && isMotionClass(d.cls)) {
                     op = d.cls === "Vfd" ? (s.act === "start" ? "run" : "stop") : d.cls === "PosDrive" ? (s.act === "home" ? "home" : "posRecord") : "setPressure";
                     sets = motionStepSets(d, s);
+                }
+                else if (d && d.cls === "Axis" && (s.act === "home" || s.act === "moveAbs" || s.act === "moveRel" || s.act === "velocity" || s.act === "halt" || s.act === "waitInPos")) {
+                    op = s.act;
+                    sets = motionStepSets(d, s, n);
                 }
                 return {
                     index: i, n, next, op, act: s.act, ...(d ? { dev: d } : {}), ...(set ? { set } : {}), ...(sets ? { sets } : {}), cond,

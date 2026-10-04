@@ -7,8 +7,10 @@
  */
 import {
   Project, Device, CLS, PLAT, devById, modules, wireNo, dtFor, usedClasses, interlockDevs, DO_ROLES, codeStyleFor,
-  isMotionClass, hasRange, ioOf, rampStepOf, tolOf, tolTicksOf, selBitsOf, maxRecord, stepSp,
+  isMotionClass, hasRange, ioOf, rampStepOf, tolOf, tolTicksOf, selBitsOf, maxRecord, stepSp, stepAxisTarget,
 } from "./model.js";
+import { axisCfgOf, axisObjName } from "./axis.js";
+import { axisSupport, AXIS_LIB, AXIS_NET } from "./axis_gen.js";
 import { bomCsv, bomMd } from "./bom.js";
 import { hwAddrText, hwTypeText, hwSummary, hwPlatform } from "./hardware.js";
 import { tr, N_, today } from "./i18n.js";
@@ -17,7 +19,7 @@ import { libraryDocHeader } from "./library.js";
 import { oopInProject, oopProgram, oopClassSvg, OOP_CLASS_SVG, type OopPou } from "./codegen_oop.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
 import { conceptMd } from "./concept.js";
-import { simulate, docVerifyMd, stepWatchdog, stepTitle, stepCondText, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE } from "./sim.js";
+import { simulate, docVerifyMd, stepWatchdog, stepTitle, stepCondText, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE, T_AXIS_POWER } from "./sim.js";
 import { svgFlow, svgTiming, svgMachine } from "./flow.js";
 import { approvalItems, approvalStamp, approvalsMd, designView, APPROVAL_FILE, type ApprovalGroup, type ApprovalItem } from "./approval.js";
 import { commissioningPlan, commissioningMd, commissioningCsv, COMMISSION_FILE_MD, COMMISSION_FILE_CSV } from "./commission.js";
@@ -50,6 +52,32 @@ function funcLines(prj: Project): string[] {
     out.push("");
   }
   out.push(...motionFdsLines(prj));
+  out.push(...axisFdsLines(prj));
+  return out;
+}
+
+/**
+ * FDS: servoosy (fáze 2b) — obálka FB_Axis, platformy, povely kroků, poruchy, ruční ovládání a co se
+ * nastavuje v IDE. Bez os prázdné (dokumentace beze změny).
+ */
+export function axisFdsLines(prj: Project): string[] {
+  const axes = prj.devices.filter(d => d.cls === "Axis");
+  if (!axes.length) return [];
+  const out: string[] = ["**" + tr("Servoosy (polohování po síti, PLCopen Motion)") + "**"];
+  for (const d of axes) {
+    const c = axisCfgOf(d), u = d.unit || "mm";
+    out.push("- " + d.name + " (" + (d.desc || tr(CLS.Axis.label)) + "): " + tr("objekt osy {obj}; max. rychlost {v} {u}/s, zrychlení {a} {u}/s², zpomalení {dd} {u}/s², výchozí rychlost {vd} {u}/s; SW limity {lim}; referenční poloha {home} {u}; okno v poloze ± {tol} {u}; max. chyba sledování {fe} {u}.", {
+      obj: axisObjName(d), v: c.vMax, a: c.aMax, dd: c.dMax, vd: c.vDef, u, home: c.homePos, tol: c.posTol, fe: c.followMax,
+      lim: c.limNeg !== undefined || c.limPos !== undefined ? (c.limNeg ?? "—") + " … " + (c.limPos ?? "—") + " " + u : tr("nenastaveny") }));
+    if (c.positions.length) out.push("  " + tr("Pojmenované polohy: {list}.", { list: c.positions.map(x => x.name + " = " + x.pos + " " + u).join(", ") }));
+  }
+  out.push("- " + tr("Blok FB_Axis zapíná regulaci (v AUTO sekvence, ručně povel manPower_<osa>) a provádí povely kroků: referování, najetí na polohu, posun o dráhu, rychlost, zastavení. Krok s přechodem na hlášení přejde, až blok hlásí dokončení svého povelu (done a doneId = číslo kroku); krok s přechodem časem pohyb jen spustí a „čekat na dokončení pohybu“ počká později. Nový pohyb čeká na dokončení běžícího, zastavení a přerušení sekvence platí hned."));
+  out.push("- " + tr("Porucha (errCode): 1 porucha osy — pohon, chyba sledování (zaseknutá mechanika), ztráta komunikace, softwarový limit (příčina v diagnostice osy); 2 regulace nezapnuta do {t} s; 3 absolutní polohování bez referování; 7 povel odmítnut blokem MC. Porucha osy zastaví sekvenci (porucha stroje), regulace se vypne; po odstranění příčiny kvitace (MC_Reset) a nové zapnutí.", { t: T_AXIS_POWER }));
+  out.push("- " + tr("Ruční režim (mimo AUTO): regulace manPower_<osa>, referování manHome_<osa> (hrana), pojezd manJogP_ / manJogN_<osa> (držet; po E-stopu nebo poruše až po puštění a novém stisku)."));
+  const plats = prj.platforms.map(p => ({ p, s: axisSupport(prj, p) }));
+  out.push("- " + tr("Platformy: {list}.", { list: plats.map(x => PLAT[x.p].name + " — " + (x.s.ok ? AXIS_LIB[x.s.dialect!] + ", " + AXIS_NET[x.s.dialect!] : tr("nepodporuje (kód se negeneruje)"))).join("; ") }));
+  out.push("- " + tr("Osa a pohon se zakládají v IDE (technologický objekt / osa NC / osa SoftMotion / Axis Settings / Motion Group) podle konfiguračního listu v README platformy — import je nepřenese. Bezpečnostní funkce pohonu (STO, SS1, SLS) řeší pohon s integrovanou bezpečností nebo bezpečnostní PLC; standardní program jen čte stav."));
+  out.push("");
   return out;
 }
 
@@ -87,13 +115,19 @@ function actTxt(act: string): string {
     : act === "open" ? tr("otevřít") : act === "close" ? tr("zavřít")
     : act === "waitOn" ? tr("čekat na TRUE") : act === "waitOff" ? tr("čekat na FALSE")
     : act === "home" ? tr("referenční jízda") : act === "posRecord" ? tr("jízda na záznam")
-    : act === "setPressure" ? tr("nastavit tlak") : act === "setFlow" ? tr("nastavit průtok") : act;
+    : act === "setPressure" ? tr("nastavit tlak") : act === "setFlow" ? tr("nastavit průtok")
+    : act === "moveAbs" ? tr("najet na polohu") : act === "moveRel" ? tr("posun o dráhu") : act === "velocity" ? tr("rychlost")
+    : act === "halt" ? tr("zastavit osu") : act === "waitInPos" ? tr("čekat na dokončení pohybu") : act;
 }
 /** Akce kroku s parametrem (otáčky, záznam, žádaná) pro FDS. */
 function actFull(prj: Project, sq: Project["program"]["seq"][number], d: Device | undefined): string {
   if (d && d.cls === "Vfd" && sq.act === "start") return actTxt(sq.act) + " " + stepSp(sq, d) + " " + (d.unit || "") + (sq.rev && d.opt?.rev ? " " + tr("vzad") : "");
   if (sq.act === "posRecord") return actTxt(sq.act) + " " + (sq.rec ?? "?");
   if ((sq.act === "setPressure" || sq.act === "setFlow") && d) return actTxt(sq.act) + " " + stepSp(sq, d) + " " + (d.unit || "");
+  if (d && d.cls === "Axis" && (sq.act === "moveAbs" || sq.act === "moveRel")) return actTxt(sq.act) + " " + stepAxisTarget(sq, d) + " " + (d.unit || "") + (sq.posRef ? " (" + sq.posRef + ")" : "")
+    + (sq.vel ? ", " + tr("rychlost {v}", { v: sq.vel }) : "");
+  if (d && d.cls === "Axis" && sq.act === "velocity") return actTxt(sq.act) + " " + stepAxisTarget(sq, d) + " " + (d.unit || "") + "/s";
+  if (d && d.cls === "Axis" && sq.act === "home") return tr("referování osy");
   return actTxt(sq.act);
 }
 
@@ -202,6 +236,7 @@ export function docFDSMd(prj: Project): string {
       ? ((d.unit || "") + " " + d.rmin + "–" + d.rmax)
       : hasRange(d.cls) ? [(d.unit || "") + " " + d.rmin + "–" + d.rmax, opts].filter(x => x.trim()).join(", ")
       : d.cls === "PosDrive" ? [tr("záznamy 1–{max}", { max: maxRecord(d) }), opts].filter(Boolean).join(", ")
+      : d.cls === "Axis" ? tr("{u}, max. {v} {u}/s, {a} {u}/s²", { u: d.unit || "mm", v: axisCfgOf(d).vMax, a: axisCfgOf(d).aMax })
       : opts;
     L.push("| " + d.name + " | " + tr(CLS[d.cls].label) + " | " + (d.desc || "") + " | " + (par || "—") + " |");
   }
@@ -219,7 +254,8 @@ export function docFDSMd(prj: Project): string {
     "",
     "## " + tr("5. Režimy a ovládání"),
     "- " + tr("**RUČNĚ** (`modeAuto` = FALSE) — povely na jednotlivá zařízení z HMI: `manRun_<motor>`, `manOpen_<ventil>` (specifikace HMI: doplnit)")
-      + (prj.devices.some(d => isMotionClass(d.cls)) ? "; " + tr("měnič `manRun_<měnič>` (výchozí otáčky), polohovací pohon `manHome_<pohon>` (referenční jízda), proporcionální ventil `manOn_<ventil>` (výchozí žádaná)") : ""),
+      + (prj.devices.some(d => isMotionClass(d.cls)) ? "; " + tr("měnič `manRun_<měnič>` (výchozí otáčky), polohovací pohon `manHome_<pohon>` (referenční jízda), proporcionální ventil `manOn_<ventil>` (výchozí žádaná)") : "")
+      + (prj.devices.some(d => d.cls === "Axis") ? "; " + tr("servoosa `manPower_<osa>` (regulace), `manHome_<osa>` (referování), `manJogP_` / `manJogN_<osa>` (pojezd, držet)") : ""),
     "- " + tr("**AUTO** (`modeAuto` = TRUE) — automatická sekvence dle kap. 6; start (`cmdAutoStart`) podmíněn centrálním uvolněním a stavem bez poruchy; ruční povely jsou v AUTO neúčinné"),
     "- " + tr("**Kvitace** (`cmdAck`) — zruší poruchu stroje i poruchy bloků po odstranění příčiny"),
     interlockDevs(prj).length
@@ -302,6 +338,12 @@ export function docAlarmCsv(prj: Project): string {
       row("A_" + d.name + "_NOTHOMED", d.name, tr("Bez referování"), tr("Povel jízdy na záznam bez referenční jízdy"), stop, tr("Kvitace (cmdAck), pak referenční jízda"));
       row("A_" + d.name + "_POS", d.name, tr("Ztráta polohy"), tr("Hlášení „v poloze“ odpadlo v dosažené poloze"), stop, tr("Kvitace (cmdAck) po odstranění příčiny"));
       row("A_" + d.name + "_TIMEOUT", d.name, tr("Timeout jízdy"), tr("Start nepotvrzen do {ack} s nebo jízda / referování déle než {move} s", { ack: T_POS_ACK, move: T_POS_MOVE }), stop, tr("Kvitace (cmdAck)"));
+    } else if (d.cls === "Axis") {
+      const stop = tr("Osa zastavena, regulace vypnuta, porucha stroje (stop sekvence)");
+      row("A_" + d.name + "_AXIS", d.name, tr("Porucha osy"), tr("Pohon / chyba sledování / ztráta komunikace / softwarový limit (příčina v diagnostice osy)"), stop, tr("Kvitace (cmdAck) po odstranění příčiny — MC_Reset, nové zapnutí regulace"));
+      row("A_" + d.name + "_POWER", d.name, tr("Regulace nezapnuta"), tr("Osa nehlásí zapnutou regulaci do {t} s", { t: T_AXIS_POWER }), stop, tr("Kvitace (cmdAck) po odstranění příčiny"));
+      row("A_" + d.name + "_NOTHOMED", d.name, tr("Bez referování"), tr("Absolutní polohování bez referování osy"), stop, tr("Kvitace (cmdAck), pak referování"));
+      row("A_" + d.name + "_CMD", d.name, tr("Povel osy odmítnut"), tr("Blok MC hlásí chybu povelu (parametry, limity, stav osy)"), stop, tr("Kvitace (cmdAck) po opravě povelu"));
     } else if (d.cls === "PropValve") {
       const stop = tr("Žádaná na minimum, porucha stroje (stop sekvence)");
       if (ioOf(prj, d).rawAct) row("A_" + d.name + "_DEV", d.name, tr("Odchylka skutečné hodnoty"), tr("Skutečná hodnota mimo ± {tol} {unit} déle než {t} s", { tol: tolOf(d), unit: d.unit || "", t: tolTicksOf(d) / 10 }), stop, tr("Kvitace (cmdAck) po odstranění příčiny"));
@@ -378,6 +420,15 @@ export function docFATMd(prj: Project): string {
       chk(tr("Přerušení cyklu za jízdy → HALT, pohon stojí")) +
       chk(tr("Simulace poruchy pohonu / ztráty „v poloze“ → porucha")) +
       chk(tr("Kvitace poruchy")) + "\n";
+    else if (d.cls === "Axis") s += head + "\n" +
+      chk(tr("Regulace zapnout / vypnout → osa hlásí stav, při vypnutí stojí")) +
+      chk(tr("Referování → osa referována, poloha = referenční poloha")) +
+      chk(tr("Ruční pojezd + / − → osa jede jen při drženém tlačítku, po puštění zastaví; softwarové limity zastaví osu")) +
+      chk(tr("Najetí na každou pojmenovanou polohu → skutečná poloha v okně „v poloze“")) +
+      chk(tr("Absolutní polohování bez referování → porucha „bez referování“")) +
+      chk(tr("Přerušení cyklu za jízdy (AUTO vypnuto) → osa zastaví; E-stop → regulace vypnuta (STO dle bezpečnostní funkce)")) +
+      chk(tr("Simulace poruchy pohonu / ztráty komunikace / zablokování (chyba sledování) → porucha stroje")) +
+      chk(tr("Kvitace poruchy → regulace znovu zapnuta")) + "\n";
     else if (d.cls === "PropValve") s += head + " (" + (d.unit || "") + " " + d.rmin + "–" + d.rmax + ")\n" +
       chk(tr("Žádané hodnoty ve 3 bodech → skutečná hodnota (manometr / zpětná vazba) v toleranci")) +
       chk(tr("Rampa žádané odpovídá nastavení")) +
@@ -455,7 +506,7 @@ export function docSWMd(prj: Project): string {
     "",
     "## " + tr("1. Struktura programu"),
     "- " + tr("**Knihovna typových bloků** (`Gen_Library`): {list}",
-      { list: (["Motor", "Ventil", "AnalogIn", "AnalogOut", "Vfd", "PosDrive", "PropValve"] as const).filter(c => u.has(c)).map(c => "FB_" + c).join(", ") || "—" }),
+      { list: (["Motor", "Ventil", "AnalogIn", "AnalogOut", "Vfd", "PosDrive", "PropValve", "Axis"] as const).filter(c => u.has(c)).map(c => "FB_" + c).join(", ") || "—" }),
     "- " + tr("**Strojní blok** `FB_Machine` / `MAIN`: multi-instance všech zařízení + stavový automat sekvence s hlídáním času kroků, režimy AUTO / ručně (`modeAuto`, `manRun_*`, `manOpen_*`), porucha stroje (`machineFault`, `faultStep`) a kvitace (`cmdAck` → vstup `reset` všech bloků)"),
     "- " + tr("Volání: 1 instance strojního bloku v cyklickém programu (OB1 / PlcTask / MainTask)"),
     ...(prj.platforms.includes("unitronics") ? [
@@ -472,6 +523,7 @@ export function docSWMd(prj: Project): string {
     ...(u.has("Vfd") ? ["| FB_Vfd | " + tr("frekvenční měnič: chod, směr, žádaná s rampou v PLC") + " | IDLE→ACCELERATING→AT_SPEED→ERROR | " + tr("otáčky {t} s po rampě", { t: T_VFD_SPEED }) + " |"] : []),
     ...(u.has("PosDrive") ? ["| FB_PosDrive | " + tr("polohovací pohon: výběr záznamu, start, referování, HALT") + " | IDLE→SELECT→START→MOVING / HOME_START→HOMING→ERROR | " + tr("potvrzení {a} s, jízda {m} s", { a: T_POS_ACK, m: T_POS_MOVE }) + " |"] : []),
     ...(u.has("PropValve") ? ["| FB_PropValve | " + tr("proporcionální ventil: žádaná s rampou, hlídání odchylky") + " | OFF→RAMP→IN_TOLERANCE→ERROR | " + tr("žádaná {t} s po rampě", { t: T_PROP_SETTLE }) + " |"] : []),
+    ...(u.has("Axis") ? ["| FB_Axis | " + tr("servoosa: obálka nad bloky MC platformy (regulace, referování, polohování, rychlost, zastavení, ruční pojezd)") + " | OFF→POWERING→READY→HOMING / MOVING / STOPPING / JOG→ERROR→RESETTING | " + tr("regulace {t} s; pohyb hlídá čas kroku", { t: T_AXIS_POWER }) + " |"] : []),
     "",
     "## " + tr("3. Instance"),
     prj.devices.map(d => "- inst" + d.name + " : FB_" + (d.cls === "DI" || d.cls === "DO" ? tr("(volný signál)") : d.cls) + " — " + (d.desc || "")).join("\n"),

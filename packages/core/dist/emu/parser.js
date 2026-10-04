@@ -148,6 +148,12 @@ export function parse(toks, file, o) {
                     path.push({ name: t.t, pos: pos(t) });
                     continue;
                 }
+                /* SCL: bitový přístup do slova #Axis.StatusWord.%X5 */
+                if (t.k === "addr" && /^%X\d+$/i.test(t.t)) {
+                    next();
+                    path.push({ name: t.t.toUpperCase(), pos: pos(t) });
+                    continue;
+                }
                 fail(tr("Za tečkou chybí jméno členu"));
             }
             if (isOp("[")) {

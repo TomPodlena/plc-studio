@@ -129,7 +129,7 @@ test("sestava: kusovník, výkresy, svorkovnice a EPLAN = táž sestava (příkl
             const st = amlStructure(aml);
             const chans = st.flatMap(el => el.ifaces.filter(i => i.cls.endsWith("/Channel")));
             assert.equal(chans.length, L.modules.reduce((s, m) => s + m.channels.length, 0), at + ": AML kanály = katalog");
-            assert.equal(st.filter(el => el.roles.some(r => r.endsWith("/Device"))).length, L.stations.length, at + ": AML stanice");
+            assert.equal(st.filter(el => el.roles.some(r => r.endsWith("/Device"))).length, L.stations.length + L.drives.length, at + ": AML stanice + servoměniče (uzly sítě)");
             const links = st.flatMap(el => el.links).filter(l => l.name.startsWith("Link_") && !/^Link_(PN_IE_1|IoSystem)_/.test(l.name));
             assert.equal(links.length, p.io.length, at + ": AML link kanál ↔ tag");
             const errs = validateEplan(p).filter(i => i.level === "error");

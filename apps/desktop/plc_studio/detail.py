@@ -17,7 +17,7 @@ from .widgets import link
 
 DIR_COLOR = {"DI": theme.SIG_IN, "DO": theme.SIG_OUT, "AI": theme.SIG_AN, "AO": theme.WARN}
 ACT = {"start": N_("start"), "stop": N_("stop"), "open": N_("otevřít"), "close": N_("zavřít")}
-MOTION_CLS = ("Vfd", "PosDrive", "PropValve")      # pohony fáze 2a — název kroku z jádra (stepTitle)
+MOTION_CLS = ("Vfd", "PosDrive", "PropValve", "Axis")   # pohony fáze 2a + servoosa — název kroku z jádra (stepTitle)
 
 
 def step_text(app, s: dict) -> str:
@@ -154,6 +154,14 @@ class DevicePanel(ttk.Frame):
             recs = "; ".join(f"{r['no']} = {r.get('name') or '?'}" + (f" @ {r['pos']:g}" if r.get("pos") is not None else "")
                              for r in d.get("records") or [])
             opts.append(_("záznamy: {list}", list=recs or "—"))
+        if d["cls"] == "Axis":                 # servoosa: konfigurační list (výchozí hodnoty z jádra)
+            cfg = app.core("axisCfgOf", d)
+            u = d.get("unit") or ""
+            opts.append(_("max. {v} {unit}/s, zrychlení {a} {unit}/s²", v=f"{cfg['vMax']:g}", a=f"{cfg['aMax']:g}", unit=u))
+            if cfg.get("limNeg") is not None and cfg.get("limPos") is not None:
+                opts.append(_("SW limity {lo} až {hi} {unit}", lo=f"{cfg['limNeg']:g}", hi=f"{cfg['limPos']:g}", unit=u))
+            opts.append(_("polohy: {list}", list="; ".join(f"{x['name']} @ {x['pos']:g}" for x in cfg["positions"]) or "—"))
+            opts.append(_("po síti (bez I/O) — osa a pohon se nastavují v IDE podle README"))
         if opts:
             self._wrap(", ".join(opts), "Dim.TLabel", pady=(2, 0))
 

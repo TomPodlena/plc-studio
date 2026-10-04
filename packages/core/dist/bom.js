@@ -16,6 +16,8 @@ import { tr, N_ } from "./i18n.js";
 import { PLAT, interlockDevs, devRef, maxRecord, ioOf, } from "./model.js";
 import { CAT_LABEL, brandsFor, catKey, suppliersFor, brandOptId } from "./catalog.js";
 import { hwLayout, hwPlatform, HW_DIRS } from "./hardware.js";
+import { axisCfgOf, axisObjName } from "./axis.js";
+import { axisDialect, AXIS_NET } from "./axis_gen.js";
 export { brandOptId };
 const has = (s, re) => re.test(s.toLowerCase());
 /** Kategorie snímače analogové veličiny podle jednotky a popisu. */
@@ -197,6 +199,13 @@ export function buildBom(prj) {
             add("-" + devRef(d), "positioning_drive", 1, tr("Řadič polohování {dev}: {n} záznamů přes I/O", { dev: d.name, n: maxRecord(d) }), { devId: d.id,
                 note: tr("paralelní I/O: výběr záznamu, start, referování, HALT; tabulka záznamů v řadiči") });
             add(t, "linear_axis", 1, desc, { devId: d.id, note: (d.records || []).length ? tr("záznamy: {list}", { list: (d.records || []).map(r => r.no + " " + (r.name || "")).join(", ") }) : "" });
+        }
+        else if (d.cls === "Axis") {
+            /* servoosa: servoměnič (-TA, uzel sítě) a servomotor (-M); mechanika osy (šroub / řemen) mimo rozsah */
+            const c = axisCfgOf(d), dia = axisDialect(prj, plat);
+            add("-" + devRef(d), "servo_drive", 1, tr("Servoměnič osy {dev} ({net})", { dev: d.name, net: dia ? AXIS_NET[dia] : tr("síť podle platformy") }), { devId: d.id,
+                note: tr("objekt osy {obj}; STO na svorkách / bezpečná síť podle bezpečnostní funkce", { obj: axisObjName(d) }) });
+            add(t, "servo_motor", 1, desc, { devId: d.id, note: tr("dimenzovat podle zátěže: max. {v} {u}/s, {a} {u}/s²; brzda u svislé osy", { v: c.vMax, a: c.aMax, u: d.unit || "mm" }) });
         }
         else if (d.cls === "PropValve") {
             add(t, "proportional_valve", 1, desc + (d.unit ? " [" + d.unit + "]" : "") + " " + d.rmin + "–" + d.rmax, { devId: d.id,

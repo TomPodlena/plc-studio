@@ -20,6 +20,7 @@ import { actuators, manVarOf, limitedAnalogs, seqCond, hmiGlobalPlat } from "../
 import { instName } from "../model.js";
 import { tr } from "../i18n.js";
 import { TIMER_M_UNIT, type Compiled } from "./compile.js";
+import { AX, axisTick, axisObjName } from "../axis.js";
 import type { EmuFinding } from "./types.js";
 
 export interface EmuRunOptions {
@@ -73,7 +74,7 @@ export interface EmuRunResult {
    posouvá čas a časovače stejně, jako by proběhly scany bez změny). */
 interface SimTon { et: number; q: boolean; prev: boolean; }
 /** Pohon fáze 2a v simulátoru: časovače podle jmen šablony, proměnné bloku a model pohonu. */
-interface SimMotion { tons: Record<string, SimTon>; last: Record<string, boolean>; v: Record<string, number | boolean>; m: Record<string, number | boolean>; }
+interface SimMotion { tons: Record<string, SimTon>; last: Record<string, boolean>; v: Record<string, number | boolean>; m: Record<string, number | boolean>; ax?: Float64Array; }
 interface SimInst { d: Device; step: number; ton: SimTon; ton2: SimTon; blocked: boolean; out: boolean; lastA: boolean; lastB: boolean; lastR: boolean; busy: boolean; error: boolean; x?: SimMotion; }
 interface SimPriv {
   io: Record<string, boolean | number>; model: Record<string, boolean | number>; plant: Record<number, number>;
@@ -109,6 +110,8 @@ function shared(prj: Project): Shared {
   sigs.push({ name: "machineFault", need: hasSeq || actuators(prj).length > 0, get: sim => sim.machineFault ? 1 : 0 });
   /* pořadí instancí simulátoru = pořadí pohonů v projektu */
   actuators(prj).forEach((d, i) => sigs.push({ name: instName(d) + ".statStep", need: true, get: sim => sim.insts[i].step }));
+  /* servoosa: i „osa jede“ (moving) — zastavení po E-stopu / přerušení se porovnává každý scan */
+  actuators(prj).forEach((d, i) => { if (d.cls === "Axis") sigs.push({ name: instName(d) + ".moving", need: true, get: sim => sim.insts[i].x?.v.moving ? 1 : 0 }); });
   return { inKeys: ins.map(e => e.key), inAi: ins.map(e => e.dir === "AI"), inVals: new Float64Array(ins.length), sigs, dv: new Float64Array(sigs.length) };
 }
 
@@ -120,7 +123,11 @@ interface PlatProg {
   exe: { scan: (t: number) => void; rt: { err: string } };
   /** Slot vstupu (podle Shared.inKeys), −1 = kód vstup nemá; REAL analog (Logix). */
   inSlot: Int32Array; inReal: Uint8Array;
-  hmi: { modeAuto: number; cmdAutoStart: number; cmdAck: number; man: Array<{ id: number; slot: number }> };
+  hmi: { modeAuto: number; cmdAutoStart: number; cmdAck: number; man: Array<{ id: number; slot: number }>;
+    /** servoosy: ruční povely (regulace, referování, pojezd ±) */
+    ax: Array<{ id: number; power: number; home: number; jogP: number; jogN: number }> };
+  /** servoosy: objekty os v paměti kódu (zásahy modelu, takt modelu osy po scanu) */
+  axes: Array<{ id: number; base: number }>;
   /** Slot porovnávaného signálu (podle Shared.sigs). */
   sigSlot: Int32Array;
   /** Porovnávaný AO pohonu je v kódu REAL (Logix 0–100 %). */
@@ -161,13 +168,21 @@ function setup(prj: Project, sh: Shared, plat: PlatformKey, prog: Compiled, rawM
     modeAuto: hasSeq ? slot(P.hmi("modeAuto")) : -1,
     cmdAutoStart: hasSeq ? slot(P.hmi("cmdAutoStart")) : -1,
     cmdAck: slot(P.hmi("cmdAck"), false),
-    man: actuators(prj).map(d => ({ id: d.id, slot: slot(P.hmi(manVarOf(d))) })).filter(x => x.slot >= 0),
+    man: actuators(prj).filter(d => d.cls !== "Axis").map(d => ({ id: d.id, slot: slot(P.hmi(manVarOf(d))) })).filter(x => x.slot >= 0),
+    ax: actuators(prj).filter(d => d.cls === "Axis").map(d => ({ id: d.id, power: slot(P.hmi("manPower_" + d.name)), home: slot(P.hmi("manHome_" + d.name)),
+      jogP: slot(P.hmi("manJogP_" + d.name)), jogN: slot(P.hmi("manJogN_" + d.name)) })),
   };
+  const axes = prj.devices.filter(d => d.cls === "Axis").flatMap(d => {
+    const o = prog.axisObjs.find(x => x.name.toUpperCase() === axisObjName(d).toUpperCase());
+    if (!o) { missing.push(axisObjName(d)); return []; }
+    return [{ id: d.id, base: o.base }];
+  });
   const sigSlot = new Int32Array(sh.sigs.length);
   sh.sigs.forEach((g, i) => {
-    const m = /^(inst\w+)\.statStep$/.exec(g.name);
+    const m = /^(inst\w+)\.statStep$/.exec(g.name), mm = /^(inst\w+)\.(\w+)$/.exec(g.name);
     /* styl OOP: krok bloku je v základní třídě FB_DeviceBase jako iStep (maďarská notace) */
     const path = m ? (prog.addr(P.inst(m[1], "statStep")) || !prog.addr(P.inst(m[1], "iStep")) ? P.inst(m[1], "statStep") : P.inst(m[1], "iStep"))
+      : mm ? P.inst(mm[1], mm[2])
       : ["seqStep", "faultStep", "machineFault"].includes(g.name) ? P.hmi(g.name) : P.io(g.name);
     sigSlot[i] = slot(path, g.need);
   });
@@ -184,7 +199,7 @@ function setup(prj: Project, sh: Shared, plat: PlatformKey, prog: Compiled, rawM
   }
   const mem = new Float64Array(prog.init);
   return {
-    plat, prog, rawMax, mem, exe: prog.make!(mem), inSlot, inReal, hmi, sigSlot, aoReal: Uint8Array.from(sh.sigs.map(g => g.ao && isReal(P.io(g.name)) ? 1 : 0)), ao, prev: new Float64Array(mem.length),
+    plat, prog, rawMax, mem, exe: prog.make!(mem), inSlot, inReal, hmi, axes, sigSlot, aoReal: Uint8Array.from(sh.sigs.map(g => g.ao && isReal(P.io(g.name)) ? 1 : 0)), ao, prev: new Float64Array(mem.length),
     runtime: [], missing, still: false, hzMs: 0, lazy: false,
   };
 }
@@ -250,6 +265,7 @@ export function emuScenarios(prj: Project, scope: "full" | "quick", base: SimOpt
     for (const d of locks) mk("m-idle-lock-" + d.id, L(tr("Klid"), tr("blokování {dev}", { dev: d.name })), { ...o, faults: [{ kind: "interlock", dev: d.id, at }] });
     mk("m-idle-manual", L(tr("Klid"), tr("vypnutí AUTO")), { ...o, faults: [{ kind: "manual", at }] });
     for (const d of faultMotors) mk("m-idle-fault-" + d.id, L(tr("Klid"), tr("porucha {dev}", { dev: d.name })), { ...o, faults: [{ kind: "fault", dev: d.id, at }] });
+    for (const d of mx.comm) mk("m-idle-comm-" + d.id, L(tr("Klid"), tr("ztráta komunikace {dev}", { dev: d.name })), { ...o, faults: [{ kind: "comm", dev: d.id, at }] });
     limitCases.forEach((lc, k) => { if (k % nSteps === 0) mk("m-idle-lim-" + lc.d.id, L(tr("Klid"), lc.d.name), { ...o, faults: [{ kind: "analog", dev: lc.d.id, at, raw: lc.raw }] }); });
   }
   if (acts.length) { /* ruční režim */
@@ -293,6 +309,7 @@ export function emuScenarios(prj: Project, scope: "full" | "quick", base: SimOpt
       const wait = Math.max(0, ...inTol.map(d => devDeadline(d, dt)));
       for (const d of inTol) mk(id("dev-" + d.id), L(S, tr("odchylka {dev}", { dev: d.name })), { ...base, faults: [{ kind: "analog", dev: d.id, at, raw: devFaultRaw(d, fr!.dev[d.id].cmd ?? d.rmin) }, { kind: "start", at: round(at + wait + 0.5) }], maxTime: round(at + wait + 0.9) });
     }
+    for (const d of mx.comm) if (step(d) >= 10 && step(d) < 90) mk(id("comm-" + d.id), L(S, tr("ztráta komunikace {dev}", { dev: d.name })), { ...base, faults: [{ kind: "comm", dev: d.id, at }, { kind: "start", at: at + 1 }], maxTime: at + 1.4 });
     limitCases.forEach((lc, k) => { if (k % nSteps === rowNo) mk(id("lim-" + lc.d.id), L(S, lc.d.name), { ...base, faults: [{ kind: "analog", dev: lc.d.id, at, raw: lc.raw }, { kind: "start", at: at + 1 }], maxTime: at + 1.4 }); });
     rowNo++;
   }
@@ -331,6 +348,20 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
     if (h.cmdAutoStart >= 0) put(h.cmdAutoStart, (c.start || t < sim.startUntil - 1e-9) ? 1 : 0);
     if (h.cmdAck >= 0) put(h.cmdAck, (c.ack || t < sim.ackUntil - 1e-9) ? 1 : 0);
     for (const x of h.man) put(x.slot, c.man[x.id] ? 1 : 0);
+    for (const x of h.ax) {
+      const am = c.axMan[x.id] || {}, man = !!c.man[x.id];
+      if (x.power >= 0) put(x.power, man || am.power ? 1 : 0);
+      if (x.home >= 0) put(x.home, am.home ? 1 : 0);
+      if (x.jogP >= 0) put(x.jogP, man || am.jogP ? 1 : 0);
+      if (x.jogN >= 0) put(x.jogN, am.jogN ? 1 : 0);
+    }
+    /* servoosy: zásahy do modelu pohonu (porucha, komunikace, zaseknutá mechanika) — jako v simulátoru na začátku scanu */
+    for (const a of p.axes) {
+      put(a.base + AX.FAULT, c.fault.includes(a.id) ? 1 : 0);
+      put(a.base + AX.LOST, c.comm.includes(a.id) ? 1 : 0);
+      put(a.base + AX.STUCK, c.frozen.includes(a.id) ? 1 : 0);
+      put(a.base + AX.NRDY, (c.notReady || []).includes(a.id) ? 1 : 0);
+    }
     return ch;
   };
   /** Nejbližší doběhnutí časovače kódu [ms] (stav kódu se do té doby sám nezmění). */
@@ -365,6 +396,8 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
       catch (e) {
         p.exe.rt.err = p.exe.rt.err || ((e as Error).message === "loop" ? "loop" : "exception:" + (e as Error).message);
       }
+      /* model osy (TO / NC / SoftMotion / Logix) po scanu programu — jako simulátor v modelu stroje */
+      for (const a of p.axes) axisTick(p.mem, a.base, sim.dt);
       if (p.exe.rt.err) {
         const code = p.exe.rt.err;
         p.exe.rt.err = "";
@@ -412,6 +445,7 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
         for (const k in x.m) { const v = x.m[k]; out[n++] = v === true ? 1 : v === false ? 0 : +v; }
         for (const k in x.last) out[n++] = x.last[k] ? 1 : 0;
         for (const k in x.tons) { const t = x.tons[k]; out[n++] = (t.q ? 1 : 0) + (t.prev ? 2 : 0); }
+        if (x.ax) for (let i = 0; i < x.ax.length; i++) out[n++] = x.ax[i];
       }
     }
     for (const k in sim.tonSeq) { const t = sim.tonSeq[k]; out[n++] = (t.q ? 1 : 0) + (t.prev ? 2 : 0); }
@@ -476,6 +510,8 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
     c.estop = faults.some(f => f.kind === "estop" && t >= f.at - 1e-9 && !(f.release !== undefined && t >= f.release - 1e-9));
     c.fault = faults.filter(f => f.kind === "fault" && on(f)).map(f => (f as { dev: number }).dev);
     c.frozen = faults.filter(f => f.kind === "frozen" && on(f)).map(f => (f as { dev: number }).dev);
+    c.comm = faults.filter(f => f.kind === "comm" && on(f)).map(f => (f as { dev: number }).dev);
+    c.notReady = faults.filter(f => f.kind === "notReady" && on(f)).map(f => (f as { dev: number }).dev);
     c.modeAuto = !faults.some(f => f.kind === "manual" && on(f));
     if (faults.some(f => f.kind === "man")) c.man = Object.fromEntries(faults.filter(f => f.kind === "man" && on(f)).map(f => [(f as { dev: number }).dev, true]));
     for (const f of faults) {

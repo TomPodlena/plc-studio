@@ -23,6 +23,8 @@ export interface CatalogHw {
     net?: string;
     family?: string;
     acc?: string[];
+    /** CPU se volí jen výslovně v kusovníku (automatický výběr ho přeskočí) */
+    auto?: boolean;
     /** URL zdroje hardwarových údajů (manuál výrobce), pokud je jiný než `src` */
     hwSrc?: string;
 }

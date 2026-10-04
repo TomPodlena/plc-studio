@@ -22,7 +22,7 @@ import { type CommissioningStep } from "./commission.js";
 export type PL = "a" | "b" | "c" | "d" | "e";
 export type SafetyCat = "B" | "1" | "2" | "3" | "4";
 export type SafetyTarget = "siemens" | "rockwell" | "plcopen" | "pilz" | "sick" | "schmersal" | "relay";
-export type SafetyKind = "estop" | "guard" | "guard_lock" | "light_curtain" | "multibeam" | "scanner" | "mat" | "two_hand" | "enabling" | "mode" | "muting" | "restart" | "sto" | "pneumatic" | "hydraulic" | "vertical" | "temperature" | "pressure";
+export type SafetyKind = "estop" | "guard" | "guard_lock" | "light_curtain" | "multibeam" | "scanner" | "mat" | "two_hand" | "enabling" | "mode" | "muting" | "restart" | "sto" | "pneumatic" | "hydraulic" | "vertical" | "temperature" | "pressure" | "sls";
 export type Iso13855Edition = "2010" | "2024";
 export type DistanceMode = "orthogonal" | "multibeam" | "parallel" | "two_hand" | "mat" | "guard";
 /** Uživatelské úpravy jedné funkce (`Project.safety.fn[ref]`); co chybí, navrhne aplikace. */

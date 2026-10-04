@@ -51,7 +51,9 @@
  */
 import { Project, Device, IoEntry, SeqStep, SeqAct, DoRole } from "./model.js";
 /** Datový typ proměnné / portu (IEC). */
-export type IrType = "BOOL" | "INT" | "WORD" | "REAL" | "TON";
+export type IrType = "BOOL" | "INT" | "WORD" | "REAL" | "TON"
+/** objekt servoosy (technologický objekt, AXIS_REF…) — typ dosadí renderer podle platformy */
+ | "AXIS";
 /**
  * Výraz programu. Závorky jsou výslovné (`paren`) — renderer je nepřidává ani neubírá,
  * takže zápis zůstává přesně takový, jaký IR popisuje.
@@ -95,6 +97,11 @@ export type IrExpr = {
 } | {
     k: "paren";
     e: IrExpr;
+}
+/** objekt servoosy (Ax_M3): Siemens "Ax_M3", TwinCAT GVL_IO.Ax_M3, jinak globální jméno */
+ | {
+    k: "axis";
+    name: string;
 };
 export declare const irBool: (v: boolean) => IrExpr;
 export declare const irInt: (v: number) => IrExpr;
@@ -118,6 +125,8 @@ export interface IrNames {
     M?: (inst: string, port: string) => string;
     /** REAL literál */
     real: (v: number) => string;
+    /** objekt servoosy (výchozí = jméno) */
+    A?: (name: string) => string;
 }
 /** Zápis výrazu v IEC ST (TRUE/FALSE, AND/OR/NOT, `=`, `<>`); dialekty upravuje renderer. */
 export declare function irText(e: IrExpr, n: IrNames): string;
@@ -152,7 +161,7 @@ export interface IrEnable {
         estop: boolean;
     }>;
 }
-export type IrFbClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "Vfd" | "PosDrive" | "PropValve";
+export type IrFbClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "Vfd" | "PosDrive" | "PropValve" | "Axis";
 /** Třídy bloků: jméno FB; zdroj logiky = šablona třídy (`fbTemplate(cls, dialekt)` v codegen.ts). */
 export declare const IR_CLASSES: Record<IrFbClass, {
     fb: string;
@@ -169,7 +178,7 @@ export interface IrPort {
     name: string;
     type: IrType;
     expr: IrExpr;
-    src: "io" | "ctrl" | "param" | "default" | "rawMax";
+    src: "io" | "ctrl" | "param" | "default" | "rawMax" | "axis";
 }
 /** Výstup bloku do I/O tagu; bez `tag` = nezapojený (renderer ho pošle do pomocné proměnné). */
 export interface IrOut {
@@ -231,7 +240,7 @@ export type IrDeviceItem = IrFb | IrRole | IrFree | IrSeqInput | IrEnableInput;
  * setPressure = proporcionální ventil — akce setPressure i setFlow). Fáze 2b přidá
  * "moveAbs" | "moveRel" | "moveVel" | "halt" (servoosa).
  */
-export type IrStepOp = "dwell" | "waitOn" | "waitOff" | "run" | "stop" | "open" | "close" | "home" | "posRecord" | "setPressure" | "none";
+export type IrStepOp = "dwell" | "waitOn" | "waitOff" | "run" | "stop" | "open" | "close" | "home" | "posRecord" | "setPressure" | "moveAbs" | "moveRel" | "velocity" | "halt" | "waitInPos" | "none";
 /**
  * Podmínka přechodu kroku — jediný zdroj pro generátor i simulátor:
  *  time = po čase kroku, fbk = na vstup `io` (neg = čeká se na FALSE) nebo na výraz `expr`
@@ -314,14 +323,24 @@ export declare function actuators(prj: Project): Device[];
 export declare function seqVarOf(d: Device): string;
 /** Ruční povel z HMI: motor / měnič chod, ventil otevřít, polohovací pohon referování, proporcionální ventil zapnout. */
 export declare function manVarOf(d: Device): string;
+/**
+ * Ruční povely z HMI pro zařízení: u servoosy regulace (úroveň), referování (hrana) a ruční pojezd
+ * +/− (držet; po E-stopu / poruše až po puštění tlačítka), jinak jeden povel `manVarOf`.
+ */
+export declare function manVarsOf(d: Device): string[];
 /** Povely sekvence motorů a ventilů (BOOL, pořadí prvního výskytu v sekvenci). */
 export declare function seqVars(prj: Project): string[];
 /** Proměnné povelů sekvence pohonu fáze 2a (jméno → typ a hodnota po přerušení). */
 export declare function motionSeqVars(d: Device): IrSet[];
-/** Pohony fáze 2a, které sekvence ovládá (pořadí prvního výskytu v sekvenci). */
+/** Pohony fáze 2a a servoosy, které sekvence ovládá (pořadí prvního výskytu v sekvenci). */
 export declare function seqMotionDevs(prj: Project): Device[];
-/** Povely kroku pohonu fáze 2a (prázdné u ostatních). Zrcadlo v simulátoru. */
-export declare function motionStepSets(d: Device, s: SeqStep): IrSet[];
+/** Režim povelu osy (vstup cmdMode FB_Axis): 1 absolutně, 2 relativně, 3 rychlost, 4 zastavit, 5 referovat. */
+export declare const AXIS_MODE: Partial<Record<SeqAct, number>>;
+/**
+ * Povely kroku pohonu fáze 2a / servoosy (prázdné u ostatních). Zrcadlo v simulátoru. `stepNo` = číslo
+ * kroku v programu (10, 20…) — u osy je to číslo povelu (cmdId), FB_Axis ho vrátí v doneId.
+ */
+export declare function motionStepSets(d: Device, s: SeqStep, stepNo?: number): IrSet[];
 export declare function seqCond(prj: Project, s: SeqStep): SeqCondition;
 /** Kroky s časovačem: výdrž / přechod časem, nebo hlídání kroku se zpětným hlášením. */
 export declare function seqTimedSteps(prj: Project): number[];

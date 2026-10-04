@@ -28,6 +28,7 @@ import { canonicalJson, fnv1a64, approvalItems, designView, noGuid, motionConten
 import { commissioningPlan, COMMISSION_PHASES, type CommissioningStep } from "./commission.js";
 import { proposeSafety, safetyModuleRegistered, type SafetyFunction, type SafetyProposal } from "./safety.js";
 import { stepTitle } from "./sim.js";
+import { axisCfgOf } from "./axis.js";
 import { registerDocProvider } from "./docs.js";
 import { setSheetRevision } from "./drawing.js";
 
@@ -328,6 +329,8 @@ function devView(d: Device): Record<string, unknown> {
     role: d.cls === "DO" ? d.role ?? null : null,
     /* pohony fáze 2a: volby, rozsah, žádaná, rampa, tolerance, záznamy (shodně s otiskem schvalování) */
     motion: isMotionClass(d.cls) ? motionContent(d) : null,
+    /* servoosa: konfigurace s výchozími hodnotami (jen u osy — ostatní zařízení pole nemají) */
+    ...(d.cls === "Axis" ? { axis: { unit: d.unit || "", ...axisCfgOf(d) } } : {}),
   };
 }
 const DEV_FIELDS: Array<[field: string, floor: ChangeClass, cand: string[]]> = [
@@ -342,6 +345,7 @@ const DEV_FIELDS: Array<[field: string, floor: ChangeClass, cand: string[]]> = [
   ["setpoint", "functional", F()],
   ["role", "functional", F("safety:*")],
   ["motion", "functional", F("io", "seq")],
+  ["axis", "functional", F("seq")],
 ];
 const IO_FIELDS: Array<[field: string, floor: ChangeClass, cand: string[]]> = [
   ["tag", "functional", F("io", "seq", "interlocks", "safety:*")],
@@ -490,6 +494,10 @@ function rawDiff(x: Project, y: Project): Raw[] {
     const dn: string[] = [];
     if (a.cond !== b.cond) push({ area: "seq", op: "change", field: "cond", before: a.cond, after: b.cond, a: stepSide(x, a, i), b: stepSide(y, b, j), floor: "functional", cand: F("seq", "limits"), devs: dn, tags: [] });
     if (fin(a.timeS) !== fin(b.timeS)) push({ area: "seq", op: "change", field: "timeS", before: fin(a.timeS), after: fin(b.timeS), a: stepSide(x, a, i), b: stepSide(y, b, j), floor: "functional", cand: F("seq", "limits"), devs: dn, tags: [] });
+    /* krok servoosy: cíl (poloha / pojmenovaná poloha / dráha / rychlost) a dynamika */
+    const axp = (q: SeqStep) => [fin(q.pos) ?? null, q.posRef ?? null, fin(q.vel) ?? null, fin(q.acc) ?? null, fin(q.dec) ?? null];
+    const axTxt = (q: SeqStep) => [q.posRef ?? fin(q.pos), fin(q.vel), fin(q.acc), fin(q.dec)].map(v => v ?? "—").join(" / ");
+    if (JSON.stringify(axp(a)) !== JSON.stringify(axp(b))) push({ area: "seq", op: "change", field: "axisMove", before: axTxt(a), after: axTxt(b), a: stepSide(x, a, i), b: stepSide(y, b, j), floor: "functional", cand: F("seq", "limits"), devs: dn, tags: [] });
   }
 
   /* program: režimy, E-stop, blokování */
@@ -651,7 +659,7 @@ const FIELD: Record<string, string> = {
   name: N_("označení"), cls: N_("třída"), desc: N_("popis"), opt: N_("volby"), unit: N_("jednotka"), range: N_("rozsah"),
   limLo: N_("dolní mez"), limHi: N_("horní mez"), setpoint: N_("žádaná hodnota"), role: N_("vazba na stav stroje"),
   tag: N_("tag"), addr: N_("adresa"), nc: N_("rozpínací kontakt (NC)"), cmt: N_("komentář"),
-  cond: N_("přechod"), timeS: N_("čas [s]"),
+  cond: N_("přechod"), timeS: N_("čas [s]"), axis: N_("konfigurace osy"), axisMove: N_("cíl / rychlost / zrychlení / zpomalení osy"),
   modes: N_("režimy AUTO / ručně"), estop: N_("E-stop"),
   "meta.name": N_("název projektu"), "meta.desc": N_("popis projektu"), takt: N_("takt [s]"),
   motorDelay: N_("doba rozběhu motoru [s]"), valveTravel: N_("doba přestavení ventilu [s]"),

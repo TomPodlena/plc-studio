@@ -172,6 +172,16 @@ export function lex(src: string, file: string, o: LexOptions): LexResult {
         }
         const m = /^(TRUE|FALSE)\b/i.exec(src.slice(k, k + 6));
         if (m) { adv(k + m[1].length - i); push({ k: "int", t: src.slice(i, k + m[1].length), v: /TRUE/i.test(m[1]) ? 1 : 0, ty: up, line: l0, col: c0 }); continue; }
+        /* typovaná hodnota výčtu Sysmac _eMC_DIRECTION#_mcPositiveDirection = Typ.Hodnota */
+        if (isIdStart(src[k] || "") && !neg) {
+          let e = k;
+          while (e < n && isIdChar(src[e])) e++;
+          adv(j - i); push({ k: "id", t: word, line: l0, col: c0 });
+          push({ k: "op", t: ".", line, col });
+          const t2 = src.slice(k, e);
+          adv(e - j); push({ k: "id", t: t2, line, col: c0 + (k - i) });
+          continue;
+        }
         err(l0, c0, tr("Neplatný typovaný literál {lit}", { lit: word + "#" }));
         adv(j + 1 - i);
         continue;

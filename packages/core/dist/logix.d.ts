@@ -115,7 +115,7 @@ export declare function xmlProblems(xml: string): string[];
  * žádné konstrukce IEC, které Logix nemá, TONR s PRE před voláním, každý identifikátor
  * v rutinách deklarovaný (tag, parametr / lokální tag AOI, člen FBD_TIMER), čisté ASCII.
  */
-export declare function logixProblems(files: Record<string, string>): string[];
+export declare function logixProblems(files: Record<string, string>, axes?: string[]): string[];
 /**
  * Proč vlastní šablonu IEC ST (firemní knihovna) nejde spolehlivě převést na Add-On Instruction;
  * prázdné = jde. Převod (`lxDialect`) zná jen konstrukce vestavěných šablon (TON jako

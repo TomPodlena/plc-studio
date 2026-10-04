@@ -132,6 +132,14 @@ def _smoke(app: App, shots: Path | None) -> int:
     motion = Path(__file__).resolve().parents[3] / "samples" / "11_podavaci_lisovaci_stanice_PS-11.plcstudio.json"
     if motion.exists() and app.open_project(motion):
         walk("pohony")
+    # servoosa (fáze 2b): vzor 12 — vybraná osa v Zařízení / živé simulaci, krok osy rozpracovaný v Programu
+    axis = motion.with_name("12_portalovy_manipulator_PM-12.plcstudio.json")
+    if axis.exists() and app.open_project(axis):
+        ax = next((d for d in app.prj["devices"] if d["cls"] == "Axis"), None)
+        if ax is not None:
+            app.ui.update(dev_sel=ax["id"], live_sel=ax["id"],
+                          seq_add={"dev": ax["id"], "act": "moveAbs", "cond": "fbk", "time": "3"})
+        walk("osa")
     app.reset_project()
     walk("prazdny")
     errors = list(app.errors)

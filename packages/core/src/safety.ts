@@ -33,7 +33,9 @@ export type SafetyTarget = "siemens" | "rockwell" | "plcopen" | "pilz" | "sick" 
 export type SafetyKind =
   | "estop" | "guard" | "guard_lock" | "light_curtain" | "multibeam" | "scanner" | "mat" | "two_hand"
   | "enabling" | "mode" | "muting" | "restart" | "sto" | "pneumatic" | "hydraulic" | "vertical"
-  | "temperature" | "pressure";
+  | "temperature" | "pressure"
+  /* servoosy: bezpečně omezená rychlost v pohonu (IEC 61800-5-2) — aktivace z bezpečnostní logiky, bez standardního programu */
+  | "sls";
 export type Iso13855Edition = "2010" | "2024";
 export type DistanceMode = "orthogonal" | "multibeam" | "parallel" | "two_hand" | "mat" | "guard";
 
@@ -525,7 +527,7 @@ const KIND_CATALOG: Record<SafetyKind, string> = {
   multibeam: "espe_multibeam_access", scanner: "espe_laser_scanner", mat: "pressure_sensitive_mat", two_hand: "two_hand_control",
   enabling: "enabling_device", mode: "operating_mode_selection", muting: "muting", restart: "prevent_unexpected_startup",
   sto: "drive_safe_stop", pneumatic: "pneumatic_safe_exhaust", hydraulic: "hydraulic_safe_stop", vertical: "vertical_axis_holding",
-  temperature: "overtemperature_limit", pressure: "overpressure_limit",
+  temperature: "overtemperature_limit", pressure: "overpressure_limit", sls: "safely_limited_speed",
 };
 const OUTPUT_KINDS = new Set<SafetyKind>(["sto", "pneumatic", "hydraulic", "vertical"]);
 
@@ -548,7 +550,7 @@ function defaultDemand(kind: SafetyKind, prj: Project, press: boolean): number {
     case "two_hand": return takt;
     case "scanner": case "mat": return 300;
     case "multibeam": case "restart": case "vertical": return 3600;
-    case "enabling": return 600;
+    case "enabling": case "sls": return 600;
     case "temperature": case "pressure": return 86400;
     default: return 900;
   }
@@ -566,6 +568,8 @@ function outGroups(prj: Project): OutGroup[] {
   if (plain.length) out.push({ id: "KS", kind: "contactors", devs: plain, label: tr("stykače KS1/KS2 se zrcadlovými kontakty pro {devs}", { devs: short(plain) }), outs: ["KS1_Q", "KS2_Q"], fbk: ["KS1_FBK", "KS2_FBK"], comp: pickComp("contactor_mirror", plat) });
   /* měniče a polohovací pohony fáze 2a (třída Vfd / PosDrive) mají STO v řadiči stejně jako motor na měniči */
   for (const d of [...motors.filter(isVfd), ...prj.devices.filter(x => x.cls === "Vfd" || x.cls === "PosDrive")]) out.push({ id: "STO_" + d.name, kind: "sto", devs: [d.name], label: tr("STO měniče {dev}", { dev: d.name }), outs: [d.name + "_STO"], fbk: [], comp: pickComp("drive_sto", plat, plat === "siemens" || plat === "schneider" ? undefined : "abb-acs580") });
+  /* servoosy (fáze 2b): STO servoměniče (kategorie zastavení 1 = SS1-t / SS1 pohonu); SLS je samostatná funkce pohonu */
+  for (const d of prj.devices.filter(x => x.cls === "Axis")) out.push({ id: "STO_" + d.name, kind: "sto", devs: [d.name], label: tr("STO servoměniče {dev} (SS1 / SLS v pohonu)", { dev: d.name }), outs: [d.name + "_STO"], fbk: [], comp: pickComp("drive_sto", plat, plat === "siemens" || plat === "schneider" ? undefined : "abb-acs580") });
   const valves = prj.devices.filter(d => (d.cls === "Ventil" || d.cls === "PropValve") && !has(d.desc, RE.processValve) && !has(d.desc, RE.vacuum));
   /* hydraulický ventil: v popisu „hydraul“; nebo lisovací ventil v projektu s hydraulickým agregátem;
      nebo hydraulický stroj (název projektu) bez stlačeného vzduchu */
@@ -624,6 +628,15 @@ function rawFunctions(prj: Project, groups: OutGroup[]): Raw[] {
   if (motion.length) out.push({ ref: "restart", kind: "restart", inputs: [], acts: all, missing: [] });
   const sto = groups.filter(g => g.kind === "sto").map(g => g.id);
   if (sto.length) out.push({ ref: "sto", kind: "sto", inputs: [], acts: sto, missing: [] });
+  /* servoosy: SLS pro seřizování s osou v pohybu (volič režimu → požadavek SLS do pohonu) */
+  const axSto = prj.devices.filter(d => d.cls === "Axis").map(d => "STO_" + d.name).filter(id => groups.some(g => g.id === id));
+  if (axSto.length) {
+    const md = dis.filter(d => has(d.desc, RE.mode)).map(d => d.name);
+    out.push({ ref: "sls", kind: "sls", inputs: md, acts: axSto, missing: [
+      ...(md.length ? [] : [tr("volič provozního režimu s polohou SEŘIZOVÁNÍ (aktivuje SLS)")]),
+      tr("servoměnič s integrovanou bezpečností (SLS, SS1) — ovládání přes bezpečnou síť (PROFIsafe / FSoE / CIP Safety) nebo svorky"),
+    ] });
+  }
   const exh = groups.filter(g => g.kind === "exhaust").map(g => g.id);
   if (exh.length) out.push({ ref: "pneumatic", kind: "pneumatic", inputs: [], acts: exh, missing: [] });
   if (groups.some(g => g.id === "YH")) out.push({ ref: "hydraulic", kind: "hydraulic", inputs: [], acts: ["YH"], missing: [] });
@@ -669,6 +682,7 @@ function riskProposal(kind: SafetyKind, press: boolean): { S: "S1" | "S2"; F: "F
     case "vertical": return { S: "S2", F: "F1", P: "P2", why: { S: tr("S2: pád břemene / osy — vážné nevratné zranění."), F: fRare, P: tr("P2: pádu se vyhnout nelze.") } };
     case "temperature": return { S: "S2", F: "F1", P: "P1", why: { S: tr("S2: popálení / požár."), F: fRare, P: tr("P1: přehřátí se vyvíjí pomalu a je vnímatelné — ověř podle procesu.") } };
     case "pressure": return { S: "S2", F: "F1", P: "P2", why: { S: tr("S2: roztržení tlakového systému."), F: fRare, P: pHard } };
+    case "sls": return { S: "S2", F: "F1", P: "P2", why: { S: tr("S2: překročení omezené rychlosti při seřizování (obsluha v dosahu osy) — vážné nevratné zranění."), F: tr("F1: seřizování s osou v pohybu je výjimečné a krátké."), P: tr("P2: při poruše (rychlost nad mezí) se obsluha v dosahu osy nebezpečí vyhnout nestihne.") } };
     default: return { S: "S2", F: "F2", P: "P1", why: { S: sS2, F: fOften, P: pPossible } };
   }
 }
@@ -679,6 +693,7 @@ function modesText(kind: SafetyKind): string {
     case "enabling": return tr("seřizovací / servisní režim (práce v nebezpečném prostoru)");
     case "mode": return tr("přepínání provozních režimů");
     case "muting": return tr("automatický provoz při průchodu materiálu");
+    case "sls": return tr("seřizovací režim (pohyb osy sníženou rychlostí s obsluhou v dosahu)");
     default: return tr("všechny provozní režimy (AUTO i RUČNĚ) — standardní program ochrany nepřemosťuje");
   }
 }
@@ -790,6 +805,14 @@ function signalsOf(prj: Project, f: { kind: SafetyKind; inputs: string[]; acts: 
       }
       break;
     }
+    case "sls": {
+      if (inDevs[0]) add({ tag: inDevs[0] + "_SETUP", dir: "in", kind: "ch", dev: inDevs[0], text: tr("{dev}: volič v poloze SEŘIZOVÁNÍ", { dev: inDevs[0] }) });
+      for (const g of groupsOf(groups, f.acts)) for (const dn of g.devs) {
+        add({ tag: dn + "_SLS", dir: "out", kind: "q", dev: dn, text: tr("{dev}: požadavek SLS do pohonu (bezpečná síť / svorky)", { dev: dn }) });
+        add({ tag: dn + "_SLS_ACT", dir: "out", kind: "status", dev: dn, text: tr("{dev}: SLS aktivní — stav do standardního PLC (jen informativní)", { dev: dn }) });
+      }
+      return s;
+    }
     case "mode": {
       const dn = inDevs[0] || "MS";
       add({ tag: dn + "_AUTO", dir: "in", kind: "ch", dev: dn, text: tr("{dev}: volič v poloze AUTO", { dev: dn }) });
@@ -865,7 +888,8 @@ export function proposeSafety(prj: Project): SafetyProposal {
       tests: cat.tests.map((t, k) => ({ id: "t" + (k + 1), name: tr(t.name), kind: t.kind, procedure: tr(t.procedure), expected: tr(t.expected), sources: t.sources })),
       typical: { plr: tr(cat.typicalPlr), arch: cat.typicalArch ? tr(cat.typicalArch) : "", channels: cat.channels ? tr(cat.channels) : "", edm: cat.edm ? tr(cat.edm) : "", components: cat.components.map(x => tr(x)) },
       standards: cat.standards.map(s => tr(s)), sources: cat.sources, note: cfg.note || "",
-      role: r.kind === "pressure" ? "passive" : OUTPUT_KINDS.has(r.kind) ? "output" : "input",
+      /* SLS běží v pohonu (aktivaci parametrizuje pohon / bezpečná síť) — bezpečnostní program pro ni síť negeneruje */
+      role: r.kind === "pressure" || r.kind === "sls" ? "passive" : OUTPUT_KINDS.has(r.kind) ? "output" : "input",
     };
   });
 
@@ -958,6 +982,7 @@ function designOf(prj: Project, f: SafetyFunction, cfg: SafetyFnCfg, groups: Out
     case "two_hand": inp(tr("dvouruční pult: 2 tlačítka, každé spínací + rozpínací kontakt (antivalentně)"), compIn || safetyComponent("siemens-sirius-act-3su1-dvourucni-pult")); break;
     case "enabling": inp(tr("třípolohový povolovací spínač, 2 kanály"), compIn || pickComp("enabling_device", plat, "idec-he1g")); break;
     case "mode": inp(tr("volič provozního režimu s uzamčením (klíč / RFID)"), compIn || pickComp("mode_selector", plat, "pilz-pitmode-fusion"), true); break;
+    case "sls": inp(tr("volič provozního režimu (poloha SEŘIZOVÁNÍ aktivuje SLS)"), compIn || pickComp("mode_selector", plat, "pilz-pitmode-fusion"), true); break;
     case "muting": inp(tr("světelná závora s muting senzory"), compIn || pickComp("light_curtain", plat, "sick-detec4-core"), true); break;
     case "temperature": inp(tr("bezpečnostní omezovač teploty (STB, EN 14597)"), compIn || unknownComp("stb", tr("omezovač teploty — typ a MTTFd doplní uživatel"))); break;
     case "restart": subs.push(subsystem("I", tr("tlačítko reset (spínací + rozpínací kontakt, sledovaná hrana)"), compIn || genericComp("pushbutton"), { ...base, cat: cat === "B" ? "B" : "2", channels: 1, dc: Number.isFinite(cfg.dcIn) ? cfg.dcIn as number : 90, b10d: cfg.b10dIn, mttfd: cfg.mttfdIn })); break;
@@ -1002,6 +1027,7 @@ function wiringOf(f: SafetyFunction, sig: SafetySignal[], cat: SafetyCat, groups
   if (sig.some(s => s.kind === "reset")) w.push(tr("Reset SF_Reset: tlačítko mimo nebezpečný prostor s výhledem do něj; vyhodnocení sestupné hrany; reset jen připraví, start dává standardní program."));
   for (const g of groupsOf(groups, f.acts)) {
     if (g.kind === "contactors" || g.kind === "heater") w.push(tr("{g}: dva stykače v sérii řízené výstupy {outs}; rozpínací zrcadlové kontakty do EDM {fbk} (zpětná vazba před každým startem).", { g: g.id, outs: g.outs.join(" / "), fbk: g.fbk.join(" / ") }));
+    else if (g.kind === "sto" && f.kind === "sls") w.push(tr("{g}: SLS — při režimu SEŘIZOVÁNÍ požadavek {req} do pohonu (bezpečná síť PROFIsafe / FSoE / CIP Safety nebo svorky); mez rychlosti a reakce při překročení (STO / SS1) se parametrizují v pohonu a validují měřením rychlosti.", { g: g.id, req: g.devs.map(x => x + "_SLS").join(" / ") }));
     else if (g.kind === "sto") w.push(tr("{g}: dvoukanálový vstup STO měniče z bezpečného výstupu {outs}; při kategorii zastavení 1 vypnout se zpožděním po řízeném zabrzdění (SS1-t).", { g: g.id, outs: g.outs.join(" / ") }));
     else if (g.kind === "exhaust") w.push(tr("{g}: bezpečnostní ventil (odvzdušnění přívodu / dvojitý ventil válce), cívka z výstupu {outs}, hlášení polohy {fbk}.", { g: g.id, outs: g.outs.join(" / "), fbk: g.fbk.join(" / ") }));
     else if (g.kind === "hydraulic") w.push(tr("{g}: dva ventily v sérii, cívky {outs}, sledování polohy šoupátek {fbk}.", { g: g.id, outs: g.outs.join(" / "), fbk: g.fbk.join(" / ") }));

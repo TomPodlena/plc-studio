@@ -136,9 +136,60 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   tlak přes VPPM). Kusovník: `-TA<n>` vfd / positioning_drive, `-M<n>` motor / linear_axis, `-Y<n>`
   proportional_valve; katalog `data/catalog/servopohony.json` (rešerše 2026-10-04, konce výroby vynechány;
   servo_drive / servo_motor připraveny pro 2b). Bezpečnost: měnič i pohon = skupina STO.
-- **Zbývá (fáze 2b / 2c):** servoosa `Axis` (PLCopen MC / Logix instrukce, emulátor MC bloků, lichoběžník,
-  konfigurační list osy, SS1 / SLS), měniče po síti (PROFIdrive / CiA 402); reverse import pohonů fáze 2a
-  (importér je zatím pozná jako motor + volné signály).
+- **Zbývá (fáze 2c):** měniče po síti (PROFIdrive / CiA 402); reverse import pohonů fáze 2a i servoosy
+  (importér pohony fáze 2a pozná jako motor + volné signály, u FB_Axis jen upozorní v „chybí“).
+
+### Servoosa (fáze 2b — PLCopen Motion po síti, 7 platforem)
+
+- **Podpora** (`axis_gen.ts`: `axisDialect`, `axisSupport`, `axisBlocked`): Siemens `s12` / `s15` podle CPU ze
+  sestavy (`hwLayout` rodina S71500 → S7-1500 TO, jinak S7-1200; CPU 1511-1 PN v katalogu `auto:false` —
+  jen volbou v kusovníku), Beckhoff `tc` (Tc2_MC2, AXIS_REF v GVL_IO, `Axis.ReadStatus()`), CODESYS + Delta
+  `sm3` (SM3_Basic, AXIS_REF_SM3), WAGO `sml` (SoftMotion Light), Omron `om` (Sysmac _sAXIS_REF),
+  Rockwell `lx` (instrukce MSO/MSF/MAFR/MAH/MAM/MAJ/MAS v hlavní rutině; AOI je nevolá — jen `req*` bity).
+  **Mitsubishi, Schneider, Unitronics osu negenerují** (`axisUnsupportedWhy`: FX5 jen pulzní instrukce,
+  knihovna FX5-SSC-S neověřena; GMC/GIPLC manuál nedostupný; UniLogic MC jen v Ladderu): `genFor` vrátí jen
+  README s důvodem, validace = error, emulátor `axis-unsupported`, check_samples je z projektu vyřadí.
+  Projekt s osou se generuje vždy klasicky (`codeStyleFor` → OOP vypnuto, validace info).
+- **Model** (`model.ts`): třída `Axis` (prefix M, `-TA` servoměnič, bez I/O), `Device.axis` = konfigurační list
+  (`axisCfgOf` doplní výchozí: vMax 500, aMax 2000, dMax = aMax, vDef = vMax/2, posTol 0,1, followMax 5,
+  jogVel = vDef/5, limity, homePos, startPos, `positions` = pojmenované polohy, `drive` text);
+  `AXIS_FIELDS` + `axisPositionsText` / `parseAxisPositions` pro formuláře. Akce kroků `home`, `moveAbs`
+  (`pos` nebo `posRef`), `moveRel` (`pos` = dráha), `velocity` (`vel` se znaménkem), `halt`, `waitInPos`
+  (čeká na dojetí předchozího pohybu té osy s přechodem časem); volitelně `vel` / `acc` / `dec` (0 = výchozí).
+  Validace: limity, poloha v SW limitech, S7-1200 nesmí mít zrychlení v kroku (TO bere dynamiku z konfigurace),
+  Rockwell bez `velocity` (MAJ s jinou sémantikou zastavení), dva kroky rychlosti stejným směrem za sebou.
+- **FB_Axis** (`axisTemplate(dia)`, `axisTemplateLx`): společný automat `AXIS_SM` (0 OFF, 10 POWERING, 20 READY,
+  30 HOMING, 40 MOVING, 50 STOPPING, 60/61 JOG±, 90 ERROR, 95 RESETTING); stav osy a výstupy bloků MC se čtou
+  na začátku, bloky MC se volají na konci (výstupy čte automat v dalším scanu); dvě instance rychlosti
+  (kladný / záporný směr); nový povel za jízdy čeká (buffer) kromě `cmdId = 0` / halt → 50. `errCode` 1
+  porucha osy (pohon, chyba sledování, komunikace, limit), 2 regulace nenaběhla do T#5S, 3 bez referování,
+  7 povel odmítnut blokem MC; drží do kvitace (`reset` → MC_Reset). Sekvence: `seqCmd_` (číslo kroku)
+  / `seqMode_` / `seqTgt_` / `seqVel_` / `seqAcc_` / `seqDec_`, přechod `instM1.done AND instM1.doneId = n`.
+  Ruční povely `manPower_` (regulace) / `manHome_` / `manJogP_` / `manJogN_` (jen mimo AUTO, pojezd jen
+  při držení). Konfigurační list osy v README (`axisReadme`) — TO / osu NC / SoftMotion nastavuje člověk v IDE.
+- **Sdílený model osy** (`axis.ts`, Float64Array `AX.*`, `mcCall` per `McPlat`, `lxExec` pro Logix,
+  `axisTick` po scanu): lichoběžník (bez ryvu), referování, okno v poloze, chyba sledování (zaseknutá
+  mechanika = `frozen`), ztráta komunikace, porucha pohonu, **pohon nepřipraven** (`notReady`, STO / bez
+  silového napájení — regulace nenaběhne), SW limity, povolení směrů. Simulátor (`axisFbScan`) i emulátor
+  (`emu/motion.ts`: typy os a bloků MC per dialekt, `byRef` parametry, `.%Xn`, výčtové literály, instrukce
+  Logix) běží nad týmž modelem. Pseudo výstup `${id}:axMove` = osa jede (zastavení v matici stavů).
+  Scénáře: porucha pohonu, ztráta komunikace, nepřipravený pohon, zablokovaná osa v každém kroku pohybu;
+  sloupec matice „ztráta komunikace osy“.
+- **Ostatní:** HMI (stav, poloha, ruční povely, alarmy z `errCode`), FDS / alarmy A_X_AXIS / POWER / NOTHOMED /
+  CMD / FAT / oživení (konfigurace, regulace, pojezd, referování, limity, polohy, chyba sledování), kusovník
+  `-TA` servo_drive + servo_motor (jen ověřené kódy z `servopohony.json`), uzel sítě v sestavě
+  (`HwLayout.drives`), blokové schéma (osa vpravo, čárkovaná síť), EPLAN AML (Device + IP uzel),
+  bezpečnost STO servoměniče (SS1 = kategorie zastavení 1) + funkce **SLS** (`sls`, pasivní — běží v pohonu,
+  aktivace voličem SEŘIZOVÁNÍ), schvalování a revize (konfigurace osy a parametry kroků v otisku).
+  UI web (krok Zařízení, Program) i desktop (Zařízení, Program, detail, živá simulace se symbolem osy,
+  regulace / referování / pojezd ±, závady), AI návrhář (`Axis`, akce, `axis`, `posRef` / `pos` / `vel`).
+- **Testy** `axis.test.ts` (podpora, validace, varianty rychlost / HALT / S7-1500 = návrh na všech 7, ověření
+  vzoru 12, mutace: bez MC_Power, bloky MC před automatem, Execute bez hrany, jiný hlídací čas regulace).
+  Vzor `samples/12_portalovy_manipulator_PM-12` (portál, osa X 0–600 mm, pick & place, takt 12 s).
+- **Neověřeno v IDE:** import / překlad FB_Axis ve všech IDE; S7-1500 TO jako VAR_INPUT (podle manuálu
+  S7-1200), členy osy Logix a sémantika bitů v ST, osa (AXIS tag) není v L5X — založit v Motion Group ručně;
+  WAGO `fActPosition` / jmenný prostor SML; import Delta AX; reakce MSO při STO (model: regulace nenaběhne).
+  Model zjednodušuje: bez ryvu, okamžité zastavení při odpojení regulace.
 
 ## Kusovník komponent (základní verze; stavba v CADu = verze PRO)
 
@@ -525,7 +576,7 @@ workers.dev, licenční API, Stripe/Paddle), přenosná verze 0.1.0 (GitHub Rele
 4. Nabídka (`quote.ts`) — ceník uživatele, odhad hodin, interní podklad; firemní knihovna (`library.ts`)
 5. Exporty SISTEMA (`sistema.ts`) a EPLAN (`eplan.ts`, AutomationML + seznamy)
 
-**Fáze 2:** ~~2a pohony a proporcionální prvky přes I/O (měnič, polohovací pohon se záznamy, proporcionální ventil)~~ ✅ (viz „Pohony a polohování“); servoosy (PLCopen Motion, 2b) a pohony po síti (2c) (PROFINET / EtherCAT, IO-Link, vzdálené I/O);
+**Fáze 2:** ~~2a pohony a proporcionální prvky přes I/O (měnič, polohovací pohon se záznamy, proporcionální ventil)~~ ✅ (viz „Pohony a polohování“); ~~servoosy (PLCopen Motion, 2b)~~ ✅ na 7 platformách (viz „Servoosa“, Mitsubishi / Schneider / Unitronics zatím ne); pohony po síti (2c) (PROFINET / EtherCAT, IO-Link, vzdálené I/O);
 volitelný styl kódu „OOP“ pro CODESYS / TwinCAT / WAGO (rozhraní, metody, ošetření chyb, pokyny k tasku)
 + WAGO jako varianta CODESYS — vše ověřené emulátory. Navazuje na fázi 1: ~~knihovna FB do `genFor`
 (`libraryOverrides`)~~ ✅, ~~FX5 časovače nad 32,7 s~~ ✅ (TIMER_100_FB_M), ~~globální proměnné pro HMI

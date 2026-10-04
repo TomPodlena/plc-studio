@@ -31,8 +31,16 @@ export declare function stToScl(st: string): string;
 export declare const SCL_VFD: string;
 export declare const SCL_POSDRIVE: string;
 export declare const SCL_PROPVALVE: string;
+export declare const ST_AXIS: string;
+export declare const SCL_AXIS: string;
 /** Dialekt šablon bloků: SCL (Siemens) / IEC ST (ostatní platformy). */
 export type FbDialectKey = "scl" | "st";
+/**
+ * Text bloku FB_Axis pro platformu: šablona dialektu osy (S7-1500 / S7-1200 / Tc2_MC2 / SM3 /
+ * SoftMotion Light / Sysmac / Logix AOI), u Siemens převedená na SCL. Platforma bez podpory osy ""
+ * (kód se pro ni negeneruje — `axisBlocked`).
+ */
+export declare function axisFbText(prj: Project, plat: PlatformKey): string;
 /**
  * Šablona bloku třídy — jediné místo, kde renderery (Gen_Library, AOI v L5X, plochá logika
  * Unitronics) berou zdroj logiky bloku. `lib` = vlastní šablony z firemní knihovny pro danou
@@ -272,3 +280,5 @@ export declare function genUnitronicsTags(prj: Project): string;
 export declare function genMainUnitronics(prj: Project): string;
 /** Všechny generované soubory programu pro jednu platformu. */
 export declare function genFor(prj: Project, plat: PlatformKey): Record<string, string>;
+/** README platformy, která servoosu nepodporuje: proč se kód negeneruje a čím osu nahradit. */
+export declare function axisBlockedReadme(prj: Project, plat: PlatformKey): string;

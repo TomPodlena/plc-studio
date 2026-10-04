@@ -212,8 +212,8 @@ const OPS = {
     if (!live) throw Object.assign(new Error(core.tr("Živá simulace neběží.")), { code: "no_live" });
     const c = live.controls;
     for (const k of ["modeAuto", "estop"]) if (typeof controls[k] === "boolean") c[k] = controls[k];
-    for (const k of ["frozen", "fault"]) if (Array.isArray(controls[k])) c[k] = controls[k];
-    for (const k of ["di", "man", "ai", "force"]) if (controls[k] && typeof controls[k] === "object") c[k] = controls[k];
+    for (const k of ["frozen", "fault", "comm", "notReady"]) if (Array.isArray(controls[k])) c[k] = controls[k];
+    for (const k of ["di", "man", "ai", "force", "axMan"]) if (controls[k] && typeof controls[k] === "object") c[k] = controls[k];
     if (start) live.pressStart();
     if (ack) live.pressAck();
     if (ms > 0) live.run(Math.min(ms, 5000) / 1000);

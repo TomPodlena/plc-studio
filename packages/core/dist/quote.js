@@ -243,7 +243,7 @@ export function matchPrice(line, entries) {
 }
 /** Výchozí parametry odhadu — hodiny, ne peníze. Uživatel je má upravit podle své praxe. */
 export const QUOTE_DEFAULTS = {
-    hoursPerDevice: { Motor: 1.5, Ventil: 1.5, AnalogIn: 1, AnalogOut: 1, DI: 0.25, DO: 0.25, Vfd: 2, PosDrive: 3, PropValve: 1.5 },
+    hoursPerDevice: { Motor: 1.5, Ventil: 1.5, AnalogIn: 1, AnalogOut: 1, DI: 0.25, DO: 0.25, Vfd: 2, PosDrive: 3, PropValve: 1.5, Axis: 4 },
     hoursPerIo: 0.5,
     hoursPerStep: 0.5,
     hoursPerSafetyFn: 6,

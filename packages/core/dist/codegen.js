@@ -23,6 +23,8 @@ import { genRockwellL5X, genLogixRoutine, genLogixTagsCsv, lxSlotText, lxTplProb
 /* library.ts a codegen.ts se importují navzájem: knihovna se čte až uvnitř funkcí */
 import { libraryOverrides, fbInterface } from "./library.js";
 import { hwChannelText } from "./hardware.js";
+import { axisTemplate, axisTemplates, axisDialect, axisBlocked, axisReadme, axisSupport, AXIS_TPL_COMMENTS } from "./axis_gen.js";
+import { axisObjName } from "./axis.js";
 /* ------------------------------------------------------------ šablony SCL */
 export const SCL_MOTOR = `FUNCTION_BLOCK "FB_Motor"
 { S7_Optimized_Access := 'TRUE' }
@@ -754,16 +756,33 @@ export function stToScl(st) {
         .replace(/^(\s*\w+\s*:\s*)(\w+)(\s*(?::=[^;]*)?;)/gm, (_m, a, t, b) => a + (TY[t] || t) + b);
     const body = st.slice(lastDecl).replace(/\s*END_FUNCTION_BLOCK\s*$/, "");
     const code = body.split(/(\(\*[\s\S]*?\*\))/).map((part, i) => i % 2 ? part
-        : part.replace(/(?<![\w.#])([A-Za-z_]\w*)\b/g, (m) => names.has(m) ? "#" + m : m)).join("");
+        /* formální parametr ve volání (`instPower(Axis := #Axis, …)`) se neprefixuje, i když se jmenuje jako proměnná */
+        : part.replace(/(?<![\w.#])([A-Za-z_]\w*)\b/g, (m, _g, off, str) => /[(,]\s*$/.test(str.slice(Math.max(0, off - 40), off)) && /^\s*(?::=|=>)/.test(str.slice(off + m.length, off + m.length + 4)) ? m
+            : names.has(m) ? "#" + m : m)).join("");
     return head + "\n\nBEGIN" + code.replace(/^\n+/, "\n") + "\nEND_FUNCTION_BLOCK";
 }
 export const SCL_VFD = stToScl(ST_VFD);
 export const SCL_POSDRIVE = stToScl(ST_POSDRIVE);
 export const SCL_PROPVALVE = stToScl(ST_PROPVALVE);
+/* servoosa: šablona podle platformy (axis_gen.ts); tady jen kanonická podoba pro typy portů a HMI */
+export const ST_AXIS = axisTemplate("sm3");
+export const SCL_AXIS = stToScl(axisTemplate("s15"));
 const FB_TEMPLATES = {
-    scl: { Motor: SCL_MOTOR, Ventil: SCL_VENTIL, AnalogIn: SCL_AI, AnalogOut: SCL_AO, Vfd: SCL_VFD, PosDrive: SCL_POSDRIVE, PropValve: SCL_PROPVALVE },
-    st: { Motor: ST_MOTOR, Ventil: ST_VENTIL, AnalogIn: ST_AI, AnalogOut: ST_AO, Vfd: ST_VFD, PosDrive: ST_POSDRIVE, PropValve: ST_PROPVALVE },
+    scl: { Motor: SCL_MOTOR, Ventil: SCL_VENTIL, AnalogIn: SCL_AI, AnalogOut: SCL_AO, Vfd: SCL_VFD, PosDrive: SCL_POSDRIVE, PropValve: SCL_PROPVALVE, Axis: SCL_AXIS },
+    st: { Motor: ST_MOTOR, Ventil: ST_VENTIL, AnalogIn: ST_AI, AnalogOut: ST_AO, Vfd: ST_VFD, PosDrive: ST_POSDRIVE, PropValve: ST_PROPVALVE, Axis: ST_AXIS },
 };
+/**
+ * Text bloku FB_Axis pro platformu: šablona dialektu osy (S7-1500 / S7-1200 / Tc2_MC2 / SM3 /
+ * SoftMotion Light / Sysmac / Logix AOI), u Siemens převedená na SCL. Platforma bez podpory osy ""
+ * (kód se pro ni negeneruje — `axisBlocked`).
+ */
+export function axisFbText(prj, plat) {
+    const dia = axisDialect(prj, plat);
+    if (!dia)
+        return "";
+    const st = axisTemplate(dia);
+    return plat === "siemens" ? stToScl(st) : st;
+}
 /**
  * Šablona bloku třídy — jediné místo, kde renderery (Gen_Library, AOI v L5X, plochá logika
  * Unitronics) berou zdroj logiky bloku. `lib` = vlastní šablony z firemní knihovny pro danou
@@ -851,6 +870,8 @@ export const TPL_COMMENTS = [
     N_("Sablona: proporcionalni ventil tlaku / prutoku - analogova zadana s rampou v PLC, volitelne hlidani skutecne hodnoty. Porucha (odchylka nad toleranci po nastavenou dobu, zadana nedosazena do 5 s) drzi do kvitace (reset)."),
     N_("doba odchylky v taktech 0,1 s"),
     N_("rampa zadane hodnoty a pocitani odchylky po taktech 0,1 s"),
+    /* servoosa (fáze 2b) — axis_gen.ts */
+    ...AXIS_TPL_COMMENTS,
 ];
 const COMMENT_RE = /\(\*([\s\S]*?)\*\)|\/\/([^\n]*)/g;
 /** Klíč komentáře: text bez okolních mezer, zalomení řádku nahrazeno mezerou. */
@@ -862,7 +883,8 @@ const commentKey = (body) => body.trim().replace(/\s*\n\s*/g, " ");
  */
 export function templateComments() {
     const out = new Set();
-    for (const tpl of [SCL_MOTOR, SCL_VENTIL, SCL_AI, SCL_AO, ST_MOTOR, ST_VENTIL, ST_AI, ST_AO, ST_VFD, ST_POSDRIVE, ST_PROPVALVE, SCL_VFD, SCL_POSDRIVE, SCL_PROPVALVE]) {
+    for (const tpl of [SCL_MOTOR, SCL_VENTIL, SCL_AI, SCL_AO, ST_MOTOR, ST_VENTIL, ST_AI, ST_AO, ST_VFD, ST_POSDRIVE, ST_PROPVALVE, SCL_VFD, SCL_POSDRIVE, SCL_PROPVALVE,
+        ...Object.values(axisTemplates())]) {
         for (const m of tpl.matchAll(COMMENT_RE)) {
             const key = commentKey(m[1] ?? m[2] ?? "");
             if (key && !/^[A-Z_]+$/.test(key))
@@ -931,6 +953,8 @@ export function stCtx(plat) {
     return {
         plat, sie, L: locFn(plat), R: refFn(plat), real: fmtR,
         cm: sie ? (t) => "// " + t : (t) => "(* " + cmtSafe(t) + " *)",
+        /* objekt osy: TIA technologický objekt (globální DB), TwinCAT AXIS_REF v GVL_IO, jinak globální jméno osy */
+        A: sie ? (n) => '"' + n + '"' : plat === "beckhoff" ? (n) => "GVL_IO." + n : (n) => n,
         /* plochá logika Unitronics: stav instance je v globálních tazích s předponou instance */
         ...(plat === "unitronics" ? { M: (inst, port) => inst + "_" + port } : {}),
     };
@@ -970,6 +994,15 @@ export function irStepTitle(s) {
     const unit = s.dev?.unit || "";
     const sp = (s.sets || []).find(x => x.type === "REAL"), rec = (s.sets || []).find(x => x.type === "INT");
     const num = (st) => st && (st.value.k === "real" || st.value.k === "int") ? st.value.v : 0;
+    if (s.dev?.cls === "Axis") {
+        const tgt = (s.sets || []).find(x => x.var.startsWith("seqTgt_")), u = s.dev.unit || "";
+        const v = tgt && tgt.value.k === "real" ? tgt.value.v : 0;
+        return (s.op === "home" ? trx("{dev} referování osy", { dev }) :
+            s.op === "moveAbs" ? trx("{dev} najet na {pos} {unit}", { dev, pos: v, unit: u }) :
+                s.op === "moveRel" ? trx("{dev} posun o {pos} {unit}", { dev, pos: v, unit: u }) :
+                    s.op === "velocity" ? trx("{dev} rychlost {v} {unit}/s", { dev, v, unit: u }) :
+                        s.op === "halt" ? trx("{dev} zastavit osu", { dev }) : trx("{dev} čekat na dokončení pohybu", { dev })).replace(/\s+/g, " ").trim();
+    }
     if (s.dev?.cls === "Vfd" && s.op === "run") {
         const rev = (s.sets || []).some(x => x.var.startsWith("seqRev_") && x.value.k === "bool" && x.value.v);
         return (rev ? trx("{dev} start vzad {sp} {unit}", { dev, sp: num(sp), unit }) : trx("{dev} start {sp} {unit}", { dev, sp: num(sp), unit })).trim();
@@ -1167,6 +1200,8 @@ export function motionHmiPorts(b) {
         return ["done", "actRec", "busy", "error", "status", "errCode"];
     if (b.cls === "PropValve")
         return ["spAct", ...(wired("rawAct") ? ["value"] : []), "inTol", "busy", "error", "status", "errCode"];
+    if (b.cls === "Axis")
+        return ["powered", "homed", "done", "doneId", "actPos", "moving", "busy", "error", "status", "errCode"];
     return [];
 }
 /** Zrcadlo stavu bloků do globálních proměnných pro HMI (Mitsubishi / Omron; volá se za poruchou). */
@@ -1359,6 +1394,10 @@ export function genLibrary(prj, plat) {
     for (const c of IR_CLASS_ORDER) {
         if (!u.has(c))
             continue;
+        if (c === "Axis") {
+            parts.push(trComments(axisFbText(prj, plat), fix), "");
+            continue;
+        }
         const own = lib.ids[c];
         if (own) {
             const t = trx("Vlastní blok firemní knihovny {lib}: šablona {id} (neověřeno simulací)", { lib: ((lib.library?.name || "") + " " + (lib.library?.version || "")).trim(), id: own });
@@ -1418,6 +1457,10 @@ export function genGVL(prj, plat) {
         const at = addrFor(plat, e, prj);
         lines.push("    " + e.tag + (at ? " AT " + at : "") + " : " + dtFor(e) + ";" + (e.cmt ? " (* " + cmtSafe(e.cmt) + " *)" : ""));
     }
+    /* TwinCAT: proměnná osy AXIS_REF (Tc2_MC2) — nalinkuje se na osu NC; ostatní platformy mají objekt osy v konfiguraci IDE */
+    if (plat === "beckhoff")
+        for (const d of prj.devices.filter(x => x.cls === "Axis"))
+            lines.push("    " + axisObjName(d) + " : AXIS_REF; (* " + cmtSafe(trx("osa {dev} - nalinkovat na osu NC (Link To NC)", { dev: d.name }) + (d.desc ? " - " + d.desc : "")) + " *)");
     lines.push("END_VAR");
     return lines.join("\n");
 }
@@ -1583,7 +1626,7 @@ vložení zkontroluj syntaxi proti své verzi (CASE, volání TON, převody TO_R
   verze z května 2026. Ve starší verzi je nahraď ladder časovači (bit „hotovo" místo .Q).`), tr("Stavová slova jsou desítkově: 32769 = 16#8001 blokováno, 32770 = 16#8002 porucha."), tr(`Vision / Samba (VisiLogic) Structured Text nemá — tam Machine.st slouží jako předloha
   pro přepis do Ladderu a Tags.csv jako seznam operandů.`), tr("Test: nejdřív na PLC s odpojenými akčními členy.")),
     };
-    return libReadmeHead(prj, plat) + common + "\n" + spec[plat]() + motionReadme(prj, plat) + libReadmeTail(prj, plat);
+    return libReadmeHead(prj, plat) + common + "\n" + spec[plat]() + motionReadme(prj, plat) + axisReadme(prj, plat) + libReadmeTail(prj, plat);
 }
 /**
  * Odstavec README k pohonům a proporcionálním prvkům fáze 2a (bez nich ""): co nastavit v měniči /
@@ -1793,6 +1836,9 @@ ${free.join("\n") || "    (*   " + trx("žádné") + " *)"}
 }
 /** Všechny generované soubory programu pro jednu platformu. */
 export function genFor(prj, plat) {
+    /* servoosa na platformě bez podpory: žádný kód (nepřeložitelný program by klamal), jen README s důvodem */
+    if (axisBlocked(prj, plat))
+        return { "README.txt": axisBlockedReadme(prj, plat) };
     /* styl OOP (jen rodina CODESYS, volba projektu) — stejný IR a šablony, jiný zápis; viz codegen_oop.ts */
     if (codeStyleFor(prj, plat) === "oop")
         return genForOop(prj, plat);
@@ -1829,4 +1875,12 @@ export function genFor(prj, plat) {
     }
     files["README.txt"] = genReadme(prj, plat);
     return files;
+}
+/** README platformy, která servoosu nepodporuje: proč se kód negeneruje a čím osu nahradit. */
+export function axisBlockedReadme(prj, plat) {
+    const why = axisSupport(prj, plat).why;
+    return tr("PROJEKT: {name} · generováno PLCdesk", { name: prj.meta.name || tr("(bez názvu)") }) + "\n\n" +
+        tr("KÓD PRO {plat} SE NEGENERUJE: projekt obsahuje servoosu a platforma ji nepodporuje — {why}", { plat: PLAT[plat].name, why }) + "\n\n" +
+        tr("Možnosti: zvol platformu se servoosou (Siemens S7-1200 / S7-1500, Beckhoff TwinCAT, CODESYS SoftMotion, Delta AX, WAGO SoftMotion Light, Omron NJ/NX, Rockwell Logix), nebo osu nahraď polohovacím pohonem se záznamy přes I/O (třída „Polohovací pohon se záznamy“), který podporují všechny platformy.") + "\n" +
+        axisReadme(prj, plat) + "\n";
 }

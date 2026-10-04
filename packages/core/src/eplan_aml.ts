@@ -43,6 +43,8 @@ import { derivedGuid, isGuid } from "./guid.js";
 import { ROLE, IFACE, LEP, DEVICE_ITEM_TYPES, SUBNET_TYPE, AML_LANG, AML_LIBS, REQUIRED, ARAPC_VERSION } from "./eplan/spec/arapc.js";
 import { eplanAmlName, EPLAN_VERIFIED, type EplanCard } from "./eplan.js";
 import { hwLayout, hwLineId, hwTypeText, HW_DIRS, type HwModule } from "./hardware.js";
+import { axisObjName } from "./axis.js";
+import { axisDialect, AXIS_NET } from "./axis_gen.js";
 
 export interface EplanAmlOptions {
   /** karty z `eplanCards` (export čte sestavu hardwaru přímo; pole zůstává kvůli kompatibilitě volání) */
@@ -401,6 +403,44 @@ function build(prj: Project, opts: EplanAmlOptions): Built {
       }
     }
   }
+  /* servoosy: servoměnič jen jako uzel sítě (Device → Rack_0 → pohon; IP sítě s uzlem v PN_IE_1, PROFINET
+     i v IO systému CPU; EtherCAT bez uzlu jako vzdálené stanice) — parametry pohonu (ARE Drive) mimo rozsah */
+  const dia = axisDialect(prj, plat), net = dia ? AXIS_NET[dia] : "";
+  prj.devices.filter(x => x.cls === "Axis").forEach((d, i) => {
+    const dt = "-" + devRef(d);
+    const ln = lines.find(l => l.id === dt + ":servo_drive");
+    const did = derivedGuid(isGuid(d.guid) ? d.guid : derivedGuid(pg, "dev-unsaved:" + d.id), "drive");
+    const label = ascii(ln?.type ? tr(ln.type).split(" – ")[0] : "Servo drive");
+    const cmt = (s: () => string) => ml("Comment", s(), perLang(s));
+    const dev = ie(project, noDot(label + " " + dt), did, ROLE.Device, [
+      val("TypeIdentifier", "System:Device.Generic"),
+      cmt(() => tr("Servoměnič osy {dev} navržený v PLCdesk (uzel sítě, návrh k revizi)", { dev: d.name })),
+      val("Manufacturer", ln?.brand || ""),
+    ]);
+    const rk = ie(dev, "Rack_0", derivedGuid(did, "rack:0"), ROLE.DeviceItem, [
+      val("TypeName", "Rack"), val("PositionNumber", 0, "xs:int"), val("BuiltIn", "false", "xs:boolean"), val("TypeIdentifier", "System:Rack.Generic"), iec("LocationIdentifier IEC", "+1"),
+    ]);
+    const head = ie(rk, dt, derivedGuid(did, "item"), ROLE.DeviceItem, [
+      val("TypeName", ln?.type ? ascii(tr(ln.type).split(" – ")[0]) : "Servo drive"), val("DeviceItemType", "HeadModule"), val("PositionNumber", 0, "xs:int"), val("BuiltIn", "false", "xs:boolean"),
+      ...(typeId(ln) ? [val("TypeIdentifier", typeId(ln))] : []), val("Manufacturer", ln?.brand || ""),
+      val("Comment", ascii(axisObjName(d) + " — " + net)), iec("ProductDesignation IEC", dt), iec("LocationIdentifier IEC", "+1"),
+    ]);
+    const ipNet = network && subnet && (net === "PROFINET" || net.startsWith("EtherNet/IP"));
+    if (ipNet && subnet) {
+      const pn = ie(head, net === "PROFINET" ? "PROFINET_interface" : "Ethernet_interface", derivedGuid(did, "if:X1"), ROLE.CommunicationInterface, [
+        val("TypeName", (net === "PROFINET" ? "PROFINET" : "EtherNet/IP") + " interface"), val("PositionNumber", 1, "xs:int"), val("BuiltIn", "true", "xs:boolean"), val("Label", "X1"),
+      ]);
+      pn.ifaces.push({ name: LEP.iface, id: derivedGuid(pn.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
+      const node = ie(pn, "IE1", derivedGuid(did, "if:X1/node"), ROLE.Node, [
+        val("Type", SUBNET_TYPE.ethernet), val("NetworkAddress", "192.168.0." + (100 + i)), val("SubnetMask", "255.255.255.0"), val("IpProtocolSelection", "Project"),
+        val("ProfinetDeviceName", ascii(dt.replace(/^-/, "") + "-drive").toLowerCase()),
+      ]);
+      node.support.push(ROLE.NodeEthernet);
+      node.ifaces.push({ name: LEP.node, id: derivedGuid(node.id, "LogicalEndPoint"), cls: IFACE.LogicalEndPoint, attrs: [] });
+      link("Link_" + subnetName + "_" + noDot(dt.replace(/^-/, "")), node, LEP.node, subnet, LEP.subnet);
+      if (net === "PROFINET" && ioSystem) link("Link_IoSystem_" + noDot(dt.replace(/^-/, "")), pn, LEP.iface, ioSystem, LEP.ioSystem);
+    }
+  });
   return { root: project, name, projectId: pg };
 }
 

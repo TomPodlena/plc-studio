@@ -50,8 +50,8 @@ def build(app, parent) -> None:
     st = {"res": {k: data[k] for k in STATE_KEYS}, "running": True, "job": None, "key": None,
           "start": False, "ack": False,
           "sel": ui.get("live_sel") if app.dev_by_id(ui.get("live_sel")) else None}
-    controls = {"modeAuto": True, "estop": False, "frozen": [], "fault": [], "di": {},
-                "man": {}, "ai": {}, "force": {}}
+    controls = {"modeAuto": True, "estop": False, "frozen": [], "fault": [], "comm": [], "notReady": [], "di": {},
+                "man": {}, "ai": {}, "force": {}, "axMan": {}}
 
     # ---------------------------------------------------------------- ovládací lišta
     bar = ttk.Frame(parent)
@@ -237,6 +237,35 @@ def build(app, parent) -> None:
             if "fault" in sigs:
                 check(_("Vstup poruchy aktivní (porucha řadiče)"), d["id"] in controls["fault"],
                       lambda on: toggle("fault", d["id"], on))
+        elif d["cls"] == "Axis":
+            # servoosa: ruční povely z HMI (regulace přepínačem, referování a pojezd tlačítkem — drží se
+            # jen po dobu stisku) a závady pohonu / sítě
+            key = str(d["id"])
+
+            def ax_set(**kw) -> None:
+                push(axMan={**controls["axMan"], key: {**controls["axMan"].get(key, {}), **kw}})
+
+            check(_("Regulace zapnuta (manPower_{dev})", dev=d["name"]),
+                  bool(controls["axMan"].get(key, {}).get("power")), lambda on: ax_set(power=on))
+            row = ttk.Frame(dev_box)
+            row.pack(anchor="w", pady=(2, 0))
+            for sig, text in (("home", _("Referovat")), ("jogN", _("◀ Pojezd −")), ("jogP", _("Pojezd + ▶"))):
+                b = ttk.Button(row, text=text, width=max(9, len(text) + 1))
+                b.pack(side="left", padx=(0, 4))
+                b.bind("<ButtonPress-1>", lambda _e, s=sig: ax_set(**{s: True}))
+                b.bind("<ButtonRelease-1>", lambda _e, s=sig: ax_set(**{s: False}))
+            if has_seq:
+                ttk.Label(dev_box, text=_("referování a pojezd platí jen při vypnutém režimu AUTO"),
+                          style="Dim.TLabel").pack(anchor="w", padx=(20, 0))
+            ttk.Label(dev_box, text=_("Závady stroje:"), style="Dim.TLabel").pack(anchor="w", pady=(6, 0))
+            check(_("Porucha pohonu (servoměnič hlásí chybu)"), d["id"] in controls["fault"],
+                  lambda on: toggle("fault", d["id"], on))
+            check(_("Přerušit komunikaci s pohonem"), d["id"] in controls["comm"],
+                  lambda on: toggle("comm", d["id"], on))
+            check(_("Zablokovat osu (chyba sledování)"), d["id"] in controls["frozen"],
+                  lambda on: toggle("frozen", d["id"], on))
+            check(_("Pohon nepřipraven (STO aktivní / bez silového napájení)"), d["id"] in controls["notReady"],
+                  lambda on: toggle("notReady", d["id"], on))
         elif d["cls"] == "DI":
             e = io_of[d["id"]][0] if io_of[d["id"]] else None
             if estop is not None and d["id"] == estop["id"]:
@@ -275,6 +304,13 @@ def build(app, parent) -> None:
         state = fr["dev"].get(str(d["id"]))
         if state is not None:
             parts.append(_("Stav bloku: {label}", label=state["label"]))
+        if d["cls"] == "Axis" and state is not None:   # osa po síti nemá I/O — poloha a stav z bloku
+            u = d.get("unit") or ""
+            parts.append(_("poloha {v} {unit}", v=f"{state.get('value', 0):.2f}", unit=u).strip())
+            parts.append("  ".join(f"{lbl} {ON if state.get(k) else OFF}" for k, lbl in
+                                   (("powered", _("zapnuto")), ("homed", _("referováno")), ("moving", _("jede")))))
+            if state.get("errCode"):
+                parts.append(_("kód chyby {n}", n=state["errCode"]))
         for e in io_of[d["id"]]:
             val = fr["io"].get(e["key"])
             parts.append(f"{e['tag']} = " + (f"{ON} TRUE" if val is True else f"{OFF} FALSE"
@@ -378,8 +414,8 @@ def build(app, parent) -> None:
         push(estop=pressed)
 
     def reset() -> None:
-        controls.update(modeAuto=var_auto.get(), estop=False, frozen=[], fault=[], di={},
-                        man={}, ai={}, force={})
+        controls.update(modeAuto=var_auto.get(), estop=False, frozen=[], fault=[], comm=[], notReady=[], di={},
+                        man={}, ai={}, force={}, axMan={})
         b_estop.configure(text=_("⛔ E-STOP"))
         res = app.bridge.request("live.start", prj=app.prj)
         st["key"] = None

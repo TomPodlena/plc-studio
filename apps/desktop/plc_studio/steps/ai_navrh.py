@@ -27,7 +27,8 @@ ERRORS = {
     "invalid_json": N_("Odpověď se nepodařilo přečíst — zkus to znovu."),
 }
 ACTS = ("start", "stop", "open", "close", "wait", "waitOn", "waitOff",
-        "home", "posRecord", "setPressure", "setFlow")      # + pohony fáze 2a
+        "home", "posRecord", "setPressure", "setFlow",      # + pohony fáze 2a
+        "moveAbs", "moveRel", "velocity", "halt", "waitInPos")   # + servoosa (fáze 2b)
 WAIT_ACTS = ("waitOn", "waitOff")          # čekání na digitální vstup (TRUE / FALSE)
 DO_ROLES = ("run", "fault", "ready", "stopped", "lock", "auto")   # klíče DO_ROLES z jádra
 EXTRA = {"AnalogIn": ("limHi", "limLo"), "AnalogOut": ("setpoint",),
@@ -65,6 +66,8 @@ def apply_proposal(app) -> None:
             nd["role"] = d["role"]
         if d["cls"] == "PosDrive" and isinstance(d.get("records"), list):
             nd["records"] = d["records"]
+        if d["cls"] == "Axis" and isinstance(d.get("axis"), dict):   # konfigurace osy (aiNorm ji pročistil)
+            nd["axis"] = d["axis"]
         p["nextId"] += 1
         p["devices"].append(nd)
         by_name[name] = nd
@@ -82,9 +85,11 @@ def apply_proposal(app) -> None:
         dev_id = dev["id"] if dev and act != "wait" and (not wait_di or dev["cls"] == "DI") else 0
         step = {"dev": dev_id, "act": act,
                 "cond": "fbk" if wait_di else s["cond"], "timeS": s["timeS"]}
-        for key in ("sp", "rec"):            # parametry kroků pohonů (aiNorm je pustí jen platné)
+        for key in ("sp", "rec", "pos", "vel", "acc", "dec"):   # parametry kroků pohonů a osy (aiNorm je pustí jen platné)
             if _is_num(s.get(key)):
                 step[key] = s[key]
+        if isinstance(s.get("posRef"), str) and s["posRef"]:
+            step["posRef"] = s["posRef"]
         if s.get("rev") is True:
             step["rev"] = True
         if step["act"] == "wait" or step["dev"]:

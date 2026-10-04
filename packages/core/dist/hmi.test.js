@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { syncIO, PLAT, stripDia } from "./model.js";
 import { genFor } from "./codegen.js";
+import { axisBlocked } from "./axis_gen.js";
 import { xmlProblems } from "./logix.js";
 import { LANGS, withLang } from "./i18n.js";
 import { docFiles, allProjectFiles } from "./docs.js";
@@ -156,22 +157,24 @@ test("HMI: všechny příklady × platformy × jazyky — tagy v programu, alarm
     assert.ok(names.length >= 12, "příklady v samples/");
     for (const name of names) {
         const orig = loadSample(name);
-        orig.platforms = ALL;
+        /* servoosa: platformy bez podpory osy kód negenerují (jen README) — HMI pro ně nemá program */
+        const PL = ALL.filter(pl => !axisBlocked(orig, pl));
+        orig.platforms = PL;
         const codes = alarmRows(orig).map(r => r.code).sort();
         /* deklarace programu nezávisí na jazyce (jen komentáře) — stačí jednou */
-        const decls = Object.fromEntries(ALL.map(pl => [pl, programDecls(orig, pl)]));
+        const decls = Object.fromEntries(PL.map(pl => [pl, programDecls(orig, pl)]));
         for (const l of Object.keys(LANGS))
             withLang(l, () => {
                 const where = name + " / " + l;
                 const p = l === "cs" ? orig : asciiContent(orig);
-                p.platforms = ALL;
+                p.platforms = PL;
                 const m = buildHmi(p);
                 /* tagy */
                 const tn = m.tags.map(t => t.name);
                 assert.equal(new Set(tn.map(n => n.toLowerCase())).size, tn.length, where + ": duplicitní tag");
                 for (const t of m.tags)
                     assert.match(t.name, /^[A-Za-z_]\w*$/, where + ": název tagu " + t.name);
-                for (const pl of ALL)
+                for (const pl of PL)
                     for (const t of m.tags) {
                         const err = tagInProgram(decls[pl], t, pl);
                         assert.ok(!err, where + " / " + pl + ": " + err);
@@ -190,7 +193,7 @@ test("HMI: všechny příklady × platformy × jazyky — tagy v programu, alarm
                 assert.equal(j.format, HMI_JSON_FORMAT);
                 for (const [n, b] of outs.slice(3))
                     assert.deepEqual(xmlProblems(b), [], where + " / " + n + ": SVG");
-                for (const pl of ALL) {
+                for (const pl of PL) {
                     const spec = hmiExportSpec(pl);
                     const files = hmiFiles(p, pl, m);
                     if (spec)

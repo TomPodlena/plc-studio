@@ -103,7 +103,15 @@ export interface HwLayout {
     issues: HwIssue[];
     /** CPU zvolil PLCdesk (uživatel ho v kusovníku nevybral) */
     autoCpu: boolean;
+    /** servoměniče os (třída Axis) jako uzly sítě ke CPU — kusovník -TA, FDS, EPLAN; bez os prázdné */
+    drives: Array<{
+        dev: string;
+        dt: string;
+        net: string;
+    }>;
 }
+/** Síť servopohonů podle platformy (Siemens PROFINET, TwinCAT / CODESYS / Sysmac / Delta EtherCAT…); "" = osy nepodporuje. */
+export declare function driveNet(plat: PlatformKey): string;
 /** Platforma hardwaru projektu: volba v kusovníku, jinak první zvolená platforma. */
 export declare function hwPlatform(prj: Project): PlatformKey;
 /** Id řádku kusovníku (označení skupiny + kategorie) — volby uživatele `prj.bom.lines`. */

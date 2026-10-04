@@ -7,7 +7,7 @@ import {
   sampleSmall, sampleComplex, tr, N_, getLang, DO_ROLES, stepTitle,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
   buildBom, bomOptions, bomPlatform, bomCsv, catKey, suppliersFor, SUPPLIERS, CATALOG_DATE, PLATFORM_REFS,
-  hwAddrText,
+  hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis,
 } from "../../../packages/core/dist/index.js";
 import { $, card, copyText, downloadFile, downloadFiles, normProject, normAi } from "./util.js";
 import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, SAMPLE_DESC, AI_EXAMPLE } from "./ai.js";
@@ -26,11 +26,13 @@ export function makeSteps(ctx) {
     if ((d.cls === "Vfd" || d.cls === "PropValve") && Number(d.rampS) > 0) out.push(tr("rampa {t} s", { t: d.rampS }));
     if (d.cls === "PropValve" && Number.isFinite(d.tol)) out.push(tr("tolerance ± {v}", { v: u(d.tol) }));
     if (d.cls === "PosDrive") out.push(tr("záznamy 1–{max}", { max: maxRecord(d) }));
+    if (d.cls === "Axis") { const a = axisCfgOf(d); out.push(tr("max. {v} {unit}/s, {n} poloh", { v: a.vMax, unit: d.unit || "", n: a.positions.length })); }
     return out.join(", ");
   }
   /** Přeložené názvy akcí kroku sekvence. */
   const actTxt = () => ({ start: tr("start"), stop: tr("stop"), open: tr("otevřít"), close: tr("zavřít"),
-    home: tr("referenční jízda"), posRecord: tr("jízda na záznam"), setPressure: tr("nastavit tlak"), setFlow: tr("nastavit průtok") });
+    home: tr("referenční jízda"), posRecord: tr("jízda na záznam"), setPressure: tr("nastavit tlak"), setFlow: tr("nastavit průtok"),
+    moveAbs: tr("najet na polohu"), moveRel: tr("posun o dráhu"), velocity: tr("jízda rychlostí"), halt: tr("zastavit osu"), waitInPos: tr("čekat na dojetí osy") });
   /** Číslo z pole formuláře; prázdné / neplatné = undefined (hodnota nezadána). */
   const numIn = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : undefined; };
   /** Výběr role digitálního výstupu (včetně „bez vazby"). */
@@ -146,6 +148,7 @@ export function makeSteps(ctx) {
       if ((d.cls === "AnalogOut" || d.cls === "Vfd" || d.cls === "PropValve") && Number.isFinite(d.setpoint)) nd.setpoint = d.setpoint;
       for (const f of ["rampS", "tol", "tolTimeS", "selBits"]) if (Number.isFinite(d[f])) nd[f] = d[f];
       if (Array.isArray(d.records)) nd.records = d.records;
+      if (d.cls === "Axis" && d.axis) nd.axis = d.axis;
       if (d.cls === "DO" && DO_ROLES[d.role]) nd.role = d.role;
       p.devices.push(nd); byName[name] = nd;
     }
@@ -155,7 +158,7 @@ export function makeSteps(ctx) {
     p.program.seq = pr.seq
       .map(s => {
         const d = byName[s.dev];
-        const act = ["start", "stop", "open", "close", "wait", "waitOn", "waitOff", "home", "posRecord", "setPressure", "setFlow"].includes(s.act) ? s.act : "wait";
+        const act = ["start", "stop", "open", "close", "wait", "waitOn", "waitOff", "home", "posRecord", "setPressure", "setFlow", "moveAbs", "moveRel", "velocity", "halt", "waitInPos"].includes(s.act) ? s.act : "wait";
         const wait = act === "waitOn" || act === "waitOff";
         // čekání jen na zařízení třídy DI — jinak se krok zahodí (dev 0)
         const dev = act !== "wait" && d && (!wait || d.cls === "DI") ? d.id : 0;
@@ -164,6 +167,9 @@ export function makeSteps(ctx) {
         if (Number.isFinite(s.sp)) st.sp = s.sp;
         if (Number.isInteger(s.rec)) st.rec = s.rec;
         if (s.rev === true) st.rev = true;
+        /* kroky servoosy: cíl, rychlost, zrychlení, zpomalení */
+        if (typeof s.posRef === "string") st.posRef = s.posRef;
+        for (const f of ["pos", "vel", "acc", "dec"]) if (Number.isFinite(s[f])) st[f] = s[f];
         return st;
       })
       .filter(s => s.act === "wait" || s.dev);
@@ -303,6 +309,7 @@ export function makeSteps(ctx) {
     <div class="platgrid">${Object.entries(PLAT).map(([k, pf]) => `
       <div class="plat ${p.platforms.includes(k) ? "on" : ""}" data-k="${k}" role="button" tabindex="0" aria-pressed="${p.platforms.includes(k)}">
         <b>${pf.name}</b><span>${pf.ide} · ${pf.cpu}</span><span class="lng">${tr(pf.lang)} · ${tr(pf.imp)}</span>
+        ${hasAxis(p) && !axisSupport(p, k).ok ? "<span class='lng' style='color:var(--warn)' title='" + esc(axisSupport(p, k).why) + "'>" + tr("servoosu nepodporuje") + "</span>" : ""}
       </div>`).join("")}
     </div>
     ${oopStyleHtml(p)}`);
@@ -358,6 +365,14 @@ export function makeSteps(ctx) {
       if (k === "PosDrive") html += fld(tr("bity výběru záznamu"), "<input type='number' min='1' max='6' step='1' id='dBits' value='" + (df.selBits ?? 3) + "' style='width:56px'>") +
         fld(tr("doba jízdy (model) [s]"), numF("dTravel", df.travelS ?? 1)) +
         fld(tr("záznamy"), "<input type='text' id='dRecs' style='width:280px' value='" + esc(recordsText(df.records)) + "' title='" + esc(tr("číslo = název @ poloha; oddělit středníkem")) + "'>");
+      /* servoosa (fáze 2b): konfigurační list osy — dynamika, limity, reference, polohy */
+      if (k === "Axis") {
+        const a = df.axis || {};
+        html += fld(tr("jednotka"), "<input type='text' id='dUnit' style='width:60px' value='" + esc(df.unit || "mm") + "'>") +
+          AXIS_FIELDS.map(f => fld(esc(tr(f.label)), numF("dAx_" + f.key, a[f.key], 70))).join("") +
+          fld(tr("pojmenované polohy"), "<input type='text' id='dAxPos' style='width:260px' value='" + esc(axisPositionsText(a.positions)) + "' title='" + esc(tr("název @ poloha; oddělit středníkem")) + "'>") +
+          fld(tr("pohon"), "<input type='text' id='dAxDrive' style='width:220px' placeholder='" + esc(tr("např. servoměnič, PROFINET")) + "'>");
+      }
       if (k === "AnalogIn") html += "<label class='f' style='flex-direction:row;gap:6px;align-items:center'>" + tr("mez min") + " <input type='number' id='dLimLo' step='any' style='width:80px'></label>" +
         "<label class='f' style='flex-direction:row;gap:6px;align-items:center'>" + tr("mez max") + " <input type='number' id='dLimHi' step='any' style='width:80px'></label>";
       if (k === "AnalogOut") html += "<label class='f' style='flex-direction:row;gap:6px;align-items:center'>" + tr("žádaná hodnota") + " <input type='number' id='dSetp' step='any' style='width:80px'></label>";
@@ -386,6 +401,15 @@ export function makeSteps(ctx) {
         rampS: val("#dRamp"), tol: val("#dTol"), tolTimeS: val("#dTolT"), selBits: val("#dBits"), travelS: val("#dTravel") };
       for (const [f, v] of Object.entries(extra)) if (v !== undefined) nd[f] = f === "selBits" ? Math.round(v) : v;
       if (k === "PosDrive") nd.records = parseRecords((c.querySelector("#dRecs") || {}).value || "");
+      if (k === "Axis") {
+        const ax = { ...(devDefaults("Axis").axis || {}) };
+        for (const f of AXIS_FIELDS) { const v = val("#dAx_" + f.key); if (v === undefined) delete ax[f.key]; else ax[f.key] = v; }
+        ax.positions = parseAxisPositions((c.querySelector("#dAxPos") || {}).value || "");
+        const drv = ((c.querySelector("#dAxDrive") || {}).value || "").trim();
+        if (drv) ax.drive = drv;
+        nd.axis = ax; nd.rmin = 0; nd.rmax = 0;
+        if (!nd.unit) nd.unit = "mm";
+      }
       const role = (c.querySelector("#dRole") || {}).value;
       if (role && DO_ROLES[role]) nd.role = role;
       p.devices.push(nd);
@@ -405,6 +429,9 @@ export function makeSteps(ctx) {
           : d.cls === "PropValve" ? num("setpoint", tr("žádaná hodnota")) + num("rampS", tr("rampa [s]")) + num("tol", tr("tolerance ±")) + num("tolTimeS", tr("doba odchylky [s]"))
           : d.cls === "PosDrive" ? num("selBits", tr("bity výběru záznamu")) + num("travelS", tr("doba jízdy (model) [s]")) +
             "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("záznamy") + " <input type='text' data-id='" + d.id + "' data-f='records' value='" + esc(recordsText(d.records)) + "' style='width:260px' title='" + esc(tr("číslo = název @ poloha; oddělit středníkem")) + "'></label>"
+            : d.cls === "Axis" ? AXIS_FIELDS.map(f => "<label style='display:inline-flex;gap:4px;align-items:center;margin-right:8px'>" + esc(tr(f.label)) +
+                " <input type='number' step='any' data-id='" + d.id + "' data-ax='" + f.key + "' value='" + (Number.isFinite((d.axis || {})[f.key]) ? d.axis[f.key] : "") + "' placeholder='" + axisCfgOf(d)[f.key] + "' style='width:64px'></label>").join("") +
+              "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("pojmenované polohy") + " <input type='text' data-id='" + d.id + "' data-f='axpos' value='" + esc(axisPositionsText((d.axis || {}).positions)) + "' style='width:240px' title='" + esc(tr("název @ poloha; oddělit středníkem")) + "'></label>"
             : d.cls === "DO" ? "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("vazba na stav stroje") + " <select data-id='" + d.id + "' data-f='role'>" + roleOptions(d.role || "") + "</select></label>" : "";
         html += "<tr><td class='mono'><b>" + esc(d.name) + "</b></td><td>" + tr(CLS[d.cls].label) + "</td>" +
           "<td><input type='text' data-id='" + d.id + "' data-f='desc' value='" + esc(d.desc) + "' style='min-width:200px'></td>" +
@@ -428,6 +455,21 @@ export function makeSteps(ctx) {
         d.records = parseRecords(e.target.value);
         e.target.value = recordsText(d.records);
         save();
+      }));
+      /* servoosa: číselná pole konfigurace (prázdné = výchozí) a pojmenované polohy */
+      list.querySelectorAll("input[data-ax]").forEach(i => i.addEventListener("change", e => {
+        const d = devById(p, +e.target.dataset.id), v = numIn(e.target.value), f = e.target.dataset.ax;
+        if (!d) return;
+        d.axis = { ...(d.axis || {}) };
+        if (v === undefined) delete d.axis[f]; else d.axis[f] = v;
+        save(); refreshIssues();
+      }));
+      list.querySelectorAll("input[data-f=axpos]").forEach(i => i.addEventListener("change", e => {
+        const d = devById(p, +e.target.dataset.id);
+        if (!d) return;
+        d.axis = { ...(d.axis || {}), positions: parseAxisPositions(e.target.value) };
+        e.target.value = axisPositionsText(d.axis.positions);
+        save(); refreshIssues();
       }));
       list.querySelectorAll("select[data-f=role]").forEach(s => s.addEventListener("change", e => {
         const d = devById(p, +e.target.dataset.id);
@@ -569,7 +611,7 @@ export function makeSteps(ctx) {
   function rProg(el) {
     const p = prj();
     const diDevs = p.devices.filter(d => d.cls === "DI");
-    const actDevs = p.devices.filter(d => d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls));
+    const actDevs = p.devices.filter(d => d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls) || d.cls === "Axis");
     const waitDevs = diDevs.filter(d => d.id !== p.program.estop);   // krok může čekat na snímač / tlačítko
     const c = card(el, "07", tr("Logika programu"), `
     <div class="grid g2">
@@ -603,7 +645,20 @@ export function makeSteps(ctx) {
         : d.cls === "PosDrive" && a === "posRecord" ? "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("záznam") + " <select id='sRec'>" +
             Array.from({ length: maxRecord(d) }, (_, i) => i + 1).map(n => { const r = (d.records || []).find(x => x.no === n); return "<option value='" + n + "'>" + n + (r && r.name ? " – " + esc(r.name) : "") + "</option>"; }).join("") + "</select></label>"
         : d.cls === "PropValve" ? numF("sSp", tr("žádaná") + (d.unit ? " [" + esc(d.unit) + "]" : ""), d.setpoint)
+        : d.cls === "Axis" ? axisPar(d, a, numF)
         : "";
+      const ref = c.querySelector("#sPosRef");
+      if (ref) { const sync = () => { const pi = c.querySelector("#sPos"); if (pi) pi.disabled = !!ref.value; }; ref.addEventListener("change", sync); sync(); }
+    };
+    /* kroky servoosy: cíl (pojmenovaná poloha nebo číslo), dráha, rychlost se znaménkem; dynamika nepovinně (prázdné = výchozí z konfigurace osy) */
+    const axisPar = (d, a, numF) => {
+      const u = d.unit ? " [" + esc(d.unit) + "]" : "", us = d.unit ? " [" + esc(d.unit) + "/s]" : "", us2 = d.unit ? " [" + esc(d.unit) + "/s²]" : "";
+      const dyn = numF("sVel", tr("rychlost") + us, "", " placeholder='" + axisCfgOf(d).vDef + "'") + " " + numF("sAcc", tr("zrychlení") + us2, "") + " " + numF("sDec", tr("zpomalení") + us2, "");
+      if (a === "moveAbs") return "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("poloha") + " <select id='sPosRef'><option value=''>" + tr("— zadat číslem —") + "</option>" +
+        axisCfgOf(d).positions.map(x => "<option value='" + esc(x.name) + "'>" + esc(x.name + " (" + x.pos + ")") + "</option>").join("") + "</select></label> " + numF("sPos", tr("cíl") + u, "") + " " + dyn;
+      if (a === "moveRel") return numF("sPos", tr("dráha") + u, "") + " " + dyn;
+      if (a === "velocity") return numF("sVel", tr("rychlost (± = směr)") + us, axisCfgOf(d).vDef) + " " + numF("sAcc", tr("zrychlení") + us2, "") + " " + numF("sDec", tr("zpomalení") + us2, "");
+      return "";
     };
     const refreshActs = () => {
       const d = devById(p, +sDev.value), acts = actTxt();
@@ -634,6 +689,12 @@ export function makeSteps(ctx) {
       if (sp !== undefined) st.sp = sp;
       if (rec !== undefined) st.rec = Math.round(rec);
       if (rev && rev.checked) st.rev = true;
+      if (d && d.cls === "Axis") {
+        const ref = (c.querySelector("#sPosRef") || {}).value;
+        if (ref) st.posRef = ref;
+        else { const pos = numIn((c.querySelector("#sPos") || {}).value); if (pos !== undefined) st.pos = pos; }
+        for (const f of ["Vel", "Acc", "Dec"]) { const v = numIn((c.querySelector("#s" + f) || {}).value); if (v !== undefined) st[f.toLowerCase()] = v; }
+      }
       p.program.seq.push(st);
       save(); render();
     });
@@ -642,7 +703,7 @@ export function makeSteps(ctx) {
       const acts = actTxt();
       list.innerHTML = p.program.seq.map((s, i) => {
         const d = devById(p, s.dev);
-        const head = s.act === "waitOn" || s.act === "waitOff" || (d && isMotionClass(d.cls)) ? stepTitle(p, s) : (d ? d.name : "?") + " " + (acts[s.act] || s.act);
+        const head = s.act === "waitOn" || s.act === "waitOff" || (d && (isMotionClass(d.cls) || d.cls === "Axis")) ? stepTitle(p, s) : (d ? d.name : "?") + " " + (acts[s.act] || s.act);
         const txt = s.act === "wait" ? tr("výdrž {t} s", { t: s.timeS }) : head + " → " + (s.cond === "time" ? tr("čas {t} s", { t: s.timeS }) : tr("zpětné hlášení (hlídací čas {t} s)", { t: s.timeS }));
         return "<div class='seqrow'><span class='k'>" + tr("Krok {n}", { n: i + 1 }) + "</span><span style='flex:1;font-size:.86rem'>" + esc(txt) + "</span>" +
           "<button class='small' data-up='" + i + "' " + (i === 0 ? "disabled" : "") + ">↑</button><button class='small' data-dn='" + i + "' " + (i === p.program.seq.length - 1 ? "disabled" : "") + ">↓</button><button class='small danger' data-rm='" + i + "'>×</button></div>";

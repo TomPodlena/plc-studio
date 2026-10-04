@@ -8,6 +8,11 @@
 import { Project } from "./model.js";
 import { type ApprovalItem } from "./approval.js";
 /**
+ * FDS: servoosy (fáze 2b) — obálka FB_Axis, platformy, povely kroků, poruchy, ruční ovládání a co se
+ * nastavuje v IDE. Bez os prázdné (dokumentace beze změny).
+ */
+export declare function axisFdsLines(prj: Project): string[];
+/**
  * FDS: pohony a proporcionální prvky fáze 2a — co blok dělá, jaké hlášení čeká, kdy vyhlásí poruchu
  * (kódy errCode) a co se nastavuje v pohonu. Bez těchto zařízení prázdné (dokumentace beze změny).
  */
