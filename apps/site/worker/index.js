@@ -18,11 +18,14 @@
 //   POST /api/unlock            odemceni jednoho projektu nad limit
 //   POST /api/stripe/webhook    platby Stripe   (jen pri PAYMENT_PROVIDER="stripe")
 //   POST /api/paddle/webhook    platby Paddle   (jen pri PAYMENT_PROVIDER="paddle")
-//   POST /api/admin/license     rucni vystaveni licence (beta, skoly)
+//   /api/admin/*                sprava zakazniku (admin.js): prihlaseni, prehled, zakaznici,
+//                               licence, pocitace, poznamky, export CSV, audit; stranka /sprava
+//   POST /api/admin/license     i skriptem s X-Admin-Token / Bearer (beta, skoly)
 
-import { signLicense, newLicenseKey, newToken, newId, safeEqual } from "./license.js";
+import { signLicense, newToken, newId } from "./license.js";
+import { handleAdmin, securePage } from "./admin.js";
 import { handleStripeWebhook, handlePaddleWebhook } from "./payments.js";
-import { sendDownloadLink, sendLicense, sendUnlockConfirmation, downloadUrl } from "./email.js";
+import { sendDownloadLink, sendUnlockConfirmation } from "./email.js";
 
 const LANGS = ["cs", "en", "de"];
 const MSG = {
@@ -293,32 +296,7 @@ async function handleUnlock(req, env) {
 
 // Platby (Stripe / Paddle) jsou v payments.js
 
-// -------------------------------------------------------------- admin
-
-// Rucni vystaveni licence - beta program, skoly, reference.
-async function handleAdminLicense(req, env) {
-  if (!env.ADMIN_TOKEN) return json({ error: "not configured" }, 503);
-  if (!safeEqual(req.headers.get("X-Admin-Token"), env.ADMIN_TOKEN)) return json({ error: "unauthorized" }, 401);
-  const body = await req.json().catch(() => ({}));
-  const email = String(body.email ?? "").trim().toLowerCase();
-  if (!validEmail(email)) return json({ error: "bad email" }, 400);
-
-  const plan = body.plan === "firma" ? "firma" : "pro";
-  const seats = Number(body.seats) || 1;
-  const key = newLicenseKey();
-  const validUntil = body.valid_until ?? plusDays(Number(body.days) || 365);
-
-  await env.DB.prepare(
-    `INSERT INTO licenses (key, email, plan, seats, status, valid_until, note, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?)`
-  )
-    .bind(key, email, plan, seats, validUntil, clip(body.note, 200), now(), now())
-    .run();
-
-  const file = await signLicense(env, { key, email, plan, seats, validUntil });
-  if (body.send !== false) await sendLicense(env, { to: email, key, file, plan, locale: body.locale });
-  return json({ ok: true, key, license: file });
-}
+// Sprava zakazniku (/api/admin/*) je v admin.js
 
 // --------------------------------------------------------------- router
 
@@ -334,16 +312,19 @@ const ROUTES = {
   "POST /api/unlock": handleUnlock,
   "POST /api/stripe/webhook": handleStripeWebhook,
   "POST /api/paddle/webhook": handlePaddleWebhook,
-  "POST /api/admin/license": handleAdminLicense,
 };
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     if (!url.pathname.startsWith("/api/")) {
+      if (!env.ASSETS) return new Response("Not found", { status: 404 });
+      // /sprava (run_worker_first ve wrangler.toml): staticka stranka s prisnymi hlavickami
+      if (url.pathname === "/sprava" || url.pathname.startsWith("/sprava/")) return securePage(await env.ASSETS.fetch(req));
       // vse ostatni je staticky web (sem se dostane jen to, co v dist/ neni -> 404 stranka)
-      return env.ASSETS ? env.ASSETS.fetch(req) : new Response("Not found", { status: 404 });
+      return env.ASSETS.fetch(req);
     }
+    if (url.pathname.startsWith("/api/admin/")) return handleAdmin(req, env);
     const route = ROUTES[`${req.method} ${url.pathname}`];
     if (!route) {
       const known = Object.keys(ROUTES).some((r) => r.endsWith(" " + url.pathname));

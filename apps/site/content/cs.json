@@ -914,6 +914,7 @@
           "- Platby: od platební služby dostáváme e-mail, identifikátor předplatného a stav platby; platební údaje (karta) k nám nechodí. Účel: vystavení a správa licence, účetnictví. Základ: plnění smlouvy a právní povinnost (čl. 6 odst. 1 písm. c).",
           "- Komunikace: obsah e-mailů, které nám pošlete. Účel: odpověď a podpora. Základ: oprávněný zájem (čl. 6 odst. 1 písm. f).",
           "- Ochrana webu: IP adresa a technické údaje prohlížeče při ověření Turnstile a v provozních záznamech hostingu. Účel: ochrana formulářů před boty a bezpečnost služby. Základ: oprávněný zájem.",
+          "- Správa zákazníků: k údajům výše má přístup jen provozovatel přes chráněnou správu zákazníků (přihlášení tokenem, případně přes Cloudflare Access) a může si k zákazníkovi zapsat poznámku pro podporu a správu licence. Každé zobrazení detailu zákazníka, každý zásah (vystavení, prodloužení či zrušení licence, uvolnění počítače, poznámka) a každý export se zapisuje do auditního záznamu (kdo, kdy, co). Neúspěšné pokusy o přihlášení se evidují s IP adresou a údajem o prohlížeči kvůli ochraně proti zneužití. Účel: správa licencí a zabezpečení údajů. Základ: plnění smlouvy a oprávněný zájem.",
           "Nepoužíváme vaše údaje k marketingu, neposíláme newslettery bez vašeho výslovného souhlasu a neprovádíme profilování."
         ]
       },
@@ -943,7 +944,8 @@
           "- Údaje z formuláře ke stažení: 3 roky od posledního stažení, pak je smažeme.",
           "- Údaje o licenci: po dobu trvání licence a 3 roky po jejím skončení.",
           "- Účetní a daňové doklady: 10 let podle zákona o DPH a účetních předpisů.",
-          "- Provozní záznamy hostingu: podle nastavení poskytovatele, obvykle dny až týdny."
+          "- Provozní záznamy hostingu: podle nastavení poskytovatele, obvykle dny až týdny.",
+          "- Správa zákazníků: auditní záznam 3 roky, záznamy o neúspěšných pokusech o přihlášení 30 dní, poznámky k zákazníkovi po dobu uchování jeho údajů."
         ]
       },
       {
@@ -968,7 +970,7 @@
     "description": "Web {{site.brand}} nepoužívá analytické ani reklamní cookies.",
     "eyebrow": "Právní informace",
     "h1": "Cookies a podobné technologie",
-    "lead": "Web nepoužívá analytické, reklamní ani sledovací cookies a neukládá nic do úložiště prohlížeče. Proto se vás neptáme na souhlas lištou.",
+    "lead": "Web nepoužívá analytické, reklamní ani sledovací cookies a návštěvníkům nic neukládá do úložiště prohlížeče. Proto se vás neptáme na souhlas lištou. Jedinou výjimkou je technicky nezbytná cookie pro přihlášení provozovatele do správy zákazníků (viz Administrace); návštěvníků webu se netýká.",
     "sections": [
       {
         "id": "web",
@@ -989,9 +991,11 @@
       },
       {
         "id": "admin",
-        "h": "Administrace",
+        "h": "Administrace a správa zákazníků",
         "body": [
-          "Stránka /admin/ slouží jen správcům obsahu. Při přihlášení přes GitHub ukládá přihlašovací údaje do úložiště prohlížeče správce."
+          "Stránka /admin/ slouží jen správcům obsahu. Při přihlášení přes GitHub ukládá přihlašovací údaje do úložiště prohlížeče správce.",
+          "Stránka správy zákazníků (/sprava/) slouží jen provozovateli. Po přihlášení nastaví jedinou technicky nezbytnou cookie __Host-plcdesk_admin: obsahuje jen podepsaný náhodný identifikátor relace a konec její platnosti, platí nejdéle 8 hodin a zaniká odhlášením. Posílá se jen přes HTTPS, jen na tento web a skriptům stránky není přístupná. Návštěvníkům webu se nenastavuje. Správa si navíc v úložišti prohlížeče provozovatele pamatuje zvolený jazyk.",
+          "Přihlásí-li se provozovatel přes Cloudflare Access, nastaví Cloudflare vlastní nezbytnou přihlašovací cookie (CF_Authorization) podle svých zásad."
         ]
       },
       {

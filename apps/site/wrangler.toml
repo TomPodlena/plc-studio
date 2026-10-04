@@ -22,6 +22,11 @@ directory = "./dist"
 binding = "ASSETS"
 html_handling = "auto-trailing-slash"
 not_found_handling = "404-page"
+# Sprava zakazniku: stranku /sprava obslouzi Worker (prida CSP, X-Frame-Options, no-store),
+# soubor pak vezme z dist/ pres ASSETS. Ostatni stranky jdou primo.
+# POZOR: seznam musi obsahovat i "/api/*" - jinak API (licence, stazeni, sprava) skonci
+# strankou 404 z assets a Worker se vubec nespusti (vypadek 2026-10-04).
+run_worker_first = ["/api/*", "/sprava", "/sprava/*"]
 
 # ---- D1: leady, licence, aktivace (free: 5 GB, 5 mil. cteni a 100 tis. zapisu denne) ----
 [[d1_databases]]
@@ -56,11 +61,18 @@ RELEASE_VERSION = "0.1.0"
 PAYMENT_PROVIDER = ""
 # Volna verze: strop I/O. Aplikace si ho taha z /api/config, meni se jen tady.
 FREE_IO_LIMIT = "64"
+# Sprava zakazniku /sprava (NASAZENI.md, oddil "Sprava zakazniku"). Prihlaseni tokenem
+# (secret ADMIN_TOKEN) funguje hned. Cloudflare Access je volitelny: obe hodnoty vyplnit az po
+# zalozeni aplikace v Zero Trust; prazdne = Access vypnuty. ADMIN_EMAILS = kdo smi pres Access
+# (carkami); prazdne pri zapnutem Access = nikdo.
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
+ADMIN_EMAILS = ""
 
 # ---- Tajne hodnoty: npx wrangler secret put <NAZEV> ----
 # TURNSTILE_SECRET        (povinne - bez nej je formular zavreny)
 # LICENSE_PRIVATE_KEY     (Ed25519 PKCS#8 base64 - node tools/keygen.js)
-# ADMIN_TOKEN             (rucni vystavovani licenci; bez nej je admin zavreny)
+# ADMIN_TOKEN             (sprava /sprava a rucni vystavovani licenci; bez nej i bez Access zavreno)
 # RESEND_API_KEY          (az s MAIL_MODE = "resend")
 # STRIPE_WEBHOOK_SECRET   (PAYMENT_PROVIDER = "stripe"; bez nej webhook nic neprijme)
 # PADDLE_WEBHOOK_SECRET   (PAYMENT_PROVIDER = "paddle"; secret key notifikacni destinace)

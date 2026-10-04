@@ -361,7 +361,9 @@ fs.writeFileSync(
 );
 fs.writeFileSync(path.join(DIST, "robots.txt"), `User-agent: *\nAllow: /\nDisallow: /admin/\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
 
-for (const dir of ["assets", "admin", "ukazka"]) {
+// sprava/ = sprava zakazniku (/sprava): staticka stranka mimo sitemap a bez odkazu z webu,
+// noindex v hlavicce i v X-Robots-Tag (prida Worker spolu s CSP)
+for (const dir of ["assets", "admin", "ukazka", "sprava"]) {
   const src = path.join(ROOT, dir);
   if (fs.existsSync(src)) fs.cpSync(src, path.join(DIST, dir), { recursive: true });
 }

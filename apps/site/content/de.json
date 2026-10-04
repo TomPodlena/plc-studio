@@ -914,6 +914,7 @@
           "- Zahlungen: Vom Zahlungsdienst erhalten wir E-Mail, Abonnement-Kennung und Zahlungsstatus; Zahlungsdaten (Karte) erreichen uns nicht. Zweck: Ausstellung und Verwaltung der Lizenz, Buchhaltung. Grundlage: Vertragserfüllung und rechtliche Verpflichtung (Art. 6 Abs. 1 lit. c).",
           "- Kommunikation: Inhalt der E-Mails, die Sie uns senden. Zweck: Antwort und Support. Grundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f).",
           "- Schutz der Website: IP-Adresse und technische Browserdaten bei der Turnstile-Prüfung und in Betriebsprotokollen des Hostings. Zweck: Schutz der Formulare vor Bots und Sicherheit des Dienstes. Grundlage: berechtigtes Interesse.",
+          "- Kundenverwaltung: Zugriff auf die oben genannten Daten hat nur der Betreiber über die geschützte Kundenverwaltung (Anmeldung mit Token oder über Cloudflare Access); er kann dort zu einem Kunden eine Notiz für Support und Lizenzverwaltung anlegen. Jede Ansicht der Kundendetails, jeder Eingriff (Ausstellen, Verlängern oder Kündigen einer Lizenz, Freigeben eines Computers, Notiz) und jeder Export wird in einem Audit-Protokoll erfasst (wer, wann, was). Fehlgeschlagene Anmeldeversuche werden zum Schutz vor Missbrauch mit IP-Adresse und Browserangaben protokolliert. Zweck: Lizenzverwaltung und Datensicherheit. Grundlage: Vertragserfüllung und berechtigtes Interesse.",
           "Wir nutzen Ihre Daten nicht für Marketing, versenden keine Newsletter ohne Ihre ausdrückliche Einwilligung und führen kein Profiling durch."
         ]
       },
@@ -943,7 +944,8 @@
           "- Daten aus dem Download-Formular: 3 Jahre nach dem letzten Download, danach Löschung.",
           "- Lizenzdaten: für die Dauer der Lizenz und 3 Jahre nach ihrem Ende.",
           "- Buchhaltungs- und Steuerbelege: 10 Jahre nach tschechischem Umsatzsteuer- und Buchhaltungsrecht.",
-          "- Betriebsprotokolle des Hostings: nach Einstellung des Anbieters, meist Tage bis Wochen."
+          "- Betriebsprotokolle des Hostings: nach Einstellung des Anbieters, meist Tage bis Wochen.",
+          "- Kundenverwaltung: Audit-Protokoll 3 Jahre, fehlgeschlagene Anmeldeversuche 30 Tage, Notizen zum Kunden so lange, wie seine Daten aufbewahrt werden."
         ]
       },
       {
@@ -968,7 +970,7 @@
     "description": "Die Website {{site.brand}} verwendet keine Analyse- oder Werbe-Cookies.",
     "eyebrow": "Rechtliches",
     "h1": "Cookies und ähnliche Technologien",
-    "lead": "Die Website verwendet keine Analyse-, Werbe- oder Tracking-Cookies und speichert nichts im Speicher des Browsers. Deshalb fragen wir nicht per Banner nach Einwilligung.",
+    "lead": "Die Website verwendet keine Analyse-, Werbe- oder Tracking-Cookies und speichert nichts im Browserspeicher der Besucher. Deshalb fragen wir nicht per Banner nach Einwilligung. Einzige Ausnahme ist ein technisch notwendiges Cookie für die Anmeldung des Betreibers in der Kundenverwaltung (siehe Administration); Besucher der Website betrifft es nicht.",
     "sections": [
       {
         "id": "web",
@@ -989,9 +991,11 @@
       },
       {
         "id": "admin",
-        "h": "Administration",
+        "h": "Administration und Kundenverwaltung",
         "body": [
-          "Die Seite /admin/ ist nur für Inhaltsverwalter. Bei der Anmeldung über GitHub speichert sie Anmeldedaten im Browserspeicher des Verwalters."
+          "Die Seite /admin/ ist nur für Inhaltsverwalter. Bei der Anmeldung über GitHub speichert sie Anmeldedaten im Browserspeicher des Verwalters.",
+          "Die Seite der Kundenverwaltung (/sprava/) ist nur für den Betreiber. Nach der Anmeldung setzt sie ein einziges technisch notwendiges Cookie, __Host-plcdesk_admin: Es enthält nur eine signierte zufällige Sitzungskennung und deren Ablaufzeit, gilt höchstens 8 Stunden und wird bei der Abmeldung gelöscht. Es wird nur über HTTPS und nur an diese Website gesendet und ist für Skripte der Seite nicht zugänglich. Besuchern der Website wird es nie gesetzt. Die Verwaltung merkt sich außerdem die gewählte Sprache im Browserspeicher des Betreibers.",
+          "Meldet sich der Betreiber über Cloudflare Access an, setzt Cloudflare ein eigenes notwendiges Anmelde-Cookie (CF_Authorization) nach seinen eigenen Richtlinien."
         ]
       },
       {

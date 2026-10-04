@@ -1,19 +1,23 @@
 #!/usr/bin/env node
 // Lokalni nahled hotoveho dist/ VCETNE API: /api/* obslouzi primo worker/index.js
 // nad SQLite v pameti (vyvojovy rezim, zadne e-maily ani Turnstile).
-// Spusteni: node scripts/serve.js [port]  -> http://localhost:4173/
+// Spusteni: node scripts/serve.js [port] [--demo]  -> http://localhost:4173/
+// Sprava zakazniku: ADMIN_TOKEN=lokalni node scripts/serve.js --demo -> http://localhost:4173/sprava/
+// (--demo = smyslena ukazkova data zakazniku; bez ADMIN_TOKEN je sprava zavrena jako v ostrem provozu)
 
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import worker from "../worker/index.js";
-import { localEnv } from "./local-env.js";
+import { localEnv, seedDemo } from "./local-env.js";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = path.join(ROOT, "dist");
-const PORT = Number(process.argv[2]) || 4173;
-const env = localEnv({ PUBLIC_SITE: `http://localhost:${PORT}` });
+const PORT = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a))) || 4173;
+// ASSETS jako na Cloudflare: Worker si jim bere /sprava (run_worker_first) a prida hlavicky
+const env = localEnv({ PUBLIC_SITE: `http://localhost:${PORT}`, ASSETS: { fetch: async (req) => staticResponse(new URL(req.url).pathname) } });
+if (process.argv.includes("--demo")) seedDemo(env.DB.db);
 
 const TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -44,26 +48,41 @@ async function api(req, res) {
     new Request(`http://localhost:${PORT}${req.url}`, { method: req.method, headers: req.headers, body }),
     env
   );
+  await send(res, r);
+}
+
+// Staticky soubor z dist/ jako Response (html_handling auto-trailing-slash, 404 stranka)
+function staticResponse(urlPath) {
+  const clean = decodeURIComponent(urlPath.split("?")[0]);
+  let file = path.join(DIST, clean);
+  if (!file.startsWith(DIST)) return new Response("Forbidden", { status: 403 });
+  if (!path.extname(file)) {
+    if (!clean.endsWith("/") && fs.existsSync(path.join(file, "index.html"))) {
+      return new Response(null, { status: 307, headers: { Location: clean + "/" } });
+    }
+    file = path.join(file, "index.html");
+  }
+  if (!fs.existsSync(file)) {
+    return new Response(testSitekey(fs.readFileSync(path.join(DIST, "404.html"), "utf-8")), { status: 404, headers: { "Content-Type": TYPES[".html"] } });
+  }
+  const type = TYPES[path.extname(file)] || "application/octet-stream";
+  const body = path.extname(file) === ".html" ? testSitekey(fs.readFileSync(file, "utf-8")) : fs.readFileSync(file);
+  return new Response(body, { status: 200, headers: { "Content-Type": type } });
+}
+
+async function send(res, r) {
   res.writeHead(r.status, Object.fromEntries(r.headers));
   res.end(Buffer.from(await r.arrayBuffer()));
 }
 
 http
   .createServer((req, res) => {
-    if (req.url.startsWith("/api/")) {
+    const p = req.url.split("?")[0];
+    if (req.url.startsWith("/api/") || p === "/sprava" || p.startsWith("/sprava/")) {
       api(req, res).catch((e) => res.writeHead(500).end(String(e)));
       return;
     }
-    const clean = decodeURIComponent(req.url.split("?")[0]);
-    let file = path.join(DIST, clean);
-    if (!file.startsWith(DIST)) return res.writeHead(403).end("Forbidden");
-    if (!path.extname(file)) file = path.join(file, "index.html");
-    if (!fs.existsSync(file)) {
-      res.writeHead(404, { "Content-Type": TYPES[".html"] });
-      return res.end(testSitekey(fs.readFileSync(path.join(DIST, "404.html"), "utf-8")));
-    }
-    res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] || "application/octet-stream" });
-    if (path.extname(file) === ".html") return res.end(testSitekey(fs.readFileSync(file, "utf-8")));
-    fs.createReadStream(file).pipe(res);
+    send(res, staticResponse(req.url)).catch((e) => res.writeHead(500).end(String(e)));
   })
-  .listen(PORT, () => console.log(`Nahled bezi na http://localhost:${PORT}/ (API ve vyvojovem rezimu)`));
+  .listen(PORT, () => console.log(`Nahled bezi na http://localhost:${PORT}/ (API ve vyvojovem rezimu)` +
+    (env.ADMIN_TOKEN ? `, sprava http://localhost:${PORT}/sprava/` : "")));

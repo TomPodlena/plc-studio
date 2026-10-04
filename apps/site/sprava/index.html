@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Sprava zakazniku: jen pro provozovatele. Neindexovat, mimo sitemap, bez odkazu z webu.
+     Hlavicky (CSP, X-Frame-Options, no-store) pridava Worker (run_worker_first). -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Správa zákazníků — PLCdesk</title>
+<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/sprava/sprava.css">
+<script src="/sprava/sprava.js" defer></script>
+</head>
+<body class="adm">
+
+<header class="adm-head">
+  <div class="adm-wrap adm-head-in">
+    <a class="brand" href="#/prehled" aria-label="PLCdesk">
+      <svg class="brand-sym" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect class="bs-frame" x="7" y="11" width="50" height="42"/><rect class="bs-stamp" x="36" y="36" width="19" height="15"/><rect class="bs-line" x="38" y="40" width="15" height="2"/><rect class="bs-line" x="38" y="45" width="15" height="2"/></svg>
+      <span class="brand-word"><b>PLC</b>desk</span>
+    </a>
+    <span class="adm-tag" data-t="tag">Správa</span>
+    <div class="adm-side">
+      <span class="adm-who" id="who" hidden></span>
+      <div class="langs" role="group" data-t-aria="lang_label" aria-label="Jazyk">
+        <button type="button" data-lang="cs">CS</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" id="logout" hidden data-t="logout">Odhlásit</button>
+      <a class="btn btn-ghost btn-sm" id="access-logout" hidden data-t="logout">Odhlásit</a>
+    </div>
+  </div>
+  <nav class="adm-wrap adm-nav" id="nav" hidden data-t-aria="nav_label" aria-label="Správa">
+    <a href="#/prehled" data-view="prehled" data-t="nav_overview">Přehled</a>
+    <a href="#/zakaznici" data-view="zakaznici" data-t="nav_customers">Zákazníci</a>
+    <a href="#/nova" data-view="nova" data-t="nav_new">Nová licence</a>
+    <a href="#/audit" data-view="audit" data-t="nav_audit">Audit</a>
+  </nav>
+</header>
+
+<main id="main" class="adm-wrap adm-main">
+  <noscript><p class="adm-msg err">Správa vyžaduje JavaScript. / The admin requires JavaScript.</p></noscript>
+
+  <section id="login" class="adm-login" hidden>
+    <h1 data-t="login_h">Přihlášení do správy</h1>
+    <p class="adm-muted" data-t="login_p">Jen pro provozovatele. Přihlaste se tokenem správy (secret ADMIN_TOKEN).</p>
+    <form id="login-form" class="adm-form" autocomplete="on" novalidate>
+      <input type="text" name="username" value="sprava" autocomplete="username" hidden>
+      <label for="token" data-t="login_token">Token správy</label>
+      <input id="token" name="token" type="password" autocomplete="current-password" required maxlength="1024" spellcheck="false">
+      <button class="btn" type="submit" data-t="login_btn">Přihlásit</button>
+      <p class="adm-msg" id="login-msg" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section id="view" aria-live="polite" hidden></section>
+</main>
+
+<dialog id="dlg" class="adm-dlg" aria-labelledby="dlg-h">
+  <form method="dialog" id="dlg-form">
+    <h2 id="dlg-h"></h2>
+    <p id="dlg-p"></p>
+    <div id="dlg-field" hidden>
+      <label for="dlg-input" id="dlg-label"></label>
+      <input id="dlg-input">
+    </div>
+    <div class="adm-dlg-btns">
+      <button type="button" class="btn btn-ghost btn-sm" id="dlg-cancel" data-t="cancel">Zpět</button>
+      <button type="submit" class="btn btn-sm" id="dlg-ok" value="ok"></button>
+    </div>
+  </form>
+</dialog>
+
+</body>
+</html>

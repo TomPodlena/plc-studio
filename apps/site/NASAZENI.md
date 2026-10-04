@@ -18,6 +18,7 @@ Příkazy spouštějte ve složce `apps/site`. Potřebujete jen Node 22+ (Wrangl
 node scripts/ukazka-pdf.js     # ukázková PDF z jádra (packages/core/dist) přes headless Edge
 node scripts/build.js          # web do dist/, musí skončit „0 varovani“
 node scripts/serve.js          # http://localhost:4173 — web i API (SQLite v paměti, bez e-mailů)
+ADMIN_TOKEN=lokalni node scripts/serve.js --demo   # + správa zákazníků /sprava/ se smyšlenými daty
 node scripts/shots.js          # snímky 320/390/768/1440 px do _shots/, při přetečení skončí chybou
 node scripts/preview.js        # celý web do jednoho HTML (preview.html) ke schválení
 node scripts/test-preview.js   # proklikání náhledu i lokálního webu ve všech jazycích
@@ -76,6 +77,7 @@ npx wrangler@4 d1 create plcdesk          # vypíše database_id
 `database_id` vložte do `wrangler.toml` místo `PLACEHOLDER_ID_…`. Pak tabulky:
 ```bash
 npx wrangler@4 d1 execute plcdesk --remote --file=schema.sql
+npx wrangler@4 d1 execute plcdesk --remote --file=schema_admin.sql   # správa zákazníků (viz níže)
 ```
 
 ### A3. Ochrana formuláře Turnstile — zdarma
@@ -220,6 +222,76 @@ Postup po krocích:
 
 ---
 
+## Správa zákazníků (/sprava)
+
+Stránka **`https://<web>/sprava/`** je jen pro provozovatele: přehled (zájemci, licence podle tarifu,
+po splatnosti, zrušené, aktivní počítače, platby), zákazníci s hledáním a filtrem stavu, detail
+zákazníka (zájem o stažení, licence, počítače, platby, poznámky), vystavení / prodloužení / zrušení
+licence, uvolnění počítače, export CSV (středník + BOM pro český Excel) a audit. Na webu na ni nevede
+žádný odkaz, není v sitemapě a nese `noindex`. Kód: `worker/admin.js` (API `/api/admin/*`),
+`sprava/` (stránka), tabulky `schema_admin.sql`.
+
+### Migrace D1 — zdarma (jednou, před nasazením Workeru se správou)
+```bash
+npx wrangler@4 d1 execute plcdesk --remote --file=schema_admin.sql
+```
+Migrace je idempotentní (jen `CREATE … IF NOT EXISTS`), jde spustit opakovaně. Zakládá tabulky
+`admin_attempts` (pokusy o přihlášení), `admin_sessions` (relace), `admin_audit`, `customer_notes`
+a `payment_log` (platební události k zákazníkovi — evidují se od nasazení, starší v detailu nejsou).
+Bez migrace přihlášení do správy končí chybou 500; webhooky plateb fungují dál.
+
+### Přihlášení tokenem — funguje hned, zdarma
+Na `/sprava/` zadejte hodnotu secretu `ADMIN_TOKEN` (viz A4; dlouhý náhodný řetězec, např.
+`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`).
+- Po přihlášení dostane prohlížeč cookie `__Host-plcdesk_admin` (HttpOnly, Secure, SameSite=Strict,
+  platnost 8 h). Obsahuje jen podepsané (HMAC-SHA256, klíč odvozený z tokenu) id relace a konec
+  platnosti; relace je i v D1, takže **Odhlásit** ji zneplatní i na serveru.
+- 5 neúspěšných pokusů z jedné IP (u IPv6 z celé sítě /64) za 15 minut → 429 na zbytek okna.
+  Každý neúspěch jde do logu Workeru a do auditu.
+- Všechny změny vyžadují hlavičku `Origin` = `PUBLIC_SITE` a `X-Requested-With` (ochrana CSRF).
+- Skripty: `POST /api/admin/license` s hlavičkou `X-Admin-Token: <token>` nebo
+  `Authorization: Bearer <token>` funguje dál (jen vystavení licence; pokusy se počítají do limitu).
+
+**Rotace tokenu** (únik, odchod člověka, jednou za čas):
+```bash
+npx wrangler@4 secret put ADMIN_TOKEN     # nový řetězec; platí okamžitě, bez nového nasazení
+```
+Klíč cookie je z tokenu odvozený — změnou tokenu se **odhlásí všechny relace**. Starý token
+vyřaďte i ze skriptů a správce hesel.
+
+### Volitelně: Cloudflare Access (přihlášení e-mailem, druhý faktor u Cloudflare)
+Access ověří provozovatele dřív, než požadavek dojde k Workeru; Worker navíc ověří podepsaný JWT
+(`Cf-Access-Jwt-Assertion`: RS256 proti klíčům týmu, `aud`, `iss`, `exp`) a e-mail proti `ADMIN_EMAILS`.
+**[MOŽNÁ PLACENÉ]** Zero Trust Free (do 50 uživatelů) je zdarma, ale při aktivaci může chtít
+platební kartu i pro Free plán — před zadáním karty ověřit, nic se nekupuje.
+1. Dashboard → **Zero Trust** → při prvním otevření zvolte *team name* (např. `plcdesk`) a plán Free.
+   Týmová doména je pak `plcdesk.cloudflareaccess.com`.
+2. *Access → Applications → Add an application → Self-hosted*: název „PLCdesk správa“, doména
+   `plcdesk.<účet>.workers.dev` s cestou `sprava`, druhá cílová cesta `api/admin` (obě v jedné aplikaci).
+   Politika *Allow*: *Emails* = vaše adresa(y). Metoda přihlášení: jednorázový kód e-mailem (výchozí).
+3. V aplikaci zkopírujte **Application Audience (AUD) Tag**.
+4. Do `wrangler.toml` (`[vars]`) doplňte a nasaďte:
+   ```toml
+   ACCESS_TEAM_DOMAIN = "plcdesk"            # nebo plcdesk.cloudflareaccess.com
+   ACCESS_AUD = "<AUD tag>"
+   ADMIN_EMAILS = "vy@firma.cz"              # čárkami; prázdné = nikdo (fail-closed)
+   ```
+Pozor: Access na cestě `/api/admin` zablokuje i skripty s `X-Admin-Token` — pro ně v Access přidejte
+*Service Token* (politika *Service Auth*) a posílejte `CF-Access-Client-Id` / `CF-Access-Client-Secret`,
+nebo skripty pouštějte přes stránku správy. Přihlášení tokenem zůstává jako záložní cesta (za Access);
+kdo chce jen Access, smaže secret `ADMIN_TOKEN` (`npx wrangler@4 secret delete ADMIN_TOKEN`).
+Týmová doména musí končit `.cloudflareaccess.com`, jinak Worker Access nepovolí (klíče nestahuje odjinud).
+
+### Bezpečnostní hlavičky a údaje
+`/sprava` obsluhuje Worker (`run_worker_first` ve `wrangler.toml`) a přidá přísnou CSP
+(`default-src 'self'; frame-ancestors 'none'`, žádné inline skripty), `X-Frame-Options: DENY`,
+`Cache-Control: no-store`, `X-Robots-Tag: noindex`; totéž `no-store` / `DENY` u `/api/admin/*`.
+Audit zapisuje kdo (e-mail z Access, nebo „token“), kdy, co a nad čím; licenční klíče jen zkrácené,
+otisky počítačů zkrácené. Uchování: audit 3 roky, neúspěšná přihlášení 30 dní (maže se samo).
+Stránky Cookies a Ochrana osobních údajů tuto cookie a audit popisují.
+
+---
+
 ## Provozovatel a právní texty
 
 Stránky Obchodní a licenční podmínky, Ochrana osobních údajů a Cookies jsou hotové jako **návrh
@@ -236,7 +308,7 @@ Po revizi: doplnit údaje, datum účinnosti a štítek z šablony `templates/le
 |---|---|---|
 | `TURNSTILE_SECRET` | A3 | formulář zavřený (503) |
 | `LICENSE_PRIVATE_KEY` | A4 | aktivace licencí končí chybou |
-| `ADMIN_TOKEN` | A4 | ruční vystavení licencí zavřené (503) |
+| `ADMIN_TOKEN` | A4 | přihlášení do správy `/sprava` tokenem i ruční vystavení licencí skriptem zavřené (503; bez tokenu i bez Access je zavřená celá správa) |
 | `RESEND_API_KEY` | B2 | v režimu `resend` formulář hlásí chybu (nic se tiše nezahodí) |
 | `STRIPE_WEBHOOK_SECRET` | B4, Stripe | webhook nepřijme nic (503) |
 | `PADDLE_WEBHOOK_SECRET` | B4, Paddle | webhook nepřijme nic (503) |

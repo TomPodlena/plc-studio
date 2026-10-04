@@ -914,6 +914,7 @@
           "- Payments: from the payment service we receive the e-mail, subscription identifier and payment status; payment details (card) never reach us. Purpose: issuing and managing the licence, accounting. Basis: performance of a contract and legal obligation (Art. 6(1)(c)).",
           "- Communication: the content of e-mails you send us. Purpose: replies and support. Basis: legitimate interest (Art. 6(1)(f)).",
           "- Website protection: IP address and technical browser data during Turnstile verification and in the hosting's operational logs. Purpose: protecting forms against bots and service security. Basis: legitimate interest.",
+          "- Customer admin: only the operator has access to the data above, through the protected customer admin (sign-in with a token, or via Cloudflare Access), and may add a note to a customer for support and licence management. Every view of a customer's details, every action (issuing, extending or cancelling a licence, releasing a computer, adding a note) and every export is written to an audit log (who, when, what). Failed sign-in attempts are recorded with the IP address and browser details to protect against misuse. Purpose: licence management and data security. Basis: performance of contract and legitimate interest.",
           "We do not use your data for marketing, do not send newsletters without your express consent and do not carry out profiling."
         ]
       },
@@ -943,7 +944,8 @@
           "- Download form data: 3 years after the last download, then deleted.",
           "- Licence data: for the duration of the licence and 3 years after it ends.",
           "- Accounting and tax documents: 10 years under Czech VAT and accounting law.",
-          "- Hosting operational logs: according to the provider's settings, usually days to weeks."
+          "- Hosting operational logs: according to the provider's settings, usually days to weeks.",
+          "- Customer admin: audit log 3 years, failed sign-in attempts 30 days, customer notes for as long as the customer's data is kept."
         ]
       },
       {
@@ -968,7 +970,7 @@
     "description": "The {{site.brand}} website uses no analytics or advertising cookies.",
     "eyebrow": "Legal",
     "h1": "Cookies and similar technologies",
-    "lead": "The website uses no analytics, advertising or tracking cookies and stores nothing in the browser's storage. That is why we do not ask for consent with a banner.",
+    "lead": "The website uses no analytics, advertising or tracking cookies and stores nothing in visitors' browser storage. That is why we do not ask for consent with a banner. The only exception is a strictly necessary cookie for the operator's sign-in to the customer admin (see Administration); it does not concern website visitors.",
     "sections": [
       {
         "id": "web",
@@ -989,9 +991,11 @@
       },
       {
         "id": "admin",
-        "h": "Administration",
+        "h": "Administration and customer admin",
         "body": [
-          "The /admin/ page is for content administrators only. When signing in via GitHub, it stores sign-in data in the administrator's browser storage."
+          "The /admin/ page is for content administrators only. When signing in via GitHub, it stores sign-in data in the administrator's browser storage.",
+          "The customer admin page (/sprava/) is for the operator only. After sign-in it sets a single strictly necessary cookie, __Host-plcdesk_admin: it contains only a signed random session identifier and its expiry, lasts at most 8 hours and is deleted on sign-out. It is sent only over HTTPS, only to this website, and is not accessible to page scripts. It is never set for website visitors. The admin also remembers the chosen language in the operator's browser storage.",
+          "If the operator signs in via Cloudflare Access, Cloudflare sets its own strictly necessary sign-in cookie (CF_Authorization) under its own policy."
         ]
       },
       {
