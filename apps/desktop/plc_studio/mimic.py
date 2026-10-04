@@ -46,6 +46,8 @@ SIG = {"fbkRunning": N_("běh"), "fault": N_("porucha"), "outRun": N_("chod"),
        "raw": N_("hodnota"), "in": N_("vstup"), "out": N_("výstup")}
 LEFT_CLS = ("DI", "AnalogIn")
 WIRE_OFF = "#C3CEC7"
+WIRE_DIM = "#E8EDEA"               # vodič mimo vybrané zařízení / modul
+WIRE_FOCUS = "#3E5A4A"             # vybraný vodič v klidu (FALSE)
 WIRE_IN, WIRE_OUT, WIRE_AN = "#1F6FB2", theme.ACCENT, "#7A4FB5"
 FILL = {"on": "#D5EFE0", "active": "#FFEFC2", "err": theme.DANGER_BG, "off": "#ECEFED", None: "#FFFFFF"}
 EDGE = {"on": theme.ACCENT, "active": theme.WARN, "err": theme.ERR, "off": "#9FB0A6", None: "#9FB0A6"}
@@ -93,6 +95,7 @@ class Mimic(ttk.Frame):
         self._fit = True
         self._res: dict | None = None
         self._sel: int | None = None
+        self._mod: int | None = None      # vybraný modul PLC (index v ``mods``) — zvýrazní jeho vodiče
         self._phase = 0.0                 # posun čárkování aktivních vodičů
         self._angle: dict[int, float] = {}
         self._press = None
@@ -113,9 +116,11 @@ class Mimic(ttk.Frame):
             self._release.pack(side="left")
             self._release.state(["disabled"])
             hint = _("klik na vstup = přepnout a vnutit, ↺ = zpět stroji · potenciometr: "
-                     "táhni nebo kolečko · klik na blok = výběr")
+                     "táhni nebo kolečko · klik na blok nebo modul = výběr a zvýraznění vodičů, "
+                     "klik do prázdna = zrušit")
         else:
-            hint = _("svítí při TRUE: vstupy modře, výstupy zeleně · klik = výběr zařízení")
+            hint = _("svítí při TRUE: vstupy modře, výstupy zeleně · klik na zařízení nebo modul "
+                     "= zvýraznění vodičů")
         tip = ttk.Label(self, style="Dim.TLabel", text=hint, justify="left")   # vlastní řádek,
         tip.pack(fill="x", pady=(0, 4))                                        # ať se vejde
         tip.bind("<Configure>", lambda e: tip.configure(wraplength=max(200, e.width - 4)))
@@ -223,7 +228,7 @@ class Mimic(ttk.Frame):
         for key, w in self.wires.items():
             flat = [P(v) for pt in w["pts"] for v in pt]
             self.items["wire"][key] = c.create_line(*flat, fill=WIRE_OFF, width=1,
-                                                    joinstyle="round")
+                                                    joinstyle="round", tags=("wire",))
 
         # PLC: hlavička
         x, y, w, h = self.plc_head
@@ -243,12 +248,18 @@ class Mimic(ttk.Frame):
 
         # PLC: moduly a kanály
         tag_of = {e["key"]: e["tag"] for e in self.prj["io"]}
-        for x, y, w, h, m in self.mod_box:
-            c.create_rectangle(P(x), P(y), P(x + w), P(y + h), outline="#9FB0A6", fill="#FFFFFF")
-            c.create_rectangle(P(x), P(y), P(x + w), P(y + 18), outline="#9FB0A6", fill=theme.FIELD)
+        self.items["mod"], self.items["chtext"] = {}, {}
+        for idx, (x, y, w, h, m) in enumerate(self.mod_box):
+            mt = (f"mod:{idx}",)                    # klik na modul = zvýraznit jeho vodiče
+            self.items["mod"][idx] = c.create_rectangle(P(x), P(y), P(x + w), P(y + h),
+                                                        outline="#9FB0A6", fill="#FFFFFF", tags=mt)
+            c.create_rectangle(P(x), P(y), P(x + w), P(y + 18), outline="#9FB0A6", fill=theme.FIELD,
+                               tags=mt)
             c.create_text(P(x + 8), P(y + 9),
                           text=m["name"] + "  ·  " + _("{n} kanálů", n=len(m["ch"])),
-                          anchor="w", fill=theme.PRIMARY, font=self._font(10, bold=True))
+                          anchor="w", fill=theme.PRIMARY, font=self._font(10, bold=True), tags=mt)
+            c.tag_bind(mt[0], "<Enter>", lambda _e: c.configure(cursor="hand2"))
+            c.tag_bind(mt[0], "<Leave>", lambda _e: c.configure(cursor=""))
             for i, key in enumerate(m["ch"]):
                 cy = self.chan[key]
                 left = self.wires.get(key, {}).get("cx", x) == x
@@ -256,15 +267,17 @@ class Mimic(ttk.Frame):
                 self.items["led"].setdefault(key, []).append(
                     c.create_oval(P(lx - 3.5), P(cy - 3.5), P(lx + 3.5), P(cy + 3.5),
                                   outline=theme.FG, fill=""))
-                c.create_text(P(x + 18) if left else P(x + w - 18), P(cy),
-                              text=f"{i:>2} {_clip(tag_of.get(key, ''), 24)}",
-                              anchor="w" if left else "e", fill=theme.FG,
-                              font=self._font(9.5, mono=True))
+                self.items["chtext"][key] = c.create_text(
+                    P(x + 18) if left else P(x + w - 18), P(cy),
+                    text=f"{i:>2} {_clip(tag_of.get(key, ''), 24)}",
+                    anchor="w" if left else "e", fill=theme.FG,
+                    font=self._font(9.5, mono=True), tags=mt)
 
         for d in self.prj["devices"]:
             self._build_device(d)
         self.items["sel"] = c.create_rectangle(0, 0, 0, 0, outline=theme.PRIMARY, width=2,
                                                dash=(5, 3), state="hidden")
+        self.items["focus"] = []                    # rámečky protějšků vybraného zařízení / modulu
         c.configure(scrollregion=(0, 0, P(W), P(self.height)))
         if self._res is not None:
             self.update(self._res, 0.0)
@@ -418,14 +431,21 @@ class Mimic(ttk.Frame):
         force = res.get("force") or {}
         self._phase = (self._phase + dt * 40) % 1000
 
+        focus = self.focus_keys()
         for key, item in self.items["wire"].items():
             w, val = self.wires[key], io.get(key)
-            if w["dir"] in ("AI", "AO"):
-                self._set(item, fill=WIRE_AN, width=max(1, round(1.4 * s)), dash=(2, 3))
+            if focus is not None and key not in focus:   # mimo výběr: ztlumit, bez animace
+                self._set(item, fill=WIRE_DIM, width=1, dash=())
+            elif w["dir"] in ("AI", "AO"):
+                k = 2.6 if focus else 1.4
+                self._set(item, fill=WIRE_AN, width=max(1, round(k * s)), dash=(2, 3))
             elif val is True:
+                k = 3.4 if focus else 2.4
                 self._set(item, fill=WIRE_IN if w["dir"] == "DI" else WIRE_OUT,
-                          width=max(2, round(2.4 * s)), dash=(7, 4))
+                          width=max(2, round(k * s)), dash=(7, 4))
                 c.itemconfigure(item, dashoffset=-int(self._phase) % 11)
+            elif focus is not None:                       # vybraný vodič v klidu: výrazně, plně
+                self._set(item, fill=WIRE_FOCUS, width=max(2, round(2 * s)), dash=())
             else:
                 self._set(item, fill=WIRE_OFF, width=1, dash=())
         for key, leds in self.items["led"].items():
@@ -534,18 +554,72 @@ class Mimic(ttk.Frame):
     # --- výběr, zoom, myš ---------------------------------------------------------------
 
     def select(self, dev_id: int | None) -> None:
-        self._sel = dev_id
+        self._sel, self._mod = dev_id, None
         self._place_selection()
 
+    def select_module(self, idx: int | None) -> None:
+        """Výběr modulu PLC: zvýrazní vodiče všech jeho kanálů a zařízení na nich."""
+        self._mod = idx if idx is not None and 0 <= idx < len(self.mod_box) else None
+        if self._mod is not None:
+            self._sel = None
+        self._place_selection()
+
+    def focus_keys(self) -> set[str] | None:
+        """Klíče I/O, jejichž vodiče se mají zvýraznit (None = nic není vybráno)."""
+        if self._mod is not None:
+            return set(self.mod_box[self._mod][4]["ch"])
+        if self._sel is not None and self._sel in self.io_of:
+            return {e["key"] for e in self.io_of[self._sel]}
+        return None
+
     def _place_selection(self) -> None:
+        c, s = self.canvas, self._scale
+        for item in self.items["focus"]:
+            c.delete(item)
+        self.items["focus"] = []
         box = self.dev_box.get(self._sel) if self._sel is not None else None
+        if box is None and self._mod is not None:
+            box = self.mod_box[self._mod][:4] + (None,)
         if box is None:
-            self.canvas.itemconfigure(self.items["sel"], state="hidden")
-            return
-        x, y, w, h, _side = box
-        s = self._scale
-        self.canvas.coords(self.items["sel"], (x - 4) * s, (y - 4) * s, (x + w + 4) * s, (y + h + 4) * s)
-        self.canvas.itemconfigure(self.items["sel"], state="normal")
+            c.itemconfigure(self.items["sel"], state="hidden")
+        else:
+            x, y, w, h, _side = box
+            c.coords(self.items["sel"], (x - 4) * s, (y - 4) * s, (x + w + 4) * s, (y + h + 4) * s)
+            c.itemconfigure(self.items["sel"], state="normal")
+            c.tag_raise(self.items["sel"])
+        self._apply_focus()
+
+    def _apply_focus(self) -> None:
+        """Zvýrazní protějšky výběru: vodiče nahoru, kanály v modulech a bloky zařízení."""
+        c, s = self.canvas, self._scale
+        focus = self.focus_keys()
+        for key, item in self.items["chtext"].items():
+            on = focus is not None and key in focus
+            c.itemconfigure(item, fill=theme.PRIMARY if on else (theme.DIM if focus else theme.FG),
+                            font=self._font(9.5, bold=on, mono=True))
+        for key in focus or ():                    # nad ostatní vodiče, ale pod bloky
+            item = self.items["wire"].get(key)
+            if item is not None:
+                c.tag_raise(item, "wire")
+        if focus is None:
+            pass
+        elif self._mod is not None:                # rámečky zařízení zapojených do modulu
+            devs = {e["devId"] for e in self.prj["io"] if e["key"] in focus}
+            for dev_id in devs:
+                b = self.dev_box.get(dev_id)
+                if b:
+                    x, y, w, h, _side = b
+                    self.items["focus"].append(c.create_rectangle(
+                        (x - 3) * s, (y - 3) * s, (x + w + 3) * s, (y + h + 3) * s,
+                        outline=theme.ACCENT, width=2, dash=(3, 2)))
+        else:                                      # vybrané zařízení: rámečky jeho modulů
+            for x, y, w, h, m in self.mod_box:
+                if focus & set(m["ch"]):
+                    self.items["focus"].append(c.create_rectangle(
+                        (x - 3) * s, (y - 3) * s, (x + w + 3) * s, (y + h + 3) * s,
+                        outline=theme.ACCENT, width=2, dash=(3, 2)))
+        if self._res is not None:
+            self.update(self._res, 0.0)
 
     def see(self, dev_id: int) -> None:
         box = self.dev_box.get(dev_id)
@@ -660,11 +734,22 @@ class Mimic(ttk.Frame):
                     self.on_force(key, io.get(key) is not True)
             return
         was_drag, self._press, self._dragging = self._dragging, None, False
-        if was_drag or self.on_select is None:
+        if was_drag:
             return
         dev_id = self.device_at(e.x, e.y)
         if dev_id is not None:
-            self.on_select(dev_id)
+            if self.on_select is not None:
+                self.on_select(dev_id)              # volající zavolá select() → zvýraznění
+            else:
+                self.select(dev_id)
+            return
+        mod = self._hit(e.x, e.y, "mod:")
+        if mod is not None:                         # opakovaný klik na týž modul výběr zruší
+            idx = int(mod)
+            self.select_module(None if self._mod == idx else idx)
+        elif self._sel is not None or self._mod is not None:
+            self._sel, self._mod = None, None       # klik do prázdna: zrušit zvýraznění
+            self._place_selection()
 
     def device_at(self, x: int, y: int) -> int | None:
         c = self.canvas

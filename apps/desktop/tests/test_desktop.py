@@ -28,7 +28,7 @@ from plc_studio import ai_client, theme  # noqa: E402
 from plc_studio.app import App  # noqa: E402
 from plc_studio.bridge import BridgeError, CoreBridge  # noqa: E402
 from plc_studio.detail import DevicePanel  # noqa: E402
-from plc_studio.mimic import FILL, WIRE_IN, WIRE_OFF, WIRE_OUT, Mimic  # noqa: E402
+from plc_studio.mimic import FILL, WIRE_DIM, WIRE_IN, WIRE_OFF, WIRE_OUT, Mimic  # noqa: E402
 from plc_studio import importer  # noqa: E402
 from plc_studio.svgview import SvgView, parse_svg  # noqa: E402
 from plc_studio.widgets import Table  # noqa: E402
@@ -1107,6 +1107,50 @@ class GuiTest(unittest.TestCase):
     def check(self, prefix):
         return next(w for w in self.find(ttk.Checkbutton) if str(w.cget("text")).startswith(prefix))
 
+    def test_live_mimic_highlights_wires_of_selected_device_and_module(self):
+        self.app.load_sample("small")
+        self.open_live()
+        mimic = self.find(Mimic)[0]
+        c, s = mimic.canvas, mimic._scale
+
+        def click_at(lx, ly):
+            px, py = int(lx * s - c.canvasx(0)), int(ly * s - c.canvasy(0))
+            c.event_generate("<ButtonPress-1>", x=px, y=py)
+            c.event_generate("<ButtonRelease-1>", x=px, y=py)
+            self.root.update()
+
+        def fills():
+            return {k: c.itemcget(i, "fill") for k, i in mimic.items["wire"].items()}
+
+        self.assertIsNone(mimic.focus_keys())
+        self.assertNotIn(WIRE_DIM, fills().values(), "bez výběru se nic netlumí")
+
+        y1 = next(d for d in self.app.prj["devices"] if d["name"] == "Y1")
+        self.mimic_click(mimic, y1["id"])               # zařízení: jeho vodiče, ostatní ztlumené
+        mine = {e["key"] for e in self.app.prj["io"] if e["devId"] == y1["id"]}
+        self.assertEqual(mimic.focus_keys(), mine)
+        f = fills()
+        self.assertTrue(all(f[k] != WIRE_DIM for k in mine if k in f))
+        self.assertTrue(all(f[k] == WIRE_DIM for k in f if k not in mine))
+        self.assertTrue(mimic.items["focus"], "rámeček modulu, do kterého je zařízení zapojeno")
+
+        x, y, _w, _h, m = mimic.mod_box[0]               # modul: všechny jeho kanály
+        click_at(x + 8, y + 9)
+        self.assertEqual(mimic.focus_keys(), set(m["ch"]))
+        devs = {e["devId"] for e in self.app.prj["io"] if e["key"] in m["ch"]}
+        self.assertEqual(len(mimic.items["focus"]), len(devs), "rámeček každého zapojeného zařízení")
+        f = fills()
+        self.assertTrue(all(f[k] == WIRE_DIM for k in f if k not in m["ch"]))
+        self.assertEqual(c.itemcget(mimic.items["sel"], "state"), "normal")
+
+        click_at(x + 8, y + 9)                           # opakovaný klik na týž modul = zrušit
+        self.assertIsNone(mimic.focus_keys())
+        self.mimic_click(mimic, y1["id"])
+        click_at(895, mimic.height - 3)                  # klik do prázdna = zrušit
+        self.assertIsNone(mimic.focus_keys())
+        self.assertNotIn(WIRE_DIM, fills().values())
+        self.assertEqual(mimic.items["focus"], [])
+
     def test_live_simulation_fault_needs_acknowledge_then_cycle_runs_again(self):
         self.app.load_sample("small")
         view, wait = self.open_live()
@@ -1414,8 +1458,12 @@ class GuiTest(unittest.TestCase):
         self.mimic_click(mimic, m1["id"])              # klik na symbol = výběr zařízení
         self.assertEqual(self.app.ui["live_sel"], m1["id"])
         self.assertEqual(c.itemcget(mimic.items["sel"], "state"), "normal")
-        mimic.zoom(1.25)                               # změna měřítka stav zachová
+        self.assertEqual(wire("M1_fbkRunning"), WIRE_IN, "vodiče vybraného zařízení dál svítí")
+        self.assertEqual(wire("Y1_outOpen"), WIRE_DIM, "ostatní vodiče se ztlumí")
+        mimic.zoom(1.25)                               # změna měřítka stav i výběr zachová
         self.root.update()
+        self.assertEqual(wire("Y1_outOpen"), WIRE_DIM)
+        mimic.select(None)                             # bez výběru zase plné barvy
         self.assertEqual(wire("Y1_outOpen"), WIRE_OUT)
         self.assertGreater(piston(), rest * 1.25 + 10)
 
