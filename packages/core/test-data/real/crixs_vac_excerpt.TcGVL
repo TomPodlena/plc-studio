@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zkrácený výňatek z GVL_Chamber_Valves / GVL_Pumps / GVL_Chamber_Gauges (TwinCAT 3),
+     https://github.com/slactjohnson/lcls-plc-crixs-vac — Copyright (c) 2019, The Board of Trustees of the
+     Leland Stanford Junior University, through SLAC National Accelerator Laboratory. BSD-3-Clause,
+     plné znění v LICENSE.slac-crixs-vac-BSD-3-Clause.txt. Sloučeno do jednoho GVL, ostatní deklarace vynechány. -->
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.6">
+  <GVL Name="GVL_Chamber_Valves" Id="{ead97eae-6a6e-4eba-9bd6-9444d4284b1f}">
+    <Declaration><![CDATA[//{attribute 'qualified_only'}
+VAR_GLOBAL
+
+	(* Roughing Manifold Valvese *)
+
+	{attribute 'pytmc' :=' pv: CRIX:VGC:01 '}
+	{attribute 'TcLinkTo' := 	'.i_xOpnLS	:=	TIID^Device 1 (EtherCAT)^Term 1 (EK1200)^Term 2 (EK1122)^Hoffman Box Vac EK1 (EK1100)^E41 (EL1004)^Channel 1^Input;
+								 .i_xClsLS	:=	TIID^Device 1 (EtherCAT)^Term 1 (EK1200)^Term 2 (EK1122)^Hoffman Box Vac EK1 (EK1100)^E41 (EL1004)^Channel 2^Input;
+								.q_xOPN_DO	:=	TIID^Device 1 (EtherCAT)^Term 1 (EK1200)^Term 2 (EK1122)^Hoffman Box Vac EK1 (EK1100)^E39 (EL2004)^Channel 3^Output'}
+	CRIX_VGC_01 : FB_VRC;
+
+	stCRIX_VGC_01 : ST_VRC;
+
+	{attribute 'pytmc' :=' pv: CRIX:VVC:10 '}
+	{attribute 'TcLinkTo' := 	'.q_xOPN_DO	:=	TIID^Device 1 (EtherCAT)^Term 1 (EK1200)^Term 2 (EK1122)^Hoffman Box Vac EK1 (EK1100)^E39 (EL2004)^Channel 2^Output'}
+	CRIX_VVC_10 : FB_VVC;
+
+	(* Leybold Pumps *)
+	{attribute 'pytmc' :=' pv: CRIX:PTM:01 '}
+	{attribute 'TcLinkTo' := 	'.i_xAtSpd	 :=	TIID^Device 1 (EtherCAT)^Term 1 (EK1200)^Term 2 (EK1122)^Hoffman Box Vac EK1 (EK1100)^E42 (EL1004)^Channel 2^Input;
+								 .i_xFaultNC :=	TIID^Device 1 (EtherCAT)^Term 1 (EK1200)^Term 2 (EK1122)^Hoffman Box Vac EK1 (EK1100)^E42 (EL1004)^Channel 1^Input;
+								 .q_RunDO	 :=	TIID^Device 1 (EtherCAT)^Term 1 (EK1200)^Term 2 (EK1122)^Hoffman Box Vac EK1 (EK1100)^E43 (EL2794)^Channel 3^Output'}
+	CRIX_PTM_01 : FB_PTM_TurboDrive;
+
+	stCRIX_PTM_01 : ST_LeyboldPTM;
+
+	(* Pirani & Cold Cathode*)
+	{attribute 'pytmc' :=' pv: CRIX:GPI:01 '}
+	{attribute 'TcLinkTo' := 	'.i_iPRESS_R	:=	TIID^Device 1 (EtherCAT)^Term 1 (EK1200)^Term 2 (EK1122)^Hoffman Box Vac EK1 (EK1100)^E8 (EL3174)^AI Standard Channel 2^Value '}
+	CRIX_GPI_01 : FB_MKS275;
+
+	stCRIX_GPI_01 : ST_VG;
+
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

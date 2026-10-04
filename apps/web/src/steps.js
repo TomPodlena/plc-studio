@@ -3,7 +3,6 @@
 import {
   PLAT, CLS, esc, blankProject, devById, nextName, syncIO, autoAddr, modules,
   validateProject, sanitizeTag, genFor, allProjectFiles,
-  detectAndParse, buildDevicesFromTags,
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
   sampleSmall, sampleComplex, tr, N_, getLang, DO_ROLES, stepTitle,
   buildBom, bomOptions, bomPlatform, bomCsv, catKey, suppliersFor, SUPPLIERS, CATALOG_DATE, PLATFORM_REFS,
@@ -52,6 +51,7 @@ export function makeSteps(ctx) {
       <button class="small" id="bSample2">${tr("Ukázka: složitá linka")}</button>
       <button class="small" id="bExport">${tr("Export návrhu (JSON)")}</button>
       <button class="small" id="bImportJson">${tr("Načíst návrh (JSON)")}</button>
+      <button class="small" id="bImportExisting">${tr("Načíst stávající zařízení…")}</button>
       <button class="small danger" id="bReset">${tr("Nový prázdný projekt")}</button>
     </div>
     <textarea id="jsonBox" hidden style="margin-top:12px;min-height:120px" spellcheck="false" aria-label="${esc(tr("JSON návrhu"))}"></textarea>
@@ -78,6 +78,7 @@ export function makeSteps(ctx) {
       S.ai = seedFromProject(S.prj, tr(SAMPLE_DESC.complex), tr("Ukázkový návrh složité linky — předvyplněno jako příklad práce AI návrháře."));
       S.step = 0; save(); render();
     });
+    c.querySelector("#bImportExisting").addEventListener("click", () => ctx.openImport && ctx.openImport());
     c.querySelector("#bReset").addEventListener("click", () => { S.prj = blankProject(); S.ai = { turns: [], last: null, draft: "" }; save(); render(); });
     const jb = c.querySelector("#jsonBox"), jr = c.querySelector("#jsonRow");
     const payload = () => JSON.stringify({ prj: S.prj, ai: S.ai }, null, 1);
@@ -394,50 +395,19 @@ export function makeSteps(ctx) {
     importBlock(el);
   }
 
-  /* Import existujícího projektu — vedlejší volba. */
+  /* Import existujícího projektu — vedlejší volba: otevře průvodce importem stávajícího zařízení
+     (soubory, vložený text, přesné zpracování, volitelně AI, revize). */
   function importBlock(el) {
     const c = document.createElement("details");
     c.className = "help";
     c.innerHTML = `<summary>${tr("Vedlejší volba: Import existujícího projektu (reverse engineering)")}</summary><div class="body">
-    <p class="hint" style="margin-top:0;max-width:75ch">${tr("Vlož export z existujícího projektu a PLC Studio z něj zpětně sestaví zařízení a I/O — klidně pro migraci na jinou platformu. Formáty se poznají automaticky: SimaticML XML, Rockwell L5X/CSV, GVL/ST, tabulky labelů (CSV/tab), prostý I/O list <code>Tag;Adresa;Zařízení;Třída;Komentář</code>.")}</p>
-    <div class="row"><input type="file" id="impFile" multiple style="font-size:.8rem"></div>
-    <textarea id="impText" placeholder="${esc(tr("…nebo sem vlož obsah souboru (XML / ST / CSV)"))}" spellcheck="false" aria-label="${esc(tr("Import"))}"></textarea>
-    <div class="row">
-      <button class="primary" id="bAnalyze">${tr("Analyzovat")}</button>
-      <span class="hint" style="margin:0">${tr("Analýza nic nepřepíše — nejdřív uvidíš náhled.")}</span>
-    </div>
-    <div id="impResult"></div>
+    <p class="hint" style="margin-top:0;max-width:75ch">${tr("Průvodce načte podklady stávajícího stroje — exporty a programy z PLC (SimaticML, L5X, PLCopen XML, GVL/ST, tabulky tagů), I/O listy, PDF schémata, fotky nebo vložený text — a zpětně sestaví zařízení, I/O, E-stop, blokování a sekvenci, u každé položky se zdrojem a jistotou. Hodí se i pro migraci na jinou platformu.")}</p>
+    <div class="row"><button class="primary" id="bImportWizard">${tr("Import stávajícího zařízení…")}</button>
+      <span class="hint" style="margin:0">${tr("Nic se nepřepíše, dokud převzetí nepotvrdíš.")}</span></div>
     <p class="warnbox">${tr("<b>Co se přenese:</b> tagy, adresy, komentáře, odhad zařízení a tříd. <b>Co ne:</b> logika bloků (jen inventář), HW konfigurace, safety a komunikace — logiku generuje PLC Studio znovu ze šablon.")}</p>
     </div>`;
     el.appendChild(c);
-    c.querySelector("#impFile").addEventListener("change", async e => {
-      let txt = "";
-      for (const f of e.target.files) { try { txt += await f.text() + "\n"; } catch { /* ignore */ } }
-      c.querySelector("#impText").value = txt;
-    });
-    c.querySelector("#bAnalyze").addEventListener("click", () => {
-      const res = detectAndParse(c.querySelector("#impText").value);
-      const box = c.querySelector("#impResult");
-      if (!res.tags.length && !res.blocks.length) { box.innerHTML = "<div class='errtxt'>" + tr("Formát se nepodařilo rozpoznat nebo neobsahuje žádné tagy.") + "</div>"; return; }
-      const built = buildDevicesFromTags(res.tags);
-      let html = "<div class='oktxt'>" + tr("Rozpoznaný formát: <b>{fmt}</b> · {tags} tagů · {devs} zařízení", { fmt: esc(res.fmt), tags: res.tags.length, devs: built.devices.length }) + "</div>";
-      if (res.blocks.length) html += "<p class='hint'>" + tr("Nalezené bloky (jen inventář): {list}", { list: res.blocks.slice(0, 12).map(esc).join(", ") + (res.blocks.length > 12 ? " …" : "") }) + "</p>";
-      html += "<div class='tablewrap'><table><thead><tr><th>" + tr("Zařízení") + "</th><th>" + tr("Třída") + "</th><th>" + tr("Tagy") + "</th></tr></thead><tbody>";
-      for (const d of built.devices) {
-        const tags = built.io.filter(e => e.devId === d.id).map(e => e.tag);
-        html += "<tr><td class='mono'><b>" + esc(d.name) + "</b></td><td>" + esc(d.cls) + "</td><td class='mono' style='white-space:normal'>" + tags.map(esc).join(", ") + "</td></tr>";
-      }
-      html += "</tbody></table></div><div class='row'><button class='primary' id='bApply'>" + tr("Převzít do návrhu (nahradí současná zařízení)") + "</button></div>";
-      box.innerHTML = html;
-      box.querySelector("#bApply").addEventListener("click", () => {
-        const p = prj();
-        p.devices = built.devices; p.io = built.io; p.nextId = built.nextId;
-        // nová zařízení mají nová id — staré odkazy programu by ukazovaly na cizí zařízení
-        p.program = { ...p.program, estop: "", interlocks: [], seq: [] };
-        autoAddr(p, false);
-        save(); render();
-      });
-    });
+    c.querySelector("#bImportWizard").addEventListener("click", () => ctx.openImport && ctx.openImport());
   }
 
   /* ---------------------------------------------------------- 5 I/O */

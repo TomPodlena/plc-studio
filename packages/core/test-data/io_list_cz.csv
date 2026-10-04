@@ -1,0 +1,14 @@
+Seznam vstupů a výstupů;;;;;
+Zakázka 2025-118 – Míchací stanice MS-2;;;;;
+;;;;;
+Poz.;Zařízení;Symbol;Adresa;Typ;Popis
+1;M1;M1_chod;Q0.0;DO;Míchadlo – stykač
+2;M1;M1_beh;I0.0;DI;Míchadlo – zpětné hlášení
+3;M1;M1_porucha;I0.1;DI;Míchadlo – motorová ochrana
+4;Y1;Y1_otevrit;Q0.1;DO;Vypouštěcí ventil – cívka
+5;Y1;Y1_otevreno;I0.2;DI;Vypouštěcí ventil – otevřeno
+6;Y1;Y1_zavreno;I0.3;DI;Vypouštěcí ventil – zavřeno
+7;S1;S1;I0.4;DI;Nouzové zastavení (NC)
+8;S2;S2;I0.5;DI;Víko nádrže zavřeno
+9;B1;B1;IW64;AI;Hladina v nádrži 0–2000 mm
+10;H1;H1;Q0.2;DO;Signálka porucha

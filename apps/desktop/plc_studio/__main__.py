@@ -99,7 +99,29 @@ def _smoke(app: App, shots: Path | None) -> int:
                     root.update()
                     grab_window(root, shots / f"{label}_{step}{suffix}.png")
 
+    def walk_import(label: str) -> None:
+        """Průvodce importem nad vlastním vygenerovaným kódem (bez AI — klíč chybí)."""
+        from .importer import open_wizard
+        app.ui.pop("import", None)
+        out = app.bridge.request("gen", prj=app.prj)["out"]
+        files = out[app.prj["platforms"][0]] if app.prj["platforms"] else {}
+        wiz = open_wizard(app)
+        wiz.add_inputs([{"name": n, "text": t} for n, t in files.items()])
+        for page in range(4):
+            if page == 1:
+                wiz.extract()
+            else:
+                wiz.goto(page)
+            root.update()
+            if shots:
+                root.after(250)
+                root.update()
+                grab_window(wiz.win, shots / f"{label}_import_{page}.png")
+        wiz.close()
+        root.update()
+
     walk("slozita")                 # výchozí stav = ukázka složité linky
+    walk_import("slozita")
     app.load_sample("small")
     walk("mala")
     app.reset_project()
