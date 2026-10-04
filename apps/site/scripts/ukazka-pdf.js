@@ -33,6 +33,22 @@ const fill = (s, v) => s.replace(/\{\{site\.(\w+)\}\}/g, (m, k) => site[k] ?? m)
 // Jadro se zatim jmenuje PLC Studio; ve vystupu ukazky pouzijeme nazev produktu.
 export const rebrand = (s) => s.replace(/PLC Studio/g, BRAND).replace(/PLCStudio/g, BRAND);
 
+// Vykresy jadra berou barvy z CSS promennych stranky (var(--accent, #00707e) ...). Jako <img>
+// nebo data: URI stranku nevidi, proto se tokeny znacky PLCdesk (brand/README.md, svetly rezim)
+// nastavi primo v SVG dokumentu. Jadro se nemeni.
+const DRAWING_TOKENS = `<style>:root{--accent:#2457C5;--chip:#E7ECF6;--muted:#5A6881}</style>`;
+// Titulni strana je tmava plocha: symbol znacky ve variante inverse (brand/plcdesk-symbol-inverse.svg)
+// a logotyp v pismu Barlow (OFL, assets/fonts) vlozenem do PDF jako data: URI.
+const SYMBOL_INVERSE = fs
+  .readFileSync(path.join(ROOT, "..", "..", "brand", "plcdesk-symbol-inverse.svg"), "utf-8")
+  .replace(/<title>[^<]*<\/title>\s*/, "")
+  .replace(/role="img" aria-label="[^"]*"/, 'aria-hidden="true"');
+const BARLOW_CSS = [400, 700]
+  .map((w) => `@font-face { font-family: Barlow; font-weight: ${w}; src: url(data:font/woff2;base64,${fs
+    .readFileSync(path.join(ROOT, "assets", "fonts", `barlow-${w}-latin.woff2`)).toString("base64")}) format("woff2"); }`)
+  .join("\n");
+export const drawing = (svg) => rebrand(svg).replace(/<svg\b[^>]*>/, (m) => m + DRAWING_TOKENS);
+
 // ---------- Markdown -> HTML (jen to, co generuji dokumenty jadra) ----------
 
 function inline(s) {
@@ -201,7 +217,7 @@ export function buildHtml(lang, t) {
     ["bezpecnostni_okruh.svg", t.fig_safety],
   ]) {
     const f = file(name);
-    if (f) sections.push({ title, sub: f.save, path: f.save, html: svgImg(rebrand(f.body)), cls: "land" });
+    if (f) sections.push({ title, sub: f.save, path: f.save, html: svgImg(drawing(f.body)), cls: "land" });
   }
   {
     const d = doc("04_seznam_alarmu.csv");
@@ -235,43 +251,44 @@ export function buildHtml(lang, t) {
   return `<!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8"><title>${esc(fill(t.doc_title, {}))}</title>
 <style>
+${BARLOW_CSS}
 @page { size: A4; margin: 16mm 15mm 18mm;
-  @bottom-left { content: "${footer}"; font: 8pt "Segoe UI", Arial, sans-serif; color: #59616a; }
-  @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Segoe UI", Arial, sans-serif; color: #59616a; } }
+  @bottom-left { content: "${footer}"; font: 8pt "Segoe UI", Arial, sans-serif; color: #5A6881; }
+  @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Segoe UI", Arial, sans-serif; color: #5A6881; } }
 @page :first { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
 @page land { size: A4 landscape; margin: 12mm 14mm 16mm; }
 * { box-sizing: border-box; }
-body { margin: 0; font: 9.5pt/1.45 "Segoe UI", Arial, sans-serif; color: #111418; }
-.cover { height: 297mm; padding: 28mm 22mm; display: flex; flex-direction: column; background: #13181d; color: #e6e9e5; break-after: page; }
-.cover .brand { font-size: 20pt; letter-spacing: -.02em; } .cover .brand b { color: #6fd3ac; }
+body { margin: 0; font: 9.5pt/1.45 "Segoe UI", Arial, sans-serif; color: #111A2E; }
+.cover { height: 297mm; padding: 28mm 22mm; display: flex; flex-direction: column; background: #0E1422; color: #DDE3F0; break-after: page; }
+.cover .brand { display: flex; align-items: center; gap: 2mm; color: #FFFFFF; } .cover .brand svg { width: 12mm; height: 12mm; } .cover .brand span { font: 400 20pt/1 Barlow, "Segoe UI", Arial, sans-serif; letter-spacing: -.01em; } .cover .brand b { font-weight: 700; }
 .cover h1 { font-size: 30pt; line-height: 1.1; margin: 34mm 0 6mm; font-weight: 700; }
-.cover .proj { font-size: 14pt; margin: 0 0 3mm; } .cover .desc { color: #a4adb5; max-width: 140mm; }
-.cover .meta { margin-top: 10mm; font: 9pt Consolas, monospace; color: #a4adb5; }
+.cover .proj { font-size: 14pt; margin: 0 0 3mm; } .cover .desc { color: #93A0BA; max-width: 140mm; }
+.cover .meta { margin-top: 10mm; font: 9pt Consolas, monospace; color: #93A0BA; }
 .cover .stamp { display: inline-block; margin-top: 8mm; border: 2px solid #e8a06a; color: #f3c49f; padding: 3mm 4mm; font: 600 9pt Consolas, monospace; text-transform: uppercase; letter-spacing: .04em; max-width: 150mm; }
 .cover ol { list-style: none; padding: 0; margin: auto 0 0; columns: 2; column-gap: 10mm; font-size: 9pt; }
-.cover li { padding: 1.2mm 0; border-top: 1px solid #2c353e; break-inside: avoid; } .cover li span { color: #6fd3ac; font-family: Consolas, monospace; margin-right: 2mm; } .cover li em { color: #7d8790; font-style: normal; font-size: 7.5pt; display: block; padding-left: 7mm; }
-.cover .note { margin-top: 8mm; font-size: 8pt; color: #7d8790; }
+.cover li { padding: 1.2mm 0; border-top: 1px solid #2A3550; break-inside: avoid; } .cover li span { color: #6E9BFF; font-family: Consolas, monospace; margin-right: 2mm; } .cover li em { color: #8592AC; font-style: normal; font-size: 7.5pt; display: block; padding-left: 7mm; }
+.cover .note { margin-top: 8mm; font-size: 8pt; color: #8592AC; }
 section { break-before: page; }
 section.land { page: land; }
-.sh { border-bottom: 2px solid #111418; padding-bottom: 2mm; margin-bottom: 4mm; display: flex; justify-content: space-between; gap: 6mm; align-items: baseline; }
-.sh b { font-size: 13pt; } .sh span { font: 8pt Consolas, monospace; color: #59616a; }
+.sh { border-bottom: 2px solid #111A2E; padding-bottom: 2mm; margin-bottom: 4mm; display: flex; justify-content: space-between; gap: 6mm; align-items: baseline; }
+.sh b { font-size: 13pt; } .sh span { font: 8pt Consolas, monospace; color: #5A6881; }
 h2 { font-size: 13pt; margin: 5mm 0 2mm; } h3 { font-size: 11pt; margin: 4mm 0 2mm; } h4, h5, h6 { font-size: 10pt; margin: 3mm 0 1.5mm; }
 p { margin: 0 0 2mm; } ul, ol { margin: 0 0 2mm; padding-left: 5mm; } li { margin: .5mm 0; } li.box { list-style: none; margin-left: -4mm; }
 table { width: 100%; border-collapse: collapse; margin: 1mm 0 3mm; font-size: 8pt; }
-th, td { border: 1px solid #c9cdc5; padding: 1mm 1.5mm; text-align: left; vertical-align: top; overflow-wrap: break-word; hyphens: auto; }
-th { background: #eef0ea; font-weight: 600; } tr { break-inside: avoid; }
+th, td { border: 1px solid #C9D1DD; padding: 1mm 1.5mm; text-align: left; vertical-align: top; overflow-wrap: break-word; hyphens: auto; }
+th { background: #ECEFF5; font-weight: 600; } tr { break-inside: avoid; }
 table.csv { font-size: 7.5pt; }
 blockquote { margin: 0 0 3mm; padding: 2mm 3mm; border-left: 3px solid #a24a12; background: #fbeadf; }
 blockquote p { margin: 0; }
 .ns { color: #a24a12; font-weight: 700; }
-code { font: 8pt Consolas, monospace; background: #f0f1ec; padding: 0 1mm; }
-pre { font: 7.5pt/1.35 Consolas, monospace; background: #f6f7f3; border: 1px solid #d9dcd4; padding: 3mm; white-space: pre-wrap; }
+code { font: 8pt Consolas, monospace; background: #E7ECF6; padding: 0 1mm; }
+pre { font: 7.5pt/1.35 Consolas, monospace; background: #F5F6F9; border: 1px solid #D6DCE6; padding: 3mm; white-space: pre-wrap; }
 img.sheet { width: 100%; max-height: 165mm; object-fit: contain; display: block; }
-hr { border: 0; border-top: 1px solid #d9dcd4; margin: 3mm 0; }
+hr { border: 0; border-top: 1px solid #D6DCE6; margin: 3mm 0; }
 a { color: inherit; }
 </style></head><body>
 <div class="cover">
-  <div class="brand">${esc(BRAND).replace(/^([A-Z]+)/, "<b>$1</b>")}</div>
+  <div class="brand">${SYMBOL_INVERSE}<span>${esc(BRAND).replace(/^([A-Z]+)/, "<b>$1</b>")}</span></div>
   <h1>${esc(fill(t.doc_title, {}))}</h1>
   <p class="proj">${esc(prj.meta.name)}</p>
   <p class="desc">${esc(prj.meta.desc)}</p>

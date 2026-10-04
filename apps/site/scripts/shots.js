@@ -56,9 +56,28 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const only = process.argv[2];
 const problems = [];
-const browser = await launch();
+const partial = [];
+let browser = await launch();
+let page;
+// Snimek cele stranky (captureBeyondViewport) headless Edge obcas nedokonci (zamrzne i na
+// strankach bez chyby, napr. de/funkce @ 768 px). Mereni preteceni na snimku nezavisi: po
+// casovem limitu se prohlizec spusti znovu a ulozi se jen vyrez okna.
+async function shoot(file, url, v, action) {
+  const t = new Promise((r) => setTimeout(() => r("TIMEOUT"), 45000));
+  if ((await Promise.race([page.screenshot(file).then(() => "ok", () => "err"), t])) === "ok") return;
+  browser.close();
+  browser = await launch();
+  page = await browser.page();
+  await page.viewport(v.w, v.h);
+  await page.goto(url, 150);
+  if (action) { await page.eval(action); await sleep(250); }
+  const s = await page.send("Page.captureScreenshot", { format: "png" });
+  fs.writeFileSync(file, Buffer.from(s.data, "base64"));
+  partial.push(path.basename(file));
+  console.log(`  (snimek cele stranky nedokoncen, ulozen jen vyrez okna: ${path.basename(file)})`);
+}
 try {
-  const page = await browser.page();
+  page = await browser.page();
   for (const v of VIEWS) {
     if (only && v.name !== only) continue;
     await page.viewport(v.w, v.h);
@@ -82,7 +101,7 @@ try {
           } else {
             console.log(`  ok       ${tag}`);
           }
-          await page.screenshot(path.join(OUT, `${lang}-${p || "home"}${suffix}-${v.name}.png`));
+          await shoot(path.join(OUT, `${lang}-${p || "home"}${suffix}-${v.name}.png`), url, v, action);
         }
       }
     }
@@ -90,5 +109,6 @@ try {
 } finally {
   browser.close();
 }
+if (partial.length) console.log(`\n  Jen vyrez okna (snimek cele stranky zamrzl): ${partial.join(", ")}`);
 console.log(`\nHotovo. Preteceni: ${problems.length}. Snimky v _shots/`);
 process.exit(problems.length ? 1 : 0);

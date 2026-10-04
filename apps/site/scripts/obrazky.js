@@ -12,7 +12,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { launch } from "./cdp.js";
-import { sampleProject, buildHtml, rebrand } from "./ukazka-pdf.js";
+import { sampleProject, buildHtml, drawing } from "./ukazka-pdf.js";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CORE = path.join(ROOT, "..", "..", "packages", "core", "dist", "index.js");
@@ -36,7 +36,7 @@ C.setLang("cs");
     const f = files.find((x) => x.name === name);
     if (!f) throw new Error("V jadru chybi " + name);
     // jadro dava jen sirku; vyska z viewBoxu, at <img> nezabira misto spatne pred nactenim
-    let svg = rebrand(f.body);
+    let svg = drawing(f.body);
     const vb = /viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/.exec(svg);
     if (vb && !/<svg[^>]*\sheight=/.test(svg.slice(0, 400))) svg = svg.replace(/<svg /, `<svg height="${vb[2]}" `);
     fs.writeFileSync(path.join(IMG, out), svg);

@@ -61,9 +61,15 @@ const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 const prefix = (lang) => (lang === "cs" ? "" : `/${lang}`);
 export const url = (lang, out) => (out === "" ? `${prefix(lang)}/` : `${prefix(lang)}/${out}/`);
 
+// Znacka: symbol z brand/plcdesk-symbol.svg (geometrie 1:1, barvy z CSS tokenu, v tmave plose
+// inverse) + logotyp jako HTML text ("PLC" 700 / "desk" 400, Barlow). Lockup SVG se nesazi.
+const BRAND_SYM =
+  `<svg class="brand-sym" viewBox="0 0 64 64" aria-hidden="true" focusable="false">` +
+  `<rect class="bs-frame" x="7" y="11" width="50" height="42"/><rect class="bs-stamp" x="36" y="36" width="19" height="15"/>` +
+  `<rect class="bs-line" x="38" y="40" width="15" height="2"/><rect class="bs-line" x="38" y="45" width="15" height="2"/></svg>`;
 function brandLogo(b) {
   const m = /^([A-Z]+)(.+)$/.exec(b);
-  return m ? `<b>${esc(m[1])}</b>${esc(m[2])}` : esc(b);
+  return BRAND_SYM + `<span class="brand-word">${m ? `<b>${esc(m[1])}</b>${esc(m[2])}` : esc(b)}</span>`;
 }
 
 // ---------- snimky aplikace (scripts/app-shots.py -> assets/img/app/<klic>-<jazyk>[-800].webp) ----------
