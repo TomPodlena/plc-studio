@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="/assets/style.css">
 <meta name="theme-color" content="#0b6b53">
 </head>
-<body data-page="{{BLOCK.key}}">
+<body data-page="{{BLOCK.key}}" data-lb-close="{{ui.lb_close}}" data-lb-label="{{ui.lb_label}}">
 
 <a class="skip" href="#main">{{ui.skip}}</a>
 
@@ -114,6 +114,114 @@
     if (r.top < window.innerHeight && r.bottom > 0) el.classList.add("in", "now");
     else { el.style.setProperty("--rv-d", (i % 4) * 70 + "ms"); io.observe(el); }
   });
+})();
+
+// Prohlidka aplikace na uvodu: zalozky (ARIA tabs, sipky, Home/End). Bez JS funguji odkazy
+// na kotvy (CSS :target), vychozi je prvni snimek.
+(function () {
+  document.querySelectorAll("[data-tour]").forEach(function (tour) {
+    var tabs = [].slice.call(tour.querySelectorAll(".tour-tab"));
+    var panels = tabs.map(function (t) { return tour.querySelector(t.getAttribute("href")); });
+    if (!tabs.length || panels.indexOf(null) >= 0) return;
+    tour.setAttribute("data-tour-js", "");
+    tour.querySelector(".tour-tabs").setAttribute("role", "tablist");
+    function select(i, focus) {
+      tabs.forEach(function (t, j) {
+        var on = i === j;
+        t.setAttribute("aria-selected", String(on));
+        t.tabIndex = on ? 0 : -1;
+        panels[j].hidden = !on;
+      });
+      if (focus) tabs[i].focus();
+    }
+    tabs.forEach(function (t, i) {
+      t.setAttribute("role", "tab");
+      t.setAttribute("aria-controls", panels[i].id);
+      panels[i].setAttribute("role", "tabpanel");
+      panels[i].setAttribute("aria-labelledby", t.id);
+      t.addEventListener("click", function (e) { e.preventDefault(); select(i, false); });
+      t.addEventListener("keydown", function (e) {
+        var k = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+        if (k === undefined) return;
+        e.preventDefault();
+        select((k + tabs.length) % tabs.length, true);
+      });
+    });
+    var start = panels.findIndex(function (p) { return "#" + p.id === location.hash; });
+    select(start < 0 ? 0 : start, false);
+  });
+})();
+
+// Lightbox snimku aplikace: <dialog> (Esc a fokus uvnitr resi prohlizec), po zavreni
+// se fokus vrati na odkaz. Bez JS nebo s Ctrl/Cmd odkaz otevre plnou velikost.
+(function () {
+  var links = document.querySelectorAll("a[data-lightbox]");
+  if (!links.length || typeof HTMLDialogElement !== "function") return;
+  var dlg, img, cap, opener;
+  function build() {
+    var B = document.body.dataset;
+    dlg = document.createElement("dialog");
+    dlg.className = "lb";
+    dlg.setAttribute("aria-label", B.lbLabel || "");
+    var close = document.createElement("button");
+    close.type = "button";
+    close.className = "lb-close";
+    close.textContent = B.lbClose || "×";
+    img = document.createElement("img");
+    img.alt = "";
+    cap = document.createElement("p");
+    cap.className = "lb-cap";
+    dlg.appendChild(close);
+    dlg.appendChild(img);
+    dlg.appendChild(cap);
+    document.body.appendChild(dlg);
+    close.addEventListener("click", function () { dlg.close(); });
+    // klik mimo snimek (na pozadi dialogu) zavre
+    dlg.addEventListener("click", function (e) { if (e.target === dlg) dlg.close(); });
+    dlg.addEventListener("close", function () {
+      document.documentElement.classList.remove("lb-open");
+      if (opener) opener.focus();
+    });
+  }
+  [].forEach.call(links, function (a) {
+    a.addEventListener("click", function (e) {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button) return;
+      e.preventDefault();
+      if (!dlg) build();
+      opener = a;
+      var small = a.querySelector("img");
+      var fig = a.closest("figure");
+      var fc = fig && (fig.querySelector("figcaption") || fig.querySelector(".win-path"));
+      img.src = a.href;
+      img.alt = small ? small.alt : "";
+      cap.textContent = fc ? fc.textContent : "";
+      document.documentElement.classList.add("lb-open");
+      dlg.showModal();
+    });
+  });
+})();
+
+// Animace zive simulace: bez prefers-reduced-motion se prehrava sama (ztlumene, ve smycce),
+// jen kdyz je videt; jinak zustane plakat s ovladanim. Bez JS ma video ovladani a plakat.
+(function () {
+  var v = document.querySelector("video[data-live]");
+  if (!v) return;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (!("IntersectionObserver" in window)) return;
+  v.removeAttribute("controls");
+  v.muted = true;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) {
+        if (v.preload !== "auto") v.preload = "auto";
+        var p = v.play();
+        if (p && p.catch) p.catch(function () { v.setAttribute("controls", ""); });
+      } else {
+        v.pause();
+      }
+    });
+  }, { threshold: 0.25 });
+  io.observe(v);
 })();
 
 // Formular ke stazeni: JSON na /api/lead (stejny Worker, stejna domena).

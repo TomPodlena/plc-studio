@@ -49,6 +49,12 @@ const dead = new Set();
 function rewrite(html, lang) {
   return html
     .replace(/ loading="lazy"/g, "") // skryte sekce by se jinak nikdy nenacetly
+    // snimky aplikace: v nahledu jen mensi velikost (i pro lightbox), at soubor nebobtna
+    // video: zdroj a plakat vlozit (skript nize je dosadi), ostatni <source> (srcset) zahodit
+    .replace(/<source src="(\/assets\/[^"]+)" type="video\/mp4">/g, (m, u) => `<source data-asset-video="${key(u)}" type="video/mp4">`)
+    .replace(/ poster="(\/assets\/[^"]+)"/g, (m, u) => ` data-asset-poster="${key(u)}"`)
+    .replace(/<source (?!data-asset-video)[^>]*>/g, "")
+    .replace(/(<a class="shot" href="\/assets\/img\/app\/[^"]+?)(\.webp")/g, "$1-800$2")
     .replace(/data-sitekey="[^"]*"/g, 'data-sitekey="1x00000000000000000000AA"') // nahled: testovaci klic Turnstile
     .replace(/src="(\/assets\/[^"]+)"/g, (m, u) => `src="${PIX}" data-asset="${key(u)}"`)
     .replace(/href="(\/assets\/[^"]+)"/g, (m, u) => `href="#" data-asset-href="${key(u)}" data-name="${path.basename(u)}"`)
@@ -76,7 +82,7 @@ for (const lang of LANGS) {
   );
 }
 
-const TYPES = { ".svg": "image/svg+xml", ".pdf": "application/pdf", ".png": "image/png", ".webp": "image/webp", ".woff2": "font/woff2" };
+const TYPES = { ".mp4": "video/mp4", ".svg": "image/svg+xml", ".pdf": "application/pdf", ".png": "image/png", ".webp": "image/webp", ".woff2": "font/woff2" };
 const assetMap = {};
 for (const [u, k] of assets) {
   const f = path.join(DIST, u.replace(/^\//, ""));
@@ -135,6 +141,14 @@ var LABEL = ${JSON.stringify(LABEL)};
 document.querySelectorAll("[data-asset]").forEach(function (el) {
   var d = ASSETS[el.dataset.asset];
   if (d) el.src = d;
+});
+document.querySelectorAll("[data-asset-poster]").forEach(function (el) {
+  var d = ASSETS[el.dataset.assetPoster];
+  if (d) el.poster = d;
+});
+document.querySelectorAll("[data-asset-video]").forEach(function (el) {
+  var d = ASSETS[el.dataset.assetVideo];
+  if (d) { el.src = d; el.parentNode.load(); }
 });
 // PDF a dalsi soubory: data: URI -> blob, at jde stahnout i otevrit
 document.querySelectorAll("[data-asset-href]").forEach(function (a) {

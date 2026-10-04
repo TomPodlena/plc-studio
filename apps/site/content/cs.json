@@ -23,7 +23,9 @@
     "legal_operator": "Provozovatel",
     "legal_id": "IČO",
     "legal_contact": "Kontakt",
-    "legal_toc": "Obsah"
+    "legal_toc": "Obsah",
+    "lb_close": "Zavřít",
+    "lb_label": "Zvětšený snímek aplikace"
   },
   "nav": {
     "home": "Úvod",
@@ -103,8 +105,23 @@
         "t": "I/O zdarma natrvalo"
       }
     ],
+    "live": {
+      "eyebrow": "Živá simulace",
+      "title": "Stroj běží dřív, než existuje",
+      "lead": "Simulátor provádí stejnou logiku, jakou {{site.brand}} vygeneruje do PLC, scan po scanu. Na grafickém schématu systému vidíte vodiče, pohony a kroky sekvence v reálném čase.",
+      "points": [
+        "Režim AUTO, start cyklu, nouzové zastavení a kvitace jako na stroji.",
+        "Ruční povely, vnucené vstupy a poruchy: zaseknutý pohyb, ztráta hlášení, analog mimo mez.",
+        "Stejný projekt pak ověří matice stavů a protokol o ověření simulací."
+      ],
+      "note": "Simulace ověřuje návrh, ne program přeložený ve vašem IDE.",
+      "path": "LL-03 / 7 · Program › Živá simulace",
+      "caption": "Záznam z aplikace: linka LL-03, jeden celý cyklus v režimu AUTO, zrychleno 2×.",
+      "video_label": "Animace živé simulace linky LL-03 v aplikaci {{site.brand}}: snímače, moduly PLC, motory a válce během cyklu"
+    },
     "flow_eyebrow": "Jak to probíhá",
     "flow_title": "Od popisu stroje k předání za dny, ne týdny",
+    "flow_lead": "Jeden projekt od popisu stroje po program, výkresy a dokumentaci. Každý krok navazuje na předchozí, nic se mezi nástroji nepřepisuje ručně.",
     "flow": [
       {
         "name": "Popíšete stroj",
@@ -127,6 +144,62 @@
         "desc": "Soubory pro vaše vývojové prostředí, dokumentaci pro zákazníka a plán oživení na stroj."
       }
     ],
+    "tour": {
+      "eyebrow": "Skutečné snímky",
+      "title": "Prohlédněte si aplikaci",
+      "lead": "Desktopová aplikace {{site.brand}} s ukázkovou linkou LL-03, stejným projektem jako ukázková dokumentace. Snímky jsou pořízené přímo z aplikace, nic není dokreslené. Kliknutím snímek zvětšíte.",
+      "tabs_label": "Kroky aplikace",
+      "items": [
+        {
+          "key": "schema",
+          "tab": "Schéma",
+          "path": "LL-03 / 6 · Schéma",
+          "title": "Klikací blokové schéma",
+          "desc": "Zdroje signálů, moduly PLC a akční členy. Klik na zařízení ukáže jeho vstupy a výstupy s adresami a svorkami a kroky programu, ve kterých se používá.",
+          "alt": "Krok Schéma v aplikaci {{site.brand}}: blokové schéma linky LL-03 se zvýrazněným lisovacím válcem Y1 a panelem s jeho signály, adresami, svorkami a kroky programu"
+        },
+        {
+          "key": "ziva",
+          "tab": "Živá simulace",
+          "path": "LL-03 / 7 · Program › Živá simulace",
+          "title": "Živá simulace stroje",
+          "desc": "Schéma systému s vodiči a animovanými pohony. Režim AUTO, start cyklu, nouzové zastavení a kvitace jako na stroji, k tomu ruční povely a vnucené vstupy.",
+          "alt": "Živá simulace: linka LL-03 v režimu AUTO v kroku 10 z 18, aktivní vodiče a sepnuté výstupy zvýrazněné, vpravo stav lisovacího válce Y1 a seznam událostí"
+        },
+        {
+          "key": "bezpecnost",
+          "tab": "Bezpečnost",
+          "path": "LL-03 / 11 · Bezpečnost",
+          "title": "Bezpečnostní funkce a PL",
+          "desc": "Funkce navržené z nebezpečí stroje: požadovaná úroveň PLr, dosažené PL, návrh a stav schválení každé funkce.",
+          "alt": "Krok Bezpečnost: tabulka deseti bezpečnostních funkcí s PLr, dosaženým PL a stavem schválení, vpravo popis funkce nouzového zastavení a její schválení"
+        },
+        {
+          "key": "schvaleni",
+          "tab": "Schválení",
+          "path": "LL-03 / 12 · Schválení",
+          "title": "Schválení odpovědnou osobou",
+          "desc": "Každá položka se schvaluje jménem a datem. Když se obsah po schválení změní, jde znovu ke schválení. Na snímku sekvence po prodloužení hlídacího času.",
+          "alt": "Krok Schválení: 40 položek schváleno, 3 změněné po schválení, 30 čeká; vybraná automatická sekvence ve stavu změněno po schválení se jménem a datem původního schválení"
+        },
+        {
+          "key": "kusovnik",
+          "tab": "Kusovník",
+          "path": "LL-03 / 10 · Kusovník",
+          "title": "Kusovník s katalogem",
+          "desc": "PLC, moduly a díly každého zařízení s označením podle IEC 81346, výrobcem, typem, objednacím kódem a dodavatelem. Export do CSV.",
+          "alt": "Krok Kusovník: 66 položek s označením, výrobcem, typem, objednacím kódem a dodavatelem, vybraný převodový motor -M1 s volbou typu z katalogu"
+        },
+        {
+          "key": "generovat",
+          "tab": "Kód",
+          "path": "LL-03 / 8 · Generovat",
+          "title": "Program pro zvolené platformy",
+          "desc": "Úplný program se stavovými automaty, hlídacími časy a režimy pro každou zvolenou platformu, k tomu postup importu do IDE.",
+          "alt": "Krok Generovat: zdrojový kód hlavního bloku Gen_Main.scl pro Siemens SIMATIC, nad ním záložky dalších platforem a souborů"
+        }
+      ]
+    },
     "show_eyebrow": "Skutečné výstupy",
     "show_title": "Výkresy z ukázkového projektu",
     "show_lead": "Přímý výstup aplikace pro lisovací a značicí linku LL-03, stejný jako v ukázkové dokumentaci.",
@@ -200,6 +273,12 @@
         "a": "Ano. Bez internetu nefungují jen funkce s umělou inteligencí. Licence je podepsaný soubor, který aplikace ověří offline."
       }
     ],
+    "reference": {
+      "eyebrow": "Z praxe",
+      "quote": "",
+      "name": "",
+      "role": ""
+    },
     "end_title": "Zkuste to na stroji, který znáte",
     "end_body": "Vezměte menší stroj, který znáte nazpaměť. Za odpoledne uvidíte, jestli vám výstupy sedí.",
     "end_cta": "Stáhnout zdarma"
@@ -220,7 +299,12 @@
           "Popis stroje běžnou řečí. Návrhář z něj sestaví zařízení a doptá se na to, co chybí.",
           "Typové bloky: motor, ventil, analogový vstup a výstup, čidla, signálky.",
           "Nouzové zastavení, blokovací vstupy (kryty, závory, tlak vzduchu) a požadovaný takt."
-        ]
+        ],
+        "shot": {
+          "key": "navrh",
+          "path": "LL-03 / 2 · AI návrh",
+          "alt": "Krok AI návrh: zadání linky LL-03 běžnou řečí, odpověď návrháře s 29 zařízeními a sekvencí o 18 krocích a tabulka navržené sestavy"
+        }
       },
       {
         "id": "io",
@@ -231,7 +315,12 @@
           "Tagy hlídané na přenositelnost (ASCII tam, kde to platforma vyžaduje).",
           "NC a NO kontakty, meze analogových měření, žádané hodnoty.",
           "Role výstupů: chod, porucha, připraveno, zastaveno, zámek, AUTO."
-        ]
+        ],
+        "shot": {
+          "key": "zarizeni",
+          "path": "LL-03 / 4 · Zařízení",
+          "alt": "Krok Zařízení: tabulka zařízení linky s třídou, popisem a volbami, vpravo lisovací válec Y1 s adresami, svorkami a kroky programu"
+        }
       },
       {
         "id": "schemata",
@@ -242,7 +331,12 @@
           "Značení podle IEC 81346, čísla vodičů, NC/NO podle IEC 60617, rámeček a popisové pole.",
           "Svorkovnice, schéma bezpečnostního okruhu, funkční a časový diagram cyklu.",
           "Náhled SVG a export DXF pro AutoCAD a další ECAD."
-        ]
+        ],
+        "shot": {
+          "key": "diagram",
+          "path": "LL-03 / 6 · Schéma › Funkční diagram cyklu",
+          "alt": "Funkční diagram cyklu: kroky sekvence s podmínkami přechodu, hlídacími časy a časy z běžného cyklu simulace, vpravo vybraný krok a jeho zařízení"
+        }
       },
       {
         "id": "program",
@@ -253,7 +347,12 @@
           "Režim AUTO a ruční, start cyklu, kvitace, ruční povely, porucha stroje s krokem, kde vznikla.",
           "8 platforem; import jedním souborem tam, kde to IDE umí (PLCopen XML, L5X).",
           "Ke každé platformě postup importu a nejkratší test."
-        ]
+        ],
+        "shot": {
+          "key": "generovat",
+          "path": "LL-03 / 8 · Generovat",
+          "alt": "Krok Generovat: zdrojový kód hlavního bloku Gen_Main.scl pro Siemens SIMATIC, nad ním záložky dalších platforem a souborů"
+        }
       },
       {
         "id": "simulace",
@@ -265,7 +364,12 @@
           "Kontrola konceptu: vstupy, které program nečte, výstupy, které neovládá, měření bez mezí.",
           "Časové hledisko: takt a rezerva hlídacích časů. Výsledek v protokolu."
         ],
-        "note": "Simulace ověřuje návrh, ne program přeložený ve vašem IDE. Test v simulátoru platformy a FAT nenahrazuje."
+        "note": "Simulace ověřuje návrh, ne program přeložený ve vašem IDE. Test v simulátoru platformy a FAT nenahrazuje.",
+        "shot": {
+          "key": "ziva",
+          "path": "LL-03 / 7 · Program › Živá simulace",
+          "alt": "Živá simulace: linka LL-03 v režimu AUTO v kroku 10 z 18, aktivní vodiče a sepnuté výstupy zvýrazněné, vpravo stav lisovacího válce Y1 a seznam událostí"
+        }
       },
       {
         "id": "bezpecnost",
@@ -278,7 +382,12 @@
           "Bezpečnostní program pro Siemens F, Rockwell GuardLogix a PLCopen Safety, konfigurace Pilz, SICK a Schmersal. Vznikne až po schválení funkcí.",
           "Dokument bezpečnostních funkcí (SRS) a plán validace s kontrolními seznamy."
         ],
-        "note": "Bezpečnostní logika patří do bezpečnostního PLC nebo relé. Ve standardním programu zůstává nouzové zastavení jen stavovým signálem. Validaci na stroji {{site.brand}} plánuje a protokoluje, provádí ji člověk."
+        "note": "Bezpečnostní logika patří do bezpečnostního PLC nebo relé. Ve standardním programu zůstává nouzové zastavení jen stavovým signálem. Validaci na stroji {{site.brand}} plánuje a protokoluje, provádí ji člověk.",
+        "shot": {
+          "key": "bezpecnost",
+          "path": "LL-03 / 11 · Bezpečnost",
+          "alt": "Krok Bezpečnost: tabulka deseti bezpečnostních funkcí s PLr, dosaženým PL a stavem schválení, vpravo popis funkce nouzového zastavení"
+        }
       },
       {
         "id": "ozivovani",
@@ -288,7 +397,12 @@
           "Plán po fázích: rozvaděč, smyčkový test každého signálu, pohony, analogy, nouzové zastavení, sekvence, bezpečnostní funkce, předání.",
           "Protokol k tisku i k zápisu výsledků přímo v aplikaci.",
           "Návrhy ladění (meze, hlídací časy, nevyužité signály). Každý jde zase ke schválení."
-        ]
+        ],
+        "shot": {
+          "key": "ozivovani",
+          "path": "LL-03 / 13 · Oživení",
+          "alt": "Krok Oživení: plán po fázích, rozvaděč hotový a část smyčkového testu I/O s výsledkem OK, vpravo popis dalšího kroku a pole pro naměřenou hodnotu"
+        }
       },
       {
         "id": "dokumentace",
@@ -299,7 +413,12 @@
           "Protokol ověření simulací, kusovník, protokol schválení, plán a protokol oživení.",
           "Bezpečnostní funkce (SRS) a plán validace.",
           "Markdown a CSV, které otevřete ve Wordu i Excelu."
-        ]
+        ],
+        "shot": {
+          "key": "dokumentace",
+          "path": "LL-03 / 9 · Dokumentace",
+          "alt": "Krok Dokumentace: seznam souborů projektu (FDS, I/O list, svorkovnice, alarmy, FAT, schémata) a náhled funkční specifikace"
+        }
       },
       {
         "id": "kusovnik",
@@ -309,7 +428,12 @@
           "Označení podle IEC 81346: PLC a moduly platformy, díly každého zařízení, rozvaděč.",
           "Typické značky, typy a dodavatelé z rešerše českého trhu, se zdroji.",
           "Export do CSV pro Excel a poptávku."
-        ]
+        ],
+        "shot": {
+          "key": "kusovnik",
+          "path": "LL-03 / 10 · Kusovník",
+          "alt": "Krok Kusovník: položky s označením, výrobcem, typem, objednacím kódem a dodavatelem, vybraný převodový motor -M1"
+        }
       },
       {
         "id": "import",
@@ -319,7 +443,12 @@
           "Exporty a programy z PLC zpětně: TIA Portal (SimaticML, tabulky tagů), Studio 5000 (L5X, CSV), ST zdroje a GVL, tabulky návěští.",
           "Z programu odvodí zařízení, I/O, nouzové zastavení, blokování, sekvenci a meze. U každé položky ukáže zdroj a jistotu.",
           "Schémata v PDF a fotky štítků nebo rozvaděče přečte umělá inteligence. Přesně načtené má přednost, rozpory hlásí."
-        ]
+        ],
+        "shot": {
+          "key": "import",
+          "path": "Import › Kontrola a převzetí",
+          "alt": "Průvodce importem, krok Kontrola a převzetí: zařízení rozpoznaná z veřejného projektu v PLCopen XML s jistotou barevně (jisté, odhad) a citací zdroje soubor:řádek"
+        }
       },
       {
         "id": "jazyky",
@@ -339,7 +468,12 @@
           "Webová verze běží v prohlížeči bez instalace.",
           "Desktopová aplikace pro Windows navíc: klikací schémata, živá simulace se schématem systému a přehrávač scénářů.",
           "Desktop jako přenosný ZIP: rozbalit a spustit, bez práv správce."
-        ]
+        ],
+        "shot": {
+          "key": "web-schema",
+          "path": "Prohlížeč / 6 · Schéma",
+          "alt": "Webová verze {{site.brand}} v prohlížeči: krok Schéma s blokovým schématem linky LL-03"
+        }
       }
     ],
     "ai_title": "Kde pomáhá umělá inteligence",
@@ -574,6 +708,22 @@
       },
       {
         "name": "Bezpečnostní funkce (SRS)"
+      }
+    ],
+    "app_title": "Stejný projekt v aplikaci",
+    "app_lead": "Linka LL-03 z ukázkové dokumentace, tentokrát přímo v aplikaci {{site.brand}}.",
+    "app_shots": [
+      {
+        "key": "ziva",
+        "path": "LL-03 / 7 · Program › Živá simulace",
+        "alt": "Živá simulace: linka LL-03 v režimu AUTO v kroku 10 z 18, aktivní vodiče a sepnuté výstupy zvýrazněné, vpravo stav lisovacího válce Y1 a seznam událostí",
+        "cap": "Živá simulace: linka v režimu AUTO uprostřed cyklu, zvýrazněné aktivní vodiče a sepnuté výstupy."
+      },
+      {
+        "key": "schvaleni",
+        "path": "LL-03 / 12 · Schválení",
+        "alt": "Krok Schválení: 40 položek schváleno, 3 změněné po schválení, 30 čeká; vybraná automatická sekvence ve stavu změněno po schválení",
+        "cap": "Schválení: co je schválené, co se po schválení změnilo a co ještě čeká."
       }
     ]
   },

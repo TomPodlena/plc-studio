@@ -33,6 +33,18 @@
   </div>
 </section>
 
+<section class="sec sec-tint sec-dots">
+  <div class="wrap">
+    <h2>{{page.app_title}}</h2>
+    <p class="lead measure">{{page.app_lead}}</p>
+    <div class="figs app-figs">
+      {{#each page.app_shots}}
+      <div class="rv">{{.|shot}}</div>
+      {{/each}}
+    </div>
+  </div>
+</section>
+
 <section class="sec">
   <div class="wrap">
     <h2>{{page.contents_title}}</h2>

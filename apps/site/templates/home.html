@@ -45,10 +45,36 @@
   </div>
 </section>
 
+<section class="sec sec-live" id="simulace">
+  <div class="dark-bg" aria-hidden="true">{{> art-traces}}</div>
+  <div class="wrap live-in">
+    <div class="live-text">
+      <p class="eyebrow">{{page.live.eyebrow}}</p>
+      <h2>{{page.live.title}}</h2>
+      <p class="lead">{{page.live.lead}}</p>
+      <ul class="ticks ticks-dark">{{page.live.points|li}}</ul>
+      <p class="note note-dark">{{page.live.note}}</p>
+    </div>
+    <figure class="win live-win rv">
+      <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">{{page.live.path}}</span></div>
+      <video class="live-video" width="1010" height="1012" muted loop playsinline controls preload="none" poster="/assets/img/app/ziva-anim-{{meta.lang}}.webp" aria-label="{{page.live.video_label}}" data-live>
+        <source src="/assets/img/app/ziva-anim-{{meta.lang}}.mp4" type="video/mp4">
+      </video>
+      <figcaption>{{page.live.caption}}</figcaption>
+    </figure>
+  </div>
+</section>
+
 <section class="sec sec-grid">
   <div class="wrap">
-    <p class="eyebrow">{{page.flow_eyebrow}}</p>
-    <h2>{{page.flow_title}}</h2>
+    <div class="flow-head">
+      <div>
+        <p class="eyebrow">{{page.flow_eyebrow}}</p>
+        <h2>{{page.flow_title}}</h2>
+        <p class="lead">{{page.flow_lead}}</p>
+      </div>
+      <div class="flow-art">{{> iso-line}}</div>
+    </div>
     <ol class="flow">
       {{#each page.flow}}
       <li class="rv">
@@ -59,6 +85,28 @@
       </li>
       {{/each}}
     </ol>
+  </div>
+</section>
+
+<section class="sec sec-tour sec-tint" id="aplikace">
+  <div class="wrap">
+    <p class="eyebrow">{{page.tour.eyebrow}}</p>
+    <h2>{{page.tour.title}}</h2>
+    <p class="lead measure">{{page.tour.lead}}</p>
+    <div class="tour" data-tour>
+      <div class="tour-tabs" aria-label="{{page.tour.tabs_label}}">
+        {{#each page.tour.items}}<a class="tour-tab" href="#prohlidka-{{.key}}" id="prohlidka-tab-{{.key}}"><span class="tour-n">{{@n}}</span>{{.tab}}</a>
+        {{/each}}
+      </div>
+      <div class="tour-panels">
+        {{#each page.tour.items}}
+        <div class="tour-panel" id="prohlidka-{{.key}}">
+          {{.|shotwide}}
+          <div class="tour-cap"><h3>{{.title}}</h3><p>{{.desc}}</p></div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
   </div>
 </section>
 
@@ -141,6 +189,15 @@
     <h2>{{page.local_title}}</h2>
     <p class="lead">{{page.local_body}}</p>
     <p class="note">{{page.local_ai}}</p>
+  </div>
+</section>
+
+<!-- Reference: kostra pro skutecnou referenci (citat zakaznika se souhlasem). Dokud jsou texty
+     v content/*.json home.reference prazdne, zustava sekce skryta (atribut hidden) - nic nevymyslet. -->
+<section class="sec sec-quote" hidden>
+  <div class="wrap measure-wrap">
+    <p class="eyebrow">{{page.reference.eyebrow}}</p>
+    <blockquote class="quote"><p>{{page.reference.quote}}</p><footer>{{page.reference.name}}<span>{{page.reference.role}}</span></footer></blockquote>
   </div>
 </section>
 

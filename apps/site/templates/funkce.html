@@ -19,11 +19,13 @@
         <span class="feature-top"><span class="feature-ico"><svg class="ico" aria-hidden="true"><use href="#g-{{.id}}"/></svg></span><span class="feature-n">{{@n}}</span></span>
         <h2>{{.name}}</h2>
         <p>{{.lead}}</p>
+        {{>? spot-{{.id}}}}
       </div>
       <div class="feature-b">
         <ul class="ticks">{{.points|li}}</ul>
         {{.note|note}}
       </div>
+      {{.shot|shot}}
     </article>
     {{/each}}
   </div>

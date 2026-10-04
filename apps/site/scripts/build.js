@@ -66,7 +66,42 @@ function brandLogo(b) {
   return m ? `<b>${esc(m[1])}</b>${esc(m[2])}` : esc(b);
 }
 
+// ---------- snimky aplikace (scripts/app-shots.py -> assets/img/app/<klic>-<jazyk>[-800].webp) ----------
+// {key, path, alt, cap?} -> okno s listou, <picture> se srcset, odkaz na plnou velikost (lightbox).
+// Cesta obsahuje {{meta.lang}} - doplni ji dalsi pruchod fillVars; rozmery se ctou z hlavicky WebP.
+const APP_IMG = path.join(ROOT, "assets", "img", "app");
+function webpSize(file) {
+  const b = fs.readFileSync(file);
+  const t = b.toString("ascii", 12, 16);
+  if (b.toString("ascii", 0, 4) !== "RIFF" || b.toString("ascii", 8, 12) !== "WEBP") return null;
+  if (t === "VP8X") return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)];
+  if (t === "VP8L") { const n = b.readUInt32LE(21); return [1 + (n & 0x3fff), 1 + ((n >>> 14) & 0x3fff)]; }
+  if (t === "VP8 ") return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];
+  return null;
+}
+function shotHtml(v, sizes) {
+  if (!v || typeof v !== "object" || !v.key) return undefined;
+  const dims = {};
+  for (const [k, suf] of [["big", ""], ["small", "-800"]]) {
+    const f = path.join(APP_IMG, `${v.key}-cs${suf}.webp`);
+    dims[k] = fs.existsSync(f) ? webpSize(f) : null;
+    if (!dims[k]) { warn(`snimek aplikace chybi nebo neni WebP: assets/img/app/${v.key}-cs${suf}.webp (python scripts/app-shots.py)`); return ""; }
+  }
+  const u = (suf) => `/assets/img/app/${v.key}-{{meta.lang}}${suf}.webp`;
+  const [W] = dims.big, [w, h] = dims.small;
+  return `<figure class="win shot-win">` +
+    `<div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">${esc(v.path || "")}</span></div>` +
+    `<a class="shot" href="${u("")}" data-lightbox>` +
+    `<picture><source type="image/webp" srcset="${u("-800")} ${w}w, ${u("")} ${W}w" sizes="${sizes}">` +
+    `<img src="${u("-800")}" alt="${esc(v.alt || "")}" width="${w}" height="${h}" loading="lazy" decoding="async"></picture></a>` +
+    (v.cap ? `<figcaption>${v.cap}</figcaption>` : "") +
+    `</figure>`;
+}
+
 const FILTERS = {
+  // snimek v polovine sirky (Funkce, Ukazka) / pres celou sirku obsahu (prohlidka na uvodu)
+  shot: (v) => shotHtml(v, "(min-width: 1100px) 560px, (min-width: 900px) 50vw, 100vw"),
+  shotwide: (v) => shotHtml(v, "(min-width: 1200px) 1100px, 100vw"),
   li: (v) => (Array.isArray(v) ? v.map((x) => `<li>${x}</li>`).join("") : undefined),
   note: (v) => (v ? `<p class="note">${v}</p>` : ""),
   // odstavce; polozky zacinajici "- " se slozi do seznamu
@@ -79,7 +114,7 @@ const FILTERS = {
     return out;
   },
 };
-const OPTIONAL = new Set(["note"]);
+const OPTIONAL = new Set(["note", "shot"]);
 
 // Hodnota s filtrem; undefined = chybi (varovani)
 function value(src, expr, where) {
@@ -196,6 +231,9 @@ function render(tpl, c, lang, key, out) {
   });
 
   html = expandEach(html, ctx, where);
+  // nepovinne vlozene casti az po {{#each}}: {{>? spot-{{.id}}}} -> templates/_spot-<id>.html, jinak nic
+  html = html.replace(/\{\{>\? ([a-z0-9-]+)\}\}/g, (m, n) =>
+    templates[`_${n}`] === undefined ? "" : `<div class="feature-spot">${templates[`_${n}`]}</div>`);
 
   const hreflang =
     LANGS.map((l) => `<link rel="alternate" hreflang="${l}" href="${SITE_URL}${url(l, out)}">`).join("\n") +

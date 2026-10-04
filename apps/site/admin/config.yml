@@ -125,6 +125,14 @@ collections:
                 label: "legal_toc"
                 i18n: true
                 widget: string
+              - name: "lb_close"
+                label: "lb_close"
+                i18n: true
+                widget: string
+              - name: "lb_label"
+                label: "lb_label"
+                i18n: true
+                widget: string
           - name: "nav"
             label: "Menu"
             i18n: true
@@ -271,6 +279,44 @@ collections:
                     label: "t"
                     i18n: true
                     widget: string
+              - name: "live"
+                label: "live"
+                i18n: true
+                widget: object
+                collapsed: true
+                fields:
+                  - name: "eyebrow"
+                    label: "eyebrow"
+                    i18n: true
+                    widget: string
+                  - name: "title"
+                    label: "title"
+                    i18n: true
+                    widget: string
+                  - name: "lead"
+                    label: "lead"
+                    i18n: true
+                    widget: text
+                  - name: "points"
+                    label: "points"
+                    i18n: true
+                    widget: list
+                  - name: "note"
+                    label: "note"
+                    i18n: true
+                    widget: string
+                  - name: "path"
+                    label: "path"
+                    i18n: true
+                    widget: string
+                  - name: "caption"
+                    label: "caption"
+                    i18n: true
+                    widget: string
+                  - name: "video_label"
+                    label: "video_label"
+                    i18n: true
+                    widget: text
               - name: "flow_eyebrow"
                 label: "flow_eyebrow"
                 i18n: true
@@ -279,6 +325,10 @@ collections:
                 label: "flow_title"
                 i18n: true
                 widget: string
+              - name: "flow_lead"
+                label: "flow_lead"
+                i18n: true
+                widget: text
               - name: "flow"
                 label: "flow"
                 i18n: true
@@ -292,6 +342,57 @@ collections:
                     label: "desc"
                     i18n: true
                     widget: string
+              - name: "tour"
+                label: "tour"
+                i18n: true
+                widget: object
+                collapsed: true
+                fields:
+                  - name: "eyebrow"
+                    label: "eyebrow"
+                    i18n: true
+                    widget: string
+                  - name: "title"
+                    label: "title"
+                    i18n: true
+                    widget: string
+                  - name: "lead"
+                    label: "lead"
+                    i18n: true
+                    widget: text
+                  - name: "tabs_label"
+                    label: "tabs_label"
+                    i18n: true
+                    widget: string
+                  - name: "items"
+                    label: "items"
+                    i18n: true
+                    widget: list
+                    fields:
+                      - name: "key"
+                        label: "key"
+                        i18n: true
+                        widget: string
+                      - name: "tab"
+                        label: "tab"
+                        i18n: true
+                        widget: string
+                      - name: "path"
+                        label: "path"
+                        i18n: true
+                        widget: string
+                      - name: "title"
+                        label: "title"
+                        i18n: true
+                        widget: string
+                      - name: "desc"
+                        label: "desc"
+                        i18n: true
+                        widget: text
+                      - name: "alt"
+                        label: "alt"
+                        i18n: true
+                        widget: text
               - name: "show_eyebrow"
                 label: "show_eyebrow"
                 i18n: true
@@ -382,6 +483,28 @@ collections:
                     label: "a"
                     i18n: true
                     widget: text
+              - name: "reference"
+                label: "reference"
+                i18n: true
+                widget: object
+                collapsed: true
+                fields:
+                  - name: "eyebrow"
+                    label: "eyebrow"
+                    i18n: true
+                    widget: string
+                  - name: "quote"
+                    label: "quote"
+                    i18n: true
+                    widget: string
+                  - name: "name"
+                    label: "name"
+                    i18n: true
+                    widget: string
+                  - name: "role"
+                    label: "role"
+                    i18n: true
+                    widget: string
               - name: "end_title"
                 label: "end_title"
                 i18n: true
@@ -445,6 +568,25 @@ collections:
                     label: "points"
                     i18n: true
                     widget: list
+                  - name: "shot"
+                    label: "shot"
+                    i18n: true
+                    widget: object
+                    collapsed: true
+                    fields:
+                      - name: "key"
+                        label: "key"
+                        i18n: true
+                        widget: string
+                      - name: "path"
+                        label: "path"
+                        i18n: true
+                        widget: string
+                      - name: "alt"
+                        label: "alt"
+                        i18n: true
+                        widget: string
+                    required: false
                   - name: "note"
                     label: "note"
                     i18n: true
@@ -760,6 +902,35 @@ collections:
                 fields:
                   - name: "name"
                     label: "name"
+                    i18n: true
+                    widget: string
+              - name: "app_title"
+                label: "app_title"
+                i18n: true
+                widget: string
+              - name: "app_lead"
+                label: "app_lead"
+                i18n: true
+                widget: string
+              - name: "app_shots"
+                label: "app_shots"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "key"
+                    label: "key"
+                    i18n: true
+                    widget: string
+                  - name: "path"
+                    label: "path"
+                    i18n: true
+                    widget: string
+                  - name: "alt"
+                    label: "alt"
+                    i18n: true
+                    widget: text
+                  - name: "cap"
+                    label: "cap"
                     i18n: true
                     widget: string
           - name: "stazeni"

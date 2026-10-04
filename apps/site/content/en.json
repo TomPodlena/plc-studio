@@ -23,7 +23,9 @@
     "legal_operator": "Operator",
     "legal_id": "Company ID",
     "legal_contact": "Contact",
-    "legal_toc": "Contents"
+    "legal_toc": "Contents",
+    "lb_close": "Close",
+    "lb_label": "Enlarged app screenshot"
   },
   "nav": {
     "home": "Home",
@@ -103,8 +105,23 @@
         "t": "I/O free forever"
       }
     ],
+    "live": {
+      "eyebrow": "Live simulation",
+      "title": "The machine runs before it exists",
+      "lead": "The simulator executes the same logic that {{site.brand}} generates for the PLC, scan by scan. The system diagram shows wiring, drives and sequence steps in real time.",
+      "points": [
+        "AUTO mode, cycle start, emergency stop and fault acknowledgement as on the machine.",
+        "Manual commands, forced inputs and faults: jammed movement, lost feedback, analog value out of range.",
+        "The same project is then checked by the state matrix and the simulation verification report."
+      ],
+      "note": "The simulation verifies the design, not the program compiled in your IDE.",
+      "path": "LL-03 / 7 · Program › Live simulation",
+      "caption": "Recorded in the app: line LL-03, one complete cycle in AUTO mode, 2× speed.",
+      "video_label": "Animation of the live simulation of line LL-03 in {{site.brand}}: sensors, PLC modules, motors and cylinders during the cycle"
+    },
     "flow_eyebrow": "How it works",
     "flow_title": "From machine description to handover in days, not weeks",
+    "flow_lead": "One project from the machine description to the program, drawings and documentation. Each step builds on the previous one, nothing is retyped between tools.",
     "flow": [
       {
         "name": "Describe the machine",
@@ -127,6 +144,62 @@
         "desc": "Files for your development environment, documentation for the customer and a commissioning plan for the machine."
       }
     ],
+    "tour": {
+      "eyebrow": "Real screenshots",
+      "title": "Take a look at the app",
+      "lead": "The {{site.brand}} desktop app with the LL-03 sample line, the same project as the sample documentation. The screenshots come straight from the app, nothing is retouched. Click a screenshot to enlarge it.",
+      "tabs_label": "App steps",
+      "items": [
+        {
+          "key": "schema",
+          "tab": "Diagrams",
+          "path": "LL-03 / 6 · Diagrams",
+          "title": "Clickable block diagram",
+          "desc": "Signal sources, PLC modules and actuators. Click a device to see its inputs and outputs with addresses and terminals, and the program steps that use it.",
+          "alt": "Diagrams step in {{site.brand}}: block diagram of the LL-03 line with press cylinder Y1 highlighted and a panel with its signals, addresses, terminals and program steps"
+        },
+        {
+          "key": "ziva",
+          "tab": "Live simulation",
+          "path": "LL-03 / 7 · Program › Live simulation",
+          "title": "Live machine simulation",
+          "desc": "System diagram with wiring and animated drives. AUTO mode, cycle start, emergency stop and fault acknowledgement as on the machine, plus manual commands and forced inputs.",
+          "alt": "Live simulation: LL-03 line in AUTO mode at step 10 of 18, active wires and outputs highlighted, state of press cylinder Y1 and the event log on the right"
+        },
+        {
+          "key": "bezpecnost",
+          "tab": "Safety",
+          "path": "LL-03 / 11 · Safety",
+          "title": "Safety functions and PL",
+          "desc": "Functions derived from the machine hazards: required performance level PLr, achieved PL, design and the approval state of every function.",
+          "alt": "Safety step: table of ten safety functions with PLr, achieved PL and approval state, description of the emergency stop function and its approval on the right"
+        },
+        {
+          "key": "schvaleni",
+          "tab": "Approval",
+          "path": "LL-03 / 12 · Approval",
+          "title": "Approval by the responsible person",
+          "desc": "Every item is approved with a name and date. If the content changes after approval, it goes back for approval. Shown here: the sequence after a longer watchdog time.",
+          "alt": "Approval step: 40 items approved, 3 changed after approval, 30 pending; the selected automatic sequence is changed after approval, with name and date of the original approval"
+        },
+        {
+          "key": "kusovnik",
+          "tab": "Bill of materials",
+          "path": "LL-03 / 10 · Bill of materials",
+          "title": "Bill of materials with catalogue",
+          "desc": "PLC, modules and the parts of every device with IEC 81346 designations, manufacturer, type, order code and supplier. Export to CSV.",
+          "alt": "Bill of materials step: 66 items with designation, manufacturer, type, order code and supplier, geared motor -M1 selected with a type choice from the catalogue"
+        },
+        {
+          "key": "generovat",
+          "tab": "Code",
+          "path": "LL-03 / 8 · Generate",
+          "title": "Program for the selected platforms",
+          "desc": "A complete program with state machines, watchdog times and operating modes for every selected platform, plus the import procedure for the IDE.",
+          "alt": "Generate step: source code of the main block Gen_Main.scl for Siemens SIMATIC, with tabs for other platforms and files above it"
+        }
+      ]
+    },
     "show_eyebrow": "Real output",
     "show_title": "Drawings from the sample project",
     "show_lead": "Generated directly by the application for the LL-03 press and marking line, the same as in the sample documentation.",
@@ -200,6 +273,12 @@
         "a": "Yes. Only the AI features need the internet. The licence is a signed file that the application verifies offline."
       }
     ],
+    "reference": {
+      "eyebrow": "In practice",
+      "quote": "",
+      "name": "",
+      "role": ""
+    },
     "end_title": "Try it on a machine you know",
     "end_body": "Take a smaller machine you know by heart. In an afternoon you will see whether the outputs suit you.",
     "end_cta": "Download free"
@@ -220,7 +299,12 @@
           "Describe the machine in plain language. The designer builds the device list from it and asks about what is missing.",
           "Standard blocks: motor, valve, analog input and output, sensors, indicator lights.",
           "Emergency stop, interlock inputs (guards, light curtains, air pressure) and the required cycle time."
-        ]
+        ],
+        "shot": {
+          "key": "navrh",
+          "path": "LL-03 / 2 · AI design",
+          "alt": "AI design step: the LL-03 line described in plain language, the designer's answer with 29 devices and an 18-step sequence, and the table of the proposed devices"
+        }
       },
       {
         "id": "io",
@@ -231,7 +315,12 @@
           "Tags checked for portability (ASCII where the platform requires it).",
           "NC and NO contacts, limits of analog measurements, setpoints.",
           "Output roles: running, fault, ready, stopped, lock, AUTO."
-        ]
+        ],
+        "shot": {
+          "key": "zarizeni",
+          "path": "LL-03 / 4 · Devices",
+          "alt": "Devices step: table of the line's devices with class, description and options, press cylinder Y1 with addresses, terminals and program steps on the right"
+        }
       },
       {
         "id": "schemata",
@@ -242,7 +331,12 @@
           "Designation to IEC 81346, wire numbers, NC/NO to IEC 60617, frame and title block.",
           "Terminal plan, safety circuit schematic, function and timing diagram of the cycle.",
           "SVG preview and DXF export for AutoCAD and other ECAD tools."
-        ]
+        ],
+        "shot": {
+          "key": "diagram",
+          "path": "LL-03 / 6 · Diagrams › Cycle function chart",
+          "alt": "Cycle function chart: sequence steps with transition conditions, watchdog times and times from the nominal simulated cycle, the selected step and its device on the right"
+        }
       },
       {
         "id": "program",
@@ -253,7 +347,12 @@
           "AUTO and manual mode, cycle start, acknowledgement, manual commands, machine fault with the step where it occurred.",
           "8 platforms; single-file import where the IDE supports it (PLCopen XML, L5X).",
           "Import instructions and the shortest test for each platform."
-        ]
+        ],
+        "shot": {
+          "key": "generovat",
+          "path": "LL-03 / 8 · Generate",
+          "alt": "Generate step: source code of the main block Gen_Main.scl for Siemens SIMATIC, with tabs for other platforms and files above it"
+        }
       },
       {
         "id": "simulace",
@@ -265,7 +364,12 @@
           "Concept check: inputs the program does not read, outputs it does not control, measurements without limits.",
           "Timing: cycle time and watchdog margin. The result goes into a report."
         ],
-        "note": "Simulation verifies the design, not the program compiled in your IDE. It does not replace a test in the platform simulator or the FAT."
+        "note": "Simulation verifies the design, not the program compiled in your IDE. It does not replace a test in the platform simulator or the FAT.",
+        "shot": {
+          "key": "ziva",
+          "path": "LL-03 / 7 · Program › Live simulation",
+          "alt": "Live simulation: LL-03 line in AUTO mode at step 10 of 18, active wires and outputs highlighted, state of press cylinder Y1 and the event log on the right"
+        }
       },
       {
         "id": "bezpecnost",
@@ -278,7 +382,12 @@
           "Safety program for Siemens F, Rockwell GuardLogix and PLCopen Safety, configuration for Pilz, SICK and Schmersal. Generated only after the functions are approved.",
           "Safety requirements specification (SRS) and a validation plan with checklists."
         ],
-        "note": "Safety logic belongs in a safety PLC or safety relay. In the standard program the emergency stop remains a status signal only. {{site.brand}} plans and records the validation on the machine; a person carries it out."
+        "note": "Safety logic belongs in a safety PLC or safety relay. In the standard program the emergency stop remains a status signal only. {{site.brand}} plans and records the validation on the machine; a person carries it out.",
+        "shot": {
+          "key": "bezpecnost",
+          "path": "LL-03 / 11 · Safety",
+          "alt": "Safety step: table of ten safety functions with PLr, achieved PL and approval state, description of the emergency stop function on the right"
+        }
       },
       {
         "id": "ozivovani",
@@ -288,7 +397,12 @@
           "Plan by phase: control cabinet, loop check of every signal, drives, analogs, emergency stop, sequence, safety functions, handover.",
           "Record for printing or for entering results directly in the application.",
           "Tuning proposals (limits, watchdog times, unused signals). Each one goes back for approval."
-        ]
+        ],
+        "shot": {
+          "key": "ozivovani",
+          "path": "LL-03 / 13 · Commissioning",
+          "alt": "Commissioning step: plan by phases, control cabinet done and part of the I/O loop test marked OK, description of the next step and a field for the measured value on the right"
+        }
       },
       {
         "id": "dokumentace",
@@ -299,7 +413,12 @@
           "Simulation report, bill of materials, approval record, commissioning plan and record.",
           "Safety functions (SRS) and validation plan.",
           "Markdown and CSV that open in Word and Excel."
-        ]
+        ],
+        "shot": {
+          "key": "dokumentace",
+          "path": "LL-03 / 9 · Documentation",
+          "alt": "Documentation step: list of project files (FDS, I/O list, terminals, alarms, FAT, drawings) and a preview of the functional specification"
+        }
       },
       {
         "id": "kusovnik",
@@ -309,7 +428,12 @@
           "Designation to IEC 81346: PLC and platform modules, parts of every device, control cabinet.",
           "Typical brands, types and suppliers from market research, with sources.",
           "CSV export for Excel and enquiries."
-        ]
+        ],
+        "shot": {
+          "key": "kusovnik",
+          "path": "LL-03 / 10 · Bill of materials",
+          "alt": "Bill of materials step: items with designation, manufacturer, type, order code and supplier, geared motor -M1 selected"
+        }
       },
       {
         "id": "import",
@@ -319,7 +443,12 @@
           "PLC exports and programs read back: TIA Portal (SimaticML, tag tables), Studio 5000 (L5X, CSV), ST sources and GVL, label tables.",
           "Derives devices, I/O, emergency stop, interlocks, sequence and limits from the program. Shows the source and certainty of every item.",
           "AI reads schematics in PDF and photos of nameplates or the cabinet. Exactly parsed data takes precedence, conflicts are reported."
-        ]
+        ],
+        "shot": {
+          "key": "import",
+          "path": "Import › Review and accept",
+          "alt": "Import wizard, review step: devices recognised from a public PLCopen XML project with colour-coded confidence (sure, guess) and the source cited as file:line"
+        }
       },
       {
         "id": "jazyky",
@@ -339,7 +468,12 @@
           "The web version runs in the browser without installation.",
           "The Windows desktop application adds clickable schematics, a live simulation with a system schematic and a scenario player.",
           "Desktop as a portable ZIP: unzip and run, no administrator rights."
-        ]
+        ],
+        "shot": {
+          "key": "web-schema",
+          "path": "Browser / 6 · Diagrams",
+          "alt": "The {{site.brand}} web version in a browser: Diagrams step with the block diagram of the LL-03 line"
+        }
       }
     ],
     "ai_title": "Where AI helps",
@@ -574,6 +708,22 @@
       },
       {
         "name": "Safety functions (SRS)"
+      }
+    ],
+    "app_title": "The same project in the app",
+    "app_lead": "The LL-03 line from the sample documentation, this time directly in the {{site.brand}} app.",
+    "app_shots": [
+      {
+        "key": "ziva",
+        "path": "LL-03 / 7 · Program › Live simulation",
+        "alt": "Live simulation: LL-03 line in AUTO mode at step 10 of 18, active wires and outputs highlighted, state of press cylinder Y1 and the event log on the right",
+        "cap": "Live simulation: the line in AUTO mode mid-cycle, with active wires and outputs highlighted."
+      },
+      {
+        "key": "schvaleni",
+        "path": "LL-03 / 12 · Approval",
+        "alt": "Approval step: 40 items approved, 3 changed after approval, 30 pending; the selected automatic sequence is changed after approval",
+        "cap": "Approval: what is approved, what changed after approval and what is still pending."
       }
     ]
   },

@@ -25,6 +25,34 @@ node test/api.test.js          # testy API proti SQLite (Node 22.5+)
 node scripts/cms-config.js     # po změně struktury textů přegenerovat admin/config.yml
 ```
 
+### Snímky aplikace, animace a ilustrace
+
+Obrázky aplikace na webu jsou **skutečné snímky** desktopové aplikace PLCdesk (a jeden snímek
+webové verze), žádné fotobanky ani kreslené maketky. Přegenerují se po změně aplikace:
+
+```bash
+# z apps/site; Python 3.11 s Pillow, Node 22+, Edge, ffmpeg (jen pro animaci)
+python scripts/app-shots.py                    # vše: cs, en, de (≈ 15 min, okna se otevírají a zavírají sama)
+python scripts/app-shots.py --lang en --only ziva,schvaleni
+python scripts/app-shots.py --only ziva-anim   # jen animace živé simulace
+python scripts/app-shots.py --encode-only      # jen znovu převést uložené PNG (ořez, kvalita)
+node scripts/iso.js                            # izometrické ilustrace -> templates/_iso-line.html, _spot-*.html
+```
+
+- Skript spustí pro každý jazyk **vlastní** proces aplikace (dočasný `PLCSTUDIO_HOME`, jazyk a okno
+  1440×900 v `settings.json`), otevře ukázkovou linku LL-03, část položek schválí smyšlenou osobou
+  (stejně jako ukázkové PDF), projde kroky a snímá **jen okno aplikace** přes PrintWindow
+  (nevadí zamčená stanice ani jiná okna). Zavírá jen okna, která sám otevřel. Pracovní složka
+  (PNG, domovská složka aplikace): `--work`, výchozí `%TEMP%/plcdesk-app-shots`.
+- Výstup: `assets/img/app/<krok>-<jazyk>.webp` (1440 px) a `…-800.webp` (srcset), kvalita 80,
+  každý pod 150 kB. Snímky, které skript už nedělá, z `assets/img/app/` smaže.
+- Animace: jeden celý cyklus živé simulace (čas se krokuje po 0,1 s, 20 snímků/s = 2× rychleji),
+  ořez na grafické schéma systému → `ziva-anim-<jazyk>.mp4` (H.264, ~0,3 MB) a plakát `.webp`.
+  Bez JS nebo při `prefers-reduced-motion` zůstane plakát s ovládáním.
+- Snímek importu používá veřejný projekt z `packages/core/test-data/real/` (licence BSD-2).
+- V šablonách: `{{.shot|shot}}` / `{{.|shotwide}}` (objekt `{key, path, alt, cap?}` v obsahu)
+  vloží okno se snímkem, `<picture>`, rozměry čte build z WebP a odkaz otevře lightbox.
+
 Texty jsou jen v `content/{cs,en,de}.json` (čeština je zdroj pravdy, struktura shodná).
 Název značky, adresa webu a kontakt jsou jen v `content/site.json`; v textech se píší jako `{{site.brand}}`.
 

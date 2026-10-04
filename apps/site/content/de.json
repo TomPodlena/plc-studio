@@ -23,7 +23,9 @@
     "legal_operator": "Betreiber",
     "legal_id": "Firmennummer",
     "legal_contact": "Kontakt",
-    "legal_toc": "Inhalt"
+    "legal_toc": "Inhalt",
+    "lb_close": "Schließen",
+    "lb_label": "Vergrößerter Screenshot der Anwendung"
   },
   "nav": {
     "home": "Start",
@@ -103,8 +105,23 @@
         "t": "E/A dauerhaft kostenlos"
       }
     ],
+    "live": {
+      "eyebrow": "Live-Simulation",
+      "title": "Die Maschine läuft, bevor es sie gibt",
+      "lead": "Der Simulator führt dieselbe Logik aus, die {{site.brand}} für die SPS erzeugt, Zyklus für Zyklus. Das Systemschema zeigt Leitungen, Antriebe und Schritte der Schrittkette in Echtzeit.",
+      "points": [
+        "AUTO-Betrieb, Zyklusstart, Not-Halt und Quittierung wie an der Maschine.",
+        "Handbefehle, erzwungene Eingänge und Störungen: blockierte Bewegung, fehlende Rückmeldung, Analogwert außerhalb der Grenzen.",
+        "Dasselbe Projekt prüfen danach die Zustandsmatrix und das Protokoll der Simulationsprüfung."
+      ],
+      "note": "Die Simulation prüft den Entwurf, nicht das in Ihrer IDE übersetzte Programm.",
+      "path": "LL-03 / 7 · Programm › Live-Simulation",
+      "caption": "Aufzeichnung aus der Anwendung: Linie LL-03, ein vollständiger Zyklus im AUTO-Betrieb, 2× beschleunigt.",
+      "video_label": "Animation der Live-Simulation der Linie LL-03 in {{site.brand}}: Sensoren, SPS-Module, Motoren und Zylinder während des Zyklus"
+    },
     "flow_eyebrow": "So funktioniert es",
     "flow_title": "Von der Maschinenbeschreibung zur Übergabe in Tagen statt Wochen",
+    "flow_lead": "Ein Projekt von der Maschinenbeschreibung bis zu Programm, Zeichnungen und Dokumentation. Jeder Schritt baut auf dem vorigen auf, nichts wird zwischen Werkzeugen abgetippt.",
     "flow": [
       {
         "name": "Maschine beschreiben",
@@ -127,6 +144,62 @@
         "desc": "Dateien für Ihre Entwicklungsumgebung, Dokumentation für den Kunden und ein Inbetriebnahmeplan für die Maschine."
       }
     ],
+    "tour": {
+      "eyebrow": "Echte Screenshots",
+      "title": "Die Anwendung im Überblick",
+      "lead": "Die Desktop-Anwendung {{site.brand}} mit der Beispiellinie LL-03, demselben Projekt wie in der Beispieldokumentation. Die Screenshots stammen direkt aus der Anwendung, nichts ist nachbearbeitet. Zum Vergrößern auf einen Screenshot klicken.",
+      "tabs_label": "Schritte der Anwendung",
+      "items": [
+        {
+          "key": "schema",
+          "tab": "Schema",
+          "path": "LL-03 / 6 · Schema",
+          "title": "Klickbares Blockschaltbild",
+          "desc": "Signalquellen, SPS-Module und Aktoren. Ein Klick auf ein Gerät zeigt seine Ein- und Ausgänge mit Adressen und Klemmen sowie die Programmschritte, in denen es vorkommt.",
+          "alt": "Schritt Schema in {{site.brand}}: Blockschaltbild der Linie LL-03 mit hervorgehobenem Presszylinder Y1 und einem Bereich mit seinen Signalen, Adressen, Klemmen und Programmschritten"
+        },
+        {
+          "key": "ziva",
+          "tab": "Live-Simulation",
+          "path": "LL-03 / 7 · Programm › Live-Simulation",
+          "title": "Live-Simulation der Maschine",
+          "desc": "Systemschema mit Leitungen und animierten Antrieben. AUTO-Betrieb, Zyklusstart, Not-Halt und Quittierung wie an der Maschine, dazu Handbefehle und erzwungene Eingänge.",
+          "alt": "Live-Simulation: Linie LL-03 im AUTO-Betrieb in Schritt 10 von 18, aktive Leitungen und Ausgänge hervorgehoben, rechts der Zustand des Presszylinders Y1 und die Ereignisliste"
+        },
+        {
+          "key": "bezpecnost",
+          "tab": "Sicherheit",
+          "path": "LL-03 / 11 · Sicherheit",
+          "title": "Sicherheitsfunktionen und PL",
+          "desc": "Funktionen aus den Gefährdungen der Maschine: erforderlicher Performance Level PLr, erreichter PL, Entwurf und Freigabestand jeder Funktion.",
+          "alt": "Schritt Sicherheit: Tabelle mit zehn Sicherheitsfunktionen mit PLr, erreichtem PL und Freigabestand, rechts die Beschreibung der Not-Halt-Funktion und ihre Freigabe"
+        },
+        {
+          "key": "schvaleni",
+          "tab": "Freigabe",
+          "path": "LL-03 / 12 · Freigabe",
+          "title": "Freigabe durch die verantwortliche Person",
+          "desc": "Jede Position wird mit Name und Datum freigegeben. Ändert sich der Inhalt nach der Freigabe, ist sie erneut freizugeben. Im Bild: die Schrittkette nach einer längeren Überwachungszeit.",
+          "alt": "Schritt Freigabe: 40 Positionen freigegeben, 3 nach der Freigabe geändert, 30 offen; die ausgewählte Schrittkette ist nach der Freigabe geändert, mit Name und Datum der ursprünglichen Freigabe"
+        },
+        {
+          "key": "kusovnik",
+          "tab": "Stückliste",
+          "path": "LL-03 / 10 · Stückliste",
+          "title": "Stückliste mit Katalog",
+          "desc": "SPS, Module und die Teile jedes Geräts mit Kennzeichnung nach IEC 81346, Hersteller, Typ, Bestellcode und Lieferant. Export als CSV.",
+          "alt": "Schritt Stückliste: 66 Positionen mit Kennzeichnung, Hersteller, Typ, Bestellcode und Lieferant, ausgewählt der Getriebemotor -M1 mit Typauswahl aus dem Katalog"
+        },
+        {
+          "key": "generovat",
+          "tab": "Code",
+          "path": "LL-03 / 8 · Generieren",
+          "title": "Programm für die gewählten Plattformen",
+          "desc": "Ein vollständiges Programm mit Zustandsautomaten, Überwachungszeiten und Betriebsarten für jede gewählte Plattform, dazu das Importvorgehen für die IDE.",
+          "alt": "Schritt Generieren: Quellcode des Hauptbausteins Gen_Main.scl für Siemens SIMATIC, darüber Registerkarten weiterer Plattformen und Dateien"
+        }
+      ]
+    },
     "show_eyebrow": "Echte Ergebnisse",
     "show_title": "Zeichnungen aus dem Beispielprojekt",
     "show_lead": "Direkt von der Anwendung für die Press- und Markierlinie LL-03 erzeugt, genauso wie in der Beispieldokumentation.",
@@ -200,6 +273,12 @@
         "a": "Ja. Ohne Internet funktionieren nur die KI-Funktionen nicht. Die Lizenz ist eine signierte Datei, die die Anwendung offline prüft."
       }
     ],
+    "reference": {
+      "eyebrow": "Aus der Praxis",
+      "quote": "",
+      "name": "",
+      "role": ""
+    },
     "end_title": "Probieren Sie es an einer Maschine, die Sie kennen",
     "end_body": "Nehmen Sie eine kleinere Maschine, die Sie gut kennen. An einem Nachmittag sehen Sie, ob die Ergebnisse passen.",
     "end_cta": "Kostenlos laden"
@@ -220,7 +299,12 @@
           "Maschinenbeschreibung in normaler Sprache. Der Entwurfsassistent stellt daraus die Geräte zusammen und fragt nach, was fehlt.",
           "Standardbausteine: Motor, Ventil, Analogeingang und -ausgang, Sensoren, Leuchtmelder.",
           "Not-Halt, Verriegelungseingänge (Schutztüren, Lichtvorhänge, Luftdruck) und die geforderte Taktzeit."
-        ]
+        ],
+        "shot": {
+          "key": "navrh",
+          "path": "LL-03 / 2 · KI-Entwurf",
+          "alt": "Schritt KI-Entwurf: Beschreibung der Linie LL-03 in normaler Sprache, Antwort des Entwurfsassistenten mit 29 Geräten und einer Schrittkette mit 18 Schritten sowie die Tabelle der vorgeschlagenen Geräte"
+        }
       },
       {
         "id": "io",
@@ -231,7 +315,12 @@
           "Variablennamen auf Portabilität geprüft (ASCII, wo die Plattform es verlangt).",
           "Öffner und Schließer, Grenzwerte analoger Messungen, Sollwerte.",
           "Rollen von Ausgängen: Betrieb, Störung, bereit, gestoppt, Zuhaltung, AUTO."
-        ]
+        ],
+        "shot": {
+          "key": "zarizeni",
+          "path": "LL-03 / 4 · Geräte",
+          "alt": "Schritt Geräte: Tabelle der Geräte der Linie mit Klasse, Beschreibung und Optionen, rechts der Presszylinder Y1 mit Adressen, Klemmen und Programmschritten"
+        }
       },
       {
         "id": "schemata",
@@ -242,7 +331,12 @@
           "Kennzeichnung nach IEC 81346, Aderkennzeichnung, Öffner/Schließer nach IEC 60617, Rahmen und Schriftfeld.",
           "Klemmenplan, Schaltplan des Sicherheitskreises, Funktions- und Zeitdiagramm des Zyklus.",
           "SVG-Vorschau und DXF-Export für AutoCAD und andere ECAD-Systeme."
-        ]
+        ],
+        "shot": {
+          "key": "diagram",
+          "path": "LL-03 / 6 · Schema › Funktionsdiagramm des Zyklus",
+          "alt": "Funktionsdiagramm des Zyklus: Schritte der Schrittkette mit Weiterschaltbedingungen, Überwachungszeiten und Zeiten aus dem simulierten Normalzyklus, rechts der gewählte Schritt und sein Gerät"
+        }
       },
       {
         "id": "program",
@@ -253,7 +347,12 @@
           "Betriebsart AUTO und Hand, Zyklusstart, Quittierung, Handbefehle, Maschinenstörung mit dem Schritt, in dem sie auftrat.",
           "8 Plattformen; Import in einer Datei, wo die IDE es kann (PLCopen XML, L5X).",
           "Zu jeder Plattform die Importanleitung und der kürzeste Test."
-        ]
+        ],
+        "shot": {
+          "key": "generovat",
+          "path": "LL-03 / 8 · Generieren",
+          "alt": "Schritt Generieren: Quellcode des Hauptbausteins Gen_Main.scl für Siemens SIMATIC, darüber Registerkarten weiterer Plattformen und Dateien"
+        }
       },
       {
         "id": "simulace",
@@ -265,7 +364,12 @@
           "Konzeptprüfung: Eingänge, die das Programm nicht liest, Ausgänge, die es nicht ansteuert, Messungen ohne Grenzwerte.",
           "Zeitverhalten: Taktzeit und Reserve der Überwachungszeiten. Das Ergebnis steht im Protokoll."
         ],
-        "note": "Die Simulation prüft den Entwurf, nicht das in Ihrer IDE übersetzte Programm. Den Test im Simulator der Plattform und die FAT ersetzt sie nicht."
+        "note": "Die Simulation prüft den Entwurf, nicht das in Ihrer IDE übersetzte Programm. Den Test im Simulator der Plattform und die FAT ersetzt sie nicht.",
+        "shot": {
+          "key": "ziva",
+          "path": "LL-03 / 7 · Programm › Live-Simulation",
+          "alt": "Live-Simulation: Linie LL-03 im AUTO-Betrieb in Schritt 10 von 18, aktive Leitungen und Ausgänge hervorgehoben, rechts der Zustand des Presszylinders Y1 und die Ereignisliste"
+        }
       },
       {
         "id": "bezpecnost",
@@ -278,7 +382,12 @@
           "Sicherheitsprogramm für Siemens F, Rockwell GuardLogix und PLCopen Safety, Konfiguration für Pilz, SICK und Schmersal. Entsteht erst nach Freigabe der Funktionen.",
           "Spezifikation der Sicherheitsanforderungen (SRS) und Validierungsplan mit Checklisten."
         ],
-        "note": "Sicherheitslogik gehört in eine Sicherheits-SPS oder ein Sicherheitsrelais. Im Standardprogramm bleibt der Not-Halt nur ein Statussignal. Die Validierung an der Maschine plant und protokolliert {{site.brand}}, durchgeführt wird sie von einem Menschen."
+        "note": "Sicherheitslogik gehört in eine Sicherheits-SPS oder ein Sicherheitsrelais. Im Standardprogramm bleibt der Not-Halt nur ein Statussignal. Die Validierung an der Maschine plant und protokolliert {{site.brand}}, durchgeführt wird sie von einem Menschen.",
+        "shot": {
+          "key": "bezpecnost",
+          "path": "LL-03 / 11 · Sicherheit",
+          "alt": "Schritt Sicherheit: Tabelle mit zehn Sicherheitsfunktionen mit PLr, erreichtem PL und Freigabestand, rechts die Beschreibung der Not-Halt-Funktion"
+        }
       },
       {
         "id": "ozivovani",
@@ -288,7 +397,12 @@
           "Plan nach Phasen: Schaltschrank, Schleifentest jedes Signals, Antriebe, Analogwerte, Not-Halt, Ablauf, Sicherheitsfunktionen, Übergabe.",
           "Protokoll zum Ausdrucken oder zum Eintragen der Ergebnisse direkt in der Anwendung.",
           "Optimierungsvorschläge (Grenzwerte, Überwachungszeiten, ungenutzte Signale). Jeder geht wieder zur Freigabe."
-        ]
+        ],
+        "shot": {
+          "key": "ozivovani",
+          "path": "LL-03 / 13 · Inbetriebnahme",
+          "alt": "Schritt Inbetriebnahme: Plan nach Phasen, Schaltschrank erledigt und ein Teil des E/A-Schleifentests mit Ergebnis OK, rechts die Beschreibung des nächsten Schritts und ein Feld für den Messwert"
+        }
       },
       {
         "id": "dokumentace",
@@ -299,7 +413,12 @@
           "Simulationsprotokoll, Stückliste, Freigabeprotokoll, Inbetriebnahmeplan und -protokoll.",
           "Sicherheitsfunktionen (SRS) und Validierungsplan.",
           "Markdown und CSV, die sich in Word und Excel öffnen lassen."
-        ]
+        ],
+        "shot": {
+          "key": "dokumentace",
+          "path": "LL-03 / 9 · Dokumentation",
+          "alt": "Schritt Dokumentation: Liste der Projektdateien (FDS, E/A-Liste, Klemmen, Alarme, FAT, Zeichnungen) und Vorschau der funktionalen Spezifikation"
+        }
       },
       {
         "id": "kusovnik",
@@ -309,7 +428,12 @@
           "Kennzeichnung nach IEC 81346: SPS und Module der Plattform, Teile jedes Geräts, Schaltschrank.",
           "Typische Marken, Typen und Lieferanten aus einer Marktrecherche, mit Quellen.",
           "CSV-Export für Excel und Anfragen."
-        ]
+        ],
+        "shot": {
+          "key": "kusovnik",
+          "path": "LL-03 / 10 · Stückliste",
+          "alt": "Schritt Stückliste: Positionen mit Kennzeichnung, Hersteller, Typ, Bestellcode und Lieferant, ausgewählt der Getriebemotor -M1"
+        }
       },
       {
         "id": "import",
@@ -319,7 +443,12 @@
           "SPS-Exporte und Programme zurückgelesen: TIA Portal (SimaticML, Variablentabellen), Studio 5000 (L5X, CSV), ST-Quellen und GVL, Variablenlisten.",
           "Leitet aus dem Programm Geräte, E/A, Not-Halt, Verriegelungen, Ablauf und Grenzwerte ab. Zeigt bei jeder Position Quelle und Sicherheit.",
           "Schaltpläne als PDF und Fotos von Typenschildern oder dem Schaltschrank liest eine KI. Exakt Eingelesenes hat Vorrang, Widersprüche werden gemeldet."
-        ]
+        ],
+        "shot": {
+          "key": "import",
+          "path": "Import › Prüfen und übernehmen",
+          "alt": "Import-Assistent, Schritt Prüfen und übernehmen: aus einem öffentlichen PLCopen-XML-Projekt erkannte Geräte mit farbig markierter Sicherheit (sicher, Schätzung) und Quellenangabe Datei:Zeile"
+        }
       },
       {
         "id": "jazyky",
@@ -339,7 +468,12 @@
           "Die Webversion läuft im Browser ohne Installation.",
           "Die Desktop-Anwendung für Windows bietet zusätzlich klickbare Schaltpläne, eine Live-Simulation mit Anlagenschema und einen Szenario-Player.",
           "Desktop als portables ZIP: entpacken und starten, ohne Administratorrechte."
-        ]
+        ],
+        "shot": {
+          "key": "web-schema",
+          "path": "Browser / 6 · Schema",
+          "alt": "Die Webversion von {{site.brand}} im Browser: Schritt Schema mit dem Blockschaltbild der Linie LL-03"
+        }
       }
     ],
     "ai_title": "Wo KI hilft",
@@ -574,6 +708,22 @@
       },
       {
         "name": "Sicherheitsfunktionen (SRS)"
+      }
+    ],
+    "app_title": "Dasselbe Projekt in der Anwendung",
+    "app_lead": "Die Linie LL-03 aus der Beispieldokumentation, diesmal direkt in der Anwendung {{site.brand}}.",
+    "app_shots": [
+      {
+        "key": "ziva",
+        "path": "LL-03 / 7 · Programm › Live-Simulation",
+        "alt": "Live-Simulation: Linie LL-03 im AUTO-Betrieb in Schritt 10 von 18, aktive Leitungen und Ausgänge hervorgehoben, rechts der Zustand des Presszylinders Y1 und die Ereignisliste",
+        "cap": "Live-Simulation: die Linie im AUTO-Betrieb mitten im Zyklus, aktive Leitungen und Ausgänge hervorgehoben."
+      },
+      {
+        "key": "schvaleni",
+        "path": "LL-03 / 12 · Freigabe",
+        "alt": "Schritt Freigabe: 40 Positionen freigegeben, 3 nach der Freigabe geändert, 30 offen; die ausgewählte Schrittkette ist nach der Freigabe geändert",
+        "cap": "Freigabe: was freigegeben ist, was sich nach der Freigabe geändert hat und was noch offen ist."
       }
     ]
   },
