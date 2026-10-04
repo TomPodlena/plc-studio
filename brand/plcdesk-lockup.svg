@@ -1,0 +1,12 @@
+<!-- Vodorovna znacka PLCdesk: symbol + logotyp.
+     Text je ziva sazba Barlow s nahradnim stackem. Pro tisk a pro predani
+     treti strane prevedte text na krivky (Barlow 700 / 400, letter-spacing -0.01em)
+     a ulozte jako plcdesk-lockup-outlined.svg. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" width="260" height="64" role="img" aria-label="PLCdesk">
+  <title>PLCdesk</title>
+  <rect x="7" y="11" width="50" height="42" fill="none" stroke="#111A2E" stroke-width="4"/>
+  <rect x="36" y="36" width="19" height="15" fill="#2457C5"/>
+  <rect x="38" y="40" width="15" height="2" fill="#FFFFFF"/>
+  <rect x="38" y="45" width="15" height="2" fill="#FFFFFF"/>
+  <text x="74" y="42" font-family="Barlow, 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="38" letter-spacing="-0.38" fill="#111A2E"><tspan font-weight="700">PLC</tspan><tspan font-weight="400">desk</tspan></text>
+</svg>
