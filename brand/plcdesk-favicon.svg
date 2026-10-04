@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="PLCdesk">
+  <title>PLCdesk</title>
+  <style>
+    .frame { fill: none; stroke: #111A2E; stroke-width: 6; }
+    .stamp { fill: #2457C5; }
+    @media (prefers-color-scheme: dark) {
+      .frame { stroke: #FFFFFF; }
+      .stamp { fill: #6E9BFF; }
+    }
+  </style>
+  <rect class="frame" x="6" y="11" width="52" height="42"/>
+  <rect class="stamp" x="34" y="34" width="21" height="16"/>
+</svg>
