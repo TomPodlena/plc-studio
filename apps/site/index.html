@@ -10,16 +10,26 @@
 <meta property="og:description" content="Popište stroj. PLCdesk napíše FDS, I/O list, svorkovnici, FAT protokol i návod — plus kostru programu.">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="cs_CZ">
+<link rel="icon" href="plcdesk-favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
+  /* Barevné tokeny značky — viz brand/README.md. Měnit jen tam a sem opisovat. */
   :root {
-    --bg: #ffffff;
-    --surface: #f4f5f7;
-    --line: #d8dbe0;
-    --ink: #16191d;
-    --muted: #5c646e;
-    --accent: #0f5c4a;
-    --accent-ink: #ffffff;
-    --warn: #8a5a00;
+    --ink: #111A2E;
+    --accent: #2457C5;
+    --accent-ink: #FFFFFF;
+    --bg: #F5F6F9;
+    --surface: #FFFFFF;
+    --muted: #5A6881;
+    --line: #D6DCE6;
+    --chip: #E7ECF6;
+    --code-bg: #0B1221;
+    --code-fg: #D4DEF2;
+    /* stavove barvy: mimo znacku, nesou vlastni vyznam */
+    --warn: #B8860B;
+    --err: #C0392B;
     --radius: 6px;
     --maxw: 68rem;
   }
@@ -28,26 +38,36 @@
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #14171a;
-      --surface: #1c2024;
-      --line: #2e343a;
-      --ink: #e8eaed;
-      --muted: #9aa3ad;
-      --accent: #3fae8f;
-      --accent-ink: #0c1512;
-      --warn: #d8a43c;
+      --ink: #DDE3F0;
+      /* v tmavém režimu musí být světlejší akcent — #2457C5 má na tmavém
+         pozadí poměr 2,7 : 1 a propadá */
+      --accent: #6E9BFF;
+      --accent-ink: #0B1221;
+      --bg: #0E1422;
+      --surface: #161E31;
+      --muted: #93A0BA;
+      --line: #2A3550;
+      --chip: #1F2A42;
+      --code-bg: #080D17;
+      --code-fg: #C9D5EC;
+      --warn: #D8A43C;
+      --err: #FF8A7A;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #14171a;
-    --surface: #1c2024;
-    --line: #2e343a;
-    --ink: #e8eaed;
-    --muted: #9aa3ad;
-    --accent: #3fae8f;
-    --accent-ink: #0c1512;
-    --warn: #d8a43c;
+    --ink: #DDE3F0;
+    --accent: #6E9BFF;
+    --accent-ink: #0B1221;
+    --bg: #0E1422;
+    --surface: #161E31;
+    --muted: #93A0BA;
+    --line: #2A3550;
+    --chip: #1F2A42;
+    --code-bg: #080D17;
+    --code-fg: #C9D5EC;
+    --warn: #D8A43C;
+    --err: #FF8A7A;
     color-scheme: dark;
   }
 
@@ -57,16 +77,17 @@
     margin: 0;
     background: var(--bg);
     color: var(--ink);
-    font: 400 17px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 400 17px/1.6 Barlow, "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     overflow-x: hidden;
   }
   .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 16px; }
-  h1, h2, h3 { line-height: 1.2; letter-spacing: -0.015em; margin: 0 0 .6em; }
-  h1 { font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 650; }
-  h2 { font-size: clamp(1.5rem, 4vw, 2.1rem); font-weight: 620; }
-  h3 { font-size: 1.1rem; font-weight: 620; }
+  h1, h2, h3 { line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 .6em; }
+  h1 { font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 700; }
+  h2 { font-size: clamp(1.5rem, 4vw, 2.1rem); font-weight: 600; }
+  h3 { font-size: 1.1rem; font-weight: 600; }
   p { margin: 0 0 1em; }
   a { color: inherit; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
 
   header {
     border-bottom: 1px solid var(--line);
@@ -75,8 +96,16 @@
     backdrop-filter: blur(8px);
   }
   .nav { display: flex; align-items: center; justify-content: space-between; height: 60px; }
-  .logo { font-weight: 680; letter-spacing: -0.02em; font-size: 1.15rem; text-decoration: none; }
-  .logo span { color: var(--accent); }
+  /* logotyp se skládá ze symbolu a HTML textu, ne z lockup.svg — ať je ostrý
+     v každé velikosti (brand/README.md) */
+  .logo { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+  .logo svg { width: 26px; height: 26px; display: block; }
+  .logo .mark-frame { fill: none; stroke: var(--ink); stroke-width: 4; }
+  .logo .mark-stamp { fill: var(--accent); }
+  .logo .mark-line { fill: var(--accent-ink); }
+  .logo .word { font-size: 1.22rem; letter-spacing: -0.01em; }
+  .logo .word b { font-weight: 700; }
+  .logo .word span { font-weight: 400; }
   .nav-links { display: flex; gap: 20px; font-size: .94rem; }
   .nav-links a { color: var(--muted); text-decoration: none; }
   .nav-links a:hover { color: var(--ink); }
@@ -87,11 +116,11 @@
   .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
   .btn {
     display: inline-block; padding: 13px 22px; border-radius: var(--radius);
-    font-weight: 600; font-size: 1rem; text-decoration: none; cursor: pointer;
-    border: 1px solid transparent;
+    font-family: inherit; font-weight: 600; font-size: 1rem;
+    text-decoration: none; cursor: pointer; border: 1px solid transparent;
   }
   .btn-primary { background: var(--accent); color: var(--accent-ink); }
-  .btn-secondary { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--line); }
   .fineprint { font-size: .86rem; color: var(--muted); margin-top: 14px; }
 
   section { padding: clamp(40px, 7vw, 72px) 0; border-top: 1px solid var(--line); }
@@ -99,27 +128,35 @@
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
   .card p { margin: 0; color: var(--muted); font-size: .96rem; }
   .card h3 { margin-bottom: .5em; }
-  .num { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 680; font-size: .9rem; display: block; margin-bottom: 6px; }
+  .num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    color: var(--accent); font-weight: 500; font-size: .85rem;
+    display: block; margin-bottom: 6px;
+  }
 
   ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; max-width: 62ch; }
   ol.steps li { counter-increment: s; position: relative; padding-left: 44px; margin-bottom: 22px; }
   ol.steps li::before {
     content: counter(s); position: absolute; left: 0; top: 1px;
-    width: 28px; height: 28px; border-radius: 50%;
+    width: 28px; height: 28px; border-radius: 3px;
     background: var(--accent); color: var(--accent-ink);
-    display: grid; place-items: center; font-size: .9rem; font-weight: 650;
+    display: grid; place-items: center;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .85rem; font-weight: 500;
   }
   ol.steps strong { display: block; }
   ol.steps span { color: var(--muted); font-size: .96rem; }
 
+  /* výstraha nese vlastní význam — stavové barvy zůstávají mimo značku
+     (brand/README.md) */
   .limits { border-left: 3px solid var(--warn); padding-left: 18px; max-width: 62ch; }
   .limits li { margin-bottom: 10px; color: var(--muted); }
   .limits strong { color: var(--ink); }
 
   .pricing { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); align-items: start; }
-  .plan { border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  .plan { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
   .plan.featured { border-color: var(--accent); border-width: 2px; }
-  .price { font-size: 1.8rem; font-weight: 660; margin: 8px 0 4px; }
+  .price { font-size: 1.8rem; font-weight: 600; margin: 8px 0 4px; }
   .price small { font-size: .9rem; font-weight: 400; color: var(--muted); }
   .plan ul { list-style: none; padding: 0; margin: 16px 0 0; font-size: .94rem; color: var(--muted); }
   .plan li { padding: 6px 0 6px 20px; position: relative; }
@@ -136,12 +173,14 @@
   form.signup input[type=email] {
     flex: 1 1 15rem; padding: 13px 14px; font-size: 1rem; font-family: inherit;
     border: 1px solid var(--line); border-radius: var(--radius);
-    background: var(--bg); color: var(--ink);
+    background: var(--surface); color: var(--ink);
+  }
+  form.signup input[type=email]:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent);
   }
   .form-msg { margin-top: 12px; font-size: .94rem; min-height: 1.4em; }
   .form-msg.ok { color: var(--accent); }
-  .form-msg.err { color: #c0392b; }
-  @media (prefers-color-scheme: dark) { .form-msg.err { color: #ff8a7a; } }
+  .form-msg.err { color: var(--err); }
 
   footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); font-size: .9rem; }
   footer a { color: var(--muted); }
@@ -151,7 +190,15 @@
 
 <header>
   <div class="wrap nav">
-    <a class="logo" href="/">PLC<span>desk</span></a>
+    <a class="logo" href="/" aria-label="PLCdesk">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <rect class="mark-frame" x="7" y="11" width="50" height="42"/>
+        <rect class="mark-stamp" x="36" y="36" width="19" height="15"/>
+        <rect class="mark-line" x="38" y="40" width="15" height="2"/>
+        <rect class="mark-line" x="38" y="45" width="15" height="2"/>
+      </svg>
+      <span class="word"><b>PLC</b><span>desk</span></span>
+    </a>
     <nav class="nav-links">
       <a href="#jak">Jak to funguje</a>
       <a href="#hranice">Co nedělá</a>
