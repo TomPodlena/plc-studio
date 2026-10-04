@@ -13,7 +13,7 @@
  * stavba zařízení v CADu.
  */
 import { tr } from "./i18n.js";
-import { PLAT, interlockDevs, modules, } from "./model.js";
+import { PLAT, interlockDevs, modules, devRef, maxRecord, ioOf, } from "./model.js";
 import { CAT_LABEL, brandsFor, catKey, suppliersFor } from "./catalog.js";
 const has = (s, re) => re.test(s.toLowerCase());
 /** Kategorie snímače analogové veličiny podle jednotky a popisu. */
@@ -164,6 +164,24 @@ export function buildBom(prj) {
         else if (d.cls === "AnalogOut") {
             add(t, aoCat(d), 1, desc, { devId: d.id });
         }
+        else if (d.cls === "Vfd") {
+            /* měnič: motor (-M), řadič měniče (-TA, svorky řídicích signálů), jištění přívodu (-Q) */
+            const n = d.name.replace(/^\D+/, "") || d.name;
+            add(t, motorCat(d), 1, desc, { devId: d.id, note: tr("dimenzovat podle zátěže; motor pro provoz s měničem") });
+            add("-" + devRef(d), "vfd", 1, tr("Řízení otáček {dev} ({min}–{max} {unit})", { dev: d.name, min: d.rmin, max: d.rmax, unit: d.unit || "" }).replace(/\s+\)/, ")"), { devId: d.id,
+                note: tr("analogová žádaná, DI chod{rev}, reléové výstupy připraven / porucha / otáčky dosaženy", { rev: d.opt?.rev ? tr(" a směr") : "" }) });
+            add("-Q" + n, "mcb", 1, tr("Jištění měniče {dev}", { dev: d.name }), { devId: d.id, note: tr("podle návodu měniče (jistič / pojistky, případně EMC filtr)") });
+        }
+        else if (d.cls === "PosDrive") {
+            /* polohovací pohon: řadič se záznamy (-TA) a elektrická osa s motorem (-M) */
+            add("-" + devRef(d), "positioning_drive", 1, tr("Řadič polohování {dev}: {n} záznamů přes I/O", { dev: d.name, n: maxRecord(d) }), { devId: d.id,
+                note: tr("paralelní I/O: výběr záznamu, start, referování, HALT; tabulka záznamů v řadiči") });
+            add(t, "linear_axis", 1, desc, { devId: d.id, note: (d.records || []).length ? tr("záznamy: {list}", { list: (d.records || []).map(r => r.no + " " + (r.name || "")).join(", ") }) : "" });
+        }
+        else if (d.cls === "PropValve") {
+            add(t, "proportional_valve", 1, desc + (d.unit ? " [" + d.unit + "]" : "") + " " + d.rmin + "–" + d.rmax, { devId: d.id,
+                note: ioOf(prj, d).rawAct ? tr("žádaná 0–10 V / 4–20 mA, analogový výstup skutečné hodnoty") : tr("žádaná 0–10 V / 4–20 mA") });
+        }
         else if (d.cls === "DI") {
             const c = diCat(prj, d, locks);
             const safety = c === "estop_button" || c === "light_curtain" || c === "safety_switch";
@@ -176,7 +194,8 @@ export function buildBom(prj) {
     }
     /* --- rozvaděč */
     const sensors = prj.devices.filter(d => d.cls === "DI" || d.cls === "AnalogIn").length
-        + prj.devices.filter(d => d.cls === "Ventil").reduce((a, d) => a + (d.opt?.fbkOpen !== false ? 1 : 0) + (d.opt?.fbkClosed ? 1 : 0), 0);
+        + prj.devices.filter(d => d.cls === "Ventil").reduce((a, d) => a + (d.opt?.fbkOpen !== false ? 1 : 0) + (d.opt?.fbkClosed ? 1 : 0), 0)
+        + prj.devices.filter(d => d.cls === "PropValve" || d.cls === "PosDrive").length; // kabel M12 k ventilu, I/O kabel k řadiči pohonu
     const safetyDevs = (prj.program.estop ? 1 : 0) + locks.size;
     if (safetyDevs)
         add("-K0", "safety_relay", 1, tr("Vyhodnocení E-stopu a blokování"), { safety: true, note: safetyNote });

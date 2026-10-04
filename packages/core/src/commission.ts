@@ -11,9 +11,9 @@
  * Plán i uzavření oživení jsou položky ke schválení (provider „commission“ v approval.ts).
  * Simulace ani generátor se tu nemění — plán z nich jen čte (seqCond, ověření, matice stavů).
  */
-import { Project, Device, IoEntry, devById, ioOf, interlockDevs, enableInputs, modules, addrOrd } from "./model.js";
-import { seqCond } from "./codegen.js";
-import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, type SimFault } from "./sim.js";
+import { Project, Device, IoEntry, devById, ioOf, interlockDevs, enableInputs, modules, addrOrd, isMotionClass, devSp, tolOf, tolTicksOf } from "./model.js";
+import { seqCond, manVarOf } from "./codegen.js";
+import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_POS_ACK, T_POS_MOVE, type SimFault } from "./sim.js";
 import { tr, N_, today, formatDateTime } from "./i18n.js";
 import { contentHash, registerApprovalProvider, approvalStamp, verifyDesign, verifyDesignCached, isVerified, APPROVAL_FILE, type ApprovalItem, type ApprovalOptions } from "./approval.js";
 
@@ -179,6 +179,23 @@ export function commissioningPlan(prj: Project, opts: ApprovalOptions = {}): Com
       const sig = [io.outOpen?.tag, io.fbkOpen?.tag, io.fbkClosed?.tag].filter(Boolean) as string[];
       add({ id: "drv:" + d.name + ":travel", phase: 3, devId: d.id, title: tr("{dev}: přestavení a koncové polohy", p), how: tr("V ručním režimu otevři a zavři {dev} (manOpen_{dev}) a změř dobu přestavení oběma směry.", p), expect: tr("Koncová poloha {when}; koncáky odpovídají skutečné poloze. Naměřené doby zapiš.", { when: l.text }), signals: ["manOpen_" + d.name, ...sig], data: { wd: w, T: T_VALVE_TRAVEL, sig } });
       if (io.fbkOpen) add({ id: "drv:" + d.name + ":hold", phase: 3, devId: d.id, title: tr("{dev}: hlídání držené polohy", p), how: tr("V poloze otevřeno krátce přeruš koncák {tag} (odpoj konektor snímače).", { tag: io.fbkOpen.tag }), expect: tr("Porucha bloku (alarm A_{dev}_POS), výstup vypnutý; po obnovení a kvitaci jde znovu ovládat.", p), signals: [io.fbkOpen.tag, "cmdAck"] });
+    } else if (d.cls === "Vfd") {
+      const q = { ...p, min: d.rmin, max: d.rmax, unit: d.unit || "", sp: devSp(d) };
+      const sig = [io.outRun?.tag, io.rawSpeed?.tag, io.atSpeed?.tag].filter(Boolean) as string[];
+      add({ id: "drv:" + d.name + ":param", phase: 3, devId: d.id, title: tr("{dev}: parametry měniče", p), how: tr("V měniči nastav povel ze svorek, žádanou z analogového vstupu ({min}–{max} {unit} = 0–100 % signálu), reléové výstupy připraven / porucha / otáčky dosaženy a rampy (s rampou v PLC krátké).", q), expect: tr("Parametry zapsané v protokolu měniče, záloha parametrů uložená."), signals: [] });
+      add({ id: "drv:" + d.name + ":dir", phase: 3, devId: d.id, title: tr("{dev}: směr otáčení a žádaná", p), how: tr("V ručním režimu spusť {dev} (manRun_{dev}) s odpojenou nebo zajištěnou mechanikou.", p), expect: tr("Směr odpovídá technologii; měnič ukazuje {sp} {unit}, hlášení „otáčky dosaženy“ po doběhu rampy.", q), signals: ["manRun_" + d.name, ...sig] });
+      if (io.fault) add({ id: "drv:" + d.name + ":fault", phase: 3, devId: d.id, title: tr("{dev}: porucha měniče", p), how: tr("Za ručního chodu vyvolej poruchu měniče {dev} (např. externí porucha parametrem / odpojení vstupu).", p), expect: tr("Blok {dev} v poruše (alarm A_{dev}_FAULT), chod vypnut; po odstranění a kvitaci (cmdAck) jde znovu spustit.", p), signals: [io.fault.tag, "cmdAck"] });
+    } else if (d.cls === "PosDrive") {
+      const recs = (d.records || []).map(r => r.no + " = " + (r.name || "?") + (Number.isFinite(r.pos) ? " (" + r.pos + ")" : "")).join(", ") || "—";
+      add({ id: "drv:" + d.name + ":param", phase: 3, devId: d.id, title: tr("{dev}: tabulka záznamů v řadiči", p), how: tr("V konfiguračním programu řadiče nastav I/O režim (výběr záznamu bity, start, referování, HALT) a záznamy: {recs}.", { ...p, recs }), expect: tr("Záznamy a polarita HALT odpovídají projektu; záloha parametrů řadiče uložená."), signals: [] });
+      add({ id: "drv:" + d.name + ":home", phase: 3, devId: d.id, title: tr("{dev}: referenční jízda", p), how: tr("V ručním režimu dej povel manHome_{dev} se zajištěným pracovním prostorem osy.", p), expect: tr("Osa najede na referenci, hlášení „referováno“ a „v poloze“; doba do {move} s.", { ...p, move: T_POS_MOVE }), signals: ["manHome_" + d.name, ...[io.homed?.tag, io.inPos?.tag].filter(Boolean) as string[]] });
+      add({ id: "drv:" + d.name + ":records", phase: 3, devId: d.id, title: tr("{dev}: jízda na záznamy", p), how: tr("V automatickém cyklu krok po kroku (nebo z HMI servisně) projeď všechny záznamy a změř polohu.", p), expect: tr("Poloha každého záznamu odpovídá tabulce; start potvrzen do {ack} s, jízda bez poruchy.", { ack: T_POS_ACK }), signals: [io.outStart?.tag, io.inPos?.tag].filter(Boolean) as string[] });
+      add({ id: "drv:" + d.name + ":halt", phase: 3, devId: d.id, title: tr("{dev}: přerušení jízdy (HALT)", p), how: tr("Za jízdy vypni AUTO (přerušení sekvence).", p), expect: tr("Výstup HALT sepne a osa zastaví; nová jízda až novým povelem."), signals: [io.outHalt?.tag, "modeAuto"].filter(Boolean) as string[] });
+      if (io.fault) add({ id: "drv:" + d.name + ":fault", phase: 3, devId: d.id, title: tr("{dev}: porucha pohonu", p), how: tr("Vyvolej poruchu řadiče {dev} (např. odpojení motoru / chybový vstup).", p), expect: tr("Blok {dev} v poruše (alarm A_{dev}_FAULT); po odstranění a kvitaci (cmdAck) jde znovu ovládat.", p), signals: [io.fault.tag, "cmdAck"] });
+    } else if (d.cls === "PropValve") {
+      const q = { ...p, min: d.rmin, max: d.rmax, unit: d.unit || "", tol: tolOf(d), t: tolTicksOf(d) / 10 };
+      add({ id: "drv:" + d.name + ":scale", phase: 3, devId: d.id, title: tr("{dev}: žádaná a skutečná hodnota", p), how: tr("V ručním režimu zapni {dev} (manOn_{dev}) a porovnej žádanou s manometrem / průtokoměrem ve 3 bodech rozsahu {min}–{max} {unit}.", q), expect: tr("Odchylka v toleranci ventilu; skutečná hodnota v PLC odpovídá měřidlu."), signals: ["manOn_" + d.name, ...[io.rawSp?.tag, io.rawAct?.tag].filter(Boolean) as string[]] });
+      if (io.rawAct) add({ id: "drv:" + d.name + ":dev", phase: 3, devId: d.id, title: tr("{dev}: hlídání odchylky", p), how: tr("Při zapnutém ventilu zavři přívod vzduchu / média (nebo odpoj zpětnou vazbu).", p), expect: tr("Po {t} s porucha bloku (alarm A_{dev}_DEV), žádaná na minimum; po obnovení a kvitaci jde znovu zapnout.", q), signals: [io.rawAct.tag, "cmdAck"] });
     }
   }
 
@@ -221,14 +238,18 @@ export function commissioningPlan(prj: Project, opts: ApprovalOptions = {}): Com
   }
 
   /* 6) ruční režim */
-  const acts = prj.devices.filter(d => d.cls === "Motor" || d.cls === "Ventil");
+  const acts = prj.devices.filter(d => d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls));
   if (acts.length) {
     if (seq.length) add({ id: "man:mode", phase: 6, title: tr("Přepínání AUTO / RUČNĚ"), how: tr("Přepni modeAuto na HMI do obou poloh; v RUČNĚ dej START."), expect: tr("Režim se přepne; v RUČNĚ START cyklus nespustí."), signals: ["modeAuto", "cmdAutoStart"] });
     for (const d of acts) {
-      const io = ioOf(prj, d), cmd = (d.cls === "Motor" ? "manRun_" : "manOpen_") + d.name;
-      const fb = d.cls === "Motor" ? io.fbkRunning : io.fbkOpen;
+      const io = ioOf(prj, d), cmd = manVarOf(d);
+      const fb = d.cls === "Motor" ? io.fbkRunning : d.cls === "Vfd" ? io.atSpeed : d.cls === "PosDrive" ? io.homed : io.fbkOpen;
+      const fbk = fb ? " (" + fb.tag + ")" : "";
       add({ id: "man:" + d.name, phase: 6, devId: d.id, title: tr("Ruční povel {dev}", { dev: d.name }), how: tr("V režimu RUČNĚ dej z HMI povel {cmd} a pak ho zruš.", { cmd }),
-        expect: d.cls === "Motor" ? tr("{dev} se rozběhne{fbk} a po zrušení povelu zastaví.", { dev: d.name, fbk: fb ? " (" + fb.tag + ")" : "" }) : tr("{dev} se otevře{fbk} a po zrušení povelu zavře.", { dev: d.name, fbk: fb ? " (" + fb.tag + ")" : "" }),
+        expect: d.cls === "Motor" || d.cls === "Vfd" ? tr("{dev} se rozběhne{fbk} a po zrušení povelu zastaví.", { dev: d.name, fbk })
+          : d.cls === "PosDrive" ? tr("{dev} provede referenční jízdu{fbk}; zrušení povelu za jízdy ji zastaví (HALT).", { dev: d.name, fbk })
+          : d.cls === "PropValve" ? tr("{dev} nastaví výchozí žádanou hodnotu a po zrušení povelu ji vrátí na minimum.", { dev: d.name })
+          : tr("{dev} se otevře{fbk} a po zrušení povelu zavře.", { dev: d.name, fbk }),
         signals: [cmd, ...(fb ? [fb.tag] : [])] });
     }
     if (seq.length) add({ id: "man:auto-block", phase: 6, title: tr("Ruční povely v AUTO"), how: tr("V režimu AUTO zkus dát ruční povel kterémukoli pohonu."), expect: tr("Povel je neúčinný."), signals: ["modeAuto"] });

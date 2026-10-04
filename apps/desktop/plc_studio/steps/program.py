@@ -18,7 +18,11 @@ NO_ESTOP = N_("— žádný (doplníš ručně) —")
 WAIT = N_("— čekání (bez zařízení) —")
 ACT_LABEL = {"start": N_("start"), "stop": N_("stop"), "open": N_("otevřít"),
              "close": N_("zavřít"), "wait": N_("čekat"),
-             "waitOn": N_("čekat na TRUE"), "waitOff": N_("čekat na FALSE")}
+             "waitOn": N_("čekat na TRUE"), "waitOff": N_("čekat na FALSE"),
+             # pohony fáze 2a
+             "home": N_("referenční jízda"), "posRecord": N_("jízda na záznam"),
+             "setPressure": N_("nastavit tlak"), "setFlow": N_("nastavit průtok")}
+MOTION_CLS = ("Vfd", "PosDrive", "PropValve")
 COND_LABEL = {"fbk": N_("přechod: zpětné hlášení"), "time": N_("přechod: čas")}
 LOCK_ROWS = 4          # víc řádků blokovacích vstupů → posuvné okno
 HINTS_MIN_H = 560      # nižší záložka Logika schová vysvětlující texty (tabulka má přednost)
@@ -51,7 +55,7 @@ def _logic(app, body) -> None:
     p = app.prj
     prog = p["program"]
     di = [d for d in p["devices"] if d["cls"] == "DI"]
-    act = [d for d in p["devices"] if d["cls"] in ("Motor", "Ventil")]
+    act = [d for d in p["devices"] if d["cls"] in ("Motor", "Ventil", *MOTION_CLS)]
 
     # --- centrální uvolnění ---
     top = ttk.Frame(body)
@@ -176,13 +180,47 @@ def _logic(app, body) -> None:
     cb_cond.pack(side="left", padx=(6, 0))
     ttk.Spinbox(add, textvariable=var_time, from_=1, to=3600, width=6).pack(side="left", padx=(6, 2))
     ttk.Label(add, text=_("s (čas / hlídací čas)")).pack(side="left")
+    # parametr kroku pohonu: otáčky měniče (+ směr), číslo záznamu pohonu, žádaná ventilu
+    par = ttk.Frame(add)
+    par.pack(side="left", padx=(8, 0))
+    var_par, var_rev = tk.StringVar(), tk.BooleanVar(value=False)
+    par._vars = (var_par, var_rev)                 # proměnné naživu (GC)
+
+    def refresh_par(*_a):
+        for w in par.winfo_children():
+            w.destroy()
+        d = devs.get(var_dev.get())
+        a = acts[max(cb_act.current(), 0)] if acts else ""
+        if d is None or d["cls"] not in MOTION_CLS or (d["cls"] == "Vfd" and a != "start") \
+                or (d["cls"] == "PosDrive" and a != "posRecord"):
+            return
+        unit = f" [{d['unit']}]" if d.get("unit") else ""
+        if d["cls"] == "PosDrive":
+            n_max = (1 << int(d.get("selBits") or 3)) - 1
+            names = {r["no"]: r.get("name") or "" for r in d.get("records") or []}
+            vals = [f"{n} – {names[n]}" if names.get(n) else str(n) for n in range(1, n_max + 1)]
+            ttk.Label(par, text=_("záznam")).pack(side="left")
+            cb = ttk.Combobox(par, textvariable=var_par, values=vals, state="readonly",
+                              width=max(6, *(len(v) + 1 for v in vals)))
+            cb.pack(side="left", padx=(4, 0))
+            if var_par.get() not in vals:
+                var_par.set(vals[0])
+        else:
+            ttk.Label(par, text=(_("otáčky") if d["cls"] == "Vfd" else _("žádaná")) + unit).pack(side="left")
+            if parse_num(var_par.get()) is None:
+                var_par.set("" if d.get("setpoint") is None else f"{d['setpoint']:g}")
+            ttk.Entry(par, textvariable=var_par, width=7).pack(side="left", padx=(4, 0))
+            if d["cls"] == "Vfd" and (d.get("opt") or {}).get("rev"):
+                ttk.Checkbutton(par, text=_("vzad"), variable=var_rev).pack(side="left", padx=(6, 0))
 
     def refresh_acts(*_a):
         d = devs.get(var_dev.get())
-        acts[:] = (["wait"] if d is None else ["start", "stop"] if d["cls"] == "Motor"
-                   else ["waitOn", "waitOff"] if d["cls"] == "DI" else ["open", "close"])
+        acts[:] = (["wait"] if d is None else ["waitOn", "waitOff"] if d["cls"] == "DI"
+                   else list(app.ACTS_FOR.get(d["cls"]) or (["start", "stop"] if d["cls"] == "Motor" else ["open", "close"])))
         cb_act.configure(values=[_(ACT_LABEL[k]) for k in acts])
         var_act.set(_(ACT_LABEL[acts[0]]))
+        var_par.set("")
+        refresh_par()
         # čekání na vstup: přechod je vždy na vstup, čas je hlídací
         if d is not None and d["cls"] == "DI":
             cb_cond.current(conds.index("fbk"))
@@ -191,6 +229,7 @@ def _logic(app, body) -> None:
         cb_cond.state(["disabled"] if d is None or d["cls"] == "DI" else ["!disabled"])
 
     var_dev.trace_add("write", refresh_acts)
+    var_act.trace_add("write", refresh_par)
     refresh_acts()
 
     # rozpracovaný krok (zařízení, akce, přechod, čas) přežije překreslení — např. po
@@ -227,9 +266,19 @@ def _logic(app, body) -> None:
         act_key = acts[max(cb_act.current(), 0)]
         cond = conds[max(cb_cond.current(), 0)]
         seq = app.prj["program"]["seq"]
-        seq.append({"dev": d["id"] if d else 0, "act": act_key if d else "wait",
-                    "cond": cond if d else "time",
-                    "timeS": int(time_s) if time_s.is_integer() else time_s})
+        step = {"dev": d["id"] if d else 0, "act": act_key if d else "wait",
+                "cond": cond if d else "time",
+                "timeS": int(time_s) if time_s.is_integer() else time_s}
+        if d is not None and d["cls"] in MOTION_CLS:     # otáčky / žádaná, záznam, směr
+            if d["cls"] == "PosDrive" and act_key == "posRecord":
+                step["rec"] = int(var_par.get().split(" ")[0] or 1)
+            elif d["cls"] == "PropValve" or act_key == "start":
+                sp = parse_num(var_par.get())
+                if sp is not None:
+                    step["sp"] = int(sp) if sp.is_integer() else sp
+                if d["cls"] == "Vfd" and var_rev.get():
+                    step["rev"] = True
+        seq.append(step)
         app.ui["seq_sel"] = len(seq) - 1
         app.save()
         app.render()

@@ -12,10 +12,15 @@ import type { CompanyLibrary } from "./library.js";
 export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics" | "wago" | "delta";
 /** Styl generovaného kódu: klasické FB (výchozí) nebo OOP (rozhraní, dědičnost) — viz codegen_oop.ts. */
 export type CodeStyle = "classic" | "oop";
-export type DeviceClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "DI" | "DO";
+export type DeviceClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "DI" | "DO" | "Vfd" | "PosDrive" | "PropValve";
 export type Dir = "DI" | "DO" | "AI" | "AO";
-/** Akce kroku: povel motoru / ventilu, výdrž, nebo čekání na digitální vstup (DI = TRUE / FALSE). */
-export type SeqAct = "start" | "stop" | "open" | "close" | "wait" | "waitOn" | "waitOff";
+/**
+ * Akce kroku: povel motoru / ventilu, výdrž, nebo čekání na digitální vstup (DI = TRUE / FALSE).
+ * Měnič (Vfd): start (otáčky `sp`, směr `rev`) / stop; polohovací pohon (PosDrive): home
+ * (referování) / posRecord (jízda na záznam `rec`); proporcionální ventil (PropValve):
+ * setPressure / setFlow (žádaná hodnota `sp` — obě akce se chovají stejně, liší se popisem).
+ */
+export type SeqAct = "start" | "stop" | "open" | "close" | "wait" | "waitOn" | "waitOff" | "home" | "posRecord" | "setPressure" | "setFlow";
 /** Vazba digitálního výstupu na stav stroje (generuje se do programu i do simulace). */
 export type DoRole = "run" | "fault" | "ready" | "stopped" | "lock" | "auto";
 export type SeqCond = "fbk" | "time";
@@ -46,6 +51,20 @@ export interface Device {
     setpoint?: number;
     /** DO: vazba výstupu na stav stroje (maják chod/porucha, zámek krytů…). */
     role?: DoRole;
+    /**
+     * Vfd / PropValve: rampa žádané hodnoty v PLC [s] na celý rozsah (rmin → rmax), po taktech
+     * 0,1 s; 0 / bez zadání = bez rampy (rampu dělá měnič / ventil sám).
+     */
+    rampS?: number;
+    /** PropValve se zpětnou vazbou: povolená odchylka skutečné hodnoty [jednotky] a doba [s], po které je odchylka porucha. */
+    tol?: number;
+    tolTimeS?: number;
+    /** PosDrive: počet bitů výběru záznamu (1–6 → záznamy 1 … 2^n − 1; 0 = referenční poloha). */
+    selBits?: number;
+    /** PosDrive: tabulka záznamů (jen dokumentace — záznamy žijí v pohonu: poloha, rychlost). */
+    records?: PosRecord[];
+    /** PosDrive: model stroje pro simulaci — doba jízdy na záznam / referování [s]. */
+    travelS?: number;
     /** typ z firemní knihovny (`LibDeviceType.id`, viz library.ts) */
     libType?: string;
     /** Trvalý identifikátor (viz guid.ts) — přidělen jednou při vzniku, export ho jen čte. */
@@ -68,6 +87,19 @@ export interface SeqStep {
     act: SeqAct;
     cond: SeqCond;
     timeS: number;
+    /** Vfd start: žádané otáčky [jednotky zařízení]; PropValve: žádaná hodnota. Bez zadání = `Device.setpoint`. */
+    sp?: number;
+    /** Vfd start: směr vzad (výstup outRev). */
+    rev?: boolean;
+    /** PosDrive posRecord: číslo záznamu (1 … 2^selBits − 1). */
+    rec?: number;
+}
+/** Záznam polohovacího pohonu (dokumentace tabulky v pohonu). */
+export interface PosRecord {
+    no: number;
+    name: string;
+    pos?: number;
+    vel?: number;
 }
 export interface ProgramCfg {
     modes: boolean;
@@ -161,6 +193,47 @@ export declare const CLS: Record<DeviceClass, {
     label: string;
     opts: Record<string, string>;
 }>;
+/** Pohony a proporcionální prvky fáze 2a (blok s analogovou žádanou / výběrem záznamu). */
+export declare function isMotionClass(cls: DeviceClass): boolean;
+/** Třídy s analogovým rozsahem (rmin / rmax / jednotka). */
+export declare function hasRange(cls: DeviceClass): boolean;
+/** Akce kroku, které třída zařízení umí (UI editoru kroků, validace). `wait` nemá zařízení. */
+export declare const ACTS_FOR: Record<DeviceClass, SeqAct[]>;
+/** Je akce proporcionálního ventilu (žádaná hodnota)? */
+export declare function isSpAct(act: SeqAct): boolean;
+/** Výchozí parametry nového zařízení třídy (UI „přidat zařízení“, AI návrhář). */
+export declare function devDefaults(cls: DeviceClass): Partial<Device>;
+/**
+ * Označení přístroje, ke kterému vede signál (výkresy, kusovník, EPLAN): u měniče a polohovacího
+ * pohonu řadič -TA<n> (svorky řídicích signálů jsou na řadiči, ne na motoru), jinak zařízení samo.
+ */
+export declare function devRef(d: {
+    name: string;
+    cls?: DeviceClass;
+}): string;
+/** Tabulka záznamů PosDrive jako text pro editaci v UI: „1 = převzetí @ 0; 2 = lis @ 180“. */
+export declare function recordsText(recs: PosRecord[] | undefined): string;
+/** Zpět z textu (řádky / středníky „číslo = název @ poloha“; poloha nepovinná). Neplatné části přeskočí. */
+export declare function parseRecords(s: string): PosRecord[];
+/** Počet bitů výběru záznamu PosDrive (1–6, výchozí 3). */
+export declare function selBitsOf(d: Device): number;
+/** Nejvyšší číslo záznamu PosDrive (2^bity − 1; záznam 0 = referenční poloha). */
+export declare function maxRecord(d: Device): number;
+/** Doba jízdy PosDrive v modelu simulace [s] (výchozí 1 s). */
+export declare function travelOf(d: Device): number;
+/**
+ * Krok rampy v PLC na jeden takt 0,1 s [jednotky] (Vfd / PropValve); 0 = bez rampy.
+ * Zaokrouhleno na 6 platných číslic — generátor píše tentýž literál, simulátor počítá s ním.
+ */
+export declare function rampStepOf(d: Device): number;
+/** Povolená odchylka PropValve [jednotky] (výchozí 3 % rozsahu). */
+export declare function tolOf(d: Device): number;
+/** Doba odchylky PropValve, po které je porucha, v taktech 0,1 s (výchozí 1 s; nejméně 1 takt). */
+export declare function tolTicksOf(d: Device): number;
+/** Žádaná hodnota kroku (Vfd start / PropValve): `sp` kroku, jinak výchozí žádaná zařízení. */
+export declare function stepSp(s: SeqStep, d: Device | undefined): number;
+/** Výchozí žádaná hodnota zařízení (ruční režim, po přerušení sekvence): `setpoint`, jinak 0 / rmin. */
+export declare function devSp(d: Device): number;
 /** Třídy zařízení s texty v nastaveném jazyce (`CLS` drží české klíče překladu). */
 export declare function clsInfo(): Record<DeviceClass, {
     prefix: string;

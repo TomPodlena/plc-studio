@@ -126,6 +126,10 @@ def _smoke(app: App, shots: Path | None) -> int:
     walk_import("slozita")
     app.load_sample("small")
     walk("mala")
+    # pohony fáze 2a (měnič, polohovací pohon, proporcionální ventil): vzor 11 ze složky samples/
+    motion = Path(__file__).resolve().parents[3] / "samples" / "11_podavaci_lisovaci_stanice_PS-11.plcstudio.json"
+    if motion.exists() and app.open_project(motion):
+        walk("pohony")
     app.reset_project()
     walk("prazdny")
     errors = list(app.errors)

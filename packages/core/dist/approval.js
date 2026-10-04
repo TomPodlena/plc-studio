@@ -16,7 +16,7 @@
  * — bez zásahu do tohoto souboru. Bezpečnostní funkce tady nejsou: E-stop a blokování jsou
  * položkou jen jako signály standardního programu (jako v generátoru).
  */
-import { CLS, DO_ROLES, devById, interlockDevs, enableInputs, isDiWait, } from "./model.js";
+import { CLS, DO_ROLES, devById, interlockDevs, enableInputs, isDiWait, isMotionClass, tolOf, tolTicksOf, maxRecord, } from "./model.js";
 import { seqCond } from "./codegen.js";
 import { verifyProject, stepWatchdog, stepTitle, T_MOTOR_FBK, T_VALVE_TRAVEL } from "./sim.js";
 import { tr, N_, getLang, formatDate, formatDateTime } from "./i18n.js";
@@ -131,6 +131,23 @@ function deviceContent(d) {
         lim: d.cls === "AnalogIn" ? [fin(d.limLo), fin(d.limHi)] : undefined,
         sp: d.cls === "AnalogOut" ? fin(d.setpoint) : undefined,
         role: d.cls === "DO" ? d.role ?? null : undefined,
+        /* pohony fáze 2a: volby signálů a parametry, které mění kód bloku nebo sekvenci (u ostatních tříd chybí → otisk beze změny) */
+        motion: isMotionClass(d.cls) ? motionContent(d) : undefined,
+    };
+}
+/** Parametry pohonu fáze 2a do otisku / porovnání revizí (rozsah, žádaná, rampa, tolerance, záznamy, model jízdy). */
+export function motionContent(d) {
+    const o = d.opt || {};
+    const dflt = new Set(["fbk", "ready", "fault"]);
+    const opt = {};
+    for (const k of Object.keys(CLS[d.cls].opts).sort())
+        opt[k] = dflt.has(k) ? o[k] !== false : !!o[k];
+    return {
+        opt, unit: d.cls === "PosDrive" ? undefined : d.unit || "", range: d.cls === "PosDrive" ? undefined : [fin(d.rmin), fin(d.rmax)],
+        sp: d.cls === "PosDrive" ? undefined : fin(d.setpoint), rampS: d.cls === "PosDrive" ? undefined : fin(d.rampS) ?? 0,
+        tol: d.cls === "PropValve" ? fin(d.tol) : undefined, tolTimeS: d.cls === "PropValve" ? fin(d.tolTimeS) : undefined,
+        selBits: d.cls === "PosDrive" ? fin(d.selBits) : undefined, travelS: d.cls === "PosDrive" ? fin(d.travelS) : undefined,
+        records: d.cls === "PosDrive" ? (d.records || []).map(r => [r.no, r.name || "", fin(r.pos) ?? null]) : undefined,
     };
 }
 /** Tabulka I/O: zařízení.signál, směr, tag, adresa, NC. NE komentář (`cmt`). */
@@ -193,7 +210,8 @@ export function registerApprovalProvider(fn, name) {
 export function approvalProviders() { return providers.map(p => p.name); }
 function deviceSummary(d) {
     const c = CLS[d.cls];
-    const opts = Object.keys(c.opts).filter(k => k === "fbk" || k === "fbkOpen" ? d.opt?.[k] !== false : !!d.opt?.[k]).map(k => tr(c.opts[k]));
+    const onByDefault = (k) => k === "fbk" || k === "fbkOpen" || (isMotionClass(d.cls) && (k === "ready" || k === "fault"));
+    const opts = Object.keys(c.opts).filter(k => onByDefault(k) ? d.opt?.[k] !== false : !!d.opt?.[k]).map(k => tr(c.opts[k]));
     const parts = [tr(c.label)];
     if (opts.length)
         parts.push(opts.join(", "));
@@ -206,6 +224,15 @@ function deviceSummary(d) {
         parts.push(Number.isFinite(d.setpoint) ? tr("žádaná hodnota {sp}", { sp: d.setpoint }) : tr("bez žádané hodnoty"));
     if (d.cls === "DO")
         parts.push(d.role ? tr("vazba: {role}", { role: tr(DO_ROLES[d.role]) }) : tr("bez vazby na stav stroje"));
+    if (d.cls === "Vfd" || d.cls === "PropValve") {
+        parts.push(tr("rozsah {min}–{max} {unit}", { min: d.rmin, max: d.rmax, unit: d.unit || "" }).trim());
+        parts.push(Number.isFinite(d.setpoint) ? tr("žádaná hodnota {sp}", { sp: d.setpoint }) : tr("bez žádané hodnoty"));
+        parts.push(Number(d.rampS) > 0 ? tr("rampa {t} s", { t: d.rampS }) : tr("bez rampy v PLC"));
+    }
+    if (d.cls === "PropValve" && d.opt?.fbk !== false)
+        parts.push(tr("tolerance ± {tol} po {t} s", { tol: tolOf(d), t: tolTicksOf(d) / 10 }));
+    if (d.cls === "PosDrive")
+        parts.push(tr("záznamy 1–{max}", { max: maxRecord(d) }) + ((d.records || []).length ? ": " + (d.records || []).map(r => r.no + " " + (r.name || "")).join(", ") : ""));
     return parts.join("; ");
 }
 /** Položky návrhu a programu (vždy přítomné). */
@@ -575,7 +602,7 @@ export function tuningProposals(prj) {
         else if (d.cls === "AnalogOut" && !Number.isFinite(d.setpoint)) {
             mk("setpoint-" + d.name, "setpoint", tr("Žádaná hodnota {dev} ({desc}) není zadána", p), tr("Bez žádané hodnoty zůstává výstup na 0. Zadej konstantu, nebo zdroj (HMI, receptura, regulace) doplň ručně."), { dev: d.name }, undefined, { dev: d.id });
         }
-        else if ((d.cls === "Motor" || d.cls === "Ventil") && seq.length && !inSeq.has(d.id)) {
+        else if ((d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls)) && seq.length && !inSeq.has(d.id)) {
             mk("idle-drive-" + d.name, "idle-drive", tr("Zařízení {dev} ({desc}) automatický cyklus nepoužívá", p), tr("V AUTO stojí, ovládá se jen ručním povelem. Pokud má v cyklu pracovat, doplň krok sekvence; jinak to potvrď schválením."), { dev: d.name }, undefined, { dev: d.id });
         }
     }

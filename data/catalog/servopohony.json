@@ -1,0 +1,536 @@
+{
+  "_zdroj": "Rešerše fáze 2 (2026-10-04): tmp/motion/catalog_motion.json — kódy jen s URL zdroje; položky s koncem výroby vynechány.",
+  "categories": {
+    "servo_drive": {
+      "label": "Servoměnič",
+      "unit": "ks",
+      "brands": [
+        {
+          "brand": "Siemens",
+          "series": [
+            "SINAMICS V90 PN",
+            "SINAMICS S210"
+          ],
+          "typical": "SINAMICS V90 PN 6SL3210-5FE10-4UF0 – 0,4 kW, 3× 380–480 V AC, PROFINET, pro motory 1FL6",
+          "orderCode": "6SL3210-5FE10-4UF0",
+          "src": "https://www.mroelectric.com/product/6SL3210-5FE10-4UF0",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Siemens, s.r.o. (ČR)",
+            "Automation24 (e-shop)"
+          ],
+          "note": "Pro S7-1200/1500 (TIA, technologické objekty). Verze 200 V: 6SL3210-5FB10-4UF1 (0,4 kW, 1/3× 230 V) – jen ze zahraničních nabídek, k ní motor nízké setrvačnosti. S210 0,4 kW 1× 230 V: 6SL3210-5HB10-4UF0 (z nabídek prodejců, neověřeno na stránce výrobce)."
+        },
+        {
+          "brand": "Beckhoff",
+          "series": [
+            "EL72xx (servosvorky 48 V DC)",
+            "AX8000",
+            "AX5000"
+          ],
+          "typical": "EL7211-0010 – servosvorka EtherCAT s OCT, 48 V DC, 4,5 A (rms), pro motory AM8100",
+          "orderCode": "EL7211-0010",
+          "src": "https://www.beckhoff.com/en-us/products/motion/servo-drives/i-o-components/el7211-0010.html",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Beckhoff Česká republika s.r.o. (Brno)"
+          ],
+          "note": "Malé osy do ~200 W přímo v I/O sestavě. Pro 400 V a výkon od 400 W víceosý systém AX8000 (napájecí + osové moduly) – objednací kód neověřen."
+        },
+        {
+          "brand": "Allen-Bradley (Rockwell Automation)",
+          "series": [
+            "Kinetix 5100",
+            "Kinetix 5300",
+            "Kinetix 5500"
+          ],
+          "typical": "Kinetix 5100 2198-E1004-ERS – 0,4 kW, 200–230 V AC, EtherNet/IP (2 porty), STO",
+          "orderCode": "2198-E1004-ERS",
+          "src": "https://www.rexelusa.com/p/1598514/allen-bradley-kinetix-5100-200v-class-servo-drive-191326677042-2198-e1004-ers",
+          "priceLevel": "vysoká",
+          "suppliers": [
+            "Rockwell Automation s.r.o. (ČR)"
+          ],
+          "note": "Kinetix 5100 = samostatný / Micro800 / Logix; integrované řízení os v Logix spíš Kinetix 5300/5500 – objednací kód neověřen."
+        },
+        {
+          "brand": "Omron",
+          "series": [
+            "1S (R88D-1SN…-ECT)",
+            "1S safety"
+          ],
+          "typical": "R88D-1SN04H-ECT – 400 W, 1× 230 V, EtherCAT, STO",
+          "orderCode": "R88D-1SN04H-ECT",
+          "src": "https://industrial.omron.eu/en/products/R88D-1SN04H-ECT",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Omron Electronics (ČR)"
+          ],
+          "note": "K řadičům NX/NJ (Sysmac)."
+        },
+        {
+          "brand": "Mitsubishi Electric",
+          "series": [
+            "MELSERVO-J5 (MR-J5-G / -A)"
+          ],
+          "typical": "MR-J5-40G – 400 W, 200 V, CC-Link IE TSN",
+          "src": "https://www.mitsubishielectric.com/fa/products/drv/servo/pmerit/mr_j5/motor/amplist.html",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Mitsubishi Electric Europe B.V., org. složka (ČR)"
+          ],
+          "note": "Objednací kód neověřen (v americkém e-shopu výrobce varianta MR-J5-40G-RJ). Párování s HK-KT43W dle tabulky kombinací (src)."
+        },
+        {
+          "brand": "Schneider Electric",
+          "series": [
+            "Lexium 28",
+            "Lexium 32"
+          ],
+          "typical": "LXM28AU04M3X – Lexium 28, 400 W, 1/3× 200–240 V, CANopen / Modbus, pulzní vstupy",
+          "orderCode": "LXM28AU04M3X",
+          "src": "https://www.se.com/us/en/product/LXM28AU04M3X/motion-servo-drive-lexium-28-single-and-three-phase-200-to-240v-400w/",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Schneider Electric CZ"
+          ],
+          "note": "Kód z titulku stránky výrobce (se.com, nalezeno vyhledáním). Lexium 28 EtherCAT varianta a Lexium 32 – objednací kód neověřen."
+        },
+        {
+          "brand": "Yaskawa",
+          "series": [
+            "Sigma-7 (SGD7S)",
+            "Sigma-X"
+          ],
+          "typical": "SGD7S-2R8A00A – 400 W, 200 V, analog/puls (EtherCAT varianta SGD7S-2R8AA0A)",
+          "src": "https://www.yaskawa.com/products/motion/sigma-7-servo-products/servopacks/sgd7s-analog/-/content/_cb5b60f0-636d-460d-8ecf-7082ab3b26bc_Models38Ratings",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Yaskawa Europe (distributoři)"
+          ],
+          "note": "Objednací kód neověřen (stránka výrobce nenačtena; kódy jen z nabídek prodejců)."
+        },
+        {
+          "brand": "Delta Electronics",
+          "series": [
+            "ASDA-B3",
+            "ASDA-A3"
+          ],
+          "typical": "ASD-B3A-0421-E – 400 W, 1/3× 230 V, EtherCAT, STO",
+          "orderCode": "ASD-B3A-0421-E",
+          "src": "https://www.damencnc.com/en/ac-servo-drive-400w-asd-b3a-0421-e-ethercat-sto/a5753",
+          "priceLevel": "nízká",
+          "suppliers": [
+            "ProfCom, s.r.o. (Delta CZ)"
+          ],
+          "note": "Viz catalog_delta.json."
+        }
+      ]
+    },
+    "servo_motor": {
+      "label": "Servomotor",
+      "unit": "ks",
+      "brands": [
+        {
+          "brand": "Siemens",
+          "series": [
+            "SIMOTICS S-1FL6",
+            "SIMOTICS S-1FK2"
+          ],
+          "typical": "1FL6042-1AF61-0AA1 – 0,4 kW, 400 V 3AC, 3000 ot/min, 1,27 N·m, inkrementální enkodér 2500 imp, pero, bez brzdy, IP65",
+          "orderCode": "1FL6042-1AF61-0AA1",
+          "src": "https://www.mroelectric.com/product/1FL6042-1AF61-0AA1",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Siemens, s.r.o. (ČR)",
+            "Automation24 (e-shop)"
+          ],
+          "note": "Párování s V90 PN 400 V (6SL3210-5FE10-4UF0). K S210 motor 1FK2 – objednací kód neověřen."
+        },
+        {
+          "brand": "Beckhoff",
+          "series": [
+            "AM8100 (48 V)",
+            "AM8000"
+          ],
+          "typical": "AM8111 – servomotor 48 V DC, OCT, 0,20 N·m klidový moment, 4000 ot/min (k EL7211-0010)",
+          "src": "https://www.beckhoff.com/en-us/products/motion/rotary-servomotors/am8100-servomotors-for-compact-drive-technology/am8111.html",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Beckhoff Česká republika s.r.o. (Brno)"
+          ],
+          "note": "Objednací kód neověřen (na stránce jen schéma AM8111-wFyz). Pro 400 W / AX8000 řada AM8000."
+        },
+        {
+          "brand": "Allen-Bradley (Rockwell Automation)",
+          "series": [
+            "Kinetix TLP",
+            "Kinetix VPL"
+          ],
+          "typical": "TLP-A070-040 – 0,38 kW s Kinetix 5100 2198-E1004-ERS",
+          "src": "https://literature.rockwellautomation.com/idc/groups/literature/documents/rm/knx-rm011_-en-p.pdf",
+          "priceLevel": "vysoká",
+          "suppliers": [
+            "Rockwell Automation s.r.o. (ČR)"
+          ],
+          "note": "Objednací kód neověřen (úplné označení s volbami enkodéru/brzdy z Design Guide KNX-RM011). K Kinetix 5300/5500 motory VPL."
+        },
+        {
+          "brand": "Omron",
+          "series": [
+            "1S (R88M-1M…)"
+          ],
+          "typical": "R88M-1M40030T-S2 – 400 W, 230 V, 3000 ot/min, 1,27 N·m, absolutní enkodér 23 bit bez baterie, příruba 60 mm, pero, bez brzdy",
+          "orderCode": "R88M-1M40030T-S2",
+          "src": "https://industrial.omron.eu/en/products/R88M-1M40030T-S2",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Omron Electronics (ČR)"
+          ],
+          "note": "Párování s R88D-1SN04H-ECT."
+        },
+        {
+          "brand": "Mitsubishi Electric",
+          "series": [
+            "HK-KT (MELSERVO-J5)"
+          ],
+          "typical": "HK-KT43W – 400 W, 200 V, 1,3 N·m, 3000 ot/min, enkodér 26 bit, IP67",
+          "orderCode": "HK-KT43W",
+          "src": "https://pl-fa.mitsubishielectric.com/fa/pl_en/products/drv/servo/mr_j5/rotary-servo-motor/hk-kt43w.html",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Mitsubishi Electric Europe B.V., org. složka (ČR)"
+          ],
+          "note": "Kód ověřen na stránce výrobce (PL); parametry z vyhledávání. S brzdou HK-KT43WB."
+        },
+        {
+          "brand": "Schneider Electric",
+          "series": [
+            "BCH2 (Lexium 28)",
+            "BMH (Lexium 32)"
+          ],
+          "typical": "BCH2LF0433CA5C – 400 W, příruba 80 mm, 1,27 N·m, olejové těsnění, pero, kabelové vývody",
+          "orderCode": "BCH2LF0433CA5C",
+          "src": "https://www.se.com/us/en/product/BCH2LF0433CA5C/servo-motor-bch-lexium-28-80mm-400w-0-67kg-cm%C2%B2-with-oil-seal-with-key-leads-connection/",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Schneider Electric CZ"
+          ],
+          "note": "Kód z titulku stránky výrobce (nalezeno vyhledáním). Párování s LXM28AU04M3X."
+        },
+        {
+          "brand": "Festo",
+          "series": [
+            "EMMT-AS",
+            "EMMT-ST (krokový)"
+          ],
+          "typical": "EMMT-AS-60 – servomotor 60 mm k CMMT-AS (400 W)",
+          "src": "https://www.festo.com/media/catalog/204094_documentation.pdf",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Festo CZ (přímo)"
+          ],
+          "note": "Objednací kód neověřen (konfigurovatelný typ, volit v konfigurátoru Festo podle enkodéru a brzdy)."
+        },
+        {
+          "brand": "Yaskawa",
+          "series": [
+            "SGM7J",
+            "SGM7A"
+          ],
+          "typical": "SGM7J-04AFC6S – 400 W, 200 V, 1,27 N·m, enkodér 24 bit",
+          "src": "https://www.e-motionsupply.com/Yaskawa_SGM7J_04AFC6S_SGD7S_2R8A00A_p/sgm7j-04afc6s-sgd7s-2r8a00a.htm",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Yaskawa Europe (distributoři)"
+          ],
+          "note": "Objednací kód neověřen (jen z nabídek prodejců)."
+        },
+        {
+          "brand": "Delta Electronics",
+          "series": [
+            "ECM-B3",
+            "ECM-A3"
+          ],
+          "typical": "ECM-B3M-C20604RS1 – 400 W, 1,27 N·m, příruba 60 mm, bez brzdy",
+          "orderCode": "ECM-B3M-C20604RS1",
+          "src": "https://www.damencnc.com/en/ac-servo-motor-400w-ecm-b3m-c20604rs1-24-bit-inc-encoder/a5821",
+          "priceLevel": "nízká",
+          "suppliers": [
+            "ProfCom, s.r.o. (Delta CZ)"
+          ],
+          "note": "Viz catalog_delta.json."
+        }
+      ]
+    },
+    "linear_axis": {
+      "label": "Elektrická lineární osa / aktuátor",
+      "unit": "ks",
+      "brands": [
+        {
+          "brand": "Festo",
+          "series": [
+            "ELGC",
+            "ELGS",
+            "EGSL",
+            "ESBF",
+            "EPCO",
+            "ELGA"
+          ],
+          "typical": "ELGC-BS-KF-45 – osa s kuličkovým šroubem, zdvih ~200 mm, motor EMMT-ST/EMMT-AS dle zatížení",
+          "src": "https://www.festo.com/cz/cs/",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Festo CZ (přímo)"
+          ],
+          "note": "Objednací kód neověřen (konfigurovatelný – zdvih, stoupání, montážní sada motoru). EPCO = elektrický válec s krokovým motorem jako náhrada pneuválce."
+        },
+        {
+          "brand": "SMC",
+          "series": [
+            "LEFS",
+            "LEFB",
+            "LEY",
+            "LEJ"
+          ],
+          "typical": "LEFS25B-200 – suport s kuličkovým šroubem, vel. 25, zdvih 200 mm, krokový motor 24 V (servo 24 V), opakovatelnost ±0,02 mm",
+          "src": "https://www.smcworld.com/products/pickup/en-jp/electric_actuator/slider_prod_lefs.html",
+          "priceLevel": "střední",
+          "suppliers": [
+            "SMC Industrial Automation CZ (přímo)"
+          ],
+          "note": "Objednací kód neověřen – kód jen z vyhledávání (smcpneumatics.com nešel načíst); úplný kód má příponu motoru/kabelu/řadiče (např. LEFS25B-200-R1AP1 u MISUMI). LEY = elektrický válec (pístnice)."
+        },
+        {
+          "brand": "Bosch Rexroth",
+          "series": [
+            "CKK (kompaktní moduly)",
+            "EMC (elektromechanický válec)"
+          ],
+          "typical": "CKK – kompaktní modul s kuličkovým šroubem, zdvih dle zakázky",
+          "src": "https://www.boschrexroth.com/cs/cz/",
+          "priceLevel": "vysoká",
+          "suppliers": [
+            "Bosch Rexroth (ČR)"
+          ],
+          "note": "Objednací kód neověřen (konfigurátor Rexroth)."
+        },
+        {
+          "brand": "igus",
+          "series": [
+            "drylin ZLW (ozubený řemen)",
+            "drylin SLW (trapézový šroub)"
+          ],
+          "typical": "ZLW-1040 – lineární modul s ozubeným řemenem, bez maziva, pro lehké manipulace",
+          "src": "https://www.igus.cz/",
+          "priceLevel": "nízká",
+          "suppliers": [
+            "igus (ČR)"
+          ],
+          "note": "Objednací kód neověřen. Vhodné pro lehké a levné osy (formáty, přestavování), ne pro přesné polohování."
+        }
+      ]
+    },
+    "positioning_drive": {
+      "label": "Polohovací pohon (tabulka pozic / IO-Link)",
+      "unit": "ks",
+      "brands": [
+        {
+          "brand": "Festo",
+          "series": [
+            "CMMT-ST + EMMT-ST",
+            "EMCA (integrovaný)"
+          ],
+          "typical": "CMMT-ST – regulátor krokového motoru 24–48 V DC s tabulkou záznamů (I/O, IO-Link, fieldbus) + motor EMMT-ST; EMCA = motor s integrovanou elektronikou",
+          "src": "https://www.festo.com/cz/cs/",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Festo CZ (přímo)"
+          ],
+          "note": "Objednací kód neověřen. Ovládání z PLC výběrem čísla záznamu (bez řízení os v PLC) – vhodné pro jednoduché polohování."
+        },
+        {
+          "brand": "SMC",
+          "series": [
+            "JXCL1 (IO-Link)",
+            "JXC51/61 (paralelní I/O)",
+            "JXCE1/JXCP1 (EtherCAT/PROFINET)",
+            "LECP6"
+          ],
+          "typical": "JXCL1 – řadič krokového motoru (servo 24 V) s IO-Link, 64 řádků krokových dat, k aktuátorům LEFS/LEY",
+          "src": "https://static.smc.eu/binaries/content/assets/smc_global/product-documentation/operation-manuals/en/om_jxcl1_jxcx_io-link_en-c.pdf",
+          "priceLevel": "střední",
+          "suppliers": [
+            "SMC Industrial Automation CZ (přímo)"
+          ],
+          "note": "Objednací kód neověřen (úplný kód obsahuje typ připojeného aktuátoru). Příslušenství dle manuálu: napájecí konektor JXC-CPW, IO-Link konektor JXC-CL-S."
+        }
+      ]
+    },
+    "proportional_valve": {
+      "label": "Proporcionální ventil tlaku / průtoku (0–10 V / 4–20 mA)",
+      "unit": "ks",
+      "brands": [
+        {
+          "brand": "Emerson (Aventics)",
+          "series": [
+            "ED05",
+            "ED07",
+            "ED12"
+          ],
+          "typical": "ED05 – elektropneumatický regulátor tlaku, 0–10 V, 0–10 bar",
+          "src": "https://www.emerson.com/cs-cz/automation/fluid-control-pneumatics",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Emerson Automation Solutions (CZ)"
+          ],
+          "note": "Objednací kód neověřen. Doplněk k Festo/SMC/Bürkert v pneu.json (bez duplicit)."
+        },
+        {
+          "brand": "Parker",
+          "series": [
+            "P3HPA",
+            "VP50"
+          ],
+          "typical": "Elektropneumatický regulátor tlaku 0–10 V pro řízení síly válce",
+          "src": "https://www.parker.com/",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Parker Hannifin (CZ)"
+          ],
+          "note": "Řady i objednací kód neověřen – doplnit rešerší."
+        }
+      ]
+    }
+  },
+  "suppliers": [
+    {
+      "name": "Festo, s.r.o.",
+      "url": "https://www.festo.com/cz/cs/",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "servo_drive",
+        "servo_motor",
+        "linear_axis",
+        "positioning_drive"
+      ],
+      "note": "Česká pobočka Festo (Praha); adresa neověřena v této rešerši."
+    },
+    {
+      "name": "SMC Industrial Automation CZ s.r.o.",
+      "url": "https://www.smc.eu/cs-cz",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "linear_axis",
+        "positioning_drive"
+      ],
+      "note": "Česká pobočka SMC (Brno); neověřeno v této rešerši."
+    },
+    {
+      "name": "Siemens, s.r.o.",
+      "url": "https://www.siemens.com/cz/cs.html",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "servo_drive",
+        "servo_motor"
+      ],
+      "note": "Prodej přes partnery a distributory (Automation24, RS)."
+    },
+    {
+      "name": "Beckhoff Česká republika s.r.o.",
+      "url": "https://www.beckhoff.com/cs-cz/",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "servo_drive",
+        "servo_motor"
+      ],
+      "note": "Pobočka Brno; prodej přímo; neověřeno v této rešerši."
+    },
+    {
+      "name": "Rockwell Automation s.r.o.",
+      "url": "https://www.rockwellautomation.com/cs-cz.html",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "servo_drive",
+        "servo_motor"
+      ],
+      "note": "Prodej přes autorizované distributory; adresa neověřena."
+    },
+    {
+      "name": "Omron Electronics spol. s r.o.",
+      "url": "https://industrial.omron.cz/",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "servo_drive",
+        "servo_motor"
+      ],
+      "note": "Česká pobočka Omron (Praha); neověřeno."
+    },
+    {
+      "name": "Mitsubishi Electric Europe B.V., organizační složka",
+      "url": "https://emea.mitsubishielectric.com/fa/cz",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "servo_drive",
+        "servo_motor"
+      ],
+      "note": "Česká pobočka FA (Praha); URL neověřena."
+    },
+    {
+      "name": "Schneider Electric CZ, s.r.o.",
+      "url": "https://www.se.com/cz/cs/",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "servo_drive",
+        "servo_motor"
+      ],
+      "note": "Prodej přes elektro velkoobchody."
+    },
+    {
+      "name": "Bosch Rexroth, spol. s r.o.",
+      "url": "https://www.boschrexroth.com/cs/cz/",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "linear_axis"
+      ],
+      "note": "Česká pobočka (Brno); neověřeno."
+    },
+    {
+      "name": "igus",
+      "url": "https://www.igus.cz/",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "linear_axis"
+      ],
+      "note": "Český web igus s e-shopem; zastoupení neověřeno."
+    },
+    {
+      "name": "ProfCom, s.r.o.",
+      "url": "https://www.profcom.cz",
+      "country": "CZ",
+      "kind": "distributor",
+      "cats": [
+        "servo_drive",
+        "servo_motor"
+      ],
+      "note": "Autorizovaný distributor Delta Electronics (viz catalog_delta.json)."
+    }
+  ],
+  "notes": [
+    "Typická velikost: servo 400 W (0,4 kW) pro malý stroj; servoměnič a motor ve stejné značce se párují podle tabulky výrobce.",
+    "Kódy ověřeny na stránkách výrobců (Omron EU, Beckhoff, se.com, Mitsubishi PL) nebo u prodejců (MRO Electric, Rexel USA, DamenCNC); weby automation24, festo.com, smcpneumatics a TME blokují roboty (403).",
+    "Servoosy v kusovníku: k servoměniči počítat kabely motoru a enkodéru (OCT jedním kabelem), brzdový odpor dle dynamiky a u svislých os motor s brzdou.",
+    "Bezpečnost: STO v měniči je jen HW funkce – zapojení a PLr podle posouzení rizik (EN ISO 13849), návrh k revizi.",
+    "Ceny se neuvádějí; priceLevel je kvalitativní."
+  ]
+}

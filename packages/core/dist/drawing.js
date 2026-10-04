@@ -4,7 +4,7 @@
  * Konvence: rámeček s mřížkovými referencemi, popisové pole, značení -M1
  * (IEC 81346), čísla vodičů -W<svorkovnice><svorka> (`wireNo`), NC/NO kontakty (IEC 60617).
  */
-import { CLS, PLAT, devById, modules, wireNo, esc, stripDia } from "./model.js";
+import { CLS, PLAT, devById, modules, wireNo, esc, stripDia, devRef } from "./model.js";
 import { trx, N_, today } from "./i18n.js";
 /* Označení revize projektu pro sloupec „Rev“ popisového pole — dodá revision.ts (bez revize undefined → „0.1“). */
 let sheetRev = null;
@@ -91,7 +91,7 @@ export function sheetOps(prj, mod, xnum, page, total, meta) {
             if (e.nc)
                 Ln(324, y, 324, y - 11, "s"); // doraz = rozpínací kontakt
             Ln(324, y, 678, y);
-            Tx(298, y - 17, "-" + (d.name || ""), { k: "b", size: 10 });
+            Tx(298, y - 17, "-" + devRef(d), { k: "b", size: 10 });
             Tx(340, y - 6, e.tag, { size: 10 });
             Tx(140, y - 6, (d.desc || e.cmt || "").slice(0, 25), { k: "m", size: 9 });
             Tx(500, y + 12, wn, { k: "m", size: 9 });
@@ -102,7 +102,7 @@ export function sheetOps(prj, mod, xnum, page, total, meta) {
         else if (mod.dir === "AI") {
             Ln(80, y, 262, y);
             Re(262, y - 12, 96, 24);
-            Tx(310, y + 3, "-" + (d.name || "B?"), { anchor: "middle", k: "b", size: 10 });
+            Tx(310, y + 3, "-" + (devRef(d) || "B?"), { anchor: "middle", k: "b", size: 10 });
             Ln(358, y, 678, y);
             Tx(140, y - 6, (d.desc || "").slice(0, 17), { k: "m", size: 9 });
             Tx(380, y - 6, e.tag, { size: 10 });
@@ -117,7 +117,7 @@ export function sheetOps(prj, mod, xnum, page, total, meta) {
             Tx(266, y + 14, "X" + xnum + ":" + (i + 1), { k: "m", size: 9 });
             Ln(258, y, 560, y);
             Re(560, y - 9, 26, 18); // cívka/zátěž (IEC: obdélník)
-            Tx(573, y - 14, "-" + (d.name || ""), { anchor: "middle", k: "b", size: 10 });
+            Tx(573, y - 14, "-" + devRef(d), { anchor: "middle", k: "b", size: 10 });
             Ln(586, y, 886, y);
             Tx(276, y - 6, e.tag, { size: 10 });
             Tx(430, y + 12, wn, { k: "m", size: 9 });
@@ -129,7 +129,7 @@ export function sheetOps(prj, mod, xnum, page, total, meta) {
             Tx(266, y + 14, "X" + xnum + ":" + (i + 1), { k: "m", size: 9 });
             Ln(258, y, 540, y);
             Re(540, y - 12, 116, 24);
-            Tx(598, y + 3, "-" + (d.name || "U?"), { anchor: "middle", k: "b", size: 10 });
+            Tx(598, y + 3, "-" + (devRef(d) || "U?"), { anchor: "middle", k: "b", size: 10 });
             Ln(656, y, 886, y);
             Tx(276, y - 6, e.tag, { size: 10 });
             Tx(400, y + 12, "0/4–20 mA · 0–10 V · " + wn, { k: "m", size: 9 });

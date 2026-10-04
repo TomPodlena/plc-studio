@@ -23,17 +23,18 @@
  * Pořadí vyhodnocení (= generovaný program = simulátor `scan()`):
  *   enable → sekvence (CASE) → časovače kroků → instance bloků (+ role DO) → porucha stroje.
  *
+ * Pohony fáze 2a (hotovo — `Vfd`, `PosDrive`, `PropValve`, viz CLAUDE.md „Pohony a polohování“):
+ *  - bloky `motionFbItem` (porty: povely jako výrazy, hlášení jako I/O, parametry `real`,
+ *    surový rozsah analogu `src: "rawMax"` dosazuje renderer), šablony `ST_VFD` / `ST_POSDRIVE` /
+ *    `ST_PROPVALVE` (SCL ze ST), obecné volání `stCall` / `lxCallIr` / `inlineFb`;
+ *  - kroky: `IrStep.sets` (povely kroku, zapisované i při přechodu DO kroku), `IrSeq.resets`
+ *    (hodnoty po přerušení), podmínka `SeqCondition.expr` nad výstupy instance.
  * Příprava pro fázi 2b / 2c (zatím bez implementace):
- *  - Nové třídy bloků (`Vfd` frekvenční měnič, `PosDrive` polohovací pohon, `PropValve`
- *    proporcionální ventil, `Axis` servoosa): rozšířit `IrFbClass`, `IR_CLASSES` (jméno FB)
- *    a šablony v `fbTemplate` (ST + SCL), v `fbItem` přidat větev s porty (povely jako výrazy,
- *    zpětná hlášení jako I/O, parametry jako `real`); `stCall` bez zvláštního rozložení použije
- *    obecné (port na řádek), Logix (`lxCallIr`) a Unitronics (`inlineFb`) berou porty obecně.
- *    Simulátor a ověření je potřeba doplnit zvlášť (zrcadlo šablony), stejně tak HMI a AOI typy.
- *  - Nové akce kroků (`run`/`stop` pro Vfd s rychlostí, `home`, `posRecord`, `moveAbs`,
- *    `setPressure`, `waitInPos`): rozšířit `IrStepOp`; krok nese povel jako `set`
- *    (proměnná sekvence + hodnota; pro analogové povely přibude `value: IrExpr`) a podmínku
- *    přechodu z `seqCond` (nové druhy zpětného hlášení — „v poloze", „dojeto na referenci").
+ *  - Servoosa `Axis`: obálka FB_Axis nad bloky MC platformy (nejsou společné — S7-1200 / 1500,
+ *    TwinCAT, CODESYS SM3, Omron, Logix instrukce v hlavní rutině), stejný vzor jako 2a: třída
+ *    v `IrFbClass`, šablona per platforma, akce `moveAbs` / `moveRel` / `moveVel` / `halt`
+ *    s parametry v `IrStep.sets`, podmínka „v poloze“ přes `expr`; emulátor potřebuje modely MC
+ *    bloků a implicitních objektů os (TO, AXIS_REF), simulátor lichoběžníkový profil.
  *  - Druhý (OOP) renderer téhož IR je `codegen_oop.ts` (rodina CODESYS: INTERFACE I_Device,
  *    ABSTRACT FB_DeviceBase, třídy zařízení s Cycle ze šablony, FB_Sequence, pole odkazů v MAIN;
  *    volba `prj.codeStyle = "oop"`). Výchozí renderer zůstává klasický FB; shodu chování obou
@@ -50,7 +51,7 @@
  */
 import {
   Project, Device, IoEntry, SeqStep, SeqAct, DoRole, devById, ioOf, instName, enableInputs,
-  interlockDevs, isDiWait,
+  interlockDevs, isDiWait, isMotionClass, isSpAct, stepSp, devSp, rampStepOf, tolOf, tolTicksOf,
 } from "./model.js";
 import { N_ } from "./i18n.js";
 /* ir.ts a codegen.ts se importují navzájem: šablony se tu berou až uvnitř funkcí */
@@ -150,8 +151,8 @@ export interface IrEnable { inputs: Array<{ dev: Device; tag: string; estop: boo
 
 /* ====================================================== bloky zařízení */
 
-export type IrFbClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut";
-/* fáze 2b: | "Vfd" | "PosDrive" | "PropValve" | "Axis" */
+export type IrFbClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "Vfd" | "PosDrive" | "PropValve";
+/* fáze 2b: | "Axis" */
 
 /** Třídy bloků: jméno FB; zdroj logiky = šablona třídy (`fbTemplate(cls, dialekt)` v codegen.ts). */
 export const IR_CLASSES: Record<IrFbClass, { fb: string }> = {
@@ -159,7 +160,12 @@ export const IR_CLASSES: Record<IrFbClass, { fb: string }> = {
   Ventil: { fb: "FB_Ventil" },
   AnalogIn: { fb: "FB_AnalogIn" },
   AnalogOut: { fb: "FB_AnalogOut" },
+  Vfd: { fb: "FB_Vfd" },
+  PosDrive: { fb: "FB_PosDrive" },
+  PropValve: { fb: "FB_PropValve" },
 };
+/** Pořadí tříd v knihovně bloků (Gen_Library, AOI, OOP) — nové třídy za původními (golden). */
+export const IR_CLASS_ORDER: IrFbClass[] = ["Motor", "Ventil", "AnalogIn", "AnalogOut", "Vfd", "PosDrive", "PropValve"];
 
 /** Typy portů bloku z vestavěné šablony IEC ST (vstupy, výstupy). */
 export function irPortTypes(cls: IrFbClass): Record<string, IrType> {
@@ -168,8 +174,11 @@ export function irPortTypes(cls: IrFbClass): Record<string, IrType> {
   return out;
 }
 
-/** Zapojený vstup bloku: `src` = odkud hodnota je (default = náhrada chybějícího signálu). */
-export interface IrPort { name: string; type: IrType; expr: IrExpr; src: "io" | "ctrl" | "param" | "default"; }
+/**
+ * Zapojený vstup bloku: `src` = odkud hodnota je (default = náhrada chybějícího signálu,
+ * rawMax = surový rozsah analogu — hodnotu dosadí renderer podle platformy, `expr` je Siemens 27648).
+ */
+export interface IrPort { name: string; type: IrType; expr: IrExpr; src: "io" | "ctrl" | "param" | "default" | "rawMax"; }
 /** Výstup bloku do I/O tagu; bez `tag` = nezapojený (renderer ho pošle do pomocné proměnné). */
 export interface IrOut { name: string; type: IrType; tag?: string; }
 
@@ -186,7 +195,7 @@ export interface IrFb {
   /** AnalogIn: meze (jen zadané); AnalogOut: žádaná hodnota */
   limits?: { hi?: number; lo?: number };
   setpoint?: number;
-  /** Motor / Ventil: povel zapnout / otevřít (sekvence NEBO ruční povel) */
+  /** Motor / Ventil / Vfd / PropValve: povel zapnout / otevřít (sekvence NEBO ruční povel); PosDrive: referování */
   cmd?: IrExpr;
 }
 /** DO s rolí: výstup = stav stroje. */
@@ -205,18 +214,23 @@ export type IrDeviceItem = IrFb | IrRole | IrFree | IrSeqInput | IrEnableInput;
 /* ============================================================ sekvence */
 
 /**
- * Operace kroku. Fáze 2b přidá: "home" | "posRecord" | "moveAbs" | "setPressure" | "waitInPos"
- * (a run/stop s rychlostí u Vfd).
+ * Operace kroku (run / stop platí pro motor i měnič; home / posRecord = polohovací pohon,
+ * setPressure = proporcionální ventil — akce setPressure i setFlow). Fáze 2b přidá
+ * "moveAbs" | "moveRel" | "moveVel" | "halt" (servoosa).
  */
-export type IrStepOp = "dwell" | "waitOn" | "waitOff" | "run" | "stop" | "open" | "close" | "none";
+export type IrStepOp = "dwell" | "waitOn" | "waitOff" | "run" | "stop" | "open" | "close" | "home" | "posRecord" | "setPressure" | "none";
 
 /**
  * Podmínka přechodu kroku — jediný zdroj pro generátor i simulátor:
- *  time = po čase kroku, fbk = na vstup `io` (neg = čeká se na FALSE),
- *  none = ihned (zařízení pro tuto akci nemá zpětné hlášení).
+ *  time = po čase kroku, fbk = na vstup `io` (neg = čeká se na FALSE) nebo na výraz `expr`
+ *  nad výstupy instance bloku (měnič: otáčky dosaženy, pohon: v poloze záznamu, ventil:
+ *  v toleranci), none = ihned (zařízení pro tuto akci nemá zpětné hlášení).
  * U přechodu fbk je čas kroku (`timeS`) hlídací čas: po jeho uplynutí porucha.
  */
-export interface SeqCondition { kind: "time" | "fbk" | "none"; io?: IoEntry; neg?: boolean; }
+export interface SeqCondition { kind: "time" | "fbk" | "none"; io?: IoEntry; neg?: boolean; expr?: IrExpr; }
+
+/** Přiřazení povelu sekvence (proměnná + hodnota) — u pohonů fáze 2a i při vstupu do kroku. */
+export interface IrSet { var: string; type: IrType; value: IrExpr; }
 
 export interface IrStep {
   /** pořadí od 0; číslo kroku v programu `n` = 10, 20, …; `next` = následující (po posledním 0) */
@@ -226,6 +240,12 @@ export interface IrStep {
   dev?: Device;
   /** povel sekvence nastavovaný v kroku */
   set?: { var: string; value: boolean };
+  /**
+   * Povely pohonů / proporcionálních prvků (žádaná, záznam, směr…). Zapisují se v kroku
+   * i už při přechodu DO kroku (`IF … THEN seqSpd_M5 := 30.0; seqStep := 30;`): blok je tak
+   * zpracuje ještě v tomtéž scanu a sekvence v kroku nečte stav z předchozí jízdy.
+   */
+  sets?: IrSet[];
   cond: SeqCondition;
   /** čas kroku [s] (výdrž / přechod časem / hlídací čas zpětného hlášení) */
   timeS: number;
@@ -237,6 +257,8 @@ export interface IrSeq {
   steps: IrStep[];
   /** povely sekvence (seqRun_* / seqOpen_*) — při přerušení se nulují */
   outputs: string[];
+  /** povely pohonů fáze 2a (BOOL / REAL / INT) a jejich hodnota po přerušení (výchozí žádaná, 0) */
+  resets: IrSet[];
   /** přerušení: sekvence do kroku 0, povely vypnout */
   abort: IrExpr;
   /** start cyklu v kroku 0 */
@@ -269,14 +291,20 @@ export function limitedAnalogs(prj: Project): Device[] {
 export function waitedDis(prj: Project): Set<number> {
   return new Set(prj.program.seq.filter(isDiWait).map(s => s.dev));
 }
-/** Zařízení s funkčním blokem a povelem (motory, ventily). */
+/** Zařízení s funkčním blokem a povelem (motory, ventily, měniče, polohovací pohony, proporcionální ventily). */
 export function actuators(prj: Project): Device[] {
-  return prj.devices.filter(d => d.cls === "Motor" || d.cls === "Ventil");
+  return prj.devices.filter(d => d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls));
 }
-/** Proměnná povelu ze sekvence / ručního povelu z HMI pro dané zařízení. */
-export function seqVarOf(d: Device): string { return (d.cls === "Motor" ? "seqRun_" : "seqOpen_") + d.name; }
-export function manVarOf(d: Device): string { return (d.cls === "Motor" ? "manRun_" : "manOpen_") + d.name; }
+/** Proměnná povelu ze sekvence (BOOL) / ručního povelu z HMI pro dané zařízení. */
+export function seqVarOf(d: Device): string {
+  return (d.cls === "Motor" || d.cls === "Vfd" ? "seqRun_" : d.cls === "PosDrive" ? "seqMove_" : d.cls === "PropValve" ? "seqOn_" : "seqOpen_") + d.name;
+}
+/** Ruční povel z HMI: motor / měnič chod, ventil otevřít, polohovací pohon referování, proporcionální ventil zapnout. */
+export function manVarOf(d: Device): string {
+  return (d.cls === "Motor" || d.cls === "Vfd" ? "manRun_" : d.cls === "PosDrive" ? "manHome_" : d.cls === "PropValve" ? "manOn_" : "manOpen_") + d.name;
+}
 
+/** Povely sekvence motorů a ventilů (BOOL, pořadí prvního výskytu v sekvenci). */
 export function seqVars(prj: Project): string[] {
   const vars = new Set<string>();
   for (const s of prj.program.seq) {
@@ -286,10 +314,57 @@ export function seqVars(prj: Project): string[] {
   return [...vars];
 }
 
+/** Proměnné povelů sekvence pohonu fáze 2a (jméno → typ a hodnota po přerušení). */
+export function motionSeqVars(d: Device): IrSet[] {
+  const n = d.name;
+  if (d.cls === "Vfd") return [{ var: "seqRun_" + n, type: "BOOL", value: irBool(false) }, { var: "seqSpd_" + n, type: "REAL", value: irReal(devSp(d)) },
+    ...(d.opt?.rev ? [{ var: "seqRev_" + n, type: "BOOL" as IrType, value: irBool(false) }] : [])];
+  if (d.cls === "PosDrive") return [{ var: "seqMove_" + n, type: "BOOL", value: irBool(false) }, { var: "seqHome_" + n, type: "BOOL", value: irBool(false) },
+    { var: "seqRec_" + n, type: "INT", value: irInt(0) }];
+  if (d.cls === "PropValve") return [{ var: "seqOn_" + n, type: "BOOL", value: irBool(false) }, { var: "seqSp_" + n, type: "REAL", value: irReal(devSp(d)) }];
+  return [];
+}
+/** Pohony fáze 2a, které sekvence ovládá (pořadí prvního výskytu v sekvenci). */
+export function seqMotionDevs(prj: Project): Device[] {
+  const out: Device[] = [];
+  for (const s of prj.program.seq) {
+    const d = devById(prj, s.dev);
+    if (d && isMotionClass(d.cls) && s.act !== "wait" && !out.includes(d)) out.push(d);
+  }
+  return out;
+}
+
+/** Povely kroku pohonu fáze 2a (prázdné u ostatních). Zrcadlo v simulátoru. */
+export function motionStepSets(d: Device, s: SeqStep): IrSet[] {
+  const n = d.name;
+  if (d.cls === "Vfd") {
+    if (s.act !== "start") return [{ var: "seqRun_" + n, type: "BOOL", value: irBool(false) }];
+    return [{ var: "seqSpd_" + n, type: "REAL", value: irReal(stepSp(s, d)) },
+      ...(d.opt?.rev ? [{ var: "seqRev_" + n, type: "BOOL" as IrType, value: irBool(!!s.rev) }] : []),
+      { var: "seqRun_" + n, type: "BOOL", value: irBool(true) }];
+  }
+  if (d.cls === "PosDrive") {
+    if (s.act === "home") return [{ var: "seqMove_" + n, type: "BOOL", value: irBool(false) }, { var: "seqHome_" + n, type: "BOOL", value: irBool(true) }];
+    return [{ var: "seqHome_" + n, type: "BOOL", value: irBool(false) }, { var: "seqRec_" + n, type: "INT", value: irInt(Math.round(Number(s.rec) || 0)) },
+      { var: "seqMove_" + n, type: "BOOL", value: irBool(true) }];
+  }
+  if (d.cls === "PropValve") return [{ var: "seqSp_" + n, type: "REAL", value: irReal(stepSp(s, d)) }, { var: "seqOn_" + n, type: "BOOL", value: irBool(true) }];
+  return [];
+}
+
 export function seqCond(prj: Project, s: SeqStep): SeqCondition {
   if (s.act === "wait" || (s.cond === "time" && !isDiWait(s))) return { kind: "time" };
   const d = devById(prj, s.dev);
   if (!d) return { kind: "none" };
+  /* pohony fáze 2a: přechod na výstup bloku (po zpracování povelu v tomtéž scanu — viz IrStep.sets) */
+  const inst = instName(d);
+  if (d.cls === "Vfd") return s.act === "start" ? { kind: "fbk", expr: irMember(inst, "inSpeed") } : { kind: "none" };
+  if (d.cls === "PosDrive") {
+    if (s.act !== "home" && s.act !== "posRecord") return { kind: "none" };
+    const rec = s.act === "home" ? 0 : Math.round(Number(s.rec) || 0);
+    return { kind: "fbk", expr: irAnd(irMember(inst, "done"), irEq(irMember(inst, "actRec"), irInt(rec))) };
+  }
+  if (d.cls === "PropValve") return isSpAct(s.act) ? { kind: "fbk", expr: irMember(inst, "inTol") } : { kind: "none" };
   const io = ioOf(prj, d);
   if (isDiWait(s)) {                               // čekání na snímač / tlačítko (hlídací čas = timeS)
     const e = d.cls === "DI" ? (io.in || Object.values(io)[0]) : undefined;
@@ -335,12 +410,56 @@ export function roleIr(role: DoRole, hasSeq: boolean): IrExpr {
 export function cmdIr(prj: Project, d: Device): IrExpr {
   if (!prj.program.seq.length) return irVar(manVarOf(d));
   const man = irParen(irAnd(irVar(manVarOf(d)), irNot(irVar(IR_CTRL.modeAuto))));
-  return seqVars(prj).includes(seqVarOf(d)) ? irOr(irVar(seqVarOf(d)), man) : man;
+  /* polohovací pohon: ruční povel = referování → v sekvenci seqHome_ */
+  const sv = d.cls === "PosDrive" ? "seqHome_" + d.name : seqVarOf(d);
+  const inSeq = isMotionClass(d.cls) ? seqMotionDevs(prj).includes(d) : seqVars(prj).includes(seqVarOf(d));
+  return inSeq ? irOr(irVar(sv), man) : man;
+}
+
+/** Blok pohonu fáze 2a: povely ze sekvence / ručního povelu, zpětná hlášení z I/O, parametry. */
+function motionFbItem(prj: Project, d: Device, base: Omit<IrFb, "inputs" | "outputs">, T: Record<string, IrType>): IrFb {
+  const io = ioOf(prj, d);
+  const C = IR_CTRL, n = d.name;
+  const inSeq = prj.program.seq.length > 0 && seqMotionDevs(prj).includes(d);
+  const port = (name: string, expr: IrExpr, src: IrPort["src"]): IrPort => ({ name, type: T[name], expr, src });
+  const sig = (name: string, e: IoEntry | undefined, dflt: IrExpr): IrPort => e ? port(name, irIo(e.tag), "io") : port(name, dflt, "default");
+  const outs = (names: string[], must: string[] = []): IrOut[] =>
+    names.filter(x => io[x] || must.includes(x)).map(x => io[x] ? { name: x, type: T[x], tag: io[x].tag } : { name: x, type: T[x] });
+  const rawMax = port("rawMax", irInt(27648), "rawMax");
+  const cmd = cmdIr(prj, d);
+  if (d.cls === "Vfd") {
+    const inputs = [port("enable", irVar(C.enable), "ctrl"), port("cmdRun", cmd, "ctrl"), port("cmdStop", irNot(irParen(cmd)), "ctrl"),
+      inSeq && d.opt?.rev ? port("cmdRev", irVar("seqRev_" + n), "ctrl") : port("cmdRev", irBool(false), "default"),
+      port("reset", irVar(C.cmdAck), "ctrl"),
+      sig("ready", io.ready, irBool(true)), sig("atSpeed", io.atSpeed, irBool(true)), sig("fault", io.fault, irBool(false)),
+      inSeq ? port("speedSp", irVar("seqSpd_" + n), "ctrl") : port("speedSp", irReal(devSp(d)), "param"),
+      port("rampStep", irReal(rampStepOf(d)), "param"), port("scaleMin", irReal(d.rmin), "param"), port("scaleMax", irReal(d.rmax), "param"),
+      rawMax, sig("rawAct", io.rawAct, irInt(0))];
+    return { ...base, cmd, inputs, outputs: outs(["outRun", "outRev", "outReset", "rawSpeed"], ["outRun", "rawSpeed"]) };
+  }
+  if (d.cls === "PosDrive") {
+    const inputs = [port("enable", irVar(C.enable), "ctrl"), port("cmdHome", cmd, "ctrl"),
+      inSeq ? port("cmdMove", irVar("seqMove_" + n), "ctrl") : port("cmdMove", irBool(false), "default"),
+      inSeq ? port("recNo", irVar("seqRec_" + n), "ctrl") : port("recNo", irInt(0), "default"),
+      port("reset", irVar(C.cmdAck), "ctrl"),
+      sig("ready", io.ready, irBool(true)), sig("inPos", io.inPos, irBool(true)), sig("homed", io.homed, irBool(true)), sig("fault", io.fault, irBool(false))];
+    const sel = [0, 1, 2, 3, 4, 5].map(k => "outSel" + k);
+    return { ...base, cmd, inputs, outputs: outs(["outEnable", "outStart", "outHome", "outHalt", ...sel, "outReset"], ["outEnable", "outStart", "outHome"]) };
+  }
+  /* PropValve */
+  const fbk = !!io.rawAct;
+  const inputs = [port("enable", irVar(C.enable), "ctrl"), port("cmdOn", cmd, "ctrl"),
+    inSeq ? port("spTarget", irVar("seqSp_" + n), "ctrl") : port("spTarget", irReal(devSp(d)), "param"),
+    port("reset", irVar(C.cmdAck), "ctrl"),
+    port("rampStep", irReal(rampStepOf(d)), "param"), port("tol", irReal(tolOf(d)), "param"), port("tolTicks", irInt(tolTicksOf(d)), "param"),
+    port("useFbk", irBool(fbk), "param"), port("scaleMin", irReal(d.rmin), "param"), port("scaleMax", irReal(d.rmax), "param"),
+    rawMax, sig("rawAct", io.rawAct, irInt(0))];
+  return { ...base, cmd, inputs, outputs: outs(["rawSp"], ["rawSp"]) };
 }
 
 function fbItem(prj: Project, d: Device): IrFb | null {
-  if (d.cls !== "Motor" && d.cls !== "Ventil" && d.cls !== "AnalogIn" && d.cls !== "AnalogOut") return null;
-  const cls: IrFbClass = d.cls;
+  if (d.cls !== "Motor" && d.cls !== "Ventil" && d.cls !== "AnalogIn" && d.cls !== "AnalogOut" && !isMotionClass(d.cls)) return null;
+  const cls = d.cls as IrFbClass;
   const T = irPortTypes(cls);
   const io = ioOf(prj, d);
   const C = IR_CTRL;
@@ -348,6 +467,7 @@ function fbItem(prj: Project, d: Device): IrFb | null {
   const sig = (name: string, e: IoEntry | undefined, dflt: IrExpr): IrPort => e ? port(name, irIo(e.tag), "io") : port(name, dflt, "default");
   const out = (name: string, e: IoEntry | undefined): IrOut => e ? { name, type: T[name], tag: e.tag } : { name, type: T[name] };
   const base = { kind: "fb" as const, dev: d, cls, fb: IR_CLASSES[cls].fb, inst: instName(d) };
+  if (isMotionClass(d.cls)) return motionFbItem(prj, d, base, T);
   if (cls === "Motor" || cls === "Ventil") {
     const cmd = cmdIr(prj, d);
     const [on, off] = cls === "Motor" ? ["cmdStart", "cmdStop"] : ["cmdOpen", "cmdClose"];
@@ -389,6 +509,7 @@ export function buildIR(prj: Project): IrProgram {
   const steps = prj.program.seq, hasSeq = steps.length > 0;
   const acts = actuators(prj), analogs = limitedAnalogs(prj);
   const svars = seqVars(prj);
+  const mvars = seqMotionDevs(prj).flatMap(motionSeqVars);
 
   /* deklarace řízení stroje */
   const decls: IrDecl[] = [];
@@ -406,6 +527,7 @@ export function buildIR(prj: Project): IrProgram {
     decls.push({ name: C.faultStep, type: "INT", group: "ctrl", note: N_("krok sekvence, ve kterém vypršel čas (diagnostika)") });
     decls.push({ name: C.seqStep, type: "INT", group: "seq" });
     for (const v of svars) decls.push({ name: v, type: "BOOL", group: "seqOut" });
+    for (const v of mvars) decls.push({ name: v.var, type: v.type, group: "seqOut" });
     for (const n of seqTimedSteps(prj)) decls.push({ name: "tonSeq" + n, type: "TON", group: "timer" });
   }
 
@@ -414,19 +536,24 @@ export function buildIR(prj: Project): IrProgram {
   if (hasSeq) {
     seq = {
       outputs: svars,
-      abort: irOr(irNot(irVar(C.modeAuto)), irNot(irVar(C.enable)), irVar(C.machineFault)),
+      resets: mvars,
+      abort:irOr(irNot(irVar(C.modeAuto)), irNot(irVar(C.enable)), irVar(C.machineFault)),
       start: irAnd(irVar(C.modeAuto), irVar(C.enable), irNot(irVar(C.machineFault)), irVar(C.cmdAutoStart)),
       steps: steps.map((s, i): IrStep => {
         const n = 10 + i * 10, next = i === steps.length - 1 ? 0 : 10 + (i + 1) * 10;
         const d = devById(prj, s.dev);
         const cond = seqCond(prj, s);
-        let op: IrStepOp = "none", set: IrStep["set"];
+        let op: IrStepOp = "none", set: IrStep["set"], sets: IrSet[] | undefined;
         if (s.act === "wait") op = "dwell";
         else if (isDiWait(s)) op = s.act === "waitOn" ? "waitOn" : "waitOff";
         else if (d && d.cls === "Motor") { op = s.act === "start" ? "run" : "stop"; set = { var: seqVarOf(d), value: s.act === "start" }; }
         else if (d && d.cls === "Ventil") { op = s.act === "open" ? "open" : "close"; set = { var: seqVarOf(d), value: s.act === "open" }; }
+        else if (d && isMotionClass(d.cls)) {
+          op = d.cls === "Vfd" ? (s.act === "start" ? "run" : "stop") : d.cls === "PosDrive" ? (s.act === "home" ? "home" : "posRecord") : "setPressure";
+          sets = motionStepSets(d, s);
+        }
         return {
-          index: i, n, next, op, act: s.act, ...(d ? { dev: d } : {}), ...(set ? { set } : {}), cond,
+          index: i, n, next, op, act: s.act, ...(d ? { dev: d } : {}), ...(set ? { set } : {}), ...(sets ? { sets } : {}), cond,
           timeS: s.timeS || 1, ...(cond.kind !== "none" ? { timer: "tonSeq" + n } : {}),
         };
       }),

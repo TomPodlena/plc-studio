@@ -43,7 +43,13 @@ GAP = 12
 
 SIG = {"fbkRunning": N_("běh"), "fault": N_("porucha"), "outRun": N_("chod"),
        "fbkOpen": N_("otevřeno"), "fbkClosed": N_("zavřeno"), "outOpen": N_("otevřít"),
-       "raw": N_("hodnota"), "in": N_("vstup"), "out": N_("výstup")}
+       "raw": N_("hodnota"), "in": N_("vstup"), "out": N_("výstup"),
+       # pohony fáze 2a
+       "ready": N_("připraven"), "atSpeed": N_("otáčky"), "outRev": N_("vzad"), "outReset": N_("kvitace"),
+       "rawSpeed": N_("žádaná"), "rawAct": N_("skutečná"), "inPos": N_("v poloze"), "homed": N_("referováno"),
+       "outEnable": N_("povolení"), "outStart": N_("start"), "outHome": N_("referování"), "outHalt": N_("HALT"),
+       "rawSp": N_("žádaná")}
+MOTION_CLS = ("Vfd", "PosDrive", "PropValve")
 LEFT_CLS = ("DI", "AnalogIn")
 # Barvy stavu jsou sémantické (theme.SIG_* / STATE_*), ne značkový akcent: DI modrá,
 # DO zelená, analog fialová, aktivní žlutá/oranžová, porucha červená.
@@ -102,6 +108,7 @@ class Mimic(ttk.Frame):
         self._mod: int | None = None      # vybraný modul PLC (index v ``mods``) — zvýrazní jeho vodiče
         self._phase = 0.0                 # posun čárkování aktivních vodičů
         self._angle: dict[int, float] = {}
+        self._cart: dict[int, float] = {}     # polohovací pohon: poslední klidová poloha vozíku
         self._press = None
         self._dragging = False
         self._cache: dict = {}            # poslední nastavené hodnoty prvků (méně volání Tk)
@@ -168,7 +175,7 @@ class Mimic(ttk.Frame):
         for d in prj["devices"]:
             side = "L" if d["cls"] in LEFT_CLS else "R"
             n = max(1, len(self.io_of[d["id"]]))
-            h = max(36 + n * ROW + 6, 74 if d["cls"] in ("Motor", "Ventil", "AnalogIn") else 54)
+            h = max(36 + n * ROW + 6, 74 if d["cls"] in ("Motor", "Ventil", "AnalogIn", *MOTION_CLS) else 54)
             x = X_LEFT if side == "L" else X_RIGHT
             self.dev_box[d["id"]] = (x, y[side], W_DEV, h, side)
             for j, e in enumerate(self.io_of[d["id"]]):
@@ -313,7 +320,8 @@ class Mimic(ttk.Frame):
             self.items["led"].setdefault(e["key"], []).append(
                 c.create_oval(P(px - 4), P(py - 4), P(px + 4), P(py + 4), outline=theme.FG,
                               fill="#FFFFFF", tags=(tag,)))
-            label = _(SIG[e["sig"]]) if e["sig"] in SIG else e["sig"]
+            label = _(SIG[e["sig"]]) if e["sig"] in SIG else \
+                _("bit {k}", k=e["sig"][6:]) if e["sig"].startswith("outSel") else e["sig"]
             if side == "L":
                 t = c.create_text(P(px - 11), P(py), text=label, anchor="e", fill=theme.FG,
                                   font=self._font(9.5), tags=(tag,))
@@ -336,6 +344,51 @@ class Mimic(ttk.Frame):
             c.create_text(P(mx - r - 12), P(cy), text="M", fill=theme.FG,
                           font=self._font(11, bold=True), tags=(tag,))
             it["geo"] = (mx, cy, r - 3)
+        elif d["cls"] == "Vfd":                          # měnič: blok ~ a motor s rotorem, otáčky
+            fx = gx - 10
+            c.create_rectangle(P(fx), P(cy - 13), P(fx + 26), P(cy + 13), outline=theme.FG,
+                               fill="#FFFFFF", width=max(1, round(1.2 * s)), tags=(tag,))
+            c.create_line(P(fx), P(cy + 13), P(fx + 26), P(cy - 13), fill=theme.FG, tags=(tag,))
+            c.create_text(P(fx + 19), P(cy + 6), text="~", fill=theme.FG, font=self._font(10, bold=True), tags=(tag,))
+            mx, r = gx + 44, 14
+            c.create_line(P(fx + 26), P(cy), P(mx - r), P(cy), fill=theme.FG, tags=(tag,))
+            it["body"] = c.create_oval(P(mx - r), P(cy - r), P(mx + r), P(cy + r), outline=theme.FG,
+                                       width=max(1, round(1.5 * s)), fill="#FFFFFF", tags=(tag,))
+            it["rotor"] = c.create_line(P(mx), P(cy), P(mx + r - 3), P(cy), fill=theme.FG,
+                                        width=max(1, round(2 * s)), tags=(tag,))
+            it["value"] = c.create_text(P(gx - 10), P(cy + 24), text="", anchor="w", fill=theme.FG,
+                                        font=self._font(9.5, mono=True), tags=(tag,))
+            it["geo"] = (mx, cy, r - 3)
+        elif d["cls"] == "PosDrive":                     # elektrická osa: vedení a vozík, záznam
+            x0, x1 = gx - 12, gx + 70
+            c.create_rectangle(P(x0), P(cy - 3), P(x1), P(cy + 3), outline=theme.FG, fill=theme.FIELD, tags=(tag,))
+            recs = {r["no"]: r for r in d.get("records") or []}
+            nmax = max([(1 << int(d.get("selBits") or 3)) - 1, *recs])
+            pos = {n: r["pos"] for n, r in recs.items() if r.get("pos") is not None}
+            lo, hi = min([0, *pos.values()]), max([1, *pos.values()])
+            # poloha záznamu na vedení: zadaná poloha, jinak rovnoměrně podle čísla; 0 = reference vlevo
+            it["recx"] = {n: x0 + 6 + (x1 - x0 - 12) * ((pos[n] - lo) / ((hi - lo) or 1) if n in pos else n / nmax)
+                          for n in range(0, nmax + 1)}
+            it["recx"][0] = x0 + 6
+            for n, xx in it["recx"].items():
+                if n in recs or n == 0:
+                    c.create_line(P(xx), P(cy + 5), P(xx), P(cy + 9), fill=theme.DIM, tags=(tag,))
+            it["cart"] = c.create_rectangle(0, 0, 0, 0, outline=theme.FG, fill=theme.DIM, tags=(tag,))
+            it["value"] = c.create_text(P(x0), P(cy + 20), text="", anchor="w", fill=theme.FG,
+                                        font=self._font(9.5, mono=True), tags=(tag,))
+            it["geo"] = (x0, x1, cy)
+        elif d["cls"] == "PropValve":                    # proporcionální ventil: šipka + sloupec skutečné hodnoty
+            vx = gx - 8
+            c.create_rectangle(P(vx), P(cy - 12), P(vx + 24), P(cy + 12), outline=theme.FG, fill="#FFFFFF",
+                               width=max(1, round(1.2 * s)), tags=(tag,))
+            c.create_line(P(vx + 4), P(cy + 8), P(vx + 20), P(cy - 8), fill=theme.FG, arrow="last", tags=(tag,))
+            x0, x1 = gx + 24, gx + 80
+            c.create_rectangle(P(x0), P(cy - 4), P(x1), P(cy + 6), outline=theme.FG, fill="#FFFFFF", tags=(tag,))
+            it["bar"] = c.create_rectangle(P(x0), P(cy - 4), P(x0), P(cy + 6), outline="", fill=WIRE_AN, tags=(tag,))
+            it["mark"] = c.create_line(0, 0, 0, 0, fill=theme.WARN, width=max(1, round(2 * s)), tags=(tag,))
+            it["value"] = c.create_text(P(vx), P(cy + 22), text="", anchor="w", fill=theme.FG,
+                                        font=self._font(9.5, mono=True), tags=(tag,))
+            it["geo"] = (x0, x1, cy)
         elif d["cls"] == "Ventil":
             bx0, bx1 = gx + 6, gx + 52                 # tělo válce
             c.create_rectangle(P(bx0), P(cy - 9), P(bx1), P(cy + 9), outline=theme.FG,
@@ -480,6 +533,42 @@ class Mimic(ttk.Frame):
                          P(mx + r * math.cos(a)), P(cy + r * math.sin(a)))
                 self._set(it["body"], fill=theme.DANGER_BG if state["error"] else
                           theme.STATE_ON_FULL if pos >= 1 else theme.STATE_ACTIVE_BG if pos > 0 else "#FFFFFF")
+            elif d["cls"] == "Vfd":
+                self._set(it["state"], text=state["label"], fill=theme.ERR if state["error"] else theme.DIM)
+                mx, cy, r = it["geo"]
+                pos = state["pos"]                         # otáčky / horní mez rozsahu
+                self._angle[d["id"]] = a = (self._angle.get(d["id"], 0.0) + dt * 12 * pos) % (2 * math.pi)
+                c.coords(it["rotor"], P(mx - r * math.cos(a)), P(cy - r * math.sin(a)),
+                         P(mx + r * math.cos(a)), P(cy + r * math.sin(a)))
+                self._set(it["body"], fill=theme.DANGER_BG if state["error"] else
+                          theme.STATE_ON_FULL if state["step"] == 20 else theme.STATE_ACTIVE_BG if pos > 0 else "#FFFFFF")
+                unit = d.get("unit") or ""
+                self._set(it["value"], text=f"{state.get('value', 0):.3g} → {state.get('cmd', 0):.3g} {unit}".strip())
+            elif d["cls"] == "PosDrive":
+                self._set(it["state"], text=state["label"], fill=theme.ERR if state["error"] else theme.DIM)
+                x0, x1, cy = it["geo"]
+                recx, rec = it["recx"], state.get("rec", -1)
+                last = self._cart.get(d["id"], recx.get(0, x0 + 6))      # poslední klidová poloha vozíku
+                if rec is not None and rec >= 0:
+                    cx = recx.get(rec, last)
+                    self._cart[d["id"]] = cx
+                elif state["pos"] > 0:                     # jede: mezi poslední polohou a cílem
+                    cx = last + (recx.get(state.get("cmd", 0), last) - last) * state["pos"]
+                else:
+                    cx = last
+                c.coords(it["cart"], P(cx - 7), P(cy - 8), P(cx + 7), P(cy + 8))
+                self._set(it["cart"], fill=theme.ERR if state["error"] else WIRE_OUT if state["busy"] else theme.DIM)
+                self._set(it["value"], text=(_("záznam {n}", n=rec) if rec is not None and rec > 0 else
+                                             _("reference") if rec == 0 else _("jede…") if state["pos"] > 0 else "—"))
+            elif d["cls"] == "PropValve":
+                self._set(it["state"], text=state["label"], fill=theme.ERR if state["error"] else theme.DIM)
+                x0, x1, cy = it["geo"]
+                c.coords(it["bar"], P(x0), P(cy - 4), P(x0 + state["pos"] * (x1 - x0)), P(cy + 6))
+                span = (d["rmax"] - d["rmin"]) or 1
+                mf = min(1.0, max(0.0, (state.get("cmd", d["rmin"]) - d["rmin"]) / span))
+                c.coords(it["mark"], P(x0 + mf * (x1 - x0)), P(cy - 7), P(x0 + mf * (x1 - x0)), P(cy + 9))
+                unit = d.get("unit") or ""
+                self._set(it["value"], text=f"{state.get('value', 0):.3g} → {state.get('cmd', 0):.3g} {unit}".strip())
             elif d["cls"] == "Ventil":
                 self._set(it["state"], text=state["label"],
                           fill=theme.ERR if state["error"] else theme.DIM)

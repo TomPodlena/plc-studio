@@ -17,7 +17,8 @@ export function aiInstructions(prj) {
   let current = "";
   if (prj.devices.length) {
     current = "\nAKTUÁLNÍ SESTAVA (uživatel ji může chtít jen upravit — vracej vždy celou aktualizovanou):\n"
-      + JSON.stringify(prj.devices.map(d => ({ name: d.name, cls: d.cls, desc: d.desc, opt: d.opt, unit: d.unit, rmin: d.rmin, rmax: d.rmax, limHi: d.limHi, limLo: d.limLo, setpoint: d.setpoint, role: d.role }))) + "\n"
+      + JSON.stringify(prj.devices.map(d => ({ name: d.name, cls: d.cls, desc: d.desc, opt: d.opt, unit: d.unit, rmin: d.rmin, rmax: d.rmax, limHi: d.limHi, limLo: d.limLo, setpoint: d.setpoint, role: d.role,
+        rampS: d.rampS, tol: d.tol, tolTimeS: d.tolTimeS, selBits: d.selBits, records: d.records }))) + "\n"
       + (Number.isFinite(prj.meta.takt) ? "Požadovaný takt: " + prj.meta.takt + " s\n" : "");
   }
   /* Prompt je česky v každém jazyce UI; cizí jazyk jen přidá na konec pokyn, jak psát texty pro uživatele. */
@@ -30,6 +31,9 @@ export function aiInstructions(prj) {
     + '- "AnalogIn" (B1…): analogové měření; pole unit, rmin, rmax; limLo / limHi = meze v jednotkách měření, jejichž překročení je porucha stroje\n'
     + '- "AnalogOut" (U1…): analogový výstup; unit, rmin, rmax; setpoint = žádaná hodnota v jednotkách, kterou program zapisuje\n'
     + '- "DI" (S1…): samostatný digitální vstup — tlačítko, závora, koncák krytu, snímač dílu, výsledek kontroly, E-stop\n'
+    + '- "Vfd" (M…): pohon na frekvenčním měniči přes I/O (DO chod, analogová žádaná otáček); unit (Hz nebo %), rmin, rmax, setpoint = výchozí otáčky, rampS = rampa v PLC [s] (0 = rampa v měniči); volby opt.fbk = hlášení otáčky dosaženy, opt.ready, opt.fault, opt.rev = směr vzad, opt.act = analog skutečných otáček\n'
+    + '- "PosDrive" (M…): elektrická polohovací osa se záznamy v řadiči (Festo CMMO/CMMT, SMC JXC přes I/O); selBits = počet bitů výběru záznamu (1–6), records = [{"no":1,"name":"…","pos":0}], volby opt.ready, opt.fault; před první jízdou krok "home"\n'
+    + '- "PropValve" (Y…): proporcionální ventil tlaku / průtoku (analogová žádaná, volitelně zpětná vazba); unit, rmin, rmax, setpoint, rampS, tol = povolená odchylka, tolTimeS = doba odchylky do poruchy; opt.fbk = analog skutečné hodnoty\n'
     + '- "DO" (H1…): samostatný digitální výstup — signálka, houkačka, zámek; role = vazba na stav stroje: "run" (chod — sekvence běží), "fault" (porucha stroje), "ready" (připraveno ke startu), "stopped" (stop / nouzové zastavení), "lock" (zámek krytů — zamčeno během cyklu), "auto" (režim AUTO)\n'
     + 'Pravidla: vždy přidej E-stop jako DI (typicky S1 "Nouzové zastavení (NC)") a jeho název vrať v "estop"; bezpečnostní logiku NEnavrhuj. Popisy česky a stručně. U analogů odhadni rozsah a jednotku.\n'
     + 'PRIORITA JE FUNKCE: návrh musí jako stroj skutečně fungovat — každý vstup, který má na chod vliv, musí program číst a reagovat na něj. Zkontroluj, že žádné zařízení nevisí bez účelu.\n'
@@ -41,7 +45,7 @@ export function aiInstructions(prj) {
     + '- Navrhni takt (požadovanou dobu cyklu v sekundách) a vrať ho v "takt".\n'
     + '- Na konci cyklu musí být stroj zase celý ve výchozím stavu (pohony stop, válce zpět, nic nečeká), aby šel další cyklus spustit znovu.\n'
     + '- Ovládací prvky obsluhy (dvouruční spouštění, tlačítka) a signalizaci navrhni podle popisu; pokud jejich funkci program nepokrývá (např. dvouruční spouštění), uveď to v "note" jako věc k doplnění.\n'
-    + 'Automatický cyklus → "seq": kroky {"dev":"M1","act":"start|stop|open|close|wait|waitOn|waitOff","cond":"fbk|time","timeS":číslo}; krok wait má dev:"" a cond:"time"; kroky waitOn / waitOff mají dev = název DI, cond "fbk" a timeS = hlídací čas. U cond "time" je timeS doba kroku; u cond "fbk" je timeS hlídací čas — nejdelší přípustná doba akce, po které program vyhlásí poruchu (zvol s rezervou, typicky 2–3× běžná doba; motor nejvýše 3 s, ventil/válec nejvýše 5 s).\n'
+    + 'Automatický cyklus → "seq": kroky {"dev":"M1","act":"start|stop|open|close|wait|waitOn|waitOff|home|posRecord|setPressure|setFlow","cond":"fbk|time","timeS":číslo}; u Vfd act start/stop a "sp" = otáčky (volitelně "rev": true), u PosDrive act home / posRecord s "rec" = číslo záznamu, u PropValve act setPressure / setFlow s "sp" = žádaná hodnota; krok wait má dev:"" a cond:"time"; kroky waitOn / waitOff mají dev = název DI, cond "fbk" a timeS = hlídací čas. U cond "time" je timeS doba kroku; u cond "fbk" je timeS hlídací čas — nejdelší přípustná doba akce, po které program vyhlásí poruchu (zvol s rezervou, typicky 2–3× běžná doba; motor nejvýše 3 s, ventil/válec nejvýše 5 s).\n'
     + 'Chybí-li ZÁSADNÍ informace, polož nejvýše 3 otázky v "questions" a "devices" nech prázdné; jinak otázky prázdné a sestava kompletní.\n'
     + current
     + 'Odpověz POUZE jedním JSON objektem: {"questions":[],"devices":[{"name","cls","desc","opt":{},"unit","rmin","rmax","limLo","limHi","setpoint","role"}],"estop":"S1","interlocks":["S2"],"seq":[],"takt":30,"note":"shrnutí"}'
@@ -49,9 +53,10 @@ export function aiInstructions(prj) {
 }
 
 /** Akce kroku, které návrh smí použít (zbytek → výdrž). */
-const AI_ACTS = ["start", "stop", "open", "close", "wait", "waitOn", "waitOff"];
-/** Třída zařízení, které akce kroku ovládá / na které čeká. */
-const ACT_CLS = { start: "Motor", stop: "Motor", open: "Ventil", close: "Ventil", waitOn: "DI", waitOff: "DI" };
+const AI_ACTS = ["start", "stop", "open", "close", "wait", "waitOn", "waitOff", "home", "posRecord", "setPressure", "setFlow"];
+/** Třídy zařízení, které akce kroku ovládá / na které čeká. */
+const ACT_CLS = { start: ["Motor", "Vfd"], stop: ["Motor", "Vfd"], open: ["Ventil"], close: ["Ventil"], waitOn: ["DI"], waitOff: ["DI"],
+  home: ["PosDrive"], posRecord: ["PosDrive"], setPressure: ["PropValve"], setFlow: ["PropValve"] };
 /** Číslo z odpovědi, nebo undefined (null / "" / nesmysl = nezadáno). */
 const optNum = v => (v === null || v === undefined || v === "" || typeof v === "boolean" || !Number.isFinite(Number(v))) ? undefined : Number(v);
 
@@ -79,7 +84,16 @@ export function aiNorm(r) {
       if (hi !== undefined) nd.limHi = hi;
       if (lo !== undefined && (hi === undefined || lo < hi)) nd.limLo = lo;
     }
-    if (d.cls === "AnalogOut" && optNum(d.setpoint) !== undefined) nd.setpoint = optNum(d.setpoint);
+    if ((d.cls === "AnalogOut" || d.cls === "Vfd" || d.cls === "PropValve") && optNum(d.setpoint) !== undefined) nd.setpoint = optNum(d.setpoint);
+    /* pohony fáze 2a: rampa, tolerance, záznamy */
+    if ((d.cls === "Vfd" || d.cls === "PropValve") && optNum(d.rampS) !== undefined && optNum(d.rampS) >= 0) nd.rampS = optNum(d.rampS);
+    if (d.cls === "PropValve") { if (optNum(d.tol) > 0) nd.tol = optNum(d.tol); if (optNum(d.tolTimeS) > 0) nd.tolTimeS = optNum(d.tolTimeS); }
+    if (d.cls === "PosDrive") {
+      const b = Math.round(optNum(d.selBits) ?? 3);
+      nd.selBits = Math.min(6, Math.max(1, b));
+      nd.records = (Array.isArray(d.records) ? d.records : []).filter(r => r && Number.isInteger(Number(r.no)) && Number(r.no) >= 1)
+        .map(r => ({ no: Number(r.no), name: String(r.name || ""), ...(optNum(r.pos) !== undefined ? { pos: optNum(r.pos) } : {}) }));
+    }
     if (d.cls === "DO" && Object.prototype.hasOwnProperty.call(DO_ROLES, d.role)) nd.role = d.role;
     return nd;
   });
@@ -94,8 +108,11 @@ export function aiNorm(r) {
       dev: act === "wait" ? "" : String(s.dev || ""), act,
       cond: wait ? "fbk" : act === "wait" || s.cond === "time" ? "time" : "fbk",
       timeS: Number(s.timeS) > 0 ? Number(s.timeS) : (wait ? 10 : 3),
+      ...(optNum(s.sp) !== undefined ? { sp: optNum(s.sp) } : {}),
+      ...(Number.isInteger(Number(s.rec)) && Number(s.rec) >= 1 ? { rec: Number(s.rec) } : {}),
+      ...(s.rev === true ? { rev: true } : {}),
     };
-  }).filter(s => s.act === "wait" || ACT_CLS[s.act] === clsOf(s.dev));   // akce musí patřit třídě zařízení
+  }).filter(s => s.act === "wait" || (ACT_CLS[s.act] || []).includes(clsOf(s.dev)));   // akce musí patřit třídě zařízení
   const takt = optNum(r.takt);
   out.takt = takt !== undefined && takt > 0 ? takt : null;
   out.note = String(r.note || "");

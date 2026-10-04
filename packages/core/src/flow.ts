@@ -27,7 +27,8 @@ function estopTag(prj: Project): string {
 
 /** Nadpisy skupin — klíče překladu, překládají se až při kreslení (`tr(title)`). */
 const SECTIONS: Array<[cls: DeviceClass, title: string]> = [
-  ["Motor", N_("Pohony (motory, čerpadla)")], ["Ventil", N_("Ventily a válce")],
+  ["Motor", N_("Pohony (motory, čerpadla)")], ["Vfd", N_("Frekvenční měniče")], ["PosDrive", N_("Polohovací pohony")], ["Ventil", N_("Ventily a válce")],
+  ["PropValve", N_("Proporcionální ventily")],
   ["AnalogIn", N_("Analogová měření")], ["AnalogOut", N_("Analogové výstupy")],
   ["DI", N_("Digitální vstupy (snímače, tlačítka)")], ["DO", N_("Digitální výstupy (signalizace)")],
 ];

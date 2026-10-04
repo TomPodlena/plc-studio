@@ -33,7 +33,7 @@
  * validateEplan to hlásí. Objekty bez vlastního záznamu (stanice, rack, CPU, rozhraní, síť) mají GUID
  * odvozený z GUID projektu. Stav: neověřeno importem do EPLAN (EPLAN_VERIFIED v eplan.ts).
  */
-import { type Project, type Dir, type IoEntry, type Device, PLAT, devById, addrFor, dtFor, stripDia, devSignals } from "./model.js";
+import { type Project, type Dir, type IoEntry, type Device, PLAT, devById, addrFor, dtFor, stripDia, devSignals, devRef } from "./model.js";
 import { tr, today, withLang, getLang, LANGS, type Lang } from "./i18n.js";
 import { buildBom, bomPlatform, type BomLine } from "./bom.js";
 import { derivedGuid, isGuid, moduleKey } from "./guid.js";
@@ -150,7 +150,7 @@ function sigLabel(d: Device, sig: string): string { return (devSignals(d).find(s
 /** Funkční text kanálu: -M1 + popis zařízení (obsah projektu, nepřekládá se) + popisek signálu (překládá se). */
 function fnText(d: Device | undefined, e: IoEntry): string {
   if (!d) return e.cmt || "";
-  return ["-" + d.name, [d.desc, sigLabel(d, e.sig)].filter(Boolean).join(" – ")].filter(Boolean).join(" ");
+  return ["-" + devRef(d), [d.desc, sigLabel(d, e.sig)].filter(Boolean).join(" – ")].filter(Boolean).join(" ");
 }
 
 interface Built { root: Ie; name: string; projectId: string; }
@@ -226,7 +226,7 @@ function build(prj: Project, opts: EplanAmlOptions): Built {
   for (const c of cards) for (const e of c.mod.ch) {
     const d = devById(prj, e.devId);
     const dg = isGuid(e.guid) ? e.guid : derivedGuid(pg, "io-unsaved:" + e.key);
-    const def = [d ? "-" + d.name : "", e.cmt || d?.desc || ""].filter(Boolean).join(" ");
+    const def = [d ? "-" + devRef(d) : "", e.cmt || d?.desc || ""].filter(Boolean).join(" ");
     const per = perLang(() => fnText(d, e));
     per[cur] = def;    // aktuální jazyk = komentář z I/O tabulky (úpravy uživatele)
     const la = amlLogicalAddress(plat, e);

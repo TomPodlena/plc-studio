@@ -1,0 +1,315 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Podávací a lisovací stanice PS-11 (měnič, polohovací osa, proporcionální ventil)",
+   "desc": "Pás na frekvenčním měniči doveze díl rychle (40 Hz) k prvnímu snímači, zpomalí na 10 Hz a zastaví v dorazu. Elektrická polohovací osa podavače (Festo CMMO-ST / SMC JXC přes I/O, záznamy 1–3) se po zapnutí referuje, převezme díl chapadlem, přejede pod lis, kde proporcionální regulátor tlaku (Festo VPPM, zpětná vazba skutečného tlaku) nastaví lisovací tlak 4,5 bar s rampou; lisovací válec díl slisuje, tlak se uvolní a osa odveze díl na výstup. Hlídání: tlak vzduchu (mez min), odchylka lisovacího tlaku, porucha měniče a pohonu, ztráta polohy osy. Ochrany: nouzové zastavení a kryt lisu v blokování (bezpečnostní funkce STO / odvětrání řeší bezpečnostní technika).",
+   "takt": 30
+  },
+  "platforms": [
+   "siemens",
+   "beckhoff",
+   "codesys",
+   "unitronics"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "9482c497-6380-4982-a14a-ca8255c29214"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Kryt lisu zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "1dd961df-14b0-4e8b-a703-a1bff1c8b13c"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Díl před dorazem (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "7ceb51e0-4b72-4325-8475-62072f4b02e3"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Díl v dorazu (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "13133aca-d05f-4d92-bf95-4a5daf433d76"
+   },
+   {
+    "id": 5,
+    "name": "M1",
+    "cls": "Vfd",
+    "desc": "Pásový dopravník — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true,
+     "act": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 40,
+    "rampS": 2,
+    "guid": "a1789da5-4bf8-4495-802d-d63185573314"
+   },
+   {
+    "id": 6,
+    "name": "M2",
+    "cls": "PosDrive",
+    "desc": "Polohovací osa podavače (elektrický suport se záznamy)",
+    "opt": {
+     "ready": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 0,
+    "selBits": 2,
+    "travelS": 1.2,
+    "records": [
+     {
+      "no": 1,
+      "name": "převzetí z pásu",
+      "pos": 0
+     },
+     {
+      "no": 2,
+      "name": "pod lisem",
+      "pos": 180
+     },
+     {
+      "no": 3,
+      "name": "výstup",
+      "pos": 320
+     }
+    ],
+    "guid": "cc9109e5-7e9e-48c9-8195-8bc651a85150"
+   },
+   {
+    "id": 7,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Chapadlo podavače (sevřít)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "53fb7b74-92b9-47f3-80bb-7a295ef273f3"
+   },
+   {
+    "id": 8,
+    "name": "Y2",
+    "cls": "PropValve",
+    "desc": "Proporcionální regulátor lisovacího tlaku",
+    "opt": {
+     "fbk": true
+    },
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 6,
+    "setpoint": 4.5,
+    "rampS": 1.5,
+    "tol": 0.25,
+    "tolTimeS": 0.5,
+    "guid": "ae3a4207-f23d-43b4-9a9f-181187c64854"
+   },
+   {
+    "id": 9,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Lisovací válec (dolů)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "ac9d40eb-bf7e-434c-99d5-4cd5b4ead198"
+   },
+   {
+    "id": 10,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Tlak vzduchu v rozvodu",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 4,
+    "guid": "691dd447-1de9-4f5f-bee4-f5659a2b4a39"
+   },
+   {
+    "id": 11,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "b3298267-63a9-4427-9d53-3fe67ae760bd"
+   },
+   {
+    "id": 12,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "12b0be6f-3cf3-439e-8183-45b7c58ad861"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2
+   ],
+   "seq": [
+    {
+     "dev": 6,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 5,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 40
+    },
+    {
+     "dev": 3,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 15
+    },
+    {
+     "dev": 5,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 10
+    },
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 5,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 6,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 3,
+     "rec": 1
+    },
+    {
+     "dev": 7,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 6,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 3,
+     "rec": 2
+    },
+    {
+     "dev": 8,
+     "act": "setPressure",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 4.5
+    },
+    {
+     "dev": 9,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": "",
+     "act": "wait",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 9,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "setPressure",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 0
+    },
+    {
+     "dev": 6,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 3,
+     "rec": 3
+    },
+    {
+     "dev": 7,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    }
+   ]
+  },
+  "nextId": 13,
+  "concept": null,
+  "guid": "8efa0d6d-5c31-4d93-8d15-cfc1c4b236f7",
+  "moduleGuids": {
+   "DI1": "92ba960b-cc89-485d-b35d-bb4ab076ef4f",
+   "DO1": "9a659618-eeff-45fa-a25a-5df165a65d31",
+   "AI1": "c72c049f-65d9-4f9b-bf7c-26b3bd0d0520",
+   "AO1": "7e8ca0ee-e915-401a-bde4-41e6a95f8fc8"
+  }
+ }
+}

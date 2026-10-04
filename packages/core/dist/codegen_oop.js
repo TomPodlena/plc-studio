@@ -30,8 +30,8 @@
  * (`OopPou`), emulátor z XML / TcPOU výpis zpětně sestaví a porovná s ST výpisem.
  */
 import { PLAT, usedClasses, addrFor, dtFor, esc, stripDia, codeStyleFor, } from "./model.js";
-import { buildIR, irText, IR_CTRL } from "./ir.js";
-import { stCtx, renderSeq, renderWiring, renderDecls, enableText, stCallNotes, trComments, cmtSafe, fbTemplate, parseFbTemplate, codeLibrary, genTagFile, genReadme, rawMaxFor, } from "./codegen.js";
+import { buildIR, irText, irPortTypes, IR_CTRL } from "./ir.js";
+import { stCtx, renderSeq, renderWiring, renderDecls, enableText, stCallNotes, trComments, cmtSafe, fbTemplate, parseFbTemplate, codeLibrary, genTagFile, genReadme, rawMaxFor, portText, } from "./codegen.js";
 import { tr, trx, N_ } from "./i18n.js";
 import { derivedGuid } from "./guid.js";
 /** Rozhraní a jeho členové — jediný zdroj pro rozhraní, základní třídu i kontrolu emulátoru. */
@@ -39,9 +39,10 @@ export const OOP_ITF = "I_Device";
 export const OOP_BASE = "FB_DeviceBase";
 export const OOP_SEQ = "FB_Sequence";
 /** Třída OOP podle třídy IR (Ventil → FB_Valve, ostatní jako klasika). */
-export const OOP_CLASSES = { Motor: "FB_Motor", Ventil: "FB_Valve", AnalogIn: "FB_AnalogIn", AnalogOut: "FB_AnalogOut" };
+export const OOP_CLASSES = { Motor: "FB_Motor", Ventil: "FB_Valve", AnalogIn: "FB_AnalogIn", AnalogOut: "FB_AnalogOut",
+    Vfd: "FB_Vfd", PosDrive: "FB_PosDrive", PropValve: "FB_PropValve" };
 /** Pořadí tříd ve výpisu (= pořadí v Gen_Library klasického stylu). */
-const CLASS_ORDER = ["Motor", "Ventil", "AnalogIn", "AnalogOut"];
+const CLASS_ORDER = ["Motor", "Ventil", "AnalogIn", "AnalogOut", "Vfd", "PosDrive", "PropValve"]; // = IR_CLASS_ORDER (cyklický import — ne na úrovni modulu)
 /** Proměnné šablony, které přebírá základní třída (stav, kvitace) → jméno v FB_DeviceBase. */
 const BASE_VARS = { statStep: "iStep", busy: "bBusy", error: "bError", status: "wStatus", reset: "bReset" };
 /** Členové I_Device / FB_DeviceBase — port šablony se stejným jménem dostane příponu In / Out (CODESYS nerozlišuje velikost). */
@@ -179,18 +180,22 @@ export function oopProgram(prj, plat) {
             return p;
         })] : [];
     /* jména: časovače kroků jsou vnitřní proměnné FB_Sequence, povely sekvence jeho výstupy */
-    const seqOuts = new Set(ir.seq ? ir.seq.outputs : []);
+    const seqOuts = new Set(ir.seq ? [...ir.seq.outputs, ...ir.seq.resets.map(r => r.var)] : []);
     const base = stCtx(plat);
-    const cSeq = { ...base, L: (n) => /^tonSeq\d+$/.test(n) ? "fb" + n.charAt(0).toUpperCase() + n.slice(1) : n };
+    /* podmínky kroků pohonů čtou výstupy instancí (instM5.inSpeed) — FB_Sequence je dostane jako vstupy instM5_inSpeed */
+    const cSeq = { ...base, L: (n) => /^tonSeq\d+$/.test(n) ? "fb" + n.charAt(0).toUpperCase() + n.slice(1) : n,
+        M: (inst, port) => inst + "_" + port };
     const cMain = { ...base, L: (n) => seqOuts.has(n) ? OOP_MAIN.seq + "." + n : n };
     let seq;
     if (ir.seq) {
         const C = IR_CTRL;
+        const members = seqMembers(ir);
         seq = {
             kind: "fb", name: OOP_SEQ, cmt: [cm(N_("Automatická sekvence stroje: jeden CASE (kroky 10, 20, …), povely sekvence jako výstupy."))],
             blocks: [
-                { kind: "in", vars: [{ name: C.modeAuto, type: "BOOL" }, { name: C.enable, type: "BOOL" }, { name: C.cmdAutoStart, type: "BOOL" }] },
-                { kind: "out", vars: ir.seq.outputs.map(n => ({ name: n, type: "BOOL" })) },
+                { kind: "in", vars: [{ name: C.modeAuto, type: "BOOL" }, { name: C.enable, type: "BOOL" }, { name: C.cmdAutoStart, type: "BOOL" },
+                        ...members.map(m => ({ name: m.inst + "_" + m.port, type: m.type }))] },
+                { kind: "out", vars: [...ir.seq.outputs.map(n => ({ name: n, type: "BOOL" })), ...ir.seq.resets.map(r => ({ name: r.var, type: r.type }))] },
                 { kind: "inout", vars: [
                         { name: C.seqStep, type: "INT", cmt: cm(N_("krok sekvence (proměnná MAIN — HMI)")) },
                         { name: C.faultStep, type: "INT" },
@@ -204,6 +209,29 @@ export function oopProgram(prj, plat) {
     const main = oopMain(prj, plat, ir, cMain);
     const pous = [...library, ...(seq ? [seq] : []), main];
     return { pous, library, seq, main };
+}
+/** Výstupy instancí, které čtou podmínky kroků (pohony fáze 2a), s typem portu — vstupy FB_Sequence. */
+export function seqMembers(ir) {
+    const clsOf = new Map(ir.devices.flatMap(d => d.kind === "fb" ? [[d.inst, d.cls]] : []));
+    const out = [];
+    const walk = (e) => {
+        if (e.k === "member") {
+            if (!out.some(m => m.inst === e.inst && m.port === e.port))
+                out.push({ inst: e.inst, port: e.port, type: irPortTypes(clsOf.get(e.inst))[e.port] });
+        }
+        else if (e.k === "not" || e.k === "paren")
+            walk(e.e);
+        else if (e.k === "and" || e.k === "or")
+            e.args.forEach(walk);
+        else if (e.k === "cmp") {
+            walk(e.a);
+            walk(e.b);
+        }
+    };
+    for (const s of ir.seq ? ir.seq.steps : [])
+        if (s.cond.expr)
+            walk(s.cond.expr);
+    return out;
 }
 /** Odsazení o 4 mezery dolů (renderSeq píše tělo MAIN s odsazením). */
 function unindent(s) {
@@ -223,7 +251,7 @@ function oopMain(prj, plat, ir, c) {
         for (const p of b.inputs) {
             if (p.name === "reset")
                 continue;
-            lines.push(b.inst + "." + port(p.name) + " := " + x(p.expr) + ";" + (notes.port[p.name] ? " " + c.cm(notes.port[p.name]) : ""));
+            lines.push(b.inst + "." + port(p.name) + " := " + portText(p, c) + ";" + (notes.port[p.name] ? " " + c.cm(notes.port[p.name]) : ""));
             if ((p.name === "rawValue" || p.name === "value") && rawMax && (b.cls === "AnalogIn" || b.cls === "AnalogOut"))
                 lines.push(b.inst + ".rawMax := " + rawMax + "; (* TODO: " + stripDia(trx("rozsah dle modulu")) + " *)");
         }
@@ -265,6 +293,9 @@ function oopMain(prj, plat, ir, c) {
     if (ir.seq) {
         b.push("(* --- " + cm(N_("Automatická sekvence (režim AUTO)")) + " --- *)");
         b.push(M.seq + "(" + C.modeAuto + " := " + C.modeAuto + ", " + C.enable + " := " + C.enable + ", " + C.cmdAutoStart + " := " + C.cmdAutoStart + ",");
+        const mem = seqMembers(ir);
+        if (mem.length)
+            b.push("      " + mem.map(m => m.inst + "_" + m.port + " := " + m.inst + "." + m.port).join(", ") + ",");
         b.push("      " + C.seqStep + " := " + C.seqStep + ", " + C.faultStep + " := " + C.faultStep + ", " + C.machineFault + " := " + C.machineFault + ");", "");
     }
     const loop = (inner) => [
@@ -587,7 +618,7 @@ export function oopClassSvg(prj, plat = "codesys") {
         if (p.kind === "program") {
             /* MAIN: instance zařízení souhrnně, pak pole odkazů a pomocné proměnné */
             const vars = p.blocks.flatMap(b => b.kind === "var" ? b.vars : []);
-            const inst = vars.filter(v => /^FB_(Motor|Valve|AnalogIn|AnalogOut)$/.test(v.type));
+            const inst = vars.filter(v => /^FB_(Motor|Valve|AnalogIn|AnalogOut|Vfd|PosDrive|PropValve)$/.test(v.type));
             const byType = new Map();
             for (const v of inst)
                 byType.set(v.type, (byType.get(v.type) || 0) + 1);

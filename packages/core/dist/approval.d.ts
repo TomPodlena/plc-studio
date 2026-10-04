@@ -16,7 +16,7 @@
  * — bez zásahu do tohoto souboru. Bezpečnostní funkce tady nejsou: E-stop a blokování jsou
  * položkou jen jako signály standardního programu (jako v generátoru).
  */
-import { Project } from "./model.js";
+import { Project, Device } from "./model.js";
 import { type VerifyResult } from "./sim.js";
 export type ApprovalState = "proposed" | "approved" | "rejected";
 /** „unverified“ = otisk závisí na ověření simulací, které ještě neproběhlo (levný výpočet, `cheap`). */
@@ -85,6 +85,8 @@ export declare function isVerified(prj: Project): boolean;
 export interface ApprovalOptions {
     cheap?: boolean;
 }
+/** Parametry pohonu fáze 2a do otisku / porovnání revizí (rozsah, žádaná, rampa, tolerance, záznamy, model jízdy). */
+export declare function motionContent(d: Device): Record<string, unknown>;
 /**
  * Zdroj položek. Druhý argument jsou volby výpočtu: při `cheap` nemá zdroj spouštět ověření
  * simulací (`verifyDesignCached` místo `verifyDesign`); položky, jejichž otisk na něm závisí,

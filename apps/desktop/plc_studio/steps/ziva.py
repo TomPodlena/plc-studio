@@ -201,9 +201,10 @@ def build(app, parent) -> None:
                             command=lambda: command(var.get())).pack(anchor="w")
             return var
 
-        if d["cls"] in ("Motor", "Ventil"):
-            what = _("Ruční chod") if d["cls"] == "Motor" else _("Ruční otevření")
-            var = "manRun_" if d["cls"] == "Motor" else "manOpen_"
+        if d["cls"] in ("Motor", "Ventil", "Vfd", "PosDrive", "PropValve"):
+            what = {"Motor": _("Ruční chod"), "Vfd": _("Ruční chod"), "PosDrive": _("Ruční referenční jízda"),
+                    "PropValve": _("Ruční zapnutí (výchozí žádaná)")}.get(d["cls"], _("Ruční otevření"))
+            var = {"Motor": "manRun_", "Vfd": "manRun_", "PosDrive": "manHome_", "PropValve": "manOn_"}.get(d["cls"], "manOpen_")
             check(f"{what} ({var}{d['name']})", bool(controls["man"].get(str(d["id"]))),
                   lambda on: push(man={**controls["man"], str(d["id"]): on}))
             if has_seq:
@@ -228,6 +229,14 @@ def build(app, parent) -> None:
             else:
                 ttk.Label(dev_box, text=_("ventil nemá koncové snímače"), style="Dim.TLabel"
                           ).pack(anchor="w")
+        elif d["cls"] in ("Vfd", "PosDrive", "PropValve"):
+            # pohony fáze 2a: zaseknutá mechanika (otáčky / poloha / tlak se nemění), porucha řadiče
+            check({"Vfd": _("Zaseknout pohon (otáčky se nemění)"), "PosDrive": _("Zaseknout osu (jízda nedojede)"),
+                   "PropValve": _("Zaseknout ventil (skutečná hodnota se nemění)")}[d["cls"]],
+                  d["id"] in controls["frozen"], lambda on: toggle("frozen", d["id"], on))
+            if "fault" in sigs:
+                check(_("Vstup poruchy aktivní (porucha řadiče)"), d["id"] in controls["fault"],
+                      lambda on: toggle("fault", d["id"], on))
         elif d["cls"] == "DI":
             e = io_of[d["id"]][0] if io_of[d["id"]] else None
             if estop is not None and d["id"] == estop["id"]:

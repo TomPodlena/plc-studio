@@ -105,7 +105,7 @@ test("OOP: třídy, rozhraní, robustnost zápisu (bez ukazatelů, __NEW, WHILE)
         assert.doesNotMatch(all, bad);
     assert.match(f["Gen_Library.st"], /^INTERFACE I_Device$/m);
     assert.match(f["Gen_Library.st"], /^FUNCTION_BLOCK ABSTRACT FB_DeviceBase IMPLEMENTS I_Device$/m);
-    for (const c of Object.values(OOP_CLASSES))
+    for (const c of [...new Set(p.devices.map(d => d.cls))].flatMap(k => OOP_CLASSES[k] ? [OOP_CLASSES[k]] : []))
         assert.match(f["Gen_Library.st"], new RegExp("^FUNCTION_BLOCK " + c + " EXTENDS FB_DeviceBase IMPLEMENTS I_Device$", "m"));
     for (const pr of ["Fault : BOOL", "Status : WORD", "Busy : BOOL"])
         assert.match(f["Gen_Library.st"], new RegExp("PROPERTY PUBLIC " + pr));

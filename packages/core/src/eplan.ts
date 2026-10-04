@@ -16,7 +16,7 @@
  * `wireNo` z model.ts: X1:1 → -W101, X2:1 → -W201 …) a kusovník (bom.ts: -A1 CPU, -A2 DI, -A3 DO,
  * -A4 AI, -A5 AO; víc karet téže řady = -A2.1, -A2.2 …). Stav ověření: `EPLAN_VERIFIED`.
  */
-import { Project, IoModule, Dir, PLAT, PlatformKey, devById, modules, wireNo, addrFor, dtFor, stripDia } from "./model.js";
+import { Project, IoModule, Dir, PLAT, PlatformKey, devById, modules, wireNo, addrFor, dtFor, stripDia, devRef } from "./model.js";
 import { tr, N_, today } from "./i18n.js";
 import { buildBom, bomPlatform, type BomLine } from "./bom.js";
 import { registerDocProvider, type ProjectFile } from "./docs.js";
@@ -87,7 +87,7 @@ export function eplanTerminals(prj: Project, cards: EplanCard[] = eplanCards(prj
     const d = devById(prj, e.devId);
     out.push({
       strip: "-X" + c.xnum, no: i + 1, dt: "-X" + c.xnum + ":" + (i + 1), card: c.dt, channel: i, dir: c.mod.dir,
-      addr: addrFor(plat, e), tag: e.tag, device: d ? "-" + d.name : "", desc: d?.desc || e.cmt || "", wire: wireNo(c.xnum, i),
+      addr: addrFor(plat, e), tag: e.tag, device: d ? "-" + devRef(d) : "", desc: d?.desc || e.cmt || "", wire: wireNo(c.xnum, i),
     });
   });
   return out;

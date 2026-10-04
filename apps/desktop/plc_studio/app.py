@@ -93,6 +93,7 @@ class App:
         i18n.set_catalog(self.lang, consts["I18N"])
         self.PLAT: dict = consts["PLAT"]
         self.CLS: dict = consts["CLS"]
+        self.ACTS_FOR: dict = consts.get("ACTS_FOR", {})
         self.DO_ROLES: dict = consts["DO_ROLES"]
         self.SAMPLE_DESC: dict = consts["SAMPLE_DESC"]
         self.AI_EXAMPLE: str = consts["AI_EXAMPLE"]

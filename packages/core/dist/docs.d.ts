@@ -7,6 +7,11 @@
  */
 import { Project } from "./model.js";
 import { type ApprovalItem } from "./approval.js";
+/**
+ * FDS: pohony a proporcionální prvky fáze 2a — co blok dělá, jaké hlášení čeká, kdy vyhlásí poruchu
+ * (kódy errCode) a co se nastavuje v pohonu. Bez těchto zařízení prázdné (dokumentace beze změny).
+ */
+export declare function motionFdsLines(prj: Project): string[];
 /** Názvy souborů se nepřekládají; záložka a popis jsou klíče překladu (překlad v `docFiles`). */
 export declare const DOC_META: Array<[path: string, tab: string, title: string]>;
 export declare function docIndexMd(prj: Project): string;

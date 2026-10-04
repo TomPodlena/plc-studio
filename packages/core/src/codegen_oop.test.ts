@@ -101,7 +101,7 @@ test("OOP: třídy, rozhraní, robustnost zápisu (bez ukazatelů, __NEW, WHILE)
   for (const bad of [/\bPOINTER\b/, /\bREFERENCE TO\b/, /__NEW/, /__DELETE/, /\bWHILE\b/, /\bREPEAT\b/, /\bADR\(/]) assert.doesNotMatch(all, bad);
   assert.match(f["Gen_Library.st"], /^INTERFACE I_Device$/m);
   assert.match(f["Gen_Library.st"], /^FUNCTION_BLOCK ABSTRACT FB_DeviceBase IMPLEMENTS I_Device$/m);
-  for (const c of Object.values(OOP_CLASSES)) assert.match(f["Gen_Library.st"], new RegExp("^FUNCTION_BLOCK " + c + " EXTENDS FB_DeviceBase IMPLEMENTS I_Device$", "m"));
+  for (const c of [...new Set(p.devices.map(d => d.cls))].flatMap(k => (OOP_CLASSES as Record<string, string>)[k] ? [(OOP_CLASSES as Record<string, string>)[k]] : [])) assert.match(f["Gen_Library.st"], new RegExp("^FUNCTION_BLOCK " + c + " EXTENDS FB_DeviceBase IMPLEMENTS I_Device$", "m"));
   for (const pr of ["Fault : BOOL", "Status : WORD", "Busy : BOOL"]) assert.match(f["Gen_Library.st"], new RegExp("PROPERTY PUBLIC " + pr));
   assert.match(f["MAIN.st"], /aDevices : ARRAY\[1\.\.N_DEVICES\] OF I_Device;/);
   assert.match(f["MAIN.st"], /FOR iDev := 1 TO N_DEVICES DO\n\s+IF aDevices\[iDev\] <> 0 THEN/);

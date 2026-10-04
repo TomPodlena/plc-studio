@@ -17,6 +17,7 @@ from .widgets import link
 
 DIR_COLOR = {"DI": theme.SIG_IN, "DO": theme.SIG_OUT, "AI": theme.SIG_AN, "AO": theme.WARN}
 ACT = {"start": N_("start"), "stop": N_("stop"), "open": N_("otevřít"), "close": N_("zavřít")}
+MOTION_CLS = ("Vfd", "PosDrive", "PropValve")      # pohony fáze 2a — název kroku z jádra (stepTitle)
 
 
 def step_text(app, s: dict) -> str:
@@ -31,6 +32,8 @@ def step_text(app, s: dict) -> str:
     # u přechodu na zpětné hlášení je čas kroku hlídací (po něm porucha stroje)
     how = (_("čas {t} s", t=f"{s['timeS']:g}") if s["cond"] == "time"
            else _("zpětné hlášení (do {t} s)", t=f"{s['timeS']:g}"))
+    if d is not None and d["cls"] in MOTION_CLS:      # otáčky / záznam / žádaná: popis z jádra
+        return app.core("stepTitle", app.prj, s) + " → " + how
     act = _(ACT[s["act"]]) if s["act"] in ACT else s["act"]
     return f"{d['name'] if d else '?'} {act} → {how}"
 
@@ -138,9 +141,19 @@ class DevicePanel(ttk.Frame):
                   ).pack(anchor="w")
         self._wrap(d["desc"] or _("(bez popisu)"), pady=(2, 0))
         opts = [cls["opts"].get(k, k) for k, v in (d.get("opt") or {}).items() if v]
-        if d["cls"].startswith("Analog"):
+        if d["cls"].startswith("Analog") or d["cls"] in ("Vfd", "PropValve"):
             opts.append(_("rozsah {min}–{max} {unit}", min=f"{d['rmin']:g}", max=f"{d['rmax']:g}",
                           unit=d.get("unit") or "").strip())
+        if d["cls"] in ("Vfd", "PropValve"):
+            if d.get("setpoint") is not None:
+                opts.append(_("žádaná {v}", v=f"{d['setpoint']:g} {d.get('unit') or ''}".strip()))
+            opts.append(_("rampa {t} s", t=f"{d['rampS']:g}") if (d.get("rampS") or 0) > 0 else _("bez rampy v PLC"))
+        if d["cls"] == "PropValve" and (d.get("opt") or {}).get("fbk") is not False and d.get("tol") is not None:
+            opts.append(_("tolerance ± {v}", v=f"{d['tol']:g}"))
+        if d["cls"] == "PosDrive":
+            recs = "; ".join(f"{r['no']} = {r.get('name') or '?'}" + (f" @ {r['pos']:g}" if r.get("pos") is not None else "")
+                             for r in d.get("records") or [])
+            opts.append(_("záznamy: {list}", list=recs or "—"))
         if opts:
             self._wrap(", ".join(opts), "Dim.TLabel", pady=(2, 0))
 

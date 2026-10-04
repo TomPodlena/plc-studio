@@ -16,8 +16,8 @@
  * 5000-UM004 / 5069-UM005 (tagy modulů 5069). Výstup není ověřen importem ve Studiu 5000.
  */
 import { stripDia } from "./model.js";
-import { parseFbTemplate, trComments, fbTemplate, stCtx, renderSeq, renderWiring, renderFault, enableText, freeLine, declNote, cmtSafe, stCallNotes, codeLibrary, } from "./codegen.js";
-import { buildIR, irBlocks, irText } from "./ir.js";
+import { parseFbTemplate, trComments, fbTemplate, stCtx, renderSeq, renderWiring, renderFault, enableText, freeLine, declNote, cmtSafe, stCallNotes, codeLibrary, portText, } from "./codegen.js";
+import { buildIR, irBlocks, IR_CLASS_ORDER } from "./ir.js";
 import { tr, trx } from "./i18n.js";
 /** Název importovaného programu a jeho hlavní rutiny. */
 export const LX_PROGRAM = "PLCdesk";
@@ -28,7 +28,8 @@ export const LX_SOFTWARE_REVISION = "32.00";
    nesmí sahat na konstanty z codegen.ts (šablony se berou až uvnitř funkcí). */
 /* `lib` = vlastní šablony firemní knihovny, které `codeLibrary` pro Logix pustil (`lxTplProblems`) */
 const tplOf = (cls, lib) => fbTemplate(cls, "st", lib);
-const AOI_OF = { Motor: "FB_Motor", Ventil: "FB_Ventil", AnalogIn: "FB_AnalogIn", AnalogOut: "FB_AnalogOut" };
+const AOI_OF = { Motor: "FB_Motor", Ventil: "FB_Ventil", AnalogIn: "FB_AnalogIn", AnalogOut: "FB_AnalogOut",
+    Vfd: "FB_Vfd", PosDrive: "FB_PosDrive", PropValve: "FB_PropValve" };
 /** Výchozí hodnoty, které se pro Logix liší od šablony: analogy 5069 dávají REAL 0–100 % (rozsah modulu). */
 const LX_INIT = { rawMax: "100.0" };
 /* ------------------------------------------------------------- pomocné */
@@ -64,13 +65,14 @@ function realL5K(v) {
     return n.toExponential(8).replace(/e([+-])(\d+)$/, (_m, s, d) => "e" + s + d.padStart(3, "0"));
 }
 /** Datový typ Logix pro proměnnou šablony bloku. */
-function lxType(cls, type) {
+function lxType(cls, type, name = "") {
     if (type === "TON")
         return "FBD_TIMER";
     if (type === "WORD")
         return "DINT"; // 16#8001 se do INT nevejde
+    /* 5069: Chxx.Data = REAL — u pohonů fáze 2a jen surové analogy (rawSpeed, rawSp, rawAct, rawMax) */
     if (type === "INT")
-        return cls === "AnalogIn" || cls === "AnalogOut" ? "REAL" : "DINT"; // 5069: Chxx.Data = REAL
+        return cls === "AnalogIn" || cls === "AnalogOut" || (/^raw[A-Z]/.test(name) && (cls === "Vfd" || cls === "PosDrive" || cls === "PropValve")) ? "REAL" : "DINT";
     return type;
 }
 const BASE = new Set(["BOOL", "SINT", "INT", "DINT", "REAL"]);
@@ -207,14 +209,14 @@ function lxCallIr(b, c, lib) {
     for (const p of b.inputs) {
         wired.add(p.name);
         const n = notes.port[p.name];
-        ins.push(ind + b.inst + "." + p.name + " := " + irText(p.expr, c) + ";" + (n !== undefined ? " " + c.cm(n) : ""));
+        ins.push(ind + b.inst + "." + p.name + " := " + portText(p, c) + ";" + (n !== undefined ? " " + c.cm(n) : ""));
     }
     for (const o of b.outputs)
         if (o.tag)
             outs.push(ind + c.R(o.tag) + " := " + b.inst + "." + o.name + ";");
     for (const v of parseFbTemplate(tplOf(b.cls, lib)).vars) {
         if (v.kind === "in" && !wired.has(v.name) && (v.init || LX_INIT[v.name]))
-            ins.push(ind + b.inst + "." + v.name + " := " + lxInitOf(v.name, lxType(b.cls, v.type), v.init) + ";");
+            ins.push(ind + b.inst + "." + v.name + " := " + lxInitOf(v.name, lxType(b.cls, v.type, v.name), v.init) + ";");
     }
     const callLine = ind + b.fb + "(" + b.inst + ");" + (notes.after !== undefined ? " " + c.cm(notes.after) : "");
     /* renderWiring odsadí první řádek volání sám (jako `instM1(…` u IEC) */
@@ -265,14 +267,14 @@ function aoiXml(cls, lib) {
     x += I + ' <Parameter Name="EnableOut" TagType="Base" DataType="BOOL" Usage="Output" Radix="Decimal" Required="false" Visible="false" ExternalAccess="Read Only">\n' +
         I + "  <Description>" + cdata("Enable Output - System Defined Parameter") + "</Description>\n" + I + " </Parameter>\n";
     for (const v of vars.filter(v => v.kind !== "var")) {
-        const t = lxType(cls, v.type), out = v.kind === "out";
+        const t = lxType(cls, v.type, v.name), out = v.kind === "out";
         x += I + ' <Parameter Name="' + v.name + '" TagType="Base" DataType="' + t + '" Usage="' + (out ? "Output" : "Input") + '"' + radix(t) +
             ' Required="false" Visible="true" ExternalAccess="' + (out ? "Read Only" : "Read/Write") + '">\n' +
             dataXml("DefaultData", t, lxInitOf(v.name, t, v.init), I + "  ") + I + " </Parameter>\n";
     }
     x += I + "</Parameters>\n" + I + "<LocalTags>\n";
     for (const v of vars.filter(v => v.kind === "var")) {
-        const t = lxType(cls, v.type);
+        const t = lxType(cls, v.type, v.name);
         x += I + ' <LocalTag Name="' + v.name + '" DataType="' + t + '"' + radix(t) + ' ExternalAccess="None">\n' +
             dataXml("DefaultData", t, lxInitOf(v.name, t, v.init), I + "  ") + I + " </LocalTag>\n";
     }
@@ -309,7 +311,7 @@ export function genRockwellL5X(prj) {
     x += '<Controller Use="Context" Name="' + LX_PROGRAM + '">\n';
     x += '  <DataTypes Use="Context">\n  </DataTypes>\n';
     x += '  <AddOnInstructionDefinitions Use="Context">\n';
-    for (const c of ["Motor", "Ventil", "AnalogIn", "AnalogOut"])
+    for (const c of IR_CLASS_ORDER)
         if (classes.has(c))
             x += aoiXml(c, lib);
     x += "  </AddOnInstructionDefinitions>\n";

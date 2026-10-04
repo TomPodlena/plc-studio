@@ -12,7 +12,8 @@ import math
 
 from .i18n import _
 
-ACTS = {"start", "stop", "open", "close", "wait", "waitOn", "waitOff"}
+ACTS = {"start", "stop", "open", "close", "wait", "waitOn", "waitOff",
+        "home", "posRecord", "setPressure", "setFlow"}   # + pohony fáze 2a (měnič, polohovací pohon, prop. ventil)
 CONDS = {"fbk", "time"}
 DO_ROLES = {"run", "fault", "ready", "stopped", "lock", "auto"}
 
@@ -74,9 +75,14 @@ def normalize(prj, blank: dict, classes, platforms) -> dict:
               "opt": {k: bool(v) for k, v in d["opt"].items()} if isinstance(d.get("opt"), dict) else {},
               "rmin": d["rmin"] if finite(d.get("rmin")) else 0,
               "rmax": d["rmax"] if finite(d.get("rmax")) else 100}
-        for key in ("limHi", "limLo", "setpoint"):
+        for key in ("limHi", "limLo", "setpoint", "rampS", "tol", "tolTimeS", "selBits", "travelS"):
             if key in nd and not finite(nd[key]):
                 nd.pop(key)
+        if "records" in nd:      # polohovací pohon: tabulka záznamů jen v platném tvaru
+            recs = nd["records"] if isinstance(nd["records"], list) else []
+            nd["records"] = [{"no": r["no"], "name": _str(r.get("name")),
+                              **({"pos": r["pos"]} if finite(r.get("pos")) else {})}
+                             for r in recs if isinstance(r, dict) and _int(r.get("no"))]
         if "role" in nd and nd["role"] not in DO_ROLES:
             nd.pop("role")
         devices.append(nd)
@@ -100,6 +106,13 @@ def normalize(prj, blank: dict, classes, platforms) -> dict:
     for s in prog["seq"]:
         if s["act"] == "wait":
             s["dev"] = 0
+        # parametry kroků pohonů: otáčky / žádaná, číslo záznamu, směr
+        if "sp" in s and not finite(s["sp"]):
+            s.pop("sp")
+        if "rec" in s and not _int(s["rec"]):
+            s.pop("rec")
+        if "rev" in s and s["rev"] is not True:
+            s.pop("rev")
     locks = prog.get("interlocks") if isinstance(prog.get("interlocks"), list) else []
     prog["interlocks"] = [i for i in dict.fromkeys(locks) if i in ids and cls_of[i] == "DI"
                           and i != prog["estop"]]

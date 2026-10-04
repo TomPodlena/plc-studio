@@ -28,7 +28,9 @@ function asciiContent(p) {
     for (const d of q.devices) {
         d.desc = stripDia(d.desc || "");
         d.unit = stripDia(d.unit || "");
-    }
+        for (const r of d.records || [])
+            r.name = stripDia(r.name || "");
+    } // i názvy záznamů pohonu (obsah projektu)
     for (const e of q.io)
         e.cmt = stripDia(e.cmt || "");
     q.concept = null;

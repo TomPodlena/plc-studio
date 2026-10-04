@@ -21,7 +21,16 @@ export function normProject(raw) {
   if (Array.isArray(raw.devices)) {
     const seen = new Set();
     p.devices = raw.devices.filter(d => isObj(d) && CLS[d.cls] && Number.isFinite(d.id) && !seen.has(d.id) && seen.add(d.id))
-      .map(d => ({ ...d, name: String(d.name ?? ""), desc: String(d.desc ?? ""), opt: isObj(d.opt) ? d.opt : {} }));
+      .map(d => {
+        const nd = { ...d, name: String(d.name ?? ""), desc: String(d.desc ?? ""), opt: isObj(d.opt) ? d.opt : {} };
+        /* polohovací pohon: tabulka záznamů jen v platném tvaru (číslo, název, poloha) */
+        if (d.records !== undefined) {
+          if (Array.isArray(d.records)) nd.records = d.records.filter(r => isObj(r) && Number.isInteger(r.no))
+            .map(r => ({ no: r.no, name: String(r.name ?? ""), ...(Number.isFinite(r.pos) ? { pos: r.pos } : {}) }));
+          else delete nd.records;
+        }
+        return nd;
+      });
   }
   const ids = new Set(p.devices.map(d => d.id));
   if (Array.isArray(raw.io)) p.io = raw.io.filter(e => isObj(e) && typeof e.key === "string" && ids.has(e.devId))

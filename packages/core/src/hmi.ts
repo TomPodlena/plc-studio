@@ -18,9 +18,13 @@
  */
 import { Project, Device, PlatformKey, ioOf, instName, stripDia, interlockDevs, isCodesysFamily, codeStyleFor } from "./model.js";
 import { tr, N_ } from "./i18n.js";
-import { ctrlDecls, actuators, manVarOf, parseFbTemplate, hmiGlobalPlat, ST_MOTOR, ST_VENTIL, ST_AI, ST_AO } from "./codegen.js";
+import { ctrlDecls, actuators, manVarOf, parseFbTemplate, hmiGlobalPlat, motionHmiPorts, ST_MOTOR, ST_VENTIL, ST_AI, ST_AO, ST_VFD, ST_POSDRIVE, ST_PROPVALVE } from "./codegen.js";
+import { buildIR, irBlocks } from "./ir.js";
 import { docAlarmCsv } from "./docs.js";
-import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL } from "./sim.js";
+import {
+  stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE, MOTION_ERR,
+} from "./sim.js";
+import { isMotionClass, rampStepOf, tolOf, tolTicksOf, selBitsOf, maxRecord } from "./model.js";
 
 /* ================================================================ tagy */
 
@@ -52,6 +56,9 @@ export interface HmiTag {
   states?: HmiState[];
 }
 
+/** Kód chyby bloku pohonu (errCode) — texty jako dokumentace. */
+const ERR_STATES = (): HmiState[] => [{ value: 0, text: tr("bez chyby") }, ...Object.entries(MOTION_ERR).map(([k, t]) => ({ value: +k, text: tr(t) }))];
+
 const STATUS_STATES = (): HmiState[] => [
   { value: 0, text: tr("v pořádku") },
   { value: 0x8001, text: tr("blokováno (uvolnění)") },
@@ -70,7 +77,8 @@ export function hmiCtrlNames(prj: Project): Set<string> {
 
 /** Proměnné šablony bloku třídy (vstupy, výstupy) — HMI smí číst jen to, co šablona má. */
 function fbVars(cls: string): Set<string> {
-  const tpl = cls === "Motor" ? ST_MOTOR : cls === "Ventil" ? ST_VENTIL : cls === "AnalogIn" ? ST_AI : cls === "AnalogOut" ? ST_AO : "";
+  const tpl = cls === "Motor" ? ST_MOTOR : cls === "Ventil" ? ST_VENTIL : cls === "AnalogIn" ? ST_AI : cls === "AnalogOut" ? ST_AO
+    : cls === "Vfd" ? ST_VFD : cls === "PosDrive" ? ST_POSDRIVE : cls === "PropValve" ? ST_PROPVALVE : "";
   return new Set(tpl ? parseFbTemplate(tpl).vars.filter(v => v.kind !== "var").map(v => v.name) : []);
 }
 
@@ -94,9 +102,39 @@ export function hmiTags(prj: Project): HmiTag[] {
   if (ctrl.has("seqStep")) M("seqStep", "INT", "seq", tr("Aktuální krok sekvence"), { states: stepStates(prj) });
   if (ctrl.has("faultStep")) M("faultStep", "INT", "seq", tr("Krok sekvence, ve kterém vypršel hlídací čas"), { states: stepStates(prj) });
 
+  const blocks = new Map(irBlocks(buildIR(prj)).map(b => [b.dev.id, b]));
   for (const d of actuators(prj)) {
     const inst = instName(d), v = fbVars(d.cls), dev = d.name;
-    if (ctrl.has(manVarOf(d))) M(manVarOf(d), "BOOL", "dev", d.cls === "Motor" ? tr("{dev}: ruční povel chod (platí mimo AUTO)", { dev }) : tr("{dev}: ruční povel otevřít (platí mimo AUTO)", { dev }), { access: "RW", cmd: "toggle", dev });
+    const manTxt = d.cls === "Motor" || d.cls === "Vfd" ? tr("{dev}: ruční povel chod (platí mimo AUTO)", { dev })
+      : d.cls === "PosDrive" ? tr("{dev}: ruční povel referenční jízda (platí mimo AUTO)", { dev })
+      : d.cls === "PropValve" ? tr("{dev}: ruční povel zapnout na výchozí žádanou (platí mimo AUTO)", { dev })
+      : tr("{dev}: ruční povel otevřít (platí mimo AUTO)", { dev });
+    if (ctrl.has(manVarOf(d))) M(manVarOf(d), "BOOL", "dev", manTxt, { access: "RW", cmd: "toggle", dev });
+    if (isMotionClass(d.cls)) {
+      /* pohony fáze 2a: stejné výstupy bloku, jaké u Mitsubishi / Omron zrcadlí MAIN (motionHmiPorts) */
+      const b = blocks.get(d.id);
+      const u = d.unit || undefined;
+      const TXT: Record<string, [HmiType, string, Partial<HmiTag>?]> = {
+        outRun: ["BOOL", tr("{dev}: povel chod (výstup bloku)", { dev })],
+        inSpeed: ["BOOL", tr("{dev}: otáčky dosaženy", { dev })],
+        speedCmd: ["REAL", tr("{dev}: žádané otáčky po rampě", { dev }), { unit: u, min: d.rmin, max: d.rmax }],
+        speedAct: ["REAL", tr("{dev}: skutečné otáčky", { dev }), { unit: u, min: d.rmin, max: d.rmax }],
+        done: ["BOOL", tr("{dev}: v poloze (jízda dokončena)", { dev })],
+        actRec: ["INT", tr("{dev}: dosažený záznam (0 = reference)", { dev })],
+        spAct: ["REAL", tr("{dev}: žádaná hodnota po rampě", { dev }), { unit: u, min: d.rmin, max: d.rmax }],
+        value: ["REAL", tr("{dev}: skutečná hodnota", { dev }), { unit: u, min: d.rmin, max: d.rmax }],
+        inTol: ["BOOL", tr("{dev}: skutečná hodnota v toleranci", { dev })],
+        busy: ["BOOL", d.cls === "PosDrive" ? tr("{dev}: jede / referuje", { dev }) : d.cls === "Vfd" ? tr("{dev}: rozbíhá se / mění otáčky", { dev }) : tr("{dev}: rampa žádané", { dev })],
+        error: ["BOOL", tr("{dev}: porucha bloku", { dev })],
+        status: ["WORD", tr("{dev}: stavové slovo bloku", { dev }), { states: STATUS_STATES() }],
+        errCode: ["INT", tr("{dev}: kód chyby bloku", { dev }), { states: ERR_STATES() }],
+      };
+      for (const port of b ? motionHmiPorts(b) : []) {
+        const t = TXT[port];
+        if (t && v.has(port)) M(inst + "." + port, t[0], "dev", t[1], { dev, ...(t[2] || {}) });
+      }
+      continue;
+    }
     const outV = d.cls === "Motor" ? "outRun" : "outOpen";
     if (v.has(outV)) M(inst + "." + outV, "BOOL", "dev", d.cls === "Motor" ? tr("{dev}: povel chod (výstup bloku)", { dev }) : tr("{dev}: povel otevřít (výstup bloku)", { dev }), { dev });
     if (v.has("busy")) M(inst + ".busy", "BOOL", "dev", d.cls === "Motor" ? tr("{dev}: rozbíhá se", { dev }) : tr("{dev}: přestavuje se", { dev }), { dev });
@@ -121,7 +159,8 @@ export function hmiTags(prj: Project): HmiTag[] {
   const locked = new Set(interlockDevs(prj).map(d => d.id));
   for (const d of prj.devices) {
     const io = ioOf(prj, d);
-    const pick = d.cls === "Motor" ? ["fbkRunning", "fault"] : d.cls === "Ventil" ? ["fbkOpen", "fbkClosed"] : d.cls === "DI" ? ["in"] : d.cls === "DO" ? ["out"] : [];
+    const pick = d.cls === "Motor" ? ["fbkRunning", "fault"] : d.cls === "Ventil" ? ["fbkOpen", "fbkClosed"] : d.cls === "DI" ? ["in"] : d.cls === "DO" ? ["out"]
+      : d.cls === "Vfd" ? ["ready", "atSpeed", "fault"] : d.cls === "PosDrive" ? ["ready", "inPos", "homed", "fault"] : [];
     for (const sig of pick) {
       const e = io[sig];
       if (!e) continue;
@@ -186,7 +225,7 @@ export function hmiAlarms(prj: Project, tags: HmiTag[] = hmiTags(prj)): HmiAlarm
   const byName = new Set(tags.map(t => t.name));
   const groups = new Map<string, { rows: AlarmRow[]; trigger: HmiAlarmTrigger; cls: HmiAlarmClass; dev: string }>();
   for (const r of alarmRows(prj)) {
-    const m = r.code.match(/^A_(\w+?)_(START|RUN|FAULT|TRAVEL|POS|OPEN|HI|LO)$/);
+    const m = r.code.match(/^A_(\w+?)_(START|RUN|FAULT|TRAVEL|POS|OPEN|HI|LO|READY|NOTHOMED|SPEED|TIMEOUT|DEV)$/);
     const seq = r.code.match(/^A_SEQ_(\d+)$/);
     let trigger: HmiAlarmTrigger | undefined, cls: HmiAlarmClass = "fault", dev = r.dev, key = r.code;
     if (seq) {
@@ -196,7 +235,11 @@ export function hmiAlarms(prj: Project, tags: HmiTag[] = hmiTags(prj)): HmiAlarm
       if (!d) continue;
       dev = d.name;
       const inst = instName(d), io = ioOf(prj, d);
-      switch (m[2]) {
+      /* pohony fáze 2a: blok rozlišuje příčinu kódem chyby errCode (1 porucha … 6 odchylka) */
+      const ERR: Record<string, number> = { FAULT: 1, READY: 2, NOTHOMED: 3, SPEED: 4, POS: 4, TIMEOUT: 5, DEV: 6 };
+      if (isMotionClass(d.cls) && ERR[m[2]]) {
+        trigger = m[2] === "FAULT" && io.fault ? { tag: io.fault.tag, kind: "bit" } : { tag: inst + "_errCode", kind: "value", value: ERR[m[2]] };
+      } else switch (m[2]) {
         case "START": case "RUN": case "TRAVEL": case "POS":
           trigger = { tag: inst + "_error", kind: "bit" }; key = "err:" + d.name; break;
         case "FAULT":
@@ -340,12 +383,16 @@ export function hmiScreens(prj: Project, tags: HmiTag[] = hmiTags(prj), alarms: 
   const pagesOf: Array<{ kind: HmiScreenKind; pages: HmiElem[][] }> = [];
 
   /* --- Přehled: mimiky zařízení podle tříd, mřížka 8 × 5 --- */
-  const order = ["Motor", "Ventil", "AnalogIn", "AnalogOut", "DI", "DO"];
+  const order = ["Motor", "Vfd", "PosDrive", "Ventil", "PropValve", "AnalogIn", "AnalogOut", "DI", "DO"];
   const devs = [...prj.devices].sort((a, b) => order.indexOf(a.cls) - order.indexOf(b.cls));
   const estop = prj.program.estop, locked = new Set(interlockDevs(prj).map(d => d.id));
   const tile = (d: Device, x: number, y: number): HmiElem => {
     const inst = instName(d), io = ioOf(prj, d), base = { x, y, w: 120, h: 88, label: d.name, sub: d.desc || "", dev: d.name };
     if (d.cls === "Motor") return { k: "motor", ...base, tags: pick({ run: T(inst + "_outRun"), fbk: io.fbkRunning && T(io.fbkRunning.tag), busy: T(inst + "_busy"), err: T(inst + "_error"), status: T(inst + "_status") }) };
+    /* pohony fáze 2a: měnič a polohovací pohon jako pohon (chod / v poloze), proporcionální ventil jako žádaná hodnota */
+    if (d.cls === "Vfd") return { k: "motor", ...base, tags: pick({ run: T(inst + "_outRun"), fbk: T(inst + "_inSpeed"), busy: T(inst + "_busy"), err: T(inst + "_error"), status: T(inst + "_status") }) };
+    if (d.cls === "PosDrive") return { k: "motor", ...base, tags: pick({ run: T(inst + "_done"), fbk: io.homed && T(io.homed.tag), busy: T(inst + "_busy"), err: T(inst + "_error"), status: T(inst + "_status") }) };
+    if (d.cls === "PropValve") return { k: "aout", ...base, unit: d.unit, min: d.rmin, max: d.rmax, tags: pick({ value: T(inst + (io.rawAct ? "_value" : "_spAct")) }) };
     if (d.cls === "Ventil") return { k: "valve", ...base, tags: pick({ open: T(inst + "_outOpen"), fbkOpen: io.fbkOpen && T(io.fbkOpen.tag), fbkClosed: io.fbkClosed && T(io.fbkClosed.tag), busy: T(inst + "_busy"), err: T(inst + "_error"), status: T(inst + "_status") }) };
     if (d.cls === "AnalogIn") return { k: "analog", ...base, unit: d.unit, min: d.rmin, max: d.rmax, limHi: d.limHi, limLo: d.limLo, tags: pick({ value: T(inst + "_value"), hi: T(inst + "_alarmHi"), lo: T(inst + "_alarmLo") }) };
     if (d.cls === "AnalogOut") return { k: "aout", ...base, unit: d.unit, min: d.rmin, max: d.rmax, tags: pick({ value: T(inst + "_value") }) };
@@ -378,7 +425,7 @@ export function hmiScreens(prj: Project, tags: HmiTag[] = hmiTags(prj), alarms: 
         return {
           k: "manrow", x: 8 + Math.floor(i / 11) * 504, y: TOP + 50 + (i % 11) * 40, w: 496, h: 36, label: d.name, sub: d.desc || "", dev: d.name,
           cmd: "toggle",
-          tags: pick({ cmd: T(manVarOf(d)), run: T(inst + (d.cls === "Motor" ? "_outRun" : "_outOpen")), busy: T(inst + "_busy"), err: T(inst + "_error"), status: T(inst + "_status") }),
+          tags: pick({ cmd: T(manVarOf(d)), run: T(inst + (d.cls === "Motor" || d.cls === "Vfd" ? "_outRun" : d.cls === "PosDrive" ? "_done" : d.cls === "PropValve" ? "_inTol" : "_outOpen")), busy: T(inst + "_busy"), err: T(inst + "_error"), status: T(inst + "_status") }),
         };
       }) : [{ k: "text" as const, x: 8, y: TOP + 60, w: 600, h: 24, label: tr("Projekt nemá zařízení s ručním povelem.") }]),
     ]),
@@ -426,6 +473,22 @@ export function hmiScreens(prj: Project, tags: HmiTag[] = hmiTags(prj), alarms: 
       rows.push([{ t: d.name }, { t: tr("Hlídací čas rozběhu") }, { t: String(T_MOTOR_FBK) }, { t: "s" }, { t: tr("blok FB_Motor") }]);
     } else if (d.cls === "Ventil") {
       rows.push([{ t: d.name }, { t: tr("Hlídací čas přestavení") }, { t: String(T_VALVE_TRAVEL) }, { t: "s" }, { t: tr("blok FB_Ventil") }]);
+    } else if (d.cls === "Vfd") {
+      rows.push([{ t: d.name }, { t: tr("Rozsah žádané otáček") }, { t: fmtNum(d.rmin) + " … " + fmtNum(d.rmax) }, { t: u }, { t: cst }]);
+      rows.push([{ t: d.name }, { t: tr("Rampa v PLC (celý rozsah)") }, { t: rampStepOf(d) ? String(d.rampS) : "—" }, { t: "s" }, { t: cst }]);
+      rows.push([{ t: d.name }, { t: tr("Otáčky dosaženy do (po rampě)") }, { t: String(T_VFD_SPEED) }, { t: "s" }, { t: tr("blok FB_Vfd") }]);
+    } else if (d.cls === "PosDrive") {
+      rows.push([{ t: d.name }, { t: tr("Výběr záznamu") }, { t: tr("{bits} bity, záznamy 1–{max}", { bits: selBitsOf(d), max: maxRecord(d) }) }, { t: "" }, { t: tr("nastavení v pohonu") }]);
+      for (const r of d.records || []) rows.push([{ t: d.name }, { t: tr("Záznam {n}: {name}", { n: r.no, name: r.name || "" }) }, { t: fmtNum(r.pos) }, { t: "" }, { t: tr("nastavení v pohonu") }]);
+      rows.push([{ t: d.name }, { t: tr("Potvrzení startu / jízda nejvýš") }, { t: T_POS_ACK + " / " + T_POS_MOVE }, { t: "s" }, { t: tr("blok FB_PosDrive") }]);
+    } else if (d.cls === "PropValve") {
+      rows.push([{ t: d.name }, { t: tr("Rozsah žádané hodnoty") }, { t: fmtNum(d.rmin) + " … " + fmtNum(d.rmax) }, { t: u }, { t: cst }]);
+      rows.push([{ t: d.name }, { t: tr("Rampa v PLC (celý rozsah)") }, { t: rampStepOf(d) ? String(d.rampS) : "—" }, { t: "s" }, { t: cst }]);
+      if (ioOf(prj, d).rawAct) {
+        rows.push([{ t: d.name }, { t: tr("Povolená odchylka") }, { t: "± " + tolOf(d) }, { t: u }, { t: cst }]);
+        rows.push([{ t: d.name }, { t: tr("Doba odchylky do poruchy") }, { t: String(tolTicksOf(d) / 10) }, { t: "s" }, { t: cst }]);
+      }
+      rows.push([{ t: d.name }, { t: tr("Žádaná dosažena do (po rampě)") }, { t: String(T_PROP_SETTLE) }, { t: "s" }, { t: tr("blok FB_PropValve") }]);
     }
   }
   prj.program.seq.forEach((s, i) => {

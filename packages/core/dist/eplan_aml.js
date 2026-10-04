@@ -33,7 +33,7 @@
  * validateEplan to hlásí. Objekty bez vlastního záznamu (stanice, rack, CPU, rozhraní, síť) mají GUID
  * odvozený z GUID projektu. Stav: neověřeno importem do EPLAN (EPLAN_VERIFIED v eplan.ts).
  */
-import { PLAT, devById, addrFor, dtFor, stripDia, devSignals } from "./model.js";
+import { PLAT, devById, addrFor, dtFor, stripDia, devSignals, devRef } from "./model.js";
 import { tr, today, withLang, getLang, LANGS } from "./i18n.js";
 import { buildBom, bomPlatform } from "./bom.js";
 import { derivedGuid, isGuid, moduleKey } from "./guid.js";
@@ -129,7 +129,7 @@ function sigLabel(d, sig) { return (devSignals(d).find(s => s[0] === sig) || [])
 function fnText(d, e) {
     if (!d)
         return e.cmt || "";
-    return ["-" + d.name, [d.desc, sigLabel(d, e.sig)].filter(Boolean).join(" – ")].filter(Boolean).join(" ");
+    return ["-" + devRef(d), [d.desc, sigLabel(d, e.sig)].filter(Boolean).join(" – ")].filter(Boolean).join(" ");
 }
 function build(prj, opts) {
     const cards = opts.cards || eplanCards(prj);
@@ -201,7 +201,7 @@ function build(prj, opts) {
         for (const e of c.mod.ch) {
             const d = devById(prj, e.devId);
             const dg = isGuid(e.guid) ? e.guid : derivedGuid(pg, "io-unsaved:" + e.key);
-            const def = [d ? "-" + d.name : "", e.cmt || d?.desc || ""].filter(Boolean).join(" ");
+            const def = [d ? "-" + devRef(d) : "", e.cmt || d?.desc || ""].filter(Boolean).join(" ");
             const per = perLang(() => fnText(d, e));
             per[cur] = def; // aktuální jazyk = komentář z I/O tabulky (úpravy uživatele)
             const la = amlLogicalAddress(plat, e);

@@ -11,8 +11,11 @@
  * přeskočí najednou — výsledek je shodný s krokováním scan po scanu.
  */
 import type { Project, PlatformKey, Device } from "../model.js";
-import { devById, ioOf, interlockDevs, isCodesysFamily } from "../model.js";
-import { Simulator, simulate, simScenarios, T_VALVE_TRAVEL, DI_DELAY, type SimFault, type SimOptions, type SimScenario } from "../sim.js";
+import { devById, ioOf, interlockDevs, isCodesysFamily, isMotionClass } from "../model.js";
+import {
+  Simulator, simulate, simScenarios, T_VALVE_TRAVEL, DI_DELAY, MOTION_TON_PT, seqEstimate, analogFaultIo, lostFaultIo, matrixDevs,
+  frozenDetectable, devDeadline, devFaultRaw, type SimFault, type SimOptions, type SimScenario,
+} from "../sim.js";
 import { actuators, manVarOf, limitedAnalogs, seqCond, hmiGlobalPlat } from "../codegen.js";
 import { instName } from "../model.js";
 import { tr } from "../i18n.js";
@@ -69,7 +72,9 @@ export interface EmuRunResult {
 /* Simulátor drží stav v soukromých polích; emulátor je jen čte (a u přeskočení klidu
    posouvá čas a časovače stejně, jako by proběhly scany bez změny). */
 interface SimTon { et: number; q: boolean; prev: boolean; }
-interface SimInst { d: Device; step: number; ton: SimTon; ton2: SimTon; blocked: boolean; out: boolean; lastA: boolean; lastB: boolean; lastR: boolean; busy: boolean; error: boolean; }
+/** Pohon fáze 2a v simulátoru: časovače podle jmen šablony, proměnné bloku a model pohonu. */
+interface SimMotion { tons: Record<string, SimTon>; last: Record<string, boolean>; v: Record<string, number | boolean>; m: Record<string, number | boolean>; }
+interface SimInst { d: Device; step: number; ton: SimTon; ton2: SimTon; blocked: boolean; out: boolean; lastA: boolean; lastB: boolean; lastR: boolean; busy: boolean; error: boolean; x?: SimMotion; }
 interface SimPriv {
   io: Record<string, boolean | number>; model: Record<string, boolean | number>; plant: Record<number, number>;
   seqStep: number; faultStep: number; insts: SimInst[]; tonSeq: Record<number, SimTon>; seqVar: Record<number, boolean>;
@@ -83,12 +88,19 @@ const priv = (s: Simulator) => s as unknown as Sim;
 /** Signály společné všem platformám: vstupy z modelu stroje a porovnávané hodnoty návrhu. */
 interface Shared {
   inKeys: string[]; inAi: boolean[]; inVals: Float64Array;
-  sigs: Array<{ name: string; get: (s: Sim) => number; need: boolean }>; dv: Float64Array;
+  /** `ao` = analogový výstup pohonu fáze 2a: návrh = podíl rozsahu 0..1, kód = surová hodnota / rawMax (s tolerancí zaokrouhlení). */
+  sigs: Array<{ name: string; get: (s: Sim) => number; need: boolean; ao?: boolean }>; dv: Float64Array;
 }
 function shared(prj: Project): Shared {
   const ins = prj.io.filter(e => e.dir === "DI" || e.dir === "AI");
   const sigs: Shared["sigs"] = [];
   for (const e of prj.io) if (e.dir === "DO") sigs.push({ name: e.tag, need: true, get: sim => sim.io[e.key] === true ? 1 : 0 });
+  /* žádaná pohonů (rampa v PLC) se mění za běhu — porovnává se každý scan, ne jen konstanta na konci */
+  const instIx = new Map(actuators(prj).map((d, i) => [d.id, i]));
+  for (const e of prj.io) {
+    const d = prj.devices.find(x => x.id === e.devId);
+    if (e.dir === "AO" && d && isMotionClass(d.cls)) { const i = instIx.get(d.id)!; sigs.push({ name: e.tag, need: true, ao: true, get: sim => +(sim.insts[i].x?.v.frac ?? 0) }); }
+  }
   const hasSeq = prj.program.seq.length > 0;
   if (hasSeq) {
     sigs.push({ name: "seqStep", need: true, get: sim => sim.seqStep });
@@ -111,6 +123,8 @@ interface PlatProg {
   hmi: { modeAuto: number; cmdAutoStart: number; cmdAck: number; man: Array<{ id: number; slot: number }> };
   /** Slot porovnávaného signálu (podle Shared.sigs). */
   sigSlot: Int32Array;
+  /** Porovnávaný AO pohonu je v kódu REAL (Logix 0–100 %). */
+  aoReal: Uint8Array;
   ao: Array<{ name: string; slot: number; expect: number; real: boolean }>;
   prev: Float64Array;
   runtime: EmuFinding[];
@@ -170,7 +184,7 @@ function setup(prj: Project, sh: Shared, plat: PlatformKey, prog: Compiled, rawM
   }
   const mem = new Float64Array(prog.init);
   return {
-    plat, prog, rawMax, mem, exe: prog.make!(mem), inSlot, inReal, hmi, sigSlot, ao, prev: new Float64Array(mem.length),
+    plat, prog, rawMax, mem, exe: prog.make!(mem), inSlot, inReal, hmi, sigSlot, aoReal: Uint8Array.from(sh.sigs.map(g => g.ao && isReal(P.io(g.name)) ? 1 : 0)), ao, prev: new Float64Array(mem.length),
     runtime: [], missing, still: false, hzMs: 0, lazy: false,
   };
 }
@@ -215,10 +229,8 @@ export function emuScenarios(prj: Project, scope: "full" | "quick", base: SimOpt
   /* --- matice stavů (zrcadlo stateMatrix) --- */
   const es = devById(prj, prj.program.estop);
   const locks = interlockDevs(prj);
-  const motors = prj.devices.filter(d => d.cls === "Motor");
-  const faultMotors = motors.filter(d => ioOf(prj, d).fault);
-  const lostMotors = motors.filter(d => ioOf(prj, d).fbkRunning);
-  const lostValves = prj.devices.filter(d => d.cls === "Ventil" && ioOf(prj, d).fbkOpen);
+  const mx = matrixDevs(prj);
+  const faultMotors = mx.fault, lostMotors = mx.lost, lostValves = mx.lostv;
   const clampRaw = (v: number) => Math.min(27648, Math.max(0, Math.round(+v || 0)));
   const limitCases: Array<{ d: Device; raw: number }> = [];
   for (const d of limitedAnalogs(prj)) {
@@ -266,7 +278,7 @@ export function emuScenarios(prj: Project, scope: "full" | "quick", base: SimOpt
     }
     const d0 = devById(prj, st.dev), cnd = seqCond(prj, st);
     const instant = run.tEnd !== null && run.tEnd - run.tStart <= 2 * dt + 1e-9;
-    if (d0 && cnd.kind === "fbk" && !instant) {
+    if (d0 && cnd.kind === "fbk" && !instant && frozenDetectable(prj, st, d0, nominal, run)) {
       const deadline = round(run.tStart + (st.timeS || 1) + T_VALVE_TRAVEL + 0.1);
       mk(id("fbk"), L(S, tr("zamrzlé hlášení {dev}", { dev: d0.name })), { ...base, faults: [{ kind: "frozen", dev: d0.id, at: run.tStart }, { kind: "start", at: deadline }], maxTime: deadline + 1.5 });
     }
@@ -275,6 +287,12 @@ export function emuScenarios(prj: Project, scope: "full" | "quick", base: SimOpt
     for (const d of faultMotors) if (step(d) >= 10 && step(d) < 90) mk(id("fault-" + d.id), L(S, tr("porucha {dev}", { dev: d.name })), { ...base, faults: [{ kind: "fault", dev: d.id, at }, { kind: "start", at: at + 1 }], maxTime: at + 1.4 });
     for (const d of lostMotors) if (step(d) === 20) mk(id("lost-" + d.id), L(S, tr("ztráta hlášení {dev}", { dev: d.name })), { ...base, faults: [{ kind: "lost", dev: d.id, at }, { kind: "start", at: at + 1 }], maxTime: at + 1.4 });
     for (const d of lostValves) if (step(d) === 20) mk(id("lostv-" + d.id), L(S, tr("ztráta polohy {dev}", { dev: d.name })), { ...base, faults: [{ kind: "lost", dev: d.id, at }, { kind: "start", at: at + 1 }], maxTime: at + 1.4 });
+    for (const d of mx.lostp) if (step(d) === 0 && fr && fr.dev[d.id] && fr.dev[d.id].done) mk(id("lostp-" + d.id), L(S, tr("ztráta „v poloze“ {dev}", { dev: d.name })), { ...base, faults: [{ kind: "lost", dev: d.id, at }, { kind: "start", at: at + 1 }], maxTime: at + 1.4 });
+    { /* odchylka proporcionálního ventilu (zrcadlo stateMatrix: společná lhůta všech ventilů v toleranci) */
+      const inTol = mx.dev.filter(d => step(d) === 20);
+      const wait = Math.max(0, ...inTol.map(d => devDeadline(d, dt)));
+      for (const d of inTol) mk(id("dev-" + d.id), L(S, tr("odchylka {dev}", { dev: d.name })), { ...base, faults: [{ kind: "analog", dev: d.id, at, raw: devFaultRaw(d, fr!.dev[d.id].cmd ?? d.rmin) }, { kind: "start", at: round(at + wait + 0.5) }], maxTime: round(at + wait + 0.9) });
+    }
     limitCases.forEach((lc, k) => { if (k % nSteps === rowNo) mk(id("lim-" + lc.d.id), L(S, lc.d.name), { ...base, faults: [{ kind: "analog", dev: lc.d.id, at, raw: lc.raw }, { kind: "start", at: at + 1 }], maxTime: at + 1.4 }); });
     rowNo++;
   }
@@ -367,6 +385,8 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
       for (let j = 0; j < ss.length; j++) {
         const s = ss[j];
         if (s < 0 || m[s] === dv[j]) continue;
+        /* AO pohonu: kód píše surovou hodnotu (zaokrouhlení / ořez dle platformy), návrh podíl rozsahu */
+        if (sh.sigs[j].ao && Math.abs(m[s] / p.rawMax - dv[j]) <= (p.aoReal[j] ? 1e-5 : 1.01 / p.rawMax)) continue;
         const name = sh.sigs[j].name;
         onDiff(p, { platform: p.plat, scenario: sc.id, label: sc.label, t: round(sim.t - sim.dt), signal: name, design: dv[j], code: m[s],
           msg: tr("{signal}: návrh {design}, kód {code}", { signal: name, design: dv[j], code: m[s] }) });
@@ -385,6 +405,14 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
       out[n++] = moving(sim, f) ? (f.out ? 2 : 3) + 0.5 : sim.plant[f.d.id];
       out[n++] = f.step + (f.blocked ? 1000 : 0) + (f.lastA ? 2000 : 0) + (f.lastB ? 4000 : 0) + (f.lastR ? 8000 : 0)
         + (f.ton.q ? 16000 : 0) + (f.ton.prev ? 32000 : 0) + (f.ton2.q ? 64000 : 0) + (f.ton2.prev ? 128000 : 0);
+      /* pohon fáze 2a: celý stav bloku a modelu přesně (otáčky / poloha / tlak se mění plynule → klid až po ustálení) */
+      const x = f.x;
+      if (x) {
+        for (const k in x.v) { const v = x.v[k]; out[n++] = v === true ? 1 : v === false ? 0 : +v; }
+        for (const k in x.m) { const v = x.m[k]; out[n++] = v === true ? 1 : v === false ? 0 : +v; }
+        for (const k in x.last) out[n++] = x.last[k] ? 1 : 0;
+        for (const k in x.tons) { const t = x.tons[k]; out[n++] = (t.q ? 1 : 0) + (t.prev ? 2 : 0); }
+      }
     }
     for (const k in sim.tonSeq) { const t = sim.tonSeq[k]; out[n++] = (t.q ? 1 : 0) + (t.prev ? 2 : 0); }
     for (const k in sim.seqVar) out[n++] = sim.seqVar[k] ? 1 : 0;
@@ -395,7 +423,7 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
     return true;
   };
   /** Pohon se pohybuje (model stroje mění polohu, hlášení se změní až na hranici 0 / 1). */
-  const moving = (sim: Sim, f: SimInst) => !sim.controls.frozen.includes(f.d.id) && (f.out ? sim.plant[f.d.id] < 1 : sim.plant[f.d.id] > 0);
+  const moving = (sim: Sim, f: SimInst) => !f.x && !sim.controls.frozen.includes(f.d.id) && (f.out ? sim.plant[f.d.id] < 1 : sim.plant[f.d.id] > 0);
   const rateOf = (sim: Sim, f: SimInst) => sim.dt / Math.max(f.d.cls === "Motor" ? sim.motorDelay : sim.valveTravel, sim.dt);
   /** Nejbližší čas, kdy by se něco změnilo samo (časovač doběhne, proces dodá vstup). */
   const horizon = (sim: Sim, active: PlatProg[]): number => {
@@ -404,6 +432,7 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
     const tonLeft = (t: SimTon, pt: number) => { if (t.prev && !t.q) h = Math.min(h, now + (pt - t.et)); };
     for (const f of sim.insts) {
       if (f.blocked) continue;
+      if (f.x) { for (const k in f.x.tons) tonLeft(f.x.tons[k], MOTION_TON_PT[k]); continue; }
       tonLeft(f.ton, f.d.cls === "Motor" ? 3 : T_VALVE_TRAVEL);
       tonLeft(f.ton2, T_VALVE_TRAVEL);
     }
@@ -425,7 +454,7 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
   const skip = (sim: Sim, n: number) => {
     const dt = sim.dt, add = n * dt;
     const adv = (t: SimTon) => { if (t.prev && !t.q) t.et += add; };
-    for (const f of sim.insts) { if (!f.blocked) { adv(f.ton); adv(f.ton2); } }
+    for (const f of sim.insts) { if (!f.blocked) { adv(f.ton); adv(f.ton2); if (f.x) for (const k in f.x.tons) adv(f.x.tons[k]); } }
     for (const k in sim.tonSeq) adv(sim.tonSeq[k]);
     for (let i = 0; i < n; i++) sim.t = sim.t + dt;      // stejné sčítání jako scan() (shodné zaokrouhlení času)
     for (const f of sim.insts) if (moving(sim, f)) {      // poloha pohonu: stejné přičítání jako model stroje ve scan()
@@ -454,10 +483,10 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
         const d = devById(prj, f.dev), e = d ? (ioOf(prj, d).in || Object.values(ioOf(prj, d))[0]) : undefined;
         if (e) c.di[e.key] = !on(f);
       } else if (f.kind === "analog") {
-        const d = devById(prj, f.dev), e = d ? ioOf(prj, d).raw : undefined;
+        const d = devById(prj, f.dev), e = d ? analogFaultIo(prj, d) : undefined;
         if (e) { if (on(f)) c.force[e.key] = f.raw; else delete c.force[e.key]; }
       } else if (f.kind === "lost") {
-        const d = devById(prj, f.dev), io = d ? ioOf(prj, d) : undefined, e = io ? (io.fbkRunning || io.fbkOpen) : undefined;
+        const d = devById(prj, f.dev), e = d ? lostFaultIo(prj, d) : undefined;
         if (e) { if (on(f)) c.force[e.key] = false; else delete c.force[e.key]; }
       }
     }
@@ -510,8 +539,7 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
   };
   const estimateMax = (sim: Sim, o: SimOptions) => {
     const startAt = o.startAt ?? startAt0;
-    const est = seq.reduce((a, s) => a + ((s.act === "wait" || s.cond === "time") ? (s.timeS || 1) : Math.max(sim.motorDelay, sim.valveTravel) + 0.5), 0);
-    return o.maxTime ?? (startAt + est + T_VALVE_TRAVEL + 5);
+    return o.maxTime ?? (startAt + seqEstimate(prj, sim.motorDelay, sim.valveTravel) + T_VALVE_TRAVEL + 5);
   };
   const fresh = (): Sim => priv(new Simulator(prj, { dt: base.dt, record: false }));
 

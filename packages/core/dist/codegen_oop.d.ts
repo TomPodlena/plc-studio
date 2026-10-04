@@ -30,7 +30,7 @@
  * (`OopPou`), emulátor z XML / TcPOU výpis zpětně sestaví a porovná s ST výpisem.
  */
 import { Project, PlatformKey } from "./model.js";
-import { type IrFbClass } from "./ir.js";
+import { type IrProgram, type IrFbClass, type IrType } from "./ir.js";
 export interface OopVar {
     name: string;
     type: string;
@@ -99,6 +99,12 @@ interface OopProgram {
     main: OopPou;
 }
 export declare function oopProgram(prj: Project, plat: PlatformKey): OopProgram;
+/** Výstupy instancí, které čtou podmínky kroků (pohony fáze 2a), s typem portu — vstupy FB_Sequence. */
+export declare function seqMembers(ir: IrProgram): Array<{
+    inst: string;
+    port: string;
+    type: IrType;
+}>;
 /** Deklarační část objektu (hlavička, komentář, proměnné) — totéž v ST výpisu, TcPOU i PLCopen. */
 export declare function pouDecl(p: OopPou): string;
 export declare function methodDecl(m: OopMethod, inItf?: boolean): string;

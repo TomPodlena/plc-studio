@@ -90,7 +90,7 @@ const OPS = {
     const l = core.setLang(lang);
     return {
       LANG: l, LANGS: core.LANGS, I18N: core.catalog(l),
-      PLAT: core.platInfo(), CLS: core.clsInfo(), IECPLATS: core.IECPLATS,
+      PLAT: core.platInfo(), CLS: core.clsInfo(), IECPLATS: core.IECPLATS, ACTS_FOR: core.ACTS_FOR,
       DO_ROLES: Object.fromEntries(Object.entries(core.DO_ROLES).map(([k, v]) => [k, core.tr(v)])),
       SAMPLE_DESC: Object.fromEntries(Object.entries(ai.SAMPLE_DESC).map(([k, v]) => [k, core.tr(v)])),
       AI_EXAMPLE: core.tr(ai.AI_EXAMPLE),

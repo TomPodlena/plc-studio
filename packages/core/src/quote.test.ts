@@ -114,7 +114,7 @@ test("součty: přirážka, DPH 21 % a zaokrouhlení na haléře", () => {
   const one = buildQuote(p, {
     bom: { plat: "siemens", lines: [{ ...buildBom(p).lines[0], qty: 3 }] },
     prices: [{ orderCode: "6ES7212-1AG50-0XB0", type: "", brand: "", cat: "", price: 33.35, currency: "CZK", supplier: "", leadTime: "", row: 2 }],
-    params: { hoursBase: 0, hoursPerDevice: { Motor: 0, Ventil: 0, AnalogIn: 0, AnalogOut: 0, DI: 0, DO: 0 }, hoursPerIo: 0, hoursPerStep: 0,
+    params: { hoursBase: 0, hoursPerDevice: { Motor: 0, Ventil: 0, AnalogIn: 0, AnalogOut: 0, DI: 0, DO: 0, Vfd: 0, PosDrive: 0, PropValve: 0 }, hoursPerIo: 0, hoursPerStep: 0,
       hoursPerSafetyFn: 0, hoursPerDocPage: 0, fatHours: 0, hoursPerDay: 0 },
     vatPct: 21,
   });

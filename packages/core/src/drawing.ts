@@ -4,7 +4,7 @@
  * Konvence: rámeček s mřížkovými referencemi, popisové pole, značení -M1
  * (IEC 81346), čísla vodičů -W<svorkovnice><svorka> (`wireNo`), NC/NO kontakty (IEC 60617).
  */
-import { Project, IoModule, Device, CLS, PLAT, devById, modules, wireNo, esc, stripDia } from "./model.js";
+import { Project, IoModule, Device, CLS, PLAT, devById, modules, wireNo, esc, stripDia, devRef } from "./model.js";
 import { trx, N_, today } from "./i18n.js";
 
 /* Texty výkresů jdou přes `trx()` — stejná geometrie se píše i do DXF R12, proto musí
@@ -84,21 +84,21 @@ export function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number
   mod.ch.forEach((e, i) => {
     cur = e.key;
     const y = top + i * rh + 12;
-    const d = devById(prj, e.devId) || { name: "", desc: "" };
+    const d: { name: string; desc: string; cls?: Device["cls"] } = devById(prj, e.devId) || { name: "", desc: "" };
     const wn = wireNo(xnum, i);
     if (mod.dir === "DI") {
       Ln(80, y, 300, y);
       Ln(300, y, 324, y - 13, "s");                       // pohyblivý kontakt (IEC 60617)
       if (e.nc) Ln(324, y, 324, y - 11, "s");             // doraz = rozpínací kontakt
       Ln(324, y, 678, y);
-      Tx(298, y - 17, "-" + (d.name || ""), { k: "b", size: 10 }); Tx(340, y - 6, e.tag, { size: 10 });
+      Tx(298, y - 17, "-" + devRef(d), { k: "b", size: 10 }); Tx(340, y - 6, e.tag, { size: 10 });
       Tx(140, y - 6, (d.desc || e.cmt || "").slice(0, 25), { k: "m", size: 9 });
       Tx(500, y + 12, wn, { k: "m", size: 9 });
       Ci(686, y, 4); Tx(670, y + 14, "X" + xnum + ":" + (i + 1), { anchor: "end", k: "m", size: 9 });
       Tx(720, y + 3, mod.dir + " " + i + "  " + e.addr, { k: "m", size: 9 });
     } else if (mod.dir === "AI") {
       Ln(80, y, 262, y);
-      Re(262, y - 12, 96, 24); Tx(310, y + 3, "-" + (d.name || "B?"), { anchor: "middle", k: "b", size: 10 });
+      Re(262, y - 12, 96, 24); Tx(310, y + 3, "-" + (devRef(d) || "B?"), { anchor: "middle", k: "b", size: 10 });
       Ln(358, y, 678, y);
       Tx(140, y - 6, (d.desc || "").slice(0, 17), { k: "m", size: 9 });
       Tx(380, y - 6, e.tag, { size: 10 }); Tx(380, y + 12, "4–20 mA · " + wn, { k: "m", size: 9 });
@@ -109,7 +109,7 @@ export function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number
       Ci(254, y, 4); Tx(266, y + 14, "X" + xnum + ":" + (i + 1), { k: "m", size: 9 });
       Ln(258, y, 560, y);
       Re(560, y - 9, 26, 18);                              // cívka/zátěž (IEC: obdélník)
-      Tx(573, y - 14, "-" + (d.name || ""), { anchor: "middle", k: "b", size: 10 });
+      Tx(573, y - 14, "-" + devRef(d), { anchor: "middle", k: "b", size: 10 });
       Ln(586, y, 886, y);
       Tx(276, y - 6, e.tag, { size: 10 }); Tx(430, y + 12, wn, { k: "m", size: 9 });
       Tx(610, y + 14, (d.desc || e.cmt || "").slice(0, 24), { k: "m", size: 9 });
@@ -117,7 +117,7 @@ export function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number
       Tx(54, y + 3, "AO " + i + "  " + e.addr, { k: "m", size: 9 });
       Ci(254, y, 4); Tx(266, y + 14, "X" + xnum + ":" + (i + 1), { k: "m", size: 9 });
       Ln(258, y, 540, y);
-      Re(540, y - 12, 116, 24); Tx(598, y + 3, "-" + (d.name || "U?"), { anchor: "middle", k: "b", size: 10 });
+      Re(540, y - 12, 116, 24); Tx(598, y + 3, "-" + (devRef(d) || "U?"), { anchor: "middle", k: "b", size: 10 });
       Ln(656, y, 886, y);
       Tx(276, y - 6, e.tag, { size: 10 }); Tx(400, y + 12, "0/4–20 mA · 0–10 V · " + wn, { k: "m", size: 9 });
     }

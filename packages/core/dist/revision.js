@@ -22,9 +22,9 @@
  * rozsah potvrzuje odpovědná osoba. Zpráva `17_zmeny.md` (přes `registerDocProvider`) a sloupec
  * revize v popisovém poli výkresů (`setSheetRevision` v drawing.ts) se přihlašují samy.
  */
-import { PLAT, CLS, DO_ROLES, devById, interlockDevs, enableInputs } from "./model.js";
+import { PLAT, CLS, DO_ROLES, devById, interlockDevs, enableInputs, isMotionClass } from "./model.js";
 import { tr, N_, formatDate, today } from "./i18n.js";
-import { canonicalJson, fnv1a64, approvalItems, designView, noGuid } from "./approval.js";
+import { canonicalJson, fnv1a64, approvalItems, designView, noGuid, motionContent } from "./approval.js";
 import { commissioningPlan, COMMISSION_PHASES } from "./commission.js";
 import { proposeSafety, safetyModuleRegistered } from "./safety.js";
 import { stepTitle } from "./sim.js";
@@ -203,6 +203,8 @@ function devView(d) {
         limHi: d.cls === "AnalogIn" ? fin(d.limHi) : null,
         setpoint: d.cls === "AnalogOut" ? fin(d.setpoint) : null,
         role: d.cls === "DO" ? d.role ?? null : null,
+        /* pohony fáze 2a: volby, rozsah, žádaná, rampa, tolerance, záznamy (shodně s otiskem schvalování) */
+        motion: isMotionClass(d.cls) ? motionContent(d) : null,
     };
 }
 const DEV_FIELDS = [
@@ -216,6 +218,7 @@ const DEV_FIELDS = [
     ["limHi", "functional", F()],
     ["setpoint", "functional", F()],
     ["role", "functional", F("safety:*")],
+    ["motion", "functional", F("io", "seq")],
 ];
 const IO_FIELDS = [
     ["tag", "functional", F("io", "seq", "interlocks", "safety:*")],

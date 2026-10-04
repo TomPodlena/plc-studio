@@ -466,9 +466,10 @@ function outGroups(prj) {
     const plain = motors.filter(d => !isVfd(d)).map(d => d.name);
     if (plain.length)
         out.push({ id: "KS", kind: "contactors", devs: plain, label: tr("stykače KS1/KS2 se zrcadlovými kontakty pro {devs}", { devs: short(plain) }), outs: ["KS1_Q", "KS2_Q"], fbk: ["KS1_FBK", "KS2_FBK"], comp: pickComp("contactor_mirror", plat) });
-    for (const d of motors.filter(isVfd))
+    /* měniče a polohovací pohony fáze 2a (třída Vfd / PosDrive) mají STO v řadiči stejně jako motor na měniči */
+    for (const d of [...motors.filter(isVfd), ...prj.devices.filter(x => x.cls === "Vfd" || x.cls === "PosDrive")])
         out.push({ id: "STO_" + d.name, kind: "sto", devs: [d.name], label: tr("STO měniče {dev}", { dev: d.name }), outs: [d.name + "_STO"], fbk: [], comp: pickComp("drive_sto", plat, plat === "siemens" || plat === "schneider" ? undefined : "abb-acs580") });
-    const valves = prj.devices.filter(d => d.cls === "Ventil" && !has(d.desc, RE.processValve) && !has(d.desc, RE.vacuum));
+    const valves = prj.devices.filter(d => (d.cls === "Ventil" || d.cls === "PropValve") && !has(d.desc, RE.processValve) && !has(d.desc, RE.vacuum));
     /* hydraulický ventil: v popisu „hydraul“; nebo lisovací ventil v projektu s hydraulickým agregátem;
        nebo hydraulický stroj (název projektu) bez stlačeného vzduchu */
     const allText = prj.devices.map(d => d.desc).join(" ");

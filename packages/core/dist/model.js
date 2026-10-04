@@ -44,7 +44,106 @@ export const CLS = {
     AnalogOut: { prefix: "U", label: N_("Analogový výstup"), opts: {} },
     DI: { prefix: "S", label: N_("Digitální vstup (snímač)"), opts: {} },
     DO: { prefix: "H", label: N_("Digitální výstup (signálka…)"), opts: {} },
+    Vfd: { prefix: "M", label: N_("Frekvenční měnič (analogová žádaná)"), opts: {
+            fbk: N_("hlášení otáčky dosaženy"), ready: N_("hlášení připraven"), fault: N_("vstup poruchy"),
+            rev: N_("výstup směr vzad"), rst: N_("výstup kvitace měniče"), act: N_("analogový vstup skutečných otáček")
+        } },
+    PosDrive: { prefix: "M", label: N_("Polohovací pohon se záznamy (I/O)"), opts: {
+            ready: N_("hlášení připraven"), fault: N_("vstup poruchy"), rst: N_("výstup kvitace pohonu")
+        } },
+    PropValve: { prefix: "Y", label: N_("Proporcionální ventil (tlak / průtok)"), opts: { fbk: N_("analogová zpětná vazba skutečné hodnoty") } },
 };
+/** Pohony a proporcionální prvky fáze 2a (blok s analogovou žádanou / výběrem záznamu). */
+export function isMotionClass(cls) { return cls === "Vfd" || cls === "PosDrive" || cls === "PropValve"; }
+/** Třídy s analogovým rozsahem (rmin / rmax / jednotka). */
+export function hasRange(cls) { return cls === "AnalogIn" || cls === "AnalogOut" || cls === "Vfd" || cls === "PropValve"; }
+/** Akce kroku, které třída zařízení umí (UI editoru kroků, validace). `wait` nemá zařízení. */
+export const ACTS_FOR = {
+    Motor: ["start", "stop"], Ventil: ["open", "close"], DI: ["waitOn", "waitOff"], DO: [], AnalogIn: [], AnalogOut: [],
+    Vfd: ["start", "stop"], PosDrive: ["home", "posRecord"], PropValve: ["setPressure", "setFlow"],
+};
+/** Je akce proporcionálního ventilu (žádaná hodnota)? */
+export function isSpAct(act) { return act === "setPressure" || act === "setFlow"; }
+/** Výchozí parametry nového zařízení třídy (UI „přidat zařízení“, AI návrhář). */
+export function devDefaults(cls) {
+    if (cls === "Vfd")
+        return { unit: "Hz", rmin: 0, rmax: 50, setpoint: 50, rampS: 0, opt: { fbk: true, ready: true, fault: true } };
+    if (cls === "PosDrive")
+        return { unit: "", rmin: 0, rmax: 0, selBits: 3, travelS: 1, opt: { ready: true, fault: true },
+            records: [{ no: 1, name: tr("poloha 1") }, { no: 2, name: tr("poloha 2") }] };
+    if (cls === "PropValve")
+        return { unit: "bar", rmin: 0, rmax: 10, setpoint: 0, rampS: 0, tol: 0.3, tolTimeS: 1, opt: { fbk: true } };
+    return {};
+}
+/**
+ * Označení přístroje, ke kterému vede signál (výkresy, kusovník, EPLAN): u měniče a polohovacího
+ * pohonu řadič -TA<n> (svorky řídicích signálů jsou na řadiči, ne na motoru), jinak zařízení samo.
+ */
+export function devRef(d) {
+    if (d.cls === "Vfd" || d.cls === "PosDrive")
+        return "TA" + (d.name.replace(/^\D+/, "") || d.name);
+    return d.name || "";
+}
+/** Tabulka záznamů PosDrive jako text pro editaci v UI: „1 = převzetí @ 0; 2 = lis @ 180“. */
+export function recordsText(recs) {
+    return (recs || []).map(r => r.no + " = " + (r.name || "") + (Number.isFinite(r.pos) ? " @ " + r.pos : "")).join("; ");
+}
+/** Zpět z textu (řádky / středníky „číslo = název @ poloha“; poloha nepovinná). Neplatné části přeskočí. */
+export function parseRecords(s) {
+    const out = [];
+    for (const part of String(s || "").split(/[;\n]+/)) {
+        const m = part.match(/^\s*(\d+)\s*[=:.\-]?\s*([^@]*?)\s*(?:@\s*(-?\d+(?:[.,]\d+)?))?\s*$/);
+        if (!m)
+            continue;
+        const r = { no: +m[1], name: m[2].trim() };
+        if (m[3] !== undefined)
+            r.pos = +m[3].replace(",", ".");
+        if (!out.some(x => x.no === r.no))
+            out.push(r);
+    }
+    return out.sort((a, b) => a.no - b.no);
+}
+/** Počet bitů výběru záznamu PosDrive (1–6, výchozí 3). */
+export function selBitsOf(d) {
+    const n = Math.round(Number(d.selBits));
+    return Number.isFinite(n) && n >= 1 ? Math.min(6, n) : 3;
+}
+/** Nejvyšší číslo záznamu PosDrive (2^bity − 1; záznam 0 = referenční poloha). */
+export function maxRecord(d) { return (1 << selBitsOf(d)) - 1; }
+/** Doba jízdy PosDrive v modelu simulace [s] (výchozí 1 s). */
+export function travelOf(d) { const t = Number(d.travelS); return Number.isFinite(t) && t > 0 ? t : 1; }
+/**
+ * Krok rampy v PLC na jeden takt 0,1 s [jednotky] (Vfd / PropValve); 0 = bez rampy.
+ * Zaokrouhleno na 6 platných číslic — generátor píše tentýž literál, simulátor počítá s ním.
+ */
+export function rampStepOf(d) {
+    const r = Number(d.rampS), span = Math.abs((d.rmax ?? 0) - (d.rmin ?? 0));
+    if (!Number.isFinite(r) || r <= 0 || !span)
+        return 0;
+    return Number((span / (r * 10)).toPrecision(6));
+}
+/** Povolená odchylka PropValve [jednotky] (výchozí 3 % rozsahu). */
+export function tolOf(d) {
+    const t = Number(d.tol);
+    return Number.isFinite(t) && t > 0 ? t : Math.abs((d.rmax ?? 0) - (d.rmin ?? 0)) * 0.03 || 0.1;
+}
+/** Doba odchylky PropValve, po které je porucha, v taktech 0,1 s (výchozí 1 s; nejméně 1 takt). */
+export function tolTicksOf(d) {
+    const t = Number(d.tolTimeS);
+    return Math.max(1, Math.round((Number.isFinite(t) && t > 0 ? t : 1) * 10));
+}
+/** Žádaná hodnota kroku (Vfd start / PropValve): `sp` kroku, jinak výchozí žádaná zařízení. */
+export function stepSp(s, d) {
+    if (Number.isFinite(s.sp))
+        return s.sp;
+    return d ? devSp(d) : 0;
+}
+/** Výchozí žádaná hodnota zařízení (ruční režim, po přerušení sekvence): `setpoint`, jinak 0 / rmin. */
+export function devSp(d) {
+    if (Number.isFinite(d.setpoint))
+        return d.setpoint;
+    return d.cls === "PropValve" && Number.isFinite(d.rmin) ? d.rmin : 0;
+}
 /** Třídy zařízení s texty v nastaveném jazyce (`CLS` drží české klíče překladu). */
 export function clsInfo() {
     const out = {};
@@ -174,6 +273,43 @@ export function devSignals(d) {
         s.push(["in", "DI", ""]);
     else if (d.cls === "DO")
         s.push(["out", "DO", ""]);
+    else if (d.cls === "Vfd") {
+        if (o.ready !== false)
+            s.push(["ready", "DI", tr("měnič připraven")]);
+        if (o.fbk !== false)
+            s.push(["atSpeed", "DI", tr("otáčky dosaženy")]);
+        if (o.fault !== false)
+            s.push(["fault", "DI", tr("porucha měniče")]);
+        s.push(["outRun", "DO", tr("povel chod")]);
+        if (o.rev)
+            s.push(["outRev", "DO", tr("směr vzad")]);
+        if (o.rst)
+            s.push(["outReset", "DO", tr("kvitace měniče")]);
+        s.push(["rawSpeed", "AO", tr("žádané otáčky") + (d.unit ? " [" + d.unit + "]" : "")]);
+        if (o.act)
+            s.push(["rawAct", "AI", tr("skutečné otáčky") + (d.unit ? " [" + d.unit + "]" : "")]);
+    }
+    else if (d.cls === "PosDrive") {
+        if (o.ready !== false)
+            s.push(["ready", "DI", tr("pohon připraven")]);
+        s.push(["inPos", "DI", tr("v poloze (pohyb dokončen)")]);
+        s.push(["homed", "DI", tr("referováno")]);
+        if (o.fault !== false)
+            s.push(["fault", "DI", tr("porucha pohonu")]);
+        s.push(["outEnable", "DO", tr("povolení pohonu")]);
+        s.push(["outStart", "DO", tr("start jízdy na záznam")]);
+        s.push(["outHome", "DO", tr("referenční jízda")]);
+        s.push(["outHalt", "DO", tr("zastavení pohybu (HALT)")]);
+        for (let k = 0; k < selBitsOf(d); k++)
+            s.push(["outSel" + k, "DO", tr("výběr záznamu bit {k}", { k })]);
+        if (o.rst)
+            s.push(["outReset", "DO", tr("kvitace pohonu")]);
+    }
+    else if (d.cls === "PropValve") {
+        s.push(["rawSp", "AO", tr("žádaná hodnota") + (d.unit ? " [" + d.unit + "]" : "")]);
+        if (o.fbk !== false)
+            s.push(["rawAct", "AI", tr("skutečná hodnota") + (d.unit ? " [" + d.unit + "]" : "")]);
+    }
     return s;
 }
 /**
@@ -335,13 +471,36 @@ export function validateProject(prj) {
         /* Logix: jméno tagu max. 40 znaků, bez „__“ a bez „_“ na konci; nejdelší předpona je seqOpen_ / manOpen_ (8) */
         else if (d.name.length > 32 || /__/.test(d.name) || /_$/.test(d.name))
             out.push({ level: "error", where: d.name, msg: tr("Označení zařízení může mít nejvýš 32 znaků, bez „__“ a bez „_“ na konci — vznikají z něj jména jako seqOpen_<označení> a Rockwell Logix povoluje 40 znaků.") });
-        if ((d.cls === "AnalogIn" || d.cls === "AnalogOut") && Number.isFinite(d.rmin) && Number.isFinite(d.rmax) && d.rmin >= d.rmax)
+        if (hasRange(d.cls) && Number.isFinite(d.rmin) && Number.isFinite(d.rmax) && d.rmin >= d.rmax)
             out.push({ level: "error", where: d.name, msg: tr("Rozsah měření: minimum musí být menší než maximum.") });
+        if ((d.cls === "Vfd" || d.cls === "PropValve") && Number.isFinite(d.setpoint) && Number.isFinite(d.rmin) && Number.isFinite(d.rmax) && d.rmin < d.rmax
+            && (d.setpoint < d.rmin || d.setpoint > d.rmax))
+            out.push({ level: "warn", where: d.name, msg: tr("Žádaná hodnota leží mimo rozsah výstupu.") });
+        if (d.cls === "PosDrive" && d.selBits !== undefined && (!Number.isInteger(d.selBits) || d.selBits < 1 || d.selBits > 6))
+            out.push({ level: "error", where: d.name, msg: tr("Počet bitů výběru záznamu musí být 1 až 6.") });
+        if ((d.cls === "Vfd" || d.cls === "PropValve") && d.rampS !== undefined && !(Number(d.rampS) >= 0))
+            out.push({ level: "error", where: d.name, msg: tr("Rampa musí být 0 (bez rampy) nebo kladný čas v sekundách.") });
+        if (d.cls === "PropValve" && d.opt?.fbk !== false && d.tol !== undefined && !(Number(d.tol) > 0))
+            out.push({ level: "error", where: d.name, msg: tr("Povolená odchylka proporcionálního ventilu musí být kladná.") });
         if (d.cls === "AnalogIn" && Number.isFinite(d.limLo) && Number.isFinite(d.limHi) && d.limLo >= d.limHi)
             out.push({ level: "error", where: d.name, msg: tr("Mez min musí být menší než mez max — jinak je měření stále v poruše.") });
         if (d.cls === "AnalogOut" && Number.isFinite(d.setpoint) && Number.isFinite(d.rmin) && Number.isFinite(d.rmax) && d.rmin < d.rmax
             && (d.setpoint < d.rmin || d.setpoint > d.rmax))
             out.push({ level: "warn", where: d.name, msg: tr("Žádaná hodnota leží mimo rozsah výstupu.") });
+    }
+    /* kroky pohonů a proporcionálních prvků: akce musí patřit třídě, záznam a žádaná hodnota v rozsahu */
+    for (const [i, s] of prj.program.seq.entries()) {
+        const d = devById(prj, s.dev);
+        const where = tr("krok {n}", { n: i + 1 });
+        const newAct = s.act === "home" || s.act === "posRecord" || isSpAct(s.act);
+        if (!d)
+            continue;
+        if ((newAct || isMotionClass(d.cls)) && !ACTS_FOR[d.cls].includes(s.act))
+            out.push({ level: "error", where, msg: tr("Akce „{act}“ neplatí pro zařízení {dev} ({cls}).", { act: s.act, dev: d.name, cls: tr(CLS[d.cls].label) }) });
+        else if (d.cls === "PosDrive" && s.act === "posRecord" && !(Number.isInteger(s.rec) && s.rec >= 1 && s.rec <= maxRecord(d)))
+            out.push({ level: "error", where, msg: tr("Číslo záznamu {dev} musí být 1 až {max} (záznam 0 = referenční poloha, jede se na ni akcí home).", { dev: d.name, max: maxRecord(d) }) });
+        else if ((d.cls === "Vfd" && s.act === "start" || d.cls === "PropValve") && Number.isFinite(s.sp) && d.rmin < d.rmax && (s.sp < d.rmin || s.sp > d.rmax))
+            out.push({ level: "warn", where, msg: tr("Žádaná hodnota kroku leží mimo rozsah {dev} ({min}–{max} {unit}).", { dev: d.name, min: d.rmin, max: d.rmax, unit: d.unit || "" }) });
     }
     /* FX5 (GX Works3): TON bere PT jen 0–32 767 ms → delší čas kroku generátor píše časovačem
        TIMER_100_FB_M (předvolba INT × 100 ms, tj. nejvýš 3 276,7 s) — codegen.ts `fx5Timer100` */

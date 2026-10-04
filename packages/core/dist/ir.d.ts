@@ -23,17 +23,18 @@
  * Pořadí vyhodnocení (= generovaný program = simulátor `scan()`):
  *   enable → sekvence (CASE) → časovače kroků → instance bloků (+ role DO) → porucha stroje.
  *
+ * Pohony fáze 2a (hotovo — `Vfd`, `PosDrive`, `PropValve`, viz CLAUDE.md „Pohony a polohování“):
+ *  - bloky `motionFbItem` (porty: povely jako výrazy, hlášení jako I/O, parametry `real`,
+ *    surový rozsah analogu `src: "rawMax"` dosazuje renderer), šablony `ST_VFD` / `ST_POSDRIVE` /
+ *    `ST_PROPVALVE` (SCL ze ST), obecné volání `stCall` / `lxCallIr` / `inlineFb`;
+ *  - kroky: `IrStep.sets` (povely kroku, zapisované i při přechodu DO kroku), `IrSeq.resets`
+ *    (hodnoty po přerušení), podmínka `SeqCondition.expr` nad výstupy instance.
  * Příprava pro fázi 2b / 2c (zatím bez implementace):
- *  - Nové třídy bloků (`Vfd` frekvenční měnič, `PosDrive` polohovací pohon, `PropValve`
- *    proporcionální ventil, `Axis` servoosa): rozšířit `IrFbClass`, `IR_CLASSES` (jméno FB)
- *    a šablony v `fbTemplate` (ST + SCL), v `fbItem` přidat větev s porty (povely jako výrazy,
- *    zpětná hlášení jako I/O, parametry jako `real`); `stCall` bez zvláštního rozložení použije
- *    obecné (port na řádek), Logix (`lxCallIr`) a Unitronics (`inlineFb`) berou porty obecně.
- *    Simulátor a ověření je potřeba doplnit zvlášť (zrcadlo šablony), stejně tak HMI a AOI typy.
- *  - Nové akce kroků (`run`/`stop` pro Vfd s rychlostí, `home`, `posRecord`, `moveAbs`,
- *    `setPressure`, `waitInPos`): rozšířit `IrStepOp`; krok nese povel jako `set`
- *    (proměnná sekvence + hodnota; pro analogové povely přibude `value: IrExpr`) a podmínku
- *    přechodu z `seqCond` (nové druhy zpětného hlášení — „v poloze", „dojeto na referenci").
+ *  - Servoosa `Axis`: obálka FB_Axis nad bloky MC platformy (nejsou společné — S7-1200 / 1500,
+ *    TwinCAT, CODESYS SM3, Omron, Logix instrukce v hlavní rutině), stejný vzor jako 2a: třída
+ *    v `IrFbClass`, šablona per platforma, akce `moveAbs` / `moveRel` / `moveVel` / `halt`
+ *    s parametry v `IrStep.sets`, podmínka „v poloze“ přes `expr`; emulátor potřebuje modely MC
+ *    bloků a implicitních objektů os (TO, AXIS_REF), simulátor lichoběžníkový profil.
  *  - Druhý (OOP) renderer téhož IR je `codegen_oop.ts` (rodina CODESYS: INTERFACE I_Device,
  *    ABSTRACT FB_DeviceBase, třídy zařízení s Cycle ze šablony, FB_Sequence, pole odkazů v MAIN;
  *    volba `prj.codeStyle = "oop"`). Výchozí renderer zůstává klasický FB; shodu chování obou
@@ -151,19 +152,24 @@ export interface IrEnable {
         estop: boolean;
     }>;
 }
-export type IrFbClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut";
+export type IrFbClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "Vfd" | "PosDrive" | "PropValve";
 /** Třídy bloků: jméno FB; zdroj logiky = šablona třídy (`fbTemplate(cls, dialekt)` v codegen.ts). */
 export declare const IR_CLASSES: Record<IrFbClass, {
     fb: string;
 }>;
+/** Pořadí tříd v knihovně bloků (Gen_Library, AOI, OOP) — nové třídy za původními (golden). */
+export declare const IR_CLASS_ORDER: IrFbClass[];
 /** Typy portů bloku z vestavěné šablony IEC ST (vstupy, výstupy). */
 export declare function irPortTypes(cls: IrFbClass): Record<string, IrType>;
-/** Zapojený vstup bloku: `src` = odkud hodnota je (default = náhrada chybějícího signálu). */
+/**
+ * Zapojený vstup bloku: `src` = odkud hodnota je (default = náhrada chybějícího signálu,
+ * rawMax = surový rozsah analogu — hodnotu dosadí renderer podle platformy, `expr` je Siemens 27648).
+ */
 export interface IrPort {
     name: string;
     type: IrType;
     expr: IrExpr;
-    src: "io" | "ctrl" | "param" | "default";
+    src: "io" | "ctrl" | "param" | "default" | "rawMax";
 }
 /** Výstup bloku do I/O tagu; bez `tag` = nezapojený (renderer ho pošle do pomocné proměnné). */
 export interface IrOut {
@@ -187,7 +193,7 @@ export interface IrFb {
         lo?: number;
     };
     setpoint?: number;
-    /** Motor / Ventil: povel zapnout / otevřít (sekvence NEBO ruční povel) */
+    /** Motor / Ventil / Vfd / PropValve: povel zapnout / otevřít (sekvence NEBO ruční povel); PosDrive: referování */
     cmd?: IrExpr;
 }
 /** DO s rolí: výstup = stav stroje. */
@@ -221,20 +227,29 @@ export interface IrEnableInput {
 }
 export type IrDeviceItem = IrFb | IrRole | IrFree | IrSeqInput | IrEnableInput;
 /**
- * Operace kroku. Fáze 2b přidá: "home" | "posRecord" | "moveAbs" | "setPressure" | "waitInPos"
- * (a run/stop s rychlostí u Vfd).
+ * Operace kroku (run / stop platí pro motor i měnič; home / posRecord = polohovací pohon,
+ * setPressure = proporcionální ventil — akce setPressure i setFlow). Fáze 2b přidá
+ * "moveAbs" | "moveRel" | "moveVel" | "halt" (servoosa).
  */
-export type IrStepOp = "dwell" | "waitOn" | "waitOff" | "run" | "stop" | "open" | "close" | "none";
+export type IrStepOp = "dwell" | "waitOn" | "waitOff" | "run" | "stop" | "open" | "close" | "home" | "posRecord" | "setPressure" | "none";
 /**
  * Podmínka přechodu kroku — jediný zdroj pro generátor i simulátor:
- *  time = po čase kroku, fbk = na vstup `io` (neg = čeká se na FALSE),
- *  none = ihned (zařízení pro tuto akci nemá zpětné hlášení).
+ *  time = po čase kroku, fbk = na vstup `io` (neg = čeká se na FALSE) nebo na výraz `expr`
+ *  nad výstupy instance bloku (měnič: otáčky dosaženy, pohon: v poloze záznamu, ventil:
+ *  v toleranci), none = ihned (zařízení pro tuto akci nemá zpětné hlášení).
  * U přechodu fbk je čas kroku (`timeS`) hlídací čas: po jeho uplynutí porucha.
  */
 export interface SeqCondition {
     kind: "time" | "fbk" | "none";
     io?: IoEntry;
     neg?: boolean;
+    expr?: IrExpr;
+}
+/** Přiřazení povelu sekvence (proměnná + hodnota) — u pohonů fáze 2a i při vstupu do kroku. */
+export interface IrSet {
+    var: string;
+    type: IrType;
+    value: IrExpr;
 }
 export interface IrStep {
     /** pořadí od 0; číslo kroku v programu `n` = 10, 20, …; `next` = následující (po posledním 0) */
@@ -249,6 +264,12 @@ export interface IrStep {
         var: string;
         value: boolean;
     };
+    /**
+     * Povely pohonů / proporcionálních prvků (žádaná, záznam, směr…). Zapisují se v kroku
+     * i už při přechodu DO kroku (`IF … THEN seqSpd_M5 := 30.0; seqStep := 30;`): blok je tak
+     * zpracuje ještě v tomtéž scanu a sekvence v kroku nečte stav z předchozí jízdy.
+     */
+    sets?: IrSet[];
     cond: SeqCondition;
     /** čas kroku [s] (výdrž / přechod časem / hlídací čas zpětného hlášení) */
     timeS: number;
@@ -259,6 +280,8 @@ export interface IrSeq {
     steps: IrStep[];
     /** povely sekvence (seqRun_* / seqOpen_*) — při přerušení se nulují */
     outputs: string[];
+    /** povely pohonů fáze 2a (BOOL / REAL / INT) a jejich hodnota po přerušení (výchozí žádaná, 0) */
+    resets: IrSet[];
     /** přerušení: sekvence do kroku 0, povely vypnout */
     abort: IrExpr;
     /** start cyklu v kroku 0 */
@@ -285,12 +308,20 @@ export interface IrProgram {
 export declare function limitedAnalogs(prj: Project): Device[];
 /** Digitální vstupy, na které čeká sekvence. */
 export declare function waitedDis(prj: Project): Set<number>;
-/** Zařízení s funkčním blokem a povelem (motory, ventily). */
+/** Zařízení s funkčním blokem a povelem (motory, ventily, měniče, polohovací pohony, proporcionální ventily). */
 export declare function actuators(prj: Project): Device[];
-/** Proměnná povelu ze sekvence / ručního povelu z HMI pro dané zařízení. */
+/** Proměnná povelu ze sekvence (BOOL) / ručního povelu z HMI pro dané zařízení. */
 export declare function seqVarOf(d: Device): string;
+/** Ruční povel z HMI: motor / měnič chod, ventil otevřít, polohovací pohon referování, proporcionální ventil zapnout. */
 export declare function manVarOf(d: Device): string;
+/** Povely sekvence motorů a ventilů (BOOL, pořadí prvního výskytu v sekvenci). */
 export declare function seqVars(prj: Project): string[];
+/** Proměnné povelů sekvence pohonu fáze 2a (jméno → typ a hodnota po přerušení). */
+export declare function motionSeqVars(d: Device): IrSet[];
+/** Pohony fáze 2a, které sekvence ovládá (pořadí prvního výskytu v sekvenci). */
+export declare function seqMotionDevs(prj: Project): Device[];
+/** Povely kroku pohonu fáze 2a (prázdné u ostatních). Zrcadlo v simulátoru. */
+export declare function motionStepSets(d: Device, s: SeqStep): IrSet[];
 export declare function seqCond(prj: Project, s: SeqStep): SeqCondition;
 /** Kroky s časovačem: výdrž / přechod časem, nebo hlídání kroku se zpětným hlášením. */
 export declare function seqTimedSteps(prj: Project): number[];

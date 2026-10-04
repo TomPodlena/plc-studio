@@ -7,12 +7,12 @@
  * (Siemens SCL, IEC ST, plochý ST Unitronics); Logix ST píše logix.ts nad stejným IR.
  * Šablony bloků (SCL_* / ST_*) zůstávají zdrojem logiky bloků.
  */
-import { PLAT, usedClasses, dtFor, addrFor, xmlEsc, stripDia, isCodesysFamily, codeStyleFor, } from "./model.js";
+import { PLAT, usedClasses, dtFor, addrFor, xmlEsc, stripDia, isCodesysFamily, codeStyleFor, isMotionClass, ioOf, rampStepOf, selBitsOf, maxRecord, tolOf, tolTicksOf, } from "./model.js";
 /* codegen_oop.ts a codegen.ts se importují navzájem: OOP renderer se volá až uvnitř genFor */
 import { genForOop } from "./codegen_oop.js";
-import { buildIR, irText, cmdIr, irBlocks, irPortTypes, irMember, IR_CTRL, } from "./ir.js";
+import { buildIR, irText, cmdIr, irBlocks, irPortTypes, irMember, IR_CTRL, IR_CLASS_ORDER, } from "./ir.js";
 /* pomocné funkce sekvence a řízení žijí v ir.ts; odsud se dál exportují (veřejné API jádra) */
-export { limitedAnalogs, waitedDis, actuators, seqVarOf, manVarOf, seqVars, seqCond, seqTimedSteps, } from "./ir.js";
+export { limitedAnalogs, waitedDis, actuators, seqVarOf, manVarOf, seqVars, seqCond, seqTimedSteps, motionSeqVars, seqMotionDevs, motionStepSets, } from "./ir.js";
 /** Role výstupů — krátké popisky do komentářů generovaného kódu (trx). */
 const DO_ROLE_TECH = {
     run: N_("chod"), fault: N_("porucha"), ready: N_("připraveno"), stopped: N_("stop"), lock: N_("zámek krytů"), auto: N_("AUTO"),
@@ -388,9 +388,380 @@ ELSIF rawReal > INT_TO_REAL(rawMax) THEN
 END_IF;
 rawValue := REAL_TO_INT(rawReal);
 END_FUNCTION_BLOCK`;
+/* ------------------------------------------------ šablony pohonů fáze 2a (ST) */
+/* Pohony a proporcionální prvky přes běžné I/O — fungují na všech platformách včetně Unitronics
+   (rozepsání inlineFb) a Logixu (AOI přes lxDialect), proto jen konstrukce, které tam projdou:
+   TON jako `tonX(IN := …, PT := T#…);`, hrany ručně, žádné ABS / SEL / bitové operace nad INT.
+   Rampa žádané hodnoty v PLC po taktech 0,1 s (časovač tonTick běží jen při rozběhu / odchylce),
+   doba odchylky ventilu v taktech (vstup INT — TIME jako vstup Logix ani UniLogic nemá).
+   errCode: 1 porucha pohonu, 2 nepřipraven, 3 bez referování, 4 ztráta hlášení,
+   5 timeout, 6 odchylka skutečné hodnoty. Zrcadlo chování: sim.ts (MotionInst). */
+export const ST_VFD = `FUNCTION_BLOCK FB_Vfd
+(* Sablona: frekvencni menic pres I/O - chod, smer, analogova zadana otacek s rampou v PLC.
+   Porucha (vstup fault, menic nepripraven, otacky nedosazeny, ztrata hlaseni) drzi do kvitace (reset). *)
+VAR_INPUT
+    enable : BOOL;
+    cmdRun : BOOL;
+    cmdStop : BOOL;
+    cmdRev : BOOL;
+    reset : BOOL;       (* kvitace poruchy (hrana) *)
+    ready : BOOL;
+    atSpeed : BOOL;
+    fault : BOOL;
+    speedSp : REAL;
+    rampStep : REAL;    (* krok rampy za takt 0,1 s; 0 = bez rampy *)
+    scaleMin : REAL;
+    scaleMax : REAL;
+    rawMax : INT;
+    rawAct : INT;
+END_VAR
+VAR_OUTPUT
+    outRun : BOOL;
+    outRev : BOOL;
+    outReset : BOOL;
+    rawSpeed : INT;
+    speedCmd : REAL;
+    speedAct : REAL;
+    inSpeed : BOOL;
+    busy : BOOL;
+    error : BOOL;
+    status : WORD;
+    errCode : INT;
+END_VAR
+VAR
+    statStep : INT;
+    lastRun : BOOL;
+    lastStop : BOOL;
+    lastReset : BOOL;
+    trigRun : BOOL;
+    trigStop : BOOL;
+    trigReset : BOOL;
+    spLast : REAL;
+    revLast : BOOL;
+    rawReal : REAL;
+    tonFbk : TON;
+    tonTick : TON;
+END_VAR
+
+IF NOT enable THEN
+    outRun := FALSE; outRev := FALSE; outReset := FALSE; rawSpeed := 0;
+    speedCmd := 0.0; inSpeed := FALSE; busy := FALSE; error := FALSE;
+    status := 16#8001; statStep := 0; errCode := 0;
+    RETURN;
+END_IF;
+
+(* detekce hran *)
+trigRun   := cmdRun   AND NOT lastRun;    lastRun   := cmdRun;
+trigStop  := cmdStop  AND NOT lastStop;   lastStop  := cmdStop;
+trigReset := reset    AND NOT lastReset;  lastReset := reset;
+
+CASE statStep OF
+    0: (* IDLE *)
+        outRun := FALSE;
+        speedCmd := 0.0;
+        IF trigRun THEN statStep := 10; END_IF;
+    10: (* ACCELERATING *)
+        outRun := TRUE;
+        IF atSpeed AND (speedCmd = speedSp) THEN statStep := 20; spLast := speedSp; revLast := cmdRev; END_IF;
+        IF trigStop THEN statStep := 0; END_IF;
+    20: (* AT_SPEED *)
+        outRun := TRUE;
+        IF (speedSp <> spLast) OR (cmdRev AND NOT revLast) OR (revLast AND NOT cmdRev) THEN statStep := 10;
+        ELSIF NOT atSpeed THEN statStep := 90; errCode := 4;
+        END_IF;
+        IF trigStop THEN statStep := 0; END_IF;
+    90: (* ERROR *)
+        outRun := FALSE;
+        speedCmd := 0.0;
+        IF trigReset AND NOT fault THEN statStep := 0; errCode := 0; END_IF;
+END_CASE;
+
+(* rampa zadane hodnoty po taktech 0,1 s *)
+tonTick(IN := (statStep = 10) AND NOT tonTick.Q, PT := T#100MS);
+IF statStep = 10 THEN
+    IF rampStep <= 0.0 THEN
+        speedCmd := speedSp;
+    ELSIF tonTick.Q THEN
+        IF speedCmd < speedSp THEN
+            speedCmd := speedCmd + rampStep;
+            IF speedCmd > speedSp THEN speedCmd := speedSp; END_IF;
+        ELSIF speedCmd > speedSp THEN
+            speedCmd := speedCmd - rampStep;
+            IF speedCmd < speedSp THEN speedCmd := speedSp; END_IF;
+        END_IF;
+    END_IF;
+END_IF;
+
+(* otacky musi byt dosazeny do 5 s po dobehu rampy *)
+tonFbk(IN := (statStep = 10) AND (speedCmd = speedSp), PT := T#5S);
+IF tonFbk.Q THEN statStep := 90; errCode := 5; END_IF;
+IF NOT ready AND (statStep = 10 OR statStep = 20) THEN statStep := 90; errCode := 2; END_IF;
+IF fault THEN statStep := 90; errCode := 1; END_IF;
+
+outRev := outRun AND cmdRev;
+outReset := reset AND (statStep = 90);
+rawReal := (speedCmd - scaleMin) / (scaleMax - scaleMin) * INT_TO_REAL(rawMax);
+IF rawReal < 0.0 THEN
+    rawReal := 0.0;
+ELSIF rawReal > INT_TO_REAL(rawMax) THEN
+    rawReal := INT_TO_REAL(rawMax);
+END_IF;
+rawSpeed := REAL_TO_INT(rawReal);
+speedAct := INT_TO_REAL(rawAct) / INT_TO_REAL(rawMax) * (scaleMax - scaleMin) + scaleMin;
+inSpeed := (statStep = 20);
+busy := (statStep = 10);
+error := (statStep = 90);
+IF error THEN status := 16#8002; ELSE status := 16#0000; END_IF;
+END_FUNCTION_BLOCK`;
+export const ST_POSDRIVE = `FUNCTION_BLOCK FB_PosDrive
+(* Sablona: polohovaci pohon se zaznamy pres I/O (Festo CMMO / CMMT, SMC JXC) - vyber zaznamu, start, v poloze.
+   Porucha (vstup fault, pohon nepripraven, bez referovani, ztrata polohy, timeout) drzi do kvitace (reset). *)
+VAR_INPUT
+    enable : BOOL;
+    cmdHome : BOOL;
+    cmdMove : BOOL;
+    recNo : INT;
+    reset : BOOL;       (* kvitace poruchy (hrana) *)
+    ready : BOOL;
+    inPos : BOOL;
+    homed : BOOL;
+    fault : BOOL;
+END_VAR
+VAR_OUTPUT
+    outEnable : BOOL;
+    outStart : BOOL;
+    outHome : BOOL;
+    outHalt : BOOL;
+    outSel0 : BOOL;
+    outSel1 : BOOL;
+    outSel2 : BOOL;
+    outSel3 : BOOL;
+    outSel4 : BOOL;
+    outSel5 : BOOL;
+    outReset : BOOL;
+    actRec : INT;
+    done : BOOL;
+    busy : BOOL;
+    error : BOOL;
+    status : WORD;
+    errCode : INT;
+END_VAR
+VAR
+    statStep : INT;
+    lastHome : BOOL;
+    lastMove : BOOL;
+    lastReset : BOOL;
+    trigHome : BOOL;
+    trigMove : BOOL;
+    trigReset : BOOL;
+    halted : BOOL;
+    selRest : INT;
+    tonSel : TON;
+    tonAck : TON;
+    tonMove : TON;
+END_VAR
+
+IF NOT enable THEN
+    outEnable := FALSE; outStart := FALSE; outHome := FALSE; outHalt := FALSE; outReset := FALSE;
+    outSel0 := FALSE; outSel1 := FALSE; outSel2 := FALSE; outSel3 := FALSE; outSel4 := FALSE; outSel5 := FALSE;
+    done := FALSE; halted := FALSE; busy := FALSE; error := FALSE;
+    status := 16#8001; statStep := 0; errCode := 0;
+    RETURN;
+END_IF;
+
+(* detekce hran *)
+trigHome  := cmdHome  AND NOT lastHome;   lastHome  := cmdHome;
+trigMove  := cmdMove  AND NOT lastMove;   lastMove  := cmdMove;
+trigReset := reset    AND NOT lastReset;  lastReset := reset;
+outEnable := TRUE;
+
+CASE statStep OF
+    0: (* IDLE *)
+        outStart := FALSE; outHome := FALSE;
+        IF trigHome THEN
+            statStep := 40; done := FALSE; halted := FALSE;
+        ELSIF trigMove OR (cmdMove AND (recNo <> actRec)) THEN
+            done := FALSE;
+            IF homed THEN statStep := 10; halted := FALSE; ELSE statStep := 90; errCode := 3; END_IF;
+        ELSIF done AND NOT inPos THEN
+            statStep := 90; errCode := 4;
+        END_IF;
+    10: (* SELECT *)
+        outStart := FALSE; outHome := FALSE;
+        selRest := recNo;
+        outSel5 := selRest >= 32; IF outSel5 THEN selRest := selRest - 32; END_IF;
+        outSel4 := selRest >= 16; IF outSel4 THEN selRest := selRest - 16; END_IF;
+        outSel3 := selRest >= 8; IF outSel3 THEN selRest := selRest - 8; END_IF;
+        outSel2 := selRest >= 4; IF outSel2 THEN selRest := selRest - 4; END_IF;
+        outSel1 := selRest >= 2; IF outSel1 THEN selRest := selRest - 2; END_IF;
+        outSel0 := selRest >= 1;
+        IF tonSel.Q THEN statStep := 20; END_IF;
+        IF NOT cmdMove THEN statStep := 0; halted := TRUE; END_IF;
+    20: (* START *)
+        outStart := TRUE;
+        IF NOT inPos THEN statStep := 30; END_IF;
+        IF NOT cmdMove THEN statStep := 0; halted := TRUE; outStart := FALSE; END_IF;
+    30: (* MOVING *)
+        outStart := TRUE;
+        IF inPos THEN statStep := 0; actRec := recNo; done := TRUE; outStart := FALSE; END_IF;
+        IF NOT cmdMove THEN statStep := 0; halted := TRUE; outStart := FALSE; END_IF;
+    40: (* HOME_START *)
+        outHome := TRUE;
+        IF NOT homed THEN statStep := 45; END_IF;
+        IF NOT cmdHome THEN statStep := 0; halted := TRUE; outHome := FALSE; END_IF;
+    45: (* HOMING *)
+        outHome := TRUE;
+        IF homed AND inPos THEN statStep := 0; actRec := 0; done := TRUE; outHome := FALSE; END_IF;
+        IF NOT cmdHome THEN statStep := 0; halted := TRUE; outHome := FALSE; END_IF;
+    90: (* ERROR *)
+        outStart := FALSE; outHome := FALSE; done := FALSE;
+        IF trigReset AND NOT fault THEN statStep := 0; errCode := 0; END_IF;
+END_CASE;
+
+(* vyber zaznamu ustaleny 0,1 s pred startem; potvrzeni startu do 1 s; jizda do 30 s *)
+tonSel(IN := (statStep = 10), PT := T#100MS);
+tonAck(IN := (statStep = 20) OR (statStep = 40), PT := T#1S);
+tonMove(IN := (statStep = 30) OR (statStep = 45), PT := T#30S);
+IF tonAck.Q OR tonMove.Q THEN statStep := 90; errCode := 5; END_IF;
+IF NOT ready AND (statStep <> 0) AND (statStep <> 90) THEN statStep := 90; errCode := 2; END_IF;
+IF fault THEN statStep := 90; errCode := 1; END_IF;
+
+outHalt := halted OR (statStep = 90);
+outReset := reset AND (statStep = 90);
+busy := (statStep > 0) AND (statStep < 90);
+error := (statStep = 90);
+IF error THEN status := 16#8002; ELSE status := 16#0000; END_IF;
+END_FUNCTION_BLOCK`;
+export const ST_PROPVALVE = `FUNCTION_BLOCK FB_PropValve
+(* Sablona: proporcionalni ventil tlaku / prutoku - analogova zadana s rampou v PLC, volitelne hlidani skutecne hodnoty.
+   Porucha (odchylka nad toleranci po nastavenou dobu, zadana nedosazena do 5 s) drzi do kvitace (reset). *)
+VAR_INPUT
+    enable : BOOL;
+    cmdOn : BOOL;
+    spTarget : REAL;
+    reset : BOOL;       (* kvitace poruchy (hrana) *)
+    rampStep : REAL;    (* krok rampy za takt 0,1 s; 0 = bez rampy *)
+    tol : REAL;
+    tolTicks : INT;     (* doba odchylky v taktech 0,1 s *)
+    useFbk : BOOL;
+    scaleMin : REAL;
+    scaleMax : REAL;
+    rawMax : INT;
+    rawAct : INT;
+END_VAR
+VAR_OUTPUT
+    rawSp : INT;
+    spAct : REAL;
+    value : REAL;
+    inTol : BOOL;
+    busy : BOOL;
+    error : BOOL;
+    status : WORD;
+    errCode : INT;
+END_VAR
+VAR
+    statStep : INT;
+    lastOn : BOOL;
+    lastReset : BOOL;
+    trigOn : BOOL;
+    trigReset : BOOL;
+    target : REAL;
+    spLast : REAL;
+    deviated : BOOL;
+    devCnt : INT;
+    rawReal : REAL;
+    tonTick : TON;
+    tonSettle : TON;
+END_VAR
+
+IF NOT enable THEN
+    rawSp := 0; spAct := scaleMin; inTol := FALSE; busy := FALSE; error := FALSE;
+    status := 16#8001; statStep := 0; devCnt := 0; errCode := 0;
+    RETURN;
+END_IF;
+
+trigOn    := cmdOn AND NOT lastOn;       lastOn    := cmdOn;
+trigReset := reset AND NOT lastReset;  lastReset := reset;
+IF cmdOn THEN target := spTarget; ELSE target := scaleMin; END_IF;
+value := INT_TO_REAL(rawAct) / INT_TO_REAL(rawMax) * (scaleMax - scaleMin) + scaleMin;
+deviated := useFbk AND ((value > target + tol) OR (value < target - tol));
+
+CASE statStep OF
+    0: (* OFF *)
+        spAct := scaleMin;
+        IF trigOn THEN statStep := 10; END_IF;
+    10: (* RAMP *)
+        IF (spAct = target) AND NOT deviated THEN statStep := 20; spLast := target; END_IF;
+        IF NOT cmdOn THEN statStep := 0; END_IF;
+    20: (* IN_TOLERANCE *)
+        IF NOT cmdOn THEN statStep := 0;
+        ELSIF target <> spLast THEN statStep := 10;
+        END_IF;
+    90: (* ERROR *)
+        spAct := scaleMin;
+        IF trigReset THEN statStep := 0; errCode := 0; END_IF;
+END_CASE;
+
+(* rampa zadane hodnoty a pocitani odchylky po taktech 0,1 s *)
+tonTick(IN := ((statStep = 10) OR ((statStep = 20) AND deviated)) AND NOT tonTick.Q, PT := T#100MS);
+IF statStep = 10 THEN
+    IF rampStep <= 0.0 THEN
+        spAct := target;
+    ELSIF tonTick.Q THEN
+        IF spAct < target THEN
+            spAct := spAct + rampStep;
+            IF spAct > target THEN spAct := target; END_IF;
+        ELSIF spAct > target THEN
+            spAct := spAct - rampStep;
+            IF spAct < target THEN spAct := target; END_IF;
+        END_IF;
+    END_IF;
+END_IF;
+IF (statStep = 20) AND deviated THEN
+    IF tonTick.Q THEN devCnt := devCnt + 1; END_IF;
+ELSE
+    devCnt := 0;
+END_IF;
+IF devCnt >= tolTicks THEN statStep := 90; errCode := 6; devCnt := 0; END_IF;
+tonSettle(IN := (statStep = 10) AND (spAct = target), PT := T#5S);
+IF tonSettle.Q THEN statStep := 90; errCode := 5; END_IF;
+
+rawReal := (spAct - scaleMin) / (scaleMax - scaleMin) * INT_TO_REAL(rawMax);
+IF rawReal < 0.0 THEN
+    rawReal := 0.0;
+ELSIF rawReal > INT_TO_REAL(rawMax) THEN
+    rawReal := INT_TO_REAL(rawMax);
+END_IF;
+rawSp := REAL_TO_INT(rawReal);
+inTol := (statStep = 20);
+busy := (statStep = 10);
+error := (statStep = 90);
+IF error THEN status := 16#8002; ELSE status := 16#0000; END_IF;
+END_FUNCTION_BLOCK`;
+/**
+ * SCL (TIA Portal) z šablony IEC ST — u bloků fáze 2a se SCL nepíše zvlášť, aby obě podoby
+ * nemohly rozejít: hlavička s `{ S7_Optimized_Access }`, typy Siemens (TON → TON_TIME),
+ * `BEGIN` za deklaracemi, lokální proměnné s `#`. Komentáře (* … *) SCL umí beze změny.
+ */
+export function stToScl(st) {
+    const { vars } = parseFbTemplate(st);
+    const TY = { BOOL: "Bool", INT: "Int", REAL: "Real", WORD: "Word", TON: "TON_TIME", DINT: "DInt", TIME: "Time" };
+    const names = new Set(vars.map(v => v.name));
+    const lastDecl = st.lastIndexOf("END_VAR") + "END_VAR".length;
+    const head = st.slice(0, lastDecl)
+        .replace(/^FUNCTION_BLOCK (\w+)/, (_m, n) => 'FUNCTION_BLOCK "' + n + '"\n{ S7_Optimized_Access := \'TRUE\' }\nVERSION : 0.1')
+        .replace(/^(\s*\w+\s*:\s*)(\w+)(\s*(?::=[^;]*)?;)/gm, (_m, a, t, b) => a + (TY[t] || t) + b);
+    const body = st.slice(lastDecl).replace(/\s*END_FUNCTION_BLOCK\s*$/, "");
+    const code = body.split(/(\(\*[\s\S]*?\*\))/).map((part, i) => i % 2 ? part
+        : part.replace(/(?<![\w.#])([A-Za-z_]\w*)\b/g, (m) => names.has(m) ? "#" + m : m)).join("");
+    return head + "\n\nBEGIN" + code.replace(/^\n+/, "\n") + "\nEND_FUNCTION_BLOCK";
+}
+export const SCL_VFD = stToScl(ST_VFD);
+export const SCL_POSDRIVE = stToScl(ST_POSDRIVE);
+export const SCL_PROPVALVE = stToScl(ST_PROPVALVE);
 const FB_TEMPLATES = {
-    scl: { Motor: SCL_MOTOR, Ventil: SCL_VENTIL, AnalogIn: SCL_AI, AnalogOut: SCL_AO },
-    st: { Motor: ST_MOTOR, Ventil: ST_VENTIL, AnalogIn: ST_AI, AnalogOut: ST_AO },
+    scl: { Motor: SCL_MOTOR, Ventil: SCL_VENTIL, AnalogIn: SCL_AI, AnalogOut: SCL_AO, Vfd: SCL_VFD, PosDrive: SCL_POSDRIVE, PropValve: SCL_PROPVALVE },
+    st: { Motor: ST_MOTOR, Ventil: ST_VENTIL, AnalogIn: ST_AI, AnalogOut: ST_AO, Vfd: ST_VFD, PosDrive: ST_POSDRIVE, PropValve: ST_PROPVALVE },
 };
 /**
  * Šablona bloku třídy — jediné místo, kde renderery (Gen_Library, AOI v L5X, plochá logika
@@ -469,6 +840,16 @@ export const TPL_COMMENTS = [
     N_("kazdy smer ma svuj casovac - obrat uprostred pohybu zacina merit znovu"),
     N_("Sablona: analogovy vstup se skalovanim a mezemi. rawMax uprav dle platformy: Siemens 27648, Beckhoff 32767, Mitsubishi FX5 16000, Rockwell dle modulu."),
     N_("Sablona: analogovy vystup — inzenyrske jednotky -> surova hodnota"),
+    /* pohony fáze 2a (ST; SCL vzniká z téže šablony) */
+    N_("Sablona: frekvencni menic pres I/O - chod, smer, analogova zadana otacek s rampou v PLC. Porucha (vstup fault, menic nepripraven, otacky nedosazeny, ztrata hlaseni) drzi do kvitace (reset)."),
+    N_("krok rampy za takt 0,1 s; 0 = bez rampy"),
+    N_("rampa zadane hodnoty po taktech 0,1 s"),
+    N_("otacky musi byt dosazeny do 5 s po dobehu rampy"),
+    N_("Sablona: polohovaci pohon se zaznamy pres I/O (Festo CMMO / CMMT, SMC JXC) - vyber zaznamu, start, v poloze. Porucha (vstup fault, pohon nepripraven, bez referovani, ztrata polohy, timeout) drzi do kvitace (reset)."),
+    N_("vyber zaznamu ustaleny 0,1 s pred startem; potvrzeni startu do 1 s; jizda do 30 s"),
+    N_("Sablona: proporcionalni ventil tlaku / prutoku - analogova zadana s rampou v PLC, volitelne hlidani skutecne hodnoty. Porucha (odchylka nad toleranci po nastavenou dobu, zadana nedosazena do 5 s) drzi do kvitace (reset)."),
+    N_("doba odchylky v taktech 0,1 s"),
+    N_("rampa zadane hodnoty a pocitani odchylky po taktech 0,1 s"),
 ];
 const COMMENT_RE = /\(\*([\s\S]*?)\*\)|\/\/([^\n]*)/g;
 /** Klíč komentáře: text bez okolních mezer, zalomení řádku nahrazeno mezerou. */
@@ -480,7 +861,7 @@ const commentKey = (body) => body.trim().replace(/\s*\n\s*/g, " ");
  */
 export function templateComments() {
     const out = new Set();
-    for (const tpl of [SCL_MOTOR, SCL_VENTIL, SCL_AI, SCL_AO, ST_MOTOR, ST_VENTIL, ST_AI, ST_AO]) {
+    for (const tpl of [SCL_MOTOR, SCL_VENTIL, SCL_AI, SCL_AO, ST_MOTOR, ST_VENTIL, ST_AI, ST_AO, ST_VFD, ST_POSDRIVE, ST_PROPVALVE, SCL_VFD, SCL_POSDRIVE, SCL_PROPVALVE]) {
         for (const m of tpl.matchAll(COMMENT_RE)) {
             const key = commentKey(m[1] ?? m[2] ?? "");
             if (key && !/^[A-Z_]+$/.test(key))
@@ -582,6 +963,27 @@ export function fx5Preset100(timeS) {
 function timer100Set(ir, c) {
     return new Set((ir.seq?.steps || []).filter(s => s.timer && fx5Timer100(c.plat, s.timeS)).map(s => s.timer));
 }
+/** Název kroku do komentáře kódu (technický výstup → trx; pohony fáze 2a s žádanou / záznamem). */
+export function irStepTitle(s) {
+    const dev = s.dev ? s.dev.name : "?";
+    const unit = s.dev?.unit || "";
+    const sp = (s.sets || []).find(x => x.type === "REAL"), rec = (s.sets || []).find(x => x.type === "INT");
+    const num = (st) => st && (st.value.k === "real" || st.value.k === "int") ? st.value.v : 0;
+    if (s.dev?.cls === "Vfd" && s.op === "run") {
+        const rev = (s.sets || []).some(x => x.var.startsWith("seqRev_") && x.value.k === "bool" && x.value.v);
+        return (rev ? trx("{dev} start vzad {sp} {unit}", { dev, sp: num(sp), unit }) : trx("{dev} start {sp} {unit}", { dev, sp: num(sp), unit })).trim();
+    }
+    return s.op === "dwell" ? trx("výdrž {t} s", { t: s.timeS }) :
+        s.op === "waitOn" ? trx("čekat na {dev}", { dev }) :
+            s.op === "waitOff" ? trx("čekat na {dev} = FALSE", { dev }) :
+                s.op === "run" ? trx("{dev} start", { dev }) :
+                    s.op === "stop" ? trx("{dev} stop", { dev }) :
+                        s.op === "open" ? trx("{dev} otevřít", { dev }) :
+                            s.op === "close" ? trx("{dev} zavřít", { dev }) :
+                                s.op === "home" ? trx("{dev} referenční jízda", { dev }) :
+                                    s.op === "posRecord" ? trx("{dev} jízda na záznam {rec}", { dev, rec: num(rec) }) :
+                                        s.op === "setPressure" ? trx("{dev} žádaná {sp} {unit}", { dev, sp: num(sp), unit }).trim() : trx("krok");
+}
 /** Sekvence (CASE) a časovače kroků z IR. */
 export function renderSeq(ir, c) {
     const seq = ir.seq;
@@ -597,34 +999,33 @@ export function renderSeq(ir, c) {
     b += "        " + L(C.seqStep) + " := 0;\n";
     for (const v of seq.outputs)
         b += "        " + L(v) + " := FALSE;\n";
+    for (const r of seq.resets)
+        b += "        " + L(r.var) + " := " + x(r.value) + ";\n";
     b += "    END_IF;\n\n";
+    /* povely pohonů fáze 2a se zapisují už při přechodu do kroku (viz IrStep.sets) */
+    const byN = new Map(seq.steps.map(s => [s.n, s]));
+    const entry = (n) => (byN.get(n)?.sets || []).map(st => L(st.var) + " := " + x(st.value) + "; ").join("");
     b += "    CASE " + L(C.seqStep) + " OF\n";
     b += "        0: " + c.cm(trx("čekání na start")) + "\n";
-    b += "            IF " + x(seq.start) + " THEN " + L(C.seqStep) + " := 10; END_IF" + semi + "\n";
+    b += "            IF " + x(seq.start) + " THEN " + entry(10) + L(C.seqStep) + " := 10; END_IF" + semi + "\n";
     for (const s of seq.steps) {
-        const dev = s.dev ? s.dev.name : "?";
-        const title = s.op === "dwell" ? trx("výdrž {t} s", { t: s.timeS }) :
-            s.op === "waitOn" ? trx("čekat na {dev}", { dev }) :
-                s.op === "waitOff" ? trx("čekat na {dev} = FALSE", { dev }) :
-                    s.op === "run" ? trx("{dev} start", { dev }) :
-                        s.op === "stop" ? trx("{dev} stop", { dev }) :
-                            s.op === "open" ? trx("{dev} otevřít", { dev }) :
-                                s.op === "close" ? trx("{dev} zavřít", { dev }) : trx("krok");
-        b += "        " + s.n + ": " + c.cm(trx("Krok {n}: {title}", { n: s.index + 1, title })) + "\n";
+        b += "        " + s.n + ": " + c.cm(trx("Krok {n}: {title}", { n: s.index + 1, title: irStepTitle(s) })) + "\n";
         if (s.set)
             b += "            " + L(s.set.var) + " := " + (s.set.value ? "TRUE" : "FALSE") + ";\n";
-        const go = L(C.seqStep) + " := " + s.next + ";";
+        for (const st of s.sets || [])
+            b += "            " + L(st.var) + " := " + x(st.value) + ";\n";
+        const go = entry(s.next) + L(C.seqStep) + " := " + s.next + ";";
         if (s.cond.kind === "time") {
             b += "            IF " + done(s.timer) + " THEN " + go + " END_IF" + semi + "\n";
         }
         else if (s.cond.kind === "fbk") {
-            b += "            IF " + (s.cond.neg ? "NOT " : "") + c.R(s.cond.io.tag) + " THEN " + go + "\n";
+            b += "            IF " + (s.cond.expr ? x(s.cond.expr) : (s.cond.neg ? "NOT " : "") + c.R(s.cond.io.tag)) + " THEN " + go + "\n";
             b += "            ELSIF " + done(s.timer) + " THEN " + L(C.machineFault) + " := TRUE; " + L(C.faultStep) + " := " + s.n + "; " + c.cm(trx("timeout kroku {t} s", { t: s.timeS })) + "\n";
             b += "            END_IF" + semi + "\n";
         }
         else {
             const cls = s.dev && s.dev.cls;
-            const why = cls === "Ventil" ? trx("bez koncového snímače") : cls === "Motor" ? trx("bez zpětného hlášení") : trx("bez podmínky");
+            const why = cls === "Ventil" ? trx("bez koncového snímače") : cls === "Motor" || cls === "Vfd" ? trx("bez zpětného hlášení") : trx("bez podmínky");
             b += "            IF TRUE THEN " + go + " END_IF" + semi + " " + c.cm(why) + "\n";
         }
     }
@@ -745,8 +1146,27 @@ export function hmiGlobalVars(ir) {
         }
         else if (b.cls === "AnalogOut")
             param("value");
+        else
+            for (const p of motionHmiPorts(b))
+                state(p);
     }
     return out;
+}
+/**
+ * Stav bloku pohonu fáze 2a pro HMI (zrcadlo do globálních proměnných u Mitsubishi / Omron, tagy
+ * HMI): povel / v poloze / v toleranci, žádaná po rampě, skutečná hodnota (jen se zapojeným AI),
+ * busy, error, status a errCode (1 porucha, 2 nepřipraven, 3 bez referování, 4 ztráta hlášení,
+ * 5 timeout, 6 odchylka).
+ */
+export function motionHmiPorts(b) {
+    const wired = (n) => b.inputs.some(p => p.name === n && p.src === "io");
+    if (b.cls === "Vfd")
+        return ["outRun", "inSpeed", "speedCmd", ...(wired("rawAct") ? ["speedAct"] : []), "busy", "error", "status", "errCode"];
+    if (b.cls === "PosDrive")
+        return ["done", "actRec", "busy", "error", "status", "errCode"];
+    if (b.cls === "PropValve")
+        return ["spAct", ...(wired("rawAct") ? ["value"] : []), "inTol", "busy", "error", "status", "errCode"];
+    return [];
 }
 /** Zrcadlo stavu bloků do globálních proměnných pro HMI (Mitsubishi / Omron; volá se za poruchou). */
 export function renderHmiMirror(ir, c) {
@@ -774,6 +1194,16 @@ export function stCallNotes(b, c) {
     const port = {};
     if (b.cls === "Motor" && b.inputs.some(p => p.name === "fbkRunning" && p.src === "default"))
         port.fbkRunning = trx("bez zpětného hlášení");
+    /* pohony fáze 2a: surový rozsah analogu dle platformy, náhrady chybějících hlášení, rampa */
+    if (b.inputs.some(p => p.src === "rawMax") && RAW_MAX[c.plat] && c.plat !== "rockwell")
+        port.rawMax = "TODO: " + trx("rozsah dle modulu");
+    if (b.cls === "Vfd" || b.cls === "PosDrive")
+        for (const p of b.inputs) {
+            if (p.src === "default" && (p.name === "ready" || p.name === "atSpeed" || p.name === "inPos" || p.name === "homed"))
+                port[p.name] = trx("bez hlášení");
+        }
+    if ((b.cls === "Vfd" || b.cls === "PropValve") && b.inputs.some(p => p.name === "rampStep" && p.expr.k === "real" && p.expr.v === 0))
+        port.rampStep = trx("bez rampy v PLC");
     if (b.cls === "AnalogOut")
         port.value = b.setpoint !== undefined ? trx("žádaná hodnota") + " " + (b.dev.unit || "") : "TODO: " + trx("žádaná hodnota");
     if (b.cls === "AnalogIn") {
@@ -781,6 +1211,15 @@ export function stCallNotes(b, c) {
         return { port, after: (b.dev.unit || trx("jednotky dle snímače")) + (lim ? "; " + trx("překročení meze = porucha stroje") : "") };
     }
     return { port };
+}
+/**
+ * Text hodnoty vstupu bloku pro platformu: surový rozsah analogu (`src: "rawMax"`) dosadí
+ * podle platformy (Logix 100.0 = analogy 5069 v %, ostatní `RAW_MAX`, jinak Siemens 27648).
+ */
+export function portText(p, c) {
+    if (p.src === "rawMax")
+        return c.plat === "rockwell" ? "100.0" : String(RAW_MAX[c.plat] ?? 27648);
+    return irText(p.expr, c);
 }
 /** Volání instance bloku v IEC ST / SCL (`instM1(enable := …, outRun => …);`). */
 export function stCall(b, c) {
@@ -799,7 +1238,7 @@ export function stCall(b, c) {
     }
     /* obecné rozložení (i pro nové třídy): port na řádek, komentář za čárkou */
     const parts = [
-        ...b.inputs.map(p => ({ text: p.name + " := " + irText(p.expr, c), note: notes.port[p.name] })),
+        ...b.inputs.map(p => ({ text: p.name + " := " + portText(p, c), note: notes.port[p.name] })),
         ...b.outputs.map(o => ({ text: o.name + " => " + outOf(o.name), note: undefined })),
     ];
     return L(b.inst) + "(" + parts.map((p, i) => i < parts.length - 1
@@ -916,7 +1355,7 @@ export function genLibrary(prj, plat) {
     /* komentáře šablon se překládají až tady; IEC ST zůstává bez diakritiky */
     const fix = plat === "siemens" ? undefined : stripDia;
     const lib = codeLibrary(prj, plat);
-    for (const c of ["Motor", "Ventil", "AnalogIn", "AnalogOut"]) {
+    for (const c of IR_CLASS_ORDER) {
         if (!u.has(c))
             continue;
         const own = lib.ids[c];
@@ -1141,7 +1580,44 @@ vložení zkontroluj syntaxi proti své verzi (CASE, volání TON, převody TO_R
   verze z května 2026. Ve starší verzi je nahraď ladder časovači (bit „hotovo" místo .Q).`), tr("Stavová slova jsou desítkově: 32769 = 16#8001 blokováno, 32770 = 16#8002 porucha."), tr(`Vision / Samba (VisiLogic) Structured Text nemá — tam Machine.st slouží jako předloha
   pro přepis do Ladderu a Tags.csv jako seznam operandů.`), tr("Test: nejdřív na PLC s odpojenými akčními členy.")),
     };
-    return libReadmeHead(prj, plat) + common + "\n" + spec[plat]() + libReadmeTail(prj, plat);
+    return libReadmeHead(prj, plat) + common + "\n" + spec[plat]() + motionReadme(prj, plat) + libReadmeTail(prj, plat);
+}
+/**
+ * Odstavec README k pohonům a proporcionálním prvkům fáze 2a (bez nich ""): co nastavit v měniči /
+ * pohonu, tabulka záznamů, rozsahy žádaných, kódy chyb. Parametry pohonu se generátorem nepřenesou.
+ */
+export function motionReadme(prj, plat) {
+    const devs = prj.devices.filter(d => isMotionClass(d.cls));
+    if (!devs.length)
+        return "";
+    const raw = plat === "rockwell" ? "0–100 %" : "0–" + (RAW_MAX[plat] ?? 27648);
+    const L = ["", "", tr("POHONY A PROPORCIONÁLNÍ PRVKY (přes běžné I/O)")];
+    for (const d of devs) {
+        const io = ioOf(prj, d), tag = (s) => io[s] ? io[s].tag : "—";
+        if (d.cls === "Vfd") {
+            const r = rampStepOf(d);
+            L.push("- " + tr("{dev} — frekvenční měnič: chod {run}, žádaná {sp} ({min}–{max} {unit} = surově {raw}), {ramp}.", {
+                dev: d.name, run: tag("outRun"), sp: tag("rawSpeed"), min: d.rmin, max: d.rmax, unit: d.unit || "", raw,
+                ramp: r ? tr("rampa v PLC {t} s na celý rozsah (po taktech 0,1 s)", { t: d.rampS }) : tr("bez rampy v PLC")
+            }));
+            L.push("  " + tr("V měniči nastav: povel chod (a směr) ze svorek, žádanou z analogového vstupu se stejným rozsahem, reléové výstupy „připraven“, „porucha“ a „otáčky dosaženy“ (frequency reached). S rampou v PLC nastav rampy měniče krátké; bez ní rampu dělá měnič. Otáčky musí být dosaženy do 5 s po doběhu rampy, jinak porucha."));
+        }
+        else if (d.cls === "PosDrive") {
+            const recs = (d.records || []).filter(x => Number.isFinite(x.no)).map(x => x.no + " = " + (x.name || "?") + (Number.isFinite(x.pos) ? " (" + x.pos + ")" : "")).join(", ");
+            L.push("- " + tr("{dev} — polohovací pohon se záznamy: výběr záznamu {bits} bity (záznamy 1–{max}), start, referenční jízda, HALT, hlášení „v poloze“ a „referováno“.", { dev: d.name, bits: selBitsOf(d), max: maxRecord(d) }));
+            L.push("  " + tr("Záznamy (poloha a rychlost se nastavují v pohonu — Festo Automation Suite, SMC ACT Controller): {list}.", { list: recs || "—" }));
+            L.push("  " + tr("Festo CMMO-ST / CMMT: vstup HALT je aktivní v 0 — výstup outHalt invertuj (relé nebo nastavení pohonu); SMC JXC: HOLD je aktivní v 1. Start musí pohon potvrdit poklesem „v poloze“ do 1 s, jízda do 30 s."));
+        }
+        else {
+            L.push("- " + tr("{dev} — proporcionální ventil: žádaná {sp} ({min}–{max} {unit} = surově {raw}), {fbk}, {ramp}.", {
+                dev: d.name, sp: tag("rawSp"), min: d.rmin, max: d.rmax, unit: d.unit || "", raw,
+                fbk: io.rawAct ? tr("skutečná {act}, odchylka nad ± {tol} {unit} déle než {t} s = porucha", { act: tag("rawAct"), tol: tolOf(d), unit: d.unit || "", t: tolTicksOf(d) / 10 }) : tr("bez zpětné vazby"),
+                ramp: rampStepOf(d) ? tr("rampa v PLC {t} s na celý rozsah (po taktech 0,1 s)", { t: d.rampS }) : tr("bez rampy v PLC")
+            }));
+        }
+    }
+    L.push("- " + tr("Kód chyby bloku errCode: 1 porucha pohonu, 2 nepřipraven, 3 bez referování, 4 ztráta hlášení, 5 timeout, 6 odchylka skutečné hodnoty."));
+    return L.join("\n");
 }
 /** Firemní hlavička na začátku README (bez knihovny ""). */
 function libReadmeHead(prj, plat) {
@@ -1263,7 +1739,7 @@ export function genMainUnitronics(prj) {
         const wired = {}, outs = {};
         for (const p of b.inputs)
             if (!skip.includes(p.name))
-                wired[p.name] = irText(p.expr, c);
+                wired[p.name] = portText(p, c);
         for (const o of b.outputs)
             if (o.tag)
                 outs[o.name] = o.tag;
@@ -1272,7 +1748,7 @@ export function genMainUnitronics(prj) {
     for (const it of uniItems(ir)) {
         const d = it.dev;
         const title = "    (* " + cmtSafe(d.name + (d.desc ? " - " + d.desc : "")) + " *)";
-        if (it.kind === "fb" && (it.cls === "Motor" || it.cls === "Ventil")) {
+        if (it.kind === "fb" && (it.cls === "Motor" || it.cls === "Ventil" || it.cls === "Vfd" || it.cls === "PosDrive" || it.cls === "PropValve")) {
             parts.push(title + "\n" + fb(it));
         }
         else if (it.kind === "fb" && it.cls === "AnalogIn") {

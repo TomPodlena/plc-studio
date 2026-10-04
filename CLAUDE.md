@@ -39,7 +39,7 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
 
 ```bash
 pnpm -C packages/core build   # tsc → dist (dist je commitnutý, po změně core přegeneruj a commitni)
-pnpm -C packages/core test    # build + node --test dist/*.test.js: 139 testů v 8 souborech (~75 s), bez závislostí
+pnpm -C packages/core test    # build + node --test dist/*.test.js: 204 testů (~4 min), bez závislostí
 node --test "packages/core/dist/*.test.js"   # totéž bez buildu; testy berou samples/ a test-data/ relativně k dist
 npx -y -p typescript tsc -p packages/core/tsconfig.json   # build bez pnpm (ověřeno: tsc 7 dává shodný dist)
 npx http-server . -p 8080     # → http://localhost:8080/apps/web/
@@ -68,7 +68,7 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   `wiring`, `ctrlDecls`…) jsou obaly nad IR. Příprava 2b/2c (nové třídy, akce kroků, OOP
   renderer, knihovna) je popsaná v hlavičce `ir.ts`.
 - **Referenční (golden) test** `golden.test.ts` + `scripts/golden.mjs`: otisky SHA-256 všech
-  souborů `genFor` (8 platforem) a `docFiles` pro 12 příkladů + `sampleSmall` / `sampleComplex`
+  souborů `genFor` (8 platforem) a `docFiles` pro 13 příkladů + `sampleSmall` / `sampleComplex`
   × 5 jazyků v `packages/core/test-data/golden/` (pevný čas, výstup je deterministický).
   **Výstup generátoru se mění jen vědomě:** po záměrné změně `node scripts/golden.mjs --write`
   (~6 min, dokumentace s ověřením simulací) a v commitu zdůvodnit, co a proč se změnilo.
@@ -87,6 +87,58 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
 - **Žádaná hodnota AnalogOut** `setpoint`; **takt** `meta.takt` → ověření porovná cyklus.
 - Ventil hlídá drženou polohu (ztráta `fbkOpen` ve stavu OPEN = porucha).
 - Při změně kteréhokoli z nich držet pohromadě codegen, sim, docs (FDS, alarmy) a testy.
+
+## Pohony a polohování (fáze 2a — přes běžné I/O, všech 10 platforem)
+
+- **Třídy** (`model.ts`, prefix M / M / Y): `Vfd` frekvenční měnič (DO chod, volitelně směr `rev` a kvitace
+  `rst`, AO žádaná otáček `rawSpeed`, DI připraven / otáčky dosaženy / porucha, volitelně AI skutečných otáček
+  `act`; `setpoint` výchozí otáčky, `rampS` rampa v PLC na celý rozsah, 0 = rampu dělá měnič), `PosDrive`
+  polohovací pohon se záznamy (Festo CMMO / CMMT, SMC JXC přes I/O: DO povolení, start, referování, HALT,
+  výběr záznamu `outSel0…` = `selBits` 1–6, DI připraven / v poloze / referováno / porucha; `records` jen
+  dokumentace — tabulka žije v řadiči; záznam 0 = reference, akce `home`; `travelS` = model jízdy),
+  `PropValve` proporcionální ventil (AO žádaná `rawSp`, volitelně AI skutečné hodnoty `fbk`, `rampS`, `tol`,
+  `tolTimeS`). Pomůcky `devDefaults`, `ACTS_FOR`, `rampStepOf`, `tolOf` / `tolTicksOf`, `selBitsOf` /
+  `maxRecord`, `stepSp` / `devSp`, `recordsText` / `parseRecords`, `devRef` (řadič = `-TA<n>` ve výkresech
+  a kusovníku), validace (akce patří třídě, záznam 1…2^n−1, bity, rampa, žádaná v rozsahu).
+- **Akce kroků:** Vfd `start` (otáčky `sp`, směr `rev`) / `stop`; PosDrive `home` / `posRecord` (`rec`);
+  PropValve `setPressure` / `setFlow` (`sp`, chování stejné). **Povely kroku se zapisují i v přechodu DO
+  kroku** (`IrStep.sets`, `renderSeq` → `IF … THEN seqSpd_M1 := 10.0; seqRun_M1 := TRUE; seqStep := 40;`) —
+  blok je zpracuje v tomtéž scanu a sekvence pak nečte zastaralé „v poloze / otáčky dosaženy“ z minulé jízdy.
+  Přechod `seqCond` → `{ kind: "fbk", expr }` nad výstupy bloku: `instM1.inSpeed`,
+  `instM2.done AND instM2.actRec = n` (home: 0), `instY2.inTol`; Vfd stop = ihned. Povely sekvence
+  (`seqRun_` / `seqSpd_` / `seqRev_`, `seqMove_` / `seqHome_` / `seqRec_`, `seqOn_` / `seqSp_`) se při
+  přerušení nastaví na `IrSeq.resets` (výchozí žádaná, 0, FALSE). Ruční povely: `manRun_` (měnič, výchozí
+  otáčky), `manHome_` (referování), `manOn_` (ventil, výchozí žádaná) — všechny na hranu (po E-stopu se
+  nic samo nerozjede). OOP: FB_Sequence dostane čtené výstupy instancí jako vstupy (`seqMembers`).
+- **Šablony** `ST_VFD` / `ST_POSDRIVE` / `ST_PROPVALVE` (SCL se z nich generuje `stToScl`, nepíše se zvlášť):
+  jen konstrukce, které projdou Unitronics (`inlineFb`) i Logixem (`lxDialect`; surové analogy REAL přes
+  `lxType(cls, type, name)`): TON `tonX(IN := …, PT := T#…)`, hrany ručně, bez ABS / SEL / MOD / XOR.
+  Rampa po taktech 0,1 s (`tonTick` běží jen při rozběhu / odchylce; skutečná perioda 0,1 s + scan), REAL
+  porovnání přesně (žádaná se jen kopíruje / ořízne), doba odchylky v taktech (`tolTicks` INT — TIME
+  vstup Logix ani UniLogic nemá). `errCode`: 1 porucha, 2 nepřipraven, 3 bez referování, 4 ztráta hlášení,
+  5 timeout, 6 odchylka (`MOTION_ERR`, alarmy HMI spouští `inst_errCode = n`). Přerušení jízdy = HALT
+  (`outHalt`, Festo CMMO aktivní v 0 — README). Surový rozsah analogu: port `src: "rawMax"` → `portText`
+  dosadí `RAW_MAX` platformy (Logix 100.0, Siemens 27648).
+- **Simulátor** (`sim.ts`, `FbInst.x` = `MotionState`): přesné zrcadlo šablon vč. float32 (`Math.fround`)
+  a pořadí příkazů; model jen ve vrstvě `model`: měnič dojede žádanou rychlostí rozsah / `motorDelay`
+  (změna směru přes nulu), pohon potvrdí start poklesem „v poloze“ a dojede za `travelS`, HALT / odpojení
+  povolení jízdu zastaví, ventil = žádaná po rampě (bez zpoždění); **zamrzlé = zaseknutá mechanika**.
+  Analogové rozhodování jen daleko od hranic (kvantizace platforem se neprojeví): odchylka se zkouší
+  vnucením hodnoty mimo toleranci (`devFaultRaw`), zamrzlý ventil jen u změny > 2 × tolerance
+  (`frozenDetectable`). Matice stavů: sloupce `fault` (i měnič / pohon), `lost` (i „otáčky dosaženy“),
+  `lostp` (ztráta „v poloze“), `dev` (odchylka); zastavení = vypnuté výstupy pohybu (`motionOutKeys`:
+  chod, start, referování — povolení, výběr záznamu a HALT nejsou „sepnuté výstupy“).
+- **Emulátor:** AO pohonů se porovnává každý scan (podíl rozsahu, tolerance zaokrouhlení / ořezu platformy),
+  přeskočení klidu posouvá i časovače bloků pohonů (`MOTION_TON_PT`), stav bloků a modelu je v podpisu klidu.
+  Testy `motion.test.ts`: vzor 11 × 10 platforem + OOP × 5 = návrh, přeskočení klidu, mutace (rampa, doba
+  odchylky, výběr záznamu, HALT), simulace, dokumentace, HMI, kusovník.
+- Vzor `samples/11_podavaci_lisovaci_stanice_PS-11` (pás na měniči 40 → 10 Hz, osa se záznamy, lisovací
+  tlak přes VPPM). Kusovník: `-TA<n>` vfd / positioning_drive, `-M<n>` motor / linear_axis, `-Y<n>`
+  proportional_valve; katalog `data/catalog/servopohony.json` (rešerše 2026-10-04, konce výroby vynechány;
+  servo_drive / servo_motor připraveny pro 2b). Bezpečnost: měnič i pohon = skupina STO.
+- **Zbývá (fáze 2b / 2c):** servoosa `Axis` (PLCopen MC / Logix instrukce, emulátor MC bloků, lichoběžník,
+  konfigurační list osy, SS1 / SLS), měniče po síti (PROFIdrive / CiA 402); reverse import pohonů fáze 2a
+  (importér je zatím pozná jako motor + volné signály).
 
 ## Kusovník komponent (základní verze; stavba v CADu = verze PRO)
 
@@ -127,7 +179,7 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
 
 ## Příklady a ověření simulací
 
-- `samples/*.plcstudio.json` — 12 příkladových strojů od pásu se 6 zařízeními po výrobní halu se 125
+- `samples/*.plcstudio.json` — 13 příkladových strojů od pásu se 6 zařízeními po výrobní halu se 125 (11 = pohony fáze 2a)
   zařízeními a 120 kroky (formát = uložený projekt desktopu / export webu). Každý musí projít
   `check_samples.mjs`: validace, kód pro všech 8 platforem (párování IF/CASE/FB, ASCII u Unitronics
   a DXF, deklarované identifikátory), dokumentace, ověření bez nálezu `error` a matice bez ✖.
@@ -150,7 +202,7 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   přeložený kód spustí scan po scanu proti modelu stroje simulátoru ve scénářích `verifyProject`
   (`emuScenarios`) a porovná chování kód ↔ návrh (`diffs`); `emulateFiles` / `emulateRunFiles` pro
   vlastní soubory. Cache podle otisku přeloženého programu (komentáře a jazyk ho nemění).
-- Testy (`emu.test.ts`): 12 příkladů × 8 platforem × 5 jazyků bez chyby překladu a bez rozdílu proti
+- Testy (`emu.test.ts`): 13 příkladů × 10 platforem × 5 jazyků bez chyby překladu a bez rozdílu proti
   návrhu, mutační testy (vložené chyby kódu musí emulátor chytit), výkon `emulateAll` největšího příkladu.
 - **Emulátor ≠ překladač výrobce.** Výhradu nese dokument `15_emulace_prekladu.md` (`emuDocMd`) i každé UI,
   které výsledek ukáže — neodstraňovat; reálný import v IDE je dál nutný. Dokument je opt-in:
@@ -415,7 +467,7 @@ workers.dev, licenční API, Stripe/Paddle), přenosná verze 0.1.0 (GitHub Rele
 4. Nabídka (`quote.ts`) — ceník uživatele, odhad hodin, interní podklad; firemní knihovna (`library.ts`)
 5. Exporty SISTEMA (`sistema.ts`) a EPLAN (`eplan.ts`, AutomationML + seznamy)
 
-**Fáze 2:** servoosy (PLCopen Motion) a pohony po síti (PROFINET / EtherCAT, IO-Link, vzdálené I/O);
+**Fáze 2:** ~~2a pohony a proporcionální prvky přes I/O (měnič, polohovací pohon se záznamy, proporcionální ventil)~~ ✅ (viz „Pohony a polohování“); servoosy (PLCopen Motion, 2b) a pohony po síti (2c) (PROFINET / EtherCAT, IO-Link, vzdálené I/O);
 volitelný styl kódu „OOP“ pro CODESYS / TwinCAT / WAGO (rozhraní, metody, ošetření chyb, pokyny k tasku)
 + WAGO jako varianta CODESYS — vše ověřené emulátory. Navazuje na fázi 1: ~~knihovna FB do `genFor`
 (`libraryOverrides`)~~ ✅, ~~FX5 časovače nad 32,7 s~~ ✅ (TIMER_100_FB_M), ~~globální proměnné pro HMI

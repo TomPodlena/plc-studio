@@ -262,7 +262,7 @@ test("diff: bez bezpečnostního modulu změna vstupu E-stopu → bezpečnostní
 });
 
 test("revize: 12 příkladů — revize → úprava → rozdíl, zpráva 17_zmeny.md bez pádu", () => {
-  assert.equal(SAMPLE_NAMES.length, 12);
+  assert.ok(SAMPLE_NAMES.length >= 13, "příklady v samples/ (vč. 11 s pohony)");
   withSafety(() => {
     for (const name of SAMPLE_NAMES) {
       const p = loadSample(name);
