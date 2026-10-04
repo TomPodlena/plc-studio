@@ -16,9 +16,9 @@
  * 5000-UM004 / 5069-UM005 (tagy modulů 5069). Výstup není ověřen importem ve Studiu 5000.
  */
 import { stripDia } from "./model.js";
-import { parseFbTemplate, trComments, fbTemplate, stCtx, renderSeq, renderWiring, renderFault, enableText, freeLine, declNote, cmtSafe, stCallNotes, } from "./codegen.js";
+import { parseFbTemplate, trComments, fbTemplate, stCtx, renderSeq, renderWiring, renderFault, enableText, freeLine, declNote, cmtSafe, stCallNotes, codeLibrary, } from "./codegen.js";
 import { buildIR, irBlocks, irText } from "./ir.js";
-import { trx } from "./i18n.js";
+import { tr, trx } from "./i18n.js";
 /** Název importovaného programu a jeho hlavní rutiny. */
 export const LX_PROGRAM = "PLCdesk";
 export const LX_ROUTINE = "MainRoutine";
@@ -26,7 +26,8 @@ export const LX_ROUTINE = "MainRoutine";
 export const LX_SOFTWARE_REVISION = "32.00";
 /* Pozor: logix.ts a codegen.ts se importují navzájem — na úrovni modulu se proto
    nesmí sahat na konstanty z codegen.ts (šablony se berou až uvnitř funkcí). */
-const tplOf = (cls) => fbTemplate(cls, "st");
+/* `lib` = vlastní šablony firemní knihovny, které `codeLibrary` pro Logix pustil (`lxTplProblems`) */
+const tplOf = (cls, lib) => fbTemplate(cls, "st", lib);
 const AOI_OF = { Motor: "FB_Motor", Ventil: "FB_Ventil", AnalogIn: "FB_AnalogIn", AnalogOut: "FB_AnalogOut" };
 /** Výchozí hodnoty, které se pro Logix liší od šablony: analogy 5069 dávají REAL 0–100 % (rozsah modulu). */
 const LX_INIT = { rawMax: "100.0" };
@@ -199,7 +200,7 @@ export function lxProgramTags(prj) {
  * žádaná hodnota), komentář celého volání za voláním. Nezapojené vstupy s výchozí hodnotou se
  * přiřadí výslovně (nezávisí na datech tagu po importu); nezapojené výstupy se nečtou.
  */
-function lxCallIr(b, c) {
+function lxCallIr(b, c, lib) {
     const ind = "    ";
     const notes = stCallNotes(b, c);
     const ins = [], outs = [], wired = new Set();
@@ -211,7 +212,7 @@ function lxCallIr(b, c) {
     for (const o of b.outputs)
         if (o.tag)
             outs.push(ind + c.R(o.tag) + " := " + b.inst + "." + o.name + ";");
-    for (const v of parseFbTemplate(tplOf(b.cls)).vars) {
+    for (const v of parseFbTemplate(tplOf(b.cls, lib)).vars) {
         if (v.kind === "in" && !wired.has(v.name) && (v.init || LX_INIT[v.name]))
             ins.push(ind + b.inst + "." + v.name + " := " + lxInitOf(v.name, lxType(b.cls, v.type), v.init) + ";");
     }
@@ -224,10 +225,10 @@ function lxCallIr(b, c) {
  * totéž je v L5X. Tagy jsou v L5X (programové + I/O) a v Tags.csv.
  */
 export function genLogixRoutine(prj) {
-    const ir = buildIR(prj), c = stCtx("rockwell");
+    const ir = buildIR(prj), c = stCtx("rockwell"), lib = codeLibrary(prj, "rockwell");
     const { spec } = lxIoMap(prj);
     const { calls, free } = renderWiring(ir, c, {
-        call: b => lxCallIr(b, c),
+        call: b => lxCallIr(b, c, lib),
         /* volné signály: místo adres Siemens bod modulu (alias), pokud jde odvodit */
         free: e => {
             const s = spec.get(e.key);
@@ -235,7 +236,8 @@ export function genLogixRoutine(prj) {
         },
     });
     const fault = renderFault(ir, c);
-    const body = `(* ${trx("MainRoutine - logika stroje pro Rockwell Logix 5000 (ST), generováno PLCdesk.")}
+    const head = lib.header.map(l => "(* " + cmtSafe(l) + " *)\n").join("");
+    const body = `${head}(* ${trx("MainRoutine - logika stroje pro Rockwell Logix 5000 (ST), generováno PLCdesk.")}
    ${trx("Jen příkazy: tagy a Add-On Instructions jsou v PLCdesk_Program.L5X (nebo Tags.csv).")}
    ${trx("Návrh k revizi — E-stop je jen informativní signál, bezpečnostní funkce patří do safety obvodu.")} *)
 
@@ -249,8 +251,8 @@ ${free.join("\n") || "    (*   " + trx("žádné") + " *)"}
     return lxAscii(lxDialect(body));
 }
 /* ------------------------------------------------------------------ AOI */
-function aoiXml(cls) {
-    const tpl = tplOf(cls), name = AOI_OF[cls];
+function aoiXml(cls, lib) {
+    const tpl = tplOf(cls, lib), name = AOI_OF[cls];
     const { vars, body } = parseFbTemplate(tpl);
     const head = (tpl.match(/\(\*([\s\S]*?)\*\)/) || ["", ""])[0];
     const desc = trComments(head, stripDia).replace(/^\(\*\s*|\s*\*\)$/g, "").replace(/\s*\n\s*/g, " ");
@@ -299,6 +301,7 @@ function tagXml(t, ind) {
 export function genRockwellL5X(prj) {
     const classes = new Set(prj.devices.map(d => d.cls));
     const { spec } = lxIoMap(prj);
+    const lib = codeLibrary(prj, "rockwell");
     let x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
     x += "<!-- " + attr(trx("PLCdesk: návrh k revizi, neověřeno importem ve Studiu 5000.")).replace(/--/g, "- -") + " -->\n";
     x += '<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="' + LX_SOFTWARE_REVISION + '" TargetName="' + LX_PROGRAM +
@@ -308,7 +311,7 @@ export function genRockwellL5X(prj) {
     x += '  <AddOnInstructionDefinitions Use="Context">\n';
     for (const c of ["Motor", "Ventil", "AnalogIn", "AnalogOut"])
         if (classes.has(c))
-            x += aoiXml(c);
+            x += aoiXml(c, lib);
     x += "  </AddOnInstructionDefinitions>\n";
     x += '  <Tags Use="Context">\n';
     for (const e of prj.io) {
@@ -519,64 +522,101 @@ export function logixProblems(files) {
     routines.push({ where: "MainRoutine", st: lines(main), scope: id => tagType.get(id.toLowerCase()) });
     if (files["MainRoutine.st"] !== undefined && files["MainRoutine.st"].replace(/\s+$/, "") !== lines(main).replace(/\s+$/, ""))
         errs.push("MainRoutine.st se liší od rutiny v L5X");
-    for (const r of routines) {
-        const code = r.st.replace(/\(\*[\s\S]*?\*\)/g, " ").replace(/\/\/.*$/gm, " ");
-        const bad = [[/\b(END_)?VAR\b|\bVAR_(INPUT|OUTPUT)\b/, "VAR"], [/\b(END_)?PROGRAM\b/, "PROGRAM"],
-            [/\b(END_)?FUNCTION_BLOCK\b/, "FUNCTION_BLOCK"], [/T#/, "T#"], [/=>/, "=>"], [/\bWORD\b/, "WORD"], [/\bRETURN\b/, "RETURN"],
-            [/\b(INT_TO_REAL|REAL_TO_INT)\b/, "INT_TO_REAL"], [/END_IF(?!;)/, "END_IF bez ;"], [/END_CASE(?!;)/, "END_CASE bez ;"],
-            [/\bTON\s*\(/, "TON("], [/\.Q\b/, ".Q"], [/\bTRUE\b|\bFALSE\b/, "TRUE/FALSE"]];
-        for (const [re, what] of bad)
-            if (re.test(code))
-                errs.push(r.where + ": obsahuje " + what);
-        const cnt = (re) => (code.match(re) || []).length;
-        if (cnt(/(?<!END_)\bIF\b/g) !== cnt(/\bEND_IF\b/g))
-            errs.push(r.where + ": nespárované IF/END_IF");
-        if (cnt(/(?<!END_)\bCASE\b/g) !== cnt(/\bEND_CASE\b/g))
-            errs.push(r.where + ": nespárované CASE/END_CASE");
-        if (cnt(/\(/g) !== cnt(/\)/g))
-            errs.push(r.where + ": nespárované závorky");
-        /* TONR: PRE a TimerEnable nastavené před voláním (jinak zpoždění o scan) */
-        for (const m of code.matchAll(/TONR\((\w+)\);/g)) {
-            const before = code.slice(0, m.index);
-            const pre = before.lastIndexOf(m[1] + ".PRE :="), en = before.lastIndexOf(m[1] + ".TimerEnable :=");
-            const prev = before.lastIndexOf("TONR(" + m[1] + ")");
-            if (pre < 0 || en < 0 || pre < prev || en < prev)
-                errs.push(r.where + ": TONR(" + m[1] + ") bez PRE/TimerEnable před voláním");
+    for (const r of routines)
+        for (const f of lxRoutineFindings(r.st, r.scope, aoi))
+            errs.push(r.where + ": " + f.text);
+    return [...new Set(errs)];
+}
+/** Kontrola jedné rutiny ST (MainRoutine nebo logika AOI): konstrukce IEC, párování, TONR, identifikátory. */
+function lxRoutineFindings(st, scope, aoi) {
+    const out = [];
+    const F = (code, arg, text) => out.push({ code, arg, text });
+    const code = st.replace(/\(\*[\s\S]*?\*\)/g, " ").replace(/\/\/.*$/gm, " ");
+    const bad = [[/\b(END_)?VAR\b|\bVAR_(INPUT|OUTPUT)\b/, "VAR"], [/\b(END_)?PROGRAM\b/, "PROGRAM"],
+        [/\b(END_)?FUNCTION_BLOCK\b/, "FUNCTION_BLOCK"], [/T#/, "T#"], [/=>/, "=>"], [/\bWORD\b/, "WORD"], [/\bRETURN\b/, "RETURN"],
+        [/\b(INT_TO_REAL|REAL_TO_INT)\b/, "INT_TO_REAL"], [/END_IF(?!;)/, "END_IF bez ;"], [/END_CASE(?!;)/, "END_CASE bez ;"],
+        [/\bTON\s*\(/, "TON("], [/\.Q\b/, ".Q"], [/\bTRUE\b|\bFALSE\b/, "TRUE/FALSE"]];
+    for (const [re, what] of bad)
+        if (re.test(code))
+            F("construct", what, "obsahuje " + what);
+    const cnt = (re) => (code.match(re) || []).length;
+    if (cnt(/(?<!END_)\bIF\b/g) !== cnt(/\bEND_IF\b/g))
+        F("pair", "IF", "nespárované IF/END_IF");
+    if (cnt(/(?<!END_)\bCASE\b/g) !== cnt(/\bEND_CASE\b/g))
+        F("pair", "CASE", "nespárované CASE/END_CASE");
+    if (cnt(/\(/g) !== cnt(/\)/g))
+        F("pair", "()", "nespárované závorky");
+    /* TONR: PRE a TimerEnable nastavené před voláním (jinak zpoždění o scan) */
+    for (const m of code.matchAll(/TONR\((\w+)\);/g)) {
+        const before = code.slice(0, m.index);
+        const pre = before.lastIndexOf(m[1] + ".PRE :="), en = before.lastIndexOf(m[1] + ".TimerEnable :=");
+        const prev = before.lastIndexOf("TONR(" + m[1] + ")");
+        if (pre < 0 || en < 0 || pre < prev || en < prev)
+            F("tonr", m[1], "TONR(" + m[1] + ") bez PRE/TimerEnable před voláním");
+    }
+    /* AOI volané s instancí správného typu */
+    for (const m of code.matchAll(/\b(FB_\w+)\((\w+)\);/g)) {
+        if (!aoi.has(m[1]))
+            F("aoi", m[1], "AOI " + m[1] + " není v L5X");
+        else if (scope(m[2]) !== m[1])
+            F("aoi-instance", m[2], m[2] + " není instance " + m[1]);
+    }
+    /* identifikátory */
+    for (const m of code.matchAll(/(\.)?\b([A-Za-z_][A-Za-z0-9_]*)\b(\.[A-Za-z_]\w*)?/g)) {
+        if (m[1])
+            continue; // člen řeší výraz před tečkou
+        const id = m[2];
+        if (ST_KW.has(id.toUpperCase()) || aoi.has(id))
+            continue;
+        if (/^\d/.test(id))
+            continue;
+        const t = scope(id);
+        if (!t) {
+            F("undeclared", id, "nedeklarovaný identifikátor " + id);
+            continue;
         }
-        /* AOI volané s instancí správného typu */
-        for (const m of code.matchAll(/\b(FB_\w+)\((\w+)\);/g)) {
-            if (!aoi.has(m[1]))
-                errs.push(r.where + ": AOI " + m[1] + " není v L5X");
-            else if (r.scope(m[2]) !== m[1])
-                errs.push(r.where + ": " + m[2] + " není instance " + m[1]);
-        }
-        /* identifikátory */
-        for (const m of code.matchAll(/(\.)?\b([A-Za-z_][A-Za-z0-9_]*)\b(\.[A-Za-z_]\w*)?/g)) {
-            if (m[1])
-                continue; // člen řeší výraz před tečkou
-            const id = m[2];
-            if (ST_KW.has(id.toUpperCase()) || aoi.has(id))
-                continue;
-            if (/^\d/.test(id))
-                continue;
-            const t = r.scope(id);
-            if (!t) {
-                errs.push(r.where + ": nedeklarovaný identifikátor " + id);
-                continue;
-            }
-            if (m[3]) {
-                const member = m[3].slice(1);
-                const ok = t === "FBD_TIMER" ? TIMER_MEMBERS.has(member) : aoi.has(t) ? aoi.get(t).has(member.toLowerCase()) : false;
-                if (!ok)
-                    errs.push(r.where + ": " + id + " (" + t + ") nemá člen " + member);
-            }
-        }
-        for (const id of new Set(code.match(/\b[A-Za-z_]\w*\b/g) || [])) {
-            if (id.length > 40 || /__/.test(id) || /_$/.test(id))
-                errs.push(r.where + ": jméno " + id + " porušuje pravidla Logix (40 znaků, __, _ na konci)");
+        if (m[3]) {
+            const member = m[3].slice(1);
+            const ok = t === "FBD_TIMER" ? TIMER_MEMBERS.has(member) : aoi.has(t) ? aoi.get(t).has(member.toLowerCase()) : false;
+            if (!ok)
+                F("member", id + "." + member, id + " (" + t + ") nemá člen " + member);
         }
     }
-    return [...new Set(errs)];
+    for (const id of new Set(code.match(/\b[A-Za-z_]\w*\b/g) || [])) {
+        if (id.length > 40 || /__/.test(id) || /_$/.test(id))
+            F("name", id, "jméno " + id + " porušuje pravidla Logix (40 znaků, __, _ na konci)");
+    }
+    return out;
+}
+/** Typy proměnných šablony, které převod na AOI zná (`lxType`). */
+const LX_TPL_TYPES = new Set(["BOOL", "SINT", "INT", "DINT", "REAL", "WORD", "TON"]);
+/**
+ * Proč vlastní šablonu IEC ST (firemní knihovna) nejde spolehlivě převést na Add-On Instruction;
+ * prázdné = jde. Převod (`lxDialect`) zná jen konstrukce vestavěných šablon (TON jako
+ * `tonX(IN := …, PT := T#…);`, předčasný RETURN v úvodním IF NOT enable, INT_TO_REAL…) — výsledek
+ * se proto zkontroluje stejnou kontrolou jako výstup (`lxRoutineFindings`): co v AOI zbude
+ * z IEC (T#, TON(, RETURN, .Q, volání s parametry, nedeklarované jméno…), převést nešlo.
+ */
+export function lxTplProblems(cls, tpl) {
+    const why = [];
+    const { vars, body } = parseFbTemplate(tpl);
+    if (/\b(END_VAR|VAR_\w+|VAR)\b/.test(body.replace(/\(\*[\s\S]*?\*\)/g, " ")))
+        why.push(tr("deklarační blok, který převod nečte (např. VAR CONSTANT)"));
+    const bad = [...new Set(vars.filter(v => !LX_TPL_TYPES.has(v.type)).map(v => v.type))];
+    if (bad.length)
+        why.push(tr("datový typ {list} nemá v Logixu převod", { list: bad.join(", ") }));
+    if (why.length)
+        return why;
+    const x = aoiXml(cls, { templates: { [cls]: tpl }, ids: {}, header: [], issues: [] });
+    const mem = new Map();
+    for (const p of x.matchAll(/<(?:Parameter|LocalTag) Name="(\w+)"[^>]*DataType="(\w+)"/g))
+        mem.set(p[1].toLowerCase(), p[2]);
+    const found = lxRoutineFindings(lines(x), id => mem.get(id.toLowerCase()), new Map([[AOI_OF[cls], mem]]));
+    if (found.length)
+        why.push(tr("po převodu na AOI zbývá, co Logix ST nemá ({list})", {
+            list: [...new Set(found.map(f => f.code + " " + f.arg))].slice(0, 5).join(", "),
+        }));
+    return why;
 }
 /** Text rutiny z L5X (řádky z CDATA). */
 function lines(xml) {

@@ -116,8 +116,10 @@ class BridgeTest(unittest.TestCase):
         cls.b.close()
 
     def test_init_exposes_core_constants(self):
-        self.assertEqual(len(self.init["PLAT"]), 8)
+        self.assertEqual(len(self.init["PLAT"]), 10)   # 8 platforem + profily CODESYS (WAGO, Delta AX)
         self.assertIn("unitronics", self.init["PLAT"])
+        self.assertEqual(self.init["PLAT"]["wago"]["base"], "codesys")
+        self.assertTrue(self.init["PLAT"]["delta"]["oop"])
         self.assertIn("Motor", self.init["CLS"])
 
     def test_unitronics_sources_through_bridge(self):
@@ -681,6 +683,34 @@ class GuiTest(unittest.TestCase):
         cards[0].event_generate("<Button-1>", x=5, y=5)
         self.root.update()
         self.assertEqual(self.app.prj["platforms"], ["rockwell"])
+
+    def test_code_style_only_for_oop_platforms(self):
+        """Styl kódu Klasický / OOP: volba jen při platformě s OOP; OOP → rozhraní a třídy v kódu."""
+        self.app.reset_project()
+        self.app.prj["platforms"] = ["siemens"]
+        self.goto(2)
+        radios = [w for w in walk(self.app.view) if isinstance(w, ttk.Radiobutton)]
+        self.assertEqual(radios, [], "Siemens: volba stylu se nenabízí")
+        self.app.prj["platforms"] = ["siemens", "codesys"]
+        self.app.render()
+        self.root.update()
+        radios = {w.cget("value"): w for w in walk(self.app.view) if isinstance(w, ttk.Radiobutton)}
+        self.assertEqual(set(radios), {"classic", "oop"})
+        self.assertNotIn("codeStyle", self.app.prj)
+        radios["oop"].invoke()
+        self.root.update()
+        self.assertEqual(self.app.prj.get("codeStyle"), "oop")
+        self.app.load_sample("small")
+        self.app.prj["platforms"] = ["codesys", "siemens"]
+        self.app.prj["codeStyle"] = "oop"
+        out = self.app.bridge.request("gen", prj=self.app.prj)["out"]
+        self.assertIn("INTERFACE I_Device", out["codesys"]["Gen_Library.st"])
+        self.assertNotIn("INTERFACE", out["siemens"].get("Gen_Library.scl", ""))
+        self.goto(2)
+        radios = {w.cget("value"): w for w in walk(self.app.view) if isinstance(w, ttk.Radiobutton)}
+        radios["classic"].invoke()
+        self.root.update()
+        self.assertNotIn("codeStyle", self.app.prj)
 
     def test_io_edit_validation_fix_and_renumber(self):
         self.app.load_sample("small")
@@ -2356,7 +2386,7 @@ class GuiTest(unittest.TestCase):
     def test_help_links_to_platform_documentation(self):
         self.goto("help")
         txt = self.find(tk.Text)[0]
-        self.assertEqual(len(txt.tag_ranges("link")) // 2, 59)
+        self.assertEqual(len(txt.tag_ranges("link")) // 2, 66)   # 59 + profily WAGO (4) a Delta AX (3)
         self.assertIn("Odkazy na dokumentaci platforem", txt.get("1.0", "end"))
         self.assertIn("10. Kusovník", txt.get("1.0", "end"))
         first = txt.tag_ranges("link")[0]

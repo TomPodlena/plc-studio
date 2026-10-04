@@ -73,5 +73,16 @@
     { "kind": "manual", "title": "Technická knihovna – uživatelské příručky UniStream", "url": "https://www.unitronicsplc.com/support-technical-library/", "lang": "en", "login": false },
     { "kind": "support", "title": "Unitronics Help Center – podpora a tikety", "url": "https://support.unitronics.com/", "lang": "en", "login": false },
     { "kind": "cz", "title": "SCHMACHTL CZ – distributor Unitronics v ČR", "url": "https://www.schmachtl.cz", "lang": "cs", "login": false }
+  ],
+  "wago": [
+    { "kind": "product", "title": "WAGO PFC200 750-8212 – kontrolér (CODESYS V3.5 / e!COCKPIT)", "url": "https://www.wago.com/global/p/750-8212", "lang": "en", "login": false },
+    { "kind": "product", "title": "WAGO PFC100 750-8101 – kontrolér", "url": "https://www.wago.com/global/p/750-8101", "lang": "en", "login": false },
+    { "kind": "manual", "title": "WAGO – migrace z e!COCKPIT do WAGO CODESYS V3.5 (Kbus, I/O mapování)", "url": "https://techdocs.wago.com/Software/eCOCKPIT_Migration/en-US/2956425227.html", "lang": "en", "login": false },
+    { "kind": "import", "title": "Příkaz Import PLCopenXML", "url": "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html", "lang": "en", "login": false }
+  ],
+  "delta": [
+    { "kind": "product", "title": "Delta – řešení pohybu na CODESYS (katalog AX-3 / AX-5 / AX-8)", "url": "https://www.deltaww.com/IA/downloadcenter/catalogue/2.Motion/Codesys/DELTA_%20IA-Delta_Motion_Control_Solution_Based_on_CODESYS_C_EN_20210929.pdf", "lang": "en", "login": false },
+    { "kind": "manual", "title": "Delta AX-3 – Operation Manual (DIADesigner-AX, Delta_LocalBus_Master, BuiltIn_IO; kopie u distributora)", "url": "https://dl.plc1.ir/manual/delta/plc/operation.manual/DELTA_IA_PLC_AX-3_OM_EN_20210931.pdf", "lang": "en", "login": false },
+    { "kind": "import", "title": "Příkaz Import PLCopenXML", "url": "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html", "lang": "en", "login": false }
   ]
 }

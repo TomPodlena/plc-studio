@@ -78,6 +78,11 @@ export interface Pou {
   getter?: Pou;
   setter?: Pou;
   endPos?: Pos;
+  /** OOP: ABSTRACT (blok bez instancí / metoda bez implementace), FINAL. */
+  abstract?: boolean;
+  final?: boolean;
+  /** OOP: přístup metody / vlastnosti (PUBLIC výchozí, PROTECTED, PRIVATE, INTERNAL). */
+  access?: "PUBLIC" | "PROTECTED" | "PRIVATE" | "INTERNAL";
 }
 
 export interface TypeDecl { name: string; pos: Pos; spec: TypeSpec; init?: Expr; }

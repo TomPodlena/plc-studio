@@ -13,7 +13,12 @@ import { N_, tr } from "./i18n.js";
 import { newGuid, fillGuids, moduleKey, ioGuidFor, isGuid } from "./guid.js";
 
 export type PlatformKey =
-  | "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics";
+  | "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics"
+  /* profily platformy CODESYS (PLAT[…].base = "codesys"): sdílí dialekt, addrFor a emulátor */
+  | "wago" | "delta";
+
+/** Styl generovaného kódu: klasické FB (výchozí) nebo OOP (rozhraní, dědičnost) — viz codegen_oop.ts. */
+export type CodeStyle = "classic" | "oop";
 
 export type DeviceClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "DI" | "DO";
 export type Dir = "DI" | "DO" | "AI" | "AO";
@@ -23,7 +28,13 @@ export type SeqAct = "start" | "stop" | "open" | "close" | "wait" | "waitOn" | "
 export type DoRole = "run" | "fault" | "ready" | "stopped" | "lock" | "auto";
 export type SeqCond = "fbk" | "time";
 
-export interface PlatformInfo { name: string; ide: string; cpu: string; lang: string; imp: string; }
+export interface PlatformInfo {
+  name: string; ide: string; cpu: string; lang: string; imp: string;
+  /** Profil jiné platformy (WAGO, Delta AX = CODESYS V3.5): stejný dialekt, adresy i emulátor. */
+  base?: PlatformKey;
+  /** Platforma umí styl kódu OOP (INTERFACE / METHOD / PROPERTY / EXTENDS). */
+  oop?: boolean;
+}
 
 export interface Device {
   id: number;
@@ -103,6 +114,12 @@ export interface Project {
   guid?: string;
   /** GUID I/O karet podle klíče karty „<směr><pořadí>“ (DI1, DO2…; viz `modules()` a guid.ts). */
   moduleGuids?: Record<string, string>;
+  /**
+   * Styl kódu (výchozí classic). OOP platí jen pro platformy s `PLAT[…].oop` (CODESYS, TwinCAT,
+   * Schneider, WAGO, Delta AX); ostatní platformy ho ignorují. Chování programu je v obou
+   * stylech stejné (stejný IR, stejné šablony bloků) — liší se jen zápis.
+   */
+  codeStyle?: CodeStyle;
 }
 
 export interface BomLineCfg { brand?: string; type?: string; orderCode?: string; supplier?: string; qty?: number; note?: string; }
@@ -121,13 +138,33 @@ export interface IoModule {
 export const PLAT: Record<PlatformKey, PlatformInfo> = {
   siemens:    { name: "Siemens SIMATIC", ide: "TIA Portal V17–V21", cpu: "S7-1200 / S7-1500", lang: "SCL", imp: N_("externí zdroje .scl + SimaticML XML (Openness) + TSV tagů") },
   rockwell:   { name: "Rockwell Allen-Bradley", ide: "Studio 5000", cpu: "CompactLogix / ControlLogix", lang: "ST", imp: N_("ST rutiny + CSV import tagů / L5X") },
-  beckhoff:   { name: "Beckhoff", ide: "TwinCAT 3 (XAE)", cpu: "CX / C60xx IPC", lang: "ST", imp: N_("POU + GVL (vložit do editoru)") },
-  codesys:    { name: "CODESYS", ide: "CODESYS V3.5", cpu: "WAGO, Festo, Eaton…", lang: "ST", imp: N_("POU + GVL / PLCopen XML") },
+  beckhoff:   { name: "Beckhoff", ide: "TwinCAT 3 (XAE)", cpu: "CX / C60xx IPC", lang: "ST", imp: N_("POU + GVL (vložit do editoru)"), oop: true },
+  codesys:    { name: "CODESYS", ide: "CODESYS V3.5", cpu: "WAGO, Festo, Eaton…", lang: "ST", imp: N_("POU + GVL / PLCopen XML"), oop: true },
   mitsubishi: { name: "Mitsubishi", ide: "GX Works3", cpu: "MELSEC iQ-F / iQ-R", lang: "ST", imp: N_("ST program + global labels CSV") },
-  schneider:  { name: "Schneider Electric", ide: "EcoStruxure Machine Expert", cpu: "Modicon M241 / M262", lang: "ST", imp: N_("POU + GVL (báze CODESYS)") },
+  schneider:  { name: "Schneider Electric", ide: "EcoStruxure Machine Expert", cpu: "Modicon M241 / M262", lang: "ST", imp: N_("POU + GVL (báze CODESYS)"), oop: true },
   omron:      { name: "OMRON", ide: "Sysmac Studio", cpu: "NX / NJ", lang: "ST", imp: N_("ST program + tabulka proměnných") },
   unitronics: { name: "Unitronics", ide: "UniLogic", cpu: "UniStream (US5–US15, USC)", lang: N_("ST (funkce)"), imp: N_("ST funkce k vložení + seznam tagů k založení; Vision/Samba jen Ladder (předloha)") },
+  wago:       { name: "WAGO", ide: "e!COCKPIT / CODESYS V3.5", cpu: "PFC100 / PFC200 + I/O 750", lang: "ST", imp: N_("POU + GVL / PLCopen XML (báze CODESYS)"), base: "codesys", oop: true },
+  delta:      { name: "Delta Electronics", ide: "DIADesigner-AX (CODESYS V3.5)", cpu: "AX-3 / AX-5 / AX-8", lang: "ST", imp: N_("POU + GVL / PLCopen XML (báze CODESYS)"), base: "codesys", oop: true },
 };
+
+/** Základ platformy: profil (WAGO, Delta AX) → „codesys“, jinak platforma sama. */
+export function platBase(plat: PlatformKey): PlatformKey {
+  return PLAT[plat]?.base || plat;
+}
+/** Rodina CODESYS (GVL_IO, PLCopen XML, adresy %IX / %IW): CODESYS a jeho profily, TwinCAT, Schneider. */
+export function isCodesysFamily(plat: PlatformKey): boolean {
+  const b = platBase(plat);
+  return b === "codesys" || b === "beckhoff" || b === "schneider";
+}
+/** Platforma umí styl kódu OOP. */
+export function supportsOop(plat: PlatformKey): boolean {
+  return !!PLAT[plat]?.oop;
+}
+/** Styl kódu, který pro platformu skutečně platí (OOP jen kde ho platforma umí). */
+export function codeStyleFor(prj: Project, plat: PlatformKey): CodeStyle {
+  return prj.codeStyle === "oop" && supportsOop(plat) ? "oop" : "classic";
+}
 
 /** Tabulka platforem s texty v nastaveném jazyce (`PLAT` drží české klíče překladu). */
 export function platInfo(): Record<PlatformKey, PlatformInfo> {
@@ -341,7 +378,11 @@ export function addrFor(plat: PlatformKey, e: IoEntry): string {
   if (plat === "siemens") return a;
   /* TwinCAT: pevné adresy nedoporučuje — AT %I* / %Q* a nalinkování na kanály svorek */
   if (plat === "beckhoff") return e.dir === "DI" || e.dir === "AI" ? "%I*" : "%Q*";
-  if (plat === "codesys" || plat === "schneider") {
+  /* WAGO e!COCKPIT: kanály lokální sběrnice se v I/O mapování přiřazují proměnným (obraz procesu
+     řadí analogy před digitály, adresy se mění s osazením) — v kódu bez pevné adresy AT */
+  if (plat === "wago") return "";
+  /* Delta AX (DIADesigner-AX): notace CODESYS; počáteční adresy BuiltIn IO / LocalBus neověřeny (README) */
+  if (plat === "codesys" || plat === "schneider" || platBase(plat) === "codesys") {
     const m = a.match(/^%([IQ])(\d+)\.(\d+)$/);
     if (m) return "%" + m[1] + "X" + m[2] + "." + m[3];
     const w = a.match(/^%([IQ])W(\d+)$/);         // Siemens bajt → CODESYS index slova (%IW64 → %IW32)
@@ -391,7 +432,8 @@ export function modules(prj: Project): IoModule[] {
 /* --------------------------------------------------- validace & sanitizace */
 
 export interface ValidationIssue {
-  level: "error" | "warn";
+  /** info = jen upozornění na způsob řešení (nic není potřeba opravit) */
+  level: "error" | "warn" | "info";
   where: string;   // tag / zařízení / adresa
   msg: string;
 }
@@ -428,11 +470,17 @@ export function validateProject(prj: Project): ValidationIssue[] {
       && ((d.setpoint as number) < d.rmin || (d.setpoint as number) > d.rmax))
       out.push({ level: "warn", where: d.name, msg: tr("Žádaná hodnota leží mimo rozsah výstupu.") });
   }
-  /* FX5 (GX Works3): TON bere PT jen 0–32767 ms — delší výdrž / hlídací čas nebude fungovat správně */
+  /* FX5 (GX Works3): TON bere PT jen 0–32 767 ms → delší čas kroku generátor píše časovačem
+     TIMER_100_FB_M (předvolba INT × 100 ms, tj. nejvýš 3 276,7 s) — codegen.ts `fx5Timer100` */
   if (prj.platforms.includes("mitsubishi")) {
-    for (const [i, s] of prj.program.seq.entries())
-      if (Number.isFinite(s.timeS) && s.timeS > 32.767)
-        out.push({ level: "warn", where: tr("krok {n}", { n: i + 1 }), msg: tr("Mitsubishi FX5: časovač TON bere nejvýš 32,767 s — krok s {t} s rozděl nebo v GX Works3 použij TIMER_100_FB_M.", { t: s.timeS }) });
+    for (const [i, s] of prj.program.seq.entries()) {
+      if (!Number.isFinite(s.timeS) || Math.round(s.timeS * 1000) <= 32767) continue;
+      const where = tr("krok {n}", { n: i + 1 });
+      if (Math.ceil(Math.round(s.timeS * 1000) / 100) > 32767)
+        out.push({ level: "warn", where, msg: tr("Mitsubishi FX5: krok s {t} s je delší i než rozsah časovače TIMER_100_FB_M (3 276,7 s) — rozděl ho na víc kroků.", { t: s.timeS }) });
+      else
+        out.push({ level: "info", where, msg: tr("Mitsubishi FX5: krok s {t} s je delší než rozsah TON (32,767 s) — kód pro FX5 použije časovač TIMER_100_FB_M s rozlišením 100 ms.", { t: s.timeS }) });
+    }
   }
   const ADDR_RE: Record<Dir, RegExp> = { DI: /^%I\d+\.[0-7]$/, DO: /^%Q\d+\.[0-7]$/, AI: /^%IW\d+$/, AO: /^%QW\d+$/ };
 

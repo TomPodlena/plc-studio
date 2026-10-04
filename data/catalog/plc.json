@@ -583,6 +583,170 @@
       ]
     },
 
+    "plc_cpu@wago": {
+      "label": "PLC – CPU (WAGO)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["PFC200 (750-82xx)", "Compact Controller CC100 (751-93xx)"],
+          "typical": "PFC200 750-8212 – 2× Ethernet, RS-232/485, Linux RT, CODESYS V3.5 od FW 23, I/O řady 750/753",
+          "orderCode": "750-8212", "src": "https://www.wago.com/us/controllers-bus-couplers-i-o/controller-pfc200/p/750-8212",
+          "priceLevel": "střední", "suppliers": ["WAGO (česká pobočka, wago.com/cz)", "TME", "Conrad"],
+          "note": "" },
+        { "brand": "WAGO", "series": ["PFC100 (750-81xx)"],
+          "typical": "PFC100 750-8101 – kontrolér, Ethernet, I/O řady 750/753",
+          "orderCode": "750-8101", "src": "https://www.wago.com/global/p/750-8101",
+          "priceLevel": "nízká", "suppliers": ["WAGO (česká pobočka)"],
+          "note": "Menší řada PFC; programování e!COCKPIT / WAGO CODESYS V3.5." },
+        { "brand": "WAGO", "series": ["Compact Controller CC100"],
+          "typical": "CC100 751-9301 – 8 DI / 4 DO / 2 AI / 2 AO vestavěno, Modbus TCP, EtherCAT, CODESYS V3",
+          "orderCode": "751-9301", "src": "https://automationdistribution.com/wago-751-9301-compact-controller-100-plc-modbus-tcp-ethercat-8di-4do-2ai-2ao-codesys-v3/",
+          "priceLevel": "nízká", "suppliers": ["WAGO (česká pobočka)", "Conrad (manuál na conrad.com)"],
+          "note": "Pro nejmenší stroje, bez rozšiřování o 750 moduly." }
+      ]
+    },
+    "plc_di@wago": {
+      "label": "PLC – digitální vstupy (WAGO 750)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["WAGO I/O System 750"],
+          "typical": "750-1405 – 16 DI, 24 V DC, 3 ms, šířka 12 mm, Push-in CAGE CLAMP",
+          "orderCode": "750-1405", "src": "https://www.wago.com/global/i-o-systems/16-channel-digital-input/p/750-1405",
+          "priceLevel": "nízká", "suppliers": ["WAGO (česká pobočka)"],
+          "note": "" }
+      ]
+    },
+    "plc_do@wago": {
+      "label": "PLC – digitální výstupy (WAGO 750)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["WAGO I/O System 750"],
+          "typical": "750-1504 – 16 DO, 24 V DC, 0,5 A, šířka 12 mm",
+          "orderCode": "750-1504", "src": "https://www.wago.com/global/i-o-systems/16-channel-digital-output/p/750-1504",
+          "priceLevel": "nízká", "suppliers": ["WAGO (česká pobočka)"],
+          "note": "" }
+      ]
+    },
+    "plc_ai@wago": {
+      "label": "PLC – analogové vstupy (WAGO 750)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["WAGO I/O System 750"],
+          "typical": "750-455 – 4 AI, 4–20 mA, 12 bit, single-ended",
+          "orderCode": "750-455", "src": "https://www.wago.com/global/i-o-systems/4-channel-analog-input/p/750-455",
+          "priceLevel": "střední", "suppliers": ["WAGO (česká pobočka)"],
+          "note": "Jen proud 4–20 mA; pro 0–10 V jiný modul řady 750-45x (neověřeno)." }
+      ]
+    },
+    "plc_ao@wago": {
+      "label": "PLC – analogové výstupy (WAGO 750)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["WAGO I/O System 750"],
+          "typical": "750-559 – 4 AO, 0–10 V, 12 bit",
+          "orderCode": "750-559", "src": "https://www.wago.com/us/controllers-bus-couplers-i-o/4-channel-analog-output/p/750-559",
+          "priceLevel": "střední", "suppliers": ["WAGO (česká pobočka)"],
+          "note": "" }
+      ]
+    },
+    "plc_coupler@wago": {
+      "label": "PLC – rozhraní vzdálených I/O (WAGO 750)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["Fieldbus Coupler 750-3xx"],
+          "typical": "750-362 – Modbus TCP/UDP coupler 4. generace, 2× Ethernet se switchem",
+          "orderCode": "750-362", "src": "https://www.wago.com/global/i-o-systems/fieldbus-coupler-modbus-tcp/p/750-362",
+          "priceLevel": "střední", "suppliers": ["WAGO (česká pobočka)"],
+          "note": "Sestava 750 se zakončuje koncovým modulem (kód neověřen)." }
+      ]
+    },
+    "plc_hmi@wago": {
+      "label": "Operátorský panel HMI (WAGO)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "WAGO", "series": ["Touch Panel 600 – Web Panel (762-41xx)", "Visu / Control Panel (762-42xx, 762-6xxx)"],
+          "typical": "Touch Panel 600 Web Panel 7\" (17,8 cm), 800×480, 2× USB, 2× Ethernet",
+          "orderCode": "762-4103", "src": "https://www.wago.com/gb/touch-panels/touch-panel-600/p/762-4103",
+          "priceLevel": "střední", "suppliers": ["WAGO (česká pobočka)"],
+          "note": "Webpanel zobrazuje WebVisu z PFC200. Menší 4,3\" varianta 762-4101." }
+      ]
+    },
+    "plc_cpu@delta": {
+      "label": "PLC – CPU (Delta)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Delta Electronics", "series": ["AX-3 (CODESYS)"],
+          "typical": "AX-308EA0MA1T – motion CPU AX-3 na CODESYS, EtherCAT až 8 os, 16 DI / 8 DO (NPN), 2× inkrementální enkodér, SSI; rozšíření moduly AS",
+          "orderCode": "AX-308EA0MA1T", "src": "https://www.deltaww.com/IA/downloadcenter/catalogue/2.Motion/Codesys/DELTA_%20IA-Delta_Motion_Control_Solution_Based_on_CODESYS_C_EN_20210929.pdf",
+          "priceLevel": "střední", "suppliers": ["ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)", "Czech-Delta", "Industrytech"],
+          "note": "Kód v katalogu Delta (řešení pohybu na CODESYS); programování DIADesigner-AX, moduly AS přes Delta LocalBus. AX-5 / AX-8: objednací kód neověřen." }
+      ]
+    },
+    "plc_di@delta": {
+      "label": "PLC – digitální vstupy (Delta)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Delta Electronics", "series": ["AS (rozšiřovací moduly)"],
+          "typical": "AS16AM10N-A – 16 DI, 5–24 V DC, šroubová svorkovnice (sink/source)",
+          "orderCode": "AS16AM10N-A", "src": "https://www.digikey.com/en/products/detail/delta-electronics-industrial-automation/AS16AM10N-A/9862020",
+          "priceLevel": "nízká", "suppliers": ["ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)", "Czech-Delta", "Industrytech", "DigiKey (e-shop)"],
+          "note": "Stav Active; dodací lhůta výrobce dlouhá (32 týdnů u DigiKey)." }
+      ]
+    },
+    "plc_do@delta": {
+      "label": "PLC – digitální výstupy (Delta)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Delta Electronics", "series": ["AS (rozšiřovací moduly)"],
+          "typical": "AS16AN01T-A – 16 DO tranzistor (NPN, sink), 5–30 V DC",
+          "orderCode": "AS16AN01T-A", "src": "https://www.digikey.com/en/products/detail/delta-electronics-industrial-automation/AS16AN01T-A/9862023",
+          "priceLevel": "nízká", "suppliers": ["ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)", "Czech-Delta", "Industrytech", "DigiKey (e-shop)"],
+          "note": "V Evropě obvyklé PNP výstupy – varianta PNP (AS16AN01P-A) objednací kód neověřen." }
+      ]
+    },
+    "plc_ai@delta": {
+      "label": "PLC – analogové vstupy (Delta)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Delta Electronics", "series": ["AS (analogové moduly)"],
+          "typical": "AS04AD-A – 4 AI, ±10 V / 0–10 V / 0/4–20 mA, 16 bit",
+          "orderCode": "AS04AD-A", "src": "https://www.digikey.com/en/products/detail/delta-electronics-industrial-automation/AS04AD-A/AS04AD-A-ND/9862011",
+          "priceLevel": "střední", "suppliers": ["ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)", "Czech-Delta", "Industrytech", "DigiKey (e-shop)"],
+          "note": "" }
+      ]
+    },
+    "plc_ao@delta": {
+      "label": "PLC – analogové výstupy (Delta)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Delta Electronics", "series": ["AS (analogové moduly)"],
+          "typical": "AS04DA-A – 4 AO, ±10 V / 0–20 mA / 4–20 mA, 12 bit",
+          "orderCode": "AS04DA-A", "src": "https://www.digikey.com/en/products/detail/delta-electronics-industrial-automation/AS04DA-A/9862012",
+          "priceLevel": "střední", "suppliers": ["ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)", "Czech-Delta", "Industrytech", "DigiKey (e-shop)"],
+          "note": "" }
+      ]
+    },
+    "plc_coupler@delta": {
+      "label": "PLC – vzdálené I/O / komunikace (Delta)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Delta Electronics", "series": ["R1-EC (EtherCAT remote I/O)", "AS-FEN02 (EtherNet/IP adaptér)"],
+          "typical": "R1-EC5500D1 – EtherCAT coupler s napájením E-bus pro vzdálené moduly R1-EC (k AX-3 / řadiči EtherCAT)",
+          "orderCode": "R1-EC5500D1", "src": "https://www.luciautomation.com/en/delta-as200ax300/936-r1-ec5500d1.html",
+          "priceLevel": "střední", "suppliers": ["ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)", "Czech-Delta", "Industrytech"],
+          "note": "Kód ověřen u italského prodejce. Pro CPU AS300 přes Ethernet: modul AS-FEN02 (2× Ethernet, Modbus TCP, EtherNet/IP adaptér, vzdálené ovládání AS) – objednací kód neověřen. AS00SCM-A (sériová komunikace) je u DigiKey „Not For New Designs“." }
+      ]
+    },
+    "plc_hmi@delta": {
+      "label": "PLC – HMI panel (Delta)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Delta Electronics", "series": ["DOP-100", "DOP-100 Ethernet (DOP-107EV, DOP-110…)"],
+          "typical": "DOP-107EV – 7\" TFT 800×480, Ethernet, 2× COM (RS-232/485), USB, čelo IP65",
+          "orderCode": "DOP-107EV", "src": "https://ddpartssolution.com/products/delta-dop-107ev-7-hmi-touch-panel-800x480-ethernet",
+          "priceLevel": "nízká", "suppliers": ["ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)", "Czech-Delta", "Industrytech"],
+          "note": "Kód ověřen u zahraničního prodejce. Projekt v DIAStudio / DOPSoft." }
+      ]
+    },
     "power_supply_24v": {
       "label": "Napájecí zdroj 24 V DC",
       "unit": "ks",
@@ -812,7 +976,7 @@
       "cats": ["plc_cpu@beckhoff", "plc_di@beckhoff", "plc_do@beckhoff", "plc_ai@beckhoff", "plc_ao@beckhoff", "plc_coupler@beckhoff", "plc_hmi@beckhoff"],
       "note": "Brno, Sochorova 23; obchodní kancelář Praha; tel. +420 511 189 250, info.cz@beckhoff.com." },
     { "name": "WAGO (česká pobočka)", "url": "https://www.wago.com/cz/", "country": "CZ", "kind": "výrobce",
-      "cats": ["plc_cpu@codesys", "plc_di@codesys", "plc_do@codesys", "plc_ai@codesys", "plc_ao@codesys", "plc_coupler@codesys", "plc_hmi@codesys", "terminal_block", "interface_relay", "power_supply_24v"],
+      "cats": ["plc_cpu@codesys", "plc_di@codesys", "plc_do@codesys", "plc_ai@codesys", "plc_ao@codesys", "plc_coupler@codesys", "plc_hmi@codesys", "plc_cpu@wago", "plc_di@wago", "plc_do@wago", "plc_ai@wago", "plc_ao@wago", "plc_coupler@wago", "plc_hmi@wago", "terminal_block", "interface_relay", "power_supply_24v"],
       "note": "Český web wago.com/cz s odkazem na české zastoupení; přesný název firmy neověřen." },
     { "name": "ControlTech s.r.o.", "url": "https://www.controltech.cz", "country": "CZ", "kind": "distributor",
       "cats": ["plc_cpu@rockwell", "plc_di@rockwell", "plc_do@rockwell", "plc_ai@rockwell", "plc_ao@rockwell", "plc_coupler@rockwell", "plc_hmi@rockwell"],
@@ -867,7 +1031,10 @@
       "cats": ["plc_cpu@siemens", "plc_di@siemens", "plc_do@siemens", "plc_ai@siemens", "plc_ao@siemens", "plc_coupler@siemens", "plc_hmi@siemens"],
       "note": "Německý e-shop s automatizací (Siemens aj.); dodání do ČR neověřeno." },
     { "name": "Conrad", "url": "https://www.conrad.cz", "country": "CZ", "kind": "e-shop",
-      "cats": ["plc_cpu@codesys"], "note": "Nabízí WAGO CC100 (manuál na asset.conrad.com)." }
+      "cats": ["plc_cpu@codesys"], "note": "Nabízí WAGO CC100 (manuál na asset.conrad.com)." },
+    { "name": "ProfCom, s.r.o.", "url": "https://www.profcom.cz", "country": "CZ", "kind": "distributor",
+      "cats": ["plc_ai@delta", "plc_ao@delta", "plc_coupler@delta", "plc_cpu@delta", "plc_di@delta", "plc_do@delta", "plc_hmi@delta"],
+      "note": "Autorizovaný distributor Delta Electronics pro ČR a SR (PLC AX / AS, HMI, pohony)." }
   ],
   "notes": [
     "Limit webového vyhledávání (200 dotazů na relaci) se vyčerpal uprostřed části B. Doplněno 2026-10-02: jističe Eaton/ABB/Siemens, hlavní vypínače Eaton/ABB/Siemens/OEZ, svorky Phoenix/Weidmüller, relé Finder/Phoenix/Weidmüller, kabely M12 (ifm, Lapp, Murrelektronik, Phoenix) a IP67 I/O (Murrelektronik, Balluff, Turck) mají kódy. Bez kódu zůstávají Eaton/ABB skříně, Hensel Mi, Helukabel JZ-500, Kabex/Prakab a Elektro Bečov.",

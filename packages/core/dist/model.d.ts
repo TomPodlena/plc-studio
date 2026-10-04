@@ -9,7 +9,9 @@ import type { SafetyCfg } from "./safety.js";
 import type { RevisionRecord } from "./revision.js";
 import type { QuoteCfg } from "./quote.js";
 import type { CompanyLibrary } from "./library.js";
-export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics";
+export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics" | "wago" | "delta";
+/** Styl generovaného kódu: klasické FB (výchozí) nebo OOP (rozhraní, dědičnost) — viz codegen_oop.ts. */
+export type CodeStyle = "classic" | "oop";
 export type DeviceClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "DI" | "DO";
 export type Dir = "DI" | "DO" | "AI" | "AO";
 /** Akce kroku: povel motoru / ventilu, výdrž, nebo čekání na digitální vstup (DI = TRUE / FALSE). */
@@ -23,6 +25,10 @@ export interface PlatformInfo {
     cpu: string;
     lang: string;
     imp: string;
+    /** Profil jiné platformy (WAGO, Delta AX = CODESYS V3.5): stejný dialekt, adresy i emulátor. */
+    base?: PlatformKey;
+    /** Platforma umí styl kódu OOP (INTERFACE / METHOD / PROPERTY / EXTENDS). */
+    oop?: boolean;
 }
 export interface Device {
     id: number;
@@ -111,6 +117,12 @@ export interface Project {
     guid?: string;
     /** GUID I/O karet podle klíče karty „<směr><pořadí>“ (DI1, DO2…; viz `modules()` a guid.ts). */
     moduleGuids?: Record<string, string>;
+    /**
+     * Styl kódu (výchozí classic). OOP platí jen pro platformy s `PLAT[…].oop` (CODESYS, TwinCAT,
+     * Schneider, WAGO, Delta AX); ostatní platformy ho ignorují. Chování programu je v obou
+     * stylech stejné (stejný IR, stejné šablony bloků) — liší se jen zápis.
+     */
+    codeStyle?: CodeStyle;
 }
 export interface BomLineCfg {
     brand?: string;
@@ -133,6 +145,14 @@ export interface IoModule {
     guid?: string;
 }
 export declare const PLAT: Record<PlatformKey, PlatformInfo>;
+/** Základ platformy: profil (WAGO, Delta AX) → „codesys“, jinak platforma sama. */
+export declare function platBase(plat: PlatformKey): PlatformKey;
+/** Rodina CODESYS (GVL_IO, PLCopen XML, adresy %IX / %IW): CODESYS a jeho profily, TwinCAT, Schneider. */
+export declare function isCodesysFamily(plat: PlatformKey): boolean;
+/** Platforma umí styl kódu OOP. */
+export declare function supportsOop(plat: PlatformKey): boolean;
+/** Styl kódu, který pro platformu skutečně platí (OOP jen kde ho platforma umí). */
+export declare function codeStyleFor(prj: Project, plat: PlatformKey): CodeStyle;
 /** Tabulka platforem s texty v nastaveném jazyce (`PLAT` drží české klíče překladu). */
 export declare function platInfo(): Record<PlatformKey, PlatformInfo>;
 export declare const IECPLATS: PlatformKey[];
@@ -202,7 +222,8 @@ export declare function wireNo(xnum: number, ch: number): string;
 /** Rozdělení I/O do modulů (DI16 / DO16 / AI8 / AO4) pro schémata a FDS. */
 export declare function modules(prj: Project): IoModule[];
 export interface ValidationIssue {
-    level: "error" | "warn";
+    /** info = jen upozornění na způsob řešení (nic není potřeba opravit) */
+    level: "error" | "warn" | "info";
     where: string;
     msg: string;
 }

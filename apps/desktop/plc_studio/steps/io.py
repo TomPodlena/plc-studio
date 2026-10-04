@@ -30,6 +30,7 @@ def render(app, parent) -> None:
     issues_frm, issues_txt = scrolled_text(check, height=5, readonly=True, bg=theme.WARN_BG)
     issues_txt.tag_configure("error", foreground=theme.ERR)
     issues_txt.tag_configure("warn", foreground=theme.WARN)
+    issues_txt.tag_configure("info", foreground=theme.DIM)     # způsob řešení, nic k opravě
 
     # nápověda pod nástroji na vlastním řádku — vedle odkazů se v užším okně nevejde
     wrap_label(body, _("Úprava dvojklikem do buňky, NC kliknutím. Adresy v Siemens notaci. "

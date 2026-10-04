@@ -8,7 +8,8 @@ import { buildBom } from "./bom.js";
 import { sheetOps, opsToDXF } from "./drawing.js";
 import { sampleSmall, sampleComplex } from "./samples.js";
 import { registerSafetyModule } from "./safety.js";
-import { eplanFiles, eplanCards, eplanTerminals, eplanAml, eplanDevicesCsv, eplanTerminalsCsv, eplanWiresCsv, eplanAmlName } from "./eplan.js";
+import { eplanFiles, eplanCards, eplanTerminals, eplanAml, eplanDevicesCsv, eplanTerminalsCsv, eplanWiresCsv, eplanAmlName, eplanImportScript, eplanConverterId, EPLAN_SCRIPT_NAME } from "./eplan.js";
+import { readFileSync } from "node:fs";
 import "./safety_docs.js";
 import { sampleNames, loadSampleFile, xmlProblem } from "./exp_util.test.js";
 
@@ -33,7 +34,7 @@ test("EPLAN: všech 12 příkladů — AutomationML well-formed, tagy a kanály 
   for (const n of sampleNames()) {
     const p = loadSampleFile(n);
     const files = eplanFiles(p);
-    assert.deepEqual(files.map(f => f.name), [eplanAmlName(p), "eplan_zarizeni.csv", "eplan_svorky.csv", "eplan_vodice.csv", "README_EPLAN.txt"], n);
+    assert.deepEqual(files.map(f => f.name), [eplanAmlName(p), "eplan_zarizeni.csv", "eplan_svorky.csv", "eplan_vodice.csv", "README_EPLAN.txt", EPLAN_SCRIPT_NAME], n);
     const aml = files[0].body;
     assert.equal(xmlProblem(aml), "", n + ": XML");
     assert.match(aml, /<CAEXFile FileName="[^"]+" SchemaVersion="2\.15"/);
@@ -45,7 +46,8 @@ test("EPLAN: všech 12 příkladů — AutomationML well-formed, tagy a kanály 
       .filter(m => !m[1].startsWith("PN_IE_")).map(m => [m[0], m[2], m[3], m[4], m[5]]);
     assert.equal([...aml.matchAll(/<InternalLink Name="Link_PN_IE_1_E1"/g)].length, 1, n + ": uzel PROFINET ↔ podsíť");
     assert.equal(tags.length, p.io.length, n + ": tag na každý signál");
-    assert.equal(chans.length, p.io.length, n + ": kanál na každý signál");
+    const cap = { DI: 16, DO: 16, AI: 8, AO: 4 } as const;
+    assert.equal(chans.length, modules(p).reduce((s, m) => s + cap[m.dir], 0), n + ": všechny kanály karet");
     assert.equal(links.length, p.io.length, n + ": vazba kanál ↔ tag");
     assert.deepEqual(new Set(tags.map(t => t[1])), new Set(p.io.map(e => e.tag)));
     const elIds = new Set([...aml.matchAll(/<InternalElement Name="[^"]*" ID="([^"]+)"/g)].map(m => m[1]));
@@ -115,12 +117,31 @@ test("vodiče -W: unikátní v celém projektu a shodné ve výkresech (SVG i DX
   }
 });
 
+test("EPLAN: skript PLCdesk_ImportAML.cs = apps/eplan, ASCII, akce plcservice podle eplan.help, konvertor podle platformy", () => {
+  const repo = readFileSync(new URL("../../../apps/eplan/" + EPLAN_SCRIPT_NAME, import.meta.url), "utf8");
+  const s = eplanImportScript();
+  assert.equal(s, repo.replace(/\r?\n/g, "\r\n"), "skript v sadě souborů = apps/eplan/" + EPLAN_SCRIPT_NAME);
+  assert.ok(/^[\x09\x0A\x0D\x20-\x7E]*$/.test(s), "ASCII");
+  for (const k of ['"selectionset"', '"plcservice"', '"BUSDATAIMPORT"', '"GENERATEPLCSCHEMATIC"', '"SOURCEFILE"', '"PROJECTNAME"', '"LANGUAGE"', '"CONVERTERID"', '"IMPORTMATCH"', '"CONFIGFILE"',
+    '"PlcDcExchangerSiemensTIA19AML"', '"PlcDcAMLExchangerGeneral"', "[Start]"]) assert.ok(s.includes(k), k);
+  /* páry složených závorek a uvozovek (hrubá kontrola syntaxe C#) */
+  assert.equal(s.split("{").length, s.split("}").length);
+  assert.equal(s.split("(").length, s.split(")").length);
+  /* jazyk pro LANGUAGE nese AML; konvertor odpovídá obsahu (Siemens → TIA19) */
+  const sie = loadSampleFile(sampleNames()[0]);
+  assert.match(eplanAml(sie), /<!-- PLCdesk language=[a-z]{2}_[A-Z]{2} -->/);
+  assert.equal(eplanConverterId(sie), "PlcDcExchangerSiemensTIA19AML");
+  assert.ok(/System:Device\.S71|OrderNumber:6ES7/.test(eplanAml(sie)), "skript pozná Siemens podle obsahu");
+  const bk = loadSampleFile(sampleNames()[0]); bk.platforms = ["beckhoff"]; if (bk.bom) bk.bom.plat = "beckhoff";
+  assert.equal(eplanConverterId(bk), "PlcDcAMLExchangerGeneral");
+});
+
 test("EPLAN: přihlášení s modulem a bez češtiny v cizích jazycích", () => {
   const off = registerSafetyModule();
   try {
     const p = sampleComplex();
     const all = allProjectFiles(p);
-    for (const s of ["eplan_" + eplanAmlName(p), "eplan_zarizeni.csv", "eplan_svorky.csv", "eplan_vodice.csv", "eplan_README_EPLAN.txt"]) assert.ok(all.some(f => f.save === s && f.group === "EPLAN"), s);
+    for (const s of ["eplan_" + eplanAmlName(p), "eplan_zarizeni.csv", "eplan_svorky.csv", "eplan_vodice.csv", "eplan_README_EPLAN.txt", "eplan_" + EPLAN_SCRIPT_NAME]) assert.ok(all.some(f => f.save === s && f.group === "EPLAN"), s);
   } finally { off(); }
   const CZ = /[ěščřžůďťňĚŠČŘŽŮĎŤŇ]/;
   for (const l of ["en", "de", "es", "zh"] as Lang[]) withLang(l, () => {

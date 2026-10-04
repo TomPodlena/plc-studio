@@ -12,8 +12,9 @@
  *  - kroky sekvence = `stepTitle` / `stepCondText` / `stepWatchdog` (sim.ts).
  *
  * Každý tag HMI ukazuje na proměnnou, kterou generovaný program deklaruje (hlídá test
- * pro všechny příklady × platformy × jazyky). Program se kvůli HMI nemění: meze a žádané
- * hodnoty jsou v programu konstanty → v HMI jen ke čtení.
+ * pro všechny příklady × platformy × jazyky). Meze a žádané hodnoty jsou v programu konstanty
+ * → v HMI jen ke čtení. U Mitsubishi a Omron (HMI čte jen globální) generátor řízení stroje
+ * deklaruje globálně a stav bloků zrcadlí do globálních proměnných (`hmiGlobalVars`, codegen.ts).
  */
 import { Project, Device, PlatformKey } from "./model.js";
 export type HmiType = "BOOL" | "INT" | "WORD" | "REAL";
@@ -166,9 +167,11 @@ export declare function buildHmi(prj: Project): HmiModel;
 /**
  * Symbolická cesta tagu HMI v programu cílové platformy:
  * Siemens `"InstMachine".instM1.status` / `"M1_outRun"`, CODESYS rodina `MAIN.x` / `GVL_IO.x`,
- * Rockwell `Program:PLCdesk.x` / `x`, Unitronics plochý tag `instM1_status`.
+ * Rockwell `Program:PLCdesk.x` / `x`, Unitronics plochý tag `instM1_status`, Mitsubishi a Omron
+ * globální proměnná `modeAuto` / `instM1_status` (GOT a NA čtou jen globální — generátor je tam
+ * deklaruje v GlobalLabels.csv / Variables.txt a stav bloků do nich zrcadlí, `hmiGlobalVars`).
  */
-export declare function hmiPlcPath(plat: PlatformKey, t: HmiTag): string;
+export declare function hmiPlcPath(plat: PlatformKey, t: HmiTag, prj?: Project): string;
 /** ASCII pro formáty, které Unicode nesnesou (CSV pro starší HMI, identifikátory). */
 export declare function hmiAscii(s: string): string;
 /** Tag HMI podle názvu. */

@@ -28,7 +28,16 @@ export type GoldenSet = Record<string, Record<string, GoldenEntry>>;
 /** Pevný okamžik pro výstupy s datem (dokumentace, PLCopen XML): 2026-01-15 12:00 UTC. */
 export const GOLDEN_TIME = Date.UTC(2026, 0, 15, 12, 0, 0);
 
+/** Platformy, pro které se generuje kód (všechny, vč. profilů CODESYS — WAGO, Delta AX). */
 export const GOLDEN_PLATFORMS = Object.keys(PLAT) as PlatformKey[];
+/**
+ * Platformy projektu v referenci (`prj.platforms`) — pevně původních 8, aby nové platformy
+ * nezměnily dokumentaci (výčty platforem, ověření) starých otisků; kód nových platforem
+ * přibyl jako nové soubory.
+ */
+export const GOLDEN_PROJECT_PLATFORMS: PlatformKey[] = ["siemens", "rockwell", "beckhoff", "codesys", "mitsubishi", "schneider", "omron", "unitronics"];
+/** Platformy se stylem kódu OOP — v referenci navíc `code-oop/<platforma>/<soubor>`. */
+export const GOLDEN_OOP_PLATFORMS = GOLDEN_PLATFORMS.filter(p => PLAT[p].oop);
 export const GOLDEN_LANGS = Object.keys(LANGS) as Lang[];
 
 /** Vestavěné ukázky — vznikají v právě nastaveném jazyce, proto se tvoří pro každý jazyk znovu. */
@@ -38,7 +47,7 @@ export const GOLDEN_BUILTIN: Record<string, () => Project> = { sampleSmall, samp
 export function goldenProject(raw: unknown): Project {
   const r = raw as { prj?: unknown };
   const prj = Object.assign(blankProject(), (r && r.prj) || raw) as Project;
-  prj.platforms = [...GOLDEN_PLATFORMS];
+  prj.platforms = [...GOLDEN_PROJECT_PLATFORMS];
   syncIO(prj);
   return prj;
 }
@@ -73,6 +82,11 @@ export function goldenFiles(make: () => Project, lang: Lang, docs = true): Recor
   const out: Record<string, string> = {};
   for (const p of GOLDEN_PLATFORMS) {
     for (const [n, b] of Object.entries(genFor(prj, p))) out["code/" + p + "/" + n] = b;
+  }
+  /* styl kódu OOP (rodina CODESYS): stejný projekt, jiný zápis */
+  const oop: Project = { ...prj, codeStyle: "oop" };
+  for (const p of GOLDEN_OOP_PLATFORMS) {
+    for (const [n, b] of Object.entries(genFor(oop, p))) out["code-oop/" + p + "/" + n] = b;
   }
   /* dokumentace obsahuje ověření simulací — u velkých příkladů desítky sekund na jazyk */
   if (docs) for (const f of docFiles(prj)) out["docs/" + f.path] = f.body;

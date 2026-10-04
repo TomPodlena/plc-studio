@@ -81,6 +81,8 @@ function addSig(sink, s) {
 const PLAT_BY_NAME = [
     [/- Beckhoff \*\)/, "beckhoff"], [/- CODESYS \*\)/, "codesys"], [/- Schneider Electric \*\)/, "schneider"],
     [/- Mitsubishi \*\)/, "mitsubishi"], [/- OMRON \*\)/, "omron"],
+    /* profily CODESYS (hlavička MAIN / Gen_Library: „… - WAGO *)“, „… - Delta Electronics *)“) */
+    [/- WAGO \*\)/, "wago"], [/- Delta Electronics \*\)/, "delta"],
 ];
 function platFromText(t) {
     for (const [re, p] of PLAT_BY_NAME)
@@ -1136,6 +1138,16 @@ const COL_SYN = [
     ["dir", /^(direction|sm[eě]r|richtung|direcci[oó]n i\/o|方向|io ?type|i\/o ?type|signal ?type|druh)$/i],
     ["group", /^(group|skupina|gruppe|grupo|分组)$/i],
 ];
+/**
+ * Globální proměnné, které generátor PLCdesk u Mitsubishi / Omron deklaruje pro HMI (řízení stroje
+ * a zrcadlo stavu bloků — codegen.ts `hmiGlobalVars`): nejsou to signály I/O, jen deklarace.
+ */
+const OUR_HMI_GLOBAL = /^(enable|modeAuto|cmdAutoStart|cmdAck|machineFault|faultStep|seqStep|man(?:Run|Open)_[A-Za-z]\w*|inst[A-Za-z]\w*_(?:outRun|outOpen|busy|error|status|value|alarmHi|alarmLo|limitHi|limitLo))$/;
+/** Deklarace bez signálů I/O jako blok VAR (typy pro rozbor kódu), jako u tagů Rockwell. */
+function pushDecls(sink, f, decl) {
+    if (decl.length)
+        sink.pous.push({ name: f.name + ":tags", kind: "routine", lang: "other", body: "VAR\n" + decl.join("\n") + "\nEND_VAR\n", src: { file: f.name, line: 1 } });
+}
 function colRoles(cells) {
     const r = {};
     cells.forEach((c, i) => {
@@ -1207,7 +1219,12 @@ function exTable(f, t, sink) {
     if (hi < 0 && delim === "\t" && rows.length && rows.every(r => r.c.length >= 2 && /^[A-Za-z_][\w.]*$/.test(r.c[0]) && /^(BOOL|INT|DINT|UINT|WORD|REAL|LREAL|DWORD|SINT|BYTE|TIME|STRING.*|ARRAY.*)$/i.test(r.c[1]))) {
         fmt = tr("OMRON Sysmac Studio — proměnné (tabulka)");
         plat = "omron";
+        const decl = [];
         for (const r of rows) {
+            if (OUR_HMI_GLOBAL.test(r.c[0])) {
+                decl.push("    " + r.c[0] + " : " + r.c[1] + ";");
+                continue;
+            }
             const dt = normDt(r.c[1]);
             if (!ATOMIC.test(dt) && dt !== "WORD")
                 continue;
@@ -1215,11 +1232,13 @@ function exTable(f, t, sink) {
             const addr = canonAddr(at);
             addSig(sink, { tag: r.c[0], dt, addr, cmt: r.c[7] || r.c[r.c.length - 1] === r.c[0] ? (r.c[7] || "") : (r.c[7] || ""), dir: dirOf(addr, dt, r.c[0]), src: { file: f.name, line: r.line, quote: quoteOf(r.raw) } });
         }
+        pushDecls(sink, f, decl);
         sink.plats.push(plat);
         return { fmt };
     }
     let n = 0;
     const cell = (r, role) => role in roles ? (r.c[roles[role]] || "").trim() : "";
+    const hmiDecl = [];
     if (hi >= 0) {
         /* sloupec „Device"/„Assign" u Mitsubishi = adresa; jinak u neznámých sloupců rozhodnou hodnoty */
         for (const r of rows.slice(hi + 1)) {
@@ -1239,6 +1258,12 @@ function exTable(f, t, sink) {
             /* GX Works: lokální návěští POU (VAR, VAR_INPUT…) nejsou I/O stroje */
             if (plat === "mitsubishi" && /^VAR(_INPUT|_OUTPUT|_IN_OUT|_TEMP)?$/i.test(cell(r, "cls")))
                 continue;
+            /* proměnné pro HMI z generátoru PLCdesk (bez operandu) — jen deklarace */
+            if (plat === "mitsubishi" && !rawAddr && OUR_HMI_GLOBAL.test(tag)) {
+                const t = cell(r, "dt");
+                hmiDecl.push("    " + tag + " : " + (/^bit$/i.test(t) ? "BOOL" : /^word \[signed\]$/i.test(t) ? "INT" : /^float/i.test(t) ? "REAL" : /^word/i.test(t) ? "WORD" : normDt(t) || "BOOL") + ";");
+                continue;
+            }
             if (isMemAddr(rawAddr))
                 continue;
             const dt = /^(DI|DO|AI|AO)$/i.test(cell(r, "dt")) ? (/^A/i.test(cell(r, "dt")) ? "INT" : "BOOL") : normDt(cell(r, "dt"));
@@ -1291,6 +1316,7 @@ function exTable(f, t, sink) {
     }
     if (!n && !(hi >= 0 && plat))
         return null;
+    pushDecls(sink, f, hmiDecl);
     if (plat)
         sink.plats.push(plat);
     return n ? { fmt } : { fmt, note: tr("Bez vstupů a výstupů (lokální nebo vnitřní proměnné).") };
@@ -1576,15 +1602,29 @@ function stripComments(src) {
 }
 function mkUnit(p, sigTags, instNames) {
     const { code: c0, cmts } = stripComments(p.body);
+    const timerM = new Set(); // časovače TIMER_x_FB_M převedené na tvar TON
     let code = c0
         /* Rockwell: TONR nad FBD_TIMER → IEC tvar volání časovače */
         .replace(/(\w+)\.PRE\s*:=\s*(\d+)\s*;\s*\1\.TimerEnable\s*:=\s*([^;]+?)\s*;\s*TONR\s*\(\s*\1\s*\)\s*;/g, (all, t, ms, cond) => t + "(IN := " + cond + ", PT := T#" + ms + "MS);" + "\n".repeat((all.match(/\n/g) || []).length))
         .replace(/(\w+)\.TimerEnable\s*:=\s*([^;]+?)\s*;\s*\1\.PRE\s*:=\s*(\d+)\s*;\s*TONR\s*\(\s*\1\s*\)\s*;/g, (all, t, cond, ms) => t + "(IN := " + cond + ", PT := T#" + ms + "MS);" + "\n".repeat((all.match(/\n/g) || []).length))
         .replace(/\.DN\b/g, ".Q")
+        /* Mitsubishi TIMER_1/10/100_FB_M (FX5 kroky nad 32 767 ms) → IEC tvar; jednotka předvolby podle deklarace */
+        .replace(/\b(\w+)\s*\(\s*Coil\s*:=\s*([^,]*?)\s*,\s*Preset\s*:=\s*(\d+)\s*,\s*ValueIn\s*:=\s*0\s*\)\s*;/g, (all, t, cond, pre) => {
+        const d = c0.match(new RegExp("\\b" + t + "\\s*:\\s*TIMER_(1|10|100)_FB_M\\b"));
+        if (!d)
+            return all;
+        timerM.add(up(t));
+        return t + "(IN := " + cond + ", PT := T#" + (+pre * +d[1]) + "MS);" + "\n".repeat((all.match(/\n/g) || []).length);
+    })
         /* Logix / CODESYS nerozlišují velikost klíčových slov (if … end_if) */
         .replace(/\b(if|then|else|elsif|end_if|case|of|end_case|and|or|not|xor|true|false|return)\b/gi, (k) => k.toUpperCase())
         .replace(/#(?=[A-Za-z_])/g, "")
         .replace(/"([A-Za-z_]\w*)"/g, "$1");
+    if (timerM.size)
+        code = code.replace(/\b(\w+)\.Status\b/g, (all, n) => timerM.has(up(n)) ? n + ".Q" : all);
+    /* Mitsubishi / Omron: zrcadlo stavu bloku pro HMI (`instM1_status := instM1.status;`) není zapojení
+       výstupu — vymazat (mezery, aby seděly pozice a čísla řádků) */
+    code = code.replace(/^[ \t]*(inst[A-Za-z]\w*)_(outRun|outOpen|busy|error|status|value|alarmHi|alarmLo)[ \t]*:=[ \t]*\1\.\2[ \t]*;/gm, m => " ".repeat(m.length));
     /* kvalifikace GVL (GVL_IO.M1_run) pryč — jen u známých signálů, ne u členů instancí */
     code = code.replace(/\b([A-Za-z_]\w*)\.([A-Za-z_]\w*)\b/g, (all, q, n) => sigTags.has(up(n)) && !instNames.has(up(q)) ? n : all);
     return { pou: p, code, lines: code.split("\n"), cmts, raw: p.body };
@@ -1603,8 +1643,9 @@ function declsOf(text, out) {
         }
     }
 }
-const TIMER_T = /^(TON|TOF|TP|TONR|TON_TIME|TOF_TIME|TP_TIME|FBD_TIMER|TIMER|R_TRIG|F_TRIG|CTU|CTD|CTUD|RS|SR|LTON|IEC_TIMER|COUNTER)$/i;
-const OUR_FB = { FB_MOTOR: "Motor", FB_VENTIL: "Ventil", FB_ANALOGIN: "AnalogIn", FB_ANALOGOUT: "AnalogOut" };
+const TIMER_T = /^(TON|TOF|TP|TONR|TON_TIME|TOF_TIME|TP_TIME|FBD_TIMER|TIMER|R_TRIG|F_TRIG|CTU|CTD|CTUD|RS|SR|LTON|IEC_TIMER|COUNTER|TIMER_(?:1|10|100)_FB_M)$/i;
+/* FB_VALVE = ventil ve stylu OOP (codegen_oop.ts) */
+const OUR_FB = { FB_MOTOR: "Motor", FB_VENTIL: "Ventil", FB_VALVE: "Ventil", FB_ANALOGIN: "AnalogIn", FB_ANALOGOUT: "AnalogOut" };
 const P_IN = {
     Motor: ["enable", "cmdStart", "cmdStop", "reset", "fbkRunning", "fault"],
     Ventil: ["enable", "cmdOpen", "cmdClose", "reset", "fbkOpen", "fbkClosed"],
@@ -1737,6 +1778,12 @@ function findInstances(units, types, sigTags) {
             x.endLi = Math.max(x.endLi, li);
         }
     }
+    /* styl OOP: vstup poruchy motoru se jmenuje faultIn (Fault je vlastnost rozhraní I_Device) */
+    for (const x of out.values())
+        if (x.ins.faultIn && !x.ins.fault) {
+            x.ins.fault = x.ins.faultIn;
+            delete x.ins.faultIn;
+        }
     return [...out.values()].filter(x => Object.keys(x.ins).length + Object.keys(x.outs).length > 0);
 }
 /** Třída instance: náš typ přesně, jinak podle parametrů a jména typu. */

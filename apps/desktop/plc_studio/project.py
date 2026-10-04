@@ -56,6 +56,11 @@ def normalize(prj, blank: dict, classes, platforms) -> dict:
     plats = prj.get("platforms", blank["platforms"])
     out["platforms"] = list(dict.fromkeys(p for p in plats if p in platforms)) \
         if isinstance(plats, list) else list(blank["platforms"])
+    # styl kódu: jen "oop" se ukládá (výchozí klasický = bez pole)
+    if prj.get("codeStyle") == "oop":
+        out["codeStyle"] = "oop"
+    else:
+        out.pop("codeStyle", None)
 
     devices, ids = [], set()
     for i, d in enumerate(prj["devices"]):

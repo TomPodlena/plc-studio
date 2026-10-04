@@ -18,6 +18,13 @@ export declare const SRC: {
     readonly tcAlloc: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/12081664011.html";
     readonly tcComment: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/2528329355.html";
     readonly tcOop: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/2526090891.html";
+    readonly cdsItf: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_obj_interface.html";
+    readonly cdsItfProp: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_obj_interface_property.html";
+    readonly cdsProp: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_obj_property.html";
+    readonly cdsMethod: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_obj_method.html";
+    readonly cdsThis: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_pointer_this.html";
+    readonly tcAbstract: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/6413748235.html";
+    readonly tcItfRef: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/5680748299.html";
     readonly sieGuide: "https://support.industry.siemens.com/cs/ww/en/view/81318674";
     readonly sieTon: "https://abedgnu.github.io/Automation-Notes/chapters/PLC/Siemens/exercises-solutions.html";
     readonly sieScl: "https://www.solisplc.com/tutorials/case-statement-scl-efficient-plc-programming";
@@ -95,6 +102,8 @@ export interface Dialect {
     truncReal: boolean;
     /** BOOL / čísla se převádějí implicitně (Logix: BOOL := 1). */
     looseBool: boolean;
+    /** Rozšíření OOP (INTERFACE, METHOD, PROPERTY, EXTENDS / IMPLEMENTS) — CODESYS V3.5, TwinCAT 3. */
+    oop?: boolean;
     /** Zdroj obecných pravidel (syntaxe, deklarace) pro tuto platformu. */
     src: {
         syntax: string;

@@ -21,7 +21,16 @@ import { docFiles } from "./docs.js";
 import { sampleSmall, sampleComplex } from "./samples.js";
 /** Pevný okamžik pro výstupy s datem (dokumentace, PLCopen XML): 2026-01-15 12:00 UTC. */
 export const GOLDEN_TIME = Date.UTC(2026, 0, 15, 12, 0, 0);
+/** Platformy, pro které se generuje kód (všechny, vč. profilů CODESYS — WAGO, Delta AX). */
 export const GOLDEN_PLATFORMS = Object.keys(PLAT);
+/**
+ * Platformy projektu v referenci (`prj.platforms`) — pevně původních 8, aby nové platformy
+ * nezměnily dokumentaci (výčty platforem, ověření) starých otisků; kód nových platforem
+ * přibyl jako nové soubory.
+ */
+export const GOLDEN_PROJECT_PLATFORMS = ["siemens", "rockwell", "beckhoff", "codesys", "mitsubishi", "schneider", "omron", "unitronics"];
+/** Platformy se stylem kódu OOP — v referenci navíc `code-oop/<platforma>/<soubor>`. */
+export const GOLDEN_OOP_PLATFORMS = GOLDEN_PLATFORMS.filter(p => PLAT[p].oop);
 export const GOLDEN_LANGS = Object.keys(LANGS);
 /** Vestavěné ukázky — vznikají v právě nastaveném jazyce, proto se tvoří pro každý jazyk znovu. */
 export const GOLDEN_BUILTIN = { sampleSmall, sampleComplex };
@@ -29,7 +38,7 @@ export const GOLDEN_BUILTIN = { sampleSmall, sampleComplex };
 export function goldenProject(raw) {
     const r = raw;
     const prj = Object.assign(blankProject(), (r && r.prj) || raw);
-    prj.platforms = [...GOLDEN_PLATFORMS];
+    prj.platforms = [...GOLDEN_PROJECT_PLATFORMS];
     syncIO(prj);
     return prj;
 }
@@ -75,6 +84,12 @@ export function goldenFiles(make, lang, docs = true) {
     for (const p of GOLDEN_PLATFORMS) {
         for (const [n, b] of Object.entries(genFor(prj, p)))
             out["code/" + p + "/" + n] = b;
+    }
+    /* styl kódu OOP (rodina CODESYS): stejný projekt, jiný zápis */
+    const oop = { ...prj, codeStyle: "oop" };
+    for (const p of GOLDEN_OOP_PLATFORMS) {
+        for (const [n, b] of Object.entries(genFor(oop, p)))
+            out["code-oop/" + p + "/" + n] = b;
     }
     /* dokumentace obsahuje ověření simulací — u velkých příkladů desítky sekund na jazyk */
     if (docs)

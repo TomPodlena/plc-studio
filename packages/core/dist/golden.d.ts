@@ -23,7 +23,16 @@ export interface GoldenEntry {
 export type GoldenSet = Record<string, Record<string, GoldenEntry>>;
 /** Pevný okamžik pro výstupy s datem (dokumentace, PLCopen XML): 2026-01-15 12:00 UTC. */
 export declare const GOLDEN_TIME: number;
+/** Platformy, pro které se generuje kód (všechny, vč. profilů CODESYS — WAGO, Delta AX). */
 export declare const GOLDEN_PLATFORMS: PlatformKey[];
+/**
+ * Platformy projektu v referenci (`prj.platforms`) — pevně původních 8, aby nové platformy
+ * nezměnily dokumentaci (výčty platforem, ověření) starých otisků; kód nových platforem
+ * přibyl jako nové soubory.
+ */
+export declare const GOLDEN_PROJECT_PLATFORMS: PlatformKey[];
+/** Platformy se stylem kódu OOP — v referenci navíc `code-oop/<platforma>/<soubor>`. */
+export declare const GOLDEN_OOP_PLATFORMS: PlatformKey[];
 export declare const GOLDEN_LANGS: Lang[];
 /** Vestavěné ukázky — vznikají v právě nastaveném jazyce, proto se tvoří pro každý jazyk znovu. */
 export declare const GOLDEN_BUILTIN: Record<string, () => Project>;

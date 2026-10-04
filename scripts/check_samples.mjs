@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
  * Kontrola příkladových projektů v samples/*.plcstudio.json (nebo zadaných souborů):
- * načtení, syncIO, validace, generování kódu pro všech 8 platforem, strukturní kontroly
+ * načtení, syncIO, validace, generování kódu pro všechny platformy (+ styl OOP), strukturní kontroly
  * kódu, dokumentace a úplné ověření simulací (běžný cyklus + matice stavů + koncept).
  *
  *   node scripts/check_samples.mjs                 všechny příklady, souhrn
@@ -75,6 +75,9 @@ for (const file of files) {
     r.name = prj.meta.name; r.devices = prj.devices.length; r.io = prj.io.length; r.steps = prj.program.seq.length;
     for (const v of core.validateProject(prj)) if (v.level === "error") r.errors.push(`validace: ${v.where}: ${v.msg}`);
     for (const plat of Object.keys(core.PLAT)) r.errors.push(...codeProblems(plat, core.genFor(prj, plat), prj));
+    /* styl kódu OOP (rodina CODESYS): stejné strukturní kontroly */
+    const oop = { ...prj, codeStyle: "oop" };
+    for (const plat of Object.keys(core.PLAT).filter(core.supportsOop)) r.errors.push(...codeProblems(plat + "/oop", core.genFor(oop, plat), oop));
     const docs = core.allProjectFiles(prj);
     for (const f of docs) if (f.kind === "dxf" && /[^\x00-\x7F]/.test(f.body)) r.errors.push(`${f.save}: DXF není ASCII`);
     const v = core.verifyDesign(prj);              // = verifyProject nad návrhem; sdílí cache s dokumentací

@@ -80,6 +80,10 @@ td input.dup{border-color:var(--err);outline:1px solid var(--err)}
 .platgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:4px}
 .plat{border:1px solid var(--line);border-radius:9px;padding:12px 14px;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0}
 .plat.on{border-color:var(--accent);outline:2px solid var(--accent)}
+.codestyle{border:1px solid var(--line);border-radius:9px;padding:8px 14px 10px;margin:14px 0 0}
+.codestyle legend{font-weight:600;padding:0 4px}
+.codestyle .opts{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem}
+.codestyle label{display:flex;gap:6px;align-items:center;cursor:pointer}
 .plat b{font-size:.9rem}
 .plat span{font-size:.75rem;color:var(--muted)}
 .plat .lng{font-family:var(--font-mono);font-size:.68rem;color:var(--accent)}

@@ -34,14 +34,15 @@
  *    `setPressure`, `waitInPos`): rozšířit `IrStepOp`; krok nese povel jako `set`
  *    (proměnná sekvence + hodnota; pro analogové povely přibude `value: IrExpr`) a podmínku
  *    přechodu z `seqCond` (nové druhy zpětného hlášení — „v poloze", „dojeto na referenci").
- *  - Druhý (OOP) renderer téhož IR: třídy / metody (TIA V20 SCL s třídami, CODESYS
- *    `METHOD` / `PROPERTY`, TwinCAT OOP). IR je pro něj připravené: instance s typovanými
- *    porty, povely jako výrazy, kroky jako operace — renderer přidá jen jiný zápis
- *    (`instM1.Start()` místo `cmdStart := …`). Výchozí renderer zůstává klasický FB.
- *  - Vlastní šablony z firemní knihovny (`libraryOverrides(prj, plat)` v library.ts): mají
- *    stejné rozhraní jako vestavěné, IR se tedy nemění — jediné místo výběru textu bloku je
- *    `fbTemplate()` (Gen_Library, AOI v L5X, `inlineFb` u Unitronics); dostane projekt
- *    a platformu a vezme přednostně šablonu z knihovny. Typy portů v IR zůstávají z vestavěné
+ *  - Druhý (OOP) renderer téhož IR je `codegen_oop.ts` (rodina CODESYS: INTERFACE I_Device,
+ *    ABSTRACT FB_DeviceBase, třídy zařízení s Cycle ze šablony, FB_Sequence, pole odkazů v MAIN;
+ *    volba `prj.codeStyle = "oop"`). Výchozí renderer zůstává klasický FB; shodu chování obou
+ *    hlídá emulátor (emu_oop.test.ts). TIA V20 SCL s třídami zatím ne.
+ *  - Vlastní šablony z firemní knihovny (napojeno, fáze 2c): `libraryOverrides(prj, plat)`
+ *    (library.ts) → `codeLibrary(prj, plat)` (codegen.ts; vyřadí šablony, které nejde spolehlivě
+ *    převést pro Unitronics / Logix, a vrátí důvod) → jediné místo výběru textu bloku
+ *    `fbTemplate(cls, dialekt, lib)` (Gen_Library, AOI v L5X, `inlineFb` u Unitronics). Mají
+ *    stejné rozhraní jako vestavěné, IR se tedy nemění; typy portů v IR zůstávají z vestavěné
  *    šablony (rozhraní je validací knihovny hlídané jako shodné).
  *
  * Změna výstupu generátoru jen vědomě: referenční test `golden.test.ts`

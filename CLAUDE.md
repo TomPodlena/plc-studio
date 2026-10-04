@@ -19,7 +19,8 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
   platforem (`platform_refs.ts`), schvalování (`approval.ts`), oživení (`commission.ts`), bezpečnostní
   funkce a program (`safety*.ts`), PLCopen XML (`plcopen.ts`), L5X (`logix.ts`), koncepty (`concept.ts`),
   emulace překladu a běhu (`emu/`), HMI (`hmi*.ts`), revize (`revision.ts`), nabídka (`quote.ts`),
-  firemní knihovna (`library.ts`), exporty SISTEMA (`sistema.ts`) a EPLAN (`eplan.ts`).
+  firemní knihovna (`library.ts`), exporty SISTEMA (`sistema.ts`) a EPLAN (`eplan.ts`), styl kódu OOP
+  (`codegen_oop.ts`, profily CODESYS WAGO / Delta AX).
   Jádro musí běžet v prohlížeči i Node — žádné závislosti nepřidávat.
 - `apps/web` — aplikace: statické HTML + ES moduly nad `packages/core/dist` (bez bundleru,
   záměrně — budoucí přechod na Vite/React je OK, ale core zůstává oddělené).
@@ -50,6 +51,7 @@ python scripts/i18n.py check               # texty v kódu × katalogy překlad�
 node scripts/check_samples.mjs [soubor -v]  # příklady samples/: generování 8 platforem + ověření simulací
 node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s)
 node scripts/golden.mjs [--code] [--dump DIR]  # výstupy generátoru × referenční otisky (viz Mezivrstva)
+node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (nová platforma / styl kódu)
 ```
 
 ## Mezivrstva generátoru (ir.ts) a referenční test
@@ -62,7 +64,7 @@ node scripts/golden.mjs [--code] [--dump DIR]  # výstupy generátoru × referen
   → porucha). Renderery jen píšou text: `codegen.ts` (`stCtx` + `renderSeq` / `renderDecls` /
   `renderWiring` / `stCall` / `renderFault` / `renderEnable`; Siemens, IEC, Unitronics),
   `logix.ts` (`lxCallIr`). Logika bloků zůstává v šablonách — text bloku jen přes
-  `fbTemplate(cls, dialekt)` (sem patří i `libraryOverrides`). Starší funkce (`seqBody`,
+  `fbTemplate(cls, dialekt, lib)` (vlastní šablony firemní knihovny přes `codeLibrary`). Starší funkce (`seqBody`,
   `wiring`, `ctrlDecls`…) jsou obaly nad IR. Příprava 2b/2c (nové třídy, akce kroků, OOP
   renderer, knihovna) je popsaná v hlavičce `ir.ts`.
 - **Referenční (golden) test** `golden.test.ts` + `scripts/golden.mjs`: otisky SHA-256 všech
@@ -157,13 +159,69 @@ node scripts/golden.mjs [--code] [--dump DIR]  # výstupy generátoru × referen
   kontrola překladu funguje dál, běh vrátí nález `runtime` („Interní chyba emulátoru…“), nespadne.
   Při nasazení webu s CSP buď povolit `'unsafe-eval'`, nebo běh emulace pouštět ve workeru / v desktopu.
 
+## Styl kódu OOP a profily CODESYS (WAGO, Delta AX)
+
+- **Jedno chování, dvě podoby zápisu.** `prj.codeStyle?: "classic" | "oop"` (výchozí classic, ukládá
+  se jen `"oop"`). OOP jen pro platformy s `PLAT[…].oop` (CODESYS, TwinCAT, Schneider, WAGO, Delta AX —
+  `supportsOop`, `codeStyleFor`); ostatní volbu ignorují a UI ji nenabídne (web `oopStyleHtml` v kroku
+  Platformy, desktop `steps/platformy.py` `code_style`). Bez volby se výstup NEMĚNÍ (golden).
+- `codegen_oop.ts` (`genForOop`, volá ho `genFor`) je druhý renderer téhož IR a týchž šablon:
+  `INTERFACE I_Device` (Execute, Reset, PROPERTY Fault / Status / Busy jen GET),
+  `FUNCTION_BLOCK ABSTRACT FB_DeviceBase IMPLEMENTS I_Device` (iStep, bBusy, bError, wStatus,
+  kvitace bResetReq → bReset, konstanty STATUS_*, Execute = převzetí kvitace + `THIS^.Cycle()`),
+  `FB_Motor / FB_Valve / FB_AnalogIn / FB_AnalogOut EXTENDS FB_DeviceBase IMPLEMENTS I_Device`
+  (Cycle = **tělo šablony převedené** `oopDeviceClass`: stav do základu dle `BASE_VARS`, vnitřní
+  proměnné maďarsky, port kolidující se členem rozhraní + „In" → `faultIn`, 16#800x → STATUS_*),
+  `FB_Sequence` (jeden CASE = `renderSeq`, seqStep / faultStep / machineFault přes VAR_IN_OUT, aby
+  zůstaly v MAIN pro HMI) a MAIN (`aDevices : ARRAY[1..N_DEVICES] OF I_Device` — akční členy a analogy
+  s mezemi = poruchy IR; Reset při cmdAck a souhrn `Fault` v cyklu FOR s `IF aDevices[i] <> 0`).
+  Pořadí vyhodnocení = klasika. Jména instancí (instM1) a řízení zůstávají (HMI); HMI cesty u OOP
+  `instM1.Fault/Status/Busy` (`hmiPlcPath(plat, t, prj)`). Žádné ukazatele, __NEW, WHILE.
+- Výstupy: ST výpis `Gen_Library.st` + `FB_Sequence.st` + `MAIN.st` (metody/vlastnosti za tělem
+  bloku), `PLCopen_Import.xml` s addData CODESYS (pouinheritance, method, property, interface
+  v addData projektu, interfaceasplaintext — tvar podle exportu CODESYS V3.5 SP20 / TwinCAT), u
+  TwinCATu `I_Device.TcIO`, `FB_*.TcPOU`, `MAIN.TcPOU`, `GVL_IO.TcGVL` (tvar podle TcUnit / AixOCAT;
+  Id = deterministické GUID, LineIds se nepíšou). Vše z jednoho modelu `OopPou` (`listingObj` /
+  `oopListing`). **Import v IDE NEOVĚŘEN** (README to uvádí) — nálezy z prvního importu zapsat sem.
+  ABSTRACT: CODESYS SP13+, TwinCAT 3.1.4024+. Diagram tříd `00_diagram_trid.svg` (`oopClassSvg`)
+  a oddíl „Styl kódu OOP" v `07_softwarova_dokumentace.md` jen když je OOP aktivní.
+- Emulátor umí OOP (`compile.ts`): rozhraní jako typ (slot = adresa instance + 1), virtuální volání
+  přes skrytý `__TID` instance (`dispatchFn`), THIS^ / SUPER^, vlastnosti GET/SET, ABSTRACT/FINAL,
+  přístup PRIVATE/PROTECTED, VAR_IN_OUT (kopie tam a zpět), konstanty v mezích polí; kontroly
+  `oop` (IMPLEMENTS, podpisy, chybějící GET, abstraktní instance…), varování `iface-guard` (volání
+  přes odkaz bez `<> 0`), za běhu `nullref`. `emu/oop_files.ts` sestaví z TcPOU / PLCopen výpis a
+  porovná ho s ST (importuje se tentýž kód, jaký emulátor ověřil). Testy `emu_oop.test.ts` (příklady
+  × 5 platforem × 5 jazyků = návrh; lockstep OOP × klasika s náhodnými vstupy; mutace) a
+  `codegen_oop.test.ts` (struktura, round-trip importu, HMI, dokumentace). Při změně šablon / IR
+  držet obě podoby — emulátor rozdíl chytí.
+- **Profily CODESYS** `wago` (e!COCKPIT / WAGO CODESYS V3.5, PFC100/200 + 750) a `delta`
+  (DIADesigner-AX, AX-3/5/8): položky `PLAT` s `base: "codesys"` (`platBase`, `isCodesysFamily`) —
+  stejný dialekt, GVL_IO, PLCopen, emulátor i HMI export jako CODESYS; liší se hlavičkou, README,
+  rawMax (TODO) a adresami: **WAGO bez AT** (kanály K-Bus se přiřazují v I/O mapování; obraz procesu
+  řadí analogy před digitály — ověřeno jen pro runtime 2.3), **Delta = adresy CODESYS + výrazné
+  „ADRESY NEOVĚŘENY"** (BuiltIn_IO / Delta_LocalBus_Master bez doložených počátečních adres).
+  Kusovník `plc_*@wago` / `plc_*@delta` v `data/catalog/plc.json` (jen kódy s URL), odkazy
+  v `data/platform_refs.json`. Reverse pozná hlavičky „- WAGO *)" / „- Delta Electronics *)".
+- Golden: kód všech platforem + `code-oop/<platforma>/…`; `prj.platforms` reference zůstává na
+  původních 8 (`GOLDEN_PROJECT_PLATFORMS`), aby nové platformy neměnily staré otisky dokumentace.
+  Nové soubory do reference: `node scripts/golden.mjs --add` (existující otisky beze změny).
+
 ## HMI (`hmi.ts`, `hmi_view.ts`, `hmi_export.ts`, `hmi_docs.ts`, `hmi_xlsx.ts`)
 
 - Jeden model `buildHmi(prj)` → tagy, alarmy, obrazovky. **Nic se neopisuje:** tagy řízení z deklarací
   generátoru (`ctrlDecls`), proměnné bloků ze šablon (`parseFbTemplate`), alarmy = `docAlarmCsv` (stejné
   kódy a texty), kroky = `stepTitle` / `stepCondText`. Každý tag ukazuje na proměnnou, kterou program
-  deklaruje (test: příklady × platformy × jazyky). Program se kvůli HMI nemění — meze a žádané hodnoty
-  jsou v HMI jen ke čtení (globální proměnné pro zápis = fáze 2).
+  deklaruje (test: příklady × platformy × jazyky). Meze a žádané hodnoty jsou v HMI jen ke čtení
+  (globální proměnné pro zápis = fáze 2).
+- **Mitsubishi a Omron: HMI čte jen globální** (GOT: globální návěští s „Access from External Device“ —
+  GX Works3 OM SH-081215ENG; NA: Network Publish — W501 6-3-8). Generátor tam proto deklaruje řízení
+  stroje (enable, modeAuto, cmdAutoStart, cmdAck, machineFault, faultStep, seqStep, manRun_* / manOpen_*)
+  globálně a stav bloků (`instX_outRun/busy/error/status`, `instX_value/alarmHi/alarmLo/limitHi/limitLo`)
+  zrcadlí na konci MAIN do globálních `instX_port` (`hmiGlobalVars` / `renderHmiMirror`, codegen.ts;
+  jména = tagy HMI = Unitronics). GlobalLabels.csv: sloupec `Access from External Device` = 1 (FX5 ho nemá —
+  import ho vynechá, GOT u FX5 čte operandy přiřazené návěštím; README to uvádí). Variables.txt: Network
+  Publish = `Publish Only` (Input / Output jsou jen pro tag data links). `hmiPlcPath` = globální jméno,
+  emulátor (`pathsFor`) i importér (`OUR_HMI_GLOBAL` = jen deklarace) s tím počítají. Ostatní platformy beze změny.
 - Výstupy: SVG náhledy obrazovek, `hmiJson`, webové HMI `hmiWebHtml`, exporty výrobců `hmiFiles(prj, plat)`
   (WinCC: Openness XML + listy Excel přes vlastní zápis .xlsx `hmi_xlsx.ts`; FactoryTalk View CSV/XML;
   CODESYS / Machine Expert Visu; TwinCAT HMI; GT Designer3; Sysmac NA; Unitronics bez exportu) se stavem `unverified` / `reference` / `stub` a zdroji (`hmiExportSpec`).
@@ -189,8 +247,15 @@ node scripts/golden.mjs [--code] [--dump DIR]  # výstupy generátoru × referen
 - **Knihovna** (`plcdesk-library`, verze `LIBRARY_SCHEMA`; export/import, kopie v `prj.library`): vlastní
   typy zařízení (díly kusovníku přes `registerBomProvider`, časy kroků), šablony FB se **stejným
   rozhraním** jako vestavěné (`validateFbTemplate`, ST jen ASCII), firemní hlavička, výchozí volby.
-  `libraryOverrides(prj, plat)` říká, co nahradit — zapojení do `genFor` je fáze 2; simulace dál zrcadlí
-  vestavěné šablony (vlastní blok simulací ověřen není).
+  **Napojeno do generátoru:** `libraryOverrides(prj, plat)` → `codeLibrary(prj, plat)` (codegen.ts) →
+  jediný bod `fbTemplate(cls, dialekt, lib)`: Gen_Library (+ komentář „Vlastní blok firemní knihovny…“),
+  Unitronics inline (`flatTplProblems`: jen VAR_INPUT/OUTPUT/VAR s jednou proměnnou na řádek, typy UniLogic,
+  RETURN jen v úvodním IF NOT enable), Rockwell AOI (`lxTplProblems`: po `lxDialect` stejná kontrola jako
+  výstup — co zbude z IEC, převést nešlo). Nepřevoditelná / chybná šablona → vestavěná + issue (README
+  „NEPOUŽITO“), nikdy tichý pád. Firemní hlavička (`header`) na začátku Gen_Main / MAIN / Machine.st /
+  MainRoutine a README (Siemens `//`, ostatní `(* *)` přes `cmtSafe`). FDS (`docSWMd`, Typové bloky):
+  „vlastní blok knihovny {name}, neověřeno simulací“. Bez knihovny výstup beze změny (golden). Simulace dál
+  zrcadlí vestavěné šablony (vlastní blok simulací ověřen není); emulátor překlad vlastní šablony kontroluje.
 
 ## Exporty SISTEMA a EPLAN (`sistema.ts`, `eplan.ts`)
 
@@ -276,7 +341,11 @@ node scripts/golden.mjs [--code] [--dump DIR]  # výstupy generátoru × referen
   Siemens: `.scl`/`.tsv` s BOM, časovače `TON_TIME`, kultura komentáře v XML dle jazyka.
   Beckhoff: `AT %I*` / `%Q*` (linkování), CODESYS/Schneider: `%IW` = index slova (bajt/2).
   Mitsubishi FX5: X/Y osmičkově, bez počátečních hodnot (meze a `rawMax` se předávají vždy),
-  TON max. 32 767 ms. Omron: vstup `reset` → `resetIn` (Reset je instrukce Sysmac), Variables.txt
+  TON max. 32 767 ms (JY997D55801Z kap. 32.2) → čas kroku nad limit generátor píše časovačem
+  `TIMER_100_FB_M` (kap. 32.4: `Coil`, `Preset` INT × 100 ms nahoru, `ValueIn := 0`, hotovo = `.Status`;
+  do 3 276,7 s — `fx5Timer100` / `fx5Preset100` v codegen.ts, jen MAIN pro mitsubishi); emulátor blok zná
+  (`TIMER_1/10/100_FB_M` v `STD_FB`, horizont v run.ts), importér ho čte zpět jako TON, `validateProject`
+  hlásí `info` (nad 3 276,7 s `warn`). Omron: vstup `reset` → `resetIn` (Reset je instrukce Sysmac), Variables.txt
   ve sloupcích Global Variables. `rawMax` analogů dle platformy (`RAW_MAX`). Rockwell: L5X
   (`logix.ts`) — Logix ST není IEC (TONR/FBD_TIMER, AOI, bez deklarací v textu).
 - **Unitronics (UniLogic / UniStream):** ST funkce nemá paměť a FB v ST nejsou → generuje se
@@ -348,8 +417,9 @@ workers.dev, licenční API, Stripe/Paddle), přenosná verze 0.1.0 (GitHub Rele
 
 **Fáze 2:** servoosy (PLCopen Motion) a pohony po síti (PROFINET / EtherCAT, IO-Link, vzdálené I/O);
 volitelný styl kódu „OOP“ pro CODESYS / TwinCAT / WAGO (rozhraní, metody, ošetření chyb, pokyny k tasku)
-+ WAGO jako varianta CODESYS — vše ověřené emulátory. Navazuje na fázi 1: knihovna FB do `genFor`
-(`libraryOverrides`), globální proměnné pro zápis z HMI (meze, žádané hodnoty), FX5 časovače nad 32,7 s.
++ WAGO jako varianta CODESYS — vše ověřené emulátory. Navazuje na fázi 1: ~~knihovna FB do `genFor`
+(`libraryOverrides`)~~ ✅, ~~FX5 časovače nad 32,7 s~~ ✅ (TIMER_100_FB_M), ~~globální proměnné pro HMI
+u Mitsubishi / Omron~~ ✅; zbývá zápis mezí a žádaných hodnot z HMI (globální parametry).
 **EPLAN AML v2** (zadání `docs/eplan-aml-export.md`): perzistentní `guid` v modelu (Project, Device,
 modul, IoEntry — přidělit při vzniku, doplnit při načtení starých projektů; nikdy negenerovat až při
 exportu), hierarchie stanice/rack/slot, sítě a porty s InternalLink v nejbližším společném rodiči,

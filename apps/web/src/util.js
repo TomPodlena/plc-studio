@@ -16,6 +16,8 @@ export function normProject(raw) {
     if (!(Number.isFinite(raw.meta.takt) && raw.meta.takt > 0)) delete p.meta.takt;
   }
   if (Array.isArray(raw.platforms)) p.platforms = raw.platforms.filter(k => k in PLAT);
+  /* styl kódu: jen "oop" se ukládá (výchozí klasický = bez pole) */
+  if (raw.codeStyle === "oop") p.codeStyle = "oop";
   if (Array.isArray(raw.devices)) {
     const seen = new Set();
     p.devices = raw.devices.filter(d => isObj(d) && CLS[d.cls] && Number.isFinite(d.id) && !seen.has(d.id) && seen.add(d.id))

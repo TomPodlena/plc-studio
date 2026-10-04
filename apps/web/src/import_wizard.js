@@ -528,7 +528,7 @@ export function makeImportWizard(ctx) {
       W.ai ? tr("Návrh převzatý z importu stávajícího zařízení (souborů: {n}, s analýzou AI) — zkontroluj nejisté položky a pokračuj úpravami: napiš, co změnit.", { n: names.length })
         : tr("Návrh převzatý z importu stávajícího zařízení (souborů: {n}) — zkontroluj nejisté položky a pokračuj úpravami: napiš, co změnit.", { n: names.length }));
     const issues = validateProject(prjNew);
-    const nErr = issues.filter(i => i.level === "error").length, nWarn = issues.length - nErr;
+    const nErr = issues.filter(i => i.level === "error").length, nWarn = issues.filter(i => i.level === "warn").length;
     S.notice = {
       step: 3, level: nErr ? "err" : nWarn ? "warn" : "ok",
       text: tr("Import převzat: zařízení {n}, I/O {io}, kroků sekvence {seq}. Kontrola návrhu: chyb {err}, varování {warn} — podrobnosti v kroku I/O.", { n: prjNew.devices.length, io: prjNew.io.length, seq: prjNew.program.seq.length, err: nErr, warn: nWarn }),

@@ -9,10 +9,12 @@
  */
 import {
   Project, PlatformKey, Device, IoEntry, PLAT, usedClasses,
-  dtFor, addrFor, xmlEsc, stripDia,
+  dtFor, addrFor, xmlEsc, stripDia, isCodesysFamily, codeStyleFor,
 } from "./model.js";
+/* codegen_oop.ts a codegen.ts se importují navzájem: OOP renderer se volá až uvnitř genFor */
+import { genForOop } from "./codegen_oop.js";
 import {
-  buildIR, irText, cmdIr, IR_CTRL, type IrProgram, type IrFb, type IrDeviceItem, type IrDecl, type IrNames,
+  buildIR, irText, cmdIr, irBlocks, irPortTypes, irMember, IR_CTRL, type IrProgram, type IrFb, type IrDeviceItem, type IrDecl, type IrNames,
   type IrType, type IrFbClass, type IrExpr,
 } from "./ir.js";
 /* pomocné funkce sekvence a řízení žijí v ir.ts; odsud se dál exportují (veřejné API jádra) */
@@ -27,7 +29,9 @@ const DO_ROLE_TECH: Record<string, string> = {
 };
 import { tr, trx, N_, getLang } from "./i18n.js";
 import { genPLCopenXML } from "./plcopen.js";
-import { genRockwellL5X, genLogixRoutine, genLogixTagsCsv, lxSlotText, LX_PROGRAM, LX_SOFTWARE_REVISION } from "./logix.js";
+import { genRockwellL5X, genLogixRoutine, genLogixTagsCsv, lxSlotText, lxTplProblems, LX_PROGRAM, LX_SOFTWARE_REVISION } from "./logix.js";
+/* library.ts a codegen.ts se importují navzájem: knihovna se čte až uvnitř funkcí */
+import { libraryOverrides, fbInterface, type LibraryIssue } from "./library.js";
 
 /* ------------------------------------------------------------ šablony SCL */
 
@@ -415,11 +419,75 @@ const FB_TEMPLATES: Record<FbDialectKey, Record<IrFbClass, string>> = {
 };
 /**
  * Šablona bloku třídy — jediné místo, kde renderery (Gen_Library, AOI v L5X, plochá logika
- * Unitronics) berou zdroj logiky bloku. Sem se ve fázi 2c napojí vlastní šablony z firemní
- * knihovny (`libraryOverrides`, stejné rozhraní); simulace dál zrcadlí vestavěné šablony.
+ * Unitronics) berou zdroj logiky bloku. `lib` = vlastní šablony z firemní knihovny pro danou
+ * platformu (`codeLibrary`, stejné rozhraní) — mají přednost; bez `lib` vestavěná šablona
+ * (simulace, ověření, typy portů v IR a HMI zrcadlí vždy vestavěnou).
  */
-export function fbTemplate(cls: IrFbClass, dialect: FbDialectKey): string {
-  return FB_TEMPLATES[dialect][cls];
+export function fbTemplate(cls: IrFbClass, dialect: FbDialectKey, lib?: CodeLibrary): string {
+  return lib?.templates[cls] ?? FB_TEMPLATES[dialect][cls];
+}
+
+/* ------------------------------------------------ vlastní šablony z firemní knihovny */
+
+/**
+ * Co z firemní knihovny projektu (`libraryOverrides`, library.ts) generátor pro platformu
+ * použije: šablony bloků po kontrole, že je jde pro platformu spolehlivě převést (Unitronics
+ * bloky rozepisuje `inlineFb`, Logix z nich staví AOI `lxDialect`), a řádky firemní hlavičky.
+ * Šablonu, kterou převést nejde, generátor nepoužije — zůstane vestavěná a důvod je v `issues`
+ * (README platformy ho vypíše), nikdy tichý pád. Bez knihovny vše prázdné → výstup beze změny.
+ */
+export interface CodeLibrary {
+  templates: Partial<Record<IrFbClass, string>>;
+  /** identifikátor použité šablony knihovny podle třídy */
+  ids: Partial<Record<IrFbClass, string>>;
+  /** řádky hlavičky kódu (bez značek komentáře; u IEC už ASCII a bezpečné pro (* *)) */
+  header: string[];
+  issues: LibraryIssue[];
+  library?: { name: string; version: string };
+}
+
+export function codeLibrary(prj: Project, plat: PlatformKey): CodeLibrary {
+  const ov = libraryOverrides(prj, plat);
+  const out: CodeLibrary = { templates: {}, ids: {}, header: ov.header, issues: [...ov.issues], ...(ov.library ? { library: ov.library } : {}) };
+  for (const cls of ["Motor", "Ventil", "AnalogIn", "AnalogOut"] as IrFbClass[]) {
+    const tpl = ov.templates[cls];
+    if (tpl === undefined) continue;
+    const id = ov.ids[cls] || "?";
+    const why = plat === "unitronics" ? flatTplProblems(tpl) : plat === "rockwell" ? lxTplProblems(cls, tpl) : [];
+    if (why.length) {
+      out.issues.push({ level: "error", where: tr("šablona {id}", { id }),
+        msg: tr("Šablonu nejde spolehlivě převést pro {plat}: {why} — použita vestavěná šablona {fb}.", { plat: PLAT[plat].name, why: why.join("; "), fb: "FB_" + cls }) });
+      continue;
+    }
+    out.templates[cls] = tpl;
+    out.ids[cls] = id;
+  }
+  return out;
+}
+
+/**
+ * Proč šablonu IEC ST nejde rozepsat do ploché funkce UniLogic (`inlineFb`); prázdné = jde.
+ * Rozepsání čte jen bloky VAR_INPUT / VAR_OUTPUT / VAR s jednou proměnnou na řádek, typy, které
+ * má seznam tagů UniLogic, a předčasný návrat jen v úvodním `IF NOT enable … RETURN; END_IF;`.
+ */
+export function flatTplProblems(tpl: string): string[] {
+  const why: string[] = [];
+  const { vars, body } = parseFbTemplate(tpl);
+  if (/\b(END_VAR|VAR_\w+|VAR)\b/.test(body.replace(/\(\*[\s\S]*?\*\)/g, " "))) why.push(tr("deklarační blok, který rozepsání nečte (např. VAR CONSTANT)"));
+  const ports = fbInterface(tpl);
+  const missing = [...ports.inputs.map(p => ({ p, k: "in" })), ...ports.outputs.map(p => ({ p, k: "out" }))]
+    .filter(x => !vars.some(v => v.name === x.p.name && v.kind === x.k)).map(x => x.p.name);
+  const declPart = body ? tpl.slice(0, tpl.lastIndexOf(body)) : tpl;
+  if (missing.length || /^\s*\w+\s*,\s*\w+[^:\n]*:/m.test(declPart)) why.push(tr("deklarace víc proměnných na jednom řádku ({list})", { list: missing.join(", ") || "…" }));
+  const bad = [...new Set(vars.filter(v => !UNI_TYPE[v.type]).map(v => v.type))];
+  if (bad.length) why.push(tr("datový typ {list} seznam tagů UniLogic nemá", { list: bad.join(", ") }));
+  if (/\bRETURN\b/.test(inlineFb(tpl, "inst", {}, {}).replace(/\(\*[\s\S]*?\*\)/g, " "))) why.push(tr("RETURN mimo úvodní IF NOT enable"));
+  return why;
+}
+
+/** Řádky firemní hlavičky jako komentář (Siemens `//`, ostatní `(* *)`); bez hlavičky "". */
+function libHeader(lib: CodeLibrary, sie: boolean): string {
+  return lib.header.map(l => sie ? "// " + l : "(* " + cmtSafe(l) + " *)").join("\n") + (lib.header.length ? "\n" : "");
 }
 
 /* ------------------------------------------------ překlad komentářů šablon */
@@ -504,7 +572,7 @@ type LocFn = (v: string) => string;
 
 export function refFn(plat: PlatformKey): RefFn {
   if (plat === "siemens") return t => '"' + t + '"';
-  if (plat === "beckhoff" || plat === "codesys" || plat === "schneider") return t => "GVL_IO." + t;
+  if (isCodesysFamily(plat)) return t => "GVL_IO." + t;
   return t => t;
 }
 export function locFn(plat: PlatformKey): LocFn {
@@ -552,11 +620,34 @@ export function timeLit(seconds: number): string {
   return rest ? "T#" + (s ? s + "S" : "") + rest + "MS" : "T#" + s + "S";
 }
 
+/**
+ * Mitsubishi FX5 (GX Works3): TON bere PT jen 0–32 767 ms (FX5 Programming Manual
+ * Instructions JY997D55801Z, kap. 32.2 TON(_E)). Delší čas kroku (výdrž / hlídací čas) proto
+ * generátor zapisuje časovačem TIMER_100_FB_M (kap. 32.4: Coil, Preset INT 0–32 767 × 100 ms,
+ * ValueIn, výstup Status) — do 3 276,7 s, čas zaokrouhlený nahoru na 100 ms. Ostatní platformy
+ * a kratší časy beze změny (TON). Emulátor (emu/compile.ts) blok zná, simulace počítá týž čas.
+ */
+export const FX5_TON_MAX_MS = 32767;
+/** Krok s tímto časem píše generátor pro platformu časovačem TIMER_100_FB_M (jen FX5 nad 32 767 ms). */
+export function fx5Timer100(plat: PlatformKey, timeS: number): boolean {
+  return plat === "mitsubishi" && Math.round(timeS * 1000) > FX5_TON_MAX_MS;
+}
+/** Předvolba TIMER_100_FB_M (× 100 ms, nahoru — hlídací čas nesmí vypršet dřív). */
+export function fx5Preset100(timeS: number): number {
+  return Math.ceil(Math.round(timeS * 1000) / 100);
+}
+/** Časovače kroků, které renderer píše jako TIMER_100_FB_M. */
+function timer100Set(ir: IrProgram, c: StCtx): Set<string> {
+  return new Set((ir.seq?.steps || []).filter(s => s.timer && fx5Timer100(c.plat, s.timeS)).map(s => s.timer!));
+}
+
 /** Sekvence (CASE) a časovače kroků z IR. */
 export function renderSeq(ir: IrProgram, c: StCtx): string {
   const seq = ir.seq;
   if (!seq) return "";
   const L = c.L, C = IR_CTRL, x = (e: IrExpr) => irText(e, c);
+  const t100 = timer100Set(ir, c);
+  const done = (t: string) => L(t) + (t100.has(t) ? ".Status" : ".Q");
   const semi = ";";                               // GX Works3, Sysmac a Logix vyžadují END_IF;
   let b = "    " + c.cm("--- " + trx("Automatická sekvence (režim AUTO)") + " ---") + "\n";
   b += "    " + c.cm(trx("Vypnutí AUTO, ztráta uvolnění nebo porucha stroje: sekvence do kroku 0, povely vypnout")) + "\n";
@@ -581,10 +672,10 @@ export function renderSeq(ir: IrProgram, c: StCtx): string {
     if (s.set) b += "            " + L(s.set.var) + " := " + (s.set.value ? "TRUE" : "FALSE") + ";\n";
     const go = L(C.seqStep) + " := " + s.next + ";";
     if (s.cond.kind === "time") {
-      b += "            IF " + L(s.timer!) + ".Q THEN " + go + " END_IF" + semi + "\n";
+      b += "            IF " + done(s.timer!) + " THEN " + go + " END_IF" + semi + "\n";
     } else if (s.cond.kind === "fbk") {
       b += "            IF " + (s.cond.neg ? "NOT " : "") + c.R(s.cond.io!.tag) + " THEN " + go + "\n";
-      b += "            ELSIF " + L(s.timer!) + ".Q THEN " + L(C.machineFault) + " := TRUE; " + L(C.faultStep) + " := " + s.n + "; " + c.cm(trx("timeout kroku {t} s", { t: s.timeS })) + "\n";
+      b += "            ELSIF " + done(s.timer!) + " THEN " + L(C.machineFault) + " := TRUE; " + L(C.faultStep) + " := " + s.n + "; " + c.cm(trx("timeout kroku {t} s", { t: s.timeS })) + "\n";
       b += "            END_IF" + semi + "\n";
     } else {
       const cls = s.dev && s.dev.cls;
@@ -594,7 +685,12 @@ export function renderSeq(ir: IrProgram, c: StCtx): string {
   }
   b += "    END_CASE;\n\n";
   for (const s of seq.steps) {
-    if (s.timer) b += "    " + L(s.timer) + "(IN := (" + L(C.seqStep) + " = " + s.n + "), PT := " + timeLit(s.timeS) + ");\n";
+    if (!s.timer) continue;
+    if (t100.has(s.timer)) {
+      const p = fx5Preset100(s.timeS);
+      b += "    " + L(s.timer) + "(Coil := (" + L(C.seqStep) + " = " + s.n + "), Preset := " + p + ", ValueIn := 0); " +
+        c.cm(trx("TIMER_100_FB_M: {p} x 100 ms = {t} s (TON na FX5 nejvýš 32 767 ms)", { p, t: p / 10 })) + "\n";
+    } else b += "    " + L(s.timer) + "(IN := (" + L(C.seqStep) + " = " + s.n + "), PT := " + timeLit(s.timeS) + ");\n";
   }
   return b + "\n";
 }
@@ -605,7 +701,11 @@ export function seqBody(prj: Project, plat: PlatformKey): string {
 
 /* Surový rozsah analogu dle platformy (typický modul; TODO ověřit podle skutečného modulu).
    Předává se vždy — FX5 nezná počáteční hodnoty a výchozí 27648 je rozsah Siemens. */
-const RAW_MAX: Partial<Record<PlatformKey, number>> = { beckhoff: 32767, codesys: 32767, mitsubishi: 16000, schneider: 10000, omron: 32000 };
+const RAW_MAX: Partial<Record<PlatformKey, number>> = { beckhoff: 32767, codesys: 32767, mitsubishi: 16000, schneider: 10000, omron: 32000,
+  /* WAGO 750-455 (4–20 mA): 0…32767; Delta AS04AD-A: ±32000 — obojí TODO podle modulu */
+  wago: 32767, delta: 32000 };
+/** Surový rozsah analogu platformy (bez = Siemens 27648 z výchozí hodnoty šablony). */
+export function rawMaxFor(plat: PlatformKey): number | undefined { return RAW_MAX[plat]; }
 function rawMaxArg(plat: PlatformKey): string {
   const v = RAW_MAX[plat];
   return v ? ", rawMax := " + v + " (* TODO: " + stripDia(trx("rozsah dle modulu")) + " *)" : "";
@@ -626,10 +726,14 @@ function declType(t: IrType, sie: boolean): string {
   return t === "TON" ? (sie ? "TON_TIME" : "TON") : t;
 }
 
-/** Deklarace řízení stroje z IR: režimy, kvitace, ruční povely, porucha a sekvence. */
-export function renderDecls(ir: IrProgram, c: StCtx): string {
-  return ir.decls.map(d => {
-    const head = d.name + " : " + declType(d.type, c.sie) + ";";
+/**
+ * Deklarace řízení stroje z IR: režimy, kvitace, ruční povely, porucha a sekvence.
+ * `keep` = jen vybrané (u Mitsubishi / Omron jsou proměnné pro HMI globální — `hmiGlobalVars`).
+ */
+export function renderDecls(ir: IrProgram, c: StCtx, keep: (d: IrDecl) => boolean = () => true): string {
+  const t100 = timer100Set(ir, c);
+  return ir.decls.filter(keep).map(d => {
+    const head = d.name + " : " + (t100.has(d.name) ? "TIMER_100_FB_M" : declType(d.type, c.sie)) + ";";
     if (!d.note) return "    " + head;
     /* pevné proměnné řízení zarovnané do sloupce, ruční povely (proměnná délka) ne */
     return "    " + (d.group === "man" ? head : head.padEnd(20)) + "  " + c.cm(declNote(d));
@@ -661,6 +765,53 @@ export function renderFault(ir: IrProgram, c: StCtx): string {
 
 export function faultBlock(prj: Project, plat: PlatformKey): string {
   return renderFault(buildIR(prj), stCtx(plat));
+}
+
+/* ------------------------------------------- globální proměnné pro HMI (GOT, NA) */
+
+/**
+ * Mitsubishi GOT čte návěští GX Works3 jen globální (Access from External Device — GX Works3
+ * Operating Manual SH-081215ENG, Registering Labels; FX5 tuto volbu nemá, GOT tam čte operandy
+ * přiřazené globálním návěštím) a Omron NA jen globální proměnné s Network Publish (NJ/NX
+ * Software User's Manual W501, 6-3-8). U těchto platforem jsou proto proměnné řízení stroje
+ * (enable, modeAuto, cmdAutoStart, cmdAck, machineFault, faultStep, seqStep, manRun_* /
+ * manOpen_*) globální a stav bloků se na konci MAIN zrcadlí do globálních proměnných
+ * `instX_port` (stejná jména jako tagy HMI a plochý výstup Unitronics). Povely sekvence
+ * (seqRun_*), časovače kroků a instance bloků zůstávají lokální. Ostatní platformy beze změny.
+ */
+export function hmiGlobalPlat(plat: PlatformKey): boolean { return plat === "mitsubishi" || plat === "omron"; }
+
+/** Globální proměnná pro HMI; `expr` = stav bloku, který MAIN do proměnné zapisuje. */
+export interface HmiGlobalVar { name: string; type: IrType; note: string; expr?: IrExpr; }
+
+/** Deklarace řízení stroje, které jsou u HMI platforem globální (ne povely sekvence, ne časovače). */
+function isHmiCtrlDecl(d: IrDecl): boolean { return d.group === "ctrl" || d.group === "man" || d.group === "seq"; }
+
+/** Proměnné, které jsou u Mitsubishi / Omron globální: řízení stroje + zrcadlo stavu bloků (tagy HMI). */
+export function hmiGlobalVars(ir: IrProgram): HmiGlobalVar[] {
+  const out: HmiGlobalVar[] = [{ name: IR_CTRL.enable, type: "BOOL", note: trx("centrální uvolnění (E-stop TRUE = v pořádku)") }];
+  for (const d of ir.decls) if (isHmiCtrlDecl(d)) out.push({ name: d.name, type: d.type, note: declNote(d) });
+  for (const b of irBlocks(ir)) {
+    const T = irPortTypes(b.cls);
+    const state = (port: string, expr: IrExpr = irMember(b.inst, port)) =>
+      out.push({ name: b.inst + "_" + port, type: T[port], note: b.dev.name + ": " + port, expr });
+    const param = (port: string) => state(port, b.inputs.find(p => p.name === port)!.expr);
+    if (b.cls === "Motor" || b.cls === "Ventil") for (const p of [b.cls === "Motor" ? "outRun" : "outOpen", "busy", "error", "status"]) state(p);
+    else if (b.cls === "AnalogIn") {
+      for (const p of ["value", "alarmHi", "alarmLo"]) state(p);
+      if (b.limits?.hi !== undefined) param("limitHi");
+      if (b.limits?.lo !== undefined) param("limitLo");
+    } else if (b.cls === "AnalogOut") param("value");
+  }
+  return out;
+}
+
+/** Zrcadlo stavu bloků do globálních proměnných pro HMI (Mitsubishi / Omron; volá se za poruchou). */
+export function renderHmiMirror(ir: IrProgram, c: StCtx): string {
+  const st = hmiGlobalVars(ir).filter(v => v.expr);
+  if (!st.length) return "";
+  return "    " + c.cm("--- " + trx("Stav bloků pro HMI (globální proměnné)") + " ---") + "\n" +
+    st.map(v => "    " + v.name + " := " + irText(v.expr!, c) + ";").join("\n") + "\n";
 }
 
 /* ------------------------------------------------------- zapojení instancí */
@@ -827,7 +978,16 @@ export function genLibrary(prj: Project, plat: PlatformKey): string {
   const dia: FbDialectKey = plat === "siemens" ? "scl" : "st";
   /* komentáře šablon se překládají až tady; IEC ST zůstává bez diakritiky */
   const fix = plat === "siemens" ? undefined : stripDia;
-  for (const c of ["Motor", "Ventil", "AnalogIn", "AnalogOut"] as const) if (u.has(c)) parts.push(trComments(fbTemplate(c, dia), fix), "");
+  const lib = codeLibrary(prj, plat);
+  for (const c of ["Motor", "Ventil", "AnalogIn", "AnalogOut"] as const) {
+    if (!u.has(c)) continue;
+    const own = lib.ids[c];
+    if (own) {
+      const t = trx("Vlastní blok firemní knihovny {lib}: šablona {id} (neověřeno simulací)", { lib: ((lib.library?.name || "") + " " + (lib.library?.version || "")).trim(), id: own });
+      parts.push(plat === "siemens" ? "// " + t : "(* " + cmtSafe(t) + " *)");
+    }
+    parts.push(trComments(fbTemplate(c, dia, lib), fix), "");
+  }
   if (parts.length <= 2) parts.push(plat === "siemens" ? "// (" + trx("žádné instancované třídy zařízení") + ")" : "(* " + cmtSafe(trx("žádné instancované třídy zařízení")) + " *)");
   return parts.join("\n");
 }
@@ -839,7 +999,7 @@ export function genMainSiemens(prj: Project): string {
   let v = inst.map(i => '    ' + i.n + ' : "' + i.t + '";').join("\n");
   if (decl) v += (v ? "\n" : "") + decl;
   const tmp = tmpDecl(ir, "Bool", "Int");
-  return `// ${trx("Gen_Main.scl – strojní blok (multi-instance). Import PO Gen_Library.scl.")}
+  return `${libHeader(codeLibrary(prj, "siemens"), true)}// ${trx("Gen_Main.scl – strojní blok (multi-instance). Import PO Gen_Library.scl.")}
 
 FUNCTION_BLOCK "FB_Machine"
 { S7_Optimized_Access := 'TRUE' }
@@ -894,19 +1054,21 @@ function tmpDecl(ir: IrProgram, b: string, i: string): string {
 export function genMainIEC(prj: Project, plat: PlatformKey): string {
   const ir = buildIR(prj), c = stCtx(plat);
   const { inst, calls, free } = renderWiring(ir, c);
-  const decl = renderDecls(ir, c), fault = renderFault(ir, c);
+  /* Mitsubishi / Omron: řízení stroje je globální (HMI), stav bloků se zrcadlí za poruchou */
+  const hg = hmiGlobalPlat(plat);
+  const decl = renderDecls(ir, c, hg ? d => !isHmiCtrlDecl(d) : undefined), fault = renderFault(ir, c);
+  const mirror = hg ? renderHmiMirror(ir, c) : "";
   let v = inst.map(i => "    " + i.n + " : " + i.t + ";").join("\n");
   if (decl) v += (v ? "\n" : "") + decl;
-  return `(* MAIN - ${stripDia(trx("hlavní program (generováno PLCdesk)"))} - ${PLAT[plat].name} *)
+  return `${libHeader(codeLibrary(prj, plat), false)}(* MAIN - ${stripDia(trx("hlavní program (generováno PLCdesk)"))} - ${PLAT[plat].name} *)
 PROGRAM MAIN
 VAR
-    enable : BOOL;
-${v || "    (* " + stripDia(trx("žádné instance")) + " *)"}${tmpDecl(ir, "BOOL", "INT")}
+${hg ? "" : "    enable : BOOL;\n"}${v || "    (* " + stripDia(trx("žádné instance")) + " *)"}${tmpDecl(ir, "BOOL", "INT")}
 END_VAR
 
 enable := ${enableText(ir, c)};
 
-${renderSeq(ir, c)}${calls.join("\n\n") || ";"}${fault ? "\n\n" + fault.trimEnd() : ""}
+${renderSeq(ir, c)}${calls.join("\n\n") || ";"}${fault ? "\n\n" + fault.trimEnd() : ""}${mirror ? "\n\n" + mirror.trimEnd() : ""}
 
 (* ${stripDia(trx("Volné signály (DI/DO) pro vlastní logiku:"))} *)
 ${free.join("\n") || "(*   " + stripDia(trx("žádné")) + " *)"}
@@ -917,16 +1079,28 @@ END_PROGRAM`;
 export function genTagFile(prj: Project, plat: PlatformKey): { name: string; body: string } {
   const q = (s: string) => '"' + stripDia(s).replace(/"/g, "'") + '"';
   if (plat === "rockwell") return { name: "Tags.csv", body: genLogixTagsCsv(prj) };   // logix.ts
+  /* globální proměnné pro HMI (řízení stroje + zrcadlo stavu bloků) — viz hmiGlobalVars */
+  const hmiVars = hmiGlobalPlat(plat) ? hmiGlobalVars(buildIR(prj)) : [];
   if (plat === "mitsubishi") {
-    const l = ['"Label Name","Data Type","Class","Comment","Assign (Device/Label)"'];
-    for (const e of prj.io) l.push(['"' + e.tag + '"', '"' + (dtFor(e) === "INT" ? "Word [Signed]" : "Bit") + '"', '"VAR_GLOBAL"', '"' + uniAscii(e.cmt || "").replace(/"/g, "'") + '"', '"' + addrFor(plat, e) + '"'].join(","));
+    /* sloupce podle editoru globálních návěští GX Works3; „Access from External Device“ = 1/0
+       (GX Works3 Operating Manual SH-081215ENG, Exporting/importing a label: hlavičky CSV se párují
+       s nadpisy sloupců, sloupec, který editor nemá — FX5 —, se při importu vynechá) */
+    const MT: Record<string, string> = { BOOL: "Bit", INT: "Word [Signed]", WORD: "Word [Unsigned]/Bit String [16-bit]", REAL: "FLOAT [Single Precision]" };
+    const row = (name: string, type: string, cmt: string, assign: string) =>
+      ['"' + name + '"', '"' + type + '"', '"VAR_GLOBAL"', '"' + uniAscii(cmt).replace(/"/g, "'") + '"', '"' + assign + '"', '"1"'].join(",");
+    const l = ['"Label Name","Data Type","Class","Comment","Assign (Device/Label)","Access from External Device"'];
+    for (const e of prj.io) l.push(row(e.tag, dtFor(e) === "INT" ? "Word [Signed]" : "Bit", e.cmt || "", addrFor(plat, e)));
+    for (const v of hmiVars) l.push(row(v.name, MT[v.type] || v.type, v.note, ""));
     return { name: "GlobalLabels.csv", body: l.join("\n") };
   }
   if (plat === "omron") {
     /* sloupce jako tabulka Global Variables v Sysmac Studiu: Name, Data Type, Initial Value, AT,
-       Retain, Constant, Network Publish, Comment — bez hlavičky (vložila by se jako proměnná) */
+       Retain, Constant, Network Publish, Comment — bez hlavičky (vložila by se jako proměnná).
+       Network Publish = Publish Only: HMI NA čte a zapisuje přes CIP; Input / Output jsou volby
+       pro tag data links (W501 6-3-8 Network Publish), pro HMI nejsou potřeba */
     const l: string[] = [];
-    for (const e of prj.io) l.push([e.tag, dtFor(e), "", "", "", "", "", uniAscii(e.cmt || "")].join("\t"));
+    for (const e of prj.io) l.push([e.tag, dtFor(e), "", "", "", "", "Publish Only", uniAscii(e.cmt || "")].join("\t"));
+    for (const v of hmiVars) l.push([v.name, v.type, "", "", "", "", "Publish Only", uniAscii(v.note)].join("\t"));
     return { name: "Variables.txt", body: l.join("\n") };
   }
   return { name: "GVL_IO.st", body: genGVL(prj, plat) };
@@ -1027,8 +1201,13 @@ a Verify Controller (hlavně FBD_TIMER v AOI, výchozí hodnoty parametrů a ver
   se liší podle verze GX Works3, srovnej s exportem ze své instalace).`),
       tr("Gen_Library.st: Function Block do knihovny projektu (jazyk ST)."),
       tr("MAIN.st: GX Works3 edituje tělo programu odděleně od návěští — do ProgPou (ST) vlož jen tělo (od řádku za END_VAR po END_PROGRAM) a lokální návěští založ podle bloku VAR."),
+      tr(`Řízení stroje pro HMI (enable, modeAuto, cmdAutoStart, cmdAck, machineFault, faultStep, seqStep,
+  manRun_* / manOpen_*) a stav bloků (instX_outRun, instX_status, instX_value…, MAIN je zapisuje
+  na konci) jsou globální návěští v GlobalLabels.csv se sloupcem Access from External Device = 1 —
+  GOT je u iQ-R čte přímo. FX5 tuto volbu nemá (při importu se sloupec vynechá): pro GOT přiřaď
+  návěštím pro HMI operandy (sloupec Assign, např. M / D) a v GT Designer3 použij tyto operandy.`),
       tr("Adresy X/Y jsou pro FX5 osmičkové (X0–X7, X10…); analogy přiřaď na SD6020 / SD6060 (vestavěné AI) nebo vyrovnávací paměť modulu U…\\G…; rawMax je v kódu 16000 (TODO podle modulu)."),
-      tr("TON na FX5 bere nejvýš 32767 ms — kroky s delším časem kontrola návrhu hlásí; uprav je (např. TIMER_100_FB_M nebo rozdělení kroku)."),
+      tr("TON na FX5 bere nejvýš 32 767 ms — kroky s delším časem (výdrž, hlídací čas) jsou v kódu časovačem TIMER_100_FB_M (předvolba × 100 ms, nejvýš 3 276,7 s; čas zaokrouhlený nahoru na 100 ms)."),
       tr("Test: GX Simulator3.")),
     schneider: () => list("SCHNEIDER ECOSTRUXURE MACHINE EXPERT (M241/M262)",
       tr("NEJRYCHLEJI: PLCopen_Import.xml — Project → Import PLCopenXML (báze CODESYS: knihovna bloků, MAIN i GVL_IO najednou). Ruční cesta je níže."),
@@ -1036,8 +1215,33 @@ a Verify Controller (hlavně FBD_TIMER v AOI, výchozí hodnoty parametrů a ver
       tr("Adresy %IX/%QX namapuj na embedded I/O / TM3 moduly v konfiguraci."),
       tr("Pro Control Expert (M580) je nutné bloky přenést jako DFB — struktura sedí."),
       tr("Test: simulátor v Machine Expert.")),
+    /* profily CODESYS: stejný kód jako platforma CODESYS, jiné IDE, mapování I/O a kusovník */
+    wago: () => list("WAGO e!COCKPIT / WAGO CODESYS V3.5 (PFC100 / PFC200, I/O 750)",
+      tr("NEJRYCHLEJI: PLCopen_Import.xml — v e!COCKPIT záložka PROGRAM → Import PLCopenXML, ve WAGO CODESYS V3.5 Project → Import PLCopenXML (báze CODESYS: knihovna bloků, MAIN i GVL_IO najednou). Ruční cesta je níže."),
+      tr("GVL_IO.st: globální seznam proměnných s názvem přesně GVL_IO (MAIN píše GVL_IO.<tag>), obsah nahraď."),
+      tr(`I/O: proměnné GVL_IO jsou BEZ pevné adresy. Kanály modulů 750 na lokální sběrnici (K-Bus) přiřaď
+  v I/O mapování zařízení (e!COCKPIT: detail kontroléru / modulu → kanál → vybrat GVL_IO.<tag>;
+  WAGO CODESYS V3.5: uzel Kbus → K-Bus I/O Mapping). Obraz procesu řadí nejdřív analogové kanály
+  po slovech a za ně digitální bity; adresy se mění s osazením — proto mapování, ne AT.`),
+      tr("Gen_Library.st / MAIN.st: každý blok jako nový POU (ST), MAIN přidej do cyklického tasku. Knihovna Standard (TON) je v projektu CODESYS V3 výchozí."),
+      tr("rawMax analogů je v kódu 32767 (TODO) — uprav podle modulu (např. 750-455 4–20 mA)."),
+      tr("Test: simulace v e!COCKPIT / CODESYS (bez kontroléru), pak kontrolér s odpojenými akčními členy.")),
+    delta: () => list("DELTA DIADESIGNER-AX (AX-3 / AX-5 / AX-8, CODESYS V3.5)",
+      tr(`POZOR — ADRESY NEOVĚŘENY: AT adresy v GVL_IO jsou v notaci CODESYS (%IX bajt.bit, %IW index slova)
+odvozené z návrhu. Počáteční adresy vestavěných I/O (BuiltIn_IO) a modulů AS na Delta LocalBus
+manuál Delta neuvádí — porovnej je s mapováním zařízení v projektu, nebo AT smaž a proměnné
+GVL_IO přiřaď kanálům v Edit IO Mapping.`) + "\n",
+      tr("NEJRYCHLEJI: PLCopen_Import.xml — Project → Import PLCopenXML (standardní příkaz CODESYS V3.5; v dokumentaci Delta neověřeno). Ruční cesta je níže."),
+      tr("Projekt založ v DIADesigner-AX se šablonou svého CPU (AX-308E…), moduly AS přidej pod Delta_LocalBus_Master (Product List nebo scan sběrnice)."),
+      tr("GVL_IO.st: globální seznam proměnných s názvem přesně GVL_IO, obsah nahraď; Gen_Library.st / MAIN.st jako POU (ST), MAIN do cyklického tasku."),
+      tr("rawMax analogů je v kódu 32000 (TODO) — uprav podle rozsahu modulu (AS04AD-A / AS04DA-A)."),
+      tr("Test: simulace SoftPLC v DIADesigner-AX, pak CPU s odpojenými akčními členy.")),
     omron: () => list("OMRON SYSMAC STUDIO (NX/NJ)",
       tr("Variables.txt: v Global Variables vyber první prázdnou buňku sloupce Name a vlož (Ctrl+V) — sloupce Name, Data Type, Initial Value, AT, Retain, Constant, Network Publish, Comment."),
+      tr(`Globální jsou i řízení stroje pro HMI (enable, modeAuto, cmdAutoStart, cmdAck, machineFault, faultStep,
+  seqStep, manRun_* / manOpen_*) a stav bloků (instX_outRun, instX_status, instX_value…, MAIN je zapisuje
+  na konci); Network Publish = Publish Only — HMI NA je čte a zapisuje přes CIP (Input / Output jsou
+  jen pro tag data links). Globální proměnné, které Program0 používá, v něm zaregistruj jako externí.`),
       tr("AT sloupec nech prázdný a namapuj na I/O porty zařízení (EtherCAT) v projektu."),
       tr("Gen_Library.st: každý blok jako Function Block (ST) do POUs → Function Blocks; vstup kvitace se jmenuje resetIn (Reset je instrukce Sysmac)."),
       tr("MAIN.st: Sysmac edituje tělo programu odděleně od proměnných — do Program0 (ST) vlož jen tělo (od řádku za END_VAR po END_PROGRAM) a proměnné z bloku VAR založ v tabulce lokálních proměnných."),
@@ -1069,7 +1273,23 @@ vložení zkontroluj syntaxi proti své verzi (CASE, volání TON, převody TO_R
   pro přepis do Ladderu a Tags.csv jako seznam operandů.`),
       tr("Test: nejdřív na PLC s odpojenými akčními členy.")),
   };
-  return common + "\n" + spec[plat]();
+  return libReadmeHead(prj, plat) + common + "\n" + spec[plat]() + libReadmeTail(prj, plat);
+}
+
+/** Firemní hlavička na začátku README (bez knihovny ""). */
+function libReadmeHead(prj: Project, plat: PlatformKey): string {
+  const lib = codeLibrary(prj, plat);
+  return lib.header.length ? lib.header.join("\n") + "\n\n" : "";
+}
+/** Odstavec README o firemní knihovně: použité vlastní šablony a šablony, které použít nešlo. */
+function libReadmeTail(prj: Project, plat: PlatformKey): string {
+  const lib = codeLibrary(prj, plat);
+  const used = (Object.keys(lib.ids) as IrFbClass[]).map(c => "FB_" + c + " = " + lib.ids[c]);
+  if (!used.length && !lib.issues.length) return "";
+  const L = ["", "", tr("FIREMNÍ KNIHOVNA {name} {v}", { name: lib.library?.name || "", v: lib.library?.version || "" }).trim()];
+  if (used.length) L.push("- " + tr("Vlastní šablony bloků (stejné rozhraní jako vestavěné): {list}. Simulace a ověření návrhu počítají s vestavěnými bloky — vlastní blok simulací ověřen není, odlaď ho v cílovém IDE.", { list: used.join(", ") }));
+  for (const i of lib.issues.filter(i => i.level === "error")) L.push("- " + tr("NEPOUŽITO") + " — " + i.where + ": " + i.msg);
+  return L.join("\n");
 }
 
 /* ---------------------------------------------------- soubory: Unitronics */
@@ -1148,7 +1368,7 @@ function uniItems(ir: IrProgram): IrDeviceItem[] {
 
 /** Tagy k založení v UniLogic: fyzické I/O + stav programu (řízení, instance, časovače). */
 export function uniTags(prj: Project): Array<{ name: string; type: string; group: string; hint: string; cmt: string }> {
-  const ir = buildIR(prj);
+  const ir = buildIR(prj), lib = codeLibrary(prj, "unitronics");
   const out: Array<{ name: string; type: string; group: string; hint: string; cmt: string }> = [];
   for (const e of prj.io) out.push({ name: e.tag, type: dtFor(e) === "INT" ? "INT16" : "BIT", group: "I/O " + e.dir, hint: e.addr, cmt: (e.cmt || "").replace(/\s*[–—-]\s*$/, "") });
   /* názvy skupin: stejné klíče dosazuje do svého textu README (genReadme) */
@@ -1157,7 +1377,7 @@ export function uniTags(prj: Project): Array<{ name: string; type: string; group
   for (const d of ir.decls) out.push({ name: d.name, type: UNI_TYPE[d.type] || d.type, group: d.type === "TON" ? gTimer : gProg, hint: "", cmt: cmtSafe(declNote(d)).trim() });
   for (const b of uniItems(ir)) {
     if (b.kind !== "fb") continue;
-    for (const v of parseFbTemplate(fbTemplate(b.cls, "st")).vars) {
+    for (const v of parseFbTemplate(fbTemplate(b.cls, "st", lib)).vars) {
       out.push({ name: b.inst + "_" + v.name, type: UNI_TYPE[v.type] || v.type, group: v.type === "TON" ? gTimer : gBlock + " " + b.dev.name, hint: "", cmt: b.dev.name + ": " + v.name });
     }
   }
@@ -1173,7 +1393,7 @@ export function genUnitronicsTags(prj: Project): string {
 
 /** Logika stroje jako tělo jedné ST funkce pro UniLogic (stav v globálních tazích). */
 export function genMainUnitronics(prj: Project): string {
-  const ir = buildIR(prj), c = stCtx("unitronics");
+  const ir = buildIR(prj), c = stCtx("unitronics"), lib = codeLibrary(prj, "unitronics");
   const x = (b: IrFb, n: string) => irText(b.inputs.find(p => p.name === n)!.expr, c);
   const parts: string[] = [], free: string[] = [];
   /* komentáře šablony se překládají až PO rozepsání — inlineFb přepisuje názvy proměnných
@@ -1182,7 +1402,7 @@ export function genMainUnitronics(prj: Project): string {
     const wired: Record<string, string> = {}, outs: Record<string, string> = {};
     for (const p of b.inputs) if (!skip.includes(p.name)) wired[p.name] = irText(p.expr, c);
     for (const o of b.outputs) if (o.tag) outs[o.name] = o.tag;
-    return trComments(inlineFb(fbTemplate(b.cls, "st"), b.inst, wired, outs), stripDia);
+    return trComments(inlineFb(fbTemplate(b.cls, "st", lib), b.inst, wired, outs), stripDia);
   };
   for (const it of uniItems(ir)) {
     const d = it.dev;
@@ -1207,7 +1427,7 @@ export function genMainUnitronics(prj: Project): string {
   }
   const fault = renderFault(ir, c);
   /* texty jsou tu s diakritikou — čisté ASCII z nich (i z překladu) dělá až uniAscii() na konci */
-  const st = `(* ${trx(`Machine.st - logika stroje pro Unitronics UniLogic (UniStream), jazyk ST.
+  const st = `${libHeader(lib, false)}(* ${trx(`Machine.st - logika stroje pro Unitronics UniLogic (UniStream), jazyk ST.
    Generováno PLCdesk. Obsah vlož do JEDNÉ ST funkce volané každý scan.
    ST funkce v UniLogic nemá vlastní paměť: všechny tagy z Tags.csv založ jako
    GLOBÁLNÍ. Bloky zařízení jsou proto rozepsané přímo zde (předpona instX_).`)} *)
@@ -1224,6 +1444,8 @@ ${free.join("\n") || "    (*   " + trx("žádné") + " *)"}
 
 /** Všechny generované soubory programu pro jednu platformu. */
 export function genFor(prj: Project, plat: PlatformKey): Record<string, string> {
+  /* styl OOP (jen rodina CODESYS, volba projektu) — stejný IR a šablony, jiný zápis; viz codegen_oop.ts */
+  if (codeStyleFor(prj, plat) === "oop") return genForOop(prj, plat);
   const files: Record<string, string> = {};
   if (plat === "unitronics") {
     files["Tags.csv"] = genUnitronicsTags(prj);
@@ -1245,7 +1467,7 @@ export function genFor(prj: Project, plat: PlatformKey): Record<string, string> 
     files["Gen_Library.st"] = genLibrary(prj, plat);
     files["MAIN.st"] = genMainIEC(prj, plat);
     /* CODESYS rodina: celý program jedním importovatelným souborem (z téhož finálního textu) */
-    if (plat === "codesys" || plat === "beckhoff" || plat === "schneider") files["PLCopen_Import.xml"] = genPLCopenXML(prj, plat);
+    if (isCodesysFamily(plat)) files["PLCopen_Import.xml"] = genPLCopenXML(prj, plat);
     if (plat === "omron") for (const f of ["Gen_Library.st", "MAIN.st"]) files[f] = files[f].replace(/\breset\b/g, "resetIn");
   }
   files["README.txt"] = genReadme(prj, plat);

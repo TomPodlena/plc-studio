@@ -12,7 +12,7 @@
  */
 import type { Project, PlatformKey } from "../model.js";
 import { type SimOptions } from "../sim.js";
-import type { Compiled } from "./compile.js";
+import { type Compiled } from "./compile.js";
 import type { EmuFinding } from "./types.js";
 export interface EmuRunOptions {
     /** full = všechny scénáře ověření vč. matice stavů (výchozí); quick = běžný cyklus, poruchy, E-stop, kvitace. */

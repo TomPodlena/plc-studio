@@ -89,7 +89,15 @@ function programDecls(p, plat) {
     const io = f["GVL_IO.st"] ? new Set(declsIn(tagFile.slice(tagFile.indexOf("VAR_GLOBAL"))).keys())
         : f["GlobalLabels.csv"] ? new Set(tagFile.split("\n").slice(1).map(l => l.split(",")[0].replace(/"/g, "")))
             : new Set(tagFile.split("\n").map(l => l.split("\t")[0]));
-    return { machine: declsIn(main.slice(main.indexOf("PROGRAM MAIN"), main.indexOf("END_VAR"))), fb: fbDecls(f["Gen_Library.st"]), io };
+    const machine = declsIn(main.slice(main.indexOf("PROGRAM MAIN"), main.indexOf("END_VAR")));
+    /* Mitsubishi / Omron: HMI čte jen globální — řízení stroje a stav bloků jsou v souboru tagů,
+       stav bloků MAIN zapisuje (zrcadlo instX_port := instX.port) */
+    if (plat === "mitsubishi" || plat === "omron") {
+        const written = new Set([...main.matchAll(/^\s*(\w+)\s*:=/gm)].map(m => m[1]));
+        const flat = new Set([...io].filter(n => !/^inst\w+_\w+$/.test(n) || written.has(n)));
+        return { machine, fb: fbDecls(f["Gen_Library.st"]), io, flat };
+    }
+    return { machine, fb: fbDecls(f["Gen_Library.st"]), io };
 }
 /** Existuje proměnná, na kterou tag HMI ukazuje, v programu platformy? */
 function tagInProgram(d, t, plat) {
@@ -209,4 +217,36 @@ test("HMI: všechny příklady × platformy × jazyky — tagy v programu, alarm
                 }
             });
     }
+});
+test("HMI Mitsubishi / Omron: řízení stroje a stav bloků jsou globální s atributem pro HMI, MAIN je zapisuje", () => {
+    const p = sampleSmall();
+    p.platforms = ["mitsubishi", "omron", "codesys"];
+    const m = buildHmi(p);
+    for (const plat of ["mitsubishi", "omron"]) {
+        const f = genFor(p, plat);
+        const main = f["MAIN.st"], vars = main.slice(main.indexOf("PROGRAM MAIN"), main.indexOf("END_VAR"));
+        for (const n of ["enable", "modeAuto", "cmdAutoStart", "cmdAck", "machineFault", "faultStep", "seqStep", "manRun_M1"])
+            assert.ok(!new RegExp("^\\s*" + n + "\\s*:", "m").test(vars), plat + ": " + n + " nesmí být lokální");
+        assert.match(vars, /tonSeq\d+ : TON;/, plat + ": časovače kroků zůstávají lokální");
+        assert.match(main, /^\s*instM1_status := instM1\.status;$/m, plat + ": zrcadlo stavu bloku");
+        if (plat === "mitsubishi") {
+            const csv = f["GlobalLabels.csv"].split("\n");
+            assert.match(csv[0], /,"Access from External Device"$/);
+            assert.ok(csv.slice(1).every(l => l.endsWith(',"1"')), "Access from External Device = 1");
+            assert.ok(csv.some(l => l.startsWith('"modeAuto","Bit","VAR_GLOBAL"')));
+            assert.ok(csv.some(l => l.startsWith('"instM1_status","Word [Unsigned]/Bit String [16-bit]","VAR_GLOBAL"')));
+        }
+        else {
+            const rows = f["Variables.txt"].split("\n").map(l => l.split("\t"));
+            assert.ok(rows.every(r => r.length === 8 && r[6] === "Publish Only"), "Network Publish = Publish Only");
+            assert.ok(rows.some(r => r[0] === "seqStep" && r[1] === "INT"));
+        }
+        /* cesty HMI = globální jména; README_HMI bez ručního přesunu do globálních */
+        assert.equal(hmiPlcPath(plat, m.tags.find(x => x.member === "instM1.status")), "instM1_status");
+        assert.equal(hmiPlcPath(plat, m.tags.find(x => x.member === "modeAuto")), "modeAuto");
+        assert.doesNotMatch(hmiFiles(p, plat)["README_HMI.txt"], /přesuň/);
+    }
+    /* ostatní platformy beze změny: řízení v MAIN */
+    assert.match(genFor(p, "codesys")["MAIN.st"], /^\s*modeAuto : BOOL;/m);
+    assert.equal(hmiPlcPath("codesys", m.tags.find(x => x.member === "modeAuto")), "MAIN.modeAuto");
 });

@@ -16,6 +16,7 @@
  * 5000-UM004 / 5069-UM005 (tagy modulů 5069). Výstup není ověřen importem ve Studiu 5000.
  */
 import { Project, IoEntry, Dir } from "./model.js";
+import { type IrFbClass } from "./ir.js";
 /** Název importovaného programu a jeho hlavní rutiny. */
 export declare const LX_PROGRAM = "PLCdesk";
 export declare const LX_ROUTINE = "MainRoutine";
@@ -114,3 +115,11 @@ export declare function xmlProblems(xml: string): string[];
  * v rutinách deklarovaný (tag, parametr / lokální tag AOI, člen FBD_TIMER), čisté ASCII.
  */
 export declare function logixProblems(files: Record<string, string>): string[];
+/**
+ * Proč vlastní šablonu IEC ST (firemní knihovna) nejde spolehlivě převést na Add-On Instruction;
+ * prázdné = jde. Převod (`lxDialect`) zná jen konstrukce vestavěných šablon (TON jako
+ * `tonX(IN := …, PT := T#…);`, předčasný RETURN v úvodním IF NOT enable, INT_TO_REAL…) — výsledek
+ * se proto zkontroluje stejnou kontrolou jako výstup (`lxRoutineFindings`): co v AOI zbude
+ * z IEC (T#, TON(, RETURN, .Q, volání s parametry, nedeklarované jméno…), převést nešlo.
+ */
+export declare function lxTplProblems(cls: IrFbClass, tpl: string): string[];

@@ -3,8 +3,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { sampleSmall } from "./samples.js";
 import { buildBom } from "./bom.js";
-import { ST_MOTOR, ST_VENTIL, SCL_MOTOR } from "./codegen.js";
-import { blankProject, validateProject } from "./model.js";
+import { ST_MOTOR, ST_VENTIL, SCL_MOTOR, genFor, codeLibrary } from "./codegen.js";
+import { blankProject, validateProject, PLAT } from "./model.js";
+import { docSWMd } from "./docs.js";
+import { emulateCompile } from "./emu/index.js";
 import { blankLibrary, exportLibrary, importLibrary, validateLibrary, validateFbTemplate, fbInterface, builtinTemplate, FB_CLASSES, libraryOverrides, attachLibrary, addLibraryDevice, libStepTime, libraryDocHeader, libraryApprovers, LIBRARY_SCHEMA, } from "./library.js";
 const MY_MOTOR = ST_MOTOR.replace("T#3S", "T#5S").replace("(* Sablona: motor", "(* ACME firemni blok: motor");
 function lib() {
@@ -150,4 +152,118 @@ test("vlastní typ zařízení v projektu: zařízení, I/O, kusovník, časy, v
     assert.throws(() => addLibraryDevice(p, "Nope"), /Nope/);
     assert.match(libraryDocHeader(p), /ACME Automation/);
     assert.deepEqual(libraryApprovers(p), ["Ing. Novák"]);
+});
+/* ------------------------------------------------ napojení knihovny do generátoru (genFor) */
+const ALL = Object.keys(PLAT);
+const MY_MOTOR_SCL = SCL_MOTOR.replace("T#3S", "T#5S").replace("// Šablona: motor", "// ACME firemní blok: motor");
+/** Knihovna s vlastním FB_Motor (stejné rozhraní, rozběh 5 s místo 3 s) pro ST i SCL. */
+function genLib() {
+    const l = lib();
+    l.fbTemplates = [
+        { id: "AcmeMotor", cls: "Motor", dialect: "st", source: MY_MOTOR },
+        { id: "AcmeMotorScl", cls: "Motor", dialect: "scl", source: MY_MOTOR_SCL },
+    ];
+    return l;
+}
+const errsOf = (fs) => fs.filter(f => f.level === "error").map(f => f.rule + " " + f.file + ":" + f.line + " " + f.msg);
+test("knihovna v generátoru: vlastní FB_Motor na všech platformách, hlavička, README, FDS; emulátor přeloží", () => {
+    const p = sampleSmall();
+    p.platforms = [...ALL];
+    attachLibrary(p, genLib(), false);
+    for (const plat of ALL) {
+        const f = genFor(p, plat), all = Object.values(f).join("\n");
+        const lib = codeLibrary(p, plat);
+        assert.deepEqual(lib.issues.filter(i => i.level === "error"), [], plat + ": šablona použitelná");
+        assert.equal(lib.ids.Motor, plat === "siemens" ? "AcmeMotorScl" : "AcmeMotor", plat);
+        /* vlastní šablona je v kódu (rozběh 5 s), vestavěná (3 s) už ne */
+        if (plat === "siemens") {
+            assert.match(f["Gen_Library.scl"], /ACME firemní blok/);
+            assert.match(f["Gen_Library.scl"], /T_FBK : Time := T#5S/);
+        }
+        else if (plat === "rockwell") {
+            assert.match(f["PLCdesk_Program.L5X"], /tonFbk\.PRE := 5000;/);
+            assert.doesNotMatch(f["PLCdesk_Program.L5X"], /tonFbk\.PRE := 3000;/);
+        }
+        else if (plat === "unitronics") {
+            assert.match(f["Machine.st"], /instM1_tonFbk\(IN := \(instM1_statStep = 10\), PT := T#5S\);/);
+        }
+        else {
+            assert.match(f["Gen_Library.st"], /ACME firemni blok/);
+            assert.match(f["Gen_Library.st"], /tonFbk\(IN := \(statStep = 10\), PT := T#5S\);/);
+        }
+        /* firemní hlavička v hlavním programu a README; README jmenuje šablonu */
+        const mainName = plat === "siemens" ? "Gen_Main.scl" : plat === "rockwell" ? "MainRoutine.st" : plat === "unitronics" ? "Machine.st" : "MAIN.st";
+        assert.match(f[mainName].slice(0, 400), plat === "siemens" ? /^﻿?\/\/ ACME Automation/ : /^\(\* ACME Automation/, plat + ": hlavička " + mainName);
+        assert.match(f["README.txt"], /^ACME Automation/);
+        assert.match(f["README.txt"], /AcmeMotor/);
+        assert.doesNotMatch(all, /undefined|NaN/);
+        /* emulátor: skutečný výstup s vlastní šablonou se přeloží bez chyby (běhová shoda se simulací
+           se u vlastního bloku nepožaduje — simulace zrcadlí vestavěnou šablonu) */
+        assert.deepEqual(errsOf(emulateCompile(p, plat).findings), [], plat + ": překlad s vlastní šablonou");
+    }
+    /* FDS (softwarová dokumentace): poznámka u typového bloku */
+    assert.match(docSWMd(p), /FB_Motor \| .*AcmeMotor.*neověřeno simulací/);
+    assert.doesNotMatch(docSWMd(p), /FB_Ventil \| .*knihovny/);
+});
+test("knihovna v generátoru: šablona s chybou ani nepřevoditelná šablona se nepoužije — vestavěná + issue", () => {
+    const base = sampleSmall();
+    base.platforms = [...ALL];
+    const plain = Object.fromEntries(ALL.map(pl => [pl, genFor(base, pl)]));
+    /* 1) chyba validace (chybí vstup) → nikde, kód knihovny bloků shodný s projektem bez knihovny */
+    const p = sampleSmall();
+    p.platforms = [...ALL];
+    const l = genLib();
+    l.fbTemplates = [{ id: "BadMotor", cls: "Motor", dialect: "st", source: MY_MOTOR.replace("    fault : BOOL;\n", "") }];
+    attachLibrary(p, l, false);
+    for (const plat of ALL) {
+        if (plat === "siemens")
+            continue;
+        const lib = codeLibrary(p, plat);
+        assert.equal(lib.templates.Motor, undefined, plat);
+        assert.ok(lib.issues.some(i => i.level === "error" && /fault/.test(i.msg)), plat + ": issue chyby šablony");
+        const f = genFor(p, plat);
+        if (f["Gen_Library.st"])
+            assert.equal(f["Gen_Library.st"], plain[plat]["Gen_Library.st"], plat + ": vestavěná šablona");
+        if (f["Machine.st"])
+            assert.match(f["Machine.st"], /PT := T#3S\);/);
+    }
+    /* 2) platná IEC šablona s R_TRIG: CODESYS ji použije, Unitronics (rozepsání) ani Logix (AOI) ne */
+    const q = sampleSmall();
+    q.platforms = [...ALL];
+    const rt = MY_MOTOR.replace("    lastStart : BOOL;\n", "    rtStart : R_TRIG;\n")
+        .replace("trigStart := cmdStart AND NOT lastStart;  lastStart := cmdStart;", "rtStart(CLK := cmdStart); trigStart := rtStart.Q;");
+    assert.notEqual(rt, MY_MOTOR);
+    assert.deepEqual(validateFbTemplate({ id: "RtMotor", cls: "Motor", dialect: "st", source: rt }).filter(i => i.level === "error"), []);
+    const l2 = genLib();
+    l2.fbTemplates = [{ id: "RtMotor", cls: "Motor", dialect: "st", source: rt }];
+    attachLibrary(q, l2, false);
+    assert.match(genFor(q, "codesys")["Gen_Library.st"], /rtStart\(CLK := cmdStart\)/);
+    assert.deepEqual(errsOf(emulateCompile(q, "codesys").findings), []);
+    for (const plat of ["unitronics", "rockwell"]) {
+        const lib = codeLibrary(q, plat);
+        assert.equal(lib.templates.Motor, undefined, plat + ": nepřevoditelná šablona se nepoužije");
+        const iss = lib.issues.filter(i => i.level === "error");
+        assert.ok(iss.length === 1 && /RtMotor/.test(iss[0].where) && /R_TRIG/.test(iss[0].msg), plat + ": issue s důvodem\n" + iss.map(i => i.msg).join("\n"));
+        const f = genFor(q, plat);
+        assert.doesNotMatch(Object.values(f).join("\n").replace(f["README.txt"], ""), /rtStart/, plat + ": v kódu vestavěná šablona");
+        assert.match(f["README.txt"], /RtMotor/);
+        assert.deepEqual(errsOf(emulateCompile(q, plat).findings), [], plat);
+    }
+    /* 3) RETURN jinde než v úvodním IF NOT enable → Unitronics ne */
+    const ret = MY_MOTOR.replace("busy := (statStep = 10);", "IF fault THEN RETURN; END_IF;\nbusy := (statStep = 10);");
+    const r = sampleSmall();
+    r.platforms = [...ALL];
+    const l3 = genLib();
+    l3.fbTemplates = [{ id: "RetMotor", cls: "Motor", dialect: "st", source: ret }];
+    attachLibrary(r, l3, false);
+    assert.equal(codeLibrary(r, "unitronics").templates.Motor, undefined);
+    assert.ok(codeLibrary(r, "unitronics").issues.some(i => i.level === "error" && /RETURN/.test(i.msg)));
+    assert.equal(codeLibrary(r, "codesys").templates.Motor, ret);
+});
+test("knihovna bez šablon a bez firmy: výstup generátoru beze změny", () => {
+    const a = sampleSmall(), b = sampleSmall();
+    a.platforms = b.platforms = [...ALL];
+    attachLibrary(b, { ...blankLibrary("prázdná"), company: undefined }, false);
+    for (const plat of ALL)
+        assert.deepEqual(genFor(b, plat), genFor(a, plat), plat);
 });

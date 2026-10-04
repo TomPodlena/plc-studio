@@ -59,3 +59,34 @@ def render(app, parent) -> None:
               text=_("Vybráno platforem: {n}", n=n) if n else
               _("Není vybraná žádná platforma — bez ní se nevygeneruje žádný kód.")
               ).pack(anchor="w", pady=(10, 0))
+    code_style(app, body)
+
+
+def code_style(app, body) -> None:
+    """Styl kódu Klasický / OOP — jen když je vybraná platforma, která OOP umí (rodina CODESYS)."""
+    oop_plats = [k for k in app.prj["platforms"] if (app.PLAT.get(k) or {}).get("oop")]
+    if not oop_plats:
+        return
+    box = ttk.LabelFrame(body, text=_("Styl kódu"), padding=(10, 6))
+    box.pack(fill="x", pady=(12, 0))
+    # Tk proměnnou držet živou (bez reference ji GC uklidí a přepínač zbělá)
+    app._code_style_var = var = tk.StringVar(value="oop" if app.prj.get("codeStyle") == "oop" else "classic")
+
+    def changed() -> None:
+        if var.get() == "oop":
+            app.prj["codeStyle"] = "oop"
+        else:
+            app.prj.pop("codeStyle", None)
+        app.save()
+        app.render()
+
+    row = ttk.Frame(box)
+    row.pack(anchor="w")
+    ttk.Radiobutton(row, text=_("Klasický (doporučeno)"), value="classic", variable=var,
+                    command=changed).pack(side="left", padx=(0, 18))
+    ttk.Radiobutton(row, text=_("OOP"), value="oop", variable=var, command=changed).pack(side="left")
+    wrap_label(box, _(
+        "OOP: rozhraní I_Device, abstraktní základ FB_DeviceBase, třídy zařízení s metodami a "
+        "vlastnostmi, sekvence ve FB_Sequence. Chování je stejné jako u klasického stylu (ověřuje "
+        "emulátor), mění se jen zápis. Platí pro: {list}; ostatní platformy dostanou klasický kód.",
+        list=", ".join(app.PLAT[k]["name"] for k in oop_plats)))

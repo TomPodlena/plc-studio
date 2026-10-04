@@ -11,6 +11,14 @@ export const SRC = {
     tcAlloc: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/12081664011.html",
     tcComment: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/2528329355.html",
     tcOop: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/2526090891.html",
+    /* OOP (ověřeno 2026-10-04): rozhraní, vlastnosti, metody, ABSTRACT, THIS^ / SUPER^, kontrola odkazu <> 0 */
+    cdsItf: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_obj_interface.html",
+    cdsItfProp: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_obj_interface_property.html",
+    cdsProp: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_obj_property.html",
+    cdsMethod: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_obj_method.html",
+    cdsThis: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_pointer_this.html",
+    tcAbstract: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/6413748235.html",
+    tcItfRef: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/5680748299.html",
     sieGuide: "https://support.industry.siemens.com/cs/ww/en/view/81318674",
     sieTon: "https://abedgnu.github.io/Automation-Notes/chapters/PLC/Siemens/exercises-solutions.html",
     sieScl: "https://www.solisplc.com/tutorials/case-statement-scl-efficient-plc-programming",
@@ -141,20 +149,31 @@ export const DIALECTS = {
     }),
     codesys: base({
         plat: "codesys", label: "CODESYS V3.5 (WAGO, Festo, Eaton…)", nestedComments: true, endSemi: "info",
-        conv: convBy("warn", "warn", "error", "error"), src: CDS_SRC,
+        conv: convBy("warn", "warn", "error", "error"), src: CDS_SRC, oop: true,
     }),
     beckhoff: base({
         plat: "beckhoff", label: "Beckhoff TwinCAT 3", nestedComments: true, endSemi: "info",
         conv: convBy("warn", "warn", "error", "error"),
-        src: { ...CDS_SRC, syntax: SRC.tcComment, addr: SRC.tcAlloc },
+        src: { ...CDS_SRC, syntax: SRC.tcComment, addr: SRC.tcAlloc }, oop: true,
     }),
     schneider: base({
         plat: "schneider", label: "Schneider EcoStruxure Machine Expert (CODESYS)", nestedComments: true, endSemi: "info",
-        conv: convBy("warn", "warn", "error", "error"), src: CDS_SRC,
+        conv: convBy("warn", "warn", "error", "error"), src: CDS_SRC, oop: true,
+    }),
+    /* profily platformy CODESYS: stejný překladač (CODESYS V3.5), jiná IDE */
+    wago: base({
+        plat: "wago", label: "WAGO e!COCKPIT / CODESYS V3.5 (PFC100 / PFC200)", nestedComments: true, endSemi: "info",
+        conv: convBy("warn", "warn", "error", "error"), src: CDS_SRC, oop: true,
+    }),
+    delta: base({
+        plat: "delta", label: "Delta DIADesigner-AX (CODESYS V3.5, AX-3 / AX-5 / AX-8)", nestedComments: true, endSemi: "info",
+        conv: convBy("warn", "warn", "error", "error"), src: CDS_SRC, oop: true,
     }),
     mitsubishi: base({
         plat: "mitsubishi", label: "Mitsubishi GX Works3 (MELSEC iQ-F FX5)",
         initValues: false, timerMaxMs: 32767,
+        /* + časovače Mitsubishi s předvolbou INT v jednotkách 1 / 10 / 100 ms (JY997D55801 kap. 32.4) */
+        stdFbs: new Set([...IEC_FBS, "TIMER_1_FB_M", "TIMER_10_FB_M", "TIMER_100_FB_M"]),
         deviceName: /^(?:(?:X|Y|B|W|SB|SW)[0-9A-F]+|(?:M|L|F|V|S|SM|D|SD|R|ZR|T|ST|C|LC|LT|LST|Z|LZ|K|H|P|I|N)[0-9]+)$/i,
         conv: convBy("error", "error", "error", "error", "warn"),
         src: { syntax: SRC.fx5pd, ident: SRC.gxw3, conv: SRC.fx5pd, semi: SRC.fx5pd, reserved: SRC.gxw3, addr: SRC.fx5ins },
@@ -207,4 +226,6 @@ export const RULES = {
     "tag-table": N_("Tabulka tagů odpovídá kódu"),
     xml: N_("XML je well-formed"),
     runtime: N_("Běhová chyba (dělení nulou, přetečení, nekonečný cyklus)"),
+    oop: N_("OOP: rozhraní (IMPLEMENTS), abstraktní bloky, podpis metod, přístup, vlastnosti GET / SET"),
+    "iface-guard": N_("Volání přes odkaz na rozhraní až po kontrole odkazu <> 0"),
 };

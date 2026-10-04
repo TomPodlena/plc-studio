@@ -2,6 +2,8 @@ import { DIALECTS, SRC } from "./dialects.js";
 import { lex } from "./lexer.js";
 import { parse } from "./parser.js";
 import { xmlProblems } from "../logix.js";
+import { isCodesysFamily } from "../model.js";
+import { checkOopFiles } from "./oop_files.js";
 import { tr } from "../i18n.js";
 const P = (file, line = 0, col = 0) => ({ file, line, col });
 /** Rozdělí řádek CSV (uvozovky, zdvojené uvozovky uvnitř). */
@@ -163,7 +165,7 @@ function loadIec(prj, files, d, out) {
     const tags = [];
     const dirs = dirOf(prj);
     const plat = d.plat;
-    if (plat === "codesys" || plat === "beckhoff" || plat === "schneider") {
+    if (isCodesysFamily(plat)) {
         const gvl = files["GVL_IO.st"];
         if (gvl === undefined) {
             out.push({ level: "error", rule: "tag-table", file: "GVL_IO.st", line: 0, col: 0, platform: plat, msg: tr("Chybí soubor {file}", { file: "GVL_IO.st" }) });
@@ -221,6 +223,12 @@ function loadIec(prj, files, d, out) {
         if (x !== undefined)
             for (const e of xmlProblems(x))
                 out.push({ level: "error", rule: "xml", file: "PLCopen_Import.xml", line: 0, col: 0, platform: plat, msg: e });
+        /* styl OOP: soubory pro import (TcPOU / TcIO / TcGVL, PLCopen s rozšířením CODESYS) = ST výpis */
+        for (const [n, t] of Object.entries(files))
+            if (/\.Tc(POU|IO|GVL|DUT)$/i.test(n))
+                for (const e of xmlProblems(t))
+                    out.push({ level: "error", rule: "xml", file: n, line: 0, col: 0, platform: plat, msg: e });
+        checkOopFiles(files, plat, out);
     }
     else if (plat === "mitsubishi") {
         const csv = files["GlobalLabels.csv"];
@@ -231,7 +239,7 @@ function loadIec(prj, files, d, out) {
         const rows = csv.split(/\r?\n/);
         const head = csvRow(rows[0] || "");
         const ix = (n) => head.indexOf(n);
-        const iN = ix("Label Name"), iT = ix("Data Type"), iC = ix("Class"), iA = ix("Assign (Device/Label)");
+        const iN = ix("Label Name"), iT = ix("Data Type"), iC = ix("Class"), iA = ix("Assign (Device/Label)"), iX = ix("Access from External Device");
         if (iN < 0 || iT < 0)
             out.push({ level: "error", rule: "tag-table", file: "GlobalLabels.csv", line: 1, col: 1, platform: plat, source: SRC.gxw3, msg: tr("Hlavička GlobalLabels.csv neodpovídá editoru návěští GX Works3 (Label Name, Data Type, Class, …)") });
         const seen = new Map();
@@ -240,6 +248,9 @@ function loadIec(prj, files, d, out) {
                 return;
             const c = csvRow(r), pos = P("GlobalLabels.csv", i + 2, 1);
             const name = c[iN], type = c[iT], assign = iA >= 0 ? c[iA] : "";
+            /* GX Works3 OM (Exporting/importing a label): Access from External Device se v CSV zapisuje 1 / 0 */
+            if (iX >= 0 && c[iX] !== "1" && c[iX] !== "0")
+                out.push({ level: "error", rule: "tag-table", file: pos.file, line: pos.line, col: 1, platform: plat, source: SRC.gxw3, msg: tr("{name}: Access from External Device musí být 1 nebo 0, ne „{v}“", { name, v: c[iX] ?? "" }) });
             if (iC >= 0 && c[iC] !== "VAR_GLOBAL" && c[iC] !== "VAR_GLOBAL_CONSTANT")
                 out.push({ level: "error", rule: "tag-table", file: pos.file, line: pos.line, col: 1, platform: plat, source: SRC.gxw3, msg: tr("{name}: třída {cls} není platná pro globální návěští", { name, cls: c[iC] }) });
             const t = /^bit$/i.test(type) ? "BOOL" : /^word \[signed\]$/i.test(type) ? "INT" : /^double word \[signed\]$/i.test(type) ? "DINT" : /^float/i.test(type) ? "REAL" : type;
@@ -280,12 +291,19 @@ function loadIec(prj, files, d, out) {
                 out.push({ level: "error", rule: "tag-table", file: pos.file, line: pos.line, col: 1, platform: plat, source: SRC.w504, msg: tr("Řádek má {n} sloupců — tabulka Global Variables má 8 (Name, Data Type, Initial Value, AT, Retain, Constant, Network Publish, Comment)", { n: c.length }) });
             if (/^name$/i.test(c[0]))
                 out.push({ level: "error", rule: "tag-table", file: pos.file, line: pos.line, col: 1, platform: plat, source: SRC.w504, msg: tr("Řádek hlavičky by se vložil jako proměnná „Name“") });
+            /* W501 6-3-8: Network Publish = Do not publish / Publish Only / Input / Output (prázdné = nepublikovat) */
+            if (c.length === 8 && !["", "Do not publish", "Publish Only", "Input", "Output"].includes(c[6]))
+                out.push({ level: "error", rule: "tag-table", file: pos.file, line: pos.line, col: 1, platform: plat, source: SRC.w501, msg: tr("{name}: Network Publish „{v}“ — Sysmac zná Do not publish, Publish Only, Input, Output", { name: c[0], v: c[6] }) });
             tags.push({ name: c[0], type: c[1] || "BOOL", pos });
         });
     }
     const lib = files["Gen_Library.st"], main = files["MAIN.st"];
     if (lib !== undefined)
         units.push(parseCode(lib, "Gen_Library.st", d, out));
+    /* další POU jako samostatné soubory (styl OOP: FB_Sequence.st) */
+    for (const n of Object.keys(files).sort())
+        if (/\.st$/i.test(n) && !["GVL_IO.st", "Gen_Library.st", "MAIN.st"].includes(n))
+            units.push(parseCode(files[n], n, d, out));
     if (main === undefined) {
         out.push({ level: "error", rule: "syntax", file: "MAIN.st", line: 0, col: 0, platform: plat, msg: tr("Chybí soubor {file}", { file: "MAIN.st" }) });
         return;

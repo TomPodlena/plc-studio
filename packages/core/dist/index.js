@@ -1,6 +1,7 @@
 export * from "./i18n.js";
 export * from "./model.js";
 export * from "./codegen.js";
+export * from "./codegen_oop.js";
 export * from "./ir.js";
 export * from "./logix.js";
 export * from "./importers.js";

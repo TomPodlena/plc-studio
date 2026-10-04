@@ -21,6 +21,8 @@ import { type BomLine } from "./bom.js";
 import { type EplanAmlOptions } from "./eplan_aml.js";
 export declare const EPLAN_VERIFIED: string;
 export declare const EPLAN_SOURCES: string[];
+/** Konvertor EPLAN pro import (plcservice CONVERTERID): Siemens → TIA Portal 19 (AR APC 1.4.0), jinak obecný AML EPLAN. */
+export declare function eplanConverterId(prj: Project): string;
 export interface EplanCard {
     /** Označení karty dle IEC 81346 (-A2 / -A2.1 …) a řádek kusovníku, ze kterého vychází. */
     dt: string;
@@ -53,6 +55,16 @@ export declare function eplanTerminals(prj: Project, cards?: EplanCard[]): Eplan
  * a symbolické adresy — generátor a kontrola jsou v eplan_aml.ts (`genEplanAml`, `validateEplan`).
  */
 export declare function eplanAml(prj: Project, cards?: EplanCard[], opts?: EplanAmlOptions): string;
+/** Název skriptu EPLAN (C#) v sadě souborů a v repozitáři (apps/eplan/). */
+export declare const EPLAN_SCRIPT_NAME = "PLCdesk_ImportAML.cs";
+/**
+ * Skript EPLAN (C#, skriptovací stroj EPLAN — bez licence API): import PLC dat přes akci
+ * `plcservice /TYPE:BUSDATAIMPORT` (konvertor podle obsahu: Siemens → PlcDcExchangerSiemensTIA19AML,
+ * jinak PlcDcAMLExchangerGeneral; IMPORTMATCH 0 = podle ID) a volitelně `GENERATEPLCSCHEMATIC`
+ * s uloženým nastavením zákazníka. Text je shodný se souborem apps/eplan/PLCdesk_ImportAML.cs (hlídá test);
+ * technický výstup → anglicky a ASCII v každém jazyce. Neověřeno v EPLAN.
+ */
+export declare function eplanImportScript(): string;
 /** Seznam zařízení z kusovníku: karty rozepsané na -A2.1 …, svorky a kabely v samostatných seznamech. */
 export declare function eplanDevicesCsv(prj: Project, cards?: EplanCard[]): string;
 /** Svorky (-X<n>:<k>) s kartou, kanálem, adresou, symbolickou adresou, cílem a vodičem. */

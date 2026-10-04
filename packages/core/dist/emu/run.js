@@ -1,8 +1,9 @@
-import { devById, ioOf, interlockDevs } from "../model.js";
+import { devById, ioOf, interlockDevs, isCodesysFamily } from "../model.js";
 import { Simulator, simulate, simScenarios, T_VALVE_TRAVEL, DI_DELAY } from "../sim.js";
-import { actuators, manVarOf, limitedAnalogs, seqCond } from "../codegen.js";
+import { actuators, manVarOf, limitedAnalogs, seqCond, hmiGlobalPlat } from "../codegen.js";
 import { instName } from "../model.js";
 import { tr } from "../i18n.js";
+import { TIMER_M_UNIT } from "./compile.js";
 const priv = (s) => s;
 function shared(prj) {
     const ins = prj.io.filter(e => e.dir === "DI" || e.dir === "AI");
@@ -21,10 +22,10 @@ function shared(prj) {
     return { inKeys: ins.map(e => e.key), inAi: ins.map(e => e.dir === "AI"), inVals: new Float64Array(ins.length), sigs, dv: new Float64Array(sigs.length) };
 }
 function pathsFor(plat) {
-    const iec = plat === "codesys" || plat === "beckhoff" || plat === "schneider";
+    const iec = isCodesysFamily(plat);
     return {
         io: (tag) => plat === "siemens" ? [tag] : iec ? ["GVL_IO", tag] : [tag],
-        hmi: (v) => plat === "siemens" ? ["InstMachine", v] : plat === "rockwell" || plat === "unitronics" ? [v] : ["MAIN", v],
+        hmi: (v) => plat === "siemens" ? ["InstMachine", v] : plat === "rockwell" || plat === "unitronics" || hmiGlobalPlat(plat) ? [v] : ["MAIN", v],
         inst: (inst, m) => plat === "siemens" ? ["InstMachine", inst, m] : plat === "rockwell" ? [inst, m] : plat === "unitronics" ? [inst + "_" + m] : ["MAIN", inst, m],
     };
 }
@@ -54,7 +55,9 @@ function setup(prj, sh, plat, prog, rawMax) {
     const sigSlot = new Int32Array(sh.sigs.length);
     sh.sigs.forEach((g, i) => {
         const m = /^(inst\w+)\.statStep$/.exec(g.name);
-        const path = m ? P.inst(m[1], "statStep") : ["seqStep", "faultStep", "machineFault"].includes(g.name) ? P.hmi(g.name) : P.io(g.name);
+        /* styl OOP: krok bloku je v základní třídě FB_DeviceBase jako iStep (maďarská notace) */
+        const path = m ? (prog.addr(P.inst(m[1], "statStep")) || !prog.addr(P.inst(m[1], "iStep")) ? P.inst(m[1], "statStep") : P.inst(m[1], "iStep"))
+            : ["seqStep", "faultStep", "machineFault"].includes(g.name) ? P.hmi(g.name) : P.io(g.name);
         sigSlot[i] = slot(path, g.need);
     });
     const ao = [];
@@ -274,6 +277,10 @@ export function runPlatforms(prj, list, opts = {}) {
             else if (tm.kind.startsWith("TP")) {
                 if (m[b + 2])
                     h = Math.min(h, m[b + 4] + m[b + 1]);
+            }
+            else if (TIMER_M_UNIT[tm.kind]) {
+                if (m[b] && !m[b + 4])
+                    h = Math.min(h, m[b + 5] + Math.max(0, m[b + 1] - Math.max(0, m[b + 2])) * TIMER_M_UNIT[tm.kind]);
             }
         }
         return h === Infinity ? h : Math.max(h, nowMs);

@@ -1,5 +1,157 @@
 {
  "cs": {
+  "code-oop/beckhoff/FB_AnalogIn.TcPOU": {
+   "sha256": "f1f866e32a338770f8462464c024e37653c919efd4a006724edf216edad1900d",
+   "size": 1411
+  },
+  "code-oop/beckhoff/FB_DeviceBase.TcPOU": {
+   "sha256": "2b6385319ce5297b9dd9b71f4f17cbaf7e65f9a0d048206321fa15cd3c9b4207",
+   "size": 3234
+  },
+  "code-oop/beckhoff/FB_Motor.TcPOU": {
+   "sha256": "3e158315023aa8368551d8cec9a24c00a890fcbd1b8fed41d9973fafaefc365b",
+   "size": 2207
+  },
+  "code-oop/beckhoff/FB_Sequence.TcPOU": {
+   "sha256": "c4c9249fae49f2ee3002cc6230fb9c02a54b4a2a8b93e02b50f8886d1b8136ca",
+   "size": 3129
+  },
+  "code-oop/beckhoff/FB_Sequence.st": {
+   "sha256": "6e2dc547f605b775474fd4e9a7949332c02f3216b8a6b227a875b2e9511e23cf",
+   "size": 2933
+  },
+  "code-oop/beckhoff/FB_Valve.TcPOU": {
+   "sha256": "3acccb5d34550cdd42ae7358837b464e0312273a49cefe3a4056ff3cbb3a2ee2",
+   "size": 2484
+  },
+  "code-oop/beckhoff/GVL_IO.TcGVL": {
+   "sha256": "6d40601be8ad27e3944bbe3fb041230164e172e2955366eb594e25ef6afb757b",
+   "size": 1407
+  },
+  "code-oop/beckhoff/GVL_IO.st": {
+   "sha256": "e41a7247120669810c34be47a74f4e529ed9d9c7925581f0cc882796cf926866",
+   "size": 1202
+  },
+  "code-oop/beckhoff/Gen_Library.st": {
+   "sha256": "5b1a76fb5665cf7ac19c0dff7731d85b6913558bc8b81c7e7f2aa3bd98c72218",
+   "size": 6736
+  },
+  "code-oop/beckhoff/I_Device.TcIO": {
+   "sha256": "25b4659e39323cd52481319991e926fa90df15956710fa0ed75bb941a8d6094b",
+   "size": 1362
+  },
+  "code-oop/beckhoff/MAIN.TcPOU": {
+   "sha256": "de656897e4aba19f424200dcc093de4c3a4bec0ffc77cfbbd5fcf9eeaa8ce2c0",
+   "size": 4376
+  },
+  "code-oop/beckhoff/MAIN.st": {
+   "sha256": "6a52cc6c1a5018608b828044ffc8af31b437fcb3e026b9275f0b0626a070c363",
+   "size": 4097
+  },
+  "code-oop/beckhoff/PLCopen_Import.xml": {
+   "sha256": "00c6c17d37925767b71e923c1e5c8fe78eba07f78ccd040a4c81c0c989590c6e",
+   "size": 43437
+  },
+  "code-oop/beckhoff/README.txt": {
+   "sha256": "e9452358684ada14e98f6cb1e4a0d29dc089246e86549633fc72e90026281f04",
+   "size": 4205
+  },
+  "code-oop/codesys/FB_Sequence.st": {
+   "sha256": "e2bd815157bebc0171d80c3c09d9e7167c917a1184366f4088834b29cd23fabc",
+   "size": 2932
+  },
+  "code-oop/codesys/GVL_IO.st": {
+   "sha256": "25f59a97f6c9145df0e0e308f71105ff8f4ec62cb3970ca4730cabbb0a896a6e",
+   "size": 1248
+  },
+  "code-oop/codesys/Gen_Library.st": {
+   "sha256": "393fd35e98aab6d37ffe33001116c7f9c9f1c5951e69f64ab531344cb7b798bf",
+   "size": 6735
+  },
+  "code-oop/codesys/MAIN.st": {
+   "sha256": "88834dda54d3eca49a3dba9f0f38904fd9b0bbaed8d6b1e049a7d5d124d43936",
+   "size": 4096
+  },
+  "code-oop/codesys/PLCopen_Import.xml": {
+   "sha256": "ed4499db8e695c8fa3c07434741145c869bde616c021b3a9b979b9504223e122",
+   "size": 43482
+  },
+  "code-oop/codesys/README.txt": {
+   "sha256": "cf785f90c4fa5902043727805fc4efd811faf82b6da43dce5b9ddc083c9479b2",
+   "size": 4629
+  },
+  "code-oop/delta/FB_Sequence.st": {
+   "sha256": "571a7222e8c891aced3f66537ebab6f785f5519b7e999684300fb045b1688a6a",
+   "size": 2942
+  },
+  "code-oop/delta/GVL_IO.st": {
+   "sha256": "25f59a97f6c9145df0e0e308f71105ff8f4ec62cb3970ca4730cabbb0a896a6e",
+   "size": 1248
+  },
+  "code-oop/delta/Gen_Library.st": {
+   "sha256": "82d81f7c868db93fb83b10c16904fa1ad6e88ed35fd64c795bbae5bfaab0dcfc",
+   "size": 6745
+  },
+  "code-oop/delta/MAIN.st": {
+   "sha256": "bdf01bcacd1ff89cd85a2bc865212e1a152682c2dfa6341ae6bbb60083629320",
+   "size": 4106
+  },
+  "code-oop/delta/PLCopen_Import.xml": {
+   "sha256": "3d9ae9c45f55f9d07b3e52292be239af12ad424488f6020067af5ed8093c181e",
+   "size": 43492
+  },
+  "code-oop/delta/README.txt": {
+   "sha256": "daf881e7c5f7b058570edb03fe14d15d1b65f95d31a811658792492838072e99",
+   "size": 4726
+  },
+  "code-oop/schneider/FB_Sequence.st": {
+   "sha256": "4e8995f2834fce491aced0d0c3ff47854072909dd82a3795c40407a535edc054",
+   "size": 2943
+  },
+  "code-oop/schneider/GVL_IO.st": {
+   "sha256": "25f59a97f6c9145df0e0e308f71105ff8f4ec62cb3970ca4730cabbb0a896a6e",
+   "size": 1248
+  },
+  "code-oop/schneider/Gen_Library.st": {
+   "sha256": "74444dd0ad1793c46cdf48ea9bbe7031da29481e196bbccf25a11b7dbe91ca8b",
+   "size": 6746
+  },
+  "code-oop/schneider/MAIN.st": {
+   "sha256": "b53f1a56abc9b50b2e23fb6c776a24d6073be71a60d87ff6ff68c908bf0cb537",
+   "size": 4107
+  },
+  "code-oop/schneider/PLCopen_Import.xml": {
+   "sha256": "f061099a84229460a3c2f31e267f6e4bb06d242057d0e06f8f6edb68ed47ee52",
+   "size": 43493
+  },
+  "code-oop/schneider/README.txt": {
+   "sha256": "dec60e2fe18056616891a39c46195e46ad34aff43c4dac8b572280518d1f37b0",
+   "size": 4139
+  },
+  "code-oop/wago/FB_Sequence.st": {
+   "sha256": "cbe503e98b580de22d4332b9d9090eb30fa32cc70a6dd6bb0bb0ccad2cf8c727",
+   "size": 2929
+  },
+  "code-oop/wago/GVL_IO.st": {
+   "sha256": "2d0adb530b2124bdc712418fa6a313738d818485fa8b3e74801ca29cb678f81c",
+   "size": 1090
+  },
+  "code-oop/wago/Gen_Library.st": {
+   "sha256": "469770059903a171f01b852257efcfab89c01990aa6504440d9b0aec8f0e95d7",
+   "size": 6732
+  },
+  "code-oop/wago/MAIN.st": {
+   "sha256": "78fd188409a166a64de84fb670a6bb6e4e060c370b19ba077a6b9116d692d7b8",
+   "size": 4093
+  },
+  "code-oop/wago/PLCopen_Import.xml": {
+   "sha256": "da0c97176b6c14afde9f3ca7355595e83cc38b5b579d97e8d63fa4000cf6b00b",
+   "size": 43209
+  },
+  "code-oop/wago/README.txt": {
+   "sha256": "d5acc983bf6092c7ad765302da2d0283422f0303838fc6ca2092a114726299b2",
+   "size": 4837
+  },
   "code/beckhoff/GVL_IO.st": {
    "sha256": "e41a7247120669810c34be47a74f4e529ed9d9c7925581f0cc882796cf926866",
    "size": 1202
@@ -40,37 +192,57 @@
    "sha256": "026e6e2d84dc2c2aea18d459aabaae09f8ab7738a5b031879075fd30d81373f0",
    "size": 2089
   },
+  "code/delta/GVL_IO.st": {
+   "sha256": "25f59a97f6c9145df0e0e308f71105ff8f4ec62cb3970ca4730cabbb0a896a6e",
+   "size": 1248
+  },
+  "code/delta/Gen_Library.st": {
+   "sha256": "bf7898b5eb072f14538406e370525a4816ea05502d0b7a794e243bfadf661009",
+   "size": 4403
+  },
+  "code/delta/MAIN.st": {
+   "sha256": "4f146c8b02143f0b8bbebde3b07fd6e28f92d4122b4a6c7df8336aba05a28a41",
+   "size": 5765
+  },
+  "code/delta/PLCopen_Import.xml": {
+   "sha256": "f8ca3b9ac6d5c19fe2adeed966b02a418b785c4c2ad81736f40e772643990543",
+   "size": 22106
+  },
+  "code/delta/README.txt": {
+   "sha256": "3bc9dcfae58c86b22bf18c55175d054532ed227eb49ec8e16c55929eabd3852b",
+   "size": 2186
+  },
   "code/mitsubishi/Gen_Library.st": {
    "sha256": "0e951c59d7b2ea5953ac0edf80d2ffe63e4ddff0b58ec3dfe4c7c37462112b07",
    "size": 4396
   },
   "code/mitsubishi/GlobalLabels.csv": {
-   "sha256": "57d6cf52149495825d2d53b9eef9ae8b73a73b8ec52295c22f51a3a108bb9241",
-   "size": 1221
+   "sha256": "6697d3fb63f170889b070c700d529a7c0c78ea929f12c44c0ef7eaacdb70593e",
+   "size": 3429
   },
   "code/mitsubishi/MAIN.st": {
-   "sha256": "1355980fd2441e40c113f606ef4529cb0509a150436a027d15b27af1fa8f5b8c",
-   "size": 5651
+   "sha256": "0144f75451d86fdd37b61e9f400800e0f8f0d9b9df722b69d59409271d702a51",
+   "size": 5741
   },
   "code/mitsubishi/README.txt": {
-   "sha256": "03a4bd519491f4002e4d175c919f6d14f316cde3145976688b5cc826ea414894",
-   "size": 2019
+   "sha256": "346fc751e99b4bf778cb14a3e376e11d003f0a6834baf854f8dfa1fae1c69a78",
+   "size": 2601
   },
   "code/omron/Gen_Library.st": {
    "sha256": "a4dad2bc20e1336bde1d67e0b64ca3f35e3c3a250aa51c196b39f5bed4713dff",
    "size": 4407
   },
   "code/omron/MAIN.st": {
-   "sha256": "e3a55a3fe0a8337b40408859f8e76856fb212958bd2eb0a3721009a736d18c0e",
-   "size": 5612
+   "sha256": "3e98d8b1d1538ea967e88caa3b01f15df31544da077df08b4f070a08daa816c1",
+   "size": 5702
   },
   "code/omron/README.txt": {
-   "sha256": "f91d384fde0876a35edd548c64d0c3e92771efef8d2fd597a01ef7e497770ce5",
-   "size": 1920
+   "sha256": "96e54202d707779793342019d457d8d3ce529b786e2cb690db9f0c721cd79854",
+   "size": 2357
   },
   "code/omron/Variables.txt": {
-   "sha256": "8b0a6338c792c93ea444b8c72cf8bdf28a8d9ef2cd5951299606a79370a09c0b",
-   "size": 847
+   "sha256": "ddd0b2aca31ad6e860040d79cee04c8713e222e9170deb7eabcb6ea74d3352d9",
+   "size": 2711
   },
   "code/rockwell/MainRoutine.st": {
    "sha256": "272c9b49b5deb7bd54d24b416b5e0f84a8a41858fd7467ce043e4181cf851c1a",
@@ -140,6 +312,26 @@
    "sha256": "f1b9b7b794310adb67122e928ff383628d5972019443507ab91f212391f2a03a",
    "size": 6184
   },
+  "code/wago/GVL_IO.st": {
+   "sha256": "2d0adb530b2124bdc712418fa6a313738d818485fa8b3e74801ca29cb678f81c",
+   "size": 1090
+  },
+  "code/wago/Gen_Library.st": {
+   "sha256": "c6290d7d694160ad926e0f713f5e524757953f03f145f79663cc9fe58900b04e",
+   "size": 4390
+  },
+  "code/wago/MAIN.st": {
+   "sha256": "0a17bab2b3565bd5368cd561b7d37207967c1baa710e761345420e2096627eb8",
+   "size": 5752
+  },
+  "code/wago/PLCopen_Import.xml": {
+   "sha256": "0a5c199289bea38aed726035fde0d1ff50f91539ed062b6154c7e24e723617ac",
+   "size": 21836
+  },
+  "code/wago/README.txt": {
+   "sha256": "f16cf7d290e8ac1885856397c29eb4cb22280debae0acbfe39214eccbd1aae61",
+   "size": 2297
+  },
   "docs/00_prehled_dokumentace.md": {
    "sha256": "b81c28cfe638918b3ee3c7d4f99599dc94a776fea99354ddd78f3ccb5007c119",
    "size": 2348
@@ -198,6 +390,158 @@
   }
  },
  "en": {
+  "code-oop/beckhoff/FB_AnalogIn.TcPOU": {
+   "sha256": "e8c94ee817e693fa4c5dc800dd2e570fb3357586d39d0b81d13f5a3677542dfc",
+   "size": 1415
+  },
+  "code-oop/beckhoff/FB_DeviceBase.TcPOU": {
+   "sha256": "a172237608d8ca3604366e514559e65892c65e93235d804a7f1d76bf310bde19",
+   "size": 3273
+  },
+  "code-oop/beckhoff/FB_Motor.TcPOU": {
+   "sha256": "f7a3515c8c31e6d1300effef70594349bbc233e14345d85df6e6ff7dd0db6400",
+   "size": 2224
+  },
+  "code-oop/beckhoff/FB_Sequence.TcPOU": {
+   "sha256": "806b6f618d57fd781af44f467dc1dc8c4814bb5458ae2e77047f1544238231f3",
+   "size": 3101
+  },
+  "code-oop/beckhoff/FB_Sequence.st": {
+   "sha256": "e3ca57163ed877a0746e3758bc598f0ebdf44adecd5aedbe2ea2238b701abcf5",
+   "size": 2909
+  },
+  "code-oop/beckhoff/FB_Valve.TcPOU": {
+   "sha256": "d7ad80fbc8033031ffd33fa94fb345f6c693d1208f21dfd390edaec167899426",
+   "size": 2505
+  },
+  "code-oop/beckhoff/GVL_IO.TcGVL": {
+   "sha256": "2d639b44e79b1c9d36323604e54ec49d45207891479e04a4486885967e8302de",
+   "size": 1400
+  },
+  "code-oop/beckhoff/GVL_IO.st": {
+   "sha256": "1bb44e5acb6959746d465978c45786b16c367708a5c08a3c1863255229fdf507",
+   "size": 1195
+  },
+  "code-oop/beckhoff/Gen_Library.st": {
+   "sha256": "8e1fa1f09588ff6f71fa596f123807f81cc9ad9ac78460e1f9902a360283b57a",
+   "size": 6819
+  },
+  "code-oop/beckhoff/I_Device.TcIO": {
+   "sha256": "25b4659e39323cd52481319991e926fa90df15956710fa0ed75bb941a8d6094b",
+   "size": 1362
+  },
+  "code-oop/beckhoff/MAIN.TcPOU": {
+   "sha256": "b982dd7c16ef567885543040383536f7161e0d1066edb7b33aa46bf8ad6f267c",
+   "size": 4444
+  },
+  "code-oop/beckhoff/MAIN.st": {
+   "sha256": "ba114015444503157db546b109960fdd43d046e569d5c0122ca7116fee039ba6",
+   "size": 4165
+  },
+  "code-oop/beckhoff/PLCopen_Import.xml": {
+   "sha256": "8a14b445bf5782df56719b968b414d2d47b249b1321bbd0f0f06df1b103c5a9d",
+   "size": 43610
+  },
+  "code-oop/beckhoff/README.txt": {
+   "sha256": "fe41f4ffc5f8d06904a67926eb84fea00eb44a76e091e4210c5679e6e993a3f1",
+   "size": 4382
+  },
+  "code-oop/codesys/FB_Sequence.st": {
+   "sha256": "8bc52d6d4befbe3dabe96008975af0f85b7007900f9563cc343c542cf71b7c70",
+   "size": 2908
+  },
+  "code-oop/codesys/GVL_IO.st": {
+   "sha256": "a8f936a4fe36f685cb837374ea924e71a6fca1f986666a35da95b6734e447202",
+   "size": 1241
+  },
+  "code-oop/codesys/Gen_Library.st": {
+   "sha256": "f4daee16470d720d2749d01bbf07d3a70dc7ab7afbfccef57fb04713b5ebc76b",
+   "size": 6818
+  },
+  "code-oop/codesys/MAIN.st": {
+   "sha256": "07d04a3ce736d8ef6e60f1971cbac472c94a369437bf3482b896bdee54fc55bd",
+   "size": 4164
+  },
+  "code-oop/codesys/PLCopen_Import.xml": {
+   "sha256": "a45429e0d55430f63834e7166d9bacb0cc05270a12ac424309b8c8f8f5df5313",
+   "size": 43655
+  },
+  "code-oop/codesys/README.txt": {
+   "sha256": "e6fe150547a349cfd4a8ac32c7fb33a5c177be1bedff41e7014c0c2dbd40a365",
+   "size": 4842
+  },
+  "code-oop/delta/FB_Sequence.st": {
+   "sha256": "0fcc01e7049e08373fa61547bc2667c80eb2148fe21551d5b69bbf4f81d061ae",
+   "size": 2918
+  },
+  "code-oop/delta/GVL_IO.st": {
+   "sha256": "a8f936a4fe36f685cb837374ea924e71a6fca1f986666a35da95b6734e447202",
+   "size": 1241
+  },
+  "code-oop/delta/Gen_Library.st": {
+   "sha256": "b868adc546342df6f74e1fb44de51f530309e0cb6fa2d08db715ea5047df9adc",
+   "size": 6828
+  },
+  "code-oop/delta/MAIN.st": {
+   "sha256": "be7ea5930a65967fe8348d2b47e6746d07efed7ecb375869b8786347c54fce99",
+   "size": 4174
+  },
+  "code-oop/delta/PLCopen_Import.xml": {
+   "sha256": "d670d84667725150c553778f6c5fc7fc953f2cdd3ff706cec9fea64e723c82d5",
+   "size": 43665
+  },
+  "code-oop/delta/README.txt": {
+   "sha256": "b9e895c0df604fe905ea43f64f6c2366c323caf3ff2911f504150eec847a7cba",
+   "size": 4949
+  },
+  "code-oop/schneider/FB_Sequence.st": {
+   "sha256": "4191cfe96beb3f98bdd73d571ee9ca170efcb7340ba5ab533f121325f47292cf",
+   "size": 2919
+  },
+  "code-oop/schneider/GVL_IO.st": {
+   "sha256": "a8f936a4fe36f685cb837374ea924e71a6fca1f986666a35da95b6734e447202",
+   "size": 1241
+  },
+  "code-oop/schneider/Gen_Library.st": {
+   "sha256": "69b88868d80bbe8a176094d0f9caf1a36386b3dc90ebf9e05f08cdb9a5786f22",
+   "size": 6829
+  },
+  "code-oop/schneider/MAIN.st": {
+   "sha256": "59ce493c07c2a811189dc75e689644307bceb9eb7734db4019a193c13974dfa1",
+   "size": 4175
+  },
+  "code-oop/schneider/PLCopen_Import.xml": {
+   "sha256": "78edf2916ad7a383eb013b2006f845d5c8fcbc8e0f4f0854fbfd942bd4e5423f",
+   "size": 43666
+  },
+  "code-oop/schneider/README.txt": {
+   "sha256": "7d1b74ff4beefd49c45e62a86914abbda43c00e5844a09ad9b3ee3fe2f3b6b25",
+   "size": 4332
+  },
+  "code-oop/wago/FB_Sequence.st": {
+   "sha256": "c2f40966604747ed57cb7021304d032904ca711363bd47b701ca4134d12df920",
+   "size": 2905
+  },
+  "code-oop/wago/GVL_IO.st": {
+   "sha256": "4cc0769e2bc13991d78e6ba2d1fec82a699f21581be277143ef81406f39351f2",
+   "size": 1083
+  },
+  "code-oop/wago/Gen_Library.st": {
+   "sha256": "70aa0c5abdfd7299899b0c99c102cd433e0fd678e362dfae71cd6678d4b7b483",
+   "size": 6815
+  },
+  "code-oop/wago/MAIN.st": {
+   "sha256": "31175c7dc34eff52031f3025e50265d7e2294429ec06ac747f4baa8ca966b8fc",
+   "size": 4161
+  },
+  "code-oop/wago/PLCopen_Import.xml": {
+   "sha256": "c4012fd2fd4b1e5e924e913cb4ac22495747a4029a409ed3c5c4717c6b1314a6",
+   "size": 43382
+  },
+  "code-oop/wago/README.txt": {
+   "sha256": "c93946aa803859fd54bd992a503816a62ec47f2b43e32d1a563428ab246b7555",
+   "size": 5012
+  },
   "code/beckhoff/GVL_IO.st": {
    "sha256": "1bb44e5acb6959746d465978c45786b16c367708a5c08a3c1863255229fdf507",
    "size": 1195
@@ -238,37 +582,57 @@
    "sha256": "b5b576e5937eb13ca752d57d46214c451302cb0329c5ff1aa78a065975326e9e",
    "size": 2176
   },
+  "code/delta/GVL_IO.st": {
+   "sha256": "a8f936a4fe36f685cb837374ea924e71a6fca1f986666a35da95b6734e447202",
+   "size": 1241
+  },
+  "code/delta/Gen_Library.st": {
+   "sha256": "feebf38a471a83db9cbf5d93445e07cba1e11585a926deb9fcfb999c85ba2abc",
+   "size": 4436
+  },
+  "code/delta/MAIN.st": {
+   "sha256": "5c223c737541cbcb77fdf78d26bea51b659127971664c4c365e2e32b722d4467",
+   "size": 5773
+  },
+  "code/delta/PLCopen_Import.xml": {
+   "sha256": "4fc6140dbfc3bd1eb2ad01daf8d94c81ff12f16a05d45ee86e888bbdbe781029",
+   "size": 22105
+  },
+  "code/delta/README.txt": {
+   "sha256": "fc6377e75dfaa2a2eaf26df8014c8ad28d9b7b57055352c73fb296b192234895",
+   "size": 2283
+  },
   "code/mitsubishi/Gen_Library.st": {
    "sha256": "388a9fdb7f8b3c2891ec095813a9e095e0ccabee8c020354719a15a7512985d5",
    "size": 4429
   },
   "code/mitsubishi/GlobalLabels.csv": {
-   "sha256": "4f27e4fadfd8a5764eb6184caa19958a9761d390cfed5ffa023acf35fcb98bba",
-   "size": 1212
+   "sha256": "2c67a29a6f2e74c4432cf14bb356f7f7a1c0a61679aff15ccca3fb0e86b45c94",
+   "size": 3444
   },
   "code/mitsubishi/MAIN.st": {
-   "sha256": "3378ceaf1ccda38017bd31b2ecc02d97ff9f8a287e50c40876b9b0e819af979d",
-   "size": 5659
+   "sha256": "cc9da0a355451dc3d12bf509f4e3e4a15594adb5e86ac534769f0cc5438b5501",
+   "size": 5715
   },
   "code/mitsubishi/README.txt": {
-   "sha256": "bab94865c089bdd863ef65b84fdeb72d374abde65c5586bd8d79c8563721d452",
-   "size": 2094
+   "sha256": "0cabac1c07316fc4a5093628516be37ff42e97bd12b2b55fbc185c58ac4977f7",
+   "size": 2671
   },
   "code/omron/Gen_Library.st": {
    "sha256": "d423cd8f24fffa380b0c4c6e68cf9e0f4955264668f8b7d9b7e343ec37def78b",
    "size": 4440
   },
   "code/omron/MAIN.st": {
-   "sha256": "35cd05e385895f921d084c7717c6da2439fedbf66eda0457cd195111537c6e7e",
-   "size": 5620
+   "sha256": "f0c0a8df3d6ae25d7ee3f2bcafe8cba26e1a5f4d1246c253aa706468e42f1ec1",
+   "size": 5676
   },
   "code/omron/README.txt": {
-   "sha256": "4b24b80ecc5d8527b5a11d099cefb19129dc12711319023ce061fa23b714ce69",
-   "size": 2021
+   "sha256": "45d70f8a9d20a51e9f9d0fd2b573bb55068c45f79adb0afb608abc16af8e63eb",
+   "size": 2448
   },
   "code/omron/Variables.txt": {
-   "sha256": "685af93636baaa59d3d14e875ba540e849eafa826081f70c28f299d1586c6e56",
-   "size": 838
+   "sha256": "ef13a54e31160dbc432cafd2252f12235b1e6fe0a5f3286969a59292b1acc7d2",
+   "size": 2726
   },
   "code/rockwell/MainRoutine.st": {
    "sha256": "13fa4e0f3003d2a941f21da23c6a138b935f57cb2d1759c87d8109d217ecfa4f",
@@ -338,6 +702,26 @@
    "sha256": "ff1d70e3f3a2b2641066315bf9683b467ee6e938a86147d6b4bba70bd92fc26f",
    "size": 6242
   },
+  "code/wago/GVL_IO.st": {
+   "sha256": "4cc0769e2bc13991d78e6ba2d1fec82a699f21581be277143ef81406f39351f2",
+   "size": 1083
+  },
+  "code/wago/Gen_Library.st": {
+   "sha256": "e06d9bd44e469b914b9ece7cb04b33b39460a47e1724adaff4fe742f2f36cb52",
+   "size": 4423
+  },
+  "code/wago/MAIN.st": {
+   "sha256": "439828c8897cad63ee3dc6048be7177ed7ecc7b7ebe194be3fa51a6bd848d1cd",
+   "size": 5760
+  },
+  "code/wago/PLCopen_Import.xml": {
+   "sha256": "abeee0de54c89a1c7f69111134d3cb4a3a251830d48d3ef329a5bc02e2033dd1",
+   "size": 21835
+  },
+  "code/wago/README.txt": {
+   "sha256": "a3d4d6b15329f78fdeaa28c7e1b777d1e86803b09580be29a99dad6d892764f2",
+   "size": 2346
+  },
   "docs/00_prehled_dokumentace.md": {
    "sha256": "3b6b0d18fd9466ba252e1f618052bce57bbe721a547d191671799ba850540b41",
    "size": 2420
@@ -396,6 +780,158 @@
   }
  },
  "de": {
+  "code-oop/beckhoff/FB_AnalogIn.TcPOU": {
+   "sha256": "2bda35aeea566f6c804d518bfc5aec13334481763d65e77f47dc05e63c111b53",
+   "size": 1459
+  },
+  "code-oop/beckhoff/FB_DeviceBase.TcPOU": {
+   "sha256": "0151716af22c1b27b5db06da3e0d63c703b0d51460ab72b1040581304ed20a95",
+   "size": 3319
+  },
+  "code-oop/beckhoff/FB_Motor.TcPOU": {
+   "sha256": "2c11d8e1d67de207b04fa1968c07c8d5119986d06313fc49dc40a2b3cda580a7",
+   "size": 2254
+  },
+  "code-oop/beckhoff/FB_Sequence.TcPOU": {
+   "sha256": "0831d255e8b42623b716f941aceaac4d2e7684a063deb4d32a5fbf3044c17019",
+   "size": 3206
+  },
+  "code-oop/beckhoff/FB_Sequence.st": {
+   "sha256": "0b0b309c8f6f5827291c58a274a13c52d9372bfa13afcd3cd9ef588025406f67",
+   "size": 3014
+  },
+  "code-oop/beckhoff/FB_Valve.TcPOU": {
+   "sha256": "e2cb34c73849870fe480d71d976b5abcd55c796a301a9fdd6a98f7062b38c977",
+   "size": 2561
+  },
+  "code-oop/beckhoff/GVL_IO.TcGVL": {
+   "sha256": "24715a0ea8d8dd29338b0b97501a15c5884b07182cc3be888f0fcceab7c6b32b",
+   "size": 1419
+  },
+  "code-oop/beckhoff/GVL_IO.st": {
+   "sha256": "3efbe528bf9a84f9635ae4116d48ef644f5a7bc49ed7f15a864db81a974513cb",
+   "size": 1214
+  },
+  "code-oop/beckhoff/Gen_Library.st": {
+   "sha256": "6f13bfd3550f9262fdfce58c96a52d7af67fc4913b7a627a25c9cb993bc0bae1",
+   "size": 7000
+  },
+  "code-oop/beckhoff/I_Device.TcIO": {
+   "sha256": "25b4659e39323cd52481319991e926fa90df15956710fa0ed75bb941a8d6094b",
+   "size": 1362
+  },
+  "code-oop/beckhoff/MAIN.TcPOU": {
+   "sha256": "51deba694f8ee7bd9ab54c364f2079f5ed39775550b7ead497e3a291e11204ca",
+   "size": 4532
+  },
+  "code-oop/beckhoff/MAIN.st": {
+   "sha256": "99d7422b5987b60df7b9bbfadb3655b23e632daf37e8f64051743cabd6fc653a",
+   "size": 4253
+  },
+  "code-oop/beckhoff/PLCopen_Import.xml": {
+   "sha256": "17e5a328fd43a3fe10247ac0eb677ff6ff0ccdf0180c3aba0896768da03736fd",
+   "size": 44030
+  },
+  "code-oop/beckhoff/README.txt": {
+   "sha256": "0a071d06876b00988f5047616bff2d0eb8e42bdb250fefd4b4a1db874ec1b05d",
+   "size": 4741
+  },
+  "code-oop/codesys/FB_Sequence.st": {
+   "sha256": "20139121c69358cda006ea073b682fb23f1bcad2f88b2e428b17f75eb1a48c1c",
+   "size": 3013
+  },
+  "code-oop/codesys/GVL_IO.st": {
+   "sha256": "9a7e08075ae815826e0eefdd7cd4276e02cc28c41c9a40ff16a9e308c4cf8ba2",
+   "size": 1260
+  },
+  "code-oop/codesys/Gen_Library.st": {
+   "sha256": "27102592941add58daf5319e5d42efb37c48068063d257bb286df9afc56ee5a4",
+   "size": 6999
+  },
+  "code-oop/codesys/MAIN.st": {
+   "sha256": "5715bf386818b7cf590d605ef94c6c307478ba5d0965f7fa4315d79886c16f9e",
+   "size": 4252
+  },
+  "code-oop/codesys/PLCopen_Import.xml": {
+   "sha256": "db4e68cda8a4a4e5d021a9f0934294c39d5125b932bf878dda14b79bd86d1aa8",
+   "size": 44075
+  },
+  "code-oop/codesys/README.txt": {
+   "sha256": "a1815620926b1fbb32778d3554a7c8ae20ba75b5c55bf21de16bf11c7f39aa45",
+   "size": 5225
+  },
+  "code-oop/delta/FB_Sequence.st": {
+   "sha256": "ae38455897256a9a641a1f367bb602364372be48d0ad3607d075a55a74efb9ab",
+   "size": 3023
+  },
+  "code-oop/delta/GVL_IO.st": {
+   "sha256": "9a7e08075ae815826e0eefdd7cd4276e02cc28c41c9a40ff16a9e308c4cf8ba2",
+   "size": 1260
+  },
+  "code-oop/delta/Gen_Library.st": {
+   "sha256": "47e97c6276e29fa7908fbedd8dd027b9d24f9cde199bf8348bfd9e3b1f54919e",
+   "size": 7009
+  },
+  "code-oop/delta/MAIN.st": {
+   "sha256": "36d9dbbc94bda4d9f065c1459cfef2c436ddde510415d391d03a1ea4e55cc9f9",
+   "size": 4262
+  },
+  "code-oop/delta/PLCopen_Import.xml": {
+   "sha256": "9e9dfd20805c8f49e7946ba27e8c20ceacf0014fc71d2e309e695c43ebf78d44",
+   "size": 44085
+  },
+  "code-oop/delta/README.txt": {
+   "sha256": "68d47387313a36e8c1f23ef0709beb4388fb2928e5e22a8c2b00d728687dcbea",
+   "size": 5318
+  },
+  "code-oop/schneider/FB_Sequence.st": {
+   "sha256": "5b59ed05a9e0a455448dcebabe5688c21b37ee250392d1d5953956cf96aac784",
+   "size": 3024
+  },
+  "code-oop/schneider/GVL_IO.st": {
+   "sha256": "9a7e08075ae815826e0eefdd7cd4276e02cc28c41c9a40ff16a9e308c4cf8ba2",
+   "size": 1260
+  },
+  "code-oop/schneider/Gen_Library.st": {
+   "sha256": "32c96f10472634e0b672ca425bb56f38f475679b64cdf1d90100727743c15037",
+   "size": 7010
+  },
+  "code-oop/schneider/MAIN.st": {
+   "sha256": "cc9c2d895ca77f5697e3625af8e7fec9b00cf408a5e69683f71e51763d85f7d8",
+   "size": 4263
+  },
+  "code-oop/schneider/PLCopen_Import.xml": {
+   "sha256": "0f8e0e2c38eee29b7f3c8adb12b0791056dbeb9c1633fca21c1de0c41c73d826",
+   "size": 44086
+  },
+  "code-oop/schneider/README.txt": {
+   "sha256": "cddbff8125d35d3c8e6c85ca4960669fedea41a44436d53760a9938371a52476",
+   "size": 4710
+  },
+  "code-oop/wago/FB_Sequence.st": {
+   "sha256": "96b09e2c636bc30585449f20dca5381638b6eb1dd3756e6debb63008aaf95b37",
+   "size": 3010
+  },
+  "code-oop/wago/GVL_IO.st": {
+   "sha256": "6ea08fd32042e1fece82b1e553eafa0b504a327bde8c2a629bc072323e6aa474",
+   "size": 1102
+  },
+  "code-oop/wago/Gen_Library.st": {
+   "sha256": "12e83b0f9ced8112ac4d3d18bad0fa16dd7d4485c5906ffccfa5f5e5d82959c4",
+   "size": 6996
+  },
+  "code-oop/wago/MAIN.st": {
+   "sha256": "aef0ea3159f92c85ddbe4c55180ff5f933dbab3617e21b8058489da14a6cec55",
+   "size": 4249
+  },
+  "code-oop/wago/PLCopen_Import.xml": {
+   "sha256": "e02610eabdf48e2be261540a4fe6d1064ecec6c6f215fbd0457d0b6f886ef7b4",
+   "size": 43802
+  },
+  "code-oop/wago/README.txt": {
+   "sha256": "15483c4f97fe4ca5157ecb2548e8762c45d594097126920f0c0ee0f0c79d0280",
+   "size": 5437
+  },
   "code/beckhoff/GVL_IO.st": {
    "sha256": "3efbe528bf9a84f9635ae4116d48ef644f5a7bc49ed7f15a864db81a974513cb",
    "size": 1214
@@ -436,37 +972,57 @@
    "sha256": "673d988a9f717ec584725cf281f1480357ee01adae481d2d5ca9a0ce53562be4",
    "size": 2329
   },
+  "code/delta/GVL_IO.st": {
+   "sha256": "9a7e08075ae815826e0eefdd7cd4276e02cc28c41c9a40ff16a9e308c4cf8ba2",
+   "size": 1260
+  },
+  "code/delta/Gen_Library.st": {
+   "sha256": "7894408c6c640943b838ead312ed7c33b7e107b02ddb10067ffc7e491eb324e4",
+   "size": 4523
+  },
+  "code/delta/MAIN.st": {
+   "sha256": "f1a0de376f312655151565b4452e494c83513cf21144a0f8bbfa337c618ee623",
+   "size": 5952
+  },
+  "code/delta/PLCopen_Import.xml": {
+   "sha256": "69e2db1a9876466bf1300a7e0b365aac0a7e7697e5081ff192629f9b22d5dc5a",
+   "size": 22333
+  },
+  "code/delta/README.txt": {
+   "sha256": "c960687527ea8656cce9e8090d57e81b6fe059f6722c9a1b760d112d02854bd2",
+   "size": 2422
+  },
   "code/mitsubishi/Gen_Library.st": {
    "sha256": "e8f511e91fbd5568181295f26a572e1ed22b268a961aa43263a48b3aedd9eef3",
    "size": 4516
   },
   "code/mitsubishi/GlobalLabels.csv": {
-   "sha256": "92bbbf3d52b589b11e439f3d5af4e5ecd6714a7fe8e78df7b31f6cc496fa59c7",
-   "size": 1224
+   "sha256": "6373f458f339b4ac967c1e916c825bcc6b9ebc066cf8959bd7518c515debfd6d",
+   "size": 3480
   },
   "code/mitsubishi/MAIN.st": {
-   "sha256": "b0bead9abfdf194b7d7aaca1b4c81474884609cfa26d9e368c62be3c46db50f9",
-   "size": 5838
+   "sha256": "15f84b7c0094a8c4a8499160a1d1060cc0ec63952ab7281c9300110f9bd6473a",
+   "size": 5892
   },
   "code/mitsubishi/README.txt": {
-   "sha256": "afd0ea56a4144125b5df10269f8ecbbfc038d8a1589f8f31391d47f9e8841c4c",
-   "size": 2264
+   "sha256": "87d8479daea77f2f8ce0e2e31dadf0a23084f9a52ce738dfd43bd2ffc892b6c1",
+   "size": 2884
   },
   "code/omron/Gen_Library.st": {
    "sha256": "94cbaa55c3ca2048e7f7f8f1a4798d065b0b8982ff17fea33a3ab71378c84c1c",
    "size": 4527
   },
   "code/omron/MAIN.st": {
-   "sha256": "f4df2bb78f6f01749ad9de2be2034427879687e1ee22b5d11766d93719565f52",
-   "size": 5799
+   "sha256": "2522dc178fc7f18912b4dc84697fde3e61397cac7b702d03de17bec175694ead",
+   "size": 5853
   },
   "code/omron/README.txt": {
-   "sha256": "5df2bdde7a773b636847698754fb5c6b65fa695b1168d36107008972312b2fda",
-   "size": 2146
+   "sha256": "273ad6da54d98f44727e89e59625701ab5dda0707c9f9c4b892845bb84d58af0",
+   "size": 2608
   },
   "code/omron/Variables.txt": {
-   "sha256": "41dfe4d2157478c501eb1c6a29132fed275bf455e15c6c901ee5669be4da3346",
-   "size": 850
+   "sha256": "f1462e635e849247de67a7d132d1fd3688fa5ad129bc08422df2a6f792fab743",
+   "size": 2762
   },
   "code/rockwell/MainRoutine.st": {
    "sha256": "6902c35b163a84286bd01f56ab45d46ef8d24383b41e9770d50a2c1880d030f8",
@@ -536,6 +1092,26 @@
    "sha256": "65270f444d22fe7dde3650e9ccf10f58aa50e9c2c0c065bef82199bcb8f77eec",
    "size": 6511
   },
+  "code/wago/GVL_IO.st": {
+   "sha256": "6ea08fd32042e1fece82b1e553eafa0b504a327bde8c2a629bc072323e6aa474",
+   "size": 1102
+  },
+  "code/wago/Gen_Library.st": {
+   "sha256": "ba30139eed9b23cd994b0a4fe13a02180873f8282c9bf1c0f19fd3c666fa9b69",
+   "size": 4510
+  },
+  "code/wago/MAIN.st": {
+   "sha256": "e7c639d72362a45a71fd6d4746774e061ec0650d535238c8bcbd8cf1a034dfd1",
+   "size": 5939
+  },
+  "code/wago/PLCopen_Import.xml": {
+   "sha256": "1b9ac473ec96fa58c446de9a2aed39cf15b898aaff4cf16b1f906294af070208",
+   "size": 22063
+  },
+  "code/wago/README.txt": {
+   "sha256": "8e531626eb2c3d6afcb395ea446d21c3c1f4bae3efdf16b5c7189e045c45d310",
+   "size": 2541
+  },
   "docs/00_prehled_dokumentace.md": {
    "sha256": "922e9860a760c5f00cedae14f1ee6f97fb1606549b13e7c8c18c898b5ba16168",
    "size": 2456
@@ -594,6 +1170,158 @@
   }
  },
  "es": {
+  "code-oop/beckhoff/FB_AnalogIn.TcPOU": {
+   "sha256": "baa203865dafc22e05614661fae66d182dba8255d129dd3c1dafa196666de1ac",
+   "size": 1464
+  },
+  "code-oop/beckhoff/FB_DeviceBase.TcPOU": {
+   "sha256": "8605e6e4e95f33970c9066f8acdbdacfa00ffa3d3202dc568d6f21066419661f",
+   "size": 3346
+  },
+  "code-oop/beckhoff/FB_Motor.TcPOU": {
+   "sha256": "92c77edb94c4f15c6d76c27ff2140d73d9ab86403a0793fbab162e2f70829812",
+   "size": 2266
+  },
+  "code-oop/beckhoff/FB_Sequence.TcPOU": {
+   "sha256": "f66d8897485e77c40fcfa0a1545689e4244f3bb917e26a61fcb934504a6ef9f6",
+   "size": 3185
+  },
+  "code-oop/beckhoff/FB_Sequence.st": {
+   "sha256": "faeb52212f2e36f1292152d27dcf763fc40e4386a7ff0513d30e341f6d9e1ab2",
+   "size": 3001
+  },
+  "code-oop/beckhoff/FB_Valve.TcPOU": {
+   "sha256": "34e84467a2d93b06ef94d7b9399bfb0cf9e07ea780199cda3d16d89a1ab242ba",
+   "size": 2576
+  },
+  "code-oop/beckhoff/GVL_IO.TcGVL": {
+   "sha256": "4fa12a892dda9211ae58b5e3b12185df0aae00d3f265e8177b54392d6d30a202",
+   "size": 1425
+  },
+  "code-oop/beckhoff/GVL_IO.st": {
+   "sha256": "8af064062fc744a4265dd8b671628c67d8b24b231532310a995be1a027b6ff51",
+   "size": 1220
+  },
+  "code-oop/beckhoff/Gen_Library.st": {
+   "sha256": "aed620677356f442039d3ddd595dc32b2e7a06da96cfff8e1e050fe36e2b8ef4",
+   "size": 7061
+  },
+  "code-oop/beckhoff/I_Device.TcIO": {
+   "sha256": "25b4659e39323cd52481319991e926fa90df15956710fa0ed75bb941a8d6094b",
+   "size": 1362
+  },
+  "code-oop/beckhoff/MAIN.TcPOU": {
+   "sha256": "0e5c6d01c6cd5345213f5bf26e31bf9f24f33722ea407d9fa5996f8476f7eec0",
+   "size": 4599
+  },
+  "code-oop/beckhoff/MAIN.st": {
+   "sha256": "04cbd99022deab584cf8e1fa289aed894a2dca9d171634d3ab38e2d3545dfce9",
+   "size": 4320
+  },
+  "code-oop/beckhoff/PLCopen_Import.xml": {
+   "sha256": "06f20f7dfee70479c4257885da267c60278a2730c55f8ddccc5b28321a8c5604",
+   "size": 44216
+  },
+  "code-oop/beckhoff/README.txt": {
+   "sha256": "4c43e4d4866a056c7b82a4e1118a667a4c743ed5f3aee270a63f06f7250c0371",
+   "size": 4811
+  },
+  "code-oop/codesys/FB_Sequence.st": {
+   "sha256": "b8ca83b8b0688b572c5e9ef8a21f0d44ebe92fe5e40efbcd75177566288d8efa",
+   "size": 3000
+  },
+  "code-oop/codesys/GVL_IO.st": {
+   "sha256": "33f652c28851ab7fef44ded55591046c855842d5184deb323004b7008d67e0f7",
+   "size": 1266
+  },
+  "code-oop/codesys/Gen_Library.st": {
+   "sha256": "a850a3f59a4f5319f22e23b9682f04c59a687870b9c36869cc37285b6231cd6a",
+   "size": 7060
+  },
+  "code-oop/codesys/MAIN.st": {
+   "sha256": "164daf3e6a76975188029596b0796576b1208759b5ca28f79582101e3bb366b4",
+   "size": 4319
+  },
+  "code-oop/codesys/PLCopen_Import.xml": {
+   "sha256": "1bd3adf147f3dd2945affe70570257b7b5ae29a6cf1d7db61230eab9b4000033",
+   "size": 44261
+  },
+  "code-oop/codesys/README.txt": {
+   "sha256": "338363141c7a2bc201aa107f20630aefa5218a6d118f0760c9d5638d346e3166",
+   "size": 5308
+  },
+  "code-oop/delta/FB_Sequence.st": {
+   "sha256": "069435d5db006c9a3e6e4944d78b4bd1eea8e4ed16e3c48cea49e79a11abb40d",
+   "size": 3010
+  },
+  "code-oop/delta/GVL_IO.st": {
+   "sha256": "33f652c28851ab7fef44ded55591046c855842d5184deb323004b7008d67e0f7",
+   "size": 1266
+  },
+  "code-oop/delta/Gen_Library.st": {
+   "sha256": "409f1cb39c8ea84655c98b7a9057502cc920ed26e03780a94a0a96946d7534ee",
+   "size": 7070
+  },
+  "code-oop/delta/MAIN.st": {
+   "sha256": "bf319c9f0a6a0cd31de9f9ebea2c049e0b1bb69abbd6643b48b3666f4cb11ac6",
+   "size": 4329
+  },
+  "code-oop/delta/PLCopen_Import.xml": {
+   "sha256": "904cc18c256e4df62af0a971ee34a516333064a6bce9beebf9d2613759026839",
+   "size": 44271
+  },
+  "code-oop/delta/README.txt": {
+   "sha256": "4b9e1e7b671094a8a41249e75c3f64e7009af735ea2ac30a10af2b602d00e28c",
+   "size": 5443
+  },
+  "code-oop/schneider/FB_Sequence.st": {
+   "sha256": "19da8ed3b8ff11c2b9fe9dcac4006563a3fd6bb7cabee7c72ebd215085a42a42",
+   "size": 3011
+  },
+  "code-oop/schneider/GVL_IO.st": {
+   "sha256": "33f652c28851ab7fef44ded55591046c855842d5184deb323004b7008d67e0f7",
+   "size": 1266
+  },
+  "code-oop/schneider/Gen_Library.st": {
+   "sha256": "a54ade431bd37b2dc83d317c05151ac30e8fb64c980eef771c0ba079f2598a19",
+   "size": 7071
+  },
+  "code-oop/schneider/MAIN.st": {
+   "sha256": "16841cb6d27cc2d1671f4746ec74ace814f8aec6ef93b16b592224b93c9d166b",
+   "size": 4330
+  },
+  "code-oop/schneider/PLCopen_Import.xml": {
+   "sha256": "f5eab5105b7a319d35d6770b674814d888f6546f86f29ba4113c70dd855fd972",
+   "size": 44272
+  },
+  "code-oop/schneider/README.txt": {
+   "sha256": "5553867ec5df54c98ebd6fb6e04611a5a7f0d394b85cc9b2056cb474bdb5e152",
+   "size": 4771
+  },
+  "code-oop/wago/FB_Sequence.st": {
+   "sha256": "e3912c939aa7e954230e8154704106d9a5c92e3e11e4c23fbd2181c51ba2c39f",
+   "size": 2997
+  },
+  "code-oop/wago/GVL_IO.st": {
+   "sha256": "9f3b16948420b71c01acd31dd88106df35c44163a97eb330652a5753a79b4cb2",
+   "size": 1108
+  },
+  "code-oop/wago/Gen_Library.st": {
+   "sha256": "2e51eee6078a51884fb23ca55e952e8c3e944f2585d59e6ba7e3913fa91e7cb3",
+   "size": 7057
+  },
+  "code-oop/wago/MAIN.st": {
+   "sha256": "1fedec95a13b4421d9f2c930907b4ffbdec9b6a7fb54ae588f5434e127f9b5da",
+   "size": 4316
+  },
+  "code-oop/wago/PLCopen_Import.xml": {
+   "sha256": "ce260d8d8a6a11ddeeb0829b2c877873d8f9b5d6271b4d4a2a4a40559fb8ca70",
+   "size": 43988
+  },
+  "code-oop/wago/README.txt": {
+   "sha256": "fe46b3c1ee29a7f9a9d92a0cbd063623f69aa36687fecd92385c3b25f8f0e1bd",
+   "size": 5550
+  },
   "code/beckhoff/GVL_IO.st": {
    "sha256": "8af064062fc744a4265dd8b671628c67d8b24b231532310a995be1a027b6ff51",
    "size": 1220
@@ -634,37 +1362,57 @@
    "sha256": "3c844924825b5b671f22a5af4a60b9dede7da68a35024216b03ee7de9cf97a1b",
    "size": 2415
   },
+  "code/delta/GVL_IO.st": {
+   "sha256": "33f652c28851ab7fef44ded55591046c855842d5184deb323004b7008d67e0f7",
+   "size": 1266
+  },
+  "code/delta/Gen_Library.st": {
+   "sha256": "c33b4126436d6471d1a6f2e71f208f9aa576a9fa915733a40af6b3878535ddbd",
+   "size": 4542
+  },
+  "code/delta/MAIN.st": {
+   "sha256": "09e4be1aa80d4935887686c143e28fba5a1e8ae1389e60f81bc92b1a2b57bda4",
+   "size": 5944
+  },
+  "code/delta/PLCopen_Import.xml": {
+   "sha256": "36e51806d0e33fd744bb2a4bcbe4828b57f50ae70bda8240819ca2dea56a9c69",
+   "size": 22317
+  },
+  "code/delta/README.txt": {
+   "sha256": "a56c5fac4b774ceaca70060f629109440b6def40bb297ced3d578311ba0294ae",
+   "size": 2550
+  },
   "code/mitsubishi/Gen_Library.st": {
    "sha256": "27ae1129757701a145462b96342366e6ef294cb128fe82f26c9fe65eb6eed422",
    "size": 4535
   },
   "code/mitsubishi/GlobalLabels.csv": {
-   "sha256": "258d94916a20054944cd9c632f15fbd17bb657129b3c2957268ece5abb1f3724",
-   "size": 1236
+   "sha256": "6e9fdced1999cd1c0ae734ea1f47bf96e15d22f82136e61bb77f3fdc51fa6474",
+   "size": 3520
   },
   "code/mitsubishi/MAIN.st": {
-   "sha256": "63f471b5933ddc2d87db28027d92859f74aa7216097c91d9d041748dc3cc4577",
-   "size": 5830
+   "sha256": "69e50706e8f305643b3c374fe904f2ff78e6f32837933d04828eac1ce0f5cf6e",
+   "size": 5862
   },
   "code/mitsubishi/README.txt": {
-   "sha256": "a34a3d4b40f2bced0126aaaf21d452692ebacb50daccffd9c06fa34b776e413d",
-   "size": 2355
+   "sha256": "7717d0a9c2f741d253c023d5402b343e9911fecc9ad5f43ab0501b3010b07334",
+   "size": 2989
   },
   "code/omron/Gen_Library.st": {
    "sha256": "d75b42a0e4b832177a295ddcfbb5de6ee792533f6ced57031dbac211a02695ba",
    "size": 4546
   },
   "code/omron/MAIN.st": {
-   "sha256": "ded0ca902a9013ffb5dbf906a21924d640dbcbe57e7654d78e506eb5d7088e5b",
-   "size": 5791
+   "sha256": "96b76cf28839e588f9c79ba93cd9c52ab20bf8da96b6819be3ca03b7b0951351",
+   "size": 5823
   },
   "code/omron/README.txt": {
-   "sha256": "35efc83234d39156aab999e012f46bb3e1ea94f4272ff699f2bd9f8f548bc478",
-   "size": 2228
+   "sha256": "7342fd4e980c34324f522b3432e648eb5daaccd221d92f82efb9deb5ebed1bb1",
+   "size": 2680
   },
   "code/omron/Variables.txt": {
-   "sha256": "4e7fbbc5c3c683bbd81640119249751fa4294a3262f3dc8c61a3c436c40e044b",
-   "size": 862
+   "sha256": "de021085340388eb168990e095a735661b560678692a97b6a1b92d45d4df38fe",
+   "size": 2802
   },
   "code/rockwell/MainRoutine.st": {
    "sha256": "43da73e40371d4bd90d2a60ec5ab9f172928008bc5aabc3c64bde54d74370c24",
@@ -734,6 +1482,26 @@
    "sha256": "8866d2c14c2025cb79a163180ae2dc37fac88591f6b977589534d43b820e4610",
    "size": 6504
   },
+  "code/wago/GVL_IO.st": {
+   "sha256": "9f3b16948420b71c01acd31dd88106df35c44163a97eb330652a5753a79b4cb2",
+   "size": 1108
+  },
+  "code/wago/Gen_Library.st": {
+   "sha256": "d0b500bd73cb698a2cdc0ea0f5a85fe731adb547429a8533db4fda09af04d6a2",
+   "size": 4529
+  },
+  "code/wago/MAIN.st": {
+   "sha256": "7b9a65e0f9a6d20a784136f474f3b1a74d71f68bd436c315a02af86d1d904efc",
+   "size": 5931
+  },
+  "code/wago/PLCopen_Import.xml": {
+   "sha256": "428f623e49523f6c7246f0c75ee158c49a556975dba1575402e882a3d1c6eb6a",
+   "size": 22047
+  },
+  "code/wago/README.txt": {
+   "sha256": "a310cbe2142566f57b63c2feb80821f0d205f09b420dd74ce177c15e7a35538d",
+   "size": 2657
+  },
   "docs/00_prehled_dokumentace.md": {
    "sha256": "52699d2469f7583293a1c3e1b1875ffee2d871f0bae496ebc6af17745538e683",
    "size": 2676
@@ -792,6 +1560,158 @@
   }
  },
  "zh": {
+  "code-oop/beckhoff/FB_AnalogIn.TcPOU": {
+   "sha256": "e8c94ee817e693fa4c5dc800dd2e570fb3357586d39d0b81d13f5a3677542dfc",
+   "size": 1415
+  },
+  "code-oop/beckhoff/FB_DeviceBase.TcPOU": {
+   "sha256": "a172237608d8ca3604366e514559e65892c65e93235d804a7f1d76bf310bde19",
+   "size": 3273
+  },
+  "code-oop/beckhoff/FB_Motor.TcPOU": {
+   "sha256": "f7a3515c8c31e6d1300effef70594349bbc233e14345d85df6e6ff7dd0db6400",
+   "size": 2224
+  },
+  "code-oop/beckhoff/FB_Sequence.TcPOU": {
+   "sha256": "806b6f618d57fd781af44f467dc1dc8c4814bb5458ae2e77047f1544238231f3",
+   "size": 3101
+  },
+  "code-oop/beckhoff/FB_Sequence.st": {
+   "sha256": "e3ca57163ed877a0746e3758bc598f0ebdf44adecd5aedbe2ea2238b701abcf5",
+   "size": 2909
+  },
+  "code-oop/beckhoff/FB_Valve.TcPOU": {
+   "sha256": "d7ad80fbc8033031ffd33fa94fb345f6c693d1208f21dfd390edaec167899426",
+   "size": 2505
+  },
+  "code-oop/beckhoff/GVL_IO.TcGVL": {
+   "sha256": "5cf7a0141694f159e2c8b0626798f521311630c370c3dc03ee3c22b17848be0c",
+   "size": 1420
+  },
+  "code-oop/beckhoff/GVL_IO.st": {
+   "sha256": "0c597e252b814ae31ce5b46703fe3dd03065f7dbb85618a0b1d52a2e862f81a9",
+   "size": 1215
+  },
+  "code-oop/beckhoff/Gen_Library.st": {
+   "sha256": "8e1fa1f09588ff6f71fa596f123807f81cc9ad9ac78460e1f9902a360283b57a",
+   "size": 6819
+  },
+  "code-oop/beckhoff/I_Device.TcIO": {
+   "sha256": "25b4659e39323cd52481319991e926fa90df15956710fa0ed75bb941a8d6094b",
+   "size": 1362
+  },
+  "code-oop/beckhoff/MAIN.TcPOU": {
+   "sha256": "b982dd7c16ef567885543040383536f7161e0d1066edb7b33aa46bf8ad6f267c",
+   "size": 4444
+  },
+  "code-oop/beckhoff/MAIN.st": {
+   "sha256": "ba114015444503157db546b109960fdd43d046e569d5c0122ca7116fee039ba6",
+   "size": 4165
+  },
+  "code-oop/beckhoff/PLCopen_Import.xml": {
+   "sha256": "9dc7b535bc1824855f97d6b06e103b843e5698fa3cdd708a096f1f9181e4886a",
+   "size": 43630
+  },
+  "code-oop/beckhoff/README.txt": {
+   "sha256": "8f08026d41b0e2502309a42c04905bb04ab85bd96a068cd9784a0a7e1f23923e",
+   "size": 4184
+  },
+  "code-oop/codesys/FB_Sequence.st": {
+   "sha256": "8bc52d6d4befbe3dabe96008975af0f85b7007900f9563cc343c542cf71b7c70",
+   "size": 2908
+  },
+  "code-oop/codesys/GVL_IO.st": {
+   "sha256": "03ce7c87349df2243a1a370c1579ed22b99fbf75860aa6b672374cfafdc3dfdd",
+   "size": 1261
+  },
+  "code-oop/codesys/Gen_Library.st": {
+   "sha256": "f4daee16470d720d2749d01bbf07d3a70dc7ab7afbfccef57fb04713b5ebc76b",
+   "size": 6818
+  },
+  "code-oop/codesys/MAIN.st": {
+   "sha256": "07d04a3ce736d8ef6e60f1971cbac472c94a369437bf3482b896bdee54fc55bd",
+   "size": 4164
+  },
+  "code-oop/codesys/PLCopen_Import.xml": {
+   "sha256": "47e78b3d8ddcc5f1daa8cf405a2084b293f937c459cfe6de0075aa115d25b26f",
+   "size": 43675
+  },
+  "code-oop/codesys/README.txt": {
+   "sha256": "d71a5cbedbae3006678b8f1be2b17624debef8e196d991dafa5b423fb385c003",
+   "size": 4624
+  },
+  "code-oop/delta/FB_Sequence.st": {
+   "sha256": "0fcc01e7049e08373fa61547bc2667c80eb2148fe21551d5b69bbf4f81d061ae",
+   "size": 2918
+  },
+  "code-oop/delta/GVL_IO.st": {
+   "sha256": "03ce7c87349df2243a1a370c1579ed22b99fbf75860aa6b672374cfafdc3dfdd",
+   "size": 1261
+  },
+  "code-oop/delta/Gen_Library.st": {
+   "sha256": "b868adc546342df6f74e1fb44de51f530309e0cb6fa2d08db715ea5047df9adc",
+   "size": 6828
+  },
+  "code-oop/delta/MAIN.st": {
+   "sha256": "be7ea5930a65967fe8348d2b47e6746d07efed7ecb375869b8786347c54fce99",
+   "size": 4174
+  },
+  "code-oop/delta/PLCopen_Import.xml": {
+   "sha256": "1120a634448fc120e4f9fa4c3f25af163f50c106ea1ccfcbd88a1b2b4be63cb5",
+   "size": 43685
+  },
+  "code-oop/delta/README.txt": {
+   "sha256": "e24b9449e36858422f027b595c89fdd800538b2e82a60b82e2dcc7387ae0782b",
+   "size": 4707
+  },
+  "code-oop/schneider/FB_Sequence.st": {
+   "sha256": "4191cfe96beb3f98bdd73d571ee9ca170efcb7340ba5ab533f121325f47292cf",
+   "size": 2919
+  },
+  "code-oop/schneider/GVL_IO.st": {
+   "sha256": "03ce7c87349df2243a1a370c1579ed22b99fbf75860aa6b672374cfafdc3dfdd",
+   "size": 1261
+  },
+  "code-oop/schneider/Gen_Library.st": {
+   "sha256": "69b88868d80bbe8a176094d0f9caf1a36386b3dc90ebf9e05f08cdb9a5786f22",
+   "size": 6829
+  },
+  "code-oop/schneider/MAIN.st": {
+   "sha256": "59ce493c07c2a811189dc75e689644307bceb9eb7734db4019a193c13974dfa1",
+   "size": 4175
+  },
+  "code-oop/schneider/PLCopen_Import.xml": {
+   "sha256": "29912d10927c8e51036846250f03d4ef688f22347b1bc9a26be6692df2ae03d4",
+   "size": 43686
+  },
+  "code-oop/schneider/README.txt": {
+   "sha256": "e32974454dc1d9de059a48fdbcafabd6e4e20f3965b80589cfe463dbcaad67d6",
+   "size": 4095
+  },
+  "code-oop/wago/FB_Sequence.st": {
+   "sha256": "c2f40966604747ed57cb7021304d032904ca711363bd47b701ca4134d12df920",
+   "size": 2905
+  },
+  "code-oop/wago/GVL_IO.st": {
+   "sha256": "3ceaee44ad48e5f49ca32845d8e79b94b0dbcb6a092bd4feb91002805efbea51",
+   "size": 1103
+  },
+  "code-oop/wago/Gen_Library.st": {
+   "sha256": "70aa0c5abdfd7299899b0c99c102cd433e0fd678e362dfae71cd6678d4b7b483",
+   "size": 6815
+  },
+  "code-oop/wago/MAIN.st": {
+   "sha256": "31175c7dc34eff52031f3025e50265d7e2294429ec06ac747f4baa8ca966b8fc",
+   "size": 4161
+  },
+  "code-oop/wago/PLCopen_Import.xml": {
+   "sha256": "4022c19eda769bd3256ab7308bfc82ef333a693136a2a57745f19248716b8bfc",
+   "size": 43402
+  },
+  "code-oop/wago/README.txt": {
+   "sha256": "dae807c5d262a0ffc6f94b16a5a2fb431cd714642a5eb26445d0c403e38b1da7",
+   "size": 4816
+  },
   "code/beckhoff/GVL_IO.st": {
    "sha256": "0c597e252b814ae31ce5b46703fe3dd03065f7dbb85618a0b1d52a2e862f81a9",
    "size": 1215
@@ -832,37 +1752,57 @@
    "sha256": "06eeccae352325b296e00518a84807e5bbc8f3587086630d796ef5c5ef20591e",
    "size": 2112
   },
+  "code/delta/GVL_IO.st": {
+   "sha256": "03ce7c87349df2243a1a370c1579ed22b99fbf75860aa6b672374cfafdc3dfdd",
+   "size": 1261
+  },
+  "code/delta/Gen_Library.st": {
+   "sha256": "feebf38a471a83db9cbf5d93445e07cba1e11585a926deb9fcfb999c85ba2abc",
+   "size": 4436
+  },
+  "code/delta/MAIN.st": {
+   "sha256": "5c223c737541cbcb77fdf78d26bea51b659127971664c4c365e2e32b722d4467",
+   "size": 5773
+  },
+  "code/delta/PLCopen_Import.xml": {
+   "sha256": "fd56332eb1d3c9a5270bec3a80715061d643ad66ad706ae1fa4c3aca3c2533d1",
+   "size": 22125
+  },
+  "code/delta/README.txt": {
+   "sha256": "9813fdf60d1e2c219c7c4d8f585b11bbfd5cb1612ee035d5ff497c47dd502359",
+   "size": 2195
+  },
   "code/mitsubishi/Gen_Library.st": {
    "sha256": "388a9fdb7f8b3c2891ec095813a9e095e0ccabee8c020354719a15a7512985d5",
    "size": 4429
   },
   "code/mitsubishi/GlobalLabels.csv": {
-   "sha256": "c1028cd2188d75fec0036dadf2c8ad9082ab11882aa80d2c07ef7c81203b1e72",
-   "size": 1174
+   "sha256": "b5b3646f281fd6a498b7472727e484bb96967624b65dfe16aa694a2be406d9d5",
+   "size": 3406
   },
   "code/mitsubishi/MAIN.st": {
-   "sha256": "3378ceaf1ccda38017bd31b2ecc02d97ff9f8a287e50c40876b9b0e819af979d",
-   "size": 5659
+   "sha256": "cc9da0a355451dc3d12bf509f4e3e4a15594adb5e86ac534769f0cc5438b5501",
+   "size": 5715
   },
   "code/mitsubishi/README.txt": {
-   "sha256": "c344539f89b16436c91f54976edd6f94e9230dcf73fc4685888ebd32769999e7",
-   "size": 1985
+   "sha256": "1b1b5d9aed7de88d8648453f29f4179674b3b02f93c013b26aff53bf3803bccb",
+   "size": 2586
   },
   "code/omron/Gen_Library.st": {
    "sha256": "d423cd8f24fffa380b0c4c6e68cf9e0f4955264668f8b7d9b7e343ec37def78b",
    "size": 4440
   },
   "code/omron/MAIN.st": {
-   "sha256": "35cd05e385895f921d084c7717c6da2439fedbf66eda0457cd195111537c6e7e",
-   "size": 5620
+   "sha256": "f0c0a8df3d6ae25d7ee3f2bcafe8cba26e1a5f4d1246c253aa706468e42f1ec1",
+   "size": 5676
   },
   "code/omron/README.txt": {
-   "sha256": "cc2678c0cf7e24f82f7d901d30b43d2d56d5f743b741b55e482077d0338f6f52",
-   "size": 1903
+   "sha256": "cb84d8398875d474efa3dd20b8013e6c3eabd0cbc215a8f17c1eca0d744e8bcf",
+   "size": 2343
   },
   "code/omron/Variables.txt": {
-   "sha256": "2cb4ce73bac8300c9dc024165eeb71619eadb0336b3d2db43a906f9b92a9d591",
-   "size": 800
+   "sha256": "ed6acc8f52333cee561b99cc18eb07889ef52007a1fb7fb3bcbc90b3bfa63c08",
+   "size": 2688
   },
   "code/rockwell/MainRoutine.st": {
    "sha256": "13fa4e0f3003d2a941f21da23c6a138b935f57cb2d1759c87d8109d217ecfa4f",
@@ -931,6 +1871,26 @@
   "code/unitronics/Tags.csv": {
    "sha256": "eee3ce468df349911a22d429f99dc42868987938d64ce9faacce6757c5eabd3d",
    "size": 6204
+  },
+  "code/wago/GVL_IO.st": {
+   "sha256": "3ceaee44ad48e5f49ca32845d8e79b94b0dbcb6a092bd4feb91002805efbea51",
+   "size": 1103
+  },
+  "code/wago/Gen_Library.st": {
+   "sha256": "e06d9bd44e469b914b9ece7cb04b33b39460a47e1724adaff4fe742f2f36cb52",
+   "size": 4423
+  },
+  "code/wago/MAIN.st": {
+   "sha256": "439828c8897cad63ee3dc6048be7177ed7ecc7b7ebe194be3fa51a6bd848d1cd",
+   "size": 5760
+  },
+  "code/wago/PLCopen_Import.xml": {
+   "sha256": "22cd30e7071fbeb0ec4d90f00e135303a4c9422a2db25382a82c731c6bcca371",
+   "size": 21855
+  },
+  "code/wago/README.txt": {
+   "sha256": "4b9600cbc829f47c90c7643f829ceefd05874b942dcdcb2c4da5eb1d59084559",
+   "size": 2304
   },
   "docs/00_prehled_dokumentace.md": {
    "sha256": "725b3e0be50edd032e89305610e686dfff7f7a9f2dc01575dcbd81ed51bf0420",

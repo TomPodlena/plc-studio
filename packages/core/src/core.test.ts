@@ -338,8 +338,11 @@ test("generátor: ruční povely, hlídání kroků, porucha stroje a kvitace na
     const lib = files[plat === "siemens" ? "Gen_Library.scl" : "Gen_Library.st"];
     const L = (v: string) => plat === "siemens" ? "#" + v : v;
     const R = (t: string) => plat === "siemens" ? '"' + t + '"' : (plat === "beckhoff" || plat === "codesys" || plat === "schneider") ? "GVL_IO." + t : t;
+    /* Mitsubishi / Omron: řízení stroje pro HMI je globální (GlobalLabels.csv / Variables.txt), časovače kroků lokální */
+    const glob = plat === "mitsubishi" ? files["GlobalLabels.csv"] : plat === "omron" ? files["Variables.txt"] : "";
     for (const v of ["modeAuto", "cmdAutoStart", "cmdAck", "machineFault", "manRun_M1", "manOpen_Y1", "faultStep", "tonSeq10"]) {
-      assert.ok(new RegExp("^\\s+" + v + " : ", "m").test(main), plat + ": deklarace " + v);
+      if (glob && v !== "tonSeq10") assert.ok(new RegExp('^"?' + v + '"?[,\\t]', "m").test(glob) && !new RegExp("^\\s+" + v + " : ", "m").test(main), plat + ": globální " + v);
+      else assert.ok(new RegExp("^\\s+" + v + " : ", "m").test(main), plat + ": deklarace " + v);
     }
     // sekvence: reset při poruše, start jen bez poruchy, hlídání kroku na zpětné hlášení
     assert.ok(main.includes("IF NOT " + L("modeAuto") + " OR NOT " + L("enable") + " OR " + L("machineFault") + " THEN"), plat);
@@ -1165,6 +1168,8 @@ test("import: adresy — přesně tam, kde je výstup nese; jinak doplněné a h
   const carry: Record<PlatformKey, string[]> = {
     siemens: all, rockwell: all, codesys: all, schneider: all, unitronics: all,
     mitsubishi: ["M1_fbkRunning", "M1_outRun", "Y1_fbkClosed"], beckhoff: [], omron: [],
+    /* profily CODESYS: WAGO bez AT (I/O mapování), Delta AX adresy CODESYS */
+    wago: [], delta: all,
   };
   for (const plat of PLATS_ALL) {
     const r = inferProject(extractFiles(filesOf(genFor(p, plat))));

@@ -5,8 +5,11 @@
  * TIME v ms) — stav jde levně kopírovat (kontrolní body ověření).
  */
 import type { Expr, Stmt, Pos, Unit, Pou, VarDecl, VarKind, TypeSpec, RefPart, Arg, EmuFinding } from "./types.js";
-import { Dialect, ELEM, ElemInfo, TYPE_ALIAS, IEC_KEYWORDS, Lvl, isWidening } from "./dialects.js";
+import { Dialect, ELEM, ElemInfo, TYPE_ALIAS, IEC_KEYWORDS, Lvl, isWidening, SRC } from "./dialects.js";
 import { tr } from "../i18n.js";
+
+/** Zdroje pravidel OOP (CODESYS / TwinCAT). */
+const SRC_OOP = SRC.cdsItf, SRC_ABS = SRC.tcAbstract, SRC_PROP = SRC.cdsProp, SRC_REF = SRC.tcItfRef;
 
 /* ================================================================ typy */
 
@@ -16,7 +19,26 @@ export type Ty =
   | { k: "struct"; name: string; fields: VarSym[]; map: Map<string, VarSym>; size: number }
   | { k: "array"; of: Ty; dims: Array<[number, number]>; size: number }
   | { k: "enum"; name: string; values: Map<string, number> }
-  | { k: "ns"; name: string; vars: Map<string, VarSym>; qualifiedOnly: boolean };
+  | { k: "ns"; name: string; vars: Map<string, VarSym>; qualifiedOnly: boolean }
+  /** Odkaz na rozhraní (OOP): jeden slot = adresa instance + 1, 0 = neplatný odkaz. */
+  | { k: "itf"; def: ItfDef };
+
+/** Parametr metody (pro kontrolu podpisu a předání argumentů). */
+export interface ParamSym { name: string; key: string; kind: VarKind; ty: Ty; }
+
+/** Rozhraní (INTERFACE): metody a vlastnosti, které musí implementující blok mít. */
+export interface ItfDef {
+  name: string;
+  key: string;
+  pou: Pou;
+  pos: Pos;
+  methods: Map<string, { name: string; params: ParamSym[]; retTy?: Ty; pos: Pos }>;
+  props: Map<string, { name: string; ty: Ty; get: boolean; set: boolean; pos: Pos }>;
+  laid: boolean;
+}
+
+/** Vlastnost bloku: přístupové metody GET / SET (leží v `methods` pod __GET_x / __SET_x). */
+export interface PropSym { name: string; ty: Ty; getter?: FbDef; setter?: FbDef; owner: FbDef; pos: Pos; access?: Pou["access"]; }
 
 export interface VarSym {
   name: string;
@@ -50,6 +72,20 @@ export interface FbDef {
   /** Metoda: blok, jehož proměnné vidí. */
   owner?: FbDef;
   retTy?: Ty;
+  /** Metoda: proměnná návratové hodnoty (u GET vlastnosti = jméno vlastnosti). */
+  retSym?: VarSym;
+  /** Metoda: parametry (počítá se při prvním volání). */
+  params?: ParamSym[];
+  /* --- OOP --- */
+  /** Identifikátor třídy (slot __TID instance) pro dynamické volání metod. */
+  tid?: number;
+  parent?: FbDef;
+  abstract?: boolean;
+  final?: boolean;
+  access?: Pou["access"];
+  /** Rozhraní uvedená v IMPLEMENTS tohoto bloku (zděděná se hledají přes `parent`). */
+  itfs?: ItfDef[];
+  props?: Map<string, PropSym>;
 }
 
 const LOGIX_TYPES = new Set(["BOOL", "SINT", "INT", "DINT", "LINT", "REAL"]);
@@ -66,11 +102,12 @@ export function tyName(t: Ty): string {
     case "array": return "ARRAY OF " + tyName(t.of);
     case "enum": return t.name;
     case "ns": return t.name;
+    case "itf": return t.def.name;
   }
 }
 function sizeOf(t: Ty): number {
   switch (t.k) {
-    case "elem": case "enum": return 1;
+    case "elem": case "enum": case "itf": return 1;
     case "fb": return t.def.size;
     case "struct": return t.size;
     case "array": return t.size;
@@ -92,9 +129,17 @@ const STD_FB: Record<string, Array<[string, string, VarKind]>> = {
 };
 STD_FB.TOF = STD_FB.TON; STD_FB.TP = STD_FB.TON; STD_FB.F_TRIG = STD_FB.R_TRIG;
 STD_FB.TON_TIME = STD_FB.TON; STD_FB.TOF_TIME = STD_FB.TON; STD_FB.TP_TIME = STD_FB.TON;
+/* Mitsubishi TIMER_1/10/100_FB_M (FX5 Programming Manual Instructions JY997D55801Z, kap. 32.4):
+   Coil = podmínka, Preset INT 0–32 767 v jednotkách 1 / 10 / 100 ms, ValueIn = počáteční hodnota
+   (záporná = 0), ValueOut = aktuální hodnota (po vypnutí Coil = ValueIn), Status = doběhl */
+STD_FB.TIMER_100_FB_M = [["Coil", "BOOL", "in"], ["Preset", "INT", "in"], ["ValueIn", "INT", "in"], ["ValueOut", "INT", "out"], ["Status", "BOOL", "out"],
+  ["_start", "TIME", "var"], ["_prev", "BOOL", "var"]];
+STD_FB.TIMER_10_FB_M = STD_FB.TIMER_100_FB_M; STD_FB.TIMER_1_FB_M = STD_FB.TIMER_100_FB_M;
+/** Jednotka předvolby časovačů TIMER_x_FB_M [ms]. */
+export const TIMER_M_UNIT: Record<string, number> = { TIMER_1_FB_M: 1, TIMER_10_FB_M: 10, TIMER_100_FB_M: 100 };
 STD_FB.CTUD = [["CU", "BOOL", "in"], ["CD", "BOOL", "in"], ["R", "BOOL", "in"], ["LD", "BOOL", "in"], ["PV", "INT", "in"], ["QU", "BOOL", "out"], ["QD", "BOOL", "out"], ["CV", "INT", "out"], ["_pu", "BOOL", "var"], ["_pd", "BOOL", "var"]];
 /** Časovače: offset slotu, který se mění při běhu (ET / ACC) — pro rychlé přeskočení klidu. */
-const TIMER_ET: Record<string, number> = { TON: 3, TOF: 3, TP: 3, TON_TIME: 3, TOF_TIME: 3, TP_TIME: 3, FBD_TIMER: 5 };
+const TIMER_ET: Record<string, number> = { TON: 3, TOF: 3, TP: 3, TON_TIME: 3, TOF_TIME: 3, TP_TIME: 3, FBD_TIMER: 5, TIMER_1_FB_M: 3, TIMER_10_FB_M: 3, TIMER_100_FB_M: 3 };
 
 /* ================================================================ vstup / výstup */
 
@@ -140,8 +185,12 @@ export interface Compiled {
 
 /* ================================================================ překladač */
 
-interface Val { js: string; ty: Ty; c?: number; }
-interface Ctx { def?: FbDef; base: string; aoi: boolean; file: string; loops: number; ret?: VarSym; }
+interface Val { js: string; ty: Ty; c?: number; /** zápis do vlastnosti (SET): JS příkaz pro zapisovanou hodnotu */ set?: (v: string) => string; }
+interface Ctx {
+  def?: FbDef; base: string; aoi: boolean; file: string; loops: number; ret?: VarSym;
+  /** Odkazy na rozhraní ověřené podmínkou `x <> 0` v okolních IF (klíče cest). */
+  guards?: string[];
+}
 
 const WRAP: Record<string, (x: string) => string> = {
   BOOL: x => "((" + x + ")?1:0)", SINT: x => "((" + x + ")<<24>>24)", INT: x => "((" + x + ")<<16>>16)", DINT: x => "((" + x + ")|0)",
@@ -183,9 +232,10 @@ export function compile(inp: CompileInput): Compiled {
 
   /* --------------------------------------------------------- typy a bloky */
   const fbs = new Map<string, FbDef>();
+  const itfs = new Map<string, ItfDef>();
   const types = new Map<string, Ty>();
   const pouByKey = new Map<string, Pou>();
-  let jsN = 0;
+  let jsN = 0, tidN = 0;
   const stdDef = (n: string): FbDef => {
     const K = key(n);
     const ex = fbs.get(K);
@@ -200,7 +250,11 @@ export function compile(inp: CompileInput): Compiled {
       if (pouByKey.has(key(p.name)) || fbs.has(key(p.name))) add("error", "duplicate", p.pos, tr("Blok {name} je deklarován vícekrát", { name: p.name }), d.src.ident);
       pouByKey.set(key(p.name), p);
       checkIdent(p.name, p.pos, tr("Blok"));
-      if (p.kind === "fb") fbs.set(key(p.name), { name: p.name, key: key(p.name), vars: [], map: new Map(), size: 0, methods: new Map(), pou: p, pos: p.pos, body: p.body, js: "F" + (jsN++), laid: false });
+      if (p.kind === "fb") fbs.set(key(p.name), { name: p.name, key: key(p.name), vars: [], map: new Map(), size: 0, methods: new Map(), pou: p, pos: p.pos, body: p.body, js: "F" + (jsN++), laid: false,
+        tid: ++tidN, abstract: p.abstract, final: p.final, props: new Map(), itfs: [] });
+      if (p.kind === "interface") itfs.set(key(p.name), { name: p.name, key: key(p.name), pou: p, pos: p.pos, methods: new Map(), props: new Map(), laid: false });
+      if (!d.oop && (p.kind === "interface" || p.methods.length || p.extendsName || p.implementsNames))
+        add("error", "oop", p.pos, tr("{name}: OOP (INTERFACE / METHOD / PROPERTY / EXTENDS) platforma {plat} nemá", { name: p.name, plat: d.label }), SRC_OOP);
     }
     for (const t of u.types) {
       checkIdent(t.name, t.pos, tr("Typ"));
@@ -224,6 +278,7 @@ export function compile(inp: CompileInput): Compiled {
     }
     if (d.scl && (K === "TON" || K === "TOF" || K === "TP") && !quoted) add("warn", "ton-type", p, tr("Časovač typu {name}: TIA v exportu zdrojů pro S7-1200/1500 píše {name}_TIME — alias {name} v externím zdroji neověřen", { name: K }), "https://abedgnu.github.io/Automation-Notes/chapters/PLC/Siemens/exercises-solutions.html");
     if (fbs.has(K)) { const f = fbs.get(K)!; layoutFb(f); return { k: "fb", def: f }; }
+    if (itfs.has(K) && !quoted) { const i = itfs.get(K)!; layoutItf(i); return { k: "itf", def: i }; }
     if (d.stdFbs.has(K) && !quoted) return { k: "fb", def: stdDef(K) };
     if (STD_FB[K] && !quoted) {
       add("error", "undeclared", p, tr("Blok {name} na této platformě není (dostupné: {list})", { name: n, list: [...d.stdFbs].join(", ") }), d.src.syntax);
@@ -244,12 +299,18 @@ export function compile(inp: CompileInput): Compiled {
     add("error", "undeclared", p, tr("Neznámý datový typ {name}", { name: n }), d.src.syntax);
     return undefined;
   }
-  function resolveSpec(s: TypeSpec, name = ""): Ty {
+  /** `def` = blok, jehož konstanty smí stát v mezích pole (ARRAY[1..N_DEVICES]). */
+  function resolveSpec(s: TypeSpec, name = "", def?: FbDef): Ty {
     switch (s.k) {
       case "name": return resolveTypeName(s.name, s.pos, s.quoted) || INT;
       case "array": {
-        const dims = s.dims.map(([lo, hi]) => [constOf(lo) ?? 0, constOf(hi) ?? 0] as [number, number]);
-        const of = resolveSpec(s.of);
+        const dims = s.dims.map(([lo, hi]) => {
+          const a = constOf(lo, def), b = constOf(hi, def);
+          if (a === undefined || b === undefined) add("error", "syntax", s.pos, tr("Meze pole musí být konstanty"), d.src.syntax);
+          else if (b < a) add("error", "syntax", s.pos, tr("Pole s horní mezí {hi} menší než dolní {lo}", { lo: a, hi: b }), d.src.syntax);
+          return [a ?? 0, b ?? 0] as [number, number];
+        });
+        const of = resolveSpec(s.of, "", def);
         const n = dims.reduce((a, [lo, hi]) => a * Math.max(0, hi - lo + 1), 1);
         return { k: "array", of, dims, size: n * sizeOf(of) };
       }
@@ -291,14 +352,21 @@ export function compile(inp: CompileInput): Compiled {
     return undefined;
   }
 
-  const KIND_ORDER: VarKind[] = ["in", "out", "inout", "var", "stat", "const", "temp"];
+  /* konstanty první: smí stát v mezích polí dalších deklarací (ARRAY[1..N_DEVICES]) */
+  const KIND_ORDER: VarKind[] = ["const", "in", "out", "inout", "var", "stat", "temp"];
+  /** Instance abstraktního bloku (i v poli) nejde vytvořit. */
+  function checkInstantiable(ty: Ty, p: Pos) {
+    const t = ty.k === "array" ? ty.of : ty;
+    if (t.k === "fb" && t.def.abstract) add("error", "oop", p, tr("Blok {fb} je ABSTRACT — jeho instanci nelze vytvořit (jen odvozeného bloku)", { fb: t.def.name }), SRC_ABS);
+  }
   function addVars(def: FbDef, blocks: Array<{ kind: VarKind; decls: VarDecl[] }>, offStart: number): number {
     let off = offStart;
     for (const b of blocks) for (const v of b.decls) {
       checkIdent(v.name, v.pos, tr("Proměnná"));
       const K = key(v.name);
       if (def.map.has(K)) { add("error", "duplicate", v.pos, tr("Proměnná {name} je v bloku {fb} deklarována vícekrát (velikost písmen se nerozlišuje)", { name: v.name, fb: def.name }), d.src.ident); continue; }
-      const ty = resolveSpec(v.type);
+      const ty = resolveSpec(v.type, "", def);
+      checkInstantiable(ty, v.pos);
       const s: VarSym = { name: v.name, key: K, kind: b.kind, ty, init: v.init, pos: v.pos, off };
       if (b.kind === "const") {
         s.constVal = v.init ? constOf(v.init, def) : undefined;
@@ -319,10 +387,29 @@ export function compile(inp: CompileInput): Compiled {
     if (def.pou) {
       const p = def.pou;
       let off = 0;
+      let parent: FbDef | undefined;
       if (p.extendsName) {
-        const parent = fbs.get(key(p.extendsName));
+        parent = fbs.get(key(p.extendsName));
         if (!parent) add("error", "undeclared", p.pos, tr("EXTENDS: blok {name} neexistuje", { name: p.extendsName }), d.src.syntax);
-        else { layoutFb(parent); for (const v of parent.vars) { def.vars.push(v); def.map.set(v.key, v); } off = parent.size; for (const [k, m] of parent.methods) def.methods.set(k, m); }
+        else if (parent.final) add("error", "oop", p.pos, tr("Blok {fb} je FINAL — nelze z něj dědit", { fb: parent.name }), SRC_OOP);
+      }
+      if (parent) {
+        layoutFb(parent);
+        def.parent = parent;
+        for (const v of parent.vars) { def.vars.push(v); def.map.set(v.key, v); }
+        off = parent.size;
+        for (const [k, m] of parent.methods) def.methods.set(k, m);
+        for (const [k, pr] of parent.props || []) def.props!.set(k, pr);
+      } else {
+        /* kořenový blok: skrytý identifikátor třídy (slot 0) — dynamické volání metod přes rozhraní a THIS^ */
+        const t: VarSym = { name: "__TID", key: "__TID", kind: "var", ty: DINT, pos: p.pos, off: 0 };
+        def.vars.push(t); def.map.set(t.key, t); off = 1;
+      }
+      for (const n of p.implementsNames || []) {
+        const i = itfs.get(key(n));
+        if (!i) { add("error", "oop", p.pos, tr("IMPLEMENTS: rozhraní {name} neexistuje", { name: n }), SRC_OOP); continue; }
+        layoutItf(i);
+        def.itfs!.push(i);
       }
       const blocks = [...p.vars].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind));
       for (const b of blocks) if (b.kind === "global" || b.kind === "external") add(b.kind === "global" ? "error" : "info", "syntax", b.pos, tr("{kind} uvnitř bloku {fb}", { kind: b.kind === "global" ? "VAR_GLOBAL" : "VAR_EXTERNAL", fb: def.name }));
@@ -330,15 +417,34 @@ export function compile(inp: CompileInput): Compiled {
       /* metody: lokální proměnné metody leží v instanci (metody nejsou reentrantní) */
       for (const m of p.methods) {
         const acc = m.kind === "property" ? [m.getter, m.setter].filter(Boolean) as Pou[] : [m];
+        const prop: PropSym | undefined = m.kind === "property" ? { name: m.name, ty: m.retType ? resolveSpec(m.retType) : INT, owner: def, pos: m.pos, access: m.access } : undefined;
+        if (prop) {
+          checkIdent(m.name, m.pos, tr("Vlastnost"));
+          if (def.map.has(key(m.name))) add("error", "duplicate", m.pos, tr("Vlastnost {name} má stejné jméno jako proměnná bloku {fb} (velikost písmen se nerozlišuje)", { name: m.name, fb: def.name }), d.src.ident);
+          def.props!.set(key(m.name), prop);
+        }
         for (const mp of acc) {
-          const md: FbDef = { name: mp.name, key: key(mp.name), vars: [], map: new Map(), size: 0, methods: new Map(), pou: mp, pos: mp.pos, body: mp.body, js: "F" + (jsN++), laid: true, owner: def };
-          checkIdent(mp.name.replace(/^__(get|set)_/, ""), mp.pos, tr("Metoda"));
+          const md: FbDef = { name: mp.name, key: key(mp.name), vars: [], map: new Map(), size: 0, methods: new Map(), pou: mp, pos: mp.pos, body: mp.body, js: "F" + (jsN++), laid: true, owner: def,
+            access: mp.access, abstract: mp.abstract, final: mp.final };
+          if (!prop) {
+            checkIdent(mp.name, mp.pos, tr("Metoda"));
+            if (def.map.has(md.key)) add("error", "duplicate", mp.pos, tr("Metoda {name} má stejné jméno jako proměnná bloku {fb} (velikost písmen se nerozlišuje)", { name: mp.name, fb: def.name }), d.src.ident);
+            const inherited = def.methods.get(md.key);
+            if (inherited && inherited.owner !== def && inherited.final) add("error", "oop", mp.pos, tr("Metoda {name} je v bloku {fb} FINAL — nelze ji přepsat", { name: mp.name, fb: inherited.owner!.name }), SRC_OOP);
+          }
+          if (mp.abstract && !def.abstract) add("error", "oop", mp.pos, tr("ABSTRACT metoda {name} smí být jen v ABSTRACT bloku", { name: prop ? prop.name : mp.name }), SRC_ABS);
+          if (mp.abstract && mp.body.length) add("error", "oop", mp.pos, tr("ABSTRACT metoda {name} nesmí mít implementaci", { name: prop ? prop.name : mp.name }), SRC_ABS);
           off = addVars(md, mp.vars, off);
+          /* návratová hodnota: metoda pod svým jménem; GET / SET vlastnosti pod jménem vlastnosti */
+          const isSet = /^__set_/i.test(mp.name);
           if (mp.retType) {
             md.retTy = resolveSpec(mp.retType);
-            const r: VarSym = { name: mp.name, key: key(mp.name), kind: "var", ty: md.retTy, pos: mp.pos, off };
+            const rn = prop ? prop.name : mp.name;
+            const r: VarSym = { name: rn, key: key(rn), kind: prop && isSet ? "in" : "var", ty: md.retTy, pos: mp.pos, off };
             md.vars.push(r); md.map.set(r.key, r); off += sizeOf(md.retTy);
+            if (!(prop && isSet)) md.retSym = r;
           }
+          if (prop) { if (isSet) prop.setter = md; else prop.getter = md; }
           def.methods.set(md.key, md);
         }
       }
@@ -362,6 +468,77 @@ export function compile(inp: CompileInput): Compiled {
     }
     def.laid = true;
     resolving.delete("FB:" + def.key);
+  }
+
+  /** Parametry metody (vstupy, výstupy, IN_OUT v pořadí deklarace). */
+  function paramsOf(vars: Array<{ kind: VarKind; decls: VarDecl[] }>): ParamSym[] {
+    const out: ParamSym[] = [];
+    for (const b of vars) if (b.kind === "in" || b.kind === "out" || b.kind === "inout") for (const v of b.decls) out.push({ name: v.name, key: key(v.name), kind: b.kind, ty: resolveSpec(v.type) });
+    return out;
+  }
+  function layoutItf(i: ItfDef) {
+    if (i.laid) return;
+    i.laid = true;
+    if (i.pou.extendsName) add("warn", "oop", i.pos, tr("Rozhraní {name}: EXTENDS emulátor nevyhodnocuje", { name: i.name }), SRC_OOP);
+    for (const m of i.pou.methods) {
+      if (m.kind === "property") {
+        if (i.props.has(key(m.name)) || i.methods.has(key(m.name))) add("error", "duplicate", m.pos, tr("Rozhraní {itf}: člen {name} je deklarován vícekrát", { itf: i.name, name: m.name }), SRC_OOP);
+        i.props.set(key(m.name), { name: m.name, ty: m.retType ? resolveSpec(m.retType) : INT, get: !!m.getter, set: !!m.setter, pos: m.pos });
+        if (!m.getter && !m.setter) add("error", "oop", m.pos, tr("Vlastnost {name} rozhraní {itf} nemá GET ani SET", { name: m.name, itf: i.name }), SRC.cdsItfProp);
+        continue;
+      }
+      if (m.body.length) add("error", "oop", m.pos, tr("Metoda {name} rozhraní {itf} nesmí mít implementaci", { name: m.name, itf: i.name }), SRC_OOP);
+      if (i.methods.has(key(m.name)) || i.props.has(key(m.name))) add("error", "duplicate", m.pos, tr("Rozhraní {itf}: člen {name} je deklarován vícekrát", { itf: i.name, name: m.name }), SRC_OOP);
+      checkIdent(m.name, m.pos, tr("Metoda"));
+      i.methods.set(key(m.name), { name: m.name, params: paramsOf(m.vars), retTy: m.retType ? resolveSpec(m.retType) : undefined, pos: m.pos });
+    }
+  }
+  /** Podpis metody: návratový typ a parametry (směr, jméno, typ) — pro přepsání a implementaci rozhraní. */
+  const sigOf = (retTy: Ty | undefined, params: ParamSym[]) =>
+    (retTy ? tyName(retTy) : "-") + "(" + params.map(p => p.kind + " " + p.key + ":" + tyName(p.ty)).join(", ") + ")";
+  const methodSig = (md: FbDef) => sigOf(md.retTy, md.pou ? paramsOf(md.pou.vars) : []);
+  /** Blok `f` je `t` nebo z něj dědí. */
+  const isA = (f: FbDef, t: FbDef): boolean => { for (let x: FbDef | undefined = f; x; x = x.parent) if (x === t) return true; return false; };
+  /** Blok implementuje rozhraní (sám nebo předek). */
+  const implementsItf = (f: FbDef, i: ItfDef): boolean => { for (let x: FbDef | undefined = f; x; x = x.parent) if ((x.itfs || []).includes(i)) return true; return false; };
+  /**
+   * Kontroly OOP po rozložení bloků: neabstraktní blok bez implementace abstraktní metody,
+   * přepsaná metoda s jiným podpisem, rozhraní (IMPLEMENTS) bez metody / vlastnosti / GET
+   * nebo s jiným podpisem. Hlášení jako překladač CODESYS / TwinCAT (C0434, „does not implement").
+   */
+  function checkOop() {
+    for (const f of fbs.values()) {
+      if (!f.pou || f.std) continue;
+      const own = new Map([...f.methods].filter(([, m]) => m.owner === f));
+      /* přepsání: stejný podpis jako u předka */
+      if (f.parent) for (const [k, m] of own) {
+        const base = f.parent.methods.get(k);
+        if (base && methodSig(base) !== methodSig(m)) add("error", "oop", m.pos, tr("Metoda {name} přepisuje metodu bloku {fb} s jiným podpisem ({a} × {b})", { name: m.name.replace(/^__(get|set)_/i, ""), fb: base.owner!.name, a: methodSig(m), b: methodSig(base) }), SRC.cdsMethod);
+        if (base && (base.access || "PUBLIC") !== (m.access || "PUBLIC")) add("error", "oop", m.pos, tr("Metoda {name} mění přístup proti bloku {fb} ({a} × {b})", { name: m.name.replace(/^__(get|set)_/i, ""), fb: base.owner!.name, a: m.access || "PUBLIC", b: base.access || "PUBLIC" }), SRC.cdsMethod);
+      }
+      /* neabstraktní blok musí mít všechny metody implementované */
+      if (!f.abstract) for (const m of f.methods.values()) {
+        if (m.abstract) add("error", "oop", f.pos, tr("Blok {fb} není ABSTRACT, ale neimplementuje abstraktní metodu {name} bloku {base}", { fb: f.name, name: m.name.replace(/^__(get|set)_/i, ""), base: m.owner!.name }), SRC_ABS);
+      }
+      /* rozhraní: každá metoda a vlastnost se shodným podpisem */
+      const all: ItfDef[] = [];
+      for (let x: FbDef | undefined = f; x; x = x.parent) for (const i of x.itfs || []) if (!all.includes(i)) all.push(i);
+      for (const i of all) {
+        for (const [k, im] of i.methods) {
+          const m = f.methods.get(k);
+          if (!m) { add("error", "oop", f.pos, tr("Blok {fb} neimplementuje metodu {name} rozhraní {itf}", { fb: f.name, name: im.name, itf: i.name }), SRC_OOP); continue; }
+          if (methodSig(m) !== sigOf(im.retTy, im.params)) add("error", "oop", m.pos, tr("Metoda {name} bloku {fb} má jiný podpis než v rozhraní {itf} ({a} × {b})", { name: m.name, fb: f.name, itf: i.name, a: methodSig(m), b: sigOf(im.retTy, im.params) }), SRC_OOP);
+          if (m.access && m.access !== "PUBLIC") add("error", "oop", m.pos, tr("Metoda {name} implementuje rozhraní {itf} — musí být PUBLIC", { name: m.name, itf: i.name }), SRC_OOP);
+        }
+        for (const [k, ip] of i.props) {
+          const pr = f.props!.get(k);
+          if (!pr) { add("error", "oop", f.pos, tr("Blok {fb} neimplementuje vlastnost {name} rozhraní {itf}", { fb: f.name, name: ip.name, itf: i.name }), SRC.cdsItfProp); continue; }
+          if (tyName(pr.ty) !== tyName(ip.ty)) add("error", "oop", pr.pos, tr("Vlastnost {name} bloku {fb} má typ {a}, rozhraní {itf} žádá {b}", { name: ip.name, fb: f.name, itf: i.name, a: tyName(pr.ty), b: tyName(ip.ty) }), SRC.cdsItfProp);
+          if (ip.get && !pr.getter) add("error", "oop", pr.pos, tr("Vlastnost {name} bloku {fb} nemá GET, který rozhraní {itf} žádá", { name: ip.name, fb: f.name, itf: i.name }), SRC.cdsItfProp);
+          if (ip.set && !pr.setter) add("error", "oop", pr.pos, tr("Vlastnost {name} bloku {fb} nemá SET, který rozhraní {itf} žádá", { name: ip.name, fb: f.name, itf: i.name }), SRC.cdsItfProp);
+        }
+      }
+    }
   }
 
   /* --------------------------------------------------------- globální paměť */
@@ -406,12 +583,14 @@ export function compile(inp: CompileInput): Compiled {
   for (const u of inp.units) for (const p of u.pous) if (p.kind === "program") {
     checkIdent(p.name, p.pos, tr("Program"));
     const def: FbDef = { name: p.name, key: key(p.name), vars: [], map: new Map(), size: 0, methods: new Map(), pou: p, pos: p.pos, body: p.body, js: "P" + (jsN++), laid: false };
-    def.size = addVars(def, p.vars, 0);
+    def.size = addVars(def, [...p.vars].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)), 0);
     def.laid = true;
     programs.set(def.key, def);
     allocGlobal({ name: p.name, key: def.key, kind: "global", ty: { k: "fb", def }, pos: p.pos });
   }
   for (const f of fbs.values()) layoutFb(f);
+  for (const i of itfs.values()) layoutItf(i);
+  checkOop();
   for (const u of inp.units) for (const db of u.dbs) {
     checkIdent(db.name, db.pos, tr("Datový blok"));
     if (db.ofType) {
@@ -546,6 +725,12 @@ export function compile(inp: CompileInput): Compiled {
           return { js: "0", ty: BOOL };
         }
         if (["=", "<>", "<", ">", "<=", ">="].includes(op)) {
+          if (a.ty.k === "itf" || b.ty.k === "itf") {
+            /* odkaz na rozhraní: jen = / <> s 0 nebo s jiným odkazem (kontrola platnosti) */
+            const okSide = (v: Val) => v.ty.k === "itf" || (v.c === 0 && v.ty.k === "elem" && !!v.ty.lit);
+            if ((op !== "=" && op !== "<>") || !okSide(a) || !okSide(b)) add("error", "type-conv", e.pos, tr("Odkaz na rozhraní lze jen porovnat (= / <>) s 0 nebo s jiným odkazem"), SRC_REF);
+            return { js: "(" + a.js + (op === "=" ? "===" : "!==") + b.js + "?1:0)", ty: BOOL };
+          }
           if (isBool(a.ty) !== isBool(b.ty) && !d.looseBool) add("error", "type-conv", e.pos, tr("Porovnání {a} {op} {b} různých typů", { a: tyName(a.ty), op, b: tyName(b.ty) }), d.src.conv);
           else if (!isBool(a.ty)) common(a.ty, b.ty, e.pos, op);
           const jsop = op === "=" ? "===" : op === "<>" ? "!==" : op;
@@ -579,12 +764,181 @@ export function compile(inp: CompileInput): Compiled {
     if (!cx.def) return undefined;
     return cx.def.map.get(K) || (cx.def.owner ? cx.def.owner.map.get(K) : undefined);
   }
+  /* --------------------------------------------------------- OOP: metody, vlastnosti, rozhraní */
+  /** Třída, v jejímž kódu se překládá (tělo FB nebo jeho metoda); program = žádná. */
+  function classOf(cx: Ctx): FbDef | undefined {
+    const c = cx.def ? (cx.def.owner || cx.def) : undefined;
+    return c && c.pou && fbs.get(c.key) === c ? c : undefined;
+  }
+  /** Klíč cesty odkazu (pro kontrolu `x <> 0` před voláním přes rozhraní). */
+  function exprKey(e: Expr): string {
+    switch (e.k) {
+      case "lit": return String(e.v);
+      case "ref": return pathKey(e.path);
+      case "un": return e.op + exprKey(e.e);
+      case "bin": return "(" + exprKey(e.a) + e.op + exprKey(e.b) + ")";
+      case "call": return "?" + e.pos.line + ":" + e.pos.col;
+    }
+  }
+  function pathKey(parts: RefPart[]): string {
+    return parts.map(pp => key(pp.name) + (pp.idx ? "[" + pp.idx.map(exprKey).join(",") + "]" : "")).join(".");
+  }
+  const pathText = (parts: RefPart[]) => parts.map(pp => pp.name + (pp.idx ? "[…]" : "")).join(".");
+  /** Odkazy ověřené podmínkou (`x <> 0`, i v konjunkci AND). */
+  function guardKeys(c: Expr): string[] {
+    if (c.k === "bin" && c.op === "<>") {
+      if (c.a.k === "ref" && c.b.k === "lit" && c.b.v === 0) return [pathKey(c.a.path)];
+      if (c.b.k === "ref" && c.a.k === "lit" && c.a.v === 0) return [pathKey(c.b.path)];
+    }
+    if (c.k === "bin" && c.op === "AND") return [...guardKeys(c.a), ...guardKeys(c.b)];
+    return [];
+  }
+  function guardCheck(prefix: RefPart[], cx: Ctx, p: Pos) {
+    if (!(cx.guards || []).includes(pathKey(prefix))) add("warn", "iface-guard", p, tr("Volání přes odkaz na rozhraní {ref} bez kontroly {ref} <> 0 — neplatný odkaz je za běhu výjimka", { ref: pathText(prefix) }), SRC_REF);
+  }
+  /** Přístup k metodě / vlastnosti (PRIVATE jen ve vlastním bloku, PROTECTED i v odvozených). */
+  function accessCheck(md: FbDef, cx: Ctx, p: Pos, name: string) {
+    const caller = classOf(cx), own = md.owner;
+    if (!own) return;
+    if (md.access === "PRIVATE" && caller !== own) add("error", "oop", p, tr("{name} je PRIVATE v bloku {fb} — zvenku nepřístupné", { name, fb: own.name }), SRC.cdsMethod);
+    if (md.access === "PROTECTED" && !(caller && isA(caller, own))) add("error", "oop", p, tr("{name} je PROTECTED v bloku {fb} — přístupné jen v něm a v odvozených blocích", { name, fb: own.name }), SRC.cdsMethod);
+  }
+  /**
+   * Dynamické volání metody (virtuální, podle třídy instance v jejím slotu __TID): pomocná
+   * funkce se switch přes všechny neabstraktní třídy, které jsou `target` (blok) nebo ho
+   * implementují (rozhraní). Rozhraní: argument R = adresa instance + 1, 0 = neplatný odkaz
+   * → běhová chyba `nullref` (CODESYS / TwinCAT: výjimka při volání přes nulový odkaz).
+   */
+  const dispFns = new Map<string, string>();
+  const dispSrc: string[] = [];
+  function dispatchFn(target: { k: "fb"; def: FbDef } | { k: "itf"; def: ItfDef }, mkey: string, pkeys: string[]): string {
+    const id = target.k + ":" + target.def.key + ":" + mkey + ":" + pkeys.join(",");
+    const hit = dispFns.get(id);
+    if (hit) return hit;
+    const fn = "D" + dispFns.size;
+    dispFns.set(id, fn);
+    const classes = [...fbs.values()].filter(f => f.pou && !f.abstract && (target.k === "fb" ? isA(f, target.def) : implementsItf(f, target.def)));
+    const args = pkeys.map((_, i) => "a" + i);
+    let s = "function " + fn + "(" + [target.k === "itf" ? "R" : "B", ...args].join(",") + ") {\n";
+    if (target.k === "itf") s += "  if (!R) { rt.err = rt.err || 'nullref'; return 0; }\n  const B = R - 1;\n";
+    s += "  switch (m[B]) {\n";
+    for (const c of classes) {
+      const md = c.methods.get(mkey);
+      if (!md || md.abstract) continue;
+      const sets = pkeys.map((k, i) => { const v = md.map.get(k); return v ? "m[B+" + v.off + "]=a" + i + "; " : ""; }).join("");
+      s += "    case " + c.tid + ": " + sets + md.js + "(B); return " + (md.retSym ? "m[B+" + md.retSym.off + "]" : "0") + ";\n";
+    }
+    s += "  }\n  rt.err = rt.err || 'dispatch'; return 0;\n}\n";
+    dispSrc.push(s);
+    return fn;
+  }
+  const paramsOfMd = (md: FbDef): ParamSym[] => md.pou ? paramsOf(md.pou.vars) : [];
+  /** Argumenty volání metody → klíče parametrů a hodnoty (už převedené na typ parametru). */
+  function argList(params: ParamSym[], e: Extract<Expr, { k: "call" }>, cx: Ctx, what: string): { keys: string[]; vals: string[] } {
+    const keys: string[] = [], vals: string[] = [];
+    const ins = params.filter(x => x.kind === "in" || x.kind === "inout");
+    e.args.forEach((a, i) => {
+      const pr = a.name ? params.find(x => x.key === key(a.name!)) : ins[i];
+      if (!pr || a.out || pr.kind === "out") { add("error", "fb-param", a.pos, tr("Metoda {fn} nemá parametr {name}", { fn: what, name: a.name || String(i + 1) }), d.src.syntax); return; }
+      if (keys.includes(pr.key)) add("error", "fb-param", a.pos, tr("Parametr {name} je ve volání uveden vícekrát", { name: pr.name }), d.src.syntax);
+      keys.push(pr.key);
+      vals.push(assignJs(expr(a.e, cx), pr.ty, a.pos, tr("parametr {name}", { name: pr.name })));
+    });
+    return { keys, vals };
+  }
+  /** Vlastnost (GET / SET) bloku nebo rozhraní na adrese `at` (blok: adresa instance; rozhraní: slot odkazu). */
+  function propAccess(pr: PropSym | { name: string; ty: Ty; pos: Pos; getterOk: boolean; setterOk: boolean }, target: { k: "fb"; def: FbDef } | { k: "itf"; def: ItfDef },
+    at: string, cx: Ctx, write: boolean, p: Pos): Val {
+    const PK = key(pr.name);
+    let mkey: string;
+    if (target.k === "fb") {
+      const ps = pr as PropSym, acc = write ? ps.setter : ps.getter;
+      if (!acc) {
+        add("error", "oop", p, write ? tr("Vlastnost {name} bloku {fb} nemá SET — je jen ke čtení", { name: ps.name, fb: target.def.name }) : tr("Vlastnost {name} bloku {fb} nemá GET — nelze ji číst", { name: ps.name, fb: target.def.name }), SRC_PROP);
+        return { js: "0", ty: ps.ty };
+      }
+      accessCheck(acc, cx, p, ps.name);
+      mkey = acc.key;
+    } else {
+      const ip = pr as { name: string; getterOk: boolean; setterOk: boolean };
+      if (write ? !ip.setterOk : !ip.getterOk) {
+        add("error", "oop", p, write ? tr("Vlastnost {name} rozhraní {itf} nemá SET — je jen ke čtení", { name: ip.name, itf: target.def.name }) : tr("Vlastnost {name} rozhraní {itf} nemá GET — nelze ji číst", { name: ip.name, itf: target.def.name }), SRC.cdsItfProp);
+        return { js: "0", ty: pr.ty };
+      }
+      mkey = (write ? "__SET_" : "__GET_") + PK;
+    }
+    const fn = dispatchFn(target, mkey, write ? [PK] : []);
+    if (write) return { js: "", ty: pr.ty, set: (v: string) => fn + "(" + at + "," + v + ");" };
+    return { js: fn + "(" + at + ")", ty: pr.ty };
+  }
+  /**
+   * Volání metody (příkaz i výraz): `inst.M()`, `itf.M()`, `THIS^.M()`, `SUPER^.M()` a `M()`
+   * uvnitř bloku. Vrací null, když nejde o metodu (volání instance / funkce řeší volající).
+   */
+  function invoke(e: Extract<Expr, { k: "call" }>, cx: Ctx): Val | null {
+    const fn = e.fn, last = fn[fn.length - 1], MK = key(last.name);
+    const cls = classOf(cx);
+    const virt = (def: FbDef, md: FbDef, base: string): Val => {
+      const { keys, vals } = argList(md.params || (md.params = paramsOfMd(md)), e, cx, md.name);
+      return { js: dispatchFn({ k: "fb", def }, MK, keys) + "(" + [base, ...vals].join(",") + ")", ty: md.retTy || INT };
+    };
+    if (fn.length === 1) {
+      if (last.loc || last.q || !cls || !cls.methods.has(MK) || cx.def!.map.has(MK)) return null;
+      return virt(cls, cls.methods.get(MK)!, "b");                  // M() = THIS^.M()
+    }
+    const head = key(fn[0].name);
+    if (fn.length === 2 && (head === "THIS" || head === "SUPER") && !fn[0].loc && !fn[0].q) {
+      if (!cls) { add("error", "oop", fn[0].pos, tr("{kw}^ jen v metodě nebo těle funkčního bloku", { kw: head }), SRC.cdsThis); return { js: "0", ty: INT }; }
+      if (head === "THIS") {
+        const md = cls.methods.get(MK);
+        if (!md) { add("error", "fb-member", last.pos, tr("Blok {fb} nemá metodu {name}", { fb: cls.name, name: last.name }), SRC.cdsMethod); return { js: "0", ty: INT }; }
+        return virt(cls, md, "b");
+      }
+      const md = cls.parent ? cls.parent.methods.get(MK) : undefined;
+      if (!cls.parent) { add("error", "oop", fn[0].pos, tr("SUPER^ jen v bloku, který dědí (EXTENDS)"), SRC.cdsThis); return { js: "0", ty: INT }; }
+      if (!md) { add("error", "fb-member", last.pos, tr("Blok {fb} nemá metodu {name}", { fb: cls.parent.name, name: last.name }), SRC.cdsMethod); return { js: "0", ty: INT }; }
+      if (md.abstract) { add("error", "oop", last.pos, tr("Metoda {name} je v bloku {fb} ABSTRACT — přes SUPER^ ji nelze volat", { name: last.name, fb: md.owner!.name }), SRC_ABS); return { js: "0", ty: INT }; }
+      accessCheck(md, cx, last.pos, last.name);
+      const { keys, vals } = argList(md.params || (md.params = paramsOfMd(md)), e, cx, md.name);
+      const sets = keys.map((k, i) => "m[b+" + md.map.get(k)!.off + "]=" + vals[i]);
+      return { js: "(" + [...sets, md.js + "(b)", md.retSym ? "m[b+" + md.retSym.off + "]" : "0"].join(",") + ")", ty: md.retTy || INT };
+    }
+    const prefix = fn.slice(0, -1);
+    const t = safeRefTy(prefix, cx);
+    if (!t) return null;
+    if (t.k === "fb" && t.def.pou && t.def.methods.has(MK)) {
+      const inst = ref(prefix, cx, false, e.pos);
+      const md = t.def.methods.get(MK)!;
+      if (/^__(GET|SET)_/.test(MK)) return null;
+      accessCheck(md, cx, last.pos, last.name);
+      return virt(t.def, md, inst.js.slice(2, -1));
+    }
+    if (t.k === "itf") {
+      const im = t.def.methods.get(MK);
+      if (!im) { add("error", "fb-member", last.pos, tr("Rozhraní {itf} nemá metodu {name}", { itf: t.def.name, name: last.name }), SRC_OOP); return { js: "0", ty: INT }; }
+      const r = ref(prefix, cx, false, e.pos);
+      guardCheck(prefix, cx, e.pos);
+      const { keys, vals } = argList(im.params, e, cx, im.name);
+      return { js: dispatchFn({ k: "itf", def: t.def }, MK, keys) + "(" + [r.js, ...vals].join(",") + ")", ty: im.retTy || INT };
+    }
+    return null;
+  }
+
   /** Odkaz na proměnnou (případně člen / prvek pole) → JS výraz nad m[]. */
   function ref(path: RefPart[], cx: Ctx, write: boolean, p: Pos): Val {
+    /* THIS^.x = proměnná bloku (i když ji zakrývá lokální proměnná metody) */
+    let thisOnly = false;
+    if (path.length > 1 && key(path[0].name) === "THIS" && !path[0].loc && !path[0].q) {
+      if (!classOf(cx)) { add("error", "oop", path[0].pos, tr("THIS^ jen v metodě nebo těle funkčního bloku"), SRC.cdsThis); return { js: "0", ty: INT }; }
+      path = path.slice(1); thisOnly = true;
+    }
     const first = path[0];
     const K = key(first.name);
     let sym: VarSym | undefined, base = "", off = 0, dyn = "", absolute = true;
-    if (d.scl && first.loc) {
+    if (thisOnly) {
+      sym = (cx.def!.owner || cx.def!).map.get(K);
+      if (!sym || sym.key.startsWith("_")) { add("error", "fb-member", first.pos, tr("Blok {fb} nemá člen {name}", { fb: (cx.def!.owner || cx.def!).name, name: first.name }), d.src.syntax); return { js: "0", ty: INT }; }
+    } else if (d.scl && first.loc) {
       sym = lookupLocal(cx, K);
       if (!sym) { add("error", "undeclared", first.pos, tr("Lokální proměnná #{name} není deklarovaná", { name: first.name }), d.src.ident); return { js: "0", ty: INT }; }
     } else if (d.scl && first.q) {
@@ -618,7 +972,7 @@ export function compile(inp: CompileInput): Compiled {
         return { js: "0", ty: INT };
       }
     }
-    const local = !!lookupLocal(cx, K) && !(d.scl && first.q);
+    const local = thisOnly || (!!lookupLocal(cx, K) && !(d.scl && first.q));
     if (local) { base = cx.base; absolute = cx.base === ""; }
     off = sym.off;
     let ty = sym.ty;
@@ -651,12 +1005,25 @@ export function compile(inp: CompileInput): Compiled {
         if (!s) { add("error", "undeclared", part.pos, tr("GVL {gvl} nemá proměnnou {name}", { gvl: ty.name, name: part.name }), d.src.ident); return { js: "0", ty: INT }; }
         off = s.off; base = ""; absolute = true; ty = s.ty;
         if (s.constVal !== undefined) return { js: String(s.constVal), ty, c: s.constVal };
+      } else if (ty.k === "fb" && !ty.def.map.has(PK) && ty.def.props && ty.def.props.has(PK)) {
+        /* vlastnost bloku: čtení = GET, zápis = SET (dynamicky podle třídy instance) */
+        const at = absolute ? String(off) + dyn : base + "+" + off + dyn;
+        if (i < path.length - 1 || part.idx) { add("error", "oop", part.pos, tr("Za vlastností {name} emulátor další člen ani index nepodporuje", { name: part.name }), SRC_PROP); return { js: "0", ty: INT }; }
+        return propAccess(ty.def.props.get(PK)!, { k: "fb", def: ty.def }, at, cx, write, part.pos);
+      } else if (ty.k === "itf") {
+        /* rozhraní: jen vlastnosti (metody se volají) */
+        const ip = ty.def.props.get(PK);
+        if (!ip) { add("error", "fb-member", part.pos, ty.def.methods.has(PK) ? tr("Metoda {name} rozhraní {itf} se volá se závorkami", { name: part.name, itf: ty.def.name }) : tr("Rozhraní {itf} nemá vlastnost {name}", { itf: ty.def.name, name: part.name }), SRC_OOP); return { js: "0", ty: INT }; }
+        if (i < path.length - 1 || part.idx) { add("error", "oop", part.pos, tr("Za vlastností {name} emulátor další člen ani index nepodporuje", { name: part.name }), SRC_PROP); return { js: "0", ty: INT }; }
+        const at = absolute ? String(off) + dyn : base + "+" + off + dyn;
+        guardCheck(path.slice(0, i), cx, part.pos);
+        return propAccess({ name: ip.name, ty: ip.ty, pos: ip.pos, getterOk: ip.get, setterOk: ip.set }, { k: "itf", def: ty.def }, "m[" + at + "]", cx, write, part.pos);
       } else if (ty.k === "fb") {
         const s = ty.def.map.get(PK);
         if (!s || s.key.startsWith("_")) { add("error", "fb-member", part.pos, tr("Blok {fb} nemá člen {name}", { fb: ty.def.name, name: part.name }), d.src.syntax); return { js: "0", ty: INT }; }
         if (s.kind === "temp" || s.kind === "const") add("error", "fb-member", part.pos, tr("Člen {name} bloku {fb} není zvenku přístupný", { fb: ty.def.name, name: part.name }), d.src.syntax);
         if (write && s.kind === "out" && !ty.def.aoi && !d.statementsOnly) add("error", "fb-member", part.pos, tr("Do výstupu {name} instance bloku {fb} nelze zvenku zapisovat", { fb: ty.def.name, name: part.name }), d.src.syntax);
-        if (ty.def.std && !write && (s.key === "ET" || s.key === "ACC")) readsTime = true;
+        if (ty.def.std && !write && (s.key === "ET" || s.key === "ACC" || s.key === "VALUEOUT")) readsTime = true;
         if (ty.def.aoi && s.kind === "var") add("error", "fb-member", part.pos, tr("Lokální tag {name} Add-On Instruction {fb} není zvenku přístupný", { fb: ty.def.name, name: part.name }), d.src.syntax);
         off += s.off; ty = s.ty;
       } else if (ty.k === "struct") {
@@ -740,32 +1107,14 @@ export function compile(inp: CompileInput): Compiled {
       return { js: "0", ty: pou.retType ? resolveSpec(pou.retType) : INT };
     }
     if (inExpr) {
-      /* metoda bloku ve výrazu */
-      if (e.fn.length >= 2) {
-        const inst = ref(e.fn.slice(0, -1), cx, false, e.pos);
-        if (inst.ty.k === "fb") {
-          const m = inst.ty.def.methods.get(key(e.fn[e.fn.length - 1].name));
-          if (m) return { js: methodCall(m, inst, e, cx), ty: m.retTy || INT };
-        }
-      }
+      /* metoda bloku / rozhraní ve výrazu */
+      const mv = invoke(e, cx);
+      if (mv) return mv;
       if (fbs.has(N) || d.stdFbs.has(N)) add("error", "syntax", e.pos, tr("Blok {fn} nelze volat ve výrazu", { fn: name }), d.src.syntax);
       else add("error", "unknown-function", e.pos, tr("Neznámá funkce {fn} (na platformě {plat} není)", { fn: name, plat: d.label }), d.src.syntax);
       return { js: "0", ty: INT };
     }
     return undefined;
-  }
-
-  function methodCall(m: FbDef, inst: Val, e: Extract<Expr, { k: "call" }>, cx: Ctx): string {
-    const base = inst.js.replace(/^m\[|\]$/g, "");
-    const ins = m.vars.filter(v => v.kind === "in");
-    const parts: string[] = [];
-    e.args.forEach((a, i) => {
-      const s = a.name ? m.map.get(key(a.name)) : ins[i];
-      if (!s) { add("error", "fb-param", a.pos, tr("Metoda {fn} nemá parametr {name}", { fn: m.name, name: a.name || String(i + 1) }), d.src.syntax); return; }
-      parts.push("m[" + base + "+" + s.off + "]=" + assignJs(expr(a.e, cx), s.ty, a.pos, tr("parametr {name}", { name: s.name })));
-    });
-    const ret = m.vars.find(v => v.key === m.key);
-    return "(" + [...parts, m.js + "(" + base + ")", ret ? "m[" + base + "+" + ret.off + "]" : "0"].join(",") + ")";
   }
 
   /* --------------------------------------------------------- příkazy */
@@ -784,7 +1133,23 @@ export function compile(inp: CompileInput): Compiled {
       case "assign": {
         if (s.lhs.k !== "ref") { add("error", "syntax", s.pos, tr("Levá strana přiřazení musí být proměnná")); return ""; }
         const l = ref(s.lhs.path, cx, true, s.pos);
+        if (l.set) return ind + l.set(assignJs(expr(s.rhs, cx), l.ty, s.pos, tr("přiřazení do {name}", { name: s.lhs.path.map(x => x.name).join(".") }))) + "\n";
         if (l.c !== undefined || !l.js.startsWith("m[")) return "";
+        if (l.ty.k === "itf") {
+          /* odkaz na rozhraní: instance bloku, který rozhraní implementuje, jiný odkaz téhož rozhraní, nebo 0 */
+          const r = expr(s.rhs, cx), it = l.ty.def;
+          if (r.ty.k === "fb" && r.js.startsWith("m[")) {
+            if (!implementsItf(r.ty.def, it)) add("error", "type-conv", s.pos, tr("Blok {fb} neimplementuje rozhraní {itf} (chybí IMPLEMENTS) — instanci nelze přiřadit", { fb: r.ty.def.name, itf: it.name }), SRC_OOP);
+            return ind + l.js + "=(" + r.js.slice(2, -1) + ")+1;\n";
+          }
+          if (r.ty.k === "itf") {
+            if (r.ty.def !== it) add("error", "type-conv", s.pos, tr("Odkaz na rozhraní {a} nelze přiřadit do {b}", { a: r.ty.def.name, b: it.name }), SRC_OOP);
+            return ind + l.js + "=" + r.js + ";\n";
+          }
+          if (r.c === 0) return ind + l.js + "=0;\n";
+          add("error", "type-conv", s.pos, tr("{what}: nelze přiřadit {from} do {to}", { what: tr("přiřazení do {name}", { name: s.lhs.path.map(x => x.name).join(".") }), from: tyName(r.ty), to: it.name }), d.src.conv);
+          return "";
+        }
         if (l.ty.k === "fb" || l.ty.k === "ns") { add("error", "type-conv", s.pos, tr("Instanci bloku nelze přiřadit"), d.src.conv); return ""; }
         const r = expr(s.rhs, cx);
         return ind + l.js + "=" + assignJs(r, l.ty, s.pos, tr("přiřazení do {name}", { name: s.lhs.path.map(x => x.name).join(".") })) + ";\n";
@@ -792,7 +1157,9 @@ export function compile(inp: CompileInput): Compiled {
       case "if": {
         let js = "";
         s.conds.forEach((c, i) => {
-          js += (i ? " else if (" : ind + "if (") + condJs(c.c, cx, "IF") + ") {\n" + stmts(c.body, cx, ind + "  ", loop) + ind + "}";
+          /* větev za `IF itf <> 0` smí volat přes itf (kontrola iface-guard) */
+          const g = guardKeys(c.c), bcx = g.length ? { ...cx, guards: [...(cx.guards || []), ...g] } : cx;
+          js += (i ? " else if (" : ind + "if (") + condJs(c.c, cx, "IF") + ") {\n" + stmts(c.body, bcx, ind + "  ", loop) + ind + "}";
         });
         if (s.els) js += " else {\n" + stmts(s.els, cx, ind + "  ", loop) + ind + "}";
         return js + "\n";
@@ -882,16 +1249,9 @@ export function compile(inp: CompileInput): Compiled {
         return ind + "m[" + b + "+" + tdef!.map.get("ENABLEIN")!.off + "]=1; " + tdef!.js + "(" + b + ");\n";
       }
     }
-    /* metoda instance: inst.Method(...) */
-    if (e.fn.length >= 2) {
-      const instPath = e.fn.slice(0, -1);
-      const probe = instPath.length ? safeRefTy(instPath, cx) : undefined;
-      if (probe && probe.k === "fb" && probe.def.methods.has(key(e.fn[e.fn.length - 1].name))) {
-        const inst = ref(instPath, cx, false, e.pos);
-        const m = (probe.def.methods.get(key(e.fn[e.fn.length - 1].name)))!;
-        return ind + methodCall(m, inst, e, cx) + ";\n";
-      }
-    }
+    /* metoda: inst.M(), itf.M(), THIS^.M(), SUPER^.M(), M() uvnitř bloku */
+    const mv = invoke(e, cx);
+    if (mv) return ind + mv.js + ";\n";
     /* instance bloku */
     const head = e.fn[0];
     const HK = key(head.name);
@@ -935,12 +1295,24 @@ export function compile(inp: CompileInput): Compiled {
         outs.push(t.js + "=" + assignJs(v, t.ty, a.pos, tr("výstup {name}", { name: s.name })) + ";");
       } else {
         if (s.kind === "out") { add("error", "fb-param", a.pos, tr("{name} je výstup bloku {fb} — čte se =>, ne :=", { name: s.name, fb: def.name }), d.src.syntax); return; }
+        if (s.kind === "inout") {
+          /* VAR_IN_OUT = odkaz: kopie dovnitř a po volání zpět (v jednom scanu bez souběhu totéž) */
+          if (a.e.k !== "ref") { add("error", "fb-param", a.pos, tr("VAR_IN_OUT {name} bloku {fb} musí dostat proměnnou, ne výraz", { name: s.name, fb: def.name }), d.src.syntax); return; }
+          const t = ref(a.e.path, cx, true, a.pos);
+          if (!t.js.startsWith("m[")) { if (t.c !== undefined) add("error", "fb-param", a.pos, tr("VAR_IN_OUT {name} bloku {fb} musí dostat proměnnou, ne výraz", { name: s.name, fb: def.name }), d.src.syntax); return; }
+          if (tyName(t.ty) !== tyName(s.ty)) add("error", "type-conv", a.pos, tr("VAR_IN_OUT {name}: typ {a} se musí shodovat s {b}", { name: s.name, a: tyName(t.ty), b: tyName(s.ty) }), d.src.conv);
+          ins.push("m[" + bv + "+" + s.off + "]=" + t.js + ";");
+          outs.push(t.js + "=m[" + bv + "+" + s.off + "];");
+          return;
+        }
         const v = expr(a.e, cx);
         if (d.timerMaxMs && def.std && /^TON|^TOF|^TP/.test(def.std) && s.key === "PT" && v.c !== undefined && v.c > d.timerMaxMs)
           add("warn", "timer-range", a.pos, tr("PT = {ms} ms je nad rozsahem časovače TON této platformy (0–{max} ms) — podle manuálu nebude program pracovat správně", { ms: v.c, max: d.timerMaxMs }), "https://dl.mitsubishielectric.com/dl/fa/document/manual/plcf/jy997d55801/jy997d55801z.pdf");
         ins.push("m[" + bv + "+" + s.off + "]=" + assignJs(v, s.ty, a.pos, tr("parametr {name}", { name: s.name })) + ";");
       }
     });
+    if (!def.std && !def.aoi) for (const s of inputs) if (s.kind === "inout" && !seenP.has(s.key))
+      add("error", "fb-param", e.pos, tr("VAR_IN_OUT {name} bloku {fb} musí být ve volání přiřazen", { name: s.name, fb: def.name }), d.src.syntax);
     let call: string;
     if (def.std) { helpersUsed.add(def.std); call = stdFn(def.std) + "(" + bv + ");"; }
     else call = def.js + "(" + bv + ");";
@@ -952,7 +1324,8 @@ export function compile(inp: CompileInput): Compiled {
     out.length = n;                                   // jen zjištění typu, nálezy zahodit
     return v.js === "0" ? undefined : v.ty;
   }
-  const stdFn = (std: string) => ({ TON_TIME: "ton", TOF_TIME: "tof", TP_TIME: "tp", TON: "ton", TOF: "tof", TP: "tp", R_TRIG: "rtrig", F_TRIG: "ftrig", RS: "rs", SR: "sr", CTU: "ctu", CTD: "ctd", CTUD: "ctud" } as Record<string, string>)[std] || "noop";
+  const stdFn = (std: string) => ({ TON_TIME: "ton", TOF_TIME: "tof", TP_TIME: "tp", TON: "ton", TOF: "tof", TP: "tp", R_TRIG: "rtrig", F_TRIG: "ftrig", RS: "rs", SR: "sr", CTU: "ctu", CTD: "ctd", CTUD: "ctud",
+    TIMER_1_FB_M: "tmr1", TIMER_10_FB_M: "tmr10", TIMER_100_FB_M: "tmr100" } as Record<string, string>)[std] || "noop";
 
   /* --------------------------------------------------------- generování */
   const fnSrc: string[] = [];
@@ -994,6 +1367,7 @@ export function compile(inp: CompileInput): Compiled {
   };
   const fill = (ty: Ty, at: number, v?: number) => {
     if (ty.k === "elem" || ty.k === "enum") { if (v !== undefined) init[at] = ty.k === "elem" && ty.name === "REAL" ? Math.fround(v) : v; return; }
+    if (ty.k === "itf") return;                      // odkaz na rozhraní: 0 = neplatný
     if (ty.k === "fb") {
       const def = ty.def;
       if (def.std) {
@@ -1001,6 +1375,7 @@ export function compile(inp: CompileInput): Compiled {
         return;
       }
       for (const s of def.vars) fill(s.ty, at + s.off, initVal(s, def));
+      if (def.tid && def.map.get("__TID")) init[at + def.map.get("__TID")!.off] = def.tid;   // třída instance
       return;
     }
     if (ty.k === "struct") { for (const s of ty.fields) fill(s.ty, at + s.off, initVal(s)); return; }
@@ -1033,11 +1408,15 @@ function ctu(b) { if (m[b+1]) m[b+4] = 0; else if (m[b] && !m[b+5] && m[b+4] < 3
 function ctd(b) { if (m[b+1]) m[b+4] = m[b+2]; else if (m[b] && !m[b+5] && m[b+4] > -32768) m[b+4]--; m[b+3] = m[b+4] <= 0 ? 1 : 0; m[b+5] = m[b]; }
 function ctud(b) { if (m[b+2]) m[b+7] = 0; else if (m[b+3]) m[b+7] = m[b+4]; else { if (m[b] && !m[b+8]) m[b+7]++; if (m[b+1] && !m[b+9]) m[b+7]--; } m[b+5] = m[b+7] >= m[b+4] ? 1 : 0; m[b+6] = m[b+7] <= 0 ? 1 : 0; m[b+8] = m[b]; m[b+9] = m[b+1]; }
 function tonr(b) { m[b+4] = 1; if (m[b+2] < 0) { m[b+11] = 1; m[b+10] = 1; } if (m[b+3]) { m[b+5] = 0; m[b+8] = 0; m[b+7] = 0; m[b+6] = m[b+1]; } else if (m[b+1]) { if (!m[b+13]) m[b+12] = now; let acc = now - m[b+12]; if (acc >= m[b+2]) { acc = m[b+2]; m[b+8] = 1; m[b+7] = 0; } else { m[b+8] = 0; m[b+7] = 1; } m[b+5] = acc; m[b+6] = 1; } else { m[b+5] = 0; m[b+8] = 0; m[b+7] = 0; m[b+6] = 0; } m[b+13] = m[b+3] ? 0 : m[b+1]; }
+function tmr(b, u) { const v0 = m[b+2] > 0 ? m[b+2] : 0; if (m[b]) { if (!m[b+6]) m[b+5] = now; let v = v0 + Math.floor((now - m[b+5]) / u + 1e-9); if (v >= m[b+1]) { v = Math.max(v0, m[b+1]); m[b+4] = 1; } else m[b+4] = 0; m[b+3] = v; } else { m[b+3] = v0; m[b+4] = 0; } m[b+6] = m[b]; }
+function tmr1(b) { tmr(b, 1); }
+function tmr10(b) { tmr(b, 10); }
+function tmr100(b) { tmr(b, 100); }
 function tofr(b) { tonr(b); }
 function rtor(b) { tonr(b); }
 function noop(b) {}
 `;
-  const src = '"use strict";\nlet now = 0;\nconst rt = { err: "" };\n' + helpers + fnSrc.join("\n") + "\nreturn { scan(t) { now = t; " + entry + " }, rt };\n";
+  const src = '"use strict";\nlet now = 0;\nconst rt = { err: "" };\n' + helpers + fnSrc.join("\n") + dispSrc.join("\n") + "\nreturn { scan(t) { now = t; " + entry + " }, rt };\n";
 
   /* --------------------------------------------------------- adresy pro běh */
   const addr = (path: string[]): { slot: number; ty: Ty } | undefined => {

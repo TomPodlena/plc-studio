@@ -5,10 +5,11 @@
  * Texty jdou přes `tr()` po přirozených jednotkách (nadpis, odstavec, odrážka, řádek
  * hlavičky tabulky, věta v buňce); struktura Markdownu / CSV zůstává mimo klíče.
  */
-import { CLS, PLAT, devById, modules, wireNo, dtFor, usedClasses, interlockDevs, DO_ROLES, } from "./model.js";
+import { CLS, PLAT, devById, modules, wireNo, dtFor, usedClasses, interlockDevs, DO_ROLES, codeStyleFor, } from "./model.js";
 import { bomCsv, bomMd } from "./bom.js";
 import { tr, N_, today } from "./i18n.js";
-import { genFor } from "./codegen.js";
+import { genFor, codeLibrary } from "./codegen.js";
+import { oopInProject, oopProgram, oopClassSvg, OOP_CLASS_SVG } from "./codegen_oop.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
 import { conceptMd } from "./concept.js";
 import { simulate, docVerifyMd, stepWatchdog, stepTitle, stepCondText } from "./sim.js";
@@ -313,6 +314,14 @@ export function docManualMd(prj) {
 }
 export function docSWMd(prj) {
     const u = usedClasses(prj);
+    /* vlastní šablony firemní knihovny (codeLibrary — po kontrole převoditelnosti pro platformu) */
+    const libIds = {};
+    for (const p of prj.platforms) {
+        const lib = codeLibrary(prj, p);
+        for (const [cls, id] of Object.entries(lib.ids))
+            (libIds[cls] = libIds[cls] || new Set()).add(id + (lib.library?.name ? " (" + lib.library.name + ")" : ""));
+    }
+    const own = (cls) => libIds[cls] ? " — " + tr("vlastní blok knihovny {name}, neověřeno simulací", { name: [...libIds[cls]].join(", ") }) : "";
     return [
         "# " + tr("Softwarová dokumentace programu PLC"),
         "",
@@ -329,10 +338,10 @@ export function docSWMd(prj) {
         "## " + tr("2. Typové bloky"),
         tr("| Blok | Funkce | Stavový automat | Timeout |"),
         "|---|---|---|---|",
-        "| FB_Motor | " + tr("start/stop se zpětným hlášením") + " | IDLE→STARTING→RUNNING→ERROR | " + tr("rozběh 3 s") + " |",
-        "| FB_Ventil | " + tr("otevřít/zavřít s koncáky") + " | CLOSED→OPENING→OPEN→CLOSING→ERROR | " + tr("přestavení 5 s") + " |",
-        "| FB_AnalogIn | " + tr("škálování + meze") + " | — | — |",
-        "| FB_AnalogOut | " + tr("jednotky → surová hodnota") + " | — | — |",
+        "| FB_Motor | " + tr("start/stop se zpětným hlášením") + own("Motor") + " | IDLE→STARTING→RUNNING→ERROR | " + tr("rozběh 3 s") + " |",
+        "| FB_Ventil | " + tr("otevřít/zavřít s koncáky") + own("Ventil") + " | CLOSED→OPENING→OPEN→CLOSING→ERROR | " + tr("přestavení 5 s") + " |",
+        "| FB_AnalogIn | " + tr("škálování + meze") + own("AnalogIn") + " | — | — |",
+        "| FB_AnalogOut | " + tr("jednotky → surová hodnota") + own("AnalogOut") + " | — | — |",
         "",
         "## " + tr("3. Instance"),
         prj.devices.map(d => "- inst" + d.name + " : FB_" + (d.cls === "DI" || d.cls === "DO" ? tr("(volný signál)") : d.cls) + " — " + (d.desc || "")).join("\n"),
@@ -343,11 +352,34 @@ export function docSWMd(prj) {
         "## " + tr("5. Konvence"),
         tr("Symbolické adresování, bez M-flagů; tagy `<Zařízení>_<signál>`; hrany uvnitř FB; každý čekací stav má timeout do ERROR. Dle Siemens Programming Styleguide (ID 81318674) / IEC 61131-3."),
         "",
+        ...oopSwSection(prj),
         "## " + tr("6. Verze a zálohy"),
         tr("| Verze | Datum | Autor | Změna |"),
         "|---|---|---|---|",
         "| 0.1 | " + dnes() + " | PLCdesk | " + tr("první generování") + " |",
     ].join("\n");
+}
+/** Oddíl softwarové dokumentace pro styl kódu OOP (jen když ho projekt na některé platformě má). */
+function oopSwSection(prj) {
+    const plat = oopInProject(prj);
+    if (!plat)
+        return [];
+    const prog = oopProgram(prj, plat);
+    const plats = prj.platforms.filter(p => codeStyleFor(prj, p) === "oop").map(p => PLAT[p].name).join(", ");
+    const row = (p) => "| " + p.name + " | " + (p.kind === "interface" ? "INTERFACE" : p.abstract ? "FUNCTION_BLOCK ABSTRACT" : p.kind === "program" ? "PROGRAM" : "FUNCTION_BLOCK")
+        + (p.extends ? " EXTENDS " + p.extends : "") + (p.implements && p.implements.length ? " IMPLEMENTS " + p.implements.join(", ") : "")
+        + " | " + [...p.methods.map(m => m.name + "()"), ...p.props.map(x => x.name)].join(", ") + " |";
+    return [
+        "## " + tr("Styl kódu OOP"),
+        tr("Platformy se stylem OOP: {list}. Chování je stejné jako v klasickém stylu — třídy stojí na stejných šablonách bloků a stejné mezivrstvě programu; shodu ověřuje emulátor (stejné scénáře, scan po scanu). Diagram tříd: `{file}`.", { list: plats, file: OOP_CLASS_SVG }),
+        "",
+        tr("| Třída | Druh | Metody a vlastnosti |"),
+        "|---|---|---|",
+        ...prog.pous.map(row),
+        "",
+        tr("Kvitace: MAIN volá `Reset()` přes pole odkazů `aDevices` (při `cmdAck`), souhrn poruch čte vlastnost `Fault` v cyklu FOR s kontrolou odkazu `<> 0`. Stav bloku pro HMI: vlastnosti `Fault`, `Status`, `Busy` (místo výstupů `error`, `status`, `busy`)."),
+        "",
+    ];
 }
 export function docFiles(prj, items = approvalItems(prj)) {
     const plan = commissioningPlan(prj);
@@ -398,6 +430,10 @@ export function allProjectFiles(prj) {
         out.push({ group: gSch, name: "funkcni_diagram.svg", save: "00_funkcni_diagram.svg", body: svgFlow(prj, run), kind: "svg" });
         out.push({ group: gSch, name: "casovy_diagram.svg", save: "00_casovy_diagram.svg", body: svgTiming(prj, run), kind: "svg" });
     }
+    /* styl kódu OOP: diagram tříd do softwarové dokumentace */
+    const oopPlat = oopInProject(prj);
+    if (oopPlat)
+        out.push({ group: gSch, name: "diagram_trid.svg", save: OOP_CLASS_SVG, body: oopClassSvg(prj, oopPlat), kind: "svg" });
     mods.forEach((m, i) => {
         const base = m.dir + m.idx + "_X" + (i + 1), pre = String(i + 1).padStart(2, "0") + "_";
         out.push({ group: gSch, name: base + ".svg", save: pre + base + ".svg", body: sheetSVG(prj, m, i + 1, i + 1, mods.length), kind: "svg" });

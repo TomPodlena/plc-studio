@@ -11,12 +11,12 @@
  * přeskočí najednou — výsledek je shodný s krokováním scan po scanu.
  */
 import type { Project, PlatformKey, Device } from "../model.js";
-import { devById, ioOf, interlockDevs } from "../model.js";
+import { devById, ioOf, interlockDevs, isCodesysFamily } from "../model.js";
 import { Simulator, simulate, simScenarios, T_VALVE_TRAVEL, DI_DELAY, type SimFault, type SimOptions, type SimScenario } from "../sim.js";
-import { actuators, manVarOf, limitedAnalogs, seqCond } from "../codegen.js";
+import { actuators, manVarOf, limitedAnalogs, seqCond, hmiGlobalPlat } from "../codegen.js";
 import { instName } from "../model.js";
 import { tr } from "../i18n.js";
-import type { Compiled } from "./compile.js";
+import { TIMER_M_UNIT, type Compiled } from "./compile.js";
 import type { EmuFinding } from "./types.js";
 
 export interface EmuRunOptions {
@@ -122,10 +122,10 @@ interface PlatProg {
 }
 
 function pathsFor(plat: PlatformKey) {
-  const iec = plat === "codesys" || plat === "beckhoff" || plat === "schneider";
+  const iec = isCodesysFamily(plat);
   return {
     io: (tag: string) => plat === "siemens" ? [tag] : iec ? ["GVL_IO", tag] : [tag],
-    hmi: (v: string) => plat === "siemens" ? ["InstMachine", v] : plat === "rockwell" || plat === "unitronics" ? [v] : ["MAIN", v],
+    hmi: (v: string) => plat === "siemens" ? ["InstMachine", v] : plat === "rockwell" || plat === "unitronics" || hmiGlobalPlat(plat) ? [v] : ["MAIN", v],
     inst: (inst: string, m: string) => plat === "siemens" ? ["InstMachine", inst, m] : plat === "rockwell" ? [inst, m] : plat === "unitronics" ? [inst + "_" + m] : ["MAIN", inst, m],
   };
 }
@@ -152,7 +152,9 @@ function setup(prj: Project, sh: Shared, plat: PlatformKey, prog: Compiled, rawM
   const sigSlot = new Int32Array(sh.sigs.length);
   sh.sigs.forEach((g, i) => {
     const m = /^(inst\w+)\.statStep$/.exec(g.name);
-    const path = m ? P.inst(m[1], "statStep") : ["seqStep", "faultStep", "machineFault"].includes(g.name) ? P.hmi(g.name) : P.io(g.name);
+    /* styl OOP: krok bloku je v základní třídě FB_DeviceBase jako iStep (maďarská notace) */
+    const path = m ? (prog.addr(P.inst(m[1], "statStep")) || !prog.addr(P.inst(m[1], "iStep")) ? P.inst(m[1], "statStep") : P.inst(m[1], "iStep"))
+      : ["seqStep", "faultStep", "machineFault"].includes(g.name) ? P.hmi(g.name) : P.io(g.name);
     sigSlot[i] = slot(path, g.need);
   });
   const ao: PlatProg["ao"] = [];
@@ -323,6 +325,7 @@ export function runPlatforms(prj: Project, list: Array<{ plat: PlatformKey; prog
       else if (tm.kind.startsWith("TON")) { if (m[b] && !m[b + 2]) h = Math.min(h, m[b + 4] + m[b + 1]); }
       else if (tm.kind.startsWith("TOF")) { if (!m[b] && m[b + 2]) h = Math.min(h, m[b + 4] + m[b + 1]); }
       else if (tm.kind.startsWith("TP")) { if (m[b + 2]) h = Math.min(h, m[b + 4] + m[b + 1]); }
+      else if (TIMER_M_UNIT[tm.kind]) { if (m[b] && !m[b + 4]) h = Math.min(h, m[b + 5] + Math.max(0, m[b + 1] - Math.max(0, m[b + 2])) * TIMER_M_UNIT[tm.kind]); }
     }
     return h === Infinity ? h : Math.max(h, nowMs);
   };

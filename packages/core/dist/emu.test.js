@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { blankProject, syncIO, PLAT } from "./model.js";
+import { blankProject, syncIO, validateProject, PLAT } from "./model.js";
 import { genFor } from "./codegen.js";
 import { setLang, LANGS } from "./i18n.js";
 import { verifyProject, simulate } from "./sim.js";
@@ -161,7 +161,9 @@ test("emu mutace: rezervované Reset u Omronu, jméno operandu u GX Works3", () 
     assert.ok(has(mutate("omron", f => { for (const n of ["Gen_Library.st", "MAIN.st"])
         f[n] = f[n].replace(/\bresetIn\b/g, "reset"); }), "reserved"));
     assert.ok(!mutate("codesys", () => { }).some(x => x.rule === "reserved"), "CODESYS reset smí");
-    assert.ok(has(mutate("mitsubishi", f => { f["MAIN.st"] = f["MAIN.st"].replace(/\bseqStep\b/g, "D100"); }), "reserved"));
+    /* seqStep je u Mitsubishi globální návěští (HMI) — přejmenovat v kódu i v GlobalLabels.csv */
+    assert.ok(has(mutate("mitsubishi", f => { for (const n of ["MAIN.st", "GlobalLabels.csv"])
+        f[n] = f[n].replace(/\bseqStep\b/g, "D100"); }), "reserved"));
 });
 test("emu mutace: ne-ASCII v Unitronics a Logix", () => {
     assert.ok(has(mutate("unitronics", f => { f["Machine.st"] = f["Machine.st"].replace("(*", "(* čerpadlo"); }), "ascii"));
@@ -301,4 +303,33 @@ test("emu: výkon — emulateAll největšího příkladu", () => {
     console.log("emu: emulateAll 10_vyrobni_hala (125 zařízení, 120 kroků, 8 platforem) " + ms + " ms, scénářů " + r.run.siemens.scenarios.length);
     assert.ok(r.ok);
     assert.ok(ms < 60000, "emulateAll pod 60 s (cíl < 30 s)");
+});
+test("emu FX5: krok nad 32 767 ms → TIMER_100_FB_M (předvolba × 100 ms), bez timer-range, běh = návrh", () => {
+    const prj = sampleSmall();
+    prj.platforms = [...PLATS];
+    syncIO(prj);
+    const i = prj.program.seq.findIndex(s => s.cond === "time" || s.act === "wait");
+    assert.ok(i >= 0, "ukázka má krok s časem");
+    prj.program.seq[i].timeS = 45.05; // 45 050 ms → 451 × 100 ms (nahoru)
+    const n = 10 + i * 10;
+    const f = genFor(prj, "mitsubishi");
+    assert.match(f["MAIN.st"], new RegExp("tonSeq" + n + " : TIMER_100_FB_M;"));
+    assert.match(f["MAIN.st"], new RegExp("tonSeq" + n + "\\(Coil := \\(seqStep = " + n + "\\), Preset := 451, ValueIn := 0\\);"));
+    assert.match(f["MAIN.st"], new RegExp("tonSeq" + n + "\\.Status"));
+    assert.doesNotMatch(f["MAIN.st"], new RegExp("tonSeq" + n + "\\.Q\\b"));
+    /* ostatní platformy dál TON s literálem */
+    assert.match(genFor(prj, "codesys")["MAIN.st"], new RegExp("tonSeq" + n + "\\(IN := \\(seqStep = " + n + "\\), PT := T#45S50MS\\);"));
+    const c = emulateCompile(prj, "mitsubishi");
+    assert.deepEqual(errs(c.findings), []);
+    assert.deepEqual(c.findings.filter(x => x.rule === "timer-range"), [], "TIMER_100_FB_M nemá omezení TON");
+    /* validace: informace (ne varování) o 100ms rozlišení; nad 3 276,7 s varování */
+    const v = validateProject(prj).filter(x => /TIMER_100_FB_M/.test(x.msg));
+    assert.deepEqual(v.map(x => x.level), ["info"]);
+    /* běh: 45,05 s simulace × 45,1 s kódu — hlídací čas kódu nevyprší dřív než v návrhu */
+    prj.program.seq[i].timeS = 45;
+    const r = emulateRunMany(prj, ["mitsubishi"]).mitsubishi;
+    assert.equal(r.skipped, undefined);
+    assert.deepEqual(r.diffs.map(d => d.label + " t=" + d.t + " " + d.msg), [], "TIMER_100_FB_M = TON 45 s");
+    prj.program.seq[i].timeS = 4000;
+    assert.deepEqual(validateProject(prj).filter(x => /TIMER_100_FB_M/.test(x.msg)).map(x => x.level), ["warn"]);
 });

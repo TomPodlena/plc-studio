@@ -157,9 +157,15 @@ export function parse(toks: Token[], file: string, o: ParseOptions): ParseResult
       return t.k === "op" && t.t === ":" && k > 0;
     }
   }
+  /** Pragmy (`{attribute 'monitoring' := 'call'}`) před METHOD / PROPERTY / ACTION bloku. */
+  function atMember(): boolean {
+    let k = 0;
+    while (peek(k).k === "pragma") k++;
+    return k > 0 && ["METHOD", "PROPERTY", "ACTION"].includes(up(peek(k)));
+  }
   function stmtList(inCase = false): Stmt[] {
     const out: Stmt[] = [];
-    while (peek().k !== "eof" && !STOP.has(up(peek()))) {
+    while (peek().k !== "eof" && !STOP.has(up(peek())) && !atMember()) {
       if (inCase && atCaseLabel()) break;
       const at = p;
       try { out.push(stmt()); }
@@ -385,12 +391,38 @@ export function parse(toks: Token[], file: string, o: ParseOptions): ParseResult
       return;
     }
   }
+  /** Modifikátory OOP za METHOD / PROPERTY / FUNCTION_BLOCK (v libovolném pořadí). */
+  function modifiers(P: { abstract?: boolean; final?: boolean; access?: Pou["access"] }) {
+    for (;;) {
+      const w = up(peek());
+      if (w === "ABSTRACT") P.abstract = true;
+      else if (w === "FINAL") P.final = true;
+      else if (w === "PUBLIC" || w === "PRIVATE" || w === "PROTECTED" || w === "INTERNAL") P.access = w;
+      else return;
+      next();
+    }
+  }
+  /** Metody, vlastnosti a akce bloku (i s pragmami před nimi). */
+  function members(P: Pou) {
+    for (;;) {
+      const prag: string[] = [];
+      let k = 0;
+      while (peek(k).k === "pragma") k++;
+      const w = up(peek(k));
+      if (w !== "METHOD" && w !== "PROPERTY" && w !== "ACTION") return;
+      for (let i = 0; i < k; i++) prag.push(next().t);
+      const m = w === "METHOD" ? pou("method") : w === "ACTION" ? pou("action") : property();
+      m.pragmas.unshift(...prag);
+      P.methods.push(m);
+    }
+  }
   function pou(kind: Pou["kind"]): Pou {
     const kwTok = next();
     const pragmas: string[] = [];
-    if (kind === "method") while (["PUBLIC", "PRIVATE", "PROTECTED", "INTERNAL", "ABSTRACT", "FINAL"].includes(up(peek()))) next();
+    const mods: { abstract?: boolean; final?: boolean; access?: Pou["access"] } = {};
+    if (kind === "method" || kind === "fb") modifiers(mods);
     const nameTok = ident();
-    const P: Pou = { kind, name: nameTok.t, pos: pos(nameTok), quoted: nameTok.k === "qid" || undefined, vars: [], body: [], methods: [], pragmas };
+    const P: Pou = { kind, name: nameTok.t, pos: pos(nameTok), quoted: nameTok.k === "qid" || undefined, vars: [], body: [], methods: [], pragmas, ...mods };
     if (isKw("EXTENDS")) { next(); P.extendsName = ident().t; }
     if (isKw("IMPLEMENTS")) { next(); P.implementsNames = [ident().t]; while (isOp(",")) { next(); P.implementsNames.push(ident().t); } }
     if ((kind === "function" || kind === "method" || kind === "property") && isOp(":")) { next(); P.retType = typeSpec(); }
@@ -399,21 +431,19 @@ export function parse(toks: Token[], file: string, o: ParseOptions): ParseResult
     if (o.scl) sclHeader(pragmas);
     if (kind === "interface") {
       while (!isKw("END_INTERFACE") && peek().k !== "eof") {
-        if (isKw("METHOD")) { const m = pou("method"); P.methods.push(m); continue; }
-        if (isKw("PROPERTY")) { P.methods.push(property()); continue; }
-        fail(tr("Očekáváno METHOD nebo PROPERTY, nalezeno {got}", { got: desc(peek()) }));
+        const n0 = P.methods.length;
+        members(P);
+        if (P.methods.length === n0) fail(tr("Očekáváno METHOD nebo PROPERTY, nalezeno {got}", { got: desc(peek()) }));
       }
       endSemi(expectKw("END_INTERFACE"));
       return P;
     }
+    /* metody před tělem (pořadí IEC 61131-3 ed. 3) i za ním (výpis CODESYS / TwinCAT) */
+    if (kind === "fb" || kind === "program") members(P);
     if (isKw("BEGIN")) next();
     else if (o.scl && kind !== "method") errors.push({ level: "error", rule: "syntax", file, line: peek().line, col: peek().col, msg: tr("Blok SCL musí mít BEGIN před příkazy") });
     P.body = stmtList();
-    while (isKw("METHOD") || isKw("PROPERTY") || isKw("ACTION")) {
-      if (isKw("METHOD")) P.methods.push(pou("method"));
-      else if (isKw("ACTION")) P.methods.push(pou("action"));
-      else P.methods.push(property());
-    }
+    members(P);
     const endW = up(kwTok) === "ORGANIZATION_BLOCK" ? "END_ORGANIZATION_BLOCK" : END_OF[kind];
     P.endPos = pos();
     if (!isKw(endW)) fail(tr("Chybí {end} (blok {name} začíná na řádku {line})", { end: endW, name: P.name, line: kwTok.line }));
@@ -423,13 +453,15 @@ export function parse(toks: Token[], file: string, o: ParseOptions): ParseResult
   }
   function property(): Pou {
     next();
+    const mods: { abstract?: boolean; final?: boolean; access?: Pou["access"] } = {};
+    modifiers(mods);
     const nameTok = ident();
-    const P: Pou = { kind: "property", name: nameTok.t, pos: pos(nameTok), vars: [], body: [], methods: [], pragmas: [] };
+    const P: Pou = { kind: "property", name: nameTok.t, pos: pos(nameTok), vars: [], body: [], methods: [], pragmas: [], ...mods };
     if (isOp(":")) { next(); P.retType = typeSpec(); }
     for (;;) {
       if (isKw("GET") || isKw("SET")) {
         const which = up(next());
-        const acc: Pou = { kind: "method", name: (which === "GET" ? "__get_" : "__set_") + P.name, pos: pos(), vars: varBlocks(), body: [], methods: [], pragmas: [], retType: P.retType };
+        const acc: Pou = { kind: "method", name: (which === "GET" ? "__get_" : "__set_") + P.name, pos: pos(), vars: varBlocks(), body: [], methods: [], pragmas: [], retType: P.retType, access: P.access, abstract: P.abstract };
         acc.body = stmtList();
         expectKw(which === "GET" ? "END_GET" : "END_SET");
         if (which === "GET") P.getter = acc; else P.setter = acc;

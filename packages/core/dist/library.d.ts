@@ -135,6 +135,13 @@ export declare function libStepTime(prj: Project, devId: number, fallback: numbe
 export interface LibraryOverrides {
     /** text šablony místo vestavěné (`SCL_MOTOR` / `ST_MOTOR`…), jen bez chyb validace */
     templates: Partial<Record<FbClass, string>>;
+    /** identifikátor použité šablony knihovny (pro README a dokumentaci) */
+    ids: Partial<Record<FbClass, string>>;
+    /** knihovna, ze které šablony a hlavička jsou (název a verze) */
+    library?: {
+        name: string;
+        version: string;
+    };
     /** řádky firemní hlavičky (bez značek komentáře; ASCII a bezpečné pro (* *) u ST) */
     header: string[];
     /** šablony vynechané pro chyby a upozornění */
@@ -143,7 +150,8 @@ export interface LibraryOverrides {
 /**
  * Co má generátor pro platformu převzít z knihovny projektu. Šablona přesně pro platformu má
  * přednost před šablonou dialektu pro všechny platformy; šablona s chybou se nepoužije.
- * Napojení v `genFor` / `genLibrary` viz README úkolu (codegen.ts se zde nemění).
+ * Generátor ji čte přes `codeLibrary()` (codegen.ts), který navíc vyřadí šablony, které nejde
+ * spolehlivě převést pro Unitronics (rozepsání) nebo Logix (AOI).
  */
 export declare function libraryOverrides(prj: Project, plat: PlatformKey): LibraryOverrides;
 /** Firemní hlavička do dokumentů (Markdown) — název firmy, adresa, schvalovatelé. */

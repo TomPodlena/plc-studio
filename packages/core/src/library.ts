@@ -5,8 +5,10 @@
  *
  * Vlastní šablona FB nahrazuje vestavěnou (FB_Motor, FB_Ventil, FB_AnalogIn, FB_AnalogOut)
  * jen se STEJNÝM rozhraním (vstupy a výstupy, názvy a typy) — generátor ji volá stejně.
- * Generátor (`codegen.ts`) se tu nemění: `libraryOverrides(prj, plat)` vrací, co nahradit;
- * simulace a ověření dál zrcadlí vestavěné šablony (vlastní blok simulací ověřen není).
+ * `libraryOverrides(prj, plat)` vrací, co nahradit; generátor ji čte přes `codeLibrary()`
+ * (codegen.ts: kontrola převoditelnosti pro Unitronics a Logix) a jediný bod výběru textu
+ * bloku `fbTemplate()`. Simulace a ověření dál zrcadlí vestavěné šablony (vlastní blok
+ * simulací ověřen není), emulátor překladu kontroluje skutečný výstup i s vlastní šablonou.
  */
 import { N_, tr, trx } from "./i18n.js";
 import {
@@ -123,12 +125,14 @@ export function fbInterface(src: string): FbInterface {
   return out;
 }
 
-const BUILTIN: Record<FbDialect, Record<FbClass, string>> = {
+/* library.ts a codegen.ts se importují navzájem (generátor čte knihovnu) — šablony se proto
+   berou až při volání, ne při načtení modulu */
+const BUILTIN = (): Record<FbDialect, Record<FbClass, string>> => ({
   scl: { Motor: SCL_MOTOR, Ventil: SCL_VENTIL, AnalogIn: SCL_AI, AnalogOut: SCL_AO },
   st: { Motor: ST_MOTOR, Ventil: ST_VENTIL, AnalogIn: ST_AI, AnalogOut: ST_AO },
-};
+});
 /** Vestavěná šablona třídy v dialektu (vzor pro vlastní blok). */
-export function builtinTemplate(cls: FbClass, dialect: FbDialect): string { return BUILTIN[dialect][cls]; }
+export function builtinTemplate(cls: FbClass, dialect: FbDialect): string { return BUILTIN()[dialect][cls]; }
 /** Dialekt šablon pro platformu. */
 export function dialectFor(plat: PlatformKey): FbDialect { return plat === "siemens" ? "scl" : "st"; }
 
@@ -153,7 +157,7 @@ export function validateFbTemplate(t: LibFbTemplate): LibraryIssue[] {
     else if (dialectFor(p) !== t.dialect) out.push({ level: "error", where, msg: tr("Platforma {plat} používá dialekt {d}.", { plat: p, d: dialectFor(p) }) });
   }
   const src = String(t.source || "");
-  const ref = fbInterface(BUILTIN[t.dialect][t.cls]);
+  const ref = fbInterface(BUILTIN()[t.dialect][t.cls]);
   const own = fbInterface(src);
   if (!own.name) { out.push({ level: "error", where, msg: tr("Šablona neobsahuje FUNCTION_BLOCK.") }); return out; }
   if (own.name !== ref.name) out.push({ level: "error", where, msg: tr("Blok se musí jmenovat {name} (generátor volá vestavěné jméno), ne {own}.", { name: ref.name, own: own.name }) });
@@ -397,6 +401,10 @@ registerBomProvider((prj) => {
 export interface LibraryOverrides {
   /** text šablony místo vestavěné (`SCL_MOTOR` / `ST_MOTOR`…), jen bez chyb validace */
   templates: Partial<Record<FbClass, string>>;
+  /** identifikátor použité šablony knihovny (pro README a dokumentaci) */
+  ids: Partial<Record<FbClass, string>>;
+  /** knihovna, ze které šablony a hlavička jsou (název a verze) */
+  library?: { name: string; version: string };
   /** řádky firemní hlavičky (bez značek komentáře; ASCII a bezpečné pro (* *) u ST) */
   header: string[];
   /** šablony vynechané pro chyby a upozornění */
@@ -406,12 +414,14 @@ export interface LibraryOverrides {
 /**
  * Co má generátor pro platformu převzít z knihovny projektu. Šablona přesně pro platformu má
  * přednost před šablonou dialektu pro všechny platformy; šablona s chybou se nepoužije.
- * Napojení v `genFor` / `genLibrary` viz README úkolu (codegen.ts se zde nemění).
+ * Generátor ji čte přes `codeLibrary()` (codegen.ts), který navíc vyřadí šablony, které nejde
+ * spolehlivě převést pro Unitronics (rozepsání) nebo Logix (AOI).
  */
 export function libraryOverrides(prj: Project, plat: PlatformKey): LibraryOverrides {
-  const res: LibraryOverrides = { templates: {}, header: [], issues: [] };
+  const res: LibraryOverrides = { templates: {}, ids: {}, header: [], issues: [] };
   const lib = projectLibrary(prj);
   if (!lib) return res;
+  res.library = { name: lib.name || "", version: lib.version || "" };
   const dia = dialectFor(plat);
   for (const cls of FB_CLASSES) {
     const cands = (lib.fbTemplates || []).filter(t => t.cls === cls && t.dialect === dia && (!t.platforms?.length || t.platforms.includes(plat)));
@@ -422,6 +432,7 @@ export function libraryOverrides(prj: Project, plat: PlatformKey): LibraryOverri
     res.issues.push(...iss);
     if (iss.some(i => i.level === "error")) continue;
     res.templates[cls] = t.source;
+    res.ids[cls] = t.id;
   }
   const c = lib.company;
   if (c) {

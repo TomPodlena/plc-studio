@@ -271,6 +271,18 @@ export function makeSteps(ctx) {
   }
 
   /* ---------------------------------------------------------- 3 Platformy */
+  /** Volba stylu kódu — jen když je vybraná platforma, která OOP umí (PLAT[k].oop). */
+  function oopStyleHtml(p) {
+    const oopPlats = p.platforms.filter(k => PLAT[k] && PLAT[k].oop);
+    if (!oopPlats.length) return "";
+    const isOop = p.codeStyle === "oop";
+    const opt = (v, label, on) => `<label><input type="radio" name="codeStyle" value="${v}" ${on ? "checked" : ""}> ${label}</label>`;
+    return `<fieldset class="codestyle">
+      <legend>${tr("Styl kódu")}</legend>
+      <div class="opts">${opt("classic", tr("Klasický (doporučeno)"), !isOop)}${opt("oop", tr("OOP"), isOop)}</div>
+      <p class="hint">${tr("OOP: rozhraní I_Device, abstraktní základ FB_DeviceBase, třídy zařízení s metodami a vlastnostmi, sekvence ve FB_Sequence. Chování je stejné jako u klasického stylu (ověřuje emulátor), mění se jen zápis. Platí pro: {list}; ostatní platformy dostanou klasický kód.", { list: oopPlats.map(k => PLAT[k].name).join(", ") })}</p>
+    </fieldset>`;
+  }
   function rPlat(el) {
     const p = prj();
     const c = card(el, "03", tr("Cílové platformy"), `
@@ -279,7 +291,13 @@ export function makeSteps(ctx) {
       <div class="plat ${p.platforms.includes(k) ? "on" : ""}" data-k="${k}" role="button" tabindex="0" aria-pressed="${p.platforms.includes(k)}">
         <b>${pf.name}</b><span>${pf.ide} · ${pf.cpu}</span><span class="lng">${tr(pf.lang)} · ${tr(pf.imp)}</span>
       </div>`).join("")}
-    </div>`);
+    </div>
+    ${oopStyleHtml(p)}`);
+    /* styl kódu (jen u platforem s OOP — rodina CODESYS) */
+    c.querySelectorAll("input[name=codeStyle]").forEach(r => r.addEventListener("change", () => {
+      if (r.value === "oop") p.codeStyle = "oop"; else delete p.codeStyle;
+      save(); render();
+    }));
     c.querySelectorAll(".plat").forEach(d => {
       const toggle = () => {
         const k = d.dataset.k;
@@ -390,7 +408,7 @@ export function makeSteps(ctx) {
         const names = new Set(p.devices.map(d => d.name));
         const devIssues = validateProject(p).filter(i => names.has(i.where));
         issuesBox.innerHTML = devIssues.length ? "<div class='warnbox'><ul style='margin:0;padding-left:18px'>" +
-          devIssues.map(i => "<li style='color:var(--" + (i.level === "error" ? "err" : "warn") + ")'><code>" + esc(i.where) + "</code> — " + esc(i.msg) + "</li>").join("") + "</ul></div>" : "";
+          devIssues.map(i => "<li style='color:var(--" + (i.level === "error" ? "err" : i.level === "info" ? "muted" : "warn") + ")'><code>" + esc(i.where) + "</code> — " + esc(i.msg) + "</li>").join("") + "</ul></div>" : "";
       };
       refreshIssues();
       list.querySelectorAll("input[data-f=limLo],input[data-f=limHi],input[data-f=setpoint]").forEach(i => i.addEventListener("change", refreshIssues));
@@ -432,7 +450,7 @@ export function makeSteps(ctx) {
     const issues = validateProject(p);
     const issuesHtml = issues.length
       ? "<div class='warnbox'><b>" + tr("Kontrola návrhu ({n}):", { n: issues.length }) + "</b><ul style='margin:6px 0;padding-left:18px'>" +
-        issues.slice(0, 12).map(i => "<li style='color:var(--" + (i.level === "error" ? "err" : "warn") + ")'><code>" + esc(i.where) + "</code> — " + esc(i.msg) + "</li>").join("") +
+        issues.slice(0, 12).map(i => "<li style='color:var(--" + (i.level === "error" ? "err" : i.level === "info" ? "muted" : "warn") + ")'><code>" + esc(i.where) + "</code> — " + esc(i.msg) + "</li>").join("") +
         (issues.length > 12 ? "<li>" + tr("… a dalších {n}", { n: issues.length - 12 }) + "</li>" : "") + "</ul>" +
         "<button class='small' id='bFixTags'>" + tr("Opravit tagy automaticky (ASCII)") + "</button></div>"
       : "<p class='oktxt'>" + tr("Kontrola návrhu: bez nálezů") + " ✓</p>";

@@ -12,12 +12,13 @@
  *  - kroky sekvence = `stepTitle` / `stepCondText` / `stepWatchdog` (sim.ts).
  *
  * Každý tag HMI ukazuje na proměnnou, kterou generovaný program deklaruje (hlídá test
- * pro všechny příklady × platformy × jazyky). Program se kvůli HMI nemění: meze a žádané
- * hodnoty jsou v programu konstanty → v HMI jen ke čtení.
+ * pro všechny příklady × platformy × jazyky). Meze a žádané hodnoty jsou v programu konstanty
+ * → v HMI jen ke čtení. U Mitsubishi a Omron (HMI čte jen globální) generátor řízení stroje
+ * deklaruje globálně a stav bloků zrcadlí do globálních proměnných (`hmiGlobalVars`, codegen.ts).
  */
-import { Project, Device, PlatformKey, ioOf, instName, stripDia, interlockDevs } from "./model.js";
+import { Project, Device, PlatformKey, ioOf, instName, stripDia, interlockDevs, isCodesysFamily, codeStyleFor } from "./model.js";
 import { tr, N_ } from "./i18n.js";
-import { ctrlDecls, actuators, manVarOf, parseFbTemplate, ST_MOTOR, ST_VENTIL, ST_AI, ST_AO } from "./codegen.js";
+import { ctrlDecls, actuators, manVarOf, parseFbTemplate, hmiGlobalPlat, ST_MOTOR, ST_VENTIL, ST_AI, ST_AO } from "./codegen.js";
 import { docAlarmCsv } from "./docs.js";
 import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL } from "./sim.js";
 
@@ -472,17 +473,21 @@ const LX_PROG = "PLCdesk";
 /**
  * Symbolická cesta tagu HMI v programu cílové platformy:
  * Siemens `"InstMachine".instM1.status` / `"M1_outRun"`, CODESYS rodina `MAIN.x` / `GVL_IO.x`,
- * Rockwell `Program:PLCdesk.x` / `x`, Unitronics plochý tag `instM1_status`.
+ * Rockwell `Program:PLCdesk.x` / `x`, Unitronics plochý tag `instM1_status`, Mitsubishi a Omron
+ * globální proměnná `modeAuto` / `instM1_status` (GOT a NA čtou jen globální — generátor je tam
+ * deklaruje v GlobalLabels.csv / Variables.txt a stav bloků do nich zrcadlí, `hmiGlobalVars`).
  */
-export function hmiPlcPath(plat: PlatformKey, t: HmiTag): string {
+export function hmiPlcPath(plat: PlatformKey, t: HmiTag, prj?: Project): string {
   if (t.src === "io") {
     if (plat === "siemens") return '"' + t.member + '"';
-    if (plat === "beckhoff" || plat === "codesys" || plat === "schneider") return "GVL_IO." + t.member;
+    if (isCodesysFamily(plat)) return "GVL_IO." + t.member;
     return t.member;
   }
   if (plat === "siemens") return '"InstMachine".' + t.member;
   if (plat === "rockwell") return "Program:" + LX_PROG + "." + t.member;
-  if (plat === "unitronics") return t.member.replace(/\./g, "_");
+  if (plat === "unitronics" || hmiGlobalPlat(plat)) return t.member.replace(/\./g, "_");
+  /* styl OOP: stav bloku jsou vlastnosti rozhraní I_Device (codegen_oop.ts) — error → Fault, busy → Busy, status → Status */
+  if (prj && codeStyleFor(prj, plat) === "oop") return "MAIN." + t.member.replace(/\.(error|busy|status)$/, (_m, x: string) => "." + (x === "error" ? "Fault" : x === "busy" ? "Busy" : "Status"));
   return "MAIN." + t.member;
 }
 

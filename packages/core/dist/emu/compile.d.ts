@@ -34,7 +34,50 @@ export type Ty = {
     name: string;
     vars: Map<string, VarSym>;
     qualifiedOnly: boolean;
+}
+/** Odkaz na rozhraní (OOP): jeden slot = adresa instance + 1, 0 = neplatný odkaz. */
+ | {
+    k: "itf";
+    def: ItfDef;
 };
+/** Parametr metody (pro kontrolu podpisu a předání argumentů). */
+export interface ParamSym {
+    name: string;
+    key: string;
+    kind: VarKind;
+    ty: Ty;
+}
+/** Rozhraní (INTERFACE): metody a vlastnosti, které musí implementující blok mít. */
+export interface ItfDef {
+    name: string;
+    key: string;
+    pou: Pou;
+    pos: Pos;
+    methods: Map<string, {
+        name: string;
+        params: ParamSym[];
+        retTy?: Ty;
+        pos: Pos;
+    }>;
+    props: Map<string, {
+        name: string;
+        ty: Ty;
+        get: boolean;
+        set: boolean;
+        pos: Pos;
+    }>;
+    laid: boolean;
+}
+/** Vlastnost bloku: přístupové metody GET / SET (leží v `methods` pod __GET_x / __SET_x). */
+export interface PropSym {
+    name: string;
+    ty: Ty;
+    getter?: FbDef;
+    setter?: FbDef;
+    owner: FbDef;
+    pos: Pos;
+    access?: Pou["access"];
+}
 export interface VarSym {
     name: string;
     key: string;
@@ -66,8 +109,23 @@ export interface FbDef {
     /** Metoda: blok, jehož proměnné vidí. */
     owner?: FbDef;
     retTy?: Ty;
+    /** Metoda: proměnná návratové hodnoty (u GET vlastnosti = jméno vlastnosti). */
+    retSym?: VarSym;
+    /** Metoda: parametry (počítá se při prvním volání). */
+    params?: ParamSym[];
+    /** Identifikátor třídy (slot __TID instance) pro dynamické volání metod. */
+    tid?: number;
+    parent?: FbDef;
+    abstract?: boolean;
+    final?: boolean;
+    access?: Pou["access"];
+    /** Rozhraní uvedená v IMPLEMENTS tohoto bloku (zděděná se hledají přes `parent`). */
+    itfs?: ItfDef[];
+    props?: Map<string, PropSym>;
 }
 export declare function tyName(t: Ty): string;
+/** Jednotka předvolby časovačů TIMER_x_FB_M [ms]. */
+export declare const TIMER_M_UNIT: Record<string, number>;
 export interface TagDecl {
     name: string;
     type: string;

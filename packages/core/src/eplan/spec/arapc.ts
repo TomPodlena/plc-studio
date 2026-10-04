@@ -29,6 +29,16 @@
  *    „aml-lang=<RFC 5646>“ (např. aml-lang=de-DE) — BPR_002E_Multilingual_Expressions_Oct2014.pdf
  *  - cesty CAEX: části s @ . : / v hranatých závorkách, „[“ „]“ escapovat (5.2.8)
  *  - ComplexTag (UDT) s povinným DataType = název struktury (3.2.4.9; EPLAN 20618/20619 od 1.3.0)
+ *  - LogicalAddress tagu BEZ směru (5.2.1: „shall not contain the direction“) — %I0.0 → 0.0, %IW64 → W64;
+ *    směr nese IoType (tak exportuje TIA Portal V18/V21)
+ *  - TypeIdentifier stanice (Device) = rodina zařízení (5.1.4 „family identifier“): System:Device.S71200 …
+ *  - BuiltIn podmodul identifikuje UUID prvního nadřazeného DeviceItem s BuiltIn=false + PositionNumber (5.1.5)
+ *
+ * Konvence převzaté z reálných exportů (EPLAN 2.7.3, TIA Portal V17/V18/V21, TwinCAT 3 — porovnání
+ * v docs/eplan-aml-export.md): role jako <SupportedRoleClass RefRoleClassPath=…> (žádný z exportérů
+ * nepíše RoleRequirements), kanály „Channel_DI_0“, rozhraní LogicalEndPoint_Subnet / _Node / _IoSystem /
+ * _Interface, Siemens karty hierarchicky (karta → BuiltIn podmodul PositionNumber 1 s Address a kanály),
+ * objednací čísla Siemens s mezerou po 4. znaku („6ES7 131-6BH01-0BA0“).
  */
 
 export const ARAPC_VERSION = "1.4.0";
@@ -47,6 +57,7 @@ export const ROLE = {
   DeviceItem: RCL + "DeviceItem",
   TagTable: RCL + "TagTable",
   ComplexTag: RCL + "ComplexTag",
+  TagUserFolder: RCL + "TagUserFolder",
   Node: RCL + "Node",
   CommunicationInterface: RCL + "CommunicationInterface",
   IoSystem: RCL + "IoSystem",
@@ -61,6 +72,18 @@ export const IFACE = {
   ModuleAssignment: ICL + "ModuleAssignment",
   LogicalEndPoint: "CommunicationInterfaceClassLib/LogicalEndPoint",
 } as const;
+/**
+ * Názvy instancí rozhraní LogicalEndPoint — podle reálných exportů (TIA Portal V17/V18/V21 i EPLAN 2.7.3
+ * pojmenovávají LogicalEndPoint_Subnet / _Node / _IoSystem / _Interface; knihovna má jen název třídy).
+ */
+export const LEP = {
+  subnet: "LogicalEndPoint_Subnet",
+  node: "LogicalEndPoint_Node",
+  ioSystem: "LogicalEndPoint_IoSystem",
+  iface: "LogicalEndPoint_Interface",
+} as const;
+/** Standardní hodnoty DeviceItemType (AR APC 5.1.5: „CPU, HeadModule, Accessory“); jiné jen s Customized=true. */
+export const DEVICE_ITEM_TYPES = ["CPU", "HeadModule", "Accessory"] as const;
 /** Hodnoty atributu Type sítě / uzlu (ARE APC Ethernet 3.1, 3.3). */
 export const SUBNET_TYPE = { ethernet: "Ethernet" } as const;
 /** Výchozí jazyk atributů a značky jazyků (RFC 5646) pro „aml-lang=…“. */
@@ -68,10 +91,12 @@ export const AML_LANG: Record<string, string> = { cs: "cs-CZ", en: "en-US", de: 
 
 /**
  * Povinné atributy podle rolí / rozhraní, jak je kontroluje validateEplan (AR APC: „mandatory“;
- * u Channel a Tag i atributy, bez nichž EPLAN připojovací bod nenaplní).
+ * u Channel a Tag i atributy, bez nichž EPLAN připojovací bod nenaplní). Vlastní export: chyba;
+ * cizí soubor (validateAml bez `strict`): upozornění — reálné exporty je vynechávají (EPLAN 2.7.3:
+ * Node bez NetworkAddress u EtherCAT, IoSystem bez Number, Tag bez IoType podle AR APC 1.0.0).
  */
 export const REQUIRED: Record<string, string[]> = {
-  [ROLE.AutomationProject]: ["ProjectSign"],
+  [ROLE.Device]: ["TypeIdentifier"],
   [ROLE.Subnet]: ["Type"],
   [ROLE.DeviceItem]: ["PositionNumber"],
   [ROLE.CommunicationInterface]: ["Label"],

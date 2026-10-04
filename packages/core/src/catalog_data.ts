@@ -189,6 +189,9 @@ export const CATALOG_DATA: Record<string, CatalogBrand[]> = {
   "plc_ai@codesys": [
     { brand: "WAGO", series: ["WAGO I/O System 750"], typical: "750-455 – 4 AI, 4–20 mA, 12 bit, single-ended", note: N_("Jen proud 4–20 mA; pro 0–10 V jiný modul řady 750-45x (neověřeno)."), orderCode: "750-455", src: "https://www.wago.com/global/i-o-systems/4-channel-analog-input/p/750-455", priceLevel: "střední", suppliers: [N_("WAGO (česká pobočka)")] },
   ],
+  "plc_ai@delta": [
+    { brand: "Delta Electronics", series: [N_("AS (analogové moduly)")], typical: "AS04AD-A – 4 AI, ±10 V / 0–10 V / 0/4–20 mA, 16 bit", orderCode: "AS04AD-A", src: "https://www.digikey.com/en/products/detail/delta-electronics-industrial-automation/AS04AD-A/AS04AD-A-ND/9862011", priceLevel: "střední", suppliers: [N_("ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)"), "Czech-Delta", "Industrytech", "DigiKey (e-shop)"] },
+  ],
   "plc_ai@mitsubishi": [
     { brand: "Mitsubishi Electric", series: ["FX5 expansion adapter"], typical: N_("FX5-4AD-ADP – 4 AI, ±10 V / ±20 mA (0–10 V, 4–20 mA), 14 bit, adaptér na levý bok CPU"), orderCode: "FX5-4AD-ADP", src: "https://www.mitsubishielectric.com/fa/products/faspec/point.page?kisyu=%2Fplcf&formNm=FX5_ANALOG_IN_FX5-4AD-ADP_1&lang=2", priceLevel: "střední", suppliers: [N_("Mitsubishi Electric (ČR)")] },
   ],
@@ -207,11 +210,17 @@ export const CATALOG_DATA: Record<string, CatalogBrand[]> = {
   "plc_ai@unitronics": [
     { brand: "Unitronics", series: ["Uni-I/O"], typical: "UIA-0402N – 4 AI (0–10 V / 4–20 mA, 13 bit) + 2 AO v jednom modulu", note: N_("Kombinovaný modul AI+AO – v kusovníku nepočítat dvakrát."), orderCode: "UIA-0402N", src: "https://www.unitronicsplc.com/Documents/UniStream/Uni-I_O/UG_UIA-0402N.pdf", priceLevel: "střední", suppliers: ["SCHMACHTL CZ", "Tipteh (b2b)"] },
   ],
+  "plc_ai@wago": [
+    { brand: "WAGO", series: ["WAGO I/O System 750"], typical: "750-455 – 4 AI, 4–20 mA, 12 bit, single-ended", note: N_("Jen proud 4–20 mA; pro 0–10 V jiný modul řady 750-45x (neověřeno)."), orderCode: "750-455", src: "https://www.wago.com/global/i-o-systems/4-channel-analog-input/p/750-455", priceLevel: "střední", suppliers: [N_("WAGO (česká pobočka)")] },
+  ],
   "plc_ao@beckhoff": [
     { brand: "Beckhoff", series: ["EtherCAT Terminals EL4xxx"], typical: "EL4002 – 2 AO, 0–10 V, 12 bit", orderCode: "EL4002", src: "https://www.beckhoff.com/en-en/products/i-o/ethercat-terminals/el4xxx-analog-output/el4002.html", priceLevel: "nízká", suppliers: ["Beckhoff Automation s.r.o."] },
   ],
   "plc_ao@codesys": [
     { brand: "WAGO", series: ["WAGO I/O System 750"], typical: "750-559 – 4 AO, 0–10 V, 12 bit", orderCode: "750-559", src: "https://www.wago.com/us/controllers-bus-couplers-i-o/4-channel-analog-output/p/750-559", priceLevel: "střední", suppliers: [N_("WAGO (česká pobočka)")] },
+  ],
+  "plc_ao@delta": [
+    { brand: "Delta Electronics", series: [N_("AS (analogové moduly)")], typical: "AS04DA-A – 4 AO, ±10 V / 0–20 mA / 4–20 mA, 12 bit", orderCode: "AS04DA-A", src: "https://www.digikey.com/en/products/detail/delta-electronics-industrial-automation/AS04DA-A/9862012", priceLevel: "střední", suppliers: [N_("ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)"), "Czech-Delta", "Industrytech", "DigiKey (e-shop)"] },
   ],
   "plc_ao@mitsubishi": [
     { brand: "Mitsubishi Electric", series: ["FX5 expansion adapter"], typical: "FX5-4DA-ADP – 4 AO, 0–10 V / ±10 V / 0–20 mA / 4–20 mA, 14 bit", note: N_("Nejmenší ověřený AO adaptér má 4 kanály."), orderCode: "FX5-4DA-ADP", src: "https://www.mitsubishielectric.com/fa/products/faspec/detail.page?kisyu=/plcf&formNm=FX5_ANALOG_OUT_FX5-4DA-ADP_1&lang=2&category=ex&id=spec", priceLevel: "střední", suppliers: [N_("Mitsubishi Electric (ČR)")] },
@@ -232,11 +241,17 @@ export const CATALOG_DATA: Record<string, CatalogBrand[]> = {
   "plc_ao@unitronics": [
     { brand: "Unitronics", series: ["Uni-I/O"], typical: "UIA-0402N – 2 AO (0–10 V 14 bit / 4–20 mA 13 bit) + 4 AI", note: N_("Týž modul jako plc_ai@unitronics."), orderCode: "UIA-0402N", src: "https://www.unitronicsplc.com/Documents/UniStream/Uni-I_O/UG_UIA-0402N.pdf", priceLevel: "střední", suppliers: ["SCHMACHTL CZ"] },
   ],
+  "plc_ao@wago": [
+    { brand: "WAGO", series: ["WAGO I/O System 750"], typical: "750-559 – 4 AO, 0–10 V, 12 bit", orderCode: "750-559", src: "https://www.wago.com/us/controllers-bus-couplers-i-o/4-channel-analog-output/p/750-559", priceLevel: "střední", suppliers: [N_("WAGO (česká pobočka)")] },
+  ],
   "plc_coupler@beckhoff": [
     { brand: "Beckhoff", series: ["EK1100 EtherCAT Coupler"], typical: N_("EK1100 – EtherCAT coupler, 2× RJ45, napájení 24 V DC systém + pole"), note: N_("Na konci sestavy koncová svorka (EL9011, kód neověřen)."), orderCode: "EK1100", src: "https://www.beckhoff.com/en-us/products/i-o/ethercat-terminals/ek-ec1xxx-bk1xx0-ethercat-coupler/ek1100.html", priceLevel: "nízká", suppliers: ["Beckhoff Automation s.r.o."] },
   ],
   "plc_coupler@codesys": [
     { brand: "WAGO", series: ["Fieldbus Coupler 750-3xx"], typical: "750-362 – Modbus TCP/UDP coupler 4. generace, 2× Ethernet se switchem", note: N_("Sestava 750 se zakončuje koncovým modulem (kód neověřen)."), orderCode: "750-362", src: "https://www.wago.com/global/i-o-systems/fieldbus-coupler-modbus-tcp/p/750-362", priceLevel: "střední", suppliers: [N_("WAGO (česká pobočka)")] },
+  ],
+  "plc_coupler@delta": [
+    { brand: "Delta Electronics", series: ["R1-EC (EtherCAT remote I/O)", N_("AS-FEN02 (EtherNet/IP adaptér)")], typical: N_("R1-EC5500D1 – EtherCAT coupler s napájením E-bus pro vzdálené moduly R1-EC (k AX-3 / řadiči EtherCAT)"), note: N_("Kód ověřen u italského prodejce. Pro CPU AS300 přes Ethernet: modul AS-FEN02 (2× Ethernet, Modbus TCP, EtherNet/IP adaptér, vzdálené ovládání AS) – objednací kód neověřen. AS00SCM-A (sériová komunikace) je u DigiKey „Not For New Designs“."), orderCode: "R1-EC5500D1", src: "https://www.luciautomation.com/en/delta-as200ax300/936-r1-ec5500d1.html", priceLevel: "střední", suppliers: [N_("ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)"), "Czech-Delta", "Industrytech"] },
   ],
   "plc_coupler@omron": [
     { brand: "Omron", series: ["NX EtherCAT Coupler"], typical: N_("NX-ECC203 – EtherCAT coupler, až 63 NX modulů, cyklus od 125 µs"), orderCode: "NX-ECC203", src: "https://www.newark.com/omron-industrial-automation/nx-ecc203/communication-coupler-unit-ethercat/dp/03AH5094", priceLevel: "střední", suppliers: ["OMRON Czech Republic", "Farnell / Newark"] },
@@ -253,12 +268,18 @@ export const CATALOG_DATA: Record<string, CatalogBrand[]> = {
   "plc_coupler@unitronics": [
     { brand: "Unitronics", series: ["UniStream Remote I/O"], typical: N_("URB-TCP – Ethernet (Modbus TCP) adaptér vzdálených Uni-I/O"), note: N_("Existuje i novější URB-TCP2 (jiný počet modulů)."), orderCode: "URB-TCP", src: "https://downloads.unitronics.com/Documents/UniStream_IO_&_COM/UniStream_Remote_I_O_User_Manual.pdf", priceLevel: "střední", suppliers: ["SCHMACHTL CZ"] },
   ],
+  "plc_coupler@wago": [
+    { brand: "WAGO", series: ["Fieldbus Coupler 750-3xx"], typical: "750-362 – Modbus TCP/UDP coupler 4. generace, 2× Ethernet se switchem", note: N_("Sestava 750 se zakončuje koncovým modulem (kód neověřen)."), orderCode: "750-362", src: "https://www.wago.com/global/i-o-systems/fieldbus-coupler-modbus-tcp/p/750-362", priceLevel: "střední", suppliers: [N_("WAGO (česká pobočka)")] },
+  ],
   "plc_cpu@beckhoff": [
     { brand: "Beckhoff", series: ["CX7000", "CX8100", "C6015/C6017"], typical: N_("CX7000 – Embedded PC, Arm Cortex-M7 480 MHz, TwinCAT 3, 8 DI / 4 DO 24 V DC vestavěno, rozšíření EtherCAT/Bus svorkami"), note: N_("Obchodní označení = objednací kód."), orderCode: "CX7000", src: "https://www.beckhoff.com/en-us/products/ipc/embedded-pcs/cx7000-arm-r-cortex-r/cx7000.html", priceLevel: "střední", suppliers: ["Beckhoff Automation s.r.o. (Brno, Praha)"] },
   ],
   "plc_cpu@codesys": [
     { brand: "WAGO", series: ["PFC200 (750-82xx)", "Compact Controller CC100 (751-93xx)"], typical: N_("PFC200 750-8212 – 2× Ethernet, RS-232/485, Linux RT, CODESYS V3.5 od FW 23, I/O řady 750/753"), orderCode: "750-8212", src: "https://www.wago.com/us/controllers-bus-couplers-i-o/controller-pfc200/p/750-8212", priceLevel: "střední", suppliers: [N_("WAGO (česká pobočka, wago.com/cz)"), "TME", "Conrad"] },
     { brand: "WAGO", series: ["Compact Controller CC100"], typical: N_("CC100 751-9301 – 8 DI / 4 DO / 2 AI / 2 AO vestavěno, Modbus TCP, EtherCAT, CODESYS V3"), note: N_("Pro nejmenší stroje, bez rozšiřování o 750 moduly."), orderCode: "751-9301", src: "https://automationdistribution.com/wago-751-9301-compact-controller-100-plc-modbus-tcp-ethercat-8di-4do-2ai-2ao-codesys-v3/", priceLevel: "nízká", suppliers: [N_("WAGO (česká pobočka)"), N_("Conrad (manuál na conrad.com)")] },
+  ],
+  "plc_cpu@delta": [
+    { brand: "Delta Electronics", series: ["AX-3 (CODESYS)"], typical: N_("AX-308EA0MA1T – motion CPU AX-3 na CODESYS, EtherCAT až 8 os, 16 DI / 8 DO (NPN), 2× inkrementální enkodér, SSI; rozšíření moduly AS"), note: N_("Kód v katalogu Delta (řešení pohybu na CODESYS); programování DIADesigner-AX, moduly AS přes Delta LocalBus. AX-5 / AX-8: objednací kód neověřen."), orderCode: "AX-308EA0MA1T", src: "https://www.deltaww.com/IA/downloadcenter/catalogue/2.Motion/Codesys/DELTA_%20IA-Delta_Motion_Control_Solution_Based_on_CODESYS_C_EN_20210929.pdf", priceLevel: "střední", suppliers: [N_("ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)"), "Czech-Delta", "Industrytech"] },
   ],
   "plc_cpu@mitsubishi": [
     { brand: "Mitsubishi Electric", series: ["MELSEC iQ-F FX5U", "FX5UC", "FX5UJ"], typical: N_("FX5U-32MT/ESS – 16 DI / 16 DO tranzistor source (PNP), Ethernet + RS-485, napájení 100–240 V AC"), note: N_("/ES = sink (NPN) výstupy, /ESS = source (PNP) – pro EU zvyk volit /ESS. Napájení 24 V DC mají varianty /DSS (neověřeno)."), orderCode: "FX5U-32MT/ESS", src: "https://shop1.us.mitsubishielectric.com/products/FX5U-32MT/ESS", priceLevel: "střední", suppliers: [N_("Mitsubishi Electric Europe B.V., organizační složka ČR (cz-fa.mitsubishielectric.com)")] },
@@ -279,11 +300,19 @@ export const CATALOG_DATA: Record<string, CatalogBrand[]> = {
     { brand: "Unitronics", series: ["UniStream Built-in US5 / US7 / US10", "UniStream USC (CPU for Panel)"], typical: N_("US5-B5-T24 – 5\" HMI + PLC, 10 DI, 2 AI, 12 DO tranzistor PNP (vč. 2 PWM)"), note: N_("HMI je součástí – samostatný panel není potřeba."), orderCode: "US5-B5-T24", src: "https://elmark-automation.com/shop/unitronics/us5-b5-t24", priceLevel: "střední", suppliers: [N_("SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)")] },
     { brand: "Unitronics", series: ["UniStream Built-in US7"], typical: N_("US7-B5-TR22 – 7\" HMI + PLC, 10 DI, 2 AI (0–10 V / 4–20 mA), 8 relé + 2 tranzistor NPN"), note: N_("Pozor: tranzistorové výstupy jsou NPN, ostatní reléové."), orderCode: "US7-B5-TR22", src: "https://www.unitronicsplc.com/unistream-series-unistream7-built-in/", priceLevel: "střední", suppliers: ["SCHMACHTL CZ"] },
   ],
+  "plc_cpu@wago": [
+    { brand: "WAGO", series: ["PFC200 (750-82xx)", "Compact Controller CC100 (751-93xx)"], typical: N_("PFC200 750-8212 – 2× Ethernet, RS-232/485, Linux RT, CODESYS V3.5 od FW 23, I/O řady 750/753"), orderCode: "750-8212", src: "https://www.wago.com/us/controllers-bus-couplers-i-o/controller-pfc200/p/750-8212", priceLevel: "střední", suppliers: [N_("WAGO (česká pobočka, wago.com/cz)"), "TME", "Conrad"] },
+    { brand: "WAGO", series: ["PFC100 (750-81xx)"], typical: N_("PFC100 750-8101 – kontrolér, Ethernet, I/O řady 750/753"), note: N_("Menší řada PFC; programování e!COCKPIT / WAGO CODESYS V3.5."), orderCode: "750-8101", src: "https://www.wago.com/global/p/750-8101", priceLevel: "nízká", suppliers: [N_("WAGO (česká pobočka)")] },
+    { brand: "WAGO", series: ["Compact Controller CC100"], typical: N_("CC100 751-9301 – 8 DI / 4 DO / 2 AI / 2 AO vestavěno, Modbus TCP, EtherCAT, CODESYS V3"), note: N_("Pro nejmenší stroje, bez rozšiřování o 750 moduly."), orderCode: "751-9301", src: "https://automationdistribution.com/wago-751-9301-compact-controller-100-plc-modbus-tcp-ethercat-8di-4do-2ai-2ao-codesys-v3/", priceLevel: "nízká", suppliers: [N_("WAGO (česká pobočka)"), N_("Conrad (manuál na conrad.com)")] },
+  ],
   "plc_di@beckhoff": [
     { brand: "Beckhoff", series: ["EtherCAT Terminals EL1xxx"], typical: "EL1008 – 8 DI, 24 V DC, typ 1/3 (PNP)", note: N_("Pro 16 DI EL1809 (neověřeno)."), orderCode: "EL1008", src: "https://www.beckhoff.com/cs-cz/products/i-o/ethercat-terminals/el1xxx-digital-input/el1008.html", priceLevel: "nízká", suppliers: ["Beckhoff Automation s.r.o."] },
   ],
   "plc_di@codesys": [
     { brand: "WAGO", series: ["WAGO I/O System 750"], typical: N_("750-1405 – 16 DI, 24 V DC, 3 ms, šířka 12 mm, Push-in CAGE CLAMP"), orderCode: "750-1405", src: "https://www.wago.com/global/i-o-systems/16-channel-digital-input/p/750-1405", priceLevel: "nízká", suppliers: [N_("WAGO (česká pobočka)")] },
+  ],
+  "plc_di@delta": [
+    { brand: "Delta Electronics", series: [N_("AS (rozšiřovací moduly)")], typical: N_("AS16AM10N-A – 16 DI, 5–24 V DC, šroubová svorkovnice (sink/source)"), note: N_("Stav Active; dodací lhůta výrobce dlouhá (32 týdnů u DigiKey)."), orderCode: "AS16AM10N-A", src: "https://www.digikey.com/en/products/detail/delta-electronics-industrial-automation/AS16AM10N-A/9862020", priceLevel: "nízká", suppliers: [N_("ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)"), "Czech-Delta", "Industrytech", "DigiKey (e-shop)"] },
   ],
   "plc_di@mitsubishi": [
     { brand: "Mitsubishi Electric", series: ["FX5 I/O moduly"], typical: "FX5-16EX/ES – 16 DI, 24 V DC, sink/source", orderCode: "FX5-16EX/ES", src: "https://www.nexinstrument.com/fx5-16exes", priceLevel: "nízká", suppliers: [N_("Mitsubishi Electric (ČR)")] },
@@ -303,11 +332,17 @@ export const CATALOG_DATA: Record<string, CatalogBrand[]> = {
   "plc_di@unitronics": [
     { brand: "Unitronics", series: ["Uni-I/O"], typical: "UID-1600 – 16 DI, 24 V DC, sink/source", note: N_("Uni-I/O se nasazuje na záda panelu nebo na DIN lištu přes Local Expansion Adapter."), orderCode: "UID-1600", src: "https://store.gilsoneng.com/products/UID-1600", priceLevel: "nízká", suppliers: ["SCHMACHTL CZ"] },
   ],
+  "plc_di@wago": [
+    { brand: "WAGO", series: ["WAGO I/O System 750"], typical: N_("750-1405 – 16 DI, 24 V DC, 3 ms, šířka 12 mm, Push-in CAGE CLAMP"), orderCode: "750-1405", src: "https://www.wago.com/global/i-o-systems/16-channel-digital-input/p/750-1405", priceLevel: "nízká", suppliers: [N_("WAGO (česká pobočka)")] },
+  ],
   "plc_do@beckhoff": [
     { brand: "Beckhoff", series: ["EtherCAT Terminals EL2xxx"], typical: N_("EL2008 – 8 DO, 24 V DC, 0,5 A, odolné proti zkratu"), orderCode: "EL2008", src: "https://www.beckhoff.com/cs-cz/products/i-o/ethercat-terminals/el2xxx-digital-output/el2008.html", priceLevel: "nízká", suppliers: ["Beckhoff Automation s.r.o."] },
   ],
   "plc_do@codesys": [
     { brand: "WAGO", series: ["WAGO I/O System 750"], typical: N_("750-1504 – 16 DO, 24 V DC, 0,5 A, šířka 12 mm"), orderCode: "750-1504", src: "https://www.wago.com/global/i-o-systems/16-channel-digital-output/p/750-1504", priceLevel: "nízká", suppliers: [N_("WAGO (česká pobočka)")] },
+  ],
+  "plc_do@delta": [
+    { brand: "Delta Electronics", series: [N_("AS (rozšiřovací moduly)")], typical: "AS16AN01T-A – 16 DO tranzistor (NPN, sink), 5–30 V DC", note: N_("V Evropě obvyklé PNP výstupy – varianta PNP (AS16AN01P-A) objednací kód neověřen."), orderCode: "AS16AN01T-A", src: "https://www.digikey.com/en/products/detail/delta-electronics-industrial-automation/AS16AN01T-A/9862023", priceLevel: "nízká", suppliers: [N_("ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)"), "Czech-Delta", "Industrytech", "DigiKey (e-shop)"] },
   ],
   "plc_do@mitsubishi": [
     { brand: "Mitsubishi Electric", series: ["FX5 I/O moduly"], typical: "FX5-16EYT/ESS – 16 DO, tranzistor source (PNP), 24 V DC", orderCode: "FX5-16EYT/ESS", src: "https://mitsubishi-electric-eshop.mee.com/mee/FA_IA/en/EUR/Catalogue/PLC/PLC-Compact/Digital-I-O-Module/FX5-16EYT-ESS/p/000000000000280504", priceLevel: "nízká", suppliers: ["Mitsubishi Electric e-shop (EU)"] },
@@ -327,11 +362,17 @@ export const CATALOG_DATA: Record<string, CatalogBrand[]> = {
   "plc_do@unitronics": [
     { brand: "Unitronics", series: ["Uni-I/O"], typical: "UID-0016T – 16 DO, tranzistor PNP (source), 0,5 A", orderCode: "UID-0016T", src: "https://shop.lakelandengineering.com/products/UID-0016T", priceLevel: "nízká", suppliers: ["SCHMACHTL CZ"] },
   ],
+  "plc_do@wago": [
+    { brand: "WAGO", series: ["WAGO I/O System 750"], typical: N_("750-1504 – 16 DO, 24 V DC, 0,5 A, šířka 12 mm"), orderCode: "750-1504", src: "https://www.wago.com/global/i-o-systems/16-channel-digital-output/p/750-1504", priceLevel: "nízká", suppliers: [N_("WAGO (česká pobočka)")] },
+  ],
   "plc_hmi@beckhoff": [
     { brand: "Beckhoff", series: ["CP29xx (multi-touch, CP-Link 4)", "CP26xx/CP27xx panel PC"], typical: N_("CP2907-0010 – 7\" multi-touch vestavný panel, 800×480, IP65 čelo, CP-Link 4"), note: N_("Panel CP-Link 4 potřebuje PC s vysílačem CP-Link 4 / DVI; zda jde přímo s CX7000, jsem neověřil – u malého CX může být vhodnější webový panel nebo panelové PC."), orderCode: "CP2907-0010", src: "https://www.beckhoff.com/en-us/products/ipc/control-panels/cp29xx-cp39xx-multi-touch-control-panels/cp29xx-0010.html", priceLevel: "vysoká", suppliers: ["Beckhoff Automation s.r.o."] },
   ],
   "plc_hmi@codesys": [
     { brand: "WAGO", series: ["Touch Panel 600 – Web Panel (762-41xx)", "Visu / Control Panel (762-42xx, 762-6xxx)"], typical: "Touch Panel 600 Web Panel 7\" (17,8 cm), 800×480, 2× USB, 2× Ethernet", note: N_("Webpanel zobrazuje WebVisu z PFC200. Menší 4,3\" varianta 762-4101."), orderCode: "762-4103", src: "https://www.wago.com/gb/touch-panels/touch-panel-600/p/762-4103", priceLevel: "střední", suppliers: [N_("WAGO (česká pobočka)")] },
+  ],
+  "plc_hmi@delta": [
+    { brand: "Delta Electronics", series: ["DOP-100", "DOP-100 Ethernet (DOP-107EV, DOP-110…)"], typical: N_("DOP-107EV – 7\" TFT 800×480, Ethernet, 2× COM (RS-232/485), USB, čelo IP65"), note: N_("Kód ověřen u zahraničního prodejce. Projekt v DIAStudio / DOPSoft."), orderCode: "DOP-107EV", src: "https://ddpartssolution.com/products/delta-dop-107ev-7-hmi-touch-panel-800x480-ethernet", priceLevel: "nízká", suppliers: [N_("ProfCom, s.r.o. (autorizovaný distributor Delta CZ/SK)"), "Czech-Delta", "Industrytech"] },
   ],
   "plc_hmi@mitsubishi": [
     { brand: "Mitsubishi Electric", series: ["GOT2000 GT21", "GOT2000 GT25"], typical: N_("GT2107-WTBD – 7\" širokoúhlý, 800×480, Ethernet + RS-232/422/485, 24 V DC"), orderCode: "GT2107-WTBD", src: "https://www.mitsubishielectric.com/fa/products/hmi/got/pmerit/got2000/wide/spec_gt21w.html", priceLevel: "střední", suppliers: [N_("Mitsubishi Electric (ČR)")] },
@@ -352,6 +393,9 @@ export const CATALOG_DATA: Record<string, CatalogBrand[]> = {
   ],
   "plc_hmi@unitronics": [
     { brand: "Unitronics", series: [N_("UniStream US5 / US7 / US10 (HMI vestavěno)")], typical: N_("HMI je součástí CPU UniStream (5\"/7\"/10,4\") – samostatná položka se nepočítá"), note: N_("V kusovníku 0 ks navíc."), src: "https://www.unitronicsplc.com/unistream-series-unistream7-built-in/", priceLevel: "střední", suppliers: ["SCHMACHTL CZ"] },
+  ],
+  "plc_hmi@wago": [
+    { brand: "WAGO", series: ["Touch Panel 600 – Web Panel (762-41xx)", "Visu / Control Panel (762-42xx, 762-6xxx)"], typical: "Touch Panel 600 Web Panel 7\" (17,8 cm), 800×480, 2× USB, 2× Ethernet", note: N_("Webpanel zobrazuje WebVisu z PFC200. Menší 4,3\" varianta 762-4101."), orderCode: "762-4103", src: "https://www.wago.com/gb/touch-panels/touch-panel-600/p/762-4103", priceLevel: "střední", suppliers: [N_("WAGO (česká pobočka)")] },
   ],
   "power_supply_24v": [
     { brand: "Mean Well", series: ["NDR", "HDR", "SDR"], typical: N_("NDR-240-24 – 24 V DC / 10 A, 240 W, DIN lišta, PFC"), note: N_("Běžná levná volba; GM electronic neověřeno."), orderCode: "NDR-240-24", src: "https://us.rs-online.com/product/mean-well/ndr-240-24/70588315/", priceLevel: "nízká", suppliers: ["TME", "RS Components", "GM electronic"] },
@@ -553,6 +597,7 @@ export const SUPPLIERS_DATA: Supplier[] = [
   { name: "Pepperl + Fuchs s.r.o.", url: "https://www.pepperl-fuchs.com/czech_republic/cs/20549.htm", country: "CZ", kind: "výrobce", note: N_("Pod vodárenskou věží 1143/4, 182 00 Praha 8 (IČO 27117171), info@cz.pepperl-fuchs.com; výroba P+F i v Trutnově."), cats: ["sensor_inductive", "sensor_optical"] },
   { name: "Phoenix Contact (CZ)", url: "https://www.phoenixcontact.com/cs-cz/", country: "CZ", kind: "výrobce", cats: ["safety_relay"] },
   { name: "Pilz Czech (e-shop)", url: "https://www.pilz.com/cs-CZ/eshop", country: "CZ", kind: "výrobce", cats: ["light_curtain", "safety_relay", "safety_switch"] },
+  { name: "ProfCom, s.r.o.", url: "https://www.profcom.cz", country: "CZ", kind: "distributor", note: N_("Autorizovaný distributor Delta Electronics pro ČR a SR (PLC AX / AS, HMI, pohony)."), cats: ["plc_ai@delta", "plc_ao@delta", "plc_coupler@delta", "plc_cpu@delta", "plc_di@delta", "plc_do@delta", "plc_hmi@delta"] },
   { name: "Regada", url: "https://regada.sk/cs/", country: "SK", kind: "výrobce", note: N_("REGADA, s.r.o., Strojnícka 7, Prešov (SK) — elektrické a pneumatické servopohony, regulační a elektromagnetické ventily."), cats: ["process_valve"] },
   { name: N_("Regada Česká, s.r.o."), url: "https://regada.sk/cs/", country: "CZ", kind: "distributor", note: N_("Kopaninská 109, 252 25 Ořech (IČO 27118576); prodej servopohonů, ventilů a regulátorů tlaku plynu Regada v ČR."), cats: ["process_valve"] },
   { name: "Rittal Czech", url: "https://www.rittal.cz", country: "CZ", kind: "výrobce", note: N_("Rittal Czech, s.r.o., Ke Zdibsku 182, 250 66 Zdiby u Prahy (IČO 26687356), tel. 234 099 000, info@rittal.cz."), cats: ["cabinet"] },
@@ -582,7 +627,7 @@ export const SUPPLIERS_DATA: Supplier[] = [
   { name: "VIOLA", url: "https://viola.cz", country: "CZ", kind: "e-shop", note: "ABB, Schneider.", cats: ["contactor", "motor_protection"] },
   { name: "Viola.cz", url: "https://viola.cz", country: "CZ", kind: "e-shop", note: "ABB OT16F3.", cats: ["flow_sensor", "level_sensor", "load_cell", "main_switch", "pressure_transmitter", "sensor_inductive"] },
   { name: "VOGEL electric (elektrotechnika-shop.cz)", url: "https://www.elektrotechnika-shop.cz", country: "CZ", kind: "e-shop", note: "Schneider ATV320, Unidrive.", cats: ["vfd"] },
-  { name: N_("WAGO (česká pobočka)"), url: "https://www.wago.com/cz/", country: "CZ", kind: "výrobce", note: N_("Český web wago.com/cz s odkazem na české zastoupení; přesný název firmy neověřen."), cats: ["interface_relay", "plc_ai@codesys", "plc_ao@codesys", "plc_coupler@codesys", "plc_cpu@codesys", "plc_di@codesys", "plc_do@codesys", "plc_hmi@codesys", "power_supply_24v", "terminal_block"] },
+  { name: N_("WAGO (česká pobočka)"), url: "https://www.wago.com/cz/", country: "CZ", kind: "výrobce", note: N_("Český web wago.com/cz s odkazem na české zastoupení; přesný název firmy neověřen."), cats: ["interface_relay", "plc_ai@codesys", "plc_ai@wago", "plc_ao@codesys", "plc_ao@wago", "plc_coupler@codesys", "plc_coupler@wago", "plc_cpu@codesys", "plc_cpu@wago", "plc_di@codesys", "plc_di@wago", "plc_do@codesys", "plc_do@wago", "plc_hmi@codesys", "plc_hmi@wago", "power_supply_24v", "terminal_block"] },
   { name: "Wilo CS, s.r.o.", url: "https://www.wilo.com/cz/cs/", country: "CZ", kind: "výrobce", note: N_("Obchodní 125, Čestlice."), cats: ["pump"] },
   { name: "Zefin", url: "https://www.zefin.cz", country: "CZ", kind: "e-shop", note: "BD Sensors, Danfoss, Dinel, Sensit.", cats: ["level_sensor", "pressure_transmitter", "temperature_sensor"] },
 ];

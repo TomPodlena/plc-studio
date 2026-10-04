@@ -56,6 +56,10 @@ const SRC = {
   gtAccess: "https://www.manualslib.com/manual/1353729/Mitsubishi-Electric-Melsec-Iq-R-Series.html?page=31",
   naManual: "https://www.tecnical.cat/PDF/OMRON/NA/V118-E1-13.pdf",
   naPractice: "https://edata.omron.com.au/eData/NA/V417-E1-01.pdf",
+  /* GX Works3 Operating Manual: CSV globálních návěští, sloupec Access from External Device (1/0); FX5 ho nemá */
+  gxw3Labels: "https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/sh081215eng/sh081215engau.pdf",
+  /* NJ/NX Software User's Manual W501, 6-3-8 Network Publish (Publish Only / Input / Output) */
+  w501Publish: "https://files.omron.eu/downloads/latest/manual/en/w501_nj_nx-series_cpu_unit_software_users_manual_en.pdf",
 };
 
 /** Odkaz na proměnnou PLC v HMI Siemens (bez uvozovek, jak ho zapisuje export TIA). */
@@ -105,7 +109,7 @@ const SPECS: Partial<Record<PlatformKey, HmiExportSpec>> = {
   mitsubishi: {
     product: "GT Designer3 (GOT2000)",
     files: [
-      { name: "GOT_Tags.csv", format: N_("seznam tagů (návěští GX Works3) pro GOT"), status: "reference", sources: [SRC.gtLabels, SRC.gtAccess], ascii: true, paths: (t, p) => hmiPlcPath(p, t) },
+      { name: "GOT_Tags.csv", format: N_("seznam tagů (návěští GX Works3) pro GOT"), status: "reference", sources: [SRC.gtLabels, SRC.gtAccess, SRC.gxw3Labels], ascii: true, paths: (t, p) => hmiPlcPath(p, t) },
       { name: "GOT_AlarmComments.csv", format: N_("komentáře uživatelských alarmů (skupina komentářů)"), status: "reference", sources: [SRC.gtLabels], ascii: true },
       { name: "README_HMI.txt", format: N_("postup importu a stav ověření"), status: "unverified", sources: [] },
     ],
@@ -113,13 +117,16 @@ const SPECS: Partial<Record<PlatformKey, HmiExportSpec>> = {
   omron: {
     product: "NA (Sysmac Studio)",
     files: [
-      { name: "NA_Variables.txt", format: N_("proměnné zařízení k vložení (Name, Data Type, Comment, AT; TSV)"), status: "unverified", sources: [SRC.naManual, SRC.naPractice], paths: (t, p) => hmiPlcPath(p, t) + "\t" },
+      { name: "NA_Variables.txt", format: N_("proměnné zařízení k vložení (Name, Data Type, Comment, AT; TSV)"), status: "unverified", sources: [SRC.naManual, SRC.naPractice, SRC.w501Publish], paths: (t, p) => hmiPlcPath(p, t) + "\t" },
       { name: "NA_UserAlarms.txt", format: N_("uživatelské alarmy (TSV pro úpravu v Excelu; sloupce neověřené)"), status: "reference", sources: [SRC.naManual] },
       { name: "README_HMI.txt", format: N_("postup importu a stav ověření"), status: "unverified", sources: [] },
     ],
   },
 };
 SPECS.schneider = { product: "EcoStruxure Machine Expert (CODESYS Visualization)", files: SPECS.codesys!.files };
+/* profily CODESYS: export HMI jako CODESYS (vizualizace / symbolová konfigurace) */
+SPECS.wago = { product: "WAGO e!COCKPIT / CODESYS Visualization", files: SPECS.codesys!.files };
+SPECS.delta = { product: "DIADesigner-AX (CODESYS Visualization)", files: SPECS.codesys!.files };
 
 export function hmiExportSpec(plat: PlatformKey): HmiExportSpec | null { return SPECS[plat] || null; }
 
@@ -312,8 +319,8 @@ const CDS_T: Record<string, { n: string; size: number; cls: string }> = {
 };
 
 /** Výraz ST podmínky alarmu (CODESYS / TwinCAT, cesty `MAIN.` / `GVL_IO.`). */
-function alarmExpr(plat: PlatformKey, a: HmiAlarm, tags: Map<string, HmiTag>): string {
-  const p = hmiPlcPath(plat, tags.get(a.trigger.tag)!);
+function alarmExpr(plat: PlatformKey, a: HmiAlarm, tags: Map<string, HmiTag>, prj?: Project): string {
+  const p = hmiPlcPath(plat, tags.get(a.trigger.tag)!, prj);
   return a.trigger.kind === "bit" ? p : a.trigger.kind === "bitOff" ? "NOT " + p : p + " = " + a.trigger.value;
 }
 
@@ -327,7 +334,7 @@ function cdsSymbolXml(prj: Project, plat: PlatformKey, m: HmiModel): string {
     for (const seg of path) { if (!n.kids.has(seg)) n.kids.set(seg, { kids: new Map() }); n = n.kids.get(seg)!; }
     n.type = CDS_T[t.type].n; n.access = t.access === "RW" ? "ReadWrite" : "Read";
   };
-  for (const t of m.tags) add(["Application", ...hmiPlcPath(plat, t).split(".")], t);
+  for (const t of m.tags) add(["Application", ...hmiPlcPath(plat, t, prj).split(".")], t);
   const ind = (d: number) => "  ".repeat(d);
   const nodeXml = (name: string, n: N, d: number): string => n.kids.size
     ? ind(d) + '<Node name="' + xe(name) + '">\n' + [...n.kids].map(([k, c]) => nodeXml(k, c, d + 1)).join("") + ind(d) + "</Node>\n"
@@ -339,18 +346,18 @@ function cdsSymbolXml(prj: Project, plat: PlatformKey, m: HmiModel): string {
     "  <NodeList>\n" + [...root.kids].map(([k, c]) => nodeXml(k, c, 2)).join("") + "  </NodeList>\n</Symbolconfiguration>\n";
 }
 
-function cdsAlarmCsv(plat: PlatformKey, m: HmiModel): string {
+function cdsAlarmCsv(plat: PlatformKey, m: HmiModel, prj?: Project): string {
   const tags = new Map(m.tags.map(t => [t.name, t]));
   const CLS: Record<string, string> = { fault: "Error", stop: "Warning", warning: "Info" };
   const L = ["ID;Observation type;Details;Deactivation;Class;Message;On-delay;Off-delay;Latch var 1;Latch var 2"];
-  for (const a of m.alarms) L.push([a.id, "Digital", alarmExpr(plat, a, tags), "", CLS[a.cls], tsv(a.text).replace(/;/g, ","), "", "", "", ""].join(";"));
+  for (const a of m.alarms) L.push([a.id, "Digital", alarmExpr(plat, a, tags, prj), "", CLS[a.cls], tsv(a.text).replace(/;/g, ","), "", "", "", ""].join(";"));
   return "﻿" + L.join("\r\n") + "\r\n";
 }
 
 function codesysFiles(prj: Project, plat: PlatformKey, m: HmiModel): Record<string, string> {
   return {
     "Symbolconfiguration_PLCdesk.xml": cdsSymbolXml(prj, plat, m),
-    "AlarmGroup_PLCdesk.csv": cdsAlarmCsv(plat, m),
+    "AlarmGroup_PLCdesk.csv": cdsAlarmCsv(plat, m, prj),
     "README_HMI.txt": readme(prj, plat, SPECS[plat]!, [
       tr("Vizualizace ve stejném projektu čte proměnné přímo (MAIN.…, GVL_IO.…) — tagy není třeba zakládat; obrazovky postav podle náhledů hmi_*.svg."),
       tr("Pro OPC UA / externí HMI přidej objekt Symbol Configuration a zaškrtni proměnné ze Symbolconfiguration_PLCdesk.xml (soubor je referenční seznam, CODESYS ho generuje sám)."),
@@ -365,11 +372,11 @@ function beckhoffFiles(prj: Project, m: HmiModel): Record<string, string> {
   const tags = new Map(m.tags.map(t => [t.name, t]));
   const S = ["Name;ADS symbol;TcHmi mapped symbol;TcHmi binding;Type;Access;Description"];
   for (const t of m.tags) {
-    const p = hmiPlcPath("beckhoff", t);
+    const p = hmiPlcPath("beckhoff", t, prj);
     S.push([t.name, p, "ADS.PLC1." + p, "%s%PLC1." + p + "%/s%", t.type, t.access === "RW" ? "ReadWrite" : "Read", tsv(t.desc).replace(/;/g, ",")].join(";"));
   }
   const A = ["ID;Name;Class;Priority;Condition (ST);Text;Acknowledge"];
-  for (const a of m.alarms) A.push([a.id, a.name, a.cls, a.priority, alarmExpr("beckhoff", a, tags), tsv(a.text).replace(/;/g, ","), a.ackRequired ? "cmdAck" : ""].join(";"));
+  for (const a of m.alarms) A.push([a.id, a.name, a.cls, a.priority, alarmExpr("beckhoff", a, tags, prj), tsv(a.text).replace(/;/g, ","), a.ackRequired ? "cmdAck" : ""].join(";"));
   return {
     "TcHmi_Symbols.csv": "﻿" + S.join("\r\n") + "\r\n",
     "AlarmList.csv": "﻿" + A.join("\r\n") + "\r\n",
@@ -394,10 +401,11 @@ function mitsubishiFiles(prj: Project, m: HmiModel): Record<string, string> {
     "GOT_Tags.csv": T.join("\r\n") + "\r\n",
     "GOT_AlarmComments.csv": C.join("\r\n") + "\r\n",
     "README_HMI.txt": readme(prj, "mitsubishi", SPECS.mitsubishi!, [
-      tr("GOT čte jen globální návěští s volbou „Access from External Device“: v GX Works3 přesuň proměnné řízení stroje (modeAuto, cmdAutoStart, cmdAck, manRun_*, …) z lokálních návěští MAIN do globálních a volbu zaškrtni — jinak je GOT neuvidí."),
+      tr("Proměnné řízení stroje (modeAuto, cmdAutoStart, cmdAck, manRun_*, …) a stav bloků (instX_status, instX_value…) jsou v generovaném programu globální návěští (GlobalLabels.csv, sloupec Access from External Device = 1) — GOT_Tags.csv na ně odkazuje přímo."),
       tr("V GT Designer3: Project → Import Other Data → Global Label (z projektu GX Works3)."),
       tr("Komentáře alarmů z GOT_AlarmComments.csv vlož do skupiny komentářů a nastav User Alarm Observation na bity ze sloupce Trigger."),
     ], [
+      tr("Import globálních návěští do GT Designer3 a volba Access from External Device platí pro iQ-R (RCPU); FX5 volbu nemá — u FX5 přiřaď návěštím z GOT_Tags.csv operandy (sloupec Assign v GX Works3, např. M / D) a v GOT použij operandy."),
       tr("Rozložení CSV pro import komentářů GT Designer3 není veřejně popsané — soubory jsou referenční seznamy (ASCII)."),
     ]),
   };
@@ -412,7 +420,7 @@ function omronFiles(prj: Project, m: HmiModel): Record<string, string> {
     "NA_Variables.txt": V.join("\r\n") + "\r\n",
     "NA_UserAlarms.txt": A.join("\r\n") + "\r\n",
     "README_HMI.txt": readme(prj, "omron", SPECS.omron!, [
-      tr("NA čte jen globální proměnné řídicího systému s Network Publish: proměnné řízení stroje (modeAuto, cmdAutoStart, cmdAck, manRun_*, …) a výstupy bloků přesuň z lokálních proměnných MAIN do globálních (Publish Only / Input / Output)."),
+      tr("Proměnné řízení stroje (modeAuto, cmdAutoStart, cmdAck, manRun_*, …) a stav bloků (instX_status, instX_value…) jsou v generovaném programu globální proměnné s Network Publish = Publish Only (Variables.txt) — NA je čte a zapisuje přes CIP."),
       tr("V Sysmac Studiu: NA → Variable Mapping; proměnné zařízení vlož z NA_Variables.txt (sloupce Name, Data Type, Comment, AT) a namapuj na globální proměnné HMI."),
       tr("Uživatelské alarmy: zkopíruj do Excelu (od Sysmac Studio 1.27) a doplň řádky z NA_UserAlarms.txt."),
     ], [
@@ -436,7 +444,7 @@ export function hmiFiles(prj: Project, plat: PlatformKey, m: HmiModel = buildHmi
   switch (plat) {
     case "siemens": return siemensFiles(prj, m);
     case "rockwell": return rockwellFiles(prj, ascii(prj, m));
-    case "codesys": case "schneider": return codesysFiles(prj, plat, m);
+    case "codesys": case "schneider": case "wago": case "delta": return codesysFiles(prj, plat, m);
     case "beckhoff": return beckhoffFiles(prj, m);
     case "mitsubishi": return mitsubishiFiles(prj, ascii(prj, m));
     case "omron": return omronFiles(prj, m);
