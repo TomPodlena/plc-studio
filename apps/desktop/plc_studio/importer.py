@@ -24,15 +24,15 @@ from tkinter import filedialog, messagebox, ttk
 
 from . import ai_client, theme
 from .bridge import BridgeError
-from .i18n import N_, _
+from .i18n import N_, _, _n
 from .widgets import Table, note_box, scrolled_text, set_text, wrap_label
 
 PAGES = [N_("Podklady"), N_("Rozpoznáno"), N_("Analýza AI"), N_("Kontrola a převzetí")]
 PASTE_NAME = "vlozeny_text.txt"      # vložený text = další soubor podkladů (cituje se jménem)
 
 CONF_LABEL = {"sure": N_("jisté"), "guess": N_("odhad"), "missing": N_("chybí doklad")}
-CONF_BG = {"sure": "#E5F3EA", "guess": theme.WARN_BG, "missing": theme.DANGER_BG}
-CONF_FG = {"sure": theme.ACCENT, "guess": theme.WARN, "missing": theme.ERR}
+CONF_BG = {"sure": theme.OK_BG, "guess": theme.WARN_BG, "missing": theme.DANGER_BG}
+CONF_FG = {"sure": theme.OK, "guess": theme.WARN, "missing": theme.ERR}
 
 ERRORS = {
     "no_key": N_("Chybí API klíč — zadej ho v kroku AI návrh."),
@@ -364,7 +364,10 @@ class ImportWizard:
             S.update(sig=sig, ex=res["ex"], exact=res["proposal"], ai=None, merged=None,
                      est=None, est_key=None, skip=set(), tab=0)
             n = len(res["proposal"]["prj"]["devices"])
-            S["msg"] = ("ok", _("Rozpoznáno: {n} zařízení z {f} souborů.", n=n, f=len(inputs)))
+            # tvar podle čísla (z 1 souboru / ze 2 souborů…; angl. 1 device / 2 devices)
+            S["msg"] = ("ok", _n(n, N_("Rozpoznáno: {n} zařízení|Rozpoznáno: {n} zařízení|"
+                                       "Rozpoznáno: {n} zařízení")) + " "
+                        + _n(len(inputs), N_("z {n} souboru.|ze {n} souborů.|z {n} souborů.")))
         S["page"] = 1
         self.render()
         return True
@@ -904,7 +907,7 @@ class ImportWizard:
         prog = prj["program"]
         f_lock = tab(_("E-stop a blokování"))
         wrap_label(f_lock, _("E-stop a kryty se převezmou jen jako informativní signály "
-                             "programu — bezpečnostní funkce PLC Studio negeneruje."),
+                             "programu — bezpečnostní funkce PLCdesk negeneruje."),
                    side="bottom", pady=(6, 0))
         t_lock = make_table(f_lock, [("kind", _("Funkce"), 120, False), ("dev", _("Zařízení"), 90, False),
                                      ("desc", _("Popis"), 220, True), ("conf", _("Jistota"), 90, False),

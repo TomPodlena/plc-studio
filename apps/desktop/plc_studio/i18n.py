@@ -48,3 +48,34 @@ def _(cs: str, **params) -> str:
 def N_(cs: str) -> str:
     """Značka pro sběr klíčů — text se přeloží až při použití přes ``_()``."""
     return cs
+
+
+# Tvary podle čísla: klíč nese české tvary oddělené „|“ (1 | 2–4 | 0 a 5+), překlad tvary
+# cílového jazyka (angličtina, němčina, španělština 1 | ostatní; čínština jeden tvar).
+# Stejné pravidlo má web (apps/web/src/plural.js, trn).
+_PLURAL = {
+    "cs": lambda n: 0 if n == 1 else 1 if 2 <= n <= 4 else 2,
+    "en": lambda n: 0 if n == 1 else 1,
+    "de": lambda n: 0 if n == 1 else 1,
+    "es": lambda n: 0 if n == 1 else 1,
+    "zh": lambda n: 0,
+}
+
+
+def plural_index(n, lang: str | None = None) -> int:
+    """Index tvaru pro číslo ``n`` (desetinné číslo = poslední tvar)."""
+    x = abs(n)
+    if x != int(x):
+        return 99
+    return _PLURAL.get(lang or _state["lang"], _PLURAL["en"])(int(x))
+
+
+def _n(n, key: str, **params) -> str:
+    """Překlad ve tvaru pro číslo ``n``: ``_n(3, N_("{n} soubor|{n} soubory|{n} souborů"))``.
+
+    Klíč se předává přes ``N_()`` (sběr klíčů); ``{n}`` se dosadí samo."""
+    forms = (_state["dict"].get(key) or key).split("|")
+    text = forms[min(plural_index(n), len(forms) - 1)]
+    params = {"n": n, **params}
+    return _PLACEHOLDER.sub(
+        lambda m: str(params[m.group(1)]) if m.group(1) in params else m.group(0), text)

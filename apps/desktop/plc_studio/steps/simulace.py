@@ -58,7 +58,7 @@ def build(app, parent) -> None:
     by_id = {s["id"]: s for s in scenarios}
     st = {"run": None, "t": 0.0, "frame": -1, "playing": False, "job": None, "log_n": 0,
           "times": [], "cursor": None}
-    fbs = [d for d in app.prj["devices"] if d["cls"] in ("Motor", "Ventil")]
+    fbs = [d for d in app.prj["devices"] if d["cls"] in ("Motor", "Ventil", "Vfd", "PosDrive", "PropValve", "Axis")]
     estop = app.dev_by_id(app.prj["program"]["estop"])
     enable_src = " AND ".join(d["name"] for d in app.prj["devices"]
                               if (estop and d["id"] == estop["id"])
@@ -145,7 +145,7 @@ def build(app, parent) -> None:
                    height=min(9, len(fbs) + 1))
     states.pack(fill="x", pady=(2, 8))
     states.tv.tag_configure("err", foreground=theme.ERR)
-    states.tv.tag_configure("on", foreground=theme.ACCENT)
+    states.tv.tag_configure("on", foreground=theme.STATE_ON)
     states.tv.tag_configure("off", foreground=theme.DIM)
     states.add("enable", ("enable", "", "", ""))
     for d in fbs:
@@ -268,7 +268,7 @@ def build(app, parent) -> None:
     mx: dict = {"tbl": None, "data": None}
     for _text, tag in LEVEL.values():
         checks_tbl.tv.tag_configure(tag, foreground={
-            "lv_ok": theme.ACCENT, "lv_info": theme.DIM, "lv_warn": theme.WARN,
+            "lv_ok": theme.OK, "lv_info": theme.DIM, "lv_warn": theme.WARN,
             "lv_err": theme.ERR}[tag])
     checks: list[dict] = []
 
@@ -379,8 +379,17 @@ def build(app, parent) -> None:
             tags=() if ok else ("err",))
         for d in fbs:
             s = fr["dev"][str(d["id"])]
+            if d["cls"] == "Axis":           # servoosa po síti: „výstup“ = osa jede, hlášení = poloha a stav
+                on = bool(s.get("moving"))
+                u = d.get("unit") or ""
+                fb = _("poloha {v} {unit}", v=f"{s.get('value', 0):g}", unit=u).strip() + "  " + "  ".join(
+                    f"{lbl} {ON if s.get(k) else OFF}" for k, lbl in (("powered", _("zapnuto")), ("homed", _("referováno"))))
+                states.tv.item(str(d["id"]), values=(d["name"], s["label"], ON if on else OFF, fb),
+                               tags=("err",) if s["error"] else ("on",) if on else ("off",))
+                continue
             mine = [e for e in app.prj["io"] if e["devId"] == d["id"]]
-            out = next((e for e in mine if e["dir"] == "DO"), None)
+            out = next((e for e in mine if e["dir"] == "DO" and e["sig"] in ("outRun", "outOpen", "outStart")), None) \
+                or next((e for e in mine if e["dir"] == "DO"), None)
             on = bool(out and io.get(out["key"]))
             fb = "  ".join(f"{_(SIG[e['sig']]) if e['sig'] in SIG else e['sig']} "
                            f"{ON if io.get(e['key']) else OFF}"

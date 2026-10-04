@@ -1,4 +1,4 @@
-# PLC Studio
+# PLCdesk
 
 Návrh PLC systému od zadání po kód a dokumentaci — pro malé integrátory, strojírny a údržby.
 Workflow: **zadání (AI návrh) → zařízení → I/O → schémata → program (simulace a ověření) → generování kódu → dokumentace → kusovník**, multiplatformně:
@@ -61,7 +61,7 @@ apps/desktop      desktopová aplikace (Python + tkinter) nad stejným jádrem �
 pnpm -C packages/core build    # tsc → dist
 pnpm -C packages/core test     # node --test (bez externích závislostí)
 pnpm web                       # build + statický server z kořene → http://localhost:8080/apps/web/
-apps\desktop\PLCStudio.bat     # desktopová aplikace (Python 3.9+ s tkinter, Node 18+)
+apps\desktop\PLCdesk.bat       # desktopová aplikace (Python 3.9+ s tkinter, Node 18+; PLCStudio.bat zůstává)
 ```
 
 `apps/web/prototype.html` je původní single-file prototyp (claude.ai artifact) — historický, workflow

@@ -31,13 +31,15 @@ export const IMPORT_PRICES_DATE = "2026-10-03";
 export const IMPORT_PRICES_SRC = "https://platform.claude.com/docs/en/about-claude/pricing";
 /** in/out = USD za 1M tokenů; ctx = kontextové okno; hires = vysoké rozlišení obrázků (Claude 4.7+). */
 export const IMPORT_MODELS = {
-  "claude-sonnet-5-5": { in: 2, out: 10, ctx: 1000000, hires: true },
-  "claude-opus-5-5": { in: 4, out: 20, ctx: 1000000, hires: true },
-  "claude-fable-5-1": { in: 10, out: 50, ctx: 1000000, hires: true },
-  "claude-haiku-4-5-20251001": { in: 1, out: 5, ctx: 200000, hires: false },
+  "claude-sonnet-5-5": { in: 2, out: 10, ctx: 1000000, hires: true, cacheRead: 0.1 },
+  "claude-opus-5-5": { in: 4, out: 20, ctx: 1000000, hires: true, cacheRead: 0.05 },
+  "claude-fable-5-1": { in: 10, out: 50, ctx: 1000000, hires: true, cacheRead: 0.025 },
+  "claude-haiku-4-5-20251001": { in: 1, out: 5, ctx: 200000, hires: false, cacheRead: 0.1 },
 };
+/** Zápis do 5minutové cache = 1,25× cena vstupu (čtení: `cacheRead` × cena vstupu). */
+const CACHE_WRITE = 1.25;
 /** Neznámý model (vlastní ID): počítá se jako nejdražší, ať odhad nepodstřelí. */
-const UNKNOWN_MODEL = { in: 10, out: 50, ctx: 200000, hires: true, unknown: true };
+const UNKNOWN_MODEL = { in: 10, out: 50, ctx: 200000, hires: true, cacheRead: 0.1, unknown: true };
 
 export const API_LIMITS = {
   requestBytes: 32 * 1024 * 1024,
@@ -53,12 +55,25 @@ const PART_BYTES = 30 * 1024 * 1024;
 export const IMPORT_MAX_TOKENS = 32000;
 /** Délka jednoho kusu textového souboru ve znacích (~65k tokenů). */
 const TEXT_CHUNK = 200000;
-/** Odhad tokenů na stranu PDF: textová vrstva (střed pásma 1 500–3 000). */
-const PDF_PAGE_TEXT = 2250;
-/** Odhad tokenů obrazu strany PDF (A4 na šířku zmenšené na limit modelu). */
-const PDF_PAGE_IMG_HI = 4784, PDF_PAGE_IMG_STD = 1568;
-/** Odhad výstupu: zařízení na stranu PDF, strop zařízení z podkladů, tokeny JSON na zařízení. */
-const DEV_PER_PAGE = 0.4, DEV_DOC_CAP = 150, TOK_PER_DEV = 200;
+/* Kalibrace podle ostrého testu 2026-10-03 (Sonnet 5.5, viz report agenta B):
+   - vstup PDF: schéma Festo 9 stran = 22,1k tokenů celkem, I/O list Unitronics 2 strany = 6,5k
+     → po odečtení instrukcí ~2,3–2,5k tokenů na stranu (text + obraz); počítá se 3000 (+25 %);
+   - výstup: 9 zařízení = 12,1k, 57 zařízení = 20,5k tokenů → ~9k přemýšlení a shrnutí
+     + ~175 tokenů JSON na zařízení s io a evidencí; počítá se 9000 + 200 na zařízení. */
+/** Tokeny na stranu PDF (text + obraz strany) — modely s vysokým / standardním rozlišením. */
+const PDF_PAGE_HI = 3000, PDF_PAGE_STD = 2400;
+/** Výstup: přemýšlení a shrnutí na odpověď (pokračování méně), tokeny JSON na zařízení. */
+const OUT_BASE = 9000, OUT_BASE_CONT = 5000, TOK_PER_DEV = 200;
+/** Nejvýš zařízení v jedné odpovědi; víc → navazující odpovědi („more": true). */
+export const DEV_PER_RESPONSE = 60;
+/** Nejvýš navazujících odpovědí na jednu část podkladů. */
+const MAX_ROUNDS = 8;
+/** Odhad zařízení z podkladů (konzervativně; text PDF se nečte — u schémat EPLAN/Festo jsou
+    fonty s vlastním kódováním): „lehké" PDF (do 150 kB na stranu: tabulka, I/O list) první
+    2 strany po 30, dál 4 na stranu; „těžká" strana (výkres, sken) 4; obrázek 3; text 1 na
+    150 tokenů; podklady jedné části nejvýš 300 zařízení. Ověřeno: I/O list 2 str. → 60
+    (skutečnost 57), schéma 9 str. → 36 (skutečnost 9). */
+const DEV_LIGHT_PAGE = 30, LIGHT_PAGES = 2, DEV_PAGE = 4, LIGHT_PAGE_BYTES = 150000, DEV_DOC_CAP = 300;
 /** Znaky na token pro češtinu / kód (novější tokenizér dává víc tokenů než 4 znaky/token). */
 const CHARS_PER_TOKEN = 3;
 
@@ -140,8 +155,9 @@ export function imageSize(b64) {
   return null;
 }
 
-/** Počet stran PDF: objekty /Type /Page, jinak /Count stromu stran; null = nepoznáno
-    (objekty ve komprimovaných proudech). */
+/** Počet stran PDF: /Count kořene stromu stran (/Type /Pages bez /Parent, platí poslední
+    definice — PDF uložené přírůstkově má objekty stran vícekrát), jinak počet různých objektů
+    /Type /Page; null = nepoznáno (objekty v komprimovaných proudech). */
 export function pdfPages(b64) {
   let s;
   try {
@@ -149,11 +165,18 @@ export function pdfPages(b64) {
     s = "";
     for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
   } catch { return null; }
-  const n = (s.match(/\/Type\s*\/Page(?![A-Za-z])/g) || []).length;
-  if (n) return n;
-  let max = 0;
-  for (const m of s.matchAll(/\/Count\s+(\d+)/g)) max = Math.max(max, +m[1]);
-  return max || null;
+  let root = 0;
+  const pages = new Set();
+  for (const m of s.matchAll(/(\d+)\s+(\d+)\s+obj\b/g)) {
+    const end = s.indexOf("endobj", m.index);
+    const dict = s.slice(m.index, Math.min(end < 0 ? s.length : end, m.index + 4000));
+    const head = dict.split(/\bstream\b/)[0];
+    if (/\/Type\s*\/Pages\b/.test(head)) {
+      const c = head.match(/\/Count\s+(\d+)/);
+      if (c && !/\/Parent\b/.test(head)) root = +c[1];
+    } else if (/\/Type\s*\/Page(?![A-Za-z])/.test(head)) pages.add(m[1] + " " + m[2]);
+  }
+  return root || pages.size || null;
 }
 
 /** Tokeny obrázku po zmenšení na limit modelu. */
@@ -216,7 +239,7 @@ function importItems(ex, files, model, { code = true } = {}) {
       const bytes = String(f.data).length;
       let pages = Number(f.pages) > 0 ? Number(f.pages) : pdfPages(f.data), guessed = false;
       if (!pages) { pages = Math.max(1, Math.round(b64size(f.data) / 80000)); guessed = true; }
-      const tokens = pages * (PDF_PAGE_TEXT + (mi.hires ? PDF_PAGE_IMG_HI : PDF_PAGE_IMG_STD));
+      const tokens = pages * (mi.hires ? PDF_PAGE_HI : PDF_PAGE_STD);
       if (bytes > PART_BYTES) { skip(f.name, tr("{name}: PDF má {mb} MB, dotaz smí mít nejvýš 32 MB — rozděl ho na menší soubory (např. tisk vybraných stran do PDF).", { name: f.name, mb: (bytes / 1048576).toFixed(1) })); continue; }
       if (pages > pageLimit) { skip(f.name, tr("{name}: PDF má {pages} stran, dotaz smí mít nejvýš {max} — rozděl ho na menší soubory.", { name: f.name, pages, max: pageLimit })); continue; }
       if (tokens > mi.ctx - IMPORT_MAX_TOKENS - 20000) { skip(f.name, tr("{name}: PDF se nevejde do kontextu modelu (odhad {tok} tokenů) — rozděl ho na menší soubory.", { name: f.name, tok: tokens })); continue; }
@@ -292,44 +315,89 @@ export function splitImport(ex, files, model, opts = {}) {
 
 /* ------------------------------------------------------------------ instrukce */
 
+/** Projekt (návrh z přesných dat) jako surová odpověď v protokolu AI (názvy místo id). */
+export function rawFromProject(prj) {
+  if (!prj || !Array.isArray(prj.devices)) return null;
+  const nameOf = id => (prj.devices.find(d => d.id === id) || { name: "" }).name;
+  return {
+    name: (prj.meta && prj.meta.name) || "",
+    devices: prj.devices.map(d => {
+      const o = { name: d.name, cls: d.cls, desc: d.desc || "", opt: { ...(d.opt || {}) }, unit: d.unit || "", rmin: d.rmin, rmax: d.rmax };
+      for (const k of ["limLo", "limHi", "setpoint"]) if (Number.isFinite(d[k])) o[k] = d[k];
+      if (d.role) o.role = d.role;
+      return o;
+    }),
+    io: (prj.io || []).map(e => ({ dev: nameOf(e.devId), sig: e.sig, addr: e.addr || "", tag: e.tag, cmt: e.cmt || "", ...(e.nc ? { nc: true } : {}) })),
+    estop: nameOf(prj.program && prj.program.estop),
+    interlocks: ((prj.program && prj.program.interlocks) || []).map(nameOf).filter(Boolean),
+    seq: ((prj.program && prj.program.seq) || []).map(x => ({ dev: nameOf(x.dev), act: x.act, cond: x.cond, timeS: x.timeS })),
+    takt: prj.meta && Number.isFinite(prj.meta.takt) ? prj.meta.takt : null,
+  };
+}
+
+const cut = (s, n) => { s = String(s ?? "").replace(/[;\n]+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+
+/**
+ * Známý stav kompaktně (jeden řádek na zařízení: název; třída; signály sig=adresa[ tag]; popis).
+ * Zdroje: návrh z přesných dat (`prj`) a výsledek předchozích dotazů (`known`, surový JSON).
+ */
+function knownState(prj, known) {
+  const acc = combineRaw(rawFromProject(prj), known);
+  if (!acc || !acc.devices.length) return "";
+  const ioBy = {};
+  for (const e of acc.io) (ioBy[e.dev] = ioBy[e.dev] || []).push(e);
+  const lines = acc.devices.map(d => {
+    const opt = Object.entries(d.opt || {}).filter(([, v]) => v).map(([k]) => k).join(",");
+    const sig = (ioBy[d.name] || []).map(e => e.sig + "=" + (e.addr || "?") + (e.tag && e.tag !== d.name + "_" + e.sig ? " " + e.tag : "")).join(", ");
+    const lim = ["unit", "rmin", "rmax", "limLo", "limHi", "setpoint", "role"].filter(k => d[k] !== undefined && d[k] !== "" && d[k] !== null).map(k => k + "=" + d[k]).join(" ");
+    return [d.name, (d.cls || "?") + (opt ? "(" + opt + ")" : ""), sig, cut(d.desc, 50), d.cls === "AnalogIn" || d.cls === "AnalogOut" || d.role ? lim : ""].filter((v, i) => i < 4 || v).join("; ");
+  });
+  const p = acc;
+  return "\nZNÁMÝ STAV — přesná data z exportů a programů" + (known ? " a výsledky předchozích dotazů" : "") + " (název; třída(volby); signál=adresa [tag]; popis):\n"
+    + lines.join("\n") + "\n"
+    + (p.estop ? "E-stop: " + p.estop + "\n" : "")
+    + (p.interlocks.length ? "Blokování: " + p.interlocks.join(", ") + "\n" : "")
+    + (p.seq.length ? "Sekvence (" + p.seq.length + " kroků): " + p.seq.map(s => s.act === "wait" ? "wait " + s.timeS + " s" : s.dev + " " + s.act).join(" → ") + "\n" : "")
+    + (Number.isFinite(p.takt) ? "Takt: " + p.takt + " s\n" : "");
+}
+
 /** Přesně zjištěné údaje z jádra jako kompaktní text pro kontext. */
-function extractedContext(ex, prj) {
+function extractedContext(ex, prj, known) {
   let s = "";
   if (ex && Array.isArray(ex.files) && ex.files.length) {
     s += "\nSOUBORY ZPRACOVANÉ PŘESNÝM PARSEREM (název; formát; signálů; programů):\n"
       + ex.files.map(f => [f.name, f.fmt, f.signals, f.pous].join("; ")).join("\n") + "\n";
   }
   if (ex && ex.platform) s += "Zdrojová platforma (odhad jádra): " + ex.platform + "\n";
-  if (ex && Array.isArray(ex.signals) && ex.signals.length) {
-    s += "\nSIGNÁLY ZJIŠTĚNÉ PŘESNĚ (tag; adresa; směr; typ; komentář; zařízení; signál; zdroj):\n"
-      + ex.signals.map(g => [g.tag, g.addr, g.dir, g.dt, g.cmt, g.dev || "", g.sig || "",
-        g.src ? g.src.file + (g.src.line ? ":" + g.src.line : "") : ""].map(v => String(v ?? "").replace(/[;\n]/g, " ")).join("; ")).join("\n") + "\n";
+  // signály přesně zjištěné, které návrh z přesných dat nepřiřadil žádnému zařízení
+  const tags = new Set(((prj && prj.io) || []).map(e => e.tag));
+  const free = ((ex && ex.signals) || []).filter(g => !tags.has(g.tag));
+  if (free.length) {
+    s += "\nSIGNÁLY ZJIŠTĚNÉ PŘESNĚ, BEZ ZAŘÍZENÍ (tag; adresa; směr; typ; komentář; zdroj):\n"
+      + free.map(g => [g.tag, g.addr, g.dir, g.dt, cut(g.cmt, 60), g.src ? g.src.file + (g.src.line ? ":" + g.src.line : "") : ""].map(v => cut(v, 80)).join("; ")).join("\n") + "\n";
   }
-  if (prj && Array.isArray(prj.devices) && prj.devices.length) {
-    const nameOf = id => (prj.devices.find(d => d.id === id) || { name: "" }).name;
-    s += "\nNÁVRH Z PŘESNÝCH DAT (neměň ho; doplň, co chybí; rozpor uveď v \"conflicts\"):\n"
-      + JSON.stringify({
-        devices: prj.devices.map(d => ({ name: d.name, cls: d.cls, desc: d.desc, opt: d.opt, unit: d.unit, rmin: d.rmin, rmax: d.rmax, limLo: d.limLo, limHi: d.limHi, setpoint: d.setpoint, role: d.role })),
-        estop: nameOf(prj.program && prj.program.estop),
-        interlocks: ((prj.program && prj.program.interlocks) || []).map(nameOf),
-        seq: ((prj.program && prj.program.seq) || []).map(x => ({ dev: nameOf(x.dev), act: x.act, cond: x.cond, timeS: x.timeS })),
-        takt: prj.meta && Number.isFinite(prj.meta.takt) ? prj.meta.takt : null,
-      }) + "\n";
-  }
-  return s;
+  return s + knownState(prj, known);
 }
 
 /**
  * Instrukce pro AI import. Protokol je stejný jako u AI návrháře (devices, estop, interlocks,
  * seq, takt, limLo/limHi, setpoint, role, note, questions) a navíc io, evidence, conflicts,
  * missing. Prompt je česky v každém jazyce UI; cizí jazyk přidá pokyn pro texty uživateli.
- * `prj` = návrh z přesných dat (inferProject), `prev` = výsledek předchozích dotazů,
- * `part` = { i, n } u rozdělených podkladů.
+ * `prj` = návrh z přesných dat (inferProject), `known` (dříve `prev`) = složený výsledek
+ * předchozích dotazů, `part` = { i, n } u rozdělených podkladů, `maxDevs` = nejvýš zařízení
+ * v jedné odpovědi.
+ *
+ * Protokol je vždy DOPLNĚK proti známému stavu (přesná data + předchozí dotazy): AI vrací jen
+ * nová zařízení a doplnění / opravy známých, ne celý projekt — jinak u velkých projektů
+ * odpověď přeteče limit. Bez známého stavu je doplněk celá sestava. Víc než `maxDevs`
+ * zařízení → "more": true a pokračování v navazující odpovědi (viz buildImportMessages).
  */
-export function importInstructions(ex, prj, { prev = null, part = null } = {}) {
+export function importInstructions(ex, prj, { known = null, prev = null, part = null, maxDevs = DEV_PER_RESPONSE } = {}) {
+  known = known || prev;
+  const hasKnown = !!((prj && prj.devices && prj.devices.length) || (known && Array.isArray(known.devices) && known.devices.length));
   const l = getLang();
   const langNote = l === "cs" ? "" : '\nTexty určené uživateli (otázky "questions", poznámka "note", popisy zařízení "desc", "missing", "conflicts[].note", "evidence[].note") piš v jazyce „' + LANGS[l] + '" — tento pokyn má přednost před pokynem psát popisy česky; označení zařízení, tagy, citace "quote" a klíče JSON zůstávají beze změny.';
-  return "Jsi zkušený technik průmyslové automatizace v nástroji PLC Studio. Úkol: ZPĚTNĚ zjistit z podkladů STÁVAJÍCÍHO stroje (elektroschémata, I/O listy, štítky, fotky rozvaděče, P&ID, popis funkce, program PLC) sestavu zařízení řízených PLC, jejich I/O, blokování, sekvenci a meze — a u každé položky doložit, odkud ji víš.\n"
+  return "Jsi zkušený technik průmyslové automatizace v nástroji PLCdesk. Úkol: ZPĚTNĚ zjistit z podkladů STÁVAJÍCÍHO stroje (elektroschémata, I/O listy, štítky, fotky rozvaděče, P&ID, popis funkce, program PLC) sestavu zařízení řízených PLC, jejich I/O, blokování, sekvenci a meze — a u každé položky doložit, odkud ji víš.\n"
     + "Dostupné třídy zařízení (jiné neexistují):\n"
     + '- "Motor" (M1…): pohon/čerpadlo/dopravník (typicky stykač -K a motor -M); opt.fbk = zpětné hlášení běhu zapojené do vstupu PLC (pomocný kontakt stykače), opt.fault = vstup poruchy (pomocný kontakt jističe / motorového spouštěče -Q, termistor)\n'
     + '- "Ventil" (Y1…): cívka ventilu / pneumatický či hydraulický válec; opt.fbkOpen, opt.fbkClosed = koncáky polohy zapojené do PLC\n'
@@ -343,15 +411,83 @@ export function importInstructions(ex, prj, { prev = null, part = null } = {}) {
     + "3. OZNAČENÍ podle IEC 81346 ze schémat: -M1 → \"M1\", =A1+S2-Y3 → \"Y3\" (bez =, + a -). Zachovej původní číslo; jen třídu zařízení urči podle funkce. Při kolizi stejného označení ve dvou částech stroje doplň příponu (M1_2) a uveď to v \"conflicts\".\n"
     + "4. Do sestavy patří jen zařízení, jejichž signál je zapojen do PLC (svorka vstupní/výstupní karty, adresa, tag). Silové obvody bez vazby na PLC nepřidávej, jen je zmiň v \"note\".\n"
     + '5. BEZPEČNOST: E-stop a kryty, světelné závory, zámky převezmi JEN jako signály (DI), pokud je jejich kontakt zapojen do PLC (např. zpětné hlášení bezpečnostního relé). NIKDY neodvozuj ani nepopisuj bezpečnostní okruh, bezpečnostní relé, safety PLC ani bezpečnostní logiku a nedávej je do sekvence. Název E-stop DI vrať v "estop"; ochranné prvky, které podle podkladu zastavují stroj, vrať v "interlocks" (funkční blokování, ne bezpečnostní funkce). Nouzové zastavení nevymýšlej — chybí-li v podkladu, uveď to v "missing".\n'
-    + "6. PŘESNÁ DATA z exportů a programů (viz níže) jsou ověřená: neměň je, jen doplň (popisy, třídy, chybějící signály, meze ze štítků). Pokud podklad tvrdí něco jiného, nech přesnou hodnotu a rozpor zapiš do \"conflicts\": [{\"what\":\"<klíč evidence>\",\"note\":\"v čem se liší\",\"src\":[...]}].\n"
+    + "6. PŘESNÁ DATA z exportů a programů (viz ZNÁMÝ STAV níže) jsou ověřená: neměň je, jen doplň (popisy, chybějící signály a adresy, meze ze štítků). Pokud podklad tvrdí něco jiného, nech přesnou hodnotu a rozpor zapiš do \"conflicts\": [{\"what\":\"<klíč evidence>\",\"note\":\"v čem se liší\",\"src\":[...]}].\n"
     + "7. ADRESY: v \"io\" uveď skutečné zapojení: {\"dev\":\"M1\",\"sig\":\"fbkRunning|fault|outRun|fbkOpen|fbkClosed|outOpen|raw|in|out\",\"addr\":\"%I0.0\",\"tag\":\"původní tag\",\"cmt\":\"původní popis\",\"nc\":true|false}. Adresu převeď do Siemens notace (%I bajt.bit, %Q bajt.bit, %IW / %QW bajt); CODESYS %IX0.0 = %I0.0. Není-li převod jednoznačný (Rockwell Local:1:I.Data.3, Mitsubishi X/Y, Omron), nech \"addr\" prázdnou a původní adresu dej do \"cmt\". nc = rozpínací kontakt.\n"
     + '8. SEKVENCE jen tehdy, když ji podklad popisuje (popis funkce, diagram, program): kroky {"dev","act":"start|stop|open|close|wait|waitOn|waitOff","cond":"fbk|time","timeS"}; wait má dev "" a cond "time"; waitOn/waitOff mají dev = DI a cond "fbk". Časy, takt a meze jen z podkladu; jinak je vynech a uveď v "missing".\n'
     + "9. Chybí-li zásadní informace, polož nejvýš 3 otázky v \"questions\" (sestavu přesto vrať se vším doloženým).\n"
-    + extractedContext(ex, prj)
-    + (part && part.n > 1 ? "\nToto je dotaz " + part.i + " z " + part.n + " (podklady jsou rozdělené).\n" : "")
-    + (prev ? "\nVÝSLEDEK Z PŘEDCHOZÍCH DOTAZŮ — doplň ho o podklady tohoto dotazu a vrať CELÝ aktualizovaný JSON (evidence z předchozích dotazů zachovej):\n" + JSON.stringify(prev) + "\n" : "")
-    + '\nOdpověz POUZE jedním JSON objektem: {"questions":[],"name":"název stroje","devices":[{"name","cls","desc","opt":{},"unit","rmin","rmax","limLo","limHi","setpoint","role"}],"estop":"S1","interlocks":["S2"],"seq":[],"takt":null,"io":[],"evidence":{"dev:M1":{"conf":"sure","src":[{"file":"schema.pdf","page":3,"quote":"-M1 Čerpadlo 4 kW"}]}},"conflicts":[],"missing":[],"note":"shrnutí"}'
+    + (hasKnown
+      ? "10. ODPOVĚĎ = JEN DOPLNĚK proti ZNÁMÉMU STAVU (níže). Známá zařízení, signály a adresy NEOPAKUJ. Vrať: nová zařízení (celá, s io a evidencí); u známého zařízení jen {\"name\"} a pole, která doplňuješ (např. desc, unit, rmin, rmax, limLo, limHi, role, opt.fbk) — s evidencí \"dev:<název>\" jen k doplněnému; v \"io\" jen nové signály a adresy, které ve známém stavu chybí (\"?\"); \"seq\", \"estop\", \"interlocks\", \"takt\" jen když je podklady doplňují. Evidence jen ke klíčům, které vracíš. Rozpory se známým stavem patří do \"conflicts\".\n"
+      : "10. Vrať celou zjištěnou sestavu.\n")
+    + "11. V jedné odpovědi vrať nejvýš " + maxDevs + " zařízení (v pořadí podkladu, se svými io a evidencí). Zbývají-li další, nastav \"more\": true — pokračování si vyžádám; jinak \"more\": false.\n"
+    + extractedContext(ex, prj, known)
+    + (part && part.n > 1 ? "\nToto je dotaz " + part.i + " z " + part.n + " (podklady jsou rozdělené; známý stav obsahuje i výsledky předchozích dotazů).\n" : "")
+    + '\nOdpověz POUZE jedním JSON objektem: {"questions":[],"name":"název stroje","devices":[{"name","cls","desc","opt":{},"unit","rmin","rmax","limLo","limHi","setpoint","role"}],"estop":"S1","interlocks":["S2"],"seq":[],"takt":null,"io":[],"evidence":{"dev:M1":{"conf":"sure","src":[{"file":"schema.pdf","page":3,"quote":"-M1 Čerpadlo 4 kW"}]}},"conflicts":[],"missing":[],"note":"shrnutí","more":false}'
     + langNote;
+}
+
+/** Pokyn pro navazující odpověď (stejný dotaz, další zařízení). */
+export const CONTINUE_PROMPT = "Pokračuj: vrať další zařízení z podkladů (nejvýš stejný počet), která nejsou ve známém stavu ani v tvých předchozích odpovědích — ve stejném formátu, jen doplněk, s io a evidencí. Nic neopakuj. Až nezbude nic dalšího, nastav \"more\": false.";
+
+/** Klíč io položky (zařízení:signál). */
+const ioKey = e => e.dev + ":" + e.sig;
+
+/**
+ * Složí dva surové výsledky v protokolu AI (doplněk `patch` na `acc`). Zařízení podle názvu
+ * (IEC 81346), io podle zařízení:signálu, evidence podle klíče, seznamy bez duplicit.
+ * `fillOnly` = názvy zařízení, u kterých doplněk smí jen vyplnit prázdná pole (přesná data);
+ * s `fillOnly` platí i sekvence, E-stop a takt z `acc`, pokud tam jsou.
+ */
+export function combineRaw(acc, patch, { fillOnly = null } = {}) {
+  const empty = () => ({ name: "", devices: [], io: [], estop: "", interlocks: [], seq: [], takt: null, evidence: {}, conflicts: [], missing: [], questions: [], note: "" });
+  const norm = r => {
+    const o = empty();
+    if (!r || typeof r !== "object") return o;
+    o.name = String(r.name || "");
+    o.devices = (Array.isArray(r.devices) ? r.devices : []).filter(d => d && typeof d === "object").map(d => ({ ...d, name: iecName(d.name), opt: d.opt && typeof d.opt === "object" ? { ...d.opt } : {} }));
+    o.io = (Array.isArray(r.io) ? r.io : []).filter(e => e && typeof e === "object").map(e => ({ ...e, dev: iecName(e.dev), sig: String(e.sig || "") }));
+    o.estop = r.estop ? iecName(r.estop) : "";
+    o.interlocks = (Array.isArray(r.interlocks) ? r.interlocks : []).map(iecName).filter(Boolean);
+    o.seq = (Array.isArray(r.seq) ? r.seq : []).filter(s => s && typeof s === "object").map(s => ({ ...s, dev: s.dev ? iecName(s.dev) : "" }));
+    o.takt = Number.isFinite(Number(r.takt)) && r.takt !== null && r.takt !== "" ? Number(r.takt) : null;
+    o.evidence = r.evidence && typeof r.evidence === "object" && !Array.isArray(r.evidence) ? { ...r.evidence } : {};
+    for (const k of ["conflicts", "missing", "questions"]) o[k] = Array.isArray(r[k]) ? r[k].slice() : [];
+    o.note = String(r.note || "");
+    return o;
+  };
+  if (!patch) return acc ? norm(acc) : null;
+  const a = norm(acc), p = norm(patch);
+  const isEmpty = v => v === undefined || v === null || v === "";
+  for (const d of p.devices) {
+    if (!d.name) continue;
+    const old = a.devices.find(x => x.name === d.name);
+    if (!old) { a.devices.push(d); continue; }
+    const fill = fillOnly && fillOnly.has(d.name);
+    for (const [k, v] of Object.entries(d)) {
+      if (k === "name" || isEmpty(v)) continue;
+      if (k === "opt") { for (const [ok, ov] of Object.entries(v)) if (!fill || old.opt[ok] === undefined) old.opt[ok] = ov; continue; }
+      if (k === "cls" && fill) continue;
+      if (!fill || isEmpty(old[k]) || (k === "desc" && !old[k])) old[k] = v;
+    }
+  }
+  for (const e of p.io) {
+    const old = a.io.find(x => ioKey(x) === ioKey(e));
+    if (!old) { a.io.push(e); continue; }
+    const fill = fillOnly && fillOnly.has(e.dev);
+    for (const [k, v] of Object.entries(e)) if (!isEmpty(v) && (!fill || isEmpty(old[k]))) old[k] = v;
+  }
+  const keep = fillOnly !== null;
+  if (p.estop && !(keep && a.estop)) a.estop = p.estop;
+  a.interlocks = [...new Set([...a.interlocks, ...p.interlocks])];
+  if (p.seq.length && !(keep && a.seq.length)) a.seq = p.seq;
+  if (p.takt !== null && !(keep && a.takt !== null)) a.takt = p.takt;
+  if (p.name && !(keep && a.name)) a.name = p.name;
+  Object.assign(a.evidence, p.evidence);
+  const uniq = arr => { const seen = new Set(); return arr.filter(x => { const k = JSON.stringify(x); if (seen.has(k)) return false; seen.add(k); return true; }); };
+  a.conflicts = uniq([...a.conflicts, ...p.conflicts]);
+  a.missing = uniq([...a.missing, ...p.missing]);
+  a.questions = uniq([...a.questions, ...p.questions]);
+  a.note = [a.note, p.note].filter(Boolean).filter((v, i, s) => s.indexOf(v) === i).join("\n");
+  return a;
 }
 
 /* ------------------------------------------------------------------ zprávy */
@@ -367,16 +503,23 @@ function itemBlocks(it) {
  * Zprávy jednoho dotazu pro Messages API: podklady (PDF jako document, obrázky jako image,
  * text jako text — každý s popiskem souboru), na konci instrukce s přesnými daty.
  * `files` = vstupní soubory (InputFile + `data` = base64 u binárních), `part` = index dotazu,
- * `prev` = surový JSON předchozího dotazu, `prj` = návrh z přesných dat.
+ * `known` (dříve `prev`) = složený výsledek předchozích dotazů (combineRaw) — musí být stejný
+ * po celou dobu jedné části, `prj` = návrh z přesných dat.
+ * Navazující odpovědi téže části: `cont` = texty předchozích odpovědí → konverzace
+ * [podklady, odpověď 1, „pokračuj", odpověď 2, …]. `cache` (výchozí: když je `cont`) označí
+ * první zprávu pro cache, takže pokračování čtou podklady za zlomek ceny.
  * Vrací { messages, part, parts, files, warnings, skipped }.
  */
-export function buildImportMessages(ex, files, { part = 0, prev = null, prj = null, model = AI_DEFAULT_MODEL, code = true, plan = null } = {}) {
+export function buildImportMessages(ex, files, { part = 0, known = null, prev = null, prj = null, model = AI_DEFAULT_MODEL, code = true, plan = null, cont = [], cache = null } = {}) {
   const sp = plan || splitImport(ex, files, model, { code });
   const items = sp.parts[part] || [];
   const content = items.flatMap(itemBlocks);
-  content.push({ type: "text", text: importInstructions(ex, prj, { prev, part: { i: part + 1, n: sp.parts.length } }) });
+  content.push({ type: "text", text: importInstructions(ex, prj, { known: known || prev, part: { i: part + 1, n: sp.parts.length } }) });
+  if (cache === null ? cont.length > 0 : cache) content[content.length - 1].cache_control = { type: "ephemeral" };
+  const messages = [{ role: "user", content }];
+  for (const t of cont || []) messages.push({ role: "assistant", content: String(t) }, { role: "user", content: CONTINUE_PROMPT });
   return {
-    messages: [{ role: "user", content }],
+    messages,
     part, parts: sp.parts.length,
     files: [...new Set(items.map(i => i.name))],
     warnings: sp.warnings, skipped: sp.skipped,
@@ -399,29 +542,50 @@ export function estimateImport(files, model = AI_DEFAULT_MODEL, { ex = null, prj
   const warnings = [...sp.warnings];
   if (mi.unknown) warnings.push(tr("Model {model} není v ceníku — odhad počítá s cenou nejdražšího modelu.", { model }));
   const instr = textTokens(importInstructions(exx, prj));
-  const nSig = (exx.signals || []).length;
-  let cum = 0, inTok = 0, outTok = 0, prevJson = 0, warned = false;
+  const known = (prj && prj.devices ? prj.devices.length : 0);
+  const tags = new Set(((prj && prj.io) || []).map(e => e.tag));
+  const freeSig = ((exx.signals || []).filter(g => !tags.has(g.tag))).length;
+  let plain = 0, cw = 0, cr = 0, outTok = 0, aiDevs = 0;
   const parts = sp.parts.map((items, i) => {
-    /* Očekávaná zařízení: z přesných signálů + z podkladů až po tuto část. Strana PDF
-       (manuál, popis, schéma) dá v průměru ~0,4 zařízení — I/O listy a schémata víc, textové
-       strany manuálů nic; podklady jako celek nejvýš 150 zařízení (střední linka). */
-    cum += items.reduce((a, it) => a + (it.kind === "pdf" ? it.pages * DEV_PER_PAGE : it.kind === "image" ? 2 : it.tokens / 3000), 0);
-    const devs = Math.max(3, Math.ceil(nSig / 2 + Math.min(DEV_DOC_CAP, cum)));
-    const json = devs * TOK_PER_DEV;       // zařízení + io + evidence v JSON odpovědi
-    const want = 2500 + json;              // + přemýšlení a shrnutí
-    const out = Math.min(IMPORT_MAX_TOKENS, want);
-    const inp = instr + items.reduce((a, it) => a + it.tokens + 20, 0) + prevJson;
-    prevJson = Math.min(json, out);
-    inTok += inp; outTok += out;
-    // varovat jen tehdy, když výsledek limit odpovědi opravdu ohrožuje (a jen jednou)
-    if (want > IMPORT_MAX_TOKENS * 0.9 && !warned) {
-      warned = true;
-      warnings.push(tr("Dotaz {n}: výsledek (odhad {devs} zařízení) se může blížit limitu odpovědi {max} tokenů — při chybě rozděl podklady na menší celky.", { n: i + 1, devs, max: IMPORT_MAX_TOKENS }));
+    // zařízení, která AI v této části vrátí (doplněk): z podkladů, u známého stavu méně
+    const doc = Math.min(DEV_DOC_CAP, items.reduce((a, it) => a + docDevices(it), 0)) + (i === 0 ? freeSig / 2 : 0);
+    const kn = known + aiDevs;
+    const devs = Math.max(3, Math.ceil(kn ? Math.max(doc * 0.3, doc - kn * 0.5) : doc));
+    const rounds = Math.min(MAX_ROUNDS, Math.ceil(devs / DEV_PER_RESPONSE));
+    const base = instr + aiDevs * 25 + items.reduce((a, it) => a + it.tokens + 20, 0);
+    let inp = 0, out = 0, left = devs, prevOut = 0;
+    for (let k = 0; k < rounds; k++) {
+      const n = Math.min(DEV_PER_RESPONSE, left);
+      left -= n;
+      if (rounds === 1) plain += base;
+      else if (k === 0) cw += base;
+      else { cr += base; plain += prevOut + 80; }
+      inp += base + (k ? prevOut + 80 : 0);
+      prevOut += n * TOK_PER_DEV;
+      out += (k ? OUT_BASE_CONT : OUT_BASE) + n * TOK_PER_DEV;
     }
-    return { files: [...new Set(items.map(it => it.name))], inputTokens: inp, outputTokens: out };
+    aiDevs += devs;
+    outTok += out;
+    if (rounds > 1) warnings.push(tr("Dotaz {n}: odhad {devs} zařízení — odpověď se rozdělí do {r} navazujících částí.", { n: i + 1, devs, r: rounds }));
+    if (devs > MAX_ROUNDS * DEV_PER_RESPONSE) warnings.push(tr("Dotaz {n}: odhad {devs} zařízení přesahuje {max} na jeden dotaz — výsledek může být neúplný, rozděl podklady na menší celky.", { n: i + 1, devs, max: MAX_ROUNDS * DEV_PER_RESPONSE }));
+    return { files: [...new Set(items.map(it => it.name))], inputTokens: inp, outputTokens: out, devices: devs, rounds };
   });
-  const usd = (inTok * mi.in + outTok * mi.out) / 1e6;
-  return { inputTokens: inTok, outputTokens: outTok, usd: Math.round(usd * 10000) / 10000, parts, warnings, skipped: sp.skipped, model, priceDate: IMPORT_PRICES_DATE, priceSrc: IMPORT_PRICES_SRC };
+  const usd = (plain * mi.in + cw * mi.in * CACHE_WRITE + cr * mi.in * mi.cacheRead + outTok * mi.out) / 1e6;
+  return {
+    inputTokens: plain + cw + cr, cacheWriteTokens: cw, cacheReadTokens: cr, outputTokens: outTok,
+    usd: Math.round(usd * 10000) / 10000, parts, warnings, skipped: sp.skipped, model, priceDate: IMPORT_PRICES_DATE, priceSrc: IMPORT_PRICES_SRC,
+  };
+}
+
+/** Odhad zařízení, která položka podkladů popisuje (konzervativně, viz DEV_*). */
+function docDevices(it) {
+  if (it.kind === "pdf") {
+    const perPage = it.bytes * 0.75 / Math.max(1, it.pages);
+    if (perPage > LIGHT_PAGE_BYTES) return it.pages * DEV_PAGE;
+    return Math.min(it.pages, LIGHT_PAGES) * DEV_LIGHT_PAGE + Math.max(0, it.pages - LIGHT_PAGES) * DEV_PAGE;
+  }
+  if (it.kind === "image") return 3;
+  return Math.min(200, it.tokens / 150);
 }
 
 /* ------------------------------------------------------------------ normalizace */
@@ -453,10 +617,18 @@ function normSrc(s, known) {
  * a zdrojem v existujícím souboru (název z `ex` nebo `files`); jistota „sure"/„guess" bez
  * platného zdroje se zahodí. Položky bez evidence dostanou conf „missing".
  */
-export function importNorm(raw, ex, files = []) {
+export function importNorm(raw, ex, files = [], { base = null } = {}) {
   let r = raw;
   if (typeof r === "string") r = extractJson(r);
   if (!r || typeof r !== "object") r = {};
+  /* Doplněk proti přesnému návrhu (`base`): složit — přesná zařízení zůstanou, doplněk jen
+     vyplní prázdná pole a přidá nová zařízení a signály. Přesné položky nedostanou evidenci
+     „missing" (doložení mají v přesném návrhu) a jejich adresy se převezmou beze změny. */
+  const baseRaw = rawFromProject(base);
+  const hasBase = !!(baseRaw && baseRaw.devices.length);
+  const baseNames = new Set(hasBase ? baseRaw.devices.map(d => d.name) : []);
+  const baseIo = new Map(hasBase ? baseRaw.io.map(e => [ioKey(e), e]) : []);
+  if (hasBase) r = combineRaw(baseRaw, r, { fillOnly: baseNames });
   // IEC 81346 → názvy zařízení (i v odkazech: estop, interlocks, seq, io, klíče evidence)
   const ren = n => iecName(n);
   const r2 = {
@@ -493,13 +665,22 @@ export function importNorm(raw, ex, files = []) {
   const tagAlias = {};                    // výchozí tag (M1_fbkRunning) → původní tag stroje
   const usedTag = new Set(prj.io.map(e => e.tag));
   const wantAddr = new Map();             // řádek I/O → adresa navržená AI (zatím bez ověření zdroje)
+  const baseAddr = new Map();             // řádek I/O → adresa z přesných dat
   for (const e of ioRaw) {
     const io = ioMap.get(e.dev + ":" + e.sig);
     if (!io) continue;
+    const b = baseIo.get(ioKey(e));
+    if (b && b.addr) { baseAddr.set(io, b.addr); if (b.tag) io.tag = b.tag; if (b.cmt) io.cmt = b.cmt; if (b.nc) io.nc = true; continue; }
     const addr = /^%/.test(String(e.addr || "").trim()) ? normAddr(String(e.addr)) : "";
     const okDir = addr && (io.dir === "DI" ? /^%I\d+\.\d+$/ : io.dir === "DO" ? /^%Q\d+\.\d+$/ : io.dir === "AI" ? /^%IW\d+$/ : /^%QW\d+$/).test(addr);
     if (okDir) wantAddr.set(io, addr);
-    const t = e.tag ? sanitizeTag(String(e.tag)) : "";
+    /* původní tag stroje jen když je v podkladech doslova (přesně rozpoznaný signál nebo citace
+       zdroje u "io:<tag>"); jinak by AI vymyslela tag z označení svorky — zůstane <zařízení>_<signál> */
+    const rawTag = e.tag ? String(e.tag).trim() : "";
+    const evQ = r.evidence && typeof r.evidence === "object" ? r.evidence["io:" + rawTag] : null;
+    const quoted = !!rawTag && ((ex && Array.isArray(ex.signals) && ex.signals.some(s => s.tag === rawTag))
+      || (evQ && Array.isArray(evQ.src) && evQ.src.some(s => s && typeof s.quote === "string" && s.quote.includes(rawTag) && /[A-Za-z]/.test(rawTag) && !/\s/.test(rawTag) && rawTag.length > 2 && !/^[IQ]\d+_/.test(rawTag))));
+    const t = quoted ? sanitizeTag(rawTag) : "";
     if (t && t !== io.tag && !usedTag.has(t)) { tagAlias[io.tag] = t; usedTag.delete(io.tag); usedTag.add(t); io.tag = t; }
     if (e.cmt) io.cmt = String(e.cmt).slice(0, 200);
     if (io.dir === "DI" && typeof e.nc === "boolean") io.nc = e.nc;
@@ -541,6 +722,7 @@ export function importNorm(raw, ex, files = []) {
   }
   // adresy I/O: převzít jen doložené (evidence io:<tag> „sure"/„guess" se zdrojem), bez duplicit
   const usedAddr = new Set(), conflictsAddr = [];
+  for (const [io, addr] of baseAddr) { io.addr = addr; usedAddr.add(addr); }
   for (const [io, addr] of wantAddr) {
     const k = "io:" + io.tag, e = evidence[k];
     const sourced = e && e.conf !== "missing" && e.src.length;
@@ -552,8 +734,10 @@ export function importNorm(raw, ex, files = []) {
   }
   // položky bez doložení — k revizi
   const noSrc = tr("AI neuvedla zdroj — ověř v podkladech.");
+  const fromBase = k => (k.startsWith("dev:") || k.startsWith("lock:")) ? baseNames.has(k.slice(k.indexOf(":") + 1))
+    : k === "estop" ? !!(hasBase && baseRaw.estop) : k.startsWith("seq:") ? !!(hasBase && baseRaw.seq.length) : false;
   for (const k of keys) {
-    if (k === "meta" || k.startsWith("io:") || evidence[k]) continue;
+    if (k === "meta" || k.startsWith("io:") || evidence[k] || fromBase(k)) continue;
     evidence[k] = { conf: "missing", src: [], note: noSrc };
   }
   const conflicts = (Array.isArray(r.conflicts) ? r.conflicts : []).filter(c => c && typeof c === "object" && (c.what || c.note)).slice(0, 100).map(c => ({
@@ -593,15 +777,32 @@ export async function aiCallImport(messages, { signal, key, model, maxTokens = I
     throw e;
   }
   const data = await res.json();
-  if (data.stop_reason === "refusal") { const e = new Error(tr("Model odmítl dotaz zpracovat.")); e.code = "refusal"; throw e; }
   const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
-  if (data.stop_reason === "max_tokens") { const e = new Error(tr("Odpověď se nevešla do limitu — rozděl podklady na menší celky.")); e.code = "truncated"; e.text = text; throw e; }
-  return { text, usage: data.usage || {}, stopReason: data.stop_reason || "" };
+  const info = { usage: data.usage || {}, stopReason: data.stop_reason || "" };
+  if (data.stop_reason === "refusal") throw withInfo(new Error(tr("Model odmítl dotaz zpracovat.")), "refusal", info, text);
+  if (data.stop_reason === "max_tokens") throw withInfo(new Error(tr("Odpověď se nevešla do limitu — rozděl podklady na menší celky.")), "truncated", info, text);
+  return { text, ...info };
+}
+
+/** Zkrácený text odpovědi pro diagnostiku (začátek a konec). */
+export function shortText(t, head = 2000, tail = 1000) {
+  t = String(t || "");
+  return t.length <= head + tail + 20 ? t : t.slice(0, head) + "\n…[" + (t.length - head - tail) + " znaků vynecháno]…\n" + t.slice(-tail);
+}
+/** Chyba s diagnostikou: kód, spotřeba (usage), důvod konce a zkrácený text odpovědi. */
+function withInfo(e, code, info, text) {
+  if (code) e.code = code;
+  e.usage = info.usage; e.stopReason = info.stopReason;
+  e.text = shortText(text); e.textLength = String(text || "").length;
+  return e;
 }
 
 /**
  * Celý AI import: rozdělí podklady, pošle dotazy postupně (každý další dostane výsledek
- * předchozích) a odpověď znormalizuje. `onPart(i, n)` hlásí průběh.
+ * předchozích jako známý stav a vrací jen doplněk), navazující odpovědi („more": true) dožádá
+ * v téže konverzaci s podklady z cache a výsledek složí s přesným návrhem `prj`.
+ * `onPart(i, n, round)` hlásí průběh (round = pořadí navazující odpovědi v části).
+ * Usage obsahuje i cache_creation_input_tokens / cache_read_input_tokens; `calls` = počet dotazů.
  * Vrací { proposal, raw, usage: {input_tokens, output_tokens}, parts, partsDone, warnings, skipped }.
  * Selže-li (nebo je zastaven Stopem) některý další dotaz, vrátí výsledek posledního úspěšného:
  * { proposal: null, partial: ImportProposal, error, partsDone, raw, usage, parts, … }.
@@ -611,22 +812,39 @@ export async function aiCallImport(messages, { signal, key, model, maxTokens = I
 export async function aiImport(ex, files, { signal, prj = null, key, model, code = true, onPart } = {}) {
   const m = model || aiSettings().model || AI_DEFAULT_MODEL;
   const plan = splitImport(ex, files, m, { code });
-  let prev = null, done = 0;
-  const usage = { input_tokens: 0, output_tokens: 0 };
-  const base = () => ({ raw: prev, usage, parts: plan.parts.length, partsDone: done, warnings: plan.warnings, skipped: plan.skipped });
+  const est = estimateImport(files, m, { ex, prj, code });
+  let acc = null, done = 0, calls = 0;
+  const usage = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
+  const addUsage = u => { for (const k of Object.keys(usage)) usage[k] += (u && u[k]) || 0; };
+  const warnings = [...plan.warnings];
+  const base = () => ({ raw: acc, usage, parts: plan.parts.length, partsDone: done, calls, warnings, skipped: plan.skipped });
+  const norm = () => importNorm(acc, ex, files, { base: prj });
   try {
     for (let i = 0; i < plan.parts.length; i++) {
-      if (onPart) onPart(i, plan.parts.length);
-      const { messages } = buildImportMessages(ex, files, { part: i, prev, prj, model: m, plan });
-      const r = await aiCallImport(messages, { signal, key, model: m });
-      usage.input_tokens += r.usage.input_tokens || 0;
-      usage.output_tokens += r.usage.output_tokens || 0;
-      prev = extractJson(r.text);
+      const known = acc;                   // známý stav pro celou část (stejná první zpráva → cache)
+      const cont = [];
+      const expectMore = ((est.parts[i] || {}).rounds || 1) > 1;
+      for (let round = 0; round < MAX_ROUNDS; round++) {
+        if (onPart) onPart(i, plan.parts.length, round);
+        const { messages } = buildImportMessages(ex, files, { part: i, known, prj, model: m, plan, cont, cache: expectMore || cont.length > 0 });
+        let r;
+        try { r = await aiCallImport(messages, { signal, key, model: m }); }
+        catch (e) { if (e.usage) addUsage(e.usage); calls++; throw e; }
+        addUsage(r.usage); calls++;
+        let patch;
+        try { patch = extractJson(r.text); }
+        catch (e) { throw withInfo(e, e.code || "invalid_json", r, r.text); }
+        acc = combineRaw(acc, patch);
+        if (patch.more !== true) break;
+        if (round === MAX_ROUNDS - 1) warnings.push(tr("Dotaz {n}: AI hlásí další zařízení i po {r} navazujících odpovědích — výsledek může být neúplný.", { n: i + 1, r: MAX_ROUNDS }));
+        cont.push(r.text);
+      }
       done = i + 1;
     }
   } catch (error) {
-    if (!done) throw error;
-    return { proposal: null, partial: importNorm(prev, ex, files), error, ...base() };
+    error.usage = { ...usage };            // spotřeba celého importu až po chybu (i neúspěšného dotazu)
+    if (!acc) throw error;
+    return { proposal: null, partial: norm(), error, ...base() };
   }
-  return { proposal: importNorm(prev, ex, files), ...base() };
+  return { proposal: norm(), ...base() };
 }

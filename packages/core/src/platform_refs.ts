@@ -25,6 +25,11 @@ export const PLATFORM_REFS: Record<PlatformKey, PlatformRef[]> = {
     { kind: "import", title: N_("Příkaz Export PLCopenXML"), url: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_export_plcopenxml.html", lang: "en" },
     { kind: "import", title: N_("PLCopen – XML výměna (TC6, specifikace 2.01)"), url: "https://www.plcopen.org/standards/xml-echange/", lang: "en" },
   ],
+  delta: [
+    { kind: "product", title: N_("Delta – řešení pohybu na CODESYS (katalog AX-3 / AX-5 / AX-8)"), url: "https://www.deltaww.com/IA/downloadcenter/catalogue/2.Motion/Codesys/DELTA_%20IA-Delta_Motion_Control_Solution_Based_on_CODESYS_C_EN_20210929.pdf", lang: "en" },
+    { kind: "manual", title: N_("Delta AX-3 – Operation Manual (DIADesigner-AX, Delta_LocalBus_Master, BuiltIn_IO; kopie u distributora)"), url: "https://dl.plc1.ir/manual/delta/plc/operation.manual/DELTA_IA_PLC_AX-3_OM_EN_20210931.pdf", lang: "en" },
+    { kind: "import", title: N_("Příkaz Import PLCopenXML"), url: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html", lang: "en" },
+  ],
   mitsubishi: [
     { kind: "product", title: N_("MELSEC iQ-F – produktová stránka"), url: "https://www.mitsubishielectric.com/fa/products/cnt/plcf/items/index.html", lang: "en" },
     { kind: "ide", title: N_("MELSOFT GX Works3 – produktová stránka"), url: "https://www.mitsubishielectric.com/fa/products/cnt/plceng/smerit/gx_works3/index.html", lang: "en" },
@@ -80,5 +85,11 @@ export const PLATFORM_REFS: Record<PlatformKey, PlatformRef[]> = {
     { kind: "manual", title: N_("Technická knihovna – uživatelské příručky UniStream"), url: "https://www.unitronicsplc.com/support-technical-library/", lang: "en" },
     { kind: "support", title: N_("Unitronics Help Center – podpora a tikety"), url: "https://support.unitronics.com/", lang: "en" },
     { kind: "cz", title: N_("SCHMACHTL CZ – distributor Unitronics v ČR"), url: "https://www.schmachtl.cz", lang: "cs" },
+  ],
+  wago: [
+    { kind: "product", title: N_("WAGO PFC200 750-8212 – kontrolér (CODESYS V3.5 / e!COCKPIT)"), url: "https://www.wago.com/global/p/750-8212", lang: "en" },
+    { kind: "product", title: N_("WAGO PFC100 750-8101 – kontrolér"), url: "https://www.wago.com/global/p/750-8101", lang: "en" },
+    { kind: "manual", title: N_("WAGO – migrace z e!COCKPIT do WAGO CODESYS V3.5 (Kbus, I/O mapování)"), url: "https://techdocs.wago.com/Software/eCOCKPIT_Migration/en-US/2956425227.html", lang: "en" },
+    { kind: "import", title: N_("Příkaz Import PLCopenXML"), url: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html", lang: "en" },
   ],
 };

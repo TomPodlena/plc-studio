@@ -1,0 +1,39 @@
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">{{page.eyebrow}}</p>
+    <h1>{{page.h1}}</h1>
+    <p class="lead measure">{{page.lead}}</p>
+    <nav class="toc" aria-label="{{page.toc}}">
+      {{#each page.groups}}
+      <a href="#{{.id}}"><svg class="ico" aria-hidden="true"><use href="#g-{{.id}}"/></svg>{{.name}}</a>
+      {{/each}}
+    </nav>
+  </div>
+</section>
+
+<section class="sec sec-tight">
+  <div class="wrap features">
+    {{#each page.groups}}
+    <article class="feature rv" id="{{.id}}">
+      <div class="feature-h">
+        <span class="feature-top"><span class="feature-ico"><svg class="ico" aria-hidden="true"><use href="#g-{{.id}}"/></svg></span><span class="feature-n">{{@n}}</span></span>
+        <h2>{{.name}}</h2>
+        <p>{{.lead}}</p>
+        {{>? spot-{{.id}}}}
+      </div>
+      <div class="feature-b">
+        <ul class="ticks">{{.points|li}}</ul>
+        {{.note|note}}
+      </div>
+      {{.shot|shot}}
+    </article>
+    {{/each}}
+  </div>
+</section>
+
+<section class="sec sec-tint sec-dots">
+  <div class="wrap measure-wrap">
+    <h2>{{page.ai_title}}</h2>
+    <p class="lead">{{page.ai_body}}</p>
+  </div>
+</section>

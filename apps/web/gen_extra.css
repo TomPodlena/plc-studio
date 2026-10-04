@@ -1,0 +1,35 @@
+/* PLCdesk — krok Generovat: záložky Kód / HMI / Emulace / SISTEMA a EPLAN (gen_tabs.js, hmi_step.js,
+   emu_step.js, exports_step.js). Tokeny z styles.css. */
+.gentabs{display:flex;flex-wrap:wrap;gap:6px}
+.gentabs button{font-size:.82rem;padding:7px 16px;border-radius:999px;font-weight:500;color:var(--muted)}
+.gentabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+button.linkbtn{background:none;border:none;padding:0;color:var(--accent);font:inherit;font-weight:500;cursor:pointer;text-align:left}
+button.linkbtn:hover{text-decoration:underline}
+table.hmitable td{vertical-align:top}
+table.hmitable tr.sel td{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+table.hmitable a{color:var(--accent)}
+.hmigrid{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;margin-top:10px;align-items:start}
+@media (max-width:860px){ .hmigrid{grid-template-columns:1fr} }
+.hmiprev{padding:6px;background:#d9dcdf}
+.hmiprev svg{display:block;width:100%;height:auto}
+.hmiprev [data-dev]{cursor:pointer}
+.hmiprev [data-dev]:hover > rect:first-of-type{stroke:var(--accent);stroke-width:2}
+.hmiprev [data-dev].sel > rect:first-of-type{stroke:#2457C5;stroke-width:3}
+.devpanel{border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:.84rem;min-width:0}
+.devpanel h3{font-size:1rem}
+.devpanel h4{margin:12px 0 2px;font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.devpanel code{font-family:var(--font-mono);font-size:.74rem;background:var(--chip);padding:1px 5px;border-radius:4px}
+.emuwarn{border:1px solid var(--warn);border-left:5px solid var(--warn);border-radius:8px;padding:10px 14px;font-size:.86rem;background:color-mix(in srgb,var(--warn) 8%,var(--surface))}
+.emuwarn b{color:var(--warn)}
+.emuprog{display:flex;align-items:center;gap:10px;font-size:.84rem;margin-top:12px}
+.emuprog progress{width:220px;height:10px;accent-color:var(--accent)}
+pre.emucode .ln{display:block}
+pre.emucode .ln.hit{background:color-mix(in srgb,var(--err) 35%,transparent);color:#fff}
+.card h4{margin:14px 0 6px;font-size:.88rem}
+.expgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media (max-width:900px){ .expgrid{grid-template-columns:1fr} }
+.expgrid section{min-width:0}
+ol.plain.steps{padding-left:22px;font-size:.85rem}
+.expgrid td.mono{white-space:normal;word-break:break-all}
+.expgrid td:last-child{width:1%;white-space:nowrap}
+ol.plain.steps code{font-family:var(--font-mono);font-size:.74rem;background:var(--chip);padding:1px 5px;border-radius:4px}

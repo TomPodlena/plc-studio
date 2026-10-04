@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vícejazyčnost PLC Studia — sběr klíčů, slučování překladů a kontrola katalogů.
+"""Vícejazyčnost PLCdesk — sběr klíčů, slučování překladů a kontrola katalogů.
 
 Zdrojový jazyk je čeština; český text ve zdrojovém kódu je klíčem překladu:
 
@@ -44,8 +44,11 @@ def py_sources() -> list[Path]:
 
 
 def js_sources() -> list[Path]:
-    core = [p for p in sorted((ROOT / "packages" / "core" / "src").glob("*.ts"))
-            if not p.name.endswith((".test.ts", ".d.ts")) and p.name != "i18n.ts"]
+    src = ROOT / "packages" / "core" / "src"
+    # i podadresáře (emu/ …); katalogy překladů (src/i18n/) a testy se nesbírají
+    core = [p for p in sorted(src.rglob("*.ts"))
+            if not p.name.endswith((".test.ts", ".d.ts")) and p.name != "i18n.ts"
+            and p.relative_to(src).parts[0] != "i18n"]
     web = sorted((ROOT / "apps" / "web" / "src").glob("*.js"))
     return core + web + [ROOT / "apps" / "desktop" / "bridge.mjs"]
 

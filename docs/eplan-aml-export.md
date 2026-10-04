@@ -2,7 +2,7 @@
 
 Zadání modulu, který z projektu PLCdesk vygeneruje soubor `.aml` ve formátu **AutomationML AR APC**, jejž EPLAN Electric P8 naimportuje a vyrobí z něj nativní dokumentaci.
 
-Stav: zadání, neimplementováno. Verze dokumentu 2026-10-03.
+Stav: **implementováno v3 (2026-10-04), neověřeno importem do EPLAN** — licence EPLAN ani zlatý vzorek z P8 nejsou k dispozici; výstup je kontrolován schématem CAEX 2.15 (XSD), vlastní validací §13 a porovnáním struktury s reálnými exporty EPLAN 2.7.3 a TIA Portal V17–V21. Viz „Implementace v2“ a „v3 — porovnání s reálnými exporty“ na konci. Verze zadání 2026-10-03.
 
 ## 1. Proč
 
@@ -73,14 +73,16 @@ Každý `InternalElement` nese `RoleRequirements` s `RefBaseRoleClassPath` z kni
 
 | Co | Vlastnost EPLANu | Poznámka |
 |---|---|---|
-| AutomationML GUID | 20530 / 25030 | na každém objektu, viz §9 |
-| GUID 2 [1…12] | — | na PLC připojovacích bodech a kartách |
+| AutomationML GUID | 25030 | na každém objektu, viz §9 (dřívější „20530“ byl překlep; zdroj: [TechTip Overview of the PLC properties](https://eplan.help/techtipps/en-us/SPS/TechTip-Overview-of-the-PLC-properties.pdf), Eplan 2027, kap. 2) |
+| AutomationML GUID 2 [1…12] | 25031 | index 1 na PLC připojovacích bodech a kartách (tentýž TechTip) |
+| AutomationML GUID (příslušenství) [1…50] | 20399 | jen díly s typovým označením PLC (tentýž TechTip) |
 | Sběrnicový systém | 20308 | Ethernet-based, Profibus DP, ASI, DRIVE-CLiQ, IO-Link, PortToPort, ET-Connection, Local-Bus |
 | Fyzická síť: název | 20413 | **unikátní v rámci projektu** |
 | Logická síť: název | 20414 | IO systém / DP master systém |
 | MasterSystemID | 20334 | |
 | Karta umístěna na racku ID | 20410 | takto se nese osazení racku a slotu |
-| Konfigurační projekt | 20161 | |
+| Konfigurační projekt | 20161 | bez tečky „.“ (TechTip) — export ji v názvu projektu nahradí „_“ |
+| PLC stanice: ID | 20408 | bez tečky „.“ (TechTip) — = název Device, tečka nahrazena „_“ |
 | Symbolická adresa: UDT (název) | 20618 | od AR APC 1.3.0 |
 | Symbolická adresa: UDT (datový typ) | 20619 | od AR APC 1.3.0 |
 
@@ -157,3 +159,89 @@ Bez balíčku 7 zhruba **8 dní**. CAEX je plochý XML bez binárních částí,
 - EPLAN: [výměna dat AML](https://www.eplan.help/en-us/Infoportal/Content/Plattform/2022/Content/htm/plcgui_k_amlbusdatenaustausch.htm) · [TechTip PLC data exchange](https://www.eplan.help/techtipps/en-us/SPS/TechTip-PLC-data-exchange.pdf) · [TechTip přehled vlastností PLC](https://eplan.help/techtipps/en-us/SPS/TechTip-Overview-of-the-PLC-properties.pdf)
 - [AMLEngine2.1](https://github.com/AutomationML/AMLEngine2.1) · [PyAutomationML](https://github.com/CIIRC-ISI/PyAutomationML) · [reálný vzorek AML](https://github.com/amlModeling/iafCaseStudy)
 - [PLCnext Engineer — import AML APC](https://engineer.plcnext.help/latest/ImportExport_AutomationML.htm)
+
+## Implementace v2 (2026-10-04)
+
+**Stav: neověřeno importem do EPLAN.** Licenci EPLAN nemáme a zlatý vzorek (§3 bod 2) chybí — rozhodnutí uživatele: postupovat podle tohoto zadání a knihovny AR APC. Import v PLCnext Engineer (§15 bod 5) nezkoušen: jde o instalaci celé aplikace do systému (instalátor Phoenix Contact), vývojová stanice nemá práva správce a podmínky stažení se nepodařilo ověřit. (Kontrola, zda PLCnext Engineer zmapuje typy Siemens apod. na svůj katalog, tím také chybí.)
+
+- **Kód:** `packages/core/src/eplan_aml.ts` — `genEplanAml(prj, opts)` (volby `udt`, `network`, `now`), `validateEplan(prj)`, `validateAml(xml)`; `eplan.ts` (`eplanAml`, `eplanFiles`, README) ho volá. Testy `eplan_aml.test.ts`, `eplan.test.ts`.
+- **Knihovna (§3):** `packages/core/src/eplan/spec/arapc.ts` — doslovné cesty rolí a rozhraní, povinné atributy, výřez definic tříd do výstupu, URL a SHA-256 archivu. Archiv ani PDF neuvádějí licenci (jen „© AutomationML consortium“), proto se soubor `AutomationML_ARAPC_Libraries_AMLEd1_1.4.0.aml` do repozitáře neukládá.
+- **GUID (§9):** `packages/core/src/guid.ts`. `Project.guid` (v `blankProject`), `Device.guid` (při vzniku / `syncIO`), GUID I/O karet v `Project.moduleGuids` — karta není v modelu samostatný objekt, její identita je klíč `<směr><pořadí>` (DI1, DO2…, stejně jako ve výkresech), `IoEntry.guid` odvozený (UUIDv8) z GUID zařízení + signálu, takže přežije přejmenování tagu i zařízení. Stanice, rack, CPU, rozhraní PROFINET a síť mají GUID odvozený z GUID projektu. `ensureGuids(prj)` doplní chybějící při načtení (web `normProject` → uložení, desktop `set_project` → uložení); export GUID nikdy negeneruje (chybějící jen nahradí deterministickým zástupcem a `validateEplan` to hlásí). Otisky schvalování GUID neobsahují, revize ho vyřazuje z porovnání. Příklady `samples/` mají GUID uložené (doplněno jednorázově skriptem).
+- **Hierarchie (§6, §7, §10)** (stav v2; rack, role, kanály a adresy upraveny ve v3 níže): AutomationProject (konfigurační projekt) → Subnet `PN_IE_1` (Type `Ethernet`) a Device stanice → `Rack_0` (`System:Rack.Generic`, PositionNumber = slot) → CPU `-A1` s CommunicationInterface `X1` (Node + NodeEthernet, IoSystem `Number` 100 = MasterSystemID, CommunicationPort `P1 R`) a TagTable; karty `-A2…` s kanály. Linky v nejbližším společném rodiči: kanál ↔ tag v `Rack_0`, Node ↔ Subnet v AutomationProject. Model nemá vzdálené stanice ani IO-Link mastery → jen lokální rack; Local-Bus jako samostatná síť se neexportuje (osazení racku nese vnoření a PositionNumber).
+- **UDT (§7):** volba `udt: true` → ComplexTag (Name = zařízení, DataType = `UDT_<třída>`), Tag = signál. Výchozí jsou ploché tagy `<zařízení>_<signál>`, shodné s generovaným kódem.
+- **Funkční texty (§8):** atribut `Comment` podle BPR Multilingual expressions — výchozí hodnota (komentář z I/O tabulky) + `aml-lang=cs-CZ / en-US / de-DE / es-ES / zh-CN`; popis zařízení se nepřekládá, popisek signálu ano.
+- **Validace (§13):** unikátní ID (GUID), rozložitelné `RefPartnerSideA/B` (escapování 5.2.8), rozhraní na partnerovi, link v nejbližším společném rodiči, povinné atributy podle rolí, unikátní název stanice a fyzické sítě, unikátní UDT + symbolická adresa v CPU (bez ohledu na velikost písmen), GUID v modelu. Všech 12 příkladů projde bez nálezu a schématem CAEX 2.15 (lxml).
+- **Odloženo:** §11 katalog objednacích čísel EPLAN; GUID 2 [1…12] (podzařízení karet); pohony (ARE Drive); vzdálené stanice / IO-Link (až je model bude znát).
+
+## v3 — porovnání s reálnými exporty (2026-10-04)
+
+Zlatý vzorek z P8 pořád chybí, ale veřejně jsou k dispozici reálné exporty AR APC. Porovnáno s: **EPLAN 2.7.3** (2018, AR APC 1.0.0, Beckhoff EtherCAT; jediný veřejný export z EPLANu), **TIA Portal V17** (S7-1200 CPU 1214C), **V18** (S7-1500 + 4× ET 200SP + G120C), **V20**, **V21** (S7-1500 + DI 16 HF / DQ 16 HF), **TIA Selection Tool**, **TwinCAT 3** (2×). Do repozitáře jdou jen vzorky s licencí MIT (`packages/core/test-data/real/aml/`: EPLAN 2.7.3 od AutomationML e.V., TIA V17 od vformi, prázdný TwinCAT od Gain — zdroje a licence v `test-data/real/README.md`); ostatní (bez licence) jen přečteny.
+
+### Nálezy a opravy
+
+| # | Nález (reálné exporty) | Dříve | Teď |
+|---|---|---|---|
+| P1.1 | Všechny exportéry (EPLAN, TIA, TwinCAT) zapisují roli jako `<SupportedRoleClass RefRoleClassPath=…>`, nikdo `RoleRequirements` | `RoleRequirements` | `SupportedRoleClass`; pořadí prvků podle XSD 2.15 (Attribute, ExternalInterface, InternalElement, SupportedRoleClass, InternalLink); `validateAml` čte roli z obou |
+| P1.2 | `LogicalAddress` bez směru (AR APC 1.4.0, 5.2.1 „shall not contain the direction“; TIA V18/V21: `0.0`, `W102`) | `%I0.0` | `0.0`, `W64`, `W80` (CODESYS `%IX0.0` → `0.0`, `%IW32` → `W32`; TwinCAT `%I*` → bez adresy; Mitsubishi `X10` beze změny); směr nese `IoType` |
+| P1.3 | Objednací čísla Siemens s mezerou po 4. znaku (`6ES7 214-1AG40-0XB0`; TIA V17–V21, Siemens 109766653) | z katalogu bez mezery | `amlOrderNumber()`: 6ES7 / 6AG1 / 6GKx s mezerou při exportu (katalog beze změny); ostatní výrobci i SITOP `6EP1332-4BA00` beze změny (tak ho píše i TIA V21) |
+| P1.4 | `TypeIdentifier` stanice = rodina (`System:Device.S71200 / S71500 / ET200SP`; EPLAN `System:Device.Generic`), rack `System:Rack.<rodina>`; `DeviceItemType` jen `CPU` / `HeadModule` / `Accessory`, OrderNumber CPU jen na CPU | stanice s OrderNumber CPU, rack `DeviceItemType=Rack`, karty `DigitalModule` | `stationFamily()` z objednacího čísla CPU (jiní výrobci Generic); rack a karty bez `DeviceItemType` |
+| P2 | ID kanálu | GUID signálu | poziční `derivedGuid(karta, "ch:<směr>:<n>")`; **tag** nese GUID signálu (přejmenování tagu i přesun signálu na jiný kanál zachová identitu tagu, kanál je místo na kartě) |
+| P2 | Názvy rozhraní | `DI_0`, `LogicalEndPoint` | `Channel_DI_0`, `LogicalEndPoint_Subnet` / `_Node` / `_IoSystem` / `_Interface` (TIA i EPLAN shodně) |
+| P2 | Tečka v konfiguračním projektu (20161) a ID stanice (20408) je v EPLANu zakázaná (TechTip) | beze změny | nahrazena „_“ |
+| P2 | Siemens karty hierarchicky (TIA V18: ET 200SP, V21: S7-1500 — karta → BuiltIn podmodul PositionNumber 1 s `Address` a kanály) | ploše | **Siemens hierarchicky** — tak exportuje TIA (EPLAN konvertor TIA19 čte stejnou strukturu); AR APC 5.1.5 popisuje oba scénáře a ECAD bez vlastnosti podmodulu skládá hierarchický model do jednoho dílu. ID podmodulu = `derivedGuid(karta, "builtin:1")` (AR APC: identita BuiltIn = UUID nadřazené karty + PositionNumber). Ostatní výrobci ploše jako EPLAN 2.7.3 / TwinCAT |
+| P2 | InternalLink mimo nejbližšího společného rodiče (TIA V18 dává linky kanál ↔ tag do AutomationProject, EPLAN 2.7.3 do racku stanice s tagy) | chyba | upozornění (náš export dál dává link do nejbližšího rodiče) |
+| P2 | Karty se všemi kanály (TIA: DI 16 HF = 16 kanálů, obsazené mají link) | jen obsazené | všechny kanály karty (DI16 / DO16 / AI8 / AO4 podle `modules()`), neobsazené bez tagu a linku |
+| — | `ProductDesignation IEC` / `LocationIdentifier IEC` s `RefSemantic` podle AR APC 5.1.5 (TwinCAT tak exportuje, EPLAN 2.7.3 bez něj) | bez | s `RefSemantic` (IEC 81346-1:2009-07#5.4 / #5.5) |
+| — | Jazyk výchozí hodnoty `Comment` | — | komentář `<!-- PLCdesk language=cs_CZ -->` za hlavičkou XML (čte ho skript EPLAN pro parametr LANGUAGE) |
+
+### Kontrola cizích souborů (`validateAml`)
+
+`validateAml(xml)` bez volby = cizí soubor: chybou je jen to, co soubor rozbíjí (well-formed, GUID a duplicitní ID, nerozložitelný / neexistující partner linku, rozhraní na partnerovi, unikátnost stanic, sítí a UDT + symbolické adresy v CPU). Odchylky od AR APC, které reálné exporty dělají, jsou upozornění: chybějící „mandatory“ atribut (EPLAN 2.7.3: Node bez `NetworkAddress` u EtherCAT, IoSystem bez `Number`, Tag bez `IoType`; TwinCAT: prázdné položky `Address` bez `IoType`), `LogicalAddress „I“/„Q“` (AR APC 1.0.0), neznámá role / třída rozhraní, link mimo nejbližšího rodiče. `validateEplan` volá `validateAml(…, { strict: true })` — u vlastního exportu je každá odchylka chyba. Výsledek na 12 stažených souborech: **0 chyb** na všech AR APC exportech (EPLAN 2.7.3 ×2: 68 upozornění — přesně odchylky AR APC 1.0.0; TIA V17–V21, TST, TwinCAT: 0–3 upozornění). Jediná chyba je u souboru Zeugwerk (CAEX 3.0, není AR APC — `SchemaVersion` správně odmítnuta). `ProjectSign` už není povinný (AR APC 5.1.1: optional), povinný je `TypeIdentifier` stanice (5.1.4).
+
+XSD CAEX 2.15 (lxml): náš export 72/72 souborů (12 příkladů × ploché / UDT / Beckhoff / CODESYS / Mitsubishi / Rockwell) platných. Pro zajímavost: oba exporty TwinCAT 3 a šablona TwinCAT schématem neprojdou (knihovny v pořadí InterfaceClassLib za RoleClassLib, ExternalInterface za InternalElement) — EPLAN je přesto čte, importér tedy pořadí nekontroluje.
+
+### Porovnávací testy (`eplan_aml.test.ts`)
+
+- **TIA V17 (S7-1200):** u vzorku i u našeho exportu stejně — Device `System:Device.S71200` → `Rack_0` (`System:Rack.S71200`, PositionNumber 0, BuiltIn false, bez DeviceItemType) → CPU (DeviceItemType CPU, slot 1, `OrderNumber:6ES7 xxx-xxxxx-xxxx`) → TagTable, CommunicationInterface X1 (32768) → Node + NodeEthernet (`LogicalEndPoint_Node`), IoSystem 100 (`LogicalEndPoint_IoSystem`), Port 32769; Subnet Ethernet pod projektem (`LogicalEndPoint_Subnet`), link Node ↔ Subnet v AutomationProject; kanály `Channel_<směr>_<n>` s atributy Type / IoType / Number / Length na BuiltIn DeviceItem s `Address`.
+- **EPLAN 2.7.3:** stejná sada atributů AutomationProject, atributy tagů EPLANu ⊂ naše (+ IoType od AR APC 1.1.0), `Comment` s podatributy `aml-lang=xx-XX`, stejné atributy kanálů, jiný výrobce → stanice/rack `Generic`, karta ploše s `Address` a kanály, linky `Channel_*` ↔ rozhraní Tag.
+- Rozdíly, které zůstávají záměrně: náš Device nese i `Comment` a `Manufacturer` (AR APC optional, TIA je nepíše), karty `Manufacturer`, `ProductDesignation IEC` (-A2 …) a `LocationIdentifier IEC` (+1) — EPLAN je zná (vlastní export je obsahuje), TIA je nepíše; `BitOffset` v `Address` (optional, výchozí 0).
+
+### Skript EPLAN (`apps/eplan/PLCdesk_ImportAML.cs`)
+
+Skript C# pro skriptovací stroj EPLAN (bez licence API), shodná kopie jde v sadě souborů EPLAN (`eplanFiles` → `eplan_PLCdesk_ImportAML.cs`; shodu hlídá test). Postup: `selectionset /TYPE:PROJECT` (aktuální projekt) → výběr `.aml` → `plcservice /TYPE:BUSDATAIMPORT /PROJECTNAME /SOURCEFILE /LANGUAGE /CONVERTERID /IMPORTMATCH:0` → volitelně `plcservice /TYPE:GENERATEPLCSCHEMATIC /CONFIGFILE` (cesta k uloženému nastavení zákazníka, ve skriptu `SchematicConfigFile`; prázdné = jen import). Konvertor podle obsahu: Siemens (`System:Device.S7…`, `OrderNumber:6ES7`) → `PlcDcExchangerSiemensTIA19AML` (AR APC 1.4.0), jinak `PlcDcAMLExchangerGeneral` („Eplan Electric P8 AML-format“); `IMPORTMATCH 0` = párování podle interních ID (naše GUID). Syntaxe podle eplan.help: [plcservice](https://www.eplan.help/en-us/Infoportal/Content/api/2027/plcservice.html) (seznam konvertorů, IMPORTMATCH 0/1/2, příklad `/LANGUAGE:de_DE`), [selectionset](https://www.eplan.help/en-us/Infoportal/Content/api/2027/selectionset.html), [skript s akcemi](https://www.eplan.help/en-US/infoportal/content/api/2025/SimpleScriptWithParameters.html). README_EPLAN popisuje ruční cestu (dialog „Import PLC data“ → „Start Generate PLC schematic“) i skript.
+
+**Neověřeno:** skript nebyl spuštěn (bez EPLAN); zda konvertor TIA19 přijme soubor, který nepochází z TIA (kontroly konzistence TIA), i zda obecný konvertor čte AR APC 1.4.0 hierarchii Siemens. Makra a díly (kmenová data) jsou u zákazníka; generování schématu PLC může vyžadovat licenci „PLC & Bus Extension“. Formát LANGUAGE (`cs_CZ`) převzat z příkladu `de_DE`.
+
+### Hardware — vyřešeno sestavou hardwaru (2026-10-04)
+
+Body 1–3 níže řeší `packages/core/src/hardware.ts` (`hwLayout`, CLAUDE.md „Sestava hardwaru“) — jeden zdroj pro
+model, kusovník, výkresy, svorkovnice, generátor i tento export:
+
+1. **Siemens:** S7-1200 G2 (1212C / 1214C podle počtu I/O) se signálovými moduly **řady G2** (SM 1221 DI16
+   `6ES7221-1BH50-0XB0`, SM 1222 DQ16 `6ES7222-5BH50-0XB0`, SM 1231 AI8 `6ES7231-4HF50-0XB0`, SM 1232 AQ8
+   `6ES7232-4HF50-0XB0`) v racku CPU do limitu CPU (6 / 10 modulů podle datasheetu); přebytek do stanic
+   **ET 200SP s IM 155-6 PN ST** (max. 32 modulů) na `PN_IE_1` přesně podle vzorku TIA V18: Device
+   `System:Device.ET200SP` → `Rack_0` (`System:Rack.ET200SP`) → HeadModule `-A10` (slot 0, BuiltIn podmodul 0)
+   + BusAdapter `BA 2xRJ45` (slot 127) s rozhraním X1, uzlem `IE1` a porty P1 R / P2 R → karty ET 200SP od slotu 1
+   (hierarchicky, BuiltIn podmodul s Address a kanály) → server modul; linky Node ↔ Subnet a
+   `LogicalEndPoint_Interface` ↔ `LogicalEndPoint_IoSystem` CPU v AutomationProject. Kusovník: hlava, BusAdapter,
+   BaseUnit světlá (1×) a tmavé (n − 1).
+2. **Balení karet:** počet kanálů každého modulu je z katalogu (`hw.ch`), export dává kartě všechny její kanály
+   (AI 4×U/I = 4 kanály, AQ 8 = 8 …), kusovník počítá moduly sestavy.
+3. **Vestavěné I/O CPU** se obsazují první (S7-1200: DI od `%I0.0`, DQ od `%Q0.0`; G2 nemá vestavěné analogy);
+   v AML BuiltIn podmodul CPU `DI 14/DQ 10` (PositionNumber 1, Address s položkami Input/Output, kanály
+   `Channel_DI_n` / `Channel_DO_n` — jako TIA V17). Ostatní výrobci (plochý model EPLAN 2.7.3): Address a kanály
+   vestavěných I/O přímo na CPU.
+
+Ověřeno: `validateEplan` bez chyb a XSD CAEX 2.15 (lxml) na 260 souborech (13 příkladů × 10 platforem × ploché /
+UDT). Vzdálené stanice na EtherCAT (Beckhoff EK1100, Omron NX-ECC203) jsou bez uzlu sítě (EtherCAT nemá IP; doplní
+se v EPLAN). Importem v EPLAN ani TIA dál neověřeno; výchozí adresy S7-1200 G2 (slot 2 = I8.0 / IW96) jsou běžné
+výchozí adresy TIA, dokladem Siemens pro G2 neověřené.
+
+Původní popis problému (pro kontext):
+
+1. **ET 200SP karty v racku S7-1200.** Kusovník pro Siemens volí CPU S7-1200 G2 (`6ES7212-1AG50-0XB0`) a karty ET 200SP (`6ES7131-6BH01-0BA0` DI 16, `6ES7132-6BH01` DQ 16, `6ES7134-6HD01` AI 4, `6ES7135-6HD00/-6FB00` AQ 4/2). ET 200SP se do racku S7-1200 nezasouvá (S7-1200 má signálové moduly SM 12xx). **Návrh:** buď karty S7-1200 SM (SM 1221 / 1222 / 1231 / 1232) v racku CPU, nebo — častější u strojů — samostatná **stanice ET 200SP s IM 155-6 PN** (Device `System:Device.ET200SP` → Rack `System:Rack.ET200SP` → HeadModule IM 155-6 PN ST/HF s BusAdapterem a rozhraním X1 → karty od slotu 1 + server modul), připojená na `PN_IE_1` a IO systém CPU (Node ↔ Subnet, `LogicalEndPoint_Interface` ↔ `LogicalEndPoint_IoSystem`, jako TIA V18 vzorek).
+2. **Balení karet vs. kusovník.** `modules()` dělí I/O po DI16 / DO16 / **AI8** / **AO4**, export tedy dává kartě AI 8 kanálů — ale katalogová karta je AI **4**×U/I (a AQ **2**×I u `-6FB00`). Počet karet v kusovníku = počet modulů, takže chybí karty a kanály 4–7 neexistují. **Návrh:** velikost karty brát z katalogové položky kusovníku (počet kanálů jako vlastnost položky katalogu), `modules()` řídit touto velikostí (pro výkresy, svorky, EPLAN i kusovník jedním zdrojem) a kusovník počítat `ceil(n / kanálů)`.
+3. **Vestavěné I/O CPU.** CPU 1212C má 8 DI / 6 DQ (1214C 14/10, 2 AI) vestavěných; model je ignoruje a vše dává na karty. **Návrh:** volitelně obsadit nejdřív vestavěné I/O — v AML jako BuiltIn DeviceItem pod CPU (`DI 8/DQ 6_1`, PositionNumber 1, `Address` se dvěma položkami Input/Output, kanály `Channel_DI_n` / `Channel_DO_n` — přesně podle TIA V17 vzorku) a adresy %I0.0… / %Q0.0… přidělovat od vestavěných.
+
+(Stav před 2026-10-04 — vyřešeno výše; README_EPLAN dál uvádí, že objednací čísla jsou typické volby z kusovníku a ne projekt elektro.)

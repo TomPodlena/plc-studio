@@ -12,9 +12,13 @@
  * Pozn. pro verzi PRO: řádky nesou stabilní `id` (označení + kategorie), na které naváže
  * stavba zařízení v CADu.
  */
-import { tr } from "./i18n.js";
-import { PLAT, interlockDevs, modules, } from "./model.js";
-import { CAT_LABEL, brandsFor, catKey, suppliersFor } from "./catalog.js";
+import { tr, N_ } from "./i18n.js";
+import { PLAT, interlockDevs, devRef, maxRecord, ioOf, } from "./model.js";
+import { CAT_LABEL, brandsFor, catKey, suppliersFor, brandOptId } from "./catalog.js";
+import { hwLayout, hwPlatform, HW_DIRS } from "./hardware.js";
+import { axisCfgOf, axisObjName } from "./axis.js";
+import { axisDialect, AXIS_NET } from "./axis_gen.js";
+export { brandOptId };
 const has = (s, re) => re.test(s.toLowerCase());
 /** Kategorie snímače analogové veličiny podle jednotky a popisu. */
 function analogCat(d) {
@@ -83,21 +87,34 @@ function aoCat(d) {
         return "proportional_valve";
     return "vfd";
 }
-/** Identifikace volby z katalogu (značka + kód / řada) — hodnota v `prj.bom.brand` / `lines[].brand`. */
-export function brandOptId(b) {
-    const what = b.orderCode || (b.series || [])[0] || "";
-    return what ? b.brand + " · " + what : b.brand;
-}
 /** Nabídka katalogu pro řádek kusovníku (kategorie + platforma). */
 export function bomOptions(cat, plat) {
     return brandsFor(cat, plat).map(b => ({ id: brandOptId(b), brand: b }));
 }
 /** Výchozí platforma kusovníku: volba v `prj.bom`, jinak první zvolená platforma. */
 export function bomPlatform(prj) {
-    const p = prj.bom?.plat;
-    if (p && PLAT[p])
-        return p;
-    return (prj.platforms && prj.platforms[0]) || "siemens";
+    return hwPlatform(prj);
+}
+const DIR_TEXT = {
+    DI: N_("{n} digitálních vstupů"), DO: N_("{n} digitálních výstupů"), AI: N_("{n} analogových vstupů"), AO: N_("{n} analogových výstupů"),
+};
+/** Popis řádku modulů: obsazené kanály skupiny podle směru (texty jsou klíče překladu). */
+function modsDesc(mods) {
+    return HW_DIRS.map(d => {
+        const n = mods.reduce((s, m) => s + m.channels.filter(k => k.dir === d && k.io).length, 0);
+        return n ? tr(DIR_TEXT[d], { n }) : "";
+    }).filter(Boolean).join(", ");
+}
+const bomProviders = [];
+/** Přihlásí zdroj dalších řádků kusovníku (`drop` = id řádků, které nahrazuje). Vrací odhlášení. */
+export function registerBomProvider(fn, name) {
+    const at = bomProviders.findIndex(p => p.name === name);
+    if (at >= 0)
+        bomProviders[at] = { name, fn };
+    else
+        bomProviders.push({ name, fn });
+    return () => { const i = bomProviders.findIndex(p => p.name === name && p.fn === fn); if (i >= 0)
+        bomProviders.splice(i, 1); };
 }
 /** Sestaví kusovník. Výsledek je deterministický (stejný projekt → stejné řádky). */
 export function buildBom(prj) {
@@ -111,19 +128,35 @@ export function buildBom(prj) {
         raw.push({ id: tag + ":" + cat, tag, cat, qty, unit: tr("ks"), desc, note: "", ...extra });
     };
     const safetyNote = tr("Volba a zapojení podle posouzení rizik (EN ISO 13849) — návrh k revizi.");
-    /* --- PLC a I/O moduly zvolené platformy */
-    const mods = modules(prj);
-    const nMod = (dir) => mods.filter(m => m.dir === dir).length;
-    add("-A1", "plc_cpu", 1, PLAT[plat].name + " — " + PLAT[plat].cpu);
-    add("-A2", "plc_di", nMod("DI"), tr("{n} digitálních vstupů", { n: prj.io.filter(e => e.dir === "DI").length }));
-    add("-A3", "plc_do", nMod("DO"), tr("{n} digitálních výstupů", { n: prj.io.filter(e => e.dir === "DO").length }));
-    /* Unitronics: kombinovaný analogový modul (4 AI + 2 AO) a HMI přímo v CPU */
-    const nAi = plat === "unitronics"
-        ? Math.max(Math.ceil(prj.io.filter(e => e.dir === "AI").length / 4), Math.ceil(prj.io.filter(e => e.dir === "AO").length / 2))
-        : nMod("AI");
-    add("-A4", "plc_ai", nAi, tr("{n} analogových vstupů", { n: prj.io.filter(e => e.dir === "AI").length }));
-    if (plat !== "unitronics")
-        add("-A5", "plc_ao", nMod("AO"), tr("{n} analogových výstupů", { n: prj.io.filter(e => e.dir === "AO").length }));
+    /* --- PLC: CPU, karty a vzdálené stanice = sestava hardwaru (hardware.ts), nic se nepočítá zvlášť */
+    const L = hwLayout(prj, plat);
+    const hwOf = (m) => ({ hw: { opt: m.opt, custom: m.custom } });
+    const bi = L.modules.find(m => m.builtin);
+    add("-A1", "plc_cpu", 1, PLAT[plat].name + " — " + PLAT[plat].cpu
+        + (bi && bi.channels.some(k => k.io) ? " (" + tr("vestavěné I/O: {list}", { list: modsDesc([bi]) }) + ")" : ""), hwOf(L.cpu));
+    for (const s of L.stations) {
+        if (s.remote) {
+            const ios = s.modules.filter(m => m.kind === "io");
+            add(s.head.dt, "plc_coupler", 1, tr("Vzdálená stanice {dt}: {n} modulů, síť {net}", { dt: s.head.dt, n: ios.length, net: s.net || "—" }), hwOf(s.head));
+            for (const a of s.modules.filter(m => m.kind === "acc" && m.cat === "plc_busadapter"))
+                add(s.head.dt, a.cat, 1, tr("Připojení stanice {dt} na síť", { dt: s.head.dt }), hwOf(a));
+            /* ET 200SP: každý modul na BaseUnit — první světlá (napájení skupiny), další tmavé */
+            if (s.head.opt?.hw?.acc?.includes("plc_baseunit") && ios.length) {
+                const first = brandsFor("plc_baseunit_first", plat)[0], next = brandsFor("plc_baseunit", plat)[0];
+                add(s.head.dt, "plc_baseunit_first", 1, tr("Pod první modul stanice {dt}", { dt: s.head.dt }), { hw: { opt: first } });
+                add(s.head.dt, "plc_baseunit", ios.length - 1, tr("Pod další moduly stanice {dt}", { dt: s.head.dt }), { hw: { opt: next } });
+            }
+        }
+        /* karty po skupinách označení (-A2 = DI stanice CPU, -A12 = DI stanice 1 …) */
+        const groups = new Map();
+        for (const m of s.modules)
+            if (m.kind === "io" && !m.builtin) {
+                const k = m.bomTag + ":" + m.cat;
+                groups.set(k, [...(groups.get(k) || []), m]);
+            }
+        for (const g of groups.values())
+            add(g[0].bomTag, g[0].cat, g.length, modsDesc(g), hwOf(g[0]));
+    }
     if (prj.program.modes !== false && plat !== "unitronics")
         add("-P1", "plc_hmi", 1, tr("Ovládání AUTO / START / kvitace, alarmy"));
     /* --- zařízení */
@@ -153,6 +186,31 @@ export function buildBom(prj) {
         else if (d.cls === "AnalogOut") {
             add(t, aoCat(d), 1, desc, { devId: d.id });
         }
+        else if (d.cls === "Vfd") {
+            /* měnič: motor (-M), řadič měniče (-TA, svorky řídicích signálů), jištění přívodu (-Q) */
+            const n = d.name.replace(/^\D+/, "") || d.name;
+            add(t, motorCat(d), 1, desc, { devId: d.id, note: tr("dimenzovat podle zátěže; motor pro provoz s měničem") });
+            add("-" + devRef(d), "vfd", 1, tr("Řízení otáček {dev} ({min}–{max} {unit})", { dev: d.name, min: d.rmin, max: d.rmax, unit: d.unit || "" }).replace(/\s+\)/, ")"), { devId: d.id,
+                note: tr("analogová žádaná, DI chod{rev}, reléové výstupy připraven / porucha / otáčky dosaženy", { rev: d.opt?.rev ? tr(" a směr") : "" }) });
+            add("-Q" + n, "mcb", 1, tr("Jištění měniče {dev}", { dev: d.name }), { devId: d.id, note: tr("podle návodu měniče (jistič / pojistky, případně EMC filtr)") });
+        }
+        else if (d.cls === "PosDrive") {
+            /* polohovací pohon: řadič se záznamy (-TA) a elektrická osa s motorem (-M) */
+            add("-" + devRef(d), "positioning_drive", 1, tr("Řadič polohování {dev}: {n} záznamů přes I/O", { dev: d.name, n: maxRecord(d) }), { devId: d.id,
+                note: tr("paralelní I/O: výběr záznamu, start, referování, HALT; tabulka záznamů v řadiči") });
+            add(t, "linear_axis", 1, desc, { devId: d.id, note: (d.records || []).length ? tr("záznamy: {list}", { list: (d.records || []).map(r => r.no + " " + (r.name || "")).join(", ") }) : "" });
+        }
+        else if (d.cls === "Axis") {
+            /* servoosa: servoměnič (-TA, uzel sítě) a servomotor (-M); mechanika osy (šroub / řemen) mimo rozsah */
+            const c = axisCfgOf(d), dia = axisDialect(prj, plat);
+            add("-" + devRef(d), "servo_drive", 1, tr("Servoměnič osy {dev} ({net})", { dev: d.name, net: dia ? AXIS_NET[dia] : tr("síť podle platformy") }), { devId: d.id,
+                note: tr("objekt osy {obj}; STO na svorkách / bezpečná síť podle bezpečnostní funkce", { obj: axisObjName(d) }) });
+            add(t, "servo_motor", 1, desc, { devId: d.id, note: tr("dimenzovat podle zátěže: max. {v} {u}/s, {a} {u}/s²; brzda u svislé osy", { v: c.vMax, a: c.aMax, u: d.unit || "mm" }) });
+        }
+        else if (d.cls === "PropValve") {
+            add(t, "proportional_valve", 1, desc + (d.unit ? " [" + d.unit + "]" : "") + " " + d.rmin + "–" + d.rmax, { devId: d.id,
+                note: ioOf(prj, d).rawAct ? tr("žádaná 0–10 V / 4–20 mA, analogový výstup skutečné hodnoty") : tr("žádaná 0–10 V / 4–20 mA") });
+        }
         else if (d.cls === "DI") {
             const c = diCat(prj, d, locks);
             const safety = c === "estop_button" || c === "light_curtain" || c === "safety_switch";
@@ -165,7 +223,8 @@ export function buildBom(prj) {
     }
     /* --- rozvaděč */
     const sensors = prj.devices.filter(d => d.cls === "DI" || d.cls === "AnalogIn").length
-        + prj.devices.filter(d => d.cls === "Ventil").reduce((a, d) => a + (d.opt?.fbkOpen !== false ? 1 : 0) + (d.opt?.fbkClosed ? 1 : 0), 0);
+        + prj.devices.filter(d => d.cls === "Ventil").reduce((a, d) => a + (d.opt?.fbkOpen !== false ? 1 : 0) + (d.opt?.fbkClosed ? 1 : 0), 0)
+        + prj.devices.filter(d => d.cls === "PropValve" || d.cls === "PosDrive").length; // kabel M12 k ventilu, I/O kabel k řadiči pohonu
     const safetyDevs = (prj.program.estop ? 1 : 0) + locks.size;
     if (safetyDevs)
         add("-K0", "safety_relay", 1, tr("Vyhodnocení E-stopu a blokování"), { safety: true, note: safetyNote });
@@ -175,32 +234,53 @@ export function buildBom(prj) {
     add("-X1", "terminal_block", Math.ceil(prj.io.length * 1.2) + 10, tr("Svorky I/O a napájení"));
     add("-W1xx", "cable_sensor", sensors, tr("Připojení snímačů"));
     add("+1", "cabinet", 1, tr("Rozvaděč stroje"), { note: tr("velikost podle počtu modulů a stykačů") });
+    /* --- řádky dalších modulů (bezpečnostní funkce…) */
+    for (const p of bomProviders) {
+        const r = p.fn(prj, plat);
+        for (const id of r.drop || []) {
+            const i = raw.findIndex(x => x.id === id);
+            if (i >= 0)
+                raw.splice(i, 1);
+        }
+        for (const e of r.add)
+            if (e.qty > 0 && !raw.some(x => x.id === e.tag + ":" + e.cat))
+                raw.push({ id: e.tag + ":" + e.cat, tag: e.tag, cat: e.cat, qty: e.qty, unit: tr("ks"), desc: e.desc, note: e.note || "", safety: e.safety, devId: e.devId, item: e.item, preset: e.preset });
+    }
     /* --- značky z katalogu a volby uživatele */
     const lines = raw.map((r, i) => {
         const key = catKey(r.cat, plat);
         const brands = brandsFor(r.cat, plat);
-        const pickName = cfg.lines?.[r.id]?.brand ?? cfg.brand?.[key];
+        const pre = r.preset;
+        let pickName = cfg.lines?.[r.id]?.brand ?? cfg.brand?.[key] ?? (pre?.brand && !brands.length ? pre.brand : undefined);
         /* bez volby uživatele: značka shodná s platformou PLC (Schneider → stykače Schneider), jinak první */
         const platBrand = PLAT[plat].name.split(" ")[0].toLowerCase();
-        /* volba mimo katalog (vlastní značka) = žádná data z katalogu, jen to, co zadal uživatel */
-        const b = pickName !== undefined
+        /* volba mimo katalog (vlastní značka) = žádná data z katalogu, jen to, co zadal uživatel;
+           řádky PLC nesou položku zvolenou sestavou hardwaru (respektuje volby uživatele i rack) */
+        let b = pickName !== undefined
             ? brands.find(x => brandOptId(x) === pickName) || brands.find(x => x.brand === pickName)
             : brands.find(x => x.brand.toLowerCase().startsWith(platBrand)) || brands[0];
+        if (r.hw) {
+            b = r.hw.opt;
+            pickName = r.hw.custom ?? (b ? brandOptId(b) : pickName);
+        }
         const custom = pickName !== undefined && !b;
         const over = cfg.lines?.[r.id] || {};
         const sup = (b?.suppliers?.[0] ? tr(b.suppliers[0]) : "") || (custom ? "" : tr(suppliersFor(key)[0]?.name || ""));
+        /* typ od modulu (bez katalogu kategorie), dokud uživatel nezvolí jinou značku */
+        const usePre = !!pre && custom && pickName === pre.brand;
+        const { preset: _pre, item: ownItem, hw: _hw, ...rest } = r;
         return {
-            ...r,
+            ...rest,
             pos: i + 1,
-            item: tr(CAT_LABEL[r.cat] || r.cat),
+            item: ownItem || tr(CAT_LABEL[r.cat] || r.cat),
             qty: Number.isFinite(over.qty) && over.qty >= 0 ? over.qty : r.qty,
             brand: custom ? pickName : b?.brand ?? "",
-            type: over.type ?? (b?.typical ? tr(b.typical) : (b?.series || []).map(x => tr(x)).join(" / ")),
-            orderCode: over.orderCode ?? b?.orderCode ?? "",
+            type: over.type ?? (usePre ? pre.type || "" : b?.typical ? tr(b.typical) : (b?.series || []).map(x => tr(x)).join(" / ")),
+            orderCode: over.orderCode ?? (usePre ? pre.orderCode || "" : b?.orderCode ?? ""),
             supplier: over.supplier ?? sup,
             note: [r.note, over.note].filter(Boolean).join("; "),
             optId: b ? brandOptId(b) : "",
-            src: b?.src || "",
+            src: usePre ? pre.src || "" : b?.src || "",
             ...(Number.isFinite(over.qty) && over.qty === 0 ? { excluded: true } : {}),
         };
     }).filter(l => l.qty > 0 || l.excluded);
@@ -227,7 +307,7 @@ export function bomMd(prj) {
     const out = [
         "# " + tr("Kusovník komponent") + " — " + (prj.meta.name || ""),
         "",
-        tr("Platforma řízení: **{plat}**. Značky a typy jsou typické volby z katalogu PLC Studia — podklad k poptávce, ne projekt elektro. Dimenzování a bezpečnostní prvky podle posouzení rizik ověří projektant (návrh k revizi).", { plat: PLAT[plat].name }),
+        tr("Platforma řízení: **{plat}**. Značky a typy jsou typické volby z katalogu PLCdesk — podklad k poptávce, ne projekt elektro. Dimenzování a bezpečnostní prvky podle posouzení rizik ověří projektant (návrh k revizi).", { plat: PLAT[plat].name }),
         "",
         "| # | " + [tr("Označení"), tr("Položka"), tr("Popis"), tr("Ks"), tr("Výrobce"), tr("Typ"), tr("Objednací kód"), tr("Dodavatel")].join(" | ") + " |",
         "|---|---|---|---|---:|---|---|---|---|",

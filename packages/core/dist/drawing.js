@@ -1,11 +1,15 @@
 /**
- * PLC Studio — výkresy: jedna geometrie (ops) renderovaná do SVG (náhled)
+ * PLCdesk — výkresy: jedna geometrie (ops) renderovaná do SVG (náhled)
  * i DXF R12 (EPLAN / AutoCAD / LibreCAD).
  * Konvence: rámeček s mřížkovými referencemi, popisové pole, značení -M1
- * (IEC 81346), čísla vodičů -W1xx, NC/NO kontakty (IEC 60617).
+ * (IEC 81346), čísla vodičů -W<svorkovnice><svorka> (`wireNo`), NC/NO kontakty (IEC 60617).
  */
-import { CLS, PLAT, devById, modules, esc, stripDia } from "./model.js";
+import { CLS, PLAT, devById, modules, wireNo, esc, stripDia, devRef } from "./model.js";
+import { hwAddrText, hwLayout, hwSignalText, hwTypeText } from "./hardware.js";
 import { trx, N_, today } from "./i18n.js";
+/* Označení revize projektu pro sloupec „Rev“ popisového pole — dodá revision.ts (bez revize undefined → „0.1“). */
+let sheetRev = null;
+export function setSheetRevision(fn) { sheetRev = fn; }
 function todayCz() { return today(true); }
 /** Text pro DXF R12: bez diakritiky a jen ASCII — typografické znaky nahradí nejbližší ASCII. */
 function dxfText(s) {
@@ -56,24 +60,31 @@ export function sheetOps(prj, mod, xnum, page, total, meta) {
     Tx(tx + 337, ty + 10, trx("List"), { k: "m", size: 8 });
     Tx(tx + 337, ty + 22, page + " / " + total, { size: 9 });
     Tx(tx + 7, ty + 36, trx("Kreslil"), { k: "m", size: 8 });
-    Tx(tx + 7, ty + 48, trx("PLC Studio (návrh k revizi)"), { size: 9 });
+    Tx(tx + 7, ty + 48, trx("PLCdesk (návrh k revizi)"), { size: 9 });
     Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 });
     Tx(tx + 187, ty + 48, date, { size: 9 });
     Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 });
-    Tx(tx + 337, ty + 48, "0.1", { size: 9 });
+    Tx(tx + 337, ty + 48, meta?.rev ?? sheetRev?.(prj) ?? "0.1", { size: 9 });
     /* potenciály a karta PLC */
     const yEnd = top + rows * rh - 12;
-    const wBase = { DI: 101, DO: 201, AI: 301, AO: 401 }[mod.dir];
     const isIn = (mod.dir === "DI" || mod.dir === "AI");
+    /* karta: označení a typ modulu ze sestavy hardwaru (hardware.ts) */
+    const chip = (mod.hw ? mod.hw.dt : "PLC") + " · " + mod.dir + mod.idx;
+    if (mod.hw) {
+        Tx(isIn ? 810 : 146, top + rows * rh + 4, hwTypeText(mod.hw, s => trx(s)).slice(0, 40), { anchor: "middle", k: "m", size: 8 });
+        const code = mod.hw.builtin ? (mod.hw.opt?.orderCode || "") : (mod.hw.opt?.orderCode || mod.hw.custom || "");
+        if (code)
+            Tx(isIn ? 810 : 146, top + rows * rh + 15, code, { anchor: "middle", k: "m", size: 8 });
+    }
     if (isIn) {
         Ln(80, top - 28, 80, yEnd, "r");
         Tx(80, top - 36, "L+ (24 V DC)", { anchor: "middle", k: "b", size: 10 });
         Re(710, top - 28, 200, rows * rh + 8, "chip");
-        Tx(810, top - 36, "PLC · " + mod.dir + mod.idx, { anchor: "middle", k: "b", size: 10 });
+        Tx(810, top - 36, chip, { anchor: "middle", k: "b", size: 10 });
     }
     else {
         Re(46, top - 28, 200, rows * rh + 8, "chip");
-        Tx(146, top - 36, "PLC · " + mod.dir + mod.idx, { anchor: "middle", k: "b", size: 10 });
+        Tx(146, top - 36, chip, { anchor: "middle", k: "b", size: 10 });
         Ln(886, top - 28, 886, yEnd, "r0");
         Tx(886, top - 36, "M (0 V)", { anchor: "middle", k: "b", size: 10 });
     }
@@ -82,55 +93,56 @@ export function sheetOps(prj, mod, xnum, page, total, meta) {
         cur = e.key;
         const y = top + i * rh + 12;
         const d = devById(prj, e.devId) || { name: "", desc: "" };
-        const wn = "-W" + (wBase + i);
+        const wn = wireNo(xnum, i);
+        const no = mod.chNo?.[i] ?? i, adr = hwAddrText(prj, e);
         if (mod.dir === "DI") {
             Ln(80, y, 300, y);
             Ln(300, y, 324, y - 13, "s"); // pohyblivý kontakt (IEC 60617)
             if (e.nc)
                 Ln(324, y, 324, y - 11, "s"); // doraz = rozpínací kontakt
             Ln(324, y, 678, y);
-            Tx(298, y - 17, "-" + (d.name || ""), { k: "b", size: 10 });
+            Tx(298, y - 17, "-" + devRef(d), { k: "b", size: 10 });
             Tx(340, y - 6, e.tag, { size: 10 });
             Tx(140, y - 6, (d.desc || e.cmt || "").slice(0, 25), { k: "m", size: 9 });
             Tx(500, y + 12, wn, { k: "m", size: 9 });
             Ci(686, y, 4);
             Tx(670, y + 14, "X" + xnum + ":" + (i + 1), { anchor: "end", k: "m", size: 9 });
-            Tx(720, y + 3, mod.dir + " " + i + "  " + e.addr, { k: "m", size: 9 });
+            Tx(720, y + 3, mod.dir + " " + no + "  " + adr, { k: "m", size: 9 });
         }
         else if (mod.dir === "AI") {
             Ln(80, y, 262, y);
             Re(262, y - 12, 96, 24);
-            Tx(310, y + 3, "-" + (d.name || "B?"), { anchor: "middle", k: "b", size: 10 });
+            Tx(310, y + 3, "-" + (devRef(d) || "B?"), { anchor: "middle", k: "b", size: 10 });
             Ln(358, y, 678, y);
             Tx(140, y - 6, (d.desc || "").slice(0, 17), { k: "m", size: 9 });
             Tx(380, y - 6, e.tag, { size: 10 });
-            Tx(380, y + 12, "4–20 mA · " + wn, { k: "m", size: 9 });
+            Tx(380, y + 12, (hwSignalText(mod.hw, "AI") || "4–20 mA") + " · " + wn, { k: "m", size: 9 });
             Ci(686, y, 4);
             Tx(670, y + 14, "X" + xnum + ":" + (i + 1), { anchor: "end", k: "m", size: 9 });
-            Tx(720, y + 3, "AI " + i + "  " + e.addr, { k: "m", size: 9 });
+            Tx(720, y + 3, "AI " + no + "  " + adr, { k: "m", size: 9 });
         }
         else if (mod.dir === "DO") {
-            Tx(54, y + 3, "DO " + i + "  " + e.addr, { k: "m", size: 9 });
+            Tx(54, y + 3, "DO " + no + "  " + adr, { k: "m", size: 9 });
             Ci(254, y, 4);
             Tx(266, y + 14, "X" + xnum + ":" + (i + 1), { k: "m", size: 9 });
             Ln(258, y, 560, y);
             Re(560, y - 9, 26, 18); // cívka/zátěž (IEC: obdélník)
-            Tx(573, y - 14, "-" + (d.name || ""), { anchor: "middle", k: "b", size: 10 });
+            Tx(573, y - 14, "-" + devRef(d), { anchor: "middle", k: "b", size: 10 });
             Ln(586, y, 886, y);
             Tx(276, y - 6, e.tag, { size: 10 });
             Tx(430, y + 12, wn, { k: "m", size: 9 });
             Tx(610, y + 14, (d.desc || e.cmt || "").slice(0, 24), { k: "m", size: 9 });
         }
         else {
-            Tx(54, y + 3, "AO " + i + "  " + e.addr, { k: "m", size: 9 });
+            Tx(54, y + 3, "AO " + no + "  " + adr, { k: "m", size: 9 });
             Ci(254, y, 4);
             Tx(266, y + 14, "X" + xnum + ":" + (i + 1), { k: "m", size: 9 });
             Ln(258, y, 540, y);
             Re(540, y - 12, 116, 24);
-            Tx(598, y + 3, "-" + (d.name || "U?"), { anchor: "middle", k: "b", size: 10 });
+            Tx(598, y + 3, "-" + (devRef(d) || "U?"), { anchor: "middle", k: "b", size: 10 });
             Ln(656, y, 886, y);
             Tx(276, y - 6, e.tag, { size: 10 });
-            Tx(400, y + 12, "0/4–20 mA · 0–10 V · " + wn, { k: "m", size: 9 });
+            Tx(400, y + 12, (hwSignalText(mod.hw, "AO") || "0/4–20 mA · 0–10 V") + " · " + wn, { k: "m", size: 9 });
         }
     });
     cur = undefined;
@@ -194,6 +206,131 @@ export function sheetDXF(prj, mod, xnum, page, total, meta) {
     const tot = total ?? modules(prj).length;
     return opsToDXF(sheetOps(prj, mod, xnum, page ?? xnum, tot, meta));
 }
+export function circuitSheetOps(s) {
+    const rh = 54, top = 92;
+    const rowsL = s.inputs.length + (s.reset ? 1 : 0), rowsR = s.outputs.length;
+    const rows = Math.max(rowsL, rowsR, 2);
+    const W = 980, H = top + rows * rh + 120;
+    const O = [];
+    let cur;
+    const ref = () => cur ? { io: cur } : {};
+    const Ln = (x1, y1, x2, y2, k) => O.push({ t: "l", x1, y1, x2, y2, k: k || "w", ...ref() });
+    const Ci = (cx, cy, r) => O.push({ t: "c", cx, cy, r, ...ref() });
+    const Re = (x, y, w, h, k) => O.push({ t: "r", x, y, w, h, k: k || "s", ...ref() });
+    const Tx = (x, y, t, o) => O.push(Object.assign({ t: "t", x, y, s: String(t), size: 11, anchor: "start", k: "t" }, o || {}, ref()));
+    /* rámeček a popisové pole */
+    Re(8, 8, W - 16, H - 16, "f");
+    Re(26, 26, W - 52, H - 52, "f");
+    for (let i = 1; i < 8; i++) {
+        const x = 26 + (W - 52) / 8 * i;
+        Ln(x, 8, x, 26, "f");
+        Ln(x, H - 26, x, H - 8, "f");
+    }
+    for (let i = 0; i < 8; i++)
+        Tx(26 + (W - 52) / 8 * (i + 0.5), 20, i + 1, { anchor: "middle", k: "m", size: 9 });
+    const tx = W - 26 - 420, ty = H - 26 - 52;
+    Re(tx, ty, 420, 52, "f");
+    Ln(tx, ty + 26, tx + 420, ty + 26, "f");
+    Ln(tx + 180, ty, tx + 180, ty + 52, "f");
+    Ln(tx + 330, ty, tx + 330, ty + 52, "f");
+    Tx(tx + 7, ty + 10, trx("Projekt"), { k: "m", size: 8 });
+    Tx(tx + 7, ty + 22, (s.projectName || "—").slice(0, 32), { k: "b", size: 9 });
+    Tx(tx + 187, ty + 10, trx("Výkres"), { k: "m", size: 8 });
+    Tx(tx + 187, ty + 22, s.title.slice(0, 26), { size: 9 });
+    Tx(tx + 337, ty + 10, trx("List"), { k: "m", size: 8 });
+    Tx(tx + 337, ty + 22, "1 / 1", { size: 9 });
+    Tx(tx + 7, ty + 36, trx("Kreslil"), { k: "m", size: 8 });
+    Tx(tx + 7, ty + 48, trx("PLCdesk (návrh k revizi)"), { size: 9 });
+    Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 });
+    Tx(tx + 187, ty + 48, s.date || todayCz(), { size: 9 });
+    Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 });
+    Tx(tx + 337, ty + 48, s.rev ?? "0.1", { size: 9 });
+    Tx(40, 52, s.title, { k: "b", size: 12 });
+    Tx(40, 68, s.note.slice(0, 130), { k: "m", size: 9 });
+    /* logika */
+    const lx = 430, lw = 150, ly = top - 14, lh = rows * rh + 4;
+    Re(lx, ly, lw, lh, "chip");
+    Tx(lx + lw / 2, ly - 6, s.logic.slice(0, 30), { anchor: "middle", k: "b", size: 10 });
+    /* vstupy */
+    const contact = (x, y, nc) => { Ln(x, y, x + 22, y - 12, "s"); if (nc)
+        Ln(x + 22, y, x + 22, y - 10, "s"); };
+    let r = 0;
+    for (const i of s.inputs) {
+        const y = top + r * rh + 10;
+        cur = i.tags[0];
+        Tx(40, y - 16, i.sf + "  -" + i.dev, { k: "b", size: 10 });
+        Tx(40, y + 22, i.label.slice(0, 40), { k: "m", size: 9 });
+        if (i.kind === "ossd") {
+            Re(150, y - 10, 70, 30);
+            Tx(185, y + 9, "OSSD", { anchor: "middle", size: 9 });
+            Ln(220, y - 2, lx, y - 2);
+            Ln(220, y + 12, lx, y + 12);
+        }
+        else if (i.kind === "single") {
+            Ln(120, y, 160, y);
+            contact(160, y, true);
+            Ln(182, y, lx, y);
+        }
+        else {
+            /* dva kanály: rozpínací (nc2) nebo spínací + rozpínací (twohand) */
+            Ln(120, y - 4, 160, y - 4);
+            contact(160, y - 4, i.kind === "nc2");
+            Ln(182, y - 4, lx, y - 4);
+            Ln(120, y + 12, 160, y + 12);
+            contact(160, y + 12, true);
+            Ln(182, y + 12, lx, y + 12);
+        }
+        Tx(250, y - 7, i.tags[0] || "", { size: 9 });
+        if (i.tags[1])
+            Tx(250, y + 25, i.tags[1], { size: 9 });
+        Ci(lx - 4, y - 2, 2.5);
+        r++;
+    }
+    if (s.reset) {
+        const y = top + r * rh + 10;
+        cur = s.reset;
+        Tx(40, y - 16, "-S0R  RESET", { k: "b", size: 10 });
+        Ln(120, y, 160, y);
+        contact(160, y, false);
+        Ln(182, y, lx, y);
+        Tx(250, y - 7, s.reset, { size: 9 });
+    }
+    /* výstupy */
+    s.outputs.forEach((o, k) => {
+        const y = top + k * rh + 10;
+        cur = o.tags[0];
+        Ln(lx + lw, y - 2, 760, y - 2);
+        if (o.kind === "contactors") {
+            Re(760, y - 14, 26, 18);
+            Re(800, y - 14, 26, 18);
+            Ln(786, y - 5, 800, y - 5);
+            Tx(773, y - 18, "K1", { anchor: "middle", k: "b", size: 9 });
+            Tx(813, y - 18, "K2", { anchor: "middle", k: "b", size: 9 });
+        }
+        else if (o.kind === "sto") {
+            Re(760, y - 14, 70, 22);
+            Tx(795, y + 1, "STO", { anchor: "middle", size: 9 });
+        }
+        else {
+            Re(760, y - 14, 26, 18);
+            Tx(773, y - 18, "Y", { anchor: "middle", k: "b", size: 9 });
+        }
+        Tx(lx + lw + 10, y - 8, o.tags.join(" / ").slice(0, 34), { size: 9 });
+        Tx(845, y - 2, o.id, { k: "b", size: 10 });
+        Tx(845, y + 12, o.label.slice(0, 18), { k: "m", size: 9 });
+        if (o.fbk.length) {
+            cur = o.fbk[0];
+            Ln(773, y + 4, 773, y + 18, "r0");
+            Ln(773, y + 18, lx + lw, y + 18, "r0");
+            Tx(lx + lw + 10, y + 30, "EDM: " + o.fbk.join(" + ").slice(0, 30), { k: "m", size: 9 });
+        }
+    });
+    cur = undefined;
+    Tx(40, top + rows * rh + 16, trx("Kontakty: šikmá páka s dorazem = NC, bez dorazu = NO. EDM = rozpínací zrcadlové kontakty zpět do logiky."), { k: "m", size: 9 });
+    return { W, H, O };
+}
+export function circuitSheetSVG(s) { return opsToSVG(circuitSheetOps(s), s.title); }
+export function circuitSheetDXF(s) { return opsToDXF(circuitSheetOps(s)); }
 /* ------------------------------------------------------- blokové schéma */
 /** Popisy modulů — klíče překladu, překládají se až při kreslení (`trx(MODLBL[dir])`). */
 const MODLBL = { DI: N_("digitální vstupy"), DO: N_("digitální výstupy"), AI: N_("analogové vstupy"), AO: N_("analogové výstupy") };
@@ -201,8 +338,10 @@ export function svgBlock(prj, mods) {
     const hasIn = (d) => prj.io.some(e => e.devId === d.id && (e.dir === "DI" || e.dir === "AI"));
     const hasOut = (d) => prj.io.some(e => e.devId === d.id && (e.dir === "DO" || e.dir === "AO"));
     const L = prj.devices.filter(hasIn), R = prj.devices.filter(hasOut);
+    /* servoosy: pohon na síti (bez I/O) — vpravo pod akčními členy, čárkovaně ke CPU */
+    const AXS = prj.devices.filter(d => d.cls === "Axis");
     const bh = 34, g = 10, top = 56;
-    const rows = Math.max(L.length, R.length, mods.length + 2);
+    const rows = Math.max(L.length, R.length + AXS.length, mods.length + 2);
     const H = top + rows * (bh + g) + 20;
     const yy = (i) => top + i * (bh + g);
     const TXT = "font-family:ui-monospace,monospace;font-size:12px;fill:currentColor";
@@ -211,23 +350,33 @@ export function svgBlock(prj, mods) {
     /* Blok = skupina <g> s odkazem (data-dev / data-mod) a popisem v <title>:
        prohlížeč z něj udělá bublinu, desktop podle něj blok rozklikne. */
     const box = (x, y, w, t1, t2, acc, attrs = "", title = "") => "<g" + attrs + ">" + (title ? "<title>" + esc(title) + "</title>" : "") +
-        '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + bh + '" rx="5" fill="' + (acc ? "var(--chip, #eee)" : "none") + '" stroke="' + (acc ? "var(--accent, #00707e)" : "var(--line, #999)") + '"/>' +
+        '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + bh + '" rx="5" fill="' + (acc ? "var(--chip, #eee)" : "none") + '" stroke="' + (acc ? "var(--accent, #2457C5)" : "var(--line, #999)") + '"/>' +
         sT(x + 8, y + 14, t1, TXT + ";font-weight:600") + (t2 ? sT(x + 8, y + 27, String(t2).slice(0, 34), MUT) : "") + "</g>";
     const devTitle = (d) => d.name + " — " + (d.desc || trx(CLS[d.cls].label)) + "\n" + trx(CLS[d.cls].label) + "\n" +
-        prj.io.filter(e => e.devId === d.id).map(e => e.dir + "  " + e.tag + "  " + e.addr).join("\n");
+        prj.io.filter(e => e.devId === d.id).map(e => e.dir + "  " + e.tag + "  " + hwAddrText(prj, e)).join("\n");
     let s = "";
     const plcH = (mods.length + 2) * (bh + g) + 14;
-    s += '<rect x="340" y="' + (top - 10) + '" width="300" height="' + plcH + '" rx="8" fill="none" stroke="var(--accent, #00707e)" stroke-width="1.5"/>';
-    s += sT(350, top - 18, "PLC", TXT + ";font-weight:700;fill:var(--accent, #00707e)");
+    s += '<rect x="340" y="' + (top - 10) + '" width="300" height="' + plcH + '" rx="8" fill="none" stroke="var(--accent, #2457C5)" stroke-width="1.5"/>';
+    s += sT(350, top - 18, "PLC", TXT + ";font-weight:700;fill:var(--accent, #2457C5)");
     s += sT(640, top - 18, trx("zdroje signálů →  PLC  → akční členy"), MUT, "end");
     s += box(352, yy(0), 276, trx("PS — zdroj 24 V DC"), trx("napájení modulů a snímačů"), false);
-    s += box(352, yy(1), 276, "CPU", prj.platforms.map(p => PLAT[p].cpu).join(" · ") || "—", true);
+    const HL = hwLayout(prj);
+    s += box(352, yy(1), 276, "CPU " + HL.cpu.dt, (HL.cpu.opt?.orderCode || HL.cpu.custom || "") + " · " + PLAT[HL.plat].cpu, true);
     mods.forEach((m, i) => {
-        const lbl = m.dir + m.idx + " — " + trx(MODLBL[m.dir]);
-        s += box(352, yy(i + 2), 276, lbl, trx("{n} kanálů · svorkovnice X{x}", { n: m.ch.length, x: i + 1 }), false, ' data-mod="' + i + '"', lbl + "\n" + m.ch.map((e, c) => "X" + (i + 1) + ":" + (c + 1) + "  " + e.tag + "  " + e.addr).join("\n"));
+        const lbl = (m.hw ? m.hw.dt + " " : "") + m.dir + m.idx + " — " + trx(MODLBL[m.dir]);
+        const st = m.hw && m.hw.station > 0 ? HL.stations.find(x => x.no === m.hw.station) : undefined;
+        s += box(352, yy(i + 2), 276, lbl, trx("{n} kanálů · svorkovnice X{x}", { n: m.ch.length, x: i + 1 }) + (st ? " · " + st.head.dt : ""), false, ' data-mod="' + i + '"', lbl + "\n" + m.ch.map((e, c) => "X" + (i + 1) + ":" + (c + 1) + "  " + e.tag + "  " + hwAddrText(prj, e)).join("\n"));
     });
     L.forEach((d, i) => { s += box(20, yy(i), 250, d.name, d.desc, false, ' data-dev="' + d.id + '" data-side="in"', devTitle(d)); });
     R.forEach((d, i) => { s += box(710, yy(i), 250, d.name, d.desc, false, ' data-dev="' + d.id + '" data-side="out"', devTitle(d)); });
+    AXS.forEach((d, k) => {
+        const i = R.length + k, y = yy(i), net = HL.drives.find(x => x.dev === d.name)?.net || "";
+        const ref = "-" + devRef(d);
+        s += box(710, y, 250, d.name + "  " + ref, trx("servoosa · {net}", { net }), false, ' data-dev="' + d.id + '" data-side="out"', d.name + " — " + (d.desc || trx(CLS[d.cls].label)) + "\n" + trx(CLS[d.cls].label) + "\n" + ref + " " + trx("servoměnič, uzel sítě {net}", { net }));
+        /* značka servomotoru (IEC 60617: kruh s M) */
+        s += '<circle cx="940" cy="' + (y + bh / 2) + '" r="11" fill="none" stroke="var(--line, #999)"/>' + sT(940, y + bh / 2 + 4, "M", TXT, "middle");
+        s += '<line data-dev="' + d.id + '" x1="628" y1="' + (yy(1) + bh / 2) + '" x2="710" y2="' + (y + bh / 2) + '" stroke="var(--accent, #2457C5)" stroke-width="1" stroke-dasharray="5 3"/>';
+    });
     for (const e of prj.io) {
         const mi = mods.findIndex(m => m.ch.includes(e));
         if (mi < 0)

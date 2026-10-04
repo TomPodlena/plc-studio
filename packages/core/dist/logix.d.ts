@@ -1,5 +1,5 @@
 /**
- * PLC Studio — výstup pro Rockwell Studio 5000 Logix Designer (CompactLogix 5380 / ControlLogix 5580).
+ * PLCdesk — výstup pro Rockwell Studio 5000 Logix Designer (CompactLogix 5380 / ControlLogix 5580).
  *
  * Logix 5000 ST není IEC 61131-3: rutina obsahuje jen příkazy (tagy jsou v databázi tagů),
  * FUNCTION_BLOCK nahrazuje Add-On Instruction, TON v ST není (je TONR nad FBD_TIMER),
@@ -7,16 +7,18 @@
  * (dílčí import programu: AOI + tagy + rutina ST) a k tomu tělo rutiny a Tags.csv.
  *
  * Logika se tu NEPÍŠE znovu: AOI vznikají z týchž šablon ST_MOTOR / ST_VENTIL / … přes
- * `parseFbTemplate()` a `lxDialect()`, hlavní rutina z výstupu `seqBody` / `wiring` /
- * `faultBlock` / `enableExpr` (stejné pořadí jako IEC MAIN, tedy i jako simulátor:
- * enable → sekvence → časovače kroků za CASE → instance → porucha stroje).
+ * `parseFbTemplate()` a `lxDialect()`, hlavní rutina z mezivrstvy `buildIR()` (ir.ts) přes
+ * společné ST renderery (`renderSeq` / `renderWiring` / `renderFault`, volání bloků jako členy
+ * instance — `lxCallIr`), stejné pořadí jako IEC MAIN, tedy i jako simulátor:
+ * enable → sekvence → časovače kroků za CASE → instance → porucha stroje.
  *
  * Zdroje: 1756-PM007 (ST), 1756-RM003 (TONR, FBD_TIMER), 1756-PM010 (AOI), 1756-RM014 (L5X, CSV),
  * 5000-UM004 / 5069-UM005 (tagy modulů 5069). Výstup není ověřen importem ve Studiu 5000.
  */
 import { Project, IoEntry, Dir } from "./model.js";
+import { type IrFbClass } from "./ir.js";
 /** Název importovaného programu a jeho hlavní rutiny. */
-export declare const LX_PROGRAM = "PLCStudio";
+export declare const LX_PROGRAM = "PLCdesk";
 export declare const LX_ROUTINE = "MainRoutine";
 /** Verze Logix Designeru uvedená v L5X (import do stejné nebo novější verze). */
 export declare const LX_SOFTWARE_REVISION = "32.00";
@@ -31,23 +33,24 @@ export declare function lxCsvEsc(s: string): string;
  * (příklady PM007 používají 1/0), `IF TRUE THEN x END_IF;` → `x`.
  */
 export declare function lxDialect(st: string): string;
-/** Předpokládané osazení lokálních slotů (moduly Compact 5000 I/O). */
+/** Osazení slotu modulem Compact 5000 I/O (sestava hardware.ts): `rack` = Local nebo RIO<n>. */
 export interface LxSlot {
+    rack: string;
     slot: number;
     dir: Dir;
     module: string;
-    first: number;
+    channels: number;
 }
 /**
- * Body modulů pro aliasy I/O: z kanonické adresy se odvodí kanál, z něj modul a bod
- * (DI/DO po 16, AI po 8, AO po 4). Sloty se číslují od 1: nejdřív moduly DI, pak DO, AI, AO.
- * Když adresu nejde převést nebo by modulů bylo víc než 31, alias se pro tag negeneruje.
+ * Body modulů pro aliasy I/O ze sestavy hardwaru Rockwell (hardware.ts): Local:<slot>:I.Pt00.Data
+ * u lokálních modulů (CPU slot 0, moduly 1…), RIO<n>:<slot>:… u vzdálených stanic s adaptérem
+ * EtherNet/IP. Signál bez kanálu (nevejde se) alias nedostane.
  */
 export declare function lxIoMap(prj: Project): {
     slots: LxSlot[];
     spec: Map<string, string>;
 };
-/** Osazení slotů jedním řádkem (ASCII, bez jazykových slov): „1: 5069-IB16 (DI 0-15), 2: …". */
+/** Osazení slotů jedním řádkem (ASCII, bez jazykových slov): „Local:1 5069-IB16 (DI 16), …". */
 export declare function lxSlotText(prj: Project): string;
 /** Datový typ I/O tagu v Logix (analogy 5069 = REAL v jednotkách modulu). */
 export declare function lxIoType(e: IoEntry): string;
@@ -56,7 +59,7 @@ export interface LxTag {
     type: string;
     desc: string;
 }
-/** Programové tagy: uvolnění, řízení stroje (ctrlDecls) a instance AOI. */
+/** Programové tagy: uvolnění, řízení stroje (deklarace IR) a instance AOI. */
 export declare function lxProgramTags(prj: Project): LxTag[];
 /**
  * Tělo hlavní rutiny MainRoutine (Logix ST, jen příkazy) — k ručnímu vložení do ST rutiny;
@@ -64,16 +67,45 @@ export declare function lxProgramTags(prj: Project): LxTag[];
  */
 export declare function genLogixRoutine(prj: Project): string;
 /**
- * PLCStudio_Program.L5X — dílčí import programu (MainTask → Add → Import Program):
+ * PLCdesk_Program.L5X — dílčí import programu (MainTask → Add → Import Program):
  * Add-On Instructions použitých tříd, I/O tagy (controller scope, BOOL / REAL),
- * program PLCStudio s programovými tagy a rutinou MainRoutine (ST).
+ * program PLCdesk s programovými tagy a rutinou MainRoutine (ST).
  * Struktura podle 1756-RM014 a reálných exportů; Rockwell nezveřejňuje XSD → neověřeno importem.
  */
 export declare function genRockwellL5X(prj: Project): string;
+/** Příčka (rung) safety rutiny: komentář a neutrální text RLL (`XIC(a)OTE(b);`). */
+export interface LxSafetyRung {
+    comment: string;
+    text: string;
+}
+/** Tag safety programu; `io` = zástupce kanálu bezpečnostního modulu (controller scope). */
+export interface LxSafetyTag {
+    name: string;
+    type: string;
+    desc: string;
+    io?: boolean;
+}
+/**
+ * PLCdesk_Safety.L5X — dílčí import SAFETY programu (Safety Task → Add → Import Program):
+ * program s `Class="Safety"`, safety tagy a rutina SafetyRoutine v ladderu (v safety tasku je jen
+ * RLL; FBD a ST bezpečnostní instrukce nemají). Obsah (DCS, DCSTL, THRSe, CROUT…) skládá
+ * safety_prog.ts jen pro schválené bezpečnostní funkce. Podpis safety tasku a safety-lock se
+ * v L5X jen exportují, při importu se ignorují — vznikají až v Logix Designeru (1756-RM084).
+ * Struktura podle RM014 / RM084; neověřeno importem ve Studiu 5000. Výstup je čisté ASCII.
+ */
+export declare function genRockwellSafetyL5X(o: {
+    name: string;
+    description: string;
+    banner: string;
+    tags: LxSafetyTag[];
+    rungs: LxSafetyRung[];
+}): string;
+/** Statická kontrola safety L5X (testy): well-formed, ASCII, každý operand příček deklarovaný. */
+export declare function logixSafetyProblems(x: string): string[];
 /**
  * Tags.csv pro Tools → Import → Tags and Logic Comments (náhradní cesta k L5X):
  * I/O jako ALIAS na body modulů 5069 (předpoklad osazení slotů v remark), jinak TAG;
- * programové tagy se SCOPE = program PLCStudio. Popisy ASCII s escapováním `$`.
+ * programové tagy se SCOPE = program PLCdesk. Popisy ASCII s escapováním `$`.
  */
 export declare function genLogixTagsCsv(prj: Project): string;
 /** Minimální kontrola well-formed XML (párování tagů, atributy, CDATA, entity); vrací chyby. */
@@ -83,4 +115,12 @@ export declare function xmlProblems(xml: string): string[];
  * žádné konstrukce IEC, které Logix nemá, TONR s PRE před voláním, každý identifikátor
  * v rutinách deklarovaný (tag, parametr / lokální tag AOI, člen FBD_TIMER), čisté ASCII.
  */
-export declare function logixProblems(files: Record<string, string>): string[];
+export declare function logixProblems(files: Record<string, string>, axes?: string[]): string[];
+/**
+ * Proč vlastní šablonu IEC ST (firemní knihovna) nejde spolehlivě převést na Add-On Instruction;
+ * prázdné = jde. Převod (`lxDialect`) zná jen konstrukce vestavěných šablon (TON jako
+ * `tonX(IN := …, PT := T#…);`, předčasný RETURN v úvodním IF NOT enable, INT_TO_REAL…) — výsledek
+ * se proto zkontroluje stejnou kontrolou jako výstup (`lxRoutineFindings`): co v AOI zbude
+ * z IEC (T#, TON(, RETURN, .Q, volání s parametry, nedeklarované jméno…), převést nešlo.
+ */
+export declare function lxTplProblems(cls: IrFbClass, tpl: string): string[];

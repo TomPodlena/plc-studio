@@ -1,5 +1,5 @@
 /**
- * PLC Studio — import stávajícího zařízení: přesné zpětné zpracování exportů a programů z PLC
+ * PLCdesk — import stávajícího zařízení: přesné zpětné zpracování exportů a programů z PLC
  * (bez AI). Společné typy pro jádro i AI vrstvu (apps/web/src/import_ai.js).
  *
  *  extractFiles()   soubory → signály (tagy s kanonickou adresou) + POU (těla programů)
@@ -12,8 +12,9 @@
  * `enable` — žádná bezpečnostní logika se tu neodvozuje ani negeneruje.
  */
 import type { Dir, PlatformKey, Project, Device, DeviceClass, IoEntry, SeqStep, SeqAct, DoRole } from "./model.js";
-import { blankProject, devSignals, autoAddr, sanitizeTag, stripDia, roleExpr } from "./model.js";
+import { blankProject, devSignals, autoAddr, sanitizeTag, stripDia, roleExpr, ensureGuids } from "./model.js";
 import { tr, trIn, N_, LANGS, type Lang } from "./i18n.js";
+import { hwPlatform, HW_VER } from "./hardware.js";
 import {
   parseXml, xmlAll, xmlChild, xmlText, splitDelimited, guessDelimiter, canonAddr, isMemAddr, type XmlNode,
 } from "./importers.js";
@@ -122,6 +123,8 @@ function addSig(sink: Sink, s: ExtractedSignal): void {
 const PLAT_BY_NAME: Array<[RegExp, PlatformKey]> = [
   [/- Beckhoff \*\)/, "beckhoff"], [/- CODESYS \*\)/, "codesys"], [/- Schneider Electric \*\)/, "schneider"],
   [/- Mitsubishi \*\)/, "mitsubishi"], [/- OMRON \*\)/, "omron"],
+  /* profily CODESYS (hlavička MAIN / Gen_Library: „… - WAGO *)“, „… - Delta Electronics *)“) */
+  [/- WAGO \*\)/, "wago"], [/- Delta Electronics \*\)/, "delta"],
 ];
 function platFromText(t: string): PlatformKey | undefined {
   for (const [re, p] of PLAT_BY_NAME) if (re.test(t)) return p;
@@ -287,6 +290,8 @@ function exSdf(f: InputFile, t: string, sink: Sink): FileResult | null {
 
 /* ------------------------------------------------------------------- Rockwell L5X */
 
+/** Rack našeho výstupu Rockwell: lokální Local, vzdálené stanice RIO<n> (hardware.ts `lxSpecOf`). */
+const OUR_RACK = /^(Local|RIO\d+)$/i;
 /** Body modulů Rockwell (alias / popis) → kanonické adresy (inverze `lxIoMap`, jinak pořadím). */
 export function rockwellAddrs(specs: Array<{ tag: string; spec: string }>, analog?: Set<string>): { addr: Map<string, string>; dir: Map<string, Dir>; exact: boolean } {
   /* bod modulu: <modul>[:<slot>]:<I|O>.<člen> — Local:1:I.Pt00.Data, Local:1:I.Data.3, Drop_M1:10:I.3,
@@ -298,8 +303,8 @@ export function rockwellAddrs(specs: Array<{ tag: string; spec: string }>, analo
     if (!m) continue;
     const io = m[3], mem = m[4];
     let ch = -1, an = false, ours = false, k: RegExpMatchArray | null;
-    if ((k = mem.match(/^Pt(\d+)\.Data$/i))) { ch = +k[1]; ours = /^Local$/i.test(m[1].split(":")[0]); }
-    else if ((k = mem.match(/^Ch(\d+)\.?Data$/i))) { ch = +k[1]; an = true; ours = /^Local$/i.test(m[1].split(":")[0]) && /\.Data$/.test(mem); }
+    if ((k = mem.match(/^Pt(\d+)\.Data$/i))) { ch = +k[1]; ours = OUR_RACK.test(m[1].split(":")[0]); }
+    else if ((k = mem.match(/^Ch(\d+)\.?Data$/i))) { ch = +k[1]; an = true; ours = OUR_RACK.test(m[1].split(":")[0]) && /\.Data$/.test(mem); }
     else if ((k = mem.match(/^(?:Data|Slot)\[(\d+)\]\.(\d+)$/i))) ch = +k[1] * 32 + +k[2];
     else if ((k = mem.match(/^(?:Data|Slot)\[(\d+)\]$/i))) { ch = +k[1]; an = !!analog?.has(tag); }
     else if ((k = mem.match(/^(?:Data\.)?(\d+)$/i))) ch = +k[1];
@@ -313,20 +318,26 @@ export function rockwellAddrs(specs: Array<{ tag: string; spec: string }>, analo
   const addr = new Map<string, string>(), dir = new Map<string, Dir>();
   const canon = (d: Dir, c: number) => d === "DI" ? "%I" + (c >> 3) + "." + (c & 7) : d === "DO" ? "%Q" + (c >> 3) + "." + (c & 7)
     : (d === "AI" ? "%IW" : "%QW") + (64 + 2 * c);
-  /* náš generátor (inverze lxIoMap): moduly Local, sloty od 1 — DI, pak DO, AI, AO; báze směru = max slot předchozího + 1 */
+  /* náš generátor (inverze lxIoMap ze sestavy hardware.ts): moduly Compact 5000 v racku Local (sloty od 1)
+     a ve vzdálených stanicích RIO<n>; kanonické adresy lineárně po směrech v pořadí (stanice, slot) —
+     každý modul jen jeden směr, šířka modulu = DI16 / DO16 / AI8 / AO4 */
+  const rackNo = (mod: string) => { const r = mod.split(":")[0]; return /^Local$/i.test(r) ? 0 : +(r.match(/\d+$/) || ["0"])[0]; };
   let exact = pts.length > 0 && pts.every(p => p.ours && p.ch < PER[p.dir]);
-  const base: Record<Dir, number> = { DI: 1, DO: 1, AI: 1, AO: 1 };
   if (exact) {
-    let next = 1;
-    for (const d of ORDER) {
-      const s = [...new Set(pts.filter(p => p.dir === d).map(p => p.slot))].sort((a, b) => a - b);
-      base[d] = next;
-      if (s.length) { if (s[0] < next) exact = false; next = s[s.length - 1] + 1; }
+    const mods = [...new Set(pts.map(p => p.mod))].sort((a, b) => rackNo(a) - rackNo(b) || (+(a.split(":")[1] || 0)) - (+(b.split(":")[1] || 0)));
+    const off: Record<Dir, number> = { DI: 0, DO: 0, AI: 0, AO: 0 };
+    const start = new Map<string, number>();
+    for (const md of mods) {
+      const ds = new Set(pts.filter(p => p.mod === md).map(p => p.dir));
+      if (ds.size !== 1) { exact = false; break; }
+      const d = [...ds][0];
+      start.set(md, off[d]);
+      off[d] += PER[d];
     }
-  }
-  if (exact) {
-    for (const p of pts) { dir.set(p.tag, p.dir); addr.set(p.tag, canon(p.dir, (p.slot - base[p.dir]) * PER[p.dir] + p.ch)); }
-    return { addr, dir, exact };
+    if (exact) {
+      for (const p of pts) { dir.set(p.tag, p.dir); addr.set(p.tag, canon(p.dir, start.get(p.mod)! + p.ch)); }
+      return { addr, dir, exact };
+    }
   }
   /* cizí projekt: každý modul (rack + slot) dostane vlastní souvislý rozsah kanálů daného směru (pořadí modulů) */
   for (const d of ORDER) {
@@ -568,7 +579,7 @@ function exL5X(f: InputFile, t: string, sink: Sink): FileResult {
       sink.pous.push({ name: r.attrs.Name || "Routine", kind: "routine", lang, body: body + pre, src: { file: f.name, line: lineAt(t, r.pos) + 2 } });
     }
     const d = xmlText(xmlChild(prog, "Description")).trim();
-    if (d && !sink.meta.name) sink.meta.name = d.replace(/\s*-\s*PLC Studio$/, "");
+    if (d && !sink.meta.name) sink.meta.name = d.replace(/\s*-\s*(PLCdesk|PLC Studio)$/, "");
   }
   if (!sink.meta.name && ctrl && !ours) { const d = xmlText(xmlChild(ctrl, "Description")).trim(); if (d) sink.meta.name = d; }
   sink.plats.push("rockwell");
@@ -771,7 +782,7 @@ function exPLCopen(f: InputFile, t: string, sink: Sink): FileResult {
   }
   const pl = platFromText(sink.pous.map(p => p.body).join("\n")) || (anyStar ? "beckhoff" : undefined);
   if (pl) sink.plats.push(pl); else sink.weak.push("codesys");
-  if (!sink.meta.name) { const n = xmlAll(doc, "contentHeader")[0]?.attrs.name; if (n && !/^(PLC-Studio-Project|Unnamed)$/.test(n)) sink.meta.name = n; }
+  if (!sink.meta.name) { const n = xmlAll(doc, "contentHeader")[0]?.attrs.name; if (n && !/^(PLCdesk-Project|PLC-Studio-Project|Unnamed)$/.test(n)) sink.meta.name = n; }
   return { fmt: "PLCopen XML (TC6)", note: sfcSteps ? tr("SFC: {n} kroků převedeno na sekvenci (odhad).", { n: sfcSteps }) : sink.signals.length === s0 ? tr("Žádné proměnné s vazbou na I/O.") : undefined };
 }
 /* ----------------------------------------------------------------- ST / SCL zdroje */
@@ -986,6 +997,16 @@ const COL_SYN: Array<[string, RegExp]> = [
   ["group", /^(group|skupina|gruppe|grupo|分组)$/i],
 ];
 
+/**
+ * Globální proměnné, které generátor PLCdesk u Mitsubishi / Omron deklaruje pro HMI (řízení stroje
+ * a zrcadlo stavu bloků — codegen.ts `hmiGlobalVars`): nejsou to signály I/O, jen deklarace.
+ */
+const OUR_HMI_GLOBAL = /^(enable|modeAuto|cmdAutoStart|cmdAck|machineFault|faultStep|seqStep|man(?:Run|Open)_[A-Za-z]\w*|inst[A-Za-z]\w*_(?:outRun|outOpen|busy|error|status|value|alarmHi|alarmLo|limitHi|limitLo)|man(?:Power|Home|JogP|JogN)_[A-Za-z]\w*|inst[A-Za-z]\w*_(?:powered|homed|done|doneId|actPos|moving|errCode))$/;
+/** Deklarace bez signálů I/O jako blok VAR (typy pro rozbor kódu), jako u tagů Rockwell. */
+function pushDecls(sink: Sink, f: InputFile, decl: string[]): void {
+  if (decl.length) sink.pous.push({ name: f.name + ":tags", kind: "routine", lang: "other", body: "VAR\n" + decl.join("\n") + "\nEND_VAR\n", src: { file: f.name, line: 1 } });
+}
+
 function colRoles(cells: string[]): Record<string, number> {
   const r: Record<string, number> = {};
   cells.forEach((c, i) => {
@@ -1041,19 +1062,23 @@ function exTable(f: InputFile, t: string, sink: Sink): FileResult | null {
   /* Sysmac Studio: řádky bez hlavičky, sloupce Name, Data Type, Initial Value, AT, Retain, Constant, Network Publish, Comment */
   if (hi < 0 && delim === "\t" && rows.length && rows.every(r => r.c.length >= 2 && /^[A-Za-z_][\w.]*$/.test(r.c[0]) && /^(BOOL|INT|DINT|UINT|WORD|REAL|LREAL|DWORD|SINT|BYTE|TIME|STRING.*|ARRAY.*)$/i.test(r.c[1]))) {
     fmt = tr("OMRON Sysmac Studio — proměnné (tabulka)"); plat = "omron";
+    const decl: string[] = [];
     for (const r of rows) {
+      if (OUR_HMI_GLOBAL.test(r.c[0])) { decl.push("    " + r.c[0] + " : " + r.c[1] + ";"); continue; }
       const dt = normDt(r.c[1]);
       if (!ATOMIC.test(dt) && dt !== "WORD") continue;
       const at = r.c[3] || "";
       const addr = canonAddr(at);
       addSig(sink, { tag: r.c[0], dt, addr, cmt: r.c[7] || r.c[r.c.length - 1] === r.c[0] ? (r.c[7] || "") : (r.c[7] || ""), dir: dirOf(addr, dt, r.c[0]), src: { file: f.name, line: r.line, quote: quoteOf(r.raw) } });
     }
+    pushDecls(sink, f, decl);
     sink.plats.push(plat);
     return { fmt };
   }
 
   let n = 0;
   const cell = (r: { c: string[] }, role: string) => role in roles ? (r.c[roles[role]] || "").trim() : "";
+  const hmiDecl: string[] = [];
   if (hi >= 0) {
     /* sloupec „Device"/„Assign" u Mitsubishi = adresa; jinak u neznámých sloupců rozhodnou hodnoty */
     for (const r of rows.slice(hi + 1)) {
@@ -1067,6 +1092,12 @@ function exTable(f: InputFile, t: string, sink: Sink): FileResult | null {
       if (/VAR_GLOBAL_CONSTANT/i.test(r.raw)) continue;
       /* GX Works: lokální návěští POU (VAR, VAR_INPUT…) nejsou I/O stroje */
       if (plat === "mitsubishi" && /^VAR(_INPUT|_OUTPUT|_IN_OUT|_TEMP)?$/i.test(cell(r, "cls"))) continue;
+      /* proměnné pro HMI z generátoru PLCdesk (bez operandu) — jen deklarace */
+      if (plat === "mitsubishi" && !rawAddr && OUR_HMI_GLOBAL.test(tag)) {
+        const t = cell(r, "dt");
+        hmiDecl.push("    " + tag + " : " + (/^bit$/i.test(t) ? "BOOL" : /^word \[signed\]$/i.test(t) ? "INT" : /^float/i.test(t) ? "REAL" : /^word/i.test(t) ? "WORD" : normDt(t) || "BOOL") + ";");
+        continue;
+      }
       if (isMemAddr(rawAddr)) continue;
       const dt = /^(DI|DO|AI|AO)$/i.test(cell(r, "dt")) ? (/^A/i.test(cell(r, "dt")) ? "INT" : "BOOL") : normDt(cell(r, "dt"));
       if (dt && !ATOMIC.test(dt) && !/^(WORD|DWORD|BYTE|INT16|UINT16|FLOAT|DINT)$/i.test(dt)) continue;   // pole, struktury, FB
@@ -1105,6 +1136,7 @@ function exTable(f: InputFile, t: string, sink: Sink): FileResult | null {
     }
   }
   if (!n && !(hi >= 0 && plat)) return null;
+  pushDecls(sink, f, hmiDecl);
   if (plat) sink.plats.push(plat);
   return n ? { fmt } : { fmt, note: tr("Bez vstupů a výstupů (lokální nebo vnitřní proměnné).") };
 }
@@ -1115,7 +1147,7 @@ function exReadme(t: string, sink: Sink): FileResult {
   /* první řádek: „PROJEKT: {name} · {tags} tagů · …" (v libovolném jazyce) */
   const m = t.match(/^[^:\n]{2,20}:\s*(.+?)\s+·\s+\d+\s/m);
   if (m && !sink.meta.name) sink.meta.name = m[1];
-  return { fmt: tr("README generátoru PLC Studio") };
+  return { fmt: tr("README generátoru PLCdesk") };
 }
 
 /* ========================================================= extrakce: rozcestník */
@@ -1170,7 +1202,7 @@ export function extractFiles(files: InputFile[]): Extracted {
       else if (/plcopen\.org\/xml\/tc6|<project[\s>][\s\S]*<types>/.test(t)) r = exPLCopen(f, t, sink);
       else if (/<SW\.(Blocks|Types|TechnologicalObjects)\./.test(t)) r = exSimaticBlock(f, t, sink);
       else if (/\.sdf$/i.test(f.name)) r = exSdf(f, t, sink);
-      else if (/^README/i.test(f.name) && /PLC Studio/.test(t)) r = exReadme(t, sink);
+      else if (/^README/i.test(f.name) && /PLCdesk|PLC Studio/.test(t)) r = exReadme(t, sink);
       else if (/^\s*(FUNCTION_BLOCK|PROGRAM|FUNCTION|ORGANIZATION_BLOCK|DATA_BLOCK)\s+\S/m.test(t) || /^\s*VAR_GLOBAL\b/m.test(t)) r = exSTSource(f, t, sink);
       else if ((t.match(/:=[^;\n]*;/g) || []).length >= 3 && !/^\s*</.test(t)) r = exSTRoutine(f, t, sink);
       else r = exTable(f, t, sink);
@@ -1342,6 +1374,7 @@ function stripComments(src: string): { code: string; cmts: Map<number, string[]>
 
 function mkUnit(p: ExtractedPou, sigTags: Set<string>, instNames: Set<string>): Unit {
   const { code: c0, cmts } = stripComments(p.body);
+  const timerM = new Set<string>();                 // časovače TIMER_x_FB_M převedené na tvar TON
   let code = c0
     /* Rockwell: TONR nad FBD_TIMER → IEC tvar volání časovače */
     .replace(/(\w+)\.PRE\s*:=\s*(\d+)\s*;\s*\1\.TimerEnable\s*:=\s*([^;]+?)\s*;\s*TONR\s*\(\s*\1\s*\)\s*;/g,
@@ -1349,10 +1382,21 @@ function mkUnit(p: ExtractedPou, sigTags: Set<string>, instNames: Set<string>): 
     .replace(/(\w+)\.TimerEnable\s*:=\s*([^;]+?)\s*;\s*\1\.PRE\s*:=\s*(\d+)\s*;\s*TONR\s*\(\s*\1\s*\)\s*;/g,
       (all, t: string, cond: string, ms: string) => t + "(IN := " + cond + ", PT := T#" + ms + "MS);" + "\n".repeat((all.match(/\n/g) || []).length))
     .replace(/\.DN\b/g, ".Q")
+    /* Mitsubishi TIMER_1/10/100_FB_M (FX5 kroky nad 32 767 ms) → IEC tvar; jednotka předvolby podle deklarace */
+    .replace(/\b(\w+)\s*\(\s*Coil\s*:=\s*([^,]*?)\s*,\s*Preset\s*:=\s*(\d+)\s*,\s*ValueIn\s*:=\s*0\s*\)\s*;/g, (all, t: string, cond: string, pre: string) => {
+      const d = c0.match(new RegExp("\\b" + t + "\\s*:\\s*TIMER_(1|10|100)_FB_M\\b"));
+      if (!d) return all;
+      timerM.add(up(t));
+      return t + "(IN := " + cond + ", PT := T#" + (+pre * +d[1]) + "MS);" + "\n".repeat((all.match(/\n/g) || []).length);
+    })
     /* Logix / CODESYS nerozlišují velikost klíčových slov (if … end_if) */
     .replace(/\b(if|then|else|elsif|end_if|case|of|end_case|and|or|not|xor|true|false|return)\b/gi, (k: string) => k.toUpperCase())
     .replace(/#(?=[A-Za-z_])/g, "")
     .replace(/"([A-Za-z_]\w*)"/g, "$1");
+  if (timerM.size) code = code.replace(/\b(\w+)\.Status\b/g, (all, n: string) => timerM.has(up(n)) ? n + ".Q" : all);
+  /* Mitsubishi / Omron: zrcadlo stavu bloku pro HMI (`instM1_status := instM1.status;`) není zapojení
+     výstupu — vymazat (mezery, aby seděly pozice a čísla řádků) */
+  code = code.replace(/^[ \t]*(inst[A-Za-z]\w*)_(outRun|outOpen|busy|error|status|value|alarmHi|alarmLo)[ \t]*:=[ \t]*\1\.\2[ \t]*;/gm, m => " ".repeat(m.length));
   /* kvalifikace GVL (GVL_IO.M1_run) pryč — jen u známých signálů, ne u členů instancí */
   code = code.replace(/\b([A-Za-z_]\w*)\.([A-Za-z_]\w*)\b/g, (all, q: string, n: string) => sigTags.has(up(n)) && !instNames.has(up(q)) ? n : all);
   return { pou: p, code, lines: code.split("\n"), cmts, raw: p.body };
@@ -1373,8 +1417,9 @@ function declsOf(text: string, out: Map<string, string>): void {
   }
 }
 
-const TIMER_T = /^(TON|TOF|TP|TONR|TON_TIME|TOF_TIME|TP_TIME|FBD_TIMER|TIMER|R_TRIG|F_TRIG|CTU|CTD|CTUD|RS|SR|LTON|IEC_TIMER|COUNTER)$/i;
-const OUR_FB: Record<string, DeviceClass> = { FB_MOTOR: "Motor", FB_VENTIL: "Ventil", FB_ANALOGIN: "AnalogIn", FB_ANALOGOUT: "AnalogOut" };
+const TIMER_T = /^(TON|TOF|TP|TONR|TON_TIME|TOF_TIME|TP_TIME|FBD_TIMER|TIMER|R_TRIG|F_TRIG|CTU|CTD|CTUD|RS|SR|LTON|IEC_TIMER|COUNTER|TIMER_(?:1|10|100)_FB_M)$/i;
+/* FB_VALVE = ventil ve stylu OOP (codegen_oop.ts) */
+const OUR_FB: Record<string, DeviceClass> = { FB_MOTOR: "Motor", FB_VENTIL: "Ventil", FB_VALVE: "Ventil", FB_ANALOGIN: "AnalogIn", FB_ANALOGOUT: "AnalogOut" };
 const P_IN: Record<string, string[]> = {
   Motor: ["enable", "cmdStart", "cmdStop", "reset", "fbkRunning", "fault"],
   Ventil: ["enable", "cmdOpen", "cmdClose", "reset", "fbkOpen", "fbkClosed"],
@@ -1477,6 +1522,8 @@ function findInstances(units: Unit[], types: Map<string, string>, sigTags: Set<s
       x.endLi = Math.max(x.endLi, li);
     }
   }
+  /* styl OOP: vstup poruchy motoru se jmenuje faultIn (Fault je vlastnost rozhraní I_Device) */
+  for (const x of out.values()) if (x.ins.faultIn && !x.ins.fault) { x.ins.fault = x.ins.faultIn; delete x.ins.faultIn; }
   return [...out.values()].filter(x => Object.keys(x.ins).length + Object.keys(x.outs).length > 0);
 }
 
@@ -1794,6 +1841,9 @@ export function inferProject(ex: Extracted, base?: Project): ImportProposal {
       if (d.dev.limHi !== undefined) dev.limHi = d.dev.limHi;
       if (d.dev.limLo !== undefined) dev.limLo = d.dev.limLo;
       if (d.dev.setpoint !== undefined) dev.setpoint = d.dev.setpoint;
+      /* opakovaný import do existujícího projektu: zařízení se stejným označením si nechá GUID */
+      const bd = base?.devices.find(x => up(x.name) === up(d.name));
+      if (bd?.guid) dev.guid = bd.guid;
       prj.devices.push(dev);
       ev("dev:" + d.name, d.conf, d.src.slice(0, 4), d.note);
     }
@@ -1816,6 +1866,9 @@ export function inferProject(ex: Extracted, base?: Project): ImportProposal {
         if (!e.addr) noAddr.push(tag);
       }
     }
+    /* adresy z podkladů = připnutí v sestavě platformy podkladů (hardware.ts); chybějící se doplní */
+    if (ex.platform) prj.platforms = [ex.platform];
+    prj.hw = { plat: hwPlatform(prj), ver: HW_VER };
     autoAddr(prj, false);
     (prj as Project & { _noAddr?: string[] })._noAddr = noAddr;
   }
@@ -2043,6 +2096,9 @@ export function inferProject(ex: Extracted, base?: Project): ImportProposal {
       if (evd) evidence["io:" + e.tag] = { ...evd, conf: "guess", note: tr("Adresa obsazená jiným signálem — přidělena volná, ověř.") };
     } else seenAddr.set(e.addr, e);
   }
+  /* adresy z podkladů patří platformě podkladů — značka sestavy je bere jako připnutí (hardware.ts);
+     adresa mimo kanály navržené sestavy zůstane (skutečný stroj), validace na ni upozorní */
+  prj.hw = { plat: hwPlatform(prj), ver: HW_VER };
   if (prj.io.some(e => !e.addr)) autoAddr(prj, false);
   for (const e of prj.io) {
     if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(e.tag) && !/__/.test(e.tag) && e.tag.length <= 40) continue;
@@ -2056,7 +2112,12 @@ export function inferProject(ex: Extracted, base?: Project): ImportProposal {
 
   const noAddr = (prj as Project & { _noAddr?: string[] })._noAddr || [];
   delete (prj as Project & { _noAddr?: string[] })._noAddr;
+  ensureGuids(prj);   // GUID nových zařízení, signálů a karet (guid.ts)
   const missing = computeMissing(prj, evidence, { noAddr, enableFound, seqFound, hasCode: pous.length > 0, unparsed: ex.unparsed.map(f => f.name), skipped: ex.skipped });
+  /* servoosa (FB_Axis nad bloky MC): osa po síti nemá I/O a import ji zatím nepřenese — upozornit, nic nedomýšlet */
+  const axes = new Set<string>();
+  for (const pou of pous) for (const m of pou.body.matchAll(/\b(inst\w+)\s*:\s*"?FB_Axis\b/g)) axes.add(m[1].replace(/^inst/, ""));
+  for (const a of axes) missing.push(tr("Servoosa {dev} (FB_Axis nad bloky Motion Control): import osy zatím není — přidej ji ručně jako třídu Servoosa a doplň její konfiguraci a kroky pohybu.", { dev: a }));
   return { prj, evidence, conflicts, missing };
 }
 

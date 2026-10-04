@@ -37,7 +37,7 @@ export interface ConceptProposal {
 export function conceptInstructions(prj: Project): string {
   const plats = Object.keys(PLAT).join(", ");
   const ctx = prj.concept ? "\nAKTUÁLNĚ ZVOLENÝ KONCEPT (uživatel ho může chtít upravit):\n" + JSON.stringify(prj.concept) + "\n" : "";
-  return "Jsi zkušený koncepční inženýr průmyslové automatizace v nástroji PLC Studio. "
+  return "Jsi zkušený koncepční inženýr průmyslové automatizace v nástroji PLCdesk. "
     + "Z hrubého zadání stroje/linky navrhni 2–3 ODLIŠNÉ koncepční varianty řešení řízení — ne detailní sestavu, ale koncept.\n"
     + "Varianty se mají lišit přístupem (např. centrální PLC vs. decentralizovaná periferie; pneumatika vs. hydraulika vs. servopohony; "
     + "kompaktní vs. modulární CPU; míra vizualizace), ne jen slovy. Ke každé uveď:\n"
@@ -103,7 +103,7 @@ export function conceptMd(prj: Project): string {
   return [
     "# " + tr("Koncept řešení") + " — " + c.nazev,
     "",
-    tr("**Projekt:** {name} · návrh konceptu vygenerován AI v PLC Studio, **podléhá revizi**.", { name: prj.meta.name || "—" }),
+    tr("**Projekt:** {name} · návrh konceptu vygenerován AI v PLCdesk, **podléhá revizi**.", { name: prj.meta.name || "—" }),
     "",
     "## " + tr("Zadání"), c.zadani || prj.meta.desc || tr("(doplnit)"), "",
     "## " + tr("Princip řešení"), c.shrnuti, "",

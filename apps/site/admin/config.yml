@@ -1,0 +1,1336 @@
+# Sveltia CMS - PLCdesk (VYGENEROVANO: node scripts/cms-config.js, rucne neupravovat)
+# Dokumentace: https://github.com/sveltia/sveltia-cms
+#
+# Prihlaseni jde pres GitHub. Mezi prohlizec a GitHub patri maly prihlasovaci Worker
+# (sveltia-cms-auth, free) - postup v NASAZENI.md. Ulozeni v CMS = commit do vetve main,
+# ten spusti nasazeni (.github/workflows/deploy-site.yml).
+# Pravidla textu: cestina je zdroj pravdy, nazev znacky piste jako {{site.brand}}.
+
+backend:
+  name: github
+  repo: TomPodlena/plc-studio
+  branch: main
+  base_url: https://sveltia-cms-auth.podlena-t.workers.dev
+
+media_folder: apps/site/assets/img
+public_folder: /assets/img
+
+i18n:
+  structure: multiple_files
+  locales: [cs, en, de]
+  default_locale: cs
+
+collections:
+  - name: texty
+    label: Texty webu
+    i18n: true
+    files:
+      - name: web
+        label: Všechny stránky
+        file: apps/site/content/{{locale}}.json
+        format: json
+        i18n: true
+        fields:
+          - name: "meta"
+            label: "SEO – výchozí"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - { name: "lang", label: "lang", widget: hidden, i18n: true }
+              - { name: "locale", label: "locale", widget: hidden, i18n: true }
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: text
+          - name: "ui"
+            label: "Popisky rozhraní"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "skip"
+                label: "skip"
+                i18n: true
+                widget: string
+              - name: "nav_label"
+                label: "nav_label"
+                i18n: true
+                widget: string
+              - name: "lang_label"
+                label: "lang_label"
+                i18n: true
+                widget: string
+              - name: "menu"
+                label: "menu"
+                i18n: true
+                widget: string
+              - name: "foot_product"
+                label: "foot_product"
+                i18n: true
+                widget: string
+              - name: "foot_contact"
+                label: "foot_contact"
+                i18n: true
+                widget: string
+              - name: "foot_legal"
+                label: "foot_legal"
+                i18n: true
+                widget: string
+              - name: "foot_tag"
+                label: "foot_tag"
+                i18n: true
+                widget: string
+              - name: "made"
+                label: "made"
+                i18n: true
+                widget: string
+              - name: "beta"
+                label: "beta"
+                i18n: true
+                widget: string
+              - name: "pending_legal"
+                label: "pending_legal"
+                i18n: true
+                widget: string
+              - name: "back_home"
+                label: "back_home"
+                i18n: true
+                widget: string
+              - name: "legal_draft"
+                label: "legal_draft"
+                i18n: true
+                widget: text
+              - name: "legal_effective"
+                label: "legal_effective"
+                i18n: true
+                widget: string
+              - name: "legal_operator"
+                label: "legal_operator"
+                i18n: true
+                widget: string
+              - name: "legal_id"
+                label: "legal_id"
+                i18n: true
+                widget: string
+              - name: "legal_contact"
+                label: "legal_contact"
+                i18n: true
+                widget: string
+              - name: "legal_toc"
+                label: "legal_toc"
+                i18n: true
+                widget: string
+              - name: "lb_close"
+                label: "lb_close"
+                i18n: true
+                widget: string
+              - name: "lb_label"
+                label: "lb_label"
+                i18n: true
+                widget: string
+          - name: "nav"
+            label: "Menu"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "home"
+                label: "Úvod"
+                i18n: true
+                widget: string
+              - name: "funkce"
+                label: "Funkce"
+                i18n: true
+                widget: string
+              - name: "platformy"
+                label: "Platformy"
+                i18n: true
+                widget: string
+              - name: "cenik"
+                label: "Ceník"
+                i18n: true
+                widget: string
+              - name: "ukazka"
+                label: "Ukázka dokumentace"
+                i18n: true
+                widget: string
+              - name: "stazeni"
+                label: "Ke stažení"
+                i18n: true
+                widget: string
+              - name: "kontakt"
+                label: "Kontakt"
+                i18n: true
+                widget: string
+              - name: "podminky"
+                label: "Podmínky užití"
+                i18n: true
+                widget: string
+              - name: "soukromi"
+                label: "Ochrana osobních údajů"
+                i18n: true
+                widget: string
+              - name: "cta"
+                label: "cta"
+                i18n: true
+                widget: string
+              - name: "cookies"
+                label: "cookies"
+                i18n: true
+                widget: string
+          - name: "home"
+            label: "Úvod"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: text
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "cta1"
+                label: "cta1"
+                i18n: true
+                widget: string
+              - name: "cta2"
+                label: "cta2"
+                i18n: true
+                widget: string
+              - name: "fine"
+                label: "fine"
+                i18n: true
+                widget: text
+              - name: "mock_title"
+                label: "mock_title"
+                i18n: true
+                widget: string
+              - name: "mock_project"
+                label: "mock_project"
+                i18n: true
+                widget: string
+              - name: "mock_caption"
+                label: "mock_caption"
+                i18n: true
+                widget: string
+              - name: "mock_h_item"
+                label: "mock_h_item"
+                i18n: true
+                widget: string
+              - name: "mock_h_state"
+                label: "mock_h_state"
+                i18n: true
+                widget: string
+              - name: "mock_h_who"
+                label: "mock_h_who"
+                i18n: true
+                widget: string
+              - name: "mock_rows"
+                label: "mock_rows"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "item"
+                    label: "item"
+                    i18n: true
+                    widget: string
+                  - name: "state"
+                    label: "state"
+                    i18n: true
+                    widget: string
+                  - name: "cls"
+                    label: "cls"
+                    i18n: true
+                    widget: string
+                  - name: "who"
+                    label: "who"
+                    i18n: true
+                    widget: string
+              - name: "facts"
+                label: "facts"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "n"
+                    label: "n"
+                    i18n: true
+                    widget: string
+                  - name: "t"
+                    label: "t"
+                    i18n: true
+                    widget: string
+              - name: "live"
+                label: "live"
+                i18n: true
+                widget: object
+                collapsed: true
+                fields:
+                  - name: "eyebrow"
+                    label: "eyebrow"
+                    i18n: true
+                    widget: string
+                  - name: "title"
+                    label: "title"
+                    i18n: true
+                    widget: string
+                  - name: "lead"
+                    label: "lead"
+                    i18n: true
+                    widget: text
+                  - name: "points"
+                    label: "points"
+                    i18n: true
+                    widget: list
+                  - name: "note"
+                    label: "note"
+                    i18n: true
+                    widget: string
+                  - name: "path"
+                    label: "path"
+                    i18n: true
+                    widget: string
+                  - name: "caption"
+                    label: "caption"
+                    i18n: true
+                    widget: string
+                  - name: "video_label"
+                    label: "video_label"
+                    i18n: true
+                    widget: text
+              - name: "flow_eyebrow"
+                label: "flow_eyebrow"
+                i18n: true
+                widget: string
+              - name: "flow_title"
+                label: "flow_title"
+                i18n: true
+                widget: string
+              - name: "flow_lead"
+                label: "flow_lead"
+                i18n: true
+                widget: text
+              - name: "flow"
+                label: "flow"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "name"
+                    label: "name"
+                    i18n: true
+                    widget: string
+                  - name: "desc"
+                    label: "desc"
+                    i18n: true
+                    widget: string
+              - name: "tour"
+                label: "tour"
+                i18n: true
+                widget: object
+                collapsed: true
+                fields:
+                  - name: "eyebrow"
+                    label: "eyebrow"
+                    i18n: true
+                    widget: string
+                  - name: "title"
+                    label: "title"
+                    i18n: true
+                    widget: string
+                  - name: "lead"
+                    label: "lead"
+                    i18n: true
+                    widget: text
+                  - name: "tabs_label"
+                    label: "tabs_label"
+                    i18n: true
+                    widget: string
+                  - name: "items"
+                    label: "items"
+                    i18n: true
+                    widget: list
+                    fields:
+                      - name: "key"
+                        label: "key"
+                        i18n: true
+                        widget: string
+                      - name: "tab"
+                        label: "tab"
+                        i18n: true
+                        widget: string
+                      - name: "path"
+                        label: "path"
+                        i18n: true
+                        widget: string
+                      - name: "title"
+                        label: "title"
+                        i18n: true
+                        widget: string
+                      - name: "desc"
+                        label: "desc"
+                        i18n: true
+                        widget: text
+                      - name: "alt"
+                        label: "alt"
+                        i18n: true
+                        widget: text
+              - name: "show_eyebrow"
+                label: "show_eyebrow"
+                i18n: true
+                widget: string
+              - name: "show_title"
+                label: "show_title"
+                i18n: true
+                widget: string
+              - name: "show_lead"
+                label: "show_lead"
+                i18n: true
+                widget: text
+              - name: "trust_eyebrow"
+                label: "trust_eyebrow"
+                i18n: true
+                widget: string
+              - name: "trust_title"
+                label: "trust_title"
+                i18n: true
+                widget: string
+              - name: "trust_lead"
+                label: "trust_lead"
+                i18n: true
+                widget: text
+              - name: "trust"
+                label: "trust"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "name"
+                    label: "name"
+                    i18n: true
+                    widget: string
+                  - name: "desc"
+                    label: "desc"
+                    i18n: true
+                    widget: text
+              - name: "trust_note"
+                label: "trust_note"
+                i18n: true
+                widget: text
+              - name: "docs_eyebrow"
+                label: "docs_eyebrow"
+                i18n: true
+                widget: string
+              - name: "docs_title"
+                label: "docs_title"
+                i18n: true
+                widget: string
+              - name: "docs_lead"
+                label: "docs_lead"
+                i18n: true
+                widget: text
+              - name: "docs"
+                label: "docs"
+                i18n: true
+                widget: list
+              - name: "docs_cta"
+                label: "docs_cta"
+                i18n: true
+                widget: string
+              - name: "local_title"
+                label: "local_title"
+                i18n: true
+                widget: string
+              - name: "local_body"
+                label: "local_body"
+                i18n: true
+                widget: text
+              - name: "local_ai"
+                label: "local_ai"
+                i18n: true
+                widget: text
+              - name: "faq_title"
+                label: "faq_title"
+                i18n: true
+                widget: string
+              - name: "faq"
+                label: "faq"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "q"
+                    label: "q"
+                    i18n: true
+                    widget: string
+                  - name: "a"
+                    label: "a"
+                    i18n: true
+                    widget: text
+              - name: "reference"
+                label: "reference"
+                i18n: true
+                widget: object
+                collapsed: true
+                fields:
+                  - name: "eyebrow"
+                    label: "eyebrow"
+                    i18n: true
+                    widget: string
+                  - name: "quote"
+                    label: "quote"
+                    i18n: true
+                    widget: string
+                  - name: "name"
+                    label: "name"
+                    i18n: true
+                    widget: string
+                  - name: "role"
+                    label: "role"
+                    i18n: true
+                    widget: string
+              - name: "end_title"
+                label: "end_title"
+                i18n: true
+                widget: string
+              - name: "end_body"
+                label: "end_body"
+                i18n: true
+                widget: string
+              - name: "end_cta"
+                label: "end_cta"
+                i18n: true
+                widget: string
+          - name: "funkce"
+            label: "Funkce"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: text
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "toc"
+                label: "toc"
+                i18n: true
+                widget: string
+              - name: "groups"
+                label: "groups"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "id"
+                    label: "id"
+                    i18n: true
+                    widget: string
+                  - name: "name"
+                    label: "name"
+                    i18n: true
+                    widget: string
+                  - name: "lead"
+                    label: "lead"
+                    i18n: true
+                    widget: string
+                  - name: "points"
+                    label: "points"
+                    i18n: true
+                    widget: list
+                  - name: "shot"
+                    label: "shot"
+                    i18n: true
+                    widget: object
+                    collapsed: true
+                    fields:
+                      - name: "key"
+                        label: "key"
+                        i18n: true
+                        widget: string
+                      - name: "path"
+                        label: "path"
+                        i18n: true
+                        widget: string
+                      - name: "alt"
+                        label: "alt"
+                        i18n: true
+                        widget: string
+                    required: false
+                  - name: "note"
+                    label: "note"
+                    i18n: true
+                    widget: text
+                    required: false
+              - name: "ai_title"
+                label: "ai_title"
+                i18n: true
+                widget: string
+              - name: "ai_body"
+                label: "ai_body"
+                i18n: true
+                widget: text
+          - name: "platformy"
+            label: "Platformy"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: text
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "checked"
+                label: "checked"
+                i18n: true
+                widget: string
+              - name: "h_platform"
+                label: "h_platform"
+                i18n: true
+                widget: string
+              - name: "h_ide"
+                label: "h_ide"
+                i18n: true
+                widget: string
+              - name: "h_output"
+                label: "h_output"
+                i18n: true
+                widget: string
+              - name: "h_check"
+                label: "h_check"
+                i18n: true
+                widget: string
+              - name: "h_state"
+                label: "h_state"
+                i18n: true
+                widget: string
+              - name: "rows"
+                label: "rows"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "name"
+                    label: "name"
+                    i18n: true
+                    widget: string
+                  - name: "ide"
+                    label: "ide"
+                    i18n: true
+                    widget: string
+                  - name: "output"
+                    label: "output"
+                    i18n: true
+                    widget: string
+                  - name: "check"
+                    label: "check"
+                    i18n: true
+                    widget: string
+              - name: "state_beta"
+                label: "state_beta"
+                i18n: true
+                widget: string
+              - name: "why_title"
+                label: "why_title"
+                i18n: true
+                widget: string
+              - name: "why_body"
+                label: "why_body"
+                i18n: true
+                widget: text
+              - name: "safety_title"
+                label: "safety_title"
+                i18n: true
+                widget: string
+              - name: "safety_lead"
+                label: "safety_lead"
+                i18n: true
+                widget: text
+              - name: "safety_rows"
+                label: "safety_rows"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "name"
+                    label: "name"
+                    i18n: true
+                    widget: string
+                  - name: "what"
+                    label: "what"
+                    i18n: true
+                    widget: string
+              - name: "lang_title"
+                label: "lang_title"
+                i18n: true
+                widget: string
+              - name: "lang_body"
+                label: "lang_body"
+                i18n: true
+                widget: text
+          - name: "cenik"
+            label: "Ceník"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: text
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "per_month"
+                label: "per_month"
+                i18n: true
+                widget: string
+              - name: "featured"
+                label: "featured"
+                i18n: true
+                widget: string
+              - name: "plans"
+                label: "plans"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "id"
+                    label: "id"
+                    i18n: true
+                    widget: string
+                  - name: "name"
+                    label: "name"
+                    i18n: true
+                    widget: string
+                  - name: "price"
+                    label: "price"
+                    i18n: true
+                    widget: string
+                  - name: "unit"
+                    label: "unit"
+                    i18n: true
+                    widget: string
+                  - name: "points"
+                    label: "points"
+                    i18n: true
+                    widget: list
+                  - name: "cta"
+                    label: "cta"
+                    i18n: true
+                    widget: string
+              - name: "vat"
+                label: "vat"
+                i18n: true
+                widget: string
+              - name: "unlock"
+                label: "unlock"
+                i18n: true
+                widget: text
+              - name: "unlock_cta"
+                label: "unlock_cta"
+                i18n: true
+                widget: string
+              - name: "faq_title"
+                label: "faq_title"
+                i18n: true
+                widget: string
+              - name: "faq"
+                label: "faq"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "q"
+                    label: "q"
+                    i18n: true
+                    widget: string
+                  - name: "a"
+                    label: "a"
+                    i18n: true
+                    widget: string
+              - name: "order_terms"
+                label: "order_terms"
+                i18n: true
+                widget: text
+          - name: "ukazka"
+            label: "Ukázka dokumentace"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: text
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "pdf_cta"
+                label: "pdf_cta"
+                i18n: true
+                widget: string
+              - name: "pdf"
+                label: "Texty ukázkového PDF"
+                i18n: true
+                widget: string
+              - name: "pdf_note"
+                label: "pdf_note"
+                i18n: true
+                widget: text
+              - name: "contents_title"
+                label: "contents_title"
+                i18n: true
+                widget: string
+              - name: "contents"
+                label: "contents"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "name"
+                    label: "name"
+                    i18n: true
+                    widget: string
+                  - name: "desc"
+                    label: "desc"
+                    i18n: true
+                    widget: string
+              - name: "fig_block"
+                label: "fig_block"
+                i18n: true
+                widget: string
+              - name: "fig_sheet"
+                label: "fig_sheet"
+                i18n: true
+                widget: string
+              - name: "fig_safety"
+                label: "fig_safety"
+                i18n: true
+                widget: string
+              - name: "fig_do1"
+                label: "fig_do1"
+                i18n: true
+                widget: string
+              - name: "fig_timing"
+                label: "fig_timing"
+                i18n: true
+                widget: string
+              - name: "fig_flow"
+                label: "fig_flow"
+                i18n: true
+                widget: string
+              - name: "figs_title"
+                label: "figs_title"
+                i18n: true
+                widget: string
+              - name: "pages_title"
+                label: "pages_title"
+                i18n: true
+                widget: string
+              - name: "pages"
+                label: "pages"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "name"
+                    label: "name"
+                    i18n: true
+                    widget: string
+              - name: "app_title"
+                label: "app_title"
+                i18n: true
+                widget: string
+              - name: "app_lead"
+                label: "app_lead"
+                i18n: true
+                widget: string
+              - name: "app_shots"
+                label: "app_shots"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "key"
+                    label: "key"
+                    i18n: true
+                    widget: string
+                  - name: "path"
+                    label: "path"
+                    i18n: true
+                    widget: string
+                  - name: "alt"
+                    label: "alt"
+                    i18n: true
+                    widget: text
+                  - name: "cap"
+                    label: "cap"
+                    i18n: true
+                    widget: string
+          - name: "stazeni"
+            label: "Ke stažení"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: text
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "f_email"
+                label: "f_email"
+                i18n: true
+                widget: string
+              - name: "f_placeholder"
+                label: "f_placeholder"
+                i18n: true
+                widget: string
+              - name: "f_hp"
+                label: "f_hp"
+                i18n: true
+                widget: string
+              - name: "f_submit"
+                label: "f_submit"
+                i18n: true
+                widget: string
+              - name: "f_sending"
+                label: "f_sending"
+                i18n: true
+                widget: string
+              - name: "f_ok"
+                label: "f_ok"
+                i18n: true
+                widget: string
+              - name: "f_ok_direct"
+                label: "f_ok_direct"
+                i18n: true
+                widget: string
+              - name: "f_err"
+                label: "f_err"
+                i18n: true
+                widget: string
+              - name: "f_net"
+                label: "f_net"
+                i18n: true
+                widget: string
+              - name: "f_note"
+                label: "f_note"
+                i18n: true
+                widget: text
+              - name: "token_title"
+                label: "token_title"
+                i18n: true
+                widget: string
+              - name: "token_body"
+                label: "token_body"
+                i18n: true
+                widget: string
+              - name: "token_cta"
+                label: "token_cta"
+                i18n: true
+                widget: string
+              - name: "req_title"
+                label: "req_title"
+                i18n: true
+                widget: string
+              - name: "req"
+                label: "req"
+                i18n: true
+                widget: list
+              - name: "next_title"
+                label: "next_title"
+                i18n: true
+                widget: string
+              - name: "next"
+                label: "next"
+                i18n: true
+                widget: list
+              - name: "f_consent"
+                label: "f_consent"
+                i18n: true
+                widget: string
+              - name: "f_consent_err"
+                label: "f_consent_err"
+                i18n: true
+                widget: string
+              - name: "lead_mail"
+                label: "lead_mail"
+                i18n: true
+                widget: text
+              - name: "f_submit_mail"
+                label: "f_submit_mail"
+                i18n: true
+                widget: string
+          - name: "kontakt"
+            label: "Kontakt"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: string
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "mail_label"
+                label: "mail_label"
+                i18n: true
+                widget: string
+              - name: "topics_title"
+                label: "topics_title"
+                i18n: true
+                widget: string
+              - name: "topics"
+                label: "topics"
+                i18n: true
+                widget: list
+              - name: "company_title"
+                label: "company_title"
+                i18n: true
+                widget: string
+              - name: "company"
+                label: "company"
+                i18n: true
+                widget: string
+          - name: "podminky"
+            label: "Podmínky užití"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: text
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "sections"
+                label: "sections"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "id"
+                    label: "id"
+                    i18n: true
+                    widget: string
+                  - name: "h"
+                    label: "h"
+                    i18n: true
+                    widget: string
+                  - name: "body"
+                    label: "body"
+                    i18n: true
+                    widget: list
+          - name: "soukromi"
+            label: "Ochrana osobních údajů"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: string
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "sections"
+                label: "sections"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "id"
+                    label: "id"
+                    i18n: true
+                    widget: string
+                  - name: "h"
+                    label: "h"
+                    i18n: true
+                    widget: string
+                  - name: "body"
+                    label: "body"
+                    i18n: true
+                    widget: list
+          - name: "cookies"
+            label: "cookies"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: string
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "sections"
+                label: "sections"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "id"
+                    label: "id"
+                    i18n: true
+                    widget: string
+                  - name: "h"
+                    label: "h"
+                    i18n: true
+                    widget: string
+                  - name: "body"
+                    label: "body"
+                    i18n: true
+                    widget: list
+          - name: "notfound"
+            label: "Stránka 404"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "body"
+                label: "body"
+                i18n: true
+                widget: string
+          - name: "pdf"
+            label: "Texty ukázkového PDF"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "doc_title"
+                label: "doc_title"
+                i18n: true
+                widget: string
+              - name: "meta_line"
+                label: "meta_line"
+                i18n: true
+                widget: string
+              - name: "approval_line"
+                label: "approval_line"
+                i18n: true
+                widget: text
+              - name: "cover_note"
+                label: "cover_note"
+                i18n: true
+                widget: text
+              - name: "footer"
+                label: "footer"
+                i18n: true
+                widget: string
+              - name: "approver"
+                label: "approver"
+                i18n: true
+                widget: string
+              - name: "approver_note"
+                label: "approver_note"
+                i18n: true
+                widget: string
+              - name: "fig_block"
+                label: "fig_block"
+                i18n: true
+                widget: string
+              - name: "fig_sheet"
+                label: "fig_sheet"
+                i18n: true
+                widget: string
+              - name: "fig_safety"
+                label: "fig_safety"
+                i18n: true
+                widget: string
+              - name: "safety_prog"
+                label: "safety_prog"
+                i18n: true
+                widget: string
+              - name: "code"
+                label: "code"
+                i18n: true
+                widget: string
+              - name: "code_note"
+                label: "code_note"
+                i18n: true
+                widget: string
+              - name: "excerpt_note"
+                label: "excerpt_note"
+                i18n: true
+                widget: text
+
+  - name: nastaveni
+    label: Společné údaje
+    files:
+      - name: site
+        label: "Značka, adresa, kontakt (všechny jazyky)"
+        file: apps/site/content/site.json
+        format: json
+        fields:
+          - { name: "brand", label: "brand", widget: string }
+          - { name: "url", label: "url", widget: string }
+          - { name: "email", label: "email", widget: string }
+          - { name: "free_io_limit", label: "free_io_limit", widget: string }
+          - { name: "platforms_checked", label: "platforms_checked", widget: string }
+          - { name: "turnstile_sitekey", label: "turnstile_sitekey", widget: string }
+          - { name: "pdf_cs", label: "pdf_cs", widget: string }
+          - { name: "pdf_en", label: "pdf_en", widget: string }
+          - { name: "pdf_de", label: "pdf_de", widget: string }
+          - name: "operator"
+            label: "operator"
+            widget: object
+            fields:
+              - { name: "name", label: "name", widget: string, required: false }
+              - { name: "id", label: "id", widget: string, required: false }
+              - { name: "address", label: "address", widget: string, required: false }
+          - { name: "legal_effective", label: "legal_effective", widget: string }
+          - name: "payments"
+            label: "payments"
+            widget: object
+            fields:
+              - { name: "provider", label: "provider", widget: string, required: false }
+              - { name: "stripe_link_pro", label: "stripe_link_pro", widget: string, required: false }
+              - { name: "stripe_link_firma", label: "stripe_link_firma", widget: string, required: false }
+              - { name: "paddle_client_token", label: "paddle_client_token", widget: string, required: false }
+              - { name: "paddle_price_pro", label: "paddle_price_pro", widget: string, required: false }
+              - { name: "paddle_price_firma", label: "paddle_price_firma", widget: string, required: false }

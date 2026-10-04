@@ -25,6 +25,10 @@ export declare function trx(cs: string, p?: Record<string, unknown>): string;
 export declare function N_(cs: string): string;
 /** Dnešní datum ve zvyklosti nastaveného jazyka; `tech` = pro technické výstupy (viz `trx`). */
 export declare function today(tech?: boolean): string;
+/** Datum z ISO okamžiku ve zvyklosti nastaveného jazyka (neplatný vstup vrátí beze změny). */
+export declare function formatDate(iso: string, tech?: boolean): string;
+/** Datum a čas (hodiny:minuty, místní čas) z ISO okamžiku ve zvyklosti nastaveného jazyka. */
+export declare function formatDateTime(iso: string, tech?: boolean): string;
 /** Provede `fn` s dočasně přepnutým jazykem (např. dokumentace v jiném jazyce než UI). */
 export declare function withLang<T>(l: unknown, fn: () => T): T;
 /** Celý katalog jazyka (český text → překlad) — pro klienty s vlastním UI (desktop). */

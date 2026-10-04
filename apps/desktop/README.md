@@ -1,4 +1,4 @@
-# PLC Studio — desktopová aplikace
+# PLCdesk — desktopová aplikace
 
 Nativní okno (Python + tkinter) nad stejným jádrem jako webová aplikace. Stejné
 workflow: Projekt → AI návrh → Platformy → Zařízení (+ Import) → I/O → Schéma →
@@ -6,11 +6,15 @@ Program → Generovat → Dokumentace, plus Nápověda.
 
 ## Spuštění
 
-- dvojklik na `PLCStudio.bat` (nebo zástupce na ploše — vytvoří ho `make_shortcut.ps1`),
+- dvojklik na `PLCdesk.bat` (starší `PLCStudio.bat` funguje dál) (nebo zástupce na ploše — vytvoří ho `make_shortcut.ps1`),
 - nebo z příkazové řádky: `python -m plc_studio` v adresáři `apps/desktop`.
 
 Potřebuje **Python 3.9+ s tkinter** a **Node 18+** (jádro běží v Node). Žádné balíčky
 se neinstalují; Pillow je volitelný (generování ikony, snímky při `--smoke`; logo v hlavičce zatím není).
+
+Přenosná verze bez instalace (Python + Node přibalené, ZIP ~45 MB):
+`python scripts/build_portable.py [--out SLOŽKA]` (spouštět Pythonem, který se má přibalit — Python311).
+Most hledá Node v pořadí `PLCDESK_NODE` → `<kořen>/runtime/node/node.exe` → PATH → obvyklá místa instalace.
 
 ## Jak to drží pohromadě
 

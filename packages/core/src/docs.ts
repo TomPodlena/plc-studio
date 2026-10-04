@@ -1,20 +1,28 @@
 /**
- * PLC Studio — generování projektové dokumentace
+ * PLCdesk — generování projektové dokumentace
  * (FDS, I/O list, svorkovnice, alarmy, FAT, návod, SW dokumentace, přehled).
  *
  * Texty jdou přes `tr()` po přirozených jednotkách (nadpis, odstavec, odrážka, řádek
  * hlavičky tabulky, věta v buňce); struktura Markdownu / CSV zůstává mimo klíče.
  */
 import {
-  Project, CLS, PLAT, devById, modules, dtFor, usedClasses, interlockDevs, DO_ROLES,
+  Project, Device, CLS, PLAT, devById, modules, wireNo, dtFor, usedClasses, interlockDevs, DO_ROLES, codeStyleFor,
+  isMotionClass, hasRange, ioOf, rampStepOf, tolOf, tolTicksOf, selBitsOf, maxRecord, stepSp, stepAxisTarget,
 } from "./model.js";
+import { axisCfgOf, axisObjName } from "./axis.js";
+import { axisSupport, AXIS_LIB, AXIS_NET } from "./axis_gen.js";
 import { bomCsv, bomMd } from "./bom.js";
+import { hwAddrText, hwTypeText, hwSummary, hwPlatform } from "./hardware.js";
 import { tr, N_, today } from "./i18n.js";
-import { genFor } from "./codegen.js";
+import { genFor, codeLibrary } from "./codegen.js";
+import { libraryDocHeader } from "./library.js";
+import { oopInProject, oopProgram, oopClassSvg, OOP_CLASS_SVG, type OopPou } from "./codegen_oop.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
 import { conceptMd } from "./concept.js";
-import { simulate, docVerifyMd, stepWatchdog, stepTitle, stepCondText } from "./sim.js";
+import { simulate, docVerifyMd, stepWatchdog, stepTitle, stepCondText, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE, T_AXIS_POWER } from "./sim.js";
 import { svgFlow, svgTiming, svgMachine } from "./flow.js";
+import { approvalItems, approvalStamp, approvalsMd, designView, APPROVAL_FILE, type ApprovalGroup, type ApprovalItem } from "./approval.js";
+import { commissioningPlan, commissioningMd, commissioningCsv, COMMISSION_FILE_MD, COMMISSION_FILE_CSV } from "./commission.js";
 
 function dnes(): string { return today(); }
 function estopTxt(prj: Project): string {
@@ -43,13 +51,84 @@ function funcLines(prj: Project): string[] {
     for (const d of sps) out.push("- " + d.name + " (" + (d.desc || "") + "): " + d.setpoint + " " + (d.unit || ""));
     out.push("");
   }
+  out.push(...motionFdsLines(prj));
+  out.push(...axisFdsLines(prj));
+  return out;
+}
+
+/**
+ * FDS: servoosy (fáze 2b) — obálka FB_Axis, platformy, povely kroků, poruchy, ruční ovládání a co se
+ * nastavuje v IDE. Bez os prázdné (dokumentace beze změny).
+ */
+export function axisFdsLines(prj: Project): string[] {
+  const axes = prj.devices.filter(d => d.cls === "Axis");
+  if (!axes.length) return [];
+  const out: string[] = ["**" + tr("Servoosy (polohování po síti, PLCopen Motion)") + "**"];
+  for (const d of axes) {
+    const c = axisCfgOf(d), u = d.unit || "mm";
+    out.push("- " + d.name + " (" + (d.desc || tr(CLS.Axis.label)) + "): " + tr("objekt osy {obj}; max. rychlost {v} {u}/s, zrychlení {a} {u}/s², zpomalení {dd} {u}/s², výchozí rychlost {vd} {u}/s; SW limity {lim}; referenční poloha {home} {u}; okno v poloze ± {tol} {u}; max. chyba sledování {fe} {u}.", {
+      obj: axisObjName(d), v: c.vMax, a: c.aMax, dd: c.dMax, vd: c.vDef, u, home: c.homePos, tol: c.posTol, fe: c.followMax,
+      lim: c.limNeg !== undefined || c.limPos !== undefined ? (c.limNeg ?? "—") + " … " + (c.limPos ?? "—") + " " + u : tr("nenastaveny") }));
+    if (c.positions.length) out.push("  " + tr("Pojmenované polohy: {list}.", { list: c.positions.map(x => x.name + " = " + x.pos + " " + u).join(", ") }));
+  }
+  out.push("- " + tr("Blok FB_Axis zapíná regulaci (v AUTO sekvence, ručně povel manPower_<osa>) a provádí povely kroků: referování, najetí na polohu, posun o dráhu, rychlost, zastavení. Krok s přechodem na hlášení přejde, až blok hlásí dokončení svého povelu (done a doneId = číslo kroku); krok s přechodem časem pohyb jen spustí a „čekat na dokončení pohybu“ počká později. Nový pohyb čeká na dokončení běžícího, zastavení a přerušení sekvence platí hned."));
+  out.push("- " + tr("Porucha (errCode): 1 porucha osy — pohon, chyba sledování (zaseknutá mechanika), ztráta komunikace, softwarový limit (příčina v diagnostice osy); 2 regulace nezapnuta do {t} s; 3 absolutní polohování bez referování; 7 povel odmítnut blokem MC. Porucha osy zastaví sekvenci (porucha stroje), regulace se vypne; po odstranění příčiny kvitace (MC_Reset) a nové zapnutí.", { t: T_AXIS_POWER }));
+  out.push("- " + tr("Ruční režim (mimo AUTO): regulace manPower_<osa>, referování manHome_<osa> (hrana), pojezd manJogP_ / manJogN_<osa> (držet; po E-stopu nebo poruše až po puštění a novém stisku)."));
+  const plats = prj.platforms.map(p => ({ p, s: axisSupport(prj, p) }));
+  out.push("- " + tr("Platformy: {list}.", { list: plats.map(x => PLAT[x.p].name + " — " + (x.s.ok ? AXIS_LIB[x.s.dialect!] + ", " + AXIS_NET[x.s.dialect!] : tr("nepodporuje (kód se negeneruje)"))).join("; ") }));
+  out.push("- " + tr("Osa a pohon se zakládají v IDE (technologický objekt / osa NC / osa SoftMotion / Axis Settings / Motion Group) podle konfiguračního listu v README platformy — import je nepřenese. Bezpečnostní funkce pohonu (STO, SS1, SLS) řeší pohon s integrovanou bezpečností nebo bezpečnostní PLC; standardní program jen čte stav."));
+  out.push("");
+  return out;
+}
+
+/**
+ * FDS: pohony a proporcionální prvky fáze 2a — co blok dělá, jaké hlášení čeká, kdy vyhlásí poruchu
+ * (kódy errCode) a co se nastavuje v pohonu. Bez těchto zařízení prázdné (dokumentace beze změny).
+ */
+export function motionFdsLines(prj: Project): string[] {
+  const devs = prj.devices.filter(d => isMotionClass(d.cls));
+  if (!devs.length) return [];
+  const out: string[] = ["**" + tr("Pohony a proporcionální prvky (přes běžné I/O)") + "**"];
+  for (const d of devs) {
+    const io = ioOf(prj, d), head = "- " + d.name + " (" + (d.desc || tr(CLS[d.cls].label)) + "): ";
+    const ramp = rampStepOf(d) ? tr("rampa v PLC {t} s na celý rozsah (po taktech 0,1 s)", { t: d.rampS }) : tr("bez rampy v PLC");
+    if (d.cls === "Vfd") out.push(head + tr("frekvenční měnič — chod {run}, žádaná {min}–{max} {unit} na analogový výstup, {ramp}. Krok rozběhu / změny otáček přejde, až blok hlásí „otáčky dosaženy“ ({fbk}). Porucha: vstup poruchy měniče, měnič nepřipraven za chodu, ztráta hlášení otáček za chodu, otáčky nedosaženy do {t} s po doběhu rampy.", {
+      run: io.outRun ? io.outRun.tag : "—", min: d.rmin, max: d.rmax, unit: d.unit || "", ramp, t: T_VFD_SPEED,
+      fbk: io.atSpeed ? tr("reléový výstup měniče {tag}", { tag: io.atSpeed.tag }) : tr("bez hlášení — po doběhu rampy") }));
+    else if (d.cls === "PosDrive") {
+      const recs = (d.records || []).map(r => r.no + " = " + (r.name || "?") + (Number.isFinite(r.pos) ? " (" + r.pos + ")" : "")).join(", ");
+      out.push(head + tr("polohovací pohon se záznamy — výběr záznamu {bits} bity (1–{max}: {recs}), start, referenční jízda a HALT. Jízda se potvrzuje poklesem „v poloze“ do {ack} s a končí hlášením „v poloze“ (nejvýš {move} s); krok přejde, až blok hlásí dosažený záznam. Porucha: vstup poruchy, pohon nepřipraven, jízda bez referování, ztráta „v poloze“ v klidu, timeout. Přerušení sekvence pohyb zastaví (HALT).", {
+        bits: selBitsOf(d), max: maxRecord(d), recs: recs || "—", ack: T_POS_ACK, move: T_POS_MOVE }));
+    } else out.push(head + tr("proporcionální ventil — žádaná {min}–{max} {unit}, {ramp}; {fbk}. Krok přejde, až je žádaná po rampě dosažena{tolTxt}.", {
+      min: d.rmin, max: d.rmax, unit: d.unit || "", ramp,
+      fbk: io.rawAct ? tr("skutečná hodnota {tag}, odchylka nad ± {tol} {unit} déle než {t} s = porucha", { tag: io.rawAct.tag, tol: tolOf(d), unit: d.unit || "", t: tolTicksOf(d) / 10 }) : tr("bez zpětné vazby"),
+      tolTxt: io.rawAct ? tr(" a skutečná hodnota je v toleranci (nejvýš {t} s po doběhu rampy)", { t: T_PROP_SETTLE }) : "" }));
+  }
+  out.push("- " + tr("Kód chyby bloku errCode (HMI, diagnostika): 1 porucha pohonu, 2 nepřipraven, 3 bez referování, 4 ztráta hlášení, 5 timeout, 6 odchylka skutečné hodnoty."));
+  out.push("- " + tr("Bezpečnost pohonů (STO, odvětrání ventilu) zajišťuje bezpečnostní technika podle posouzení rizik; v programu jsou jen stavové signály."));
+  out.push("");
   return out;
 }
 
 function actTxt(act: string): string {
   return act === "start" ? tr("start") : act === "stop" ? tr("stop")
     : act === "open" ? tr("otevřít") : act === "close" ? tr("zavřít")
-    : act === "waitOn" ? tr("čekat na TRUE") : act === "waitOff" ? tr("čekat na FALSE") : act;
+    : act === "waitOn" ? tr("čekat na TRUE") : act === "waitOff" ? tr("čekat na FALSE")
+    : act === "home" ? tr("referenční jízda") : act === "posRecord" ? tr("jízda na záznam")
+    : act === "setPressure" ? tr("nastavit tlak") : act === "setFlow" ? tr("nastavit průtok")
+    : act === "moveAbs" ? tr("najet na polohu") : act === "moveRel" ? tr("posun o dráhu") : act === "velocity" ? tr("rychlost")
+    : act === "halt" ? tr("zastavit osu") : act === "waitInPos" ? tr("čekat na dokončení pohybu") : act;
+}
+/** Akce kroku s parametrem (otáčky, záznam, žádaná) pro FDS. */
+function actFull(prj: Project, sq: Project["program"]["seq"][number], d: Device | undefined): string {
+  if (d && d.cls === "Vfd" && sq.act === "start") return actTxt(sq.act) + " " + stepSp(sq, d) + " " + (d.unit || "") + (sq.rev && d.opt?.rev ? " " + tr("vzad") : "");
+  if (sq.act === "posRecord") return actTxt(sq.act) + " " + (sq.rec ?? "?");
+  if ((sq.act === "setPressure" || sq.act === "setFlow") && d) return actTxt(sq.act) + " " + stepSp(sq, d) + " " + (d.unit || "");
+  if (d && d.cls === "Axis" && (sq.act === "moveAbs" || sq.act === "moveRel")) return actTxt(sq.act) + " " + stepAxisTarget(sq, d) + " " + (d.unit || "") + (sq.posRef ? " (" + sq.posRef + ")" : "")
+    + (sq.vel ? ", " + tr("rychlost {v}", { v: sq.vel }) : "");
+  if (d && d.cls === "Axis" && sq.act === "velocity") return actTxt(sq.act) + " " + stepAxisTarget(sq, d) + " " + (d.unit || "") + "/s";
+  if (d && d.cls === "Axis" && sq.act === "home") return tr("referování osy");
+  return actTxt(sq.act);
 }
 
 /** Názvy souborů se nepřekládají; záložka a popis jsou klíče překladu (překlad v `docFiles`). */
@@ -65,13 +144,51 @@ export const DOC_META: Array<[path: string, tab: string, title: string]> = [
   ["08_overeni_simulaci.md", N_("Simulace"), N_("ověření sekvence simulací procesu (běžný cyklus, poruchy, E-stop)")],
   ["09_kusovnik.md", N_("Kusovník"), N_("kusovník komponent se značkami a dodavateli")],
   ["09_kusovnik.csv", N_("Kusovník CSV"), N_("kusovník pro Excel / poptávku")],
+  [APPROVAL_FILE, N_("Schválení"), N_("schválení položek návrhu: stav, kdo, kdy, poznámka")],
+  [COMMISSION_FILE_MD, N_("Oživení"), N_("plán a protokol oživení po fázích")],
+  [COMMISSION_FILE_CSV, N_("Oživení CSV"), N_("protokol oživení k tisku a vyplnění")],
 ];
+
+/**
+ * Razítko stavu schválení v dokumentech: které skupiny položek dokument pokrývá
+ * ([] = všechny povinné). Dokumenty, které tu nejsou, razítko nenesou (CSV, koncept);
+ * 11 a 12 ho mají ve vlastním těle.
+ */
+const DOC_STAMP: Record<string, ApprovalGroup[]> = {
+  "00_prehled_dokumentace.md": [],
+  "01_funkcni_specifikace_FDS.md": ["design", "program"],
+  "05_testovaci_protokol_FAT.md": ["design", "program"],
+  "06_navod_k_obsluze.md": ["design", "program"],
+  "07_softwarova_dokumentace.md": ["program"],
+  "08_overeni_simulaci.md": ["verify"],
+  "09_kusovnik.md": ["design"],
+};
+
+/**
+ * Protokol ověření nad návrhem (`designView`): cache ověření je tak společná se schvalováním
+ * a změna názvu projektu, schválení nebo výsledků oživení ověření znovu nespouští. Návrh nemá
+ * název projektu — do hlavičky se dosadí zpět.
+ */
+function verifyDocMd(prj: Project): string {
+  const body = docVerifyMd(designView(prj));
+  const head = (name: string) => tr("**Projekt:** {name} · generováno nástrojem PLCdesk", { name });
+  return body.replace(head("—"), head(prj.meta.name || "—"));
+}
+
+/** Vloží razítko (řádek Markdownu) pod nadpis dokumentu. */
+function stampBody(body: string, md: string): string {
+  if (!md) return body;
+  const lines = body.split("\n");
+  if (!lines[0].startsWith("# ")) return md + "\n\n" + body;
+  lines.splice(1, 0, "", md);
+  return lines.join("\n");
+}
 
 export function docIndexMd(prj: Project): string {
   return [
     "# " + tr("Přehled dokumentace projektu"),
     "",
-    tr("**Projekt:** {name} · generováno {date} nástrojem PLC Studio", { name: prj.meta.name || "—", date: dnes() }),
+    tr("**Projekt:** {name} · generováno {date} nástrojem PLCdesk", { name: prj.meta.name || "—", date: dnes() }),
     "",
     "## " + tr("Obsah"),
     DOC_META.map(x => "- `" + x[0] + "` — " + tr(x[2])).join("\n"),
@@ -98,7 +215,7 @@ export function docFDSMd(prj: Project): string {
     "|---|---|",
     "| **" + tr("Projekt") + "** | " + (prj.meta.name || "—") + " |",
     "| **" + tr("Datum") + "** | " + dnes() + " |",
-    "| **" + tr("Revize") + "** | " + tr("0.1 — návrh (PLC Studio)") + " |",
+    "| **" + tr("Revize") + "** | " + tr("0.1 — návrh (PLCdesk)") + " |",
     "",
     "## " + tr("1. Popis stroje a účel"),
     prj.meta.desc || tr("(doplnit)"),
@@ -114,9 +231,13 @@ export function docFDSMd(prj: Project): string {
     "|---|---|---|---|",
   ];
   for (const d of prj.devices) {
+    const opts = Object.entries(d.opt || {}).filter(([, v]) => v).map(([k]) => (CLS[d.cls].opts[k] ? tr(CLS[d.cls].opts[k]) : k)).join(", ");
     const par = d.cls.startsWith("Analog")
       ? ((d.unit || "") + " " + d.rmin + "–" + d.rmax)
-      : Object.entries(d.opt || {}).filter(([, v]) => v).map(([k]) => (CLS[d.cls].opts[k] ? tr(CLS[d.cls].opts[k]) : k)).join(", ");
+      : hasRange(d.cls) ? [(d.unit || "") + " " + d.rmin + "–" + d.rmax, opts].filter(x => x.trim()).join(", ")
+      : d.cls === "PosDrive" ? [tr("záznamy 1–{max}", { max: maxRecord(d) }), opts].filter(Boolean).join(", ")
+      : d.cls === "Axis" ? tr("{u}, max. {v} {u}/s, {a} {u}/s²", { u: d.unit || "mm", v: axisCfgOf(d).vMax, a: axisCfgOf(d).aMax })
+      : opts;
     L.push("| " + d.name + " | " + tr(CLS[d.cls].label) + " | " + (d.desc || "") + " | " + (par || "—") + " |");
   }
   L.push(
@@ -124,11 +245,17 @@ export function docFDSMd(prj: Project): string {
     "## " + tr("4. I/O bilance a moduly"),
     (["DI", "DO", "AI", "AO"] as const).map(dd => dd + ": " + prj.io.filter(e => e.dir === dd).length).join(" · "),
     tr("Navržené moduly: {list}", {
-      list: mods.map((m, i) => tr("{mod} (svorkovnice X{x}, {n} kanálů)", { mod: m.dir + m.idx, x: i + 1, n: m.ch.length })).join(", ") || "—",
+      list: mods.map((m, i) => tr("{mod} (svorkovnice X{x}, {n} kanálů)", { mod: (m.hw ? m.hw.dt + " " : "") + m.dir + m.idx, x: i + 1, n: m.ch.length })).join(", ") || "—",
     }),
     "",
+    tr("Sestava hardwaru ({plat}; počty a typy = kusovník, adresy = výchozí návrh k ověření v IDE):", { plat: PLAT[hwPlatform(prj)].name }),
+    "",
+    ...hwSummary(prj).map(x => "    " + x),
+    "",
     "## " + tr("5. Režimy a ovládání"),
-    "- " + tr("**RUČNĚ** (`modeAuto` = FALSE) — povely na jednotlivá zařízení z HMI: `manRun_<motor>`, `manOpen_<ventil>` (specifikace HMI: doplnit)"),
+    "- " + tr("**RUČNĚ** (`modeAuto` = FALSE) — povely na jednotlivá zařízení z HMI: `manRun_<motor>`, `manOpen_<ventil>` (specifikace HMI: doplnit)")
+      + (prj.devices.some(d => isMotionClass(d.cls)) ? "; " + tr("měnič `manRun_<měnič>` (výchozí otáčky), polohovací pohon `manHome_<pohon>` (referenční jízda), proporcionální ventil `manOn_<ventil>` (výchozí žádaná)") : "")
+      + (prj.devices.some(d => d.cls === "Axis") ? "; " + tr("servoosa `manPower_<osa>` (regulace), `manHome_<osa>` (referování), `manJogP_` / `manJogN_<osa>` (pojezd, držet)") : ""),
     "- " + tr("**AUTO** (`modeAuto` = TRUE) — automatická sekvence dle kap. 6; start (`cmdAutoStart`) podmíněn centrálním uvolněním a stavem bez poruchy; ruční povely jsou v AUTO neúčinné"),
     "- " + tr("**Kvitace** (`cmdAck`) — zruší poruchu stroje i poruchy bloků po odstranění příčiny"),
     interlockDevs(prj).length
@@ -141,7 +268,7 @@ export function docFDSMd(prj: Project): string {
     prj.program.seq.length ? prj.program.seq.map((sq, i) => {
       const d = devById(prj, sq.dev);
       const akce = sq.act === "wait" ? tr("výdrž {t} s", { t: sq.timeS })
-        : ((d ? d.name + " (" + (d.desc || "") + ")" : "?") + " — " + actTxt(sq.act));
+        : ((d ? d.name + " (" + (d.desc || "") + ")" : "?") + " — " + actFull(prj, sq, d));
       const wd = stepWatchdog(prj, sq);
       return (i + 1) + ". " + (sq.cond === "time" ? tr("{action} · přechod: čas {t} s", { action: akce, t: sq.timeS })
         : wd ? tr("{action} · přechod: zpětné hlášení (hlídací čas {wd} s)", { action: akce, wd })
@@ -168,15 +295,16 @@ export function docIOcsv(prj: Project): string {
   const l = [tr("Tag;Adresa;Směr;Datový typ;Zařízení;Komentář")];
   for (const e of prj.io) {
     const d = devById(prj, e.devId);
-    l.push([e.tag, e.addr, e.dir, dtFor(e), d ? d.name : "", e.cmt || ""].join(";"));
+    l.push([e.tag, hwAddrText(prj, e), e.dir, dtFor(e), d ? d.name : "", e.cmt || ""].join(";"));
   }
   return l.join("\n");
 }
 
 export function svorkyCSV(prj: Project): string {
-  const l = [tr("Svorka;Modul;Kanál;Adresa;Tag;Komentář")];
+  const l = [tr("Svorka;Modul;Kanál;Adresa;Tag;Vodič;Komentář;Označení;Typ")];
   modules(prj).forEach((m, mi) => m.ch.forEach((e, i) =>
-    l.push("X" + (mi + 1) + ":" + (i + 1) + ";" + m.dir + m.idx + ";" + i + ";" + e.addr + ";" + e.tag + ";" + (e.cmt || ""))));
+    l.push("X" + (mi + 1) + ":" + (i + 1) + ";" + m.dir + m.idx + ";" + (m.chNo?.[i] ?? i) + ";" + hwAddrText(prj, e) + ";" + e.tag + ";" + wireNo(mi + 1, i) + ";" + (e.cmt || "")
+      + ";" + (m.hw?.dt || "") + ";" + (m.hw ? (m.hw.opt?.orderCode || m.hw.custom || hwTypeText(m.hw)) : ""))));
   return l.join("\n");
 }
 
@@ -197,6 +325,29 @@ export function docAlarmCsv(prj: Project): string {
         tr("Výstup vypnut, porucha stroje (stop sekvence)"), tr("Kvitace (cmdAck)"));
       if (d.opt.fbkOpen !== false) row("A_" + d.name + "_POS", d.name, tr("Ztráta polohy otevřeno"), tr("Koncák „otevřeno“ odpadl v držené poloze"),
         tr("Výstup vypnut, porucha stroje (stop sekvence)"), tr("Kvitace (cmdAck) po odstranění příčiny"));
+    } else if (d.cls === "Vfd") {
+      const stop = tr("Stop měniče, porucha stroje (stop sekvence)");
+      if (d.opt.fault !== false) row("A_" + d.name + "_FAULT", d.name, tr("Porucha měniče"), tr("Měnič hlásí poruchu (vstup poruchy)"), stop, tr("Kvitace (cmdAck) po odeznění poruchy"));
+      if (d.opt.ready !== false) row("A_" + d.name + "_READY", d.name, tr("Měnič nepřipraven"), tr("Hlášení „připraven“ chybí při povelu chod"), stop, tr("Kvitace (cmdAck) po odstranění příčiny"));
+      if (d.opt.fbk !== false) row("A_" + d.name + "_SPEED", d.name, tr("Ztráta otáček"), tr("Hlášení „otáčky dosaženy“ odpadlo za chodu"), stop, tr("Kvitace (cmdAck)"));
+      row("A_" + d.name + "_TIMEOUT", d.name, tr("Otáčky nedosaženy"), tr("Hlášení „otáčky dosaženy“ nepřišlo do {t} s po doběhu rampy", { t: T_VFD_SPEED }), stop, tr("Kvitace (cmdAck)"));
+    } else if (d.cls === "PosDrive") {
+      const stop = tr("Zastavení pohonu (HALT), porucha stroje (stop sekvence)");
+      if (d.opt.fault !== false) row("A_" + d.name + "_FAULT", d.name, tr("Porucha pohonu"), tr("Řadič pohonu hlásí poruchu (vstup poruchy)"), stop, tr("Kvitace (cmdAck) po odeznění poruchy"));
+      if (d.opt.ready !== false) row("A_" + d.name + "_READY", d.name, tr("Pohon nepřipraven"), tr("Hlášení „připraven“ chybí během jízdy"), stop, tr("Kvitace (cmdAck) po odstranění příčiny"));
+      row("A_" + d.name + "_NOTHOMED", d.name, tr("Bez referování"), tr("Povel jízdy na záznam bez referenční jízdy"), stop, tr("Kvitace (cmdAck), pak referenční jízda"));
+      row("A_" + d.name + "_POS", d.name, tr("Ztráta polohy"), tr("Hlášení „v poloze“ odpadlo v dosažené poloze"), stop, tr("Kvitace (cmdAck) po odstranění příčiny"));
+      row("A_" + d.name + "_TIMEOUT", d.name, tr("Timeout jízdy"), tr("Start nepotvrzen do {ack} s nebo jízda / referování déle než {move} s", { ack: T_POS_ACK, move: T_POS_MOVE }), stop, tr("Kvitace (cmdAck)"));
+    } else if (d.cls === "Axis") {
+      const stop = tr("Osa zastavena, regulace vypnuta, porucha stroje (stop sekvence)");
+      row("A_" + d.name + "_AXIS", d.name, tr("Porucha osy"), tr("Pohon / chyba sledování / ztráta komunikace / softwarový limit (příčina v diagnostice osy)"), stop, tr("Kvitace (cmdAck) po odstranění příčiny — MC_Reset, nové zapnutí regulace"));
+      row("A_" + d.name + "_POWER", d.name, tr("Regulace nezapnuta"), tr("Osa nehlásí zapnutou regulaci do {t} s", { t: T_AXIS_POWER }), stop, tr("Kvitace (cmdAck) po odstranění příčiny"));
+      row("A_" + d.name + "_NOTHOMED", d.name, tr("Bez referování"), tr("Absolutní polohování bez referování osy"), stop, tr("Kvitace (cmdAck), pak referování"));
+      row("A_" + d.name + "_CMD", d.name, tr("Povel osy odmítnut"), tr("Blok MC hlásí chybu povelu (parametry, limity, stav osy)"), stop, tr("Kvitace (cmdAck) po opravě povelu"));
+    } else if (d.cls === "PropValve") {
+      const stop = tr("Žádaná na minimum, porucha stroje (stop sekvence)");
+      if (ioOf(prj, d).rawAct) row("A_" + d.name + "_DEV", d.name, tr("Odchylka skutečné hodnoty"), tr("Skutečná hodnota mimo ± {tol} {unit} déle než {t} s", { tol: tolOf(d), unit: d.unit || "", t: tolTicksOf(d) / 10 }), stop, tr("Kvitace (cmdAck) po odstranění příčiny"));
+      row("A_" + d.name + "_TIMEOUT", d.name, tr("Žádaná nedosažena"), ioOf(prj, d).rawAct ? tr("Skutečná hodnota není v toleranci do {t} s po doběhu rampy", { t: T_PROP_SETTLE }) : tr("Rampa nedoběhla do {t} s", { t: T_PROP_SETTLE }), stop, tr("Kvitace (cmdAck)"));
     } else if (d.cls === "DI" && interlockDevs(prj).some(x => x.id === d.id)) {
       row("A_" + d.name + "_OPEN", d.name, tr("Blokování rozpojeno"), tr("{desc}: vstup FALSE (kryt otevřen / závora přerušena)", { desc: d.desc || d.name }),
         tr("Stop stroje: výstupy bloků vypnuty, sekvence do kroku 0"), tr("Po obnovení nový start (cmdAutoStart)"));
@@ -237,7 +388,7 @@ export function docFATMd(prj: Project): string {
       : e.dir === "DO" ? tr("Vynutit výstup z PLC, ověřit akční člen")
       : e.dir === "AI" ? tr("Zdroj signálu (kalibrátor), ověřit hodnotu a škálování")
       : tr("Vynutit hodnotu, změřit výstup");
-    s += "| X" + (mi + 1) + ":" + (i + 1) + " | " + e.addr + " | " + e.tag + " | " + how + " | ☐ |\n";
+    s += "| X" + (mi + 1) + ":" + (i + 1) + " | " + hwAddrText(prj, e) + " | " + e.tag + " | " + how + " | ☐ |\n";
   }));
   s += "\n## " + tr("2. Funkční testy zařízení") + "\n";
   for (const d of prj.devices) {
@@ -256,6 +407,33 @@ export function docFATMd(prj: Project): string {
     else if (d.cls === "AnalogIn") s += head + " (" + (d.unit || "") + " " + d.rmin + "–" + d.rmax + ")\n" +
       chk(tr("Porovnání se skutečnou/kalibrovanou hodnotou ve 3 bodech")) +
       chk(tr("Test mezí Hi/Lo")) + "\n";
+    else if (d.cls === "Vfd") s += head + "\n" +
+      chk(tr("Chod → rozběh po rampě, hlášení „otáčky dosaženy“, žádaná na analogovém výstupu odpovídá otáčkám měniče")) +
+      chk(tr("Změna otáček za chodu → nová rampa, krok přejde po dosažení otáček")) +
+      chk(tr("Stop → výstup chod vypnut, měnič dobrzdí svou rampou")) +
+      chk(tr("Simulace poruchy měniče / ztráty hlášení otáček → porucha, výstup vypnut")) +
+      chk(tr("Kvitace poruchy")) + "\n";
+    else if (d.cls === "PosDrive") s += head + "\n" +
+      chk(tr("Referenční jízda → hlášení „referováno“ a „v poloze“")) +
+      chk(tr("Jízda na každý záznam → správné bity výběru, start, dosažená poloha odpovídá tabulce záznamů")) +
+      chk(tr("Jízda bez referování → porucha „bez referování“")) +
+      chk(tr("Přerušení cyklu za jízdy → HALT, pohon stojí")) +
+      chk(tr("Simulace poruchy pohonu / ztráty „v poloze“ → porucha")) +
+      chk(tr("Kvitace poruchy")) + "\n";
+    else if (d.cls === "Axis") s += head + "\n" +
+      chk(tr("Regulace zapnout / vypnout → osa hlásí stav, při vypnutí stojí")) +
+      chk(tr("Referování → osa referována, poloha = referenční poloha")) +
+      chk(tr("Ruční pojezd + / − → osa jede jen při drženém tlačítku, po puštění zastaví; softwarové limity zastaví osu")) +
+      chk(tr("Najetí na každou pojmenovanou polohu → skutečná poloha v okně „v poloze“")) +
+      chk(tr("Absolutní polohování bez referování → porucha „bez referování“")) +
+      chk(tr("Přerušení cyklu za jízdy (AUTO vypnuto) → osa zastaví; E-stop → regulace vypnuta (STO dle bezpečnostní funkce)")) +
+      chk(tr("Simulace poruchy pohonu / ztráty komunikace / zablokování (chyba sledování) → porucha stroje")) +
+      chk(tr("Kvitace poruchy → regulace znovu zapnuta")) + "\n";
+    else if (d.cls === "PropValve") s += head + " (" + (d.unit || "") + " " + d.rmin + "–" + d.rmax + ")\n" +
+      chk(tr("Žádané hodnoty ve 3 bodech → skutečná hodnota (manometr / zpětná vazba) v toleranci")) +
+      chk(tr("Rampa žádané odpovídá nastavení")) +
+      (ioOf(prj, d).rawAct ? chk(tr("Simulace odchylky skutečné hodnoty → porucha po nastavené době")) : "") +
+      chk(tr("Vypnutí / E-stop → žádaná na minimum")) + "\n";
   }
   if (prj.program.seq.length) {
     s += "## " + tr("3. Test automatické sekvence") + "\n" + tr("| Krok | Očekávané chování | OK |") + "\n|---|---|---|\n";
@@ -314,6 +492,13 @@ export function docManualMd(prj: Project): string {
 
 export function docSWMd(prj: Project): string {
   const u = usedClasses(prj);
+  /* vlastní šablony firemní knihovny (codeLibrary — po kontrole převoditelnosti pro platformu) */
+  const libIds: Record<string, Set<string>> = {};
+  for (const p of prj.platforms) {
+    const lib = codeLibrary(prj, p);
+    for (const [cls, id] of Object.entries(lib.ids)) (libIds[cls] = libIds[cls] || new Set()).add(id + (lib.library?.name ? " (" + lib.library.name + ")" : ""));
+  }
+  const own = (cls: string) => libIds[cls] ? " — " + tr("vlastní blok knihovny {name}, neověřeno simulací", { name: [...libIds[cls]].join(", ") }) : "";
   return [
     "# " + tr("Softwarová dokumentace programu PLC"),
     "",
@@ -321,7 +506,7 @@ export function docSWMd(prj: Project): string {
     "",
     "## " + tr("1. Struktura programu"),
     "- " + tr("**Knihovna typových bloků** (`Gen_Library`): {list}",
-      { list: (["Motor", "Ventil", "AnalogIn", "AnalogOut"] as const).filter(c => u.has(c)).map(c => "FB_" + c).join(", ") || "—" }),
+      { list: (["Motor", "Ventil", "AnalogIn", "AnalogOut", "Vfd", "PosDrive", "PropValve", "Axis"] as const).filter(c => u.has(c)).map(c => "FB_" + c).join(", ") || "—" }),
     "- " + tr("**Strojní blok** `FB_Machine` / `MAIN`: multi-instance všech zařízení + stavový automat sekvence s hlídáním času kroků, režimy AUTO / ručně (`modeAuto`, `manRun_*`, `manOpen_*`), porucha stroje (`machineFault`, `faultStep`) a kvitace (`cmdAck` → vstup `reset` všech bloků)"),
     "- " + tr("Volání: 1 instance strojního bloku v cyklickém programu (OB1 / PlcTask / MainTask)"),
     ...(prj.platforms.includes("unitronics") ? [
@@ -331,10 +516,14 @@ export function docSWMd(prj: Project): string {
     "## " + tr("2. Typové bloky"),
     tr("| Blok | Funkce | Stavový automat | Timeout |"),
     "|---|---|---|---|",
-    "| FB_Motor | " + tr("start/stop se zpětným hlášením") + " | IDLE→STARTING→RUNNING→ERROR | " + tr("rozběh 3 s") + " |",
-    "| FB_Ventil | " + tr("otevřít/zavřít s koncáky") + " | CLOSED→OPENING→OPEN→CLOSING→ERROR | " + tr("přestavení 5 s") + " |",
-    "| FB_AnalogIn | " + tr("škálování + meze") + " | — | — |",
-    "| FB_AnalogOut | " + tr("jednotky → surová hodnota") + " | — | — |",
+    "| FB_Motor | " + tr("start/stop se zpětným hlášením") + own("Motor") + " | IDLE→STARTING→RUNNING→ERROR | " + tr("rozběh 3 s") + " |",
+    "| FB_Ventil | " + tr("otevřít/zavřít s koncáky") + own("Ventil") + " | CLOSED→OPENING→OPEN→CLOSING→ERROR | " + tr("přestavení 5 s") + " |",
+    "| FB_AnalogIn | " + tr("škálování + meze") + own("AnalogIn") + " | — | — |",
+    "| FB_AnalogOut | " + tr("jednotky → surová hodnota") + own("AnalogOut") + " | — | — |",
+    ...(u.has("Vfd") ? ["| FB_Vfd | " + tr("frekvenční měnič: chod, směr, žádaná s rampou v PLC") + " | IDLE→ACCELERATING→AT_SPEED→ERROR | " + tr("otáčky {t} s po rampě", { t: T_VFD_SPEED }) + " |"] : []),
+    ...(u.has("PosDrive") ? ["| FB_PosDrive | " + tr("polohovací pohon: výběr záznamu, start, referování, HALT") + " | IDLE→SELECT→START→MOVING / HOME_START→HOMING→ERROR | " + tr("potvrzení {a} s, jízda {m} s", { a: T_POS_ACK, m: T_POS_MOVE }) + " |"] : []),
+    ...(u.has("PropValve") ? ["| FB_PropValve | " + tr("proporcionální ventil: žádaná s rampou, hlídání odchylky") + " | OFF→RAMP→IN_TOLERANCE→ERROR | " + tr("žádaná {t} s po rampě", { t: T_PROP_SETTLE }) + " |"] : []),
+    ...(u.has("Axis") ? ["| FB_Axis | " + tr("servoosa: obálka nad bloky MC platformy (regulace, referování, polohování, rychlost, zastavení, ruční pojezd)") + " | OFF→POWERING→READY→HOMING / MOVING / STOPPING / JOG→ERROR→RESETTING | " + tr("regulace {t} s; pohyb hlídá čas kroku", { t: T_AXIS_POWER }) + " |"] : []),
     "",
     "## " + tr("3. Instance"),
     prj.devices.map(d => "- inst" + d.name + " : FB_" + (d.cls === "DI" || d.cls === "DO" ? tr("(volný signál)") : d.cls) + " — " + (d.desc || "")).join("\n"),
@@ -345,24 +534,76 @@ export function docSWMd(prj: Project): string {
     "## " + tr("5. Konvence"),
     tr("Symbolické adresování, bez M-flagů; tagy `<Zařízení>_<signál>`; hrany uvnitř FB; každý čekací stav má timeout do ERROR. Dle Siemens Programming Styleguide (ID 81318674) / IEC 61131-3."),
     "",
+    ...oopSwSection(prj),
     "## " + tr("6. Verze a zálohy"),
     tr("| Verze | Datum | Autor | Změna |"),
     "|---|---|---|---|",
-    "| 0.1 | " + dnes() + " | PLC Studio | " + tr("první generování") + " |",
+    "| 0.1 | " + dnes() + " | PLCdesk | " + tr("první generování") + " |",
   ].join("\n");
 }
 
+/** Oddíl softwarové dokumentace pro styl kódu OOP (jen když ho projekt na některé platformě má). */
+function oopSwSection(prj: Project): string[] {
+  const plat = oopInProject(prj);
+  if (!plat) return [];
+  const prog = oopProgram(prj, plat);
+  const plats = prj.platforms.filter(p => codeStyleFor(prj, p) === "oop").map(p => PLAT[p].name).join(", ");
+  const row = (p: OopPou) => "| " + p.name + " | " + (p.kind === "interface" ? "INTERFACE" : p.abstract ? "FUNCTION_BLOCK ABSTRACT" : p.kind === "program" ? "PROGRAM" : "FUNCTION_BLOCK")
+    + (p.extends ? " EXTENDS " + p.extends : "") + (p.implements && p.implements.length ? " IMPLEMENTS " + p.implements.join(", ") : "")
+    + " | " + [...p.methods.map(m => m.name + "()"), ...p.props.map(x => x.name)].join(", ") + " |";
+  return [
+    "## " + tr("Styl kódu OOP"),
+    tr("Platformy se stylem OOP: {list}. Chování je stejné jako v klasickém stylu — třídy stojí na stejných šablonách bloků a stejné mezivrstvě programu; shodu ověřuje emulátor (stejné scénáře, scan po scanu). Diagram tříd: `{file}`.", { list: plats, file: OOP_CLASS_SVG }),
+    "",
+    tr("| Třída | Druh | Metody a vlastnosti |"),
+    "|---|---|---|",
+    ...prog.pous.map(row),
+    "",
+    tr("Kvitace: MAIN volá `Reset()` přes pole odkazů `aDevices` (při `cmdAck`), souhrn poruch čte vlastnost `Fault` v cyklu FOR s kontrolou odkazu `<> 0`. Stav bloku pro HMI: vlastnosti `Fault`, `Status`, `Busy` (místo výstupů `error`, `status`, `busy`)."),
+    "",
+  ];
+}
+
 export interface DocFile { path: string; tab: string; title: string; body: string; }
-export function docFiles(prj: Project): DocFile[] {
+export function docFiles(prj: Project, items: ApprovalItem[] = approvalItems(prj)): DocFile[] {
+  const plan = commissioningPlan(prj);
   const bodies = [
     docIndexMd(prj), docFDSMd(prj), docIOcsv(prj), svorkyCSV(prj),
-    docAlarmCsv(prj), docFATMd(prj), docManualMd(prj), docSWMd(prj), docVerifyMd(prj),
+    docAlarmCsv(prj), docFATMd(prj), docManualMd(prj), docSWMd(prj),
+    verifyDocMd(prj),
     bomMd(prj), bomCsv(prj),
+    approvalsMd(prj, items), commissioningMd(prj, plan), commissioningCsv(prj, plan),
   ];
-  const out = DOC_META.map((m, i) => ({ path: m[0], tab: tr(m[1]), title: tr(m[2]), body: bodies[i] }));
+  const out = DOC_META.map((m, i) => {
+    const g = DOC_STAMP[m[0]];
+    return { path: m[0], tab: tr(m[1]), title: tr(m[2]), body: g ? stampBody(bodies[i], approvalStamp(prj, g, items).md) : bodies[i] };
+  });
   /* koncept řešení (AI nadstavba) jen když je zvolený */
   if (prj.concept) out.push({ path: CONCEPT_FILE, tab: tr("Koncept"), title: tr("koncept řešení (AI návrh k revizi)"), body: conceptMd(prj) });
+  for (const p of docProviders) if (p.docs) out.push(...p.docs(prj, items));
+  /* hlavička pod nadpisem dokumentů Markdown: firemní hlavička knihovny a řádek revize (bez nich beze změny) */
+  const head = [libraryDocHeader(prj).trim(), ...docProviders.map(p => (p.header ? p.header(prj) : "").trim())].filter(Boolean).join("\n\n");
+  if (head) for (const f of out) if (f.path.endsWith(".md")) f.body = stampBody(f.body, head);
   return out;
+}
+
+/**
+ * Další moduly (bezpečnostní funkce…) přidávají dokumenty (`docs`) a soubory sady projektu
+ * (`files`: schémata, programy) bez zásahu do tohoto souboru. Stejné `name` nahradí dřívější
+ * zdroj; vrací funkci pro odhlášení.
+ */
+export interface DocProvider {
+  docs?: (prj: Project, items: ApprovalItem[]) => DocFile[];
+  files?: (prj: Project, items: ApprovalItem[]) => ProjectFile[];
+  /** řádky Markdownu pod nadpis každého dokumentu .md (např. revize); prázdný text = nic */
+  header?: (prj: Project) => string;
+}
+const docProviders: Array<DocProvider & { name: string }> = [];
+export function registerDocProvider(name: string, p: DocProvider): () => void {
+  const at = docProviders.findIndex(x => x.name === name);
+  const rec = { ...p, name };
+  if (at >= 0) docProviders[at] = rec; else docProviders.push(rec);
+  return () => { const i = docProviders.indexOf(rec); if (i >= 0) docProviders.splice(i, 1); };
 }
 
 /** Dokument konceptu řešení — číslo za pevnou sadou 00–09. */
@@ -377,7 +618,8 @@ export interface ProjectFile {
 export function allProjectFiles(prj: Project): ProjectFile[] {
   const out: ProjectFile[] = [];
   const gDocs = tr("Dokumentace"), gSch = tr("Schémata");
-  for (const f of docFiles(prj)) out.push({ group: gDocs, name: f.path, save: f.path, body: f.body, kind: "text" });
+  const items = approvalItems(prj);
+  for (const f of docFiles(prj, items)) out.push({ group: gDocs, name: f.path, save: f.path, body: f.body, kind: "text" });
   const mods = modules(prj);
   out.push({ group: gSch, name: "blokove_schema.svg", save: "00_blokove_schema.svg", body: svgBlock(prj, mods), kind: "svg" });
   out.push({ group: gSch, name: "schema_stroje.svg", save: "00_schema_stroje.svg", body: svgMachine(prj), kind: "svg" });
@@ -386,14 +628,20 @@ export function allProjectFiles(prj: Project): ProjectFile[] {
     out.push({ group: gSch, name: "funkcni_diagram.svg", save: "00_funkcni_diagram.svg", body: svgFlow(prj, run), kind: "svg" });
     out.push({ group: gSch, name: "casovy_diagram.svg", save: "00_casovy_diagram.svg", body: svgTiming(prj, run), kind: "svg" });
   }
+  /* styl kódu OOP: diagram tříd do softwarové dokumentace */
+  const oopPlat = oopInProject(prj);
+  if (oopPlat) out.push({ group: gSch, name: "diagram_trid.svg", save: OOP_CLASS_SVG, body: oopClassSvg(prj, oopPlat), kind: "svg" });
   mods.forEach((m, i) => {
     const base = m.dir + m.idx + "_X" + (i + 1), pre = String(i + 1).padStart(2, "0") + "_";
     out.push({ group: gSch, name: base + ".svg", save: pre + base + ".svg", body: sheetSVG(prj, m, i + 1, i + 1, mods.length), kind: "svg" });
     out.push({ group: gSch, name: base + ".dxf", save: pre + base + ".dxf", body: sheetDXF(prj, m, i + 1, i + 1, mods.length), kind: "dxf", prev: sheetSVG(prj, m, i + 1, i + 1, mods.length) });
   });
+  for (const p of docProviders) if (p.files) out.push(...p.files(prj, items));
   for (const p of prj.platforms) {
     const files = genFor(prj, p);
-    for (const [n, b] of Object.entries(files)) out.push({ group: tr("PLC — {name}", { name: PLAT[p].name }), name: n, save: p + "_" + n, body: b, kind: "text" });
+    /* README platformy nese razítko stavu programu (zdrojové soubory se nemění) */
+    const stamp = approvalStamp(prj, ["design", "program", "verify"], items).text;
+    for (const [n, b] of Object.entries(files)) out.push({ group: tr("PLC — {name}", { name: PLAT[p].name }), name: n, save: p + "_" + n, body: n === "README.txt" && stamp ? stamp + "\n\n" + b : b, kind: "text" });
   }
   return out;
 }

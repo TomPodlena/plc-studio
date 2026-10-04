@@ -1,5 +1,5 @@
 /**
- * PLC Studio — vícejazyčnost.
+ * PLCdesk — vícejazyčnost.
  *
  * Zdrojový jazyk je čeština: český text ve zdrojovém kódu je zároveň klíčem překladu
  * (`tr("Krok {n}: {title}", { n, title })`). Chybějící překlad se vrátí česky, takže
@@ -62,6 +62,18 @@ const LOCALE = { cs: "cs-CZ", en: "en-GB", de: "de-DE", es: "es-ES", zh: "zh-CN"
 /** Dnešní datum ve zvyklosti nastaveného jazyka; `tech` = pro technické výstupy (viz `trx`). */
 export function today(tech = false) {
     return new Date().toLocaleDateString(LOCALE[tech ? techLang() : lang]);
+}
+/** Datum z ISO okamžiku ve zvyklosti nastaveného jazyka (neplatný vstup vrátí beze změny). */
+export function formatDate(iso, tech = false) {
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? String(iso ?? "") : d.toLocaleDateString(LOCALE[tech ? techLang() : lang]);
+}
+/** Datum a čas (hodiny:minuty, místní čas) z ISO okamžiku ve zvyklosti nastaveného jazyka. */
+export function formatDateTime(iso, tech = false) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime()))
+        return String(iso ?? "");
+    return d.toLocaleString(LOCALE[tech ? techLang() : lang], { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 /** Provede `fn` s dočasně přepnutým jazykem (např. dokumentace v jiném jazyce než UI). */
 export function withLang(l, fn) {

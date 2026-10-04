@@ -1,0 +1,6 @@
+dist/
+_shots/
+.wrangler/
+.dev.vars
+node_modules/
+preview.html

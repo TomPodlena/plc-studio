@@ -1,0 +1,72 @@
+# PLCdesk - jeden Cloudflare Worker: staticky web z dist/ + API na /api/*
+# Nasazeni: viz NASAZENI.md. Prikazy spoustet ze slozky apps/site.
+#   npx wrangler@4 deploy          (build probehne sam pres [build])
+#   npx wrangler@4 dev --local     (lokalne, secrets z .dev.vars)
+#
+# Hodnoty PLACEHOLDER_* doplnit pri nasazeni. Tajne hodnoty sem NIKDY nepatri.
+
+name = "plcdesk"
+main = "worker/index.js"
+compatibility_date = "2026-09-01"
+
+# Na free tarifu bezi web na https://plcdesk.<ucet>.workers.dev (zadna domena se nekupuje).
+workers_dev = true
+
+[build]
+command = "node scripts/build.js"
+
+# Staticke soubory obslouzi Cloudflare primo (bez spusteni Workeru a bez zapocitani do
+# limitu pozadavku). Worker dostane jen to, co mezi soubory neni: /api/* a 404.
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"
+
+# ---- D1: leady, licence, aktivace (free: 5 GB, 5 mil. cteni a 100 tis. zapisu denne) ----
+[[d1_databases]]
+binding = "DB"
+database_name = "plcdesk"
+database_id = "18d078cf-4b47-484c-97be-6923ea8f4cd5"
+
+# ---- R2: instalacky (volitelne, POZDEJI) ----
+# R2 ma 10 GB zdarma, ale zapnuti R2 vyzaduje platebni kartu v uctu Cloudflare.
+# Na free startu se proto soubor ke stazeni servíruje z GitHub Releases (DOWNLOAD_URL nize).
+# [[r2_buckets]]
+# binding = "RELEASES"
+# bucket_name = "plcdesk-releases"
+
+[vars]
+APP_NAME = "PLCdesk"
+# Adresa webu - JEDINE misto pro Worker; musi sedet s "url" v content/site.json.
+PUBLIC_SITE = "https://plcdesk.podlena-t.workers.dev"
+# "direct" = free tarif bez vlastni domeny: zadne e-maily, odkaz ke stazeni se ukaze na strance.
+# "resend" = az bude domena a overeny odesilatel v Resend (MAIL_FROM + secret RESEND_API_KEY).
+MAIL_MODE = "direct"
+MAIL_FROM = ""
+MAIL_REPLY_TO = ""
+MAIL_SIGNATURE = "PLCdesk"
+# Soubor ke stazeni (bez R2): odkaz na asset v GitHub Releases, napr.
+#   https://github.com/<ucet>/<repo>/releases/download/v0.1.0/PLCdesk-0.1.0-portable.zip
+# Prazdne = "soubor zatim neni k dispozici" (503), dokud neni prvni verze.
+DOWNLOAD_URL = "https://github.com/TomPodlena/plc-studio/releases/download/v0.1.0/PLCdesk-0.1.0-portable.zip"
+RELEASE_VERSION = "0.1.0"
+# Platby: "stripe" | "paddle" | "" (prazdne = platby vypnute, oba webhooky 404).
+# Musi sedet s "payments.provider" v content/site.json (tlacitka na strance Cenik).
+PAYMENT_PROVIDER = ""
+# Volna verze: strop I/O. Aplikace si ho taha z /api/config, meni se jen tady.
+FREE_IO_LIMIT = "64"
+
+# ---- Tajne hodnoty: npx wrangler secret put <NAZEV> ----
+# TURNSTILE_SECRET        (povinne - bez nej je formular zavreny)
+# LICENSE_PRIVATE_KEY     (Ed25519 PKCS#8 base64 - node tools/keygen.js)
+# ADMIN_TOKEN             (rucni vystavovani licenci; bez nej je admin zavreny)
+# RESEND_API_KEY          (az s MAIL_MODE = "resend")
+# STRIPE_WEBHOOK_SECRET   (PAYMENT_PROVIDER = "stripe"; bez nej webhook nic neprijme)
+# PADDLE_WEBHOOK_SECRET   (PAYMENT_PROVIDER = "paddle"; secret key notifikacni destinace)
+# PADDLE_API_KEY          (volitelne, Paddle: dohledani e-mailu zakaznika, kdyz neni v custom_data)
+#
+# Lokalne: soubor .dev.vars (je v .gitignore), napr.:
+#   DEV_MODE=1
+#   TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+#   ADMIN_TOKEN=lokalni

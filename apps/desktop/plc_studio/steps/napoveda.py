@@ -7,6 +7,7 @@ import webbrowser
 
 from .. import theme
 from ..i18n import N_, _
+from ..updates import about_bar
 from ..widgets import card, scrolled_text
 
 # Oddíly: (nadpis, [odstavce]); odstavec začínající "• " je odrážka,
@@ -35,8 +36,8 @@ SECTIONS = [
     (N_("Jazyky IEC 61131-3 — kterým psát"), [
         N_("• **LAD** — žebříček; čte ho údržba, ideální na blokování."),
         N_("• **FBD** — grafické bloky, analogová logika."),
-        N_("• **ST / SCL** — text jako Pascal; výpočty, automaty, data. **Tímto generuje PLC "
-           "Studio** — je přenositelný."),
+        N_("• **ST / SCL** — text jako Pascal; výpočty, automaty, data. **Tímto generuje "
+           "PLCdesk** — je přenositelný."),
         N_("• **SFC/GRAPH** — velké sekvence. **IL/STL** — jen údržba starého kódu."),
     ]),
     (N_("Stavební bloky programu (FB, FC, DB, instance)"), [
@@ -146,7 +147,7 @@ SECTIONS = [
         N_("• **Openness / L5X / PLCopen XML** — formáty pro strojovou výměnu projektů."),
         N_("• **PLCSIM, Logix Echo, GX Simulator…** — simulátory CPU."),
     ]),
-    (N_("Jak pracovat s PLC Studio"), [
+    (N_("Jak pracovat s PLCdesk"), [
         N_("1. **Projekt** — pojmenuj; nebo načti ukázku."),
         N_("2. **AI návrh** — popiš stroj, AI navrhne zařízení a sekvenci (API klíč v nastavení "
            "kroku)."),
@@ -162,6 +163,28 @@ SECTIONS = [
         N_("10. **Kusovník** — komponenty k poptávce: PLC a moduly, ke každému zařízení jeho "
            "díly (jistič motoru, stykač, rozváděč, snímače…) a rozvaděč; značky, typy a "
            "dodavatelé z katalogu, volba u řádku nebo celé kategorie, export CSV pro Excel."),
+        N_("11. **Bezpečnost** — nebezpečí a bezpečnostní funkce: PLr z grafu rizik, "
+           "architektura, komponenty a výpočet PL, bezpečná vzdálenost (ISO 13855), "
+           "schvalování přímo v kroku, bezpečnostní program a výkres okruhu."),
+        N_("12. **Schválení** — odpovědná osoba schvaluje položky návrhu jménem, datem "
+           "a poznámkou; návrhy ladění z ověření simulací."),
+        N_("13. **Oživení** — plán oživení po fázích, výsledky OK / Nevyhovuje / N/A "
+           "a protokol MD / CSV."),
+    ]),
+    (N_("Schvalování a oživení"), [
+        N_("**Navrhovat vše, platí jen schválené.** PLCdesk navrhuje zařízení, I/O, "
+           "program, ověření i plán oživení — za návrh ale odpovídá člověk. Každá položka "
+           "(zařízení, tabulka I/O, sekvence, E-stop a blokování, takt a hlídací časy, výsledek "
+           "ověření, bezpečnostní funkce, plán oživení…) se v kroku **Schválení** schvaluje "
+           "jménem, datem a poznámkou. Schválení platí pro obsah v okamžiku schválení: když "
+           "se položka změní, je „změněno po schválení“ a schvaluje se znovu. Odznak "
+           "„Neschváleno: N“ v hlavičce ukazuje, kolik položek čeká."),
+        N_("**Návrhy ladění** (delší hlídací čas, meze měření, takt…) vznikají z ověření "
+           "simulací. „Použít“ návrh promítne do projektu, ale nic neschvaluje."),
+        N_("**Oživení** vede krok po kroku od rozvaděče přes smyčkový test I/O, pohony "
+           "a sekvenci po poruchové stavy a validaci bezpečnostních funkcí. Ke každému kroku "
+           "se zapíše výsledek, kdo a kdy, naměřená hodnota a poznámka; protokol se uloží jako "
+           "Markdown nebo CSV k tisku."),
     ]),
     (N_("Odkazy na dokumentaci platforem"), [
         N_("Oficiální stránky výrobců: produkt, vývojové prostředí, reference jazyka, manuály, "
@@ -209,6 +232,7 @@ def _insert_refs(app, txt) -> None:
 
 def render(app, parent) -> None:
     body = card(parent, "?", _("Škola PLC — nápověda pro začátečníky"))
+    about_bar(app, body)            # verze a volba kontroly aktualizací (updates.py)
     frm, txt = scrolled_text(body, height=20, bg=theme.BG, spacing1=2, spacing3=4)
     frm.pack(fill="both", expand=True)
     txt.tag_configure("h", foreground=theme.PRIMARY, font=theme.FONT_CARD, spacing1=14, spacing3=6)
@@ -225,7 +249,7 @@ def render(app, parent) -> None:
                 for pf in app.PLAT.values():
                     _insert_rich(txt, f"• **{pf['name']}** — {pf['ide']} · {pf['cpu']} · "
                                  f"{pf['lang']}", "plat")
-                    txt.insert("end", _("import z PLC Studia: {imp}", imp=pf["imp"]) + "\n",
+                    txt.insert("end", _("import z PLCdesk: {imp}", imp=pf["imp"]) + "\n",
                                ("dim",))
             # druh odstavce se určuje z českého zdroje, ne z překladu
             elif line == "@odkazy":

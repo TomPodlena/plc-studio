@@ -1,0 +1,95 @@
+<section class="page-head">
+  <div class="wrap split">
+    <div>
+      <p class="eyebrow">{{page.eyebrow}}</p>
+      <h1>{{page.h1}}</h1>
+      <p class="lead measure">{{page.lead}}</p>
+      <div class="cta-row">
+        <a class="btn" href="{{page.pdf}}" download>{{page.pdf_cta}}<svg class="ico ico-btn" aria-hidden="true"><use href="#i-download"/></svg></a>
+      </div>
+      <p class="fine measure">{{page.pdf_note}}</p>
+    </div>
+    <div class="pages-stack" aria-hidden="true">
+      <img src="/assets/img/doc-{{meta.lang}}-04.webp" alt="" width="476" height="674">
+      <img src="/assets/img/doc-{{meta.lang}}-02.webp" alt="" width="476" height="674">
+      <img src="/assets/img/doc-{{meta.lang}}-01.webp" alt="" width="476" height="674">
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-tight">
+  <div class="wrap">
+    <h2>{{page.pages_title}}</h2>
+    <ul class="pages">
+      {{#each page.pages}}
+      <li class="rv">
+        <a class="page-thumb" href="{{page.pdf}}" download>
+          <img src="/assets/img/doc-{{meta.lang}}-{{@n}}.webp" alt="{{.name}}" loading="lazy" width="476" height="674">
+          <span><span class="page-n">{{@n}}</span>{{.name}}</span>
+        </a>
+      </li>
+      {{/each}}
+    </ul>
+  </div>
+</section>
+
+<section class="sec sec-tint sec-dots">
+  <div class="wrap">
+    <h2>{{page.app_title}}</h2>
+    <p class="lead measure">{{page.app_lead}}</p>
+    <div class="figs app-figs">
+      {{#each page.app_shots}}
+      <div class="rv">{{.|shot}}</div>
+      {{/each}}
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <h2>{{page.contents_title}}</h2>
+    <div class="grid-4">
+      {{#each page.contents}}
+      <article class="card rv"><span class="card-ico"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg></span><h3>{{.name}}</h3><p>{{.desc}}</p></article>
+      {{/each}}
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-tint sec-grid">
+  <div class="wrap">
+    <h2>{{page.figs_title}}</h2>
+    <div class="figs">
+      <figure class="win fig fig-wide rv">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">00_casovy_diagram.svg</span></div>
+        <div class="win-sheet"><img src="/assets/img/ukazka-casovy.svg" alt="{{page.fig_timing}}" loading="lazy" width="980" height="636"></div>
+        <figcaption>{{page.fig_timing}}</figcaption>
+      </figure>
+      <figure class="win fig rv">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">00_blokove_schema.svg</span></div>
+        <div class="win-sheet"><img src="/assets/img/ukazka-blokove.svg" alt="{{page.fig_block}}" loading="lazy" width="980" height="1000"></div>
+        <figcaption>{{page.fig_block}}</figcaption>
+      </figure>
+      <figure class="win fig fig-crop rv">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">00_funkcni_diagram.svg</span></div>
+        <div class="win-sheet"><img src="/assets/img/ukazka-funkcni.svg" alt="{{page.fig_flow}}" loading="lazy" width="980" height="1628"></div>
+        <figcaption>{{page.fig_flow}}</figcaption>
+      </figure>
+      <figure class="win fig rv">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">01_DI1_X1.svg</span></div>
+        <div class="win-sheet"><img src="/assets/img/ukazka-di1.svg" alt="{{page.fig_sheet}}" loading="lazy" width="980" height="840"></div>
+        <figcaption>{{page.fig_sheet}}</figcaption>
+      </figure>
+      <figure class="win fig rv">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">03_DO1_X3.svg</span></div>
+        <div class="win-sheet"><img src="/assets/img/ukazka-do1.svg" alt="{{page.fig_do1}}" loading="lazy" width="980" height="760"></div>
+        <figcaption>{{page.fig_do1}}</figcaption>
+      </figure>
+      <figure class="win fig fig-wide rv">
+        <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-path">00_bezpecnostni_okruh.svg</span></div>
+        <div class="win-sheet"><img src="/assets/img/ukazka-bezpecnost.svg" alt="{{page.fig_safety}}" loading="lazy" width="980" height="590"></div>
+        <figcaption>{{page.fig_safety}}</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>

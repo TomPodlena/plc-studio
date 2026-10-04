@@ -1,4 +1,4 @@
-"""Most do jádra PLC Studia — trvalý proces Node s ``bridge.mjs``.
+"""Most do jádra PLCdesk — trvalý proces Node s ``bridge.mjs``.
 
 Protokol: jeden JSON požadavek na řádek → jedna JSON odpověď na řádek.
 Volat jen z hlavního (Tk) vlákna; zámek je tu pro jistotu, ne pro souběh.
@@ -27,7 +27,15 @@ class BridgeError(RuntimeError):
 
 
 def find_node() -> str | None:
-    """Cesta k ``node`` — PATH, jinak obvyklá místa instalace na Windows."""
+    """Cesta k ``node``: proměnná ``PLCDESK_NODE``, přibalený runtime přenosné
+    verze (``<kořen>/runtime/node/node.exe``), PATH, obvyklá místa instalace."""
+    env = os.environ.get("PLCDESK_NODE")
+    if env and Path(env).is_file():
+        return env
+    # přenosná verze: <kořen>/app/apps/desktop/bridge.mjs → <kořen>/runtime/node
+    portable = BRIDGE_JS.parents[3] / "runtime" / "node" / "node.exe"
+    if portable.is_file():
+        return str(portable)
     exe = shutil.which("node")
     if exe:
         return exe
@@ -55,7 +63,7 @@ class CoreBridge:
     def start(self) -> None:
         node = find_node()
         if not node:
-            raise BridgeError(_("Nenašel jsem Node.js (node.exe). PLC Studio potřebuje "
+            raise BridgeError(_("Nenašel jsem Node.js (node.exe). PLCdesk potřebuje "
                                 "Node 18+ — nainstaluj ho z nodejs.org."))
         if not BRIDGE_JS.exists():
             raise BridgeError(_("Chybí soubor mostu: {path}", path=BRIDGE_JS))

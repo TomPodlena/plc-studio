@@ -1,0 +1,1028 @@
+{
+  "meta": {
+    "lang": "de",
+    "locale": "de_DE",
+    "title": "{{site.brand}} — Maschinensteuerung von der Aufgabenstellung bis zur freigegebenen Dokumentation",
+    "description": "Sie beschreiben die Maschine, {{site.brand}} entwirft E/A, Schaltpläne, das Programm für 8 SPS-Plattformen, Sicherheitsfunktionen und die Inbetriebnahme. Jede Position gibt eine verantwortliche Person frei. Bis 64 E/A kostenlos."
+  },
+  "ui": {
+    "skip": "Zum Inhalt springen",
+    "nav_label": "Hauptmenü",
+    "lang_label": "Sprache",
+    "menu": "Menü",
+    "foot_product": "Produkt",
+    "foot_contact": "Kontakt",
+    "foot_legal": "Rechtliches",
+    "foot_tag": "Steuerungsentwurf und Dokumentation für Maschinen, gemacht für kleine Integratoren und Maschinenbauer.",
+    "made": "Die Ergebnisse sind ein Entwurf. Es gilt, was eine verantwortliche Person freigibt.",
+    "beta": "beta",
+    "pending_legal": "Wartet auf juristische Prüfung",
+    "back_home": "Zur Startseite",
+    "legal_draft": "Textentwurf zur Prüfung durch einen Juristen. Gilt erst ab dem Inkrafttreten und nach Ergänzung der Angaben zum Betreiber.",
+    "legal_effective": "Gültig ab",
+    "legal_operator": "Betreiber",
+    "legal_id": "Firmennummer",
+    "legal_contact": "Kontakt",
+    "legal_toc": "Inhalt",
+    "lb_close": "Schließen",
+    "lb_label": "Vergrößerter Screenshot der Anwendung"
+  },
+  "nav": {
+    "home": "Start",
+    "funkce": "Funktionen",
+    "platformy": "Plattformen",
+    "cenik": "Preise",
+    "ukazka": "Beispieldokumentation",
+    "stazeni": "Download",
+    "kontakt": "Kontakt",
+    "podminky": "Nutzungsbedingungen",
+    "soukromi": "Datenschutz",
+    "cta": "Kostenlos laden",
+    "cookies": "Cookies"
+  },
+  "home": {
+    "title": "{{site.brand}} — Maschinensteuerung von der Aufgabenstellung bis zur freigegebenen Dokumentation",
+    "description": "Sie beschreiben die Maschine, {{site.brand}} entwirft E/A, Schaltpläne, das Programm für 8 SPS-Plattformen, Sicherheitsfunktionen und die Inbetriebnahme. Jede Position gibt eine verantwortliche Person frei. Bis 64 E/A kostenlos.",
+    "eyebrow": "Für Integratoren und Maschinenbauer",
+    "h1": "Von der Aufgabenstellung zur unterschriebenen Dokumentation",
+    "lead": "Sie beschreiben die Maschine. {{site.brand}} entwirft Geräte, E/A, Schaltpläne, Programm, Sicherheitsfunktionen und Inbetriebnahmeplan und erstellt zu allem die Dokumentation. Sie prüfen und geben frei. Was Sie nicht freigegeben haben, steht in den Dokumenten als NICHT FREIGEGEBEN.",
+    "cta1": "Kostenlos laden",
+    "cta2": "Beispieldokumentation (PDF)",
+    "fine": "Bis {{site.free_io_limit}} E/A dauerhaft kostenlos. Windows 10/11 oder Browser. Keine Kreditkarte.",
+    "mock_title": "Freigabe der Positionen",
+    "mock_project": "Press- und Markierlinie LL-03",
+    "mock_caption": "Auszug aus dem Freigabeprotokoll des Beispielprojekts. Der Name ist erfunden.",
+    "mock_h_item": "Position",
+    "mock_h_state": "Status",
+    "mock_h_who": "Freigegeben",
+    "mock_rows": [
+      {
+        "item": "E/A-Tabelle (44 Signale)",
+        "state": "Freigegeben",
+        "cls": "ok",
+        "who": "J. Muster, 2.10."
+      },
+      {
+        "item": "SF1 Not-Halt, PLr d, Kat. 3",
+        "state": "Freigegeben",
+        "cls": "ok",
+        "who": "J. Muster, 2.10."
+      },
+      {
+        "item": "Ablauf, Schritt 4: 6 s → 8 s",
+        "state": "Nach Freigabe geändert",
+        "cls": "stale",
+        "who": "erneut freigeben"
+      },
+      {
+        "item": "SF6 Zweihandschaltung, PLr e, Kat. 4",
+        "state": "Wartet auf Freigabe",
+        "cls": "wait",
+        "who": "—"
+      },
+      {
+        "item": "Sicherheitsprogramm (F-Programm)",
+        "state": "Noch nicht erzeugt",
+        "cls": "lock",
+        "who": "nach Freigabe von SF1–SF10"
+      }
+    ],
+    "facts": [
+      {
+        "n": "8",
+        "t": "SPS-Plattformen"
+      },
+      {
+        "n": "16",
+        "t": "Dokumente aus einer Maschinenbeschreibung"
+      },
+      {
+        "n": "5",
+        "t": "Sprachen für Anwendung und Ergebnisse"
+      },
+      {
+        "n": "{{site.free_io_limit}}",
+        "t": "E/A dauerhaft kostenlos"
+      }
+    ],
+    "live": {
+      "eyebrow": "Live-Simulation",
+      "title": "Die Maschine läuft, bevor es sie gibt",
+      "lead": "Der Simulator führt dieselbe Logik aus, die {{site.brand}} für die SPS erzeugt, Zyklus für Zyklus. Das Systemschema zeigt Leitungen, Antriebe und Schritte der Schrittkette in Echtzeit.",
+      "points": [
+        "AUTO-Betrieb, Zyklusstart, Not-Halt und Quittierung wie an der Maschine.",
+        "Handbefehle, erzwungene Eingänge und Störungen: blockierte Bewegung, fehlende Rückmeldung, Analogwert außerhalb der Grenzen.",
+        "Dasselbe Projekt prüfen danach die Zustandsmatrix und das Protokoll der Simulationsprüfung."
+      ],
+      "note": "Die Simulation prüft den Entwurf, nicht das in Ihrer IDE übersetzte Programm.",
+      "path": "LL-03 / 7 · Programm › Live-Simulation",
+      "caption": "Aufzeichnung aus der Anwendung: Linie LL-03, ein vollständiger Zyklus im AUTO-Betrieb, 2× beschleunigt.",
+      "video_label": "Animation der Live-Simulation der Linie LL-03 in {{site.brand}}: Sensoren, SPS-Module, Motoren und Zylinder während des Zyklus"
+    },
+    "flow_eyebrow": "So funktioniert es",
+    "flow_title": "Von der Maschinenbeschreibung zur Übergabe in Tagen statt Wochen",
+    "flow_lead": "Ein Projekt von der Maschinenbeschreibung bis zu Programm, Zeichnungen und Dokumentation. Jeder Schritt baut auf dem vorigen auf, nichts wird zwischen Werkzeugen abgetippt.",
+    "flow": [
+      {
+        "name": "Maschine beschreiben",
+        "desc": "In normaler Sprache, aus Standardbausteinen, oder eine bestehende Anlage einlesen: SPS-Export, Programm, Schaltplan."
+      },
+      {
+        "name": "{{site.brand}} entwirft die ganze Steuerung",
+        "desc": "Geräte, E/A mit Adressen, Schaltpläne, Ablauf, Verriegelungen, Sicherheitsfunktionen mit PLr und Komponenten, Stückliste."
+      },
+      {
+        "name": "Der Entwurf wird simuliert",
+        "desc": "Normaler Zyklus, Störungen, Not-Halt in jedem Schritt, Überwachungszeiten und Taktzeit. Das Ergebnis steht im Protokoll."
+      },
+      {
+        "name": "Sie geben frei",
+        "desc": "Position für Position, mit Name und Datum. Was sich nach der Freigabe ändert, geht zurück zur Freigabe."
+      },
+      {
+        "name": "Programm und Dokumentation übergeben",
+        "desc": "Dateien für Ihre Entwicklungsumgebung, Dokumentation für den Kunden und ein Inbetriebnahmeplan für die Maschine."
+      }
+    ],
+    "tour": {
+      "eyebrow": "Echte Screenshots",
+      "title": "Die Anwendung im Überblick",
+      "lead": "Die Desktop-Anwendung {{site.brand}} mit der Beispiellinie LL-03, demselben Projekt wie in der Beispieldokumentation. Die Screenshots stammen direkt aus der Anwendung, nichts ist nachbearbeitet. Zum Vergrößern auf einen Screenshot klicken.",
+      "tabs_label": "Schritte der Anwendung",
+      "items": [
+        {
+          "key": "schema",
+          "tab": "Schema",
+          "path": "LL-03 / 6 · Schema",
+          "title": "Klickbares Blockschaltbild",
+          "desc": "Signalquellen, SPS-Module und Aktoren. Ein Klick auf ein Gerät zeigt seine Ein- und Ausgänge mit Adressen und Klemmen sowie die Programmschritte, in denen es vorkommt.",
+          "alt": "Schritt Schema in {{site.brand}}: Blockschaltbild der Linie LL-03 mit hervorgehobenem Presszylinder Y1 und einem Bereich mit seinen Signalen, Adressen, Klemmen und Programmschritten"
+        },
+        {
+          "key": "ziva",
+          "tab": "Live-Simulation",
+          "path": "LL-03 / 7 · Programm › Live-Simulation",
+          "title": "Live-Simulation der Maschine",
+          "desc": "Systemschema mit Leitungen und animierten Antrieben. AUTO-Betrieb, Zyklusstart, Not-Halt und Quittierung wie an der Maschine, dazu Handbefehle und erzwungene Eingänge.",
+          "alt": "Live-Simulation: Linie LL-03 im AUTO-Betrieb in Schritt 10 von 18, aktive Leitungen und Ausgänge hervorgehoben, rechts der Zustand des Presszylinders Y1 und die Ereignisliste"
+        },
+        {
+          "key": "bezpecnost",
+          "tab": "Sicherheit",
+          "path": "LL-03 / 11 · Sicherheit",
+          "title": "Sicherheitsfunktionen und PL",
+          "desc": "Funktionen aus den Gefährdungen der Maschine: erforderlicher Performance Level PLr, erreichter PL, Entwurf und Freigabestand jeder Funktion.",
+          "alt": "Schritt Sicherheit: Tabelle mit zehn Sicherheitsfunktionen mit PLr, erreichtem PL und Freigabestand, rechts die Beschreibung der Not-Halt-Funktion und ihre Freigabe"
+        },
+        {
+          "key": "schvaleni",
+          "tab": "Freigabe",
+          "path": "LL-03 / 12 · Freigabe",
+          "title": "Freigabe durch die verantwortliche Person",
+          "desc": "Jede Position wird mit Name und Datum freigegeben. Ändert sich der Inhalt nach der Freigabe, ist sie erneut freizugeben. Im Bild: die Schrittkette nach einer längeren Überwachungszeit.",
+          "alt": "Schritt Freigabe: 40 Positionen freigegeben, 3 nach der Freigabe geändert, 30 offen; die ausgewählte Schrittkette ist nach der Freigabe geändert, mit Name und Datum der ursprünglichen Freigabe"
+        },
+        {
+          "key": "kusovnik",
+          "tab": "Stückliste",
+          "path": "LL-03 / 10 · Stückliste",
+          "title": "Stückliste mit Katalog",
+          "desc": "SPS, Module und die Teile jedes Geräts mit Kennzeichnung nach IEC 81346, Hersteller, Typ, Bestellcode und Lieferant. Export als CSV.",
+          "alt": "Schritt Stückliste: 66 Positionen mit Kennzeichnung, Hersteller, Typ, Bestellcode und Lieferant, ausgewählt der Getriebemotor -M1 mit Typauswahl aus dem Katalog"
+        },
+        {
+          "key": "generovat",
+          "tab": "Code",
+          "path": "LL-03 / 8 · Generieren",
+          "title": "Programm für die gewählten Plattformen",
+          "desc": "Ein vollständiges Programm mit Zustandsautomaten, Überwachungszeiten und Betriebsarten für jede gewählte Plattform, dazu das Importvorgehen für die IDE.",
+          "alt": "Schritt Generieren: Quellcode des Hauptbausteins Gen_Main.scl für Siemens SIMATIC, darüber Registerkarten weiterer Plattformen und Dateien"
+        }
+      ]
+    },
+    "show_eyebrow": "Echte Ergebnisse",
+    "show_title": "Zeichnungen aus dem Beispielprojekt",
+    "show_lead": "Direkt von der Anwendung für die Press- und Markierlinie LL-03 erzeugt, genauso wie in der Beispieldokumentation.",
+    "trust_eyebrow": "Warum Sie dem vertrauen können",
+    "trust_title": "Es entwirft alles. Es gilt nur, was Sie freigeben.",
+    "trust_lead": "Bei einer Maschinensteuerung zählt nicht, wer die erste Version geschrieben hat, sondern wer dafür einsteht. Deshalb übernimmt {{site.brand}} so viel Entwurfsarbeit wie möglich und lässt nichts ohne Entscheidung der verantwortlichen Person durch.",
+    "trust": [
+      {
+        "name": "Freigegeben wird die Position, nicht das ganze Projekt",
+        "desc": "Jedes Gerät, die E/A-Tabelle, der Ablauf, die Verriegelungen, Grenzwerte, das Simulationsergebnis, jede Sicherheitsfunktion, das Sicherheitsprogramm und der Inbetriebnahmeplan einzeln. Mit Name, Datum und Bemerkung."
+      },
+      {
+        "name": "Die Freigabe hängt am Inhalt",
+        "desc": "Gespeichert wird ein Fingerabdruck dessen, was Sie freigegeben haben. Ändern Sie eine Schrittzeit, eine Adresse oder einen PLr, geht die Position zurück zur Freigabe. Eine geänderte Beschreibung oder eine andere Sprache hebt die Freigabe nicht auf."
+      },
+      {
+        "name": "Nicht Freigegebenes ist sichtbar",
+        "desc": "Dokumente mit nicht freigegebenen Positionen tragen deutlich NICHT FREIGEGEBEN. Das Sicherheitsprogramm entsteht erst nach Freigabe der Sicherheitsfunktionen."
+      },
+      {
+        "name": "Die Dokumentation belegt, wer was wann freigegeben hat",
+        "desc": "Das Freigabeprotokoll ist Teil der Maschinendokumentation: Status jeder Position, Name, Datum, Bemerkung und Fingerabdruck des Inhalts. Für den Kunden, für die technischen Unterlagen und für spätere Änderungen."
+      }
+    ],
+    "trust_note": "Entwürfe haben Begründung und Quelle: Risikograph und Tabellen der ISO 13849-1, Katalogwerte der Komponenten, Simulationsergebnisse. Die Validierung der Sicherheitsfunktionen an der Maschine nach ISO 13849-2 plant {{site.brand}} und bereitet das Protokoll dafür vor. Durchgeführt und unterschrieben wird sie von einem Menschen.",
+    "docs_eyebrow": "Dokumentation",
+    "docs_title": "Dokumentation, die Sie dem Kunden übergeben",
+    "docs_lead": "Aus einer Maschinenbeschreibung entsteht der ganze Satz, und er bleibt konsistent. Fügen Sie ein Ventil hinzu, erscheint es gleichzeitig in E/A-Liste, Klemmenplan, Schaltplan, Pflichtenheft, Meldungen, FAT und Stückliste.",
+    "docs": [
+      "Funktionsbeschreibung (FDS)",
+      "E/A-Liste und Klemmenplan",
+      "Elektroschaltpläne (SVG und DXF)",
+      "Meldeliste mit Reaktionen",
+      "FAT-Protokoll",
+      "Betriebsanleitung (Gerüst)",
+      "Softwaredokumentation",
+      "Protokoll der Simulationsprüfung",
+      "Stückliste mit Lieferanten",
+      "Freigabeprotokoll",
+      "Inbetriebnahmeplan und -protokoll",
+      "Sicherheitsfunktionen (SRS) und Validierungsplan"
+    ],
+    "docs_cta": "Beispiel ansehen",
+    "local_title": "Ihre Projekte bleiben bei Ihnen",
+    "local_body": "Die Desktop-Anwendung und die Webversion arbeiten auf Ihrem Rechner. Projekte speichern wir auf keinem Server. Arbeiten Sie unter NDA für einen Autohersteller oder OEM, müssen Sie niemandem etwas erklären.",
+    "local_ai": "Ausnahme sind die KI-Funktionen: Gerätevorschlag aus einer freien Beschreibung und das Auslesen von Schaltplänen und Fotos einer bestehenden Anlage. Wenn Sie sie nutzen, gehen Text oder Bild an den KI-Anbieter. Ohne sie verlässt nichts Ihren Rechner. Online geht die Anwendung nur zur Lizenzaktivierung und gelegentlich zur Prüfung, ohne Projektinhalte.",
+    "faq_title": "Häufige Fragen",
+    "faq": [
+      {
+        "q": "Darf eine Software Sicherheitsfunktionen entwerfen?",
+        "a": "Entwerfen ja, entscheiden nein. {{site.brand}} erstellt einen Entwurf mit Begründung und Quellen, aber solange die verantwortliche Person ihn nicht freigibt, gilt er nirgends und es entsteht kein Sicherheitsprogramm. Die Verantwortung bleibt, wo sie war. Sie haben nur belegt, was Sie geprüft haben."
+      },
+      {
+        "q": "Erzeugt das eine KI?",
+        "a": "Dokumentation, Schaltpläne, Programm und Berechnungen erstellt {{site.brand}} nach festen Regeln: gleiche Eingabe, gleiches Ergebnis. KI hilft nur, wo die Eingabe frei ist: Sie schlägt aus einer Maschinenbeschreibung die Geräte vor und liest Signale aus Schaltplänen oder Fotos einer bestehenden Anlage. Auch das ist ein Entwurf, den Sie prüfen und freigeben."
+      },
+      {
+        "q": "Ist das Programm fertig zum Laden in die SPS?",
+        "a": "Es ist ein vollständiges Programm mit Zustandsautomaten, Betriebsarten, Störungen und Quittierung, und der Entwurf ist durch Simulation geprüft. Den Import in die Entwicklungsumgebung haben wir aber noch auf keiner Plattform durch Übersetzen geprüft, deshalb steht bei allen Plattformen beta. Vor dem Einsatz gehört das Programm in den Simulator Ihrer Plattform und in die FAT."
+      },
+      {
+        "q": "Ich habe eine bestehende Maschine. Muss ich alles neu eingeben?",
+        "a": "Nein. {{site.brand}} liest einen Export oder ein Programm aus der SPS (TIA Portal, Studio 5000, ST-Quellen, Variablentabellen) und leitet daraus Geräte, E/A, Ablauf und Verriegelungen ab. Bei jeder Position zeigt es, woher sie stammt und wie sicher sie ist."
+      },
+      {
+        "q": "Was, wenn ein Auftrag das Limit von {{site.free_io_limit}} E/A überschreitet?",
+        "a": "Schreiben Sie uns, und wir schalten Ihr erstes Projekt über dem Limit komplett kostenlos frei. Weitere Maschinen dieser Größe benötigen den Tarif Pro."
+      },
+      {
+        "q": "Funktioniert es offline?",
+        "a": "Ja. Ohne Internet funktionieren nur die KI-Funktionen nicht. Die Lizenz ist eine signierte Datei, die die Anwendung offline prüft."
+      }
+    ],
+    "reference": {
+      "eyebrow": "Aus der Praxis",
+      "quote": "",
+      "name": "",
+      "role": ""
+    },
+    "end_title": "Probieren Sie es an einer Maschine, die Sie kennen",
+    "end_body": "Nehmen Sie eine kleinere Maschine, die Sie gut kennen. An einem Nachmittag sehen Sie, ob die Ergebnisse passen.",
+    "end_cta": "Kostenlos laden"
+  },
+  "funkce": {
+    "title": "Funktionen — {{site.brand}}",
+    "description": "Geräte- und E/A-Entwurf, Schaltpläne nach IEC, Programm für 8 Plattformen, Simulation, Sicherheitsfunktionen nach ISO 13849, Inbetriebnahme, Dokumentation, Stückliste und Import bestehender Anlagen.",
+    "eyebrow": "Funktionen",
+    "h1": "Was {{site.brand}} für Sie erledigt",
+    "lead": "Von der Aufgabenstellung bis zur Übergabe der Maschine. Alles, was es vorschlägt, prüfen und geben Sie frei. Die Dokumentation belegt dann, was Sie freigegeben haben.",
+    "toc": "Auf dieser Seite",
+    "groups": [
+      {
+        "id": "navrh",
+        "name": "Entwurf aus der Aufgabenstellung",
+        "lead": "Sie beginnen mit dem, was Sie über die Maschine wissen.",
+        "points": [
+          "Maschinenbeschreibung in normaler Sprache. Der Entwurfsassistent stellt daraus die Geräte zusammen und fragt nach, was fehlt.",
+          "Standardbausteine: Motor, Ventil, Analogeingang und -ausgang, Sensoren, Leuchtmelder.",
+          "Not-Halt, Verriegelungseingänge (Schutztüren, Lichtvorhänge, Luftdruck) und die geforderte Taktzeit."
+        ],
+        "shot": {
+          "key": "navrh",
+          "path": "LL-03 / 2 · KI-Entwurf",
+          "alt": "Schritt KI-Entwurf: Beschreibung der Linie LL-03 in normaler Sprache, Antwort des Entwurfsassistenten mit 29 Geräten und einer Schrittkette mit 18 Schritten sowie die Tabelle der vorgeschlagenen Geräte"
+        }
+      },
+      {
+        "id": "io",
+        "name": "Geräte, E/A und Adressen",
+        "lead": "Eine Tabelle, umgesetzt für jede Plattform.",
+        "points": [
+          "Adressen in einheitlicher Schreibweise, umgerechnet in die Syntax jeder Plattform.",
+          "Variablennamen auf Portabilität geprüft (ASCII, wo die Plattform es verlangt).",
+          "Öffner und Schließer, Grenzwerte analoger Messungen, Sollwerte.",
+          "Rollen von Ausgängen: Betrieb, Störung, bereit, gestoppt, Zuhaltung, AUTO."
+        ],
+        "shot": {
+          "key": "zarizeni",
+          "path": "LL-03 / 4 · Geräte",
+          "alt": "Schritt Geräte: Tabelle der Geräte der Linie mit Klasse, Beschreibung und Optionen, rechts der Presszylinder Y1 mit Adressen, Klemmen und Programmschritten"
+        }
+      },
+      {
+        "id": "schemata",
+        "name": "Schaltpläne",
+        "lead": "Zeichnungen, die zur Dokumentation passen.",
+        "points": [
+          "Blockschaltbild und E/A-Verdrahtung je Modul.",
+          "Kennzeichnung nach IEC 81346, Aderkennzeichnung, Öffner/Schließer nach IEC 60617, Rahmen und Schriftfeld.",
+          "Klemmenplan, Schaltplan des Sicherheitskreises, Funktions- und Zeitdiagramm des Zyklus.",
+          "SVG-Vorschau und DXF-Export für AutoCAD und andere ECAD-Systeme."
+        ],
+        "shot": {
+          "key": "diagram",
+          "path": "LL-03 / 6 · Schema › Funktionsdiagramm des Zyklus",
+          "alt": "Funktionsdiagramm des Zyklus: Schritte der Schrittkette mit Weiterschaltbedingungen, Überwachungszeiten und Zeiten aus dem simulierten Normalzyklus, rechts der gewählte Schritt und sein Gerät"
+        }
+      },
+      {
+        "id": "program",
+        "name": "SPS-Programm",
+        "lead": "Ein vollständiges Programm, keine leere Vorlage.",
+        "points": [
+          "Zustandsautomaten der Geräte mit Überwachungszeiten und Statuswörtern.",
+          "Betriebsart AUTO und Hand, Zyklusstart, Quittierung, Handbefehle, Maschinenstörung mit dem Schritt, in dem sie auftrat.",
+          "8 Plattformen; Import in einer Datei, wo die IDE es kann (PLCopen XML, L5X).",
+          "Zu jeder Plattform die Importanleitung und der kürzeste Test."
+        ],
+        "shot": {
+          "key": "generovat",
+          "path": "LL-03 / 8 · Generieren",
+          "alt": "Schritt Generieren: Quellcode des Hauptbausteins Gen_Main.scl für Siemens SIMATIC, darüber Registerkarten weiterer Plattformen und Dateien"
+        }
+      },
+      {
+        "id": "simulace",
+        "name": "Simulation und Prüfung",
+        "lead": "Der Entwurf wird getestet, bevor der Schaltschrank entsteht.",
+        "points": [
+          "Der Simulator führt dieselbe Logik aus, die das Programm enthält, Zyklus für Zyklus.",
+          "Normaler Zyklus, Störszenarien und Zustandsmatrix: Not-Halt in jedem Schritt, Verriegelungen, AUTO aus, Verlust der Rückmeldung.",
+          "Konzeptprüfung: Eingänge, die das Programm nicht liest, Ausgänge, die es nicht ansteuert, Messungen ohne Grenzwerte.",
+          "Zeitverhalten: Taktzeit und Reserve der Überwachungszeiten. Das Ergebnis steht im Protokoll."
+        ],
+        "note": "Die Simulation prüft den Entwurf, nicht das in Ihrer IDE übersetzte Programm. Den Test im Simulator der Plattform und die FAT ersetzt sie nicht.",
+        "shot": {
+          "key": "ziva",
+          "path": "LL-03 / 7 · Programm › Live-Simulation",
+          "alt": "Live-Simulation: Linie LL-03 im AUTO-Betrieb in Schritt 10 von 18, aktive Leitungen und Ausgänge hervorgehoben, rechts der Zustand des Presszylinders Y1 und die Ereignisliste"
+        }
+      },
+      {
+        "id": "bezpecnost",
+        "name": "Sicherheitsfunktionen",
+        "lead": "Ein begründeter Entwurf. Gültig erst nach Freigabe.",
+        "points": [
+          "Leitet aus den Gefährdungen der Maschine Funktionen ab: Not-Halt, Schutztüren, Zuhaltungen, Lichtvorhänge, Zweihandschaltung, Entlüftung, Hydraulik.",
+          "PLr mit dem Risikograph nach ISO 13849-1, Kategorie und Architektur, PL-Berechnung aus MTTFd, DC und CCF.",
+          "Komponenten mit Katalogwerten und Quelle, Sicherheitsabstände nach ISO 13855, Schaltplan des Sicherheitskreises.",
+          "Sicherheitsprogramm für Siemens F, Rockwell GuardLogix und PLCopen Safety, Konfiguration für Pilz, SICK und Schmersal. Entsteht erst nach Freigabe der Funktionen.",
+          "Spezifikation der Sicherheitsanforderungen (SRS) und Validierungsplan mit Checklisten."
+        ],
+        "note": "Sicherheitslogik gehört in eine Sicherheits-SPS oder ein Sicherheitsrelais. Im Standardprogramm bleibt der Not-Halt nur ein Statussignal. Die Validierung an der Maschine plant und protokolliert {{site.brand}}, durchgeführt wird sie von einem Menschen.",
+        "shot": {
+          "key": "bezpecnost",
+          "path": "LL-03 / 11 · Sicherheit",
+          "alt": "Schritt Sicherheit: Tabelle mit zehn Sicherheitsfunktionen mit PLr, erreichtem PL und Freigabestand, rechts die Beschreibung der Not-Halt-Funktion"
+        }
+      },
+      {
+        "id": "ozivovani",
+        "name": "Inbetriebnahme",
+        "lead": "Ein Plan für die Maschine und ein Protokoll zum Ausfüllen.",
+        "points": [
+          "Plan nach Phasen: Schaltschrank, Schleifentest jedes Signals, Antriebe, Analogwerte, Not-Halt, Ablauf, Sicherheitsfunktionen, Übergabe.",
+          "Protokoll zum Ausdrucken oder zum Eintragen der Ergebnisse direkt in der Anwendung.",
+          "Optimierungsvorschläge (Grenzwerte, Überwachungszeiten, ungenutzte Signale). Jeder geht wieder zur Freigabe."
+        ],
+        "shot": {
+          "key": "ozivovani",
+          "path": "LL-03 / 13 · Inbetriebnahme",
+          "alt": "Schritt Inbetriebnahme: Plan nach Phasen, Schaltschrank erledigt und ein Teil des E/A-Schleifentests mit Ergebnis OK, rechts die Beschreibung des nächsten Schritts und ein Feld für den Messwert"
+        }
+      },
+      {
+        "id": "dokumentace",
+        "name": "Dokumentation",
+        "lead": "16 verknüpfte Dokumente aus einer Beschreibung.",
+        "points": [
+          "Funktionsbeschreibung, E/A-Liste, Klemmenplan, Meldeliste, FAT-Protokoll, Betriebsanleitung, Softwaredokumentation.",
+          "Simulationsprotokoll, Stückliste, Freigabeprotokoll, Inbetriebnahmeplan und -protokoll.",
+          "Sicherheitsfunktionen (SRS) und Validierungsplan.",
+          "Markdown und CSV, die sich in Word und Excel öffnen lassen."
+        ],
+        "shot": {
+          "key": "dokumentace",
+          "path": "LL-03 / 9 · Dokumentation",
+          "alt": "Schritt Dokumentation: Liste der Projektdateien (FDS, E/A-Liste, Klemmen, Alarme, FAT, Zeichnungen) und Vorschau der funktionalen Spezifikation"
+        }
+      },
+      {
+        "id": "kusovnik",
+        "name": "Stückliste mit Katalog",
+        "lead": "Eine Grundlage für die Anfrage, keine leere Tabelle.",
+        "points": [
+          "Kennzeichnung nach IEC 81346: SPS und Module der Plattform, Teile jedes Geräts, Schaltschrank.",
+          "Typische Marken, Typen und Lieferanten aus einer Marktrecherche, mit Quellen.",
+          "CSV-Export für Excel und Anfragen."
+        ],
+        "shot": {
+          "key": "kusovnik",
+          "path": "LL-03 / 10 · Stückliste",
+          "alt": "Schritt Stückliste: Positionen mit Kennzeichnung, Hersteller, Typ, Bestellcode und Lieferant, ausgewählt der Getriebemotor -M1"
+        }
+      },
+      {
+        "id": "import",
+        "name": "Import bestehender Anlagen",
+        "lead": "Modernisierung und Umbau ohne Neueingabe.",
+        "points": [
+          "SPS-Exporte und Programme zurückgelesen: TIA Portal (SimaticML, Variablentabellen), Studio 5000 (L5X, CSV), ST-Quellen und GVL, Variablenlisten.",
+          "Leitet aus dem Programm Geräte, E/A, Not-Halt, Verriegelungen, Ablauf und Grenzwerte ab. Zeigt bei jeder Position Quelle und Sicherheit.",
+          "Schaltpläne als PDF und Fotos von Typenschildern oder dem Schaltschrank liest eine KI. Exakt Eingelesenes hat Vorrang, Widersprüche werden gemeldet."
+        ],
+        "shot": {
+          "key": "import",
+          "path": "Import › Prüfen und übernehmen",
+          "alt": "Import-Assistent, Schritt Prüfen und übernehmen: aus einem öffentlichen PLCopen-XML-Projekt erkannte Geräte mit farbig markierter Sicherheit (sicher, Schätzung) und Quellenangabe Datei:Zeile"
+        }
+      },
+      {
+        "id": "jazyky",
+        "name": "5 Sprachen",
+        "lead": "Oberfläche und Ergebnisse in der Sprache Ihres Kunden.",
+        "points": [
+          "Tschechisch, Englisch, Deutsch, Spanisch und Chinesisch.",
+          "Dokumentation, README und Simulationsmeldungen in der Projektsprache. Code-Kommentare und DXF-Texte immer in lateinischer Schrift.",
+          "Die Übersetzungen sind maschinell mit Fachglossar. Lassen Sie sie vor der Übergabe an den Kunden von einem Muttersprachler prüfen."
+        ]
+      },
+      {
+        "id": "aplikace",
+        "name": "Web und Desktop",
+        "lead": "Ein Kern, zwei Wege.",
+        "points": [
+          "Die Webversion läuft im Browser ohne Installation.",
+          "Die Desktop-Anwendung für Windows bietet zusätzlich klickbare Schaltpläne, eine Live-Simulation mit Anlagenschema und einen Szenario-Player.",
+          "Desktop als portables ZIP: entpacken und starten, ohne Administratorrechte."
+        ],
+        "shot": {
+          "key": "web-schema",
+          "path": "Browser / 6 · Schema",
+          "alt": "Die Webversion von {{site.brand}} im Browser: Schritt Schema mit dem Blockschaltbild der Linie LL-03"
+        }
+      }
+    ],
+    "ai_title": "Wo KI hilft",
+    "ai_body": "Nur an zwei Stellen: Gerätevorschlag aus einer freien Beschreibung und Auslesen von Schaltplänen und Fotos beim Import. Das Ergebnis ist immer ein Entwurf zur Freigabe. Bei der Nutzung gehen Text oder Bild an den KI-Anbieter. Alles andere berechnet {{site.brand}} auf Ihrem Rechner nach festen Regeln."
+  },
+  "platformy": {
+    "title": "Plattformen und Prüfung — {{site.brand}}",
+    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Mitsubishi, Schneider, OMRON und Unitronics. Wie die Ausgabe geprüft ist und was noch beta ist.",
+    "eyebrow": "Plattformen",
+    "h1": "8 Plattformen. Wir sagen, was geprüft ist.",
+    "lead": "Die Ausgabe jeder Plattform prüfen wir gegen die Handbücher des Herstellers. Import und Übersetzen in der Entwicklungsumgebung haben wir noch nicht ausprobiert, deshalb tragen alle Plattformen das Etikett beta. Sobald eine Plattform durch Übersetzen geprüft ist, verschwindet es und wir ergänzen Version und Datum.",
+    "checked": "Stand vom",
+    "h_platform": "Plattform",
+    "h_ide": "Entwicklungsumgebung",
+    "h_output": "Was Sie erhalten",
+    "h_check": "Wie geprüft",
+    "h_state": "Status",
+    "rows": [
+      {
+        "name": "Siemens SIMATIC",
+        "ide": "TIA Portal V17–V21",
+        "output": "SCL-Quellen, SimaticML XML, Variablentabelle",
+        "check": "Siemens-Handbücher, Format SimaticML"
+      },
+      {
+        "name": "Rockwell Allen-Bradley",
+        "ide": "Studio 5000 Logix Designer",
+        "output": "L5X (Add-On Instructions, Tags, Routine) und Tag-CSV",
+        "check": "Handbuch 1756-RM014, reale L5X-Exporte"
+      },
+      {
+        "name": "Beckhoff",
+        "ide": "TwinCAT 3",
+        "output": "PLCopen XML, ST-Bausteine, GVL",
+        "check": "ST-Parser für TwinCAT, Schema PLCopen TC6"
+      },
+      {
+        "name": "CODESYS",
+        "ide": "CODESYS V3.5",
+        "output": "PLCopen XML, ST-Bausteine, GVL",
+        "check": "Schema PLCopen TC6, CODESYS-Handbücher"
+      },
+      {
+        "name": "Mitsubishi",
+        "ide": "GX Works3",
+        "output": "ST und CSV der globalen Labels",
+        "check": "Mitsubishi-Handbücher; das CSV-Format ändert sich je nach Version"
+      },
+      {
+        "name": "Schneider Electric",
+        "ide": "EcoStruxure Machine Expert",
+        "output": "PLCopen XML, ST-Bausteine, GVL",
+        "check": "Schema PLCopen TC6, Schneider-Handbücher"
+      },
+      {
+        "name": "OMRON",
+        "ide": "Sysmac Studio",
+        "output": "ST und Variablentabelle",
+        "check": "OMRON-Handbücher"
+      },
+      {
+        "name": "Unitronics",
+        "ide": "UniLogic (UniStream)",
+        "output": "flaches ST und Tag-Liste",
+        "check": "Unitronics-Handbücher; den Dialekt bestätigt erst die erste Übersetzung"
+      }
+    ],
+    "state_beta": "beta: Import in IDE ungeprüft",
+    "why_title": "Was beta bedeutet",
+    "why_body": "Die Dateien entsprechen der Herstellerdokumentation und bestehen unsere Prüfungen: Bausteinpaare, deklarierte Bezeichner, XML-Schema, ASCII wo nötig. Was wir noch nicht wissen, ist, was der Compiler Ihrer IDE-Version dazu sagt. Die README jeder Plattform beschreibt deshalb den kürzesten Test: Import, Übersetzen und Lauf im Simulator der Plattform. Finden Sie eine Abweichung, schreiben Sie uns. Wir beheben sie und bringen die Plattform zu den geprüften.",
+    "safety_title": "Sicherheitsprogramm",
+    "safety_lead": "Entsteht aus zertifizierten Bausteinen des Herstellers, erst nach Freigabe der Sicherheitsfunktionen. Wie beim Standardprogramm: beta, bis wir es durch Übersetzen geprüft haben.",
+    "safety_rows": [
+      {
+        "name": "Siemens",
+        "what": "F-Programm (TIA Portal Safety)"
+      },
+      {
+        "name": "Rockwell",
+        "what": "GuardLogix (L5X)"
+      },
+      {
+        "name": "PLCopen Safety",
+        "what": "Bausteine für TwinSAFE, CODESYS Safety und weitere"
+      },
+      {
+        "name": "Pilz, SICK, Schmersal",
+        "what": "Konfiguration für PNOZmulti, Flexi Soft, PROTECT PSC1"
+      },
+      {
+        "name": "Sicherheitsrelais",
+        "what": "Verdrahtung und Einstellung"
+      }
+    ],
+    "lang_title": "Sprachen",
+    "lang_body": "Anwendung und Ergebnisse in fünf Sprachen: Tschechisch, Englisch, Deutsch, Spanisch und Chinesisch. Kommentare im erzeugten Code und Texte der DXF-Zeichnungen bleiben in lateinischer Schrift, bei Chinesisch auf Englisch. Die Ausgabe für Unitronics und DXF ist reines ASCII."
+  },
+  "cenik": {
+    "title": "Preise — {{site.brand}}",
+    "description": "Free bis 64 E/A dauerhaft, Pro ohne Größenlimit, Firma für Teams mit eigener Bausteinbibliothek.",
+    "eyebrow": "Preise",
+    "h1": "Probieren Sie es an einem echten Auftrag",
+    "lead": "Die kostenlose Version führt Sie durch den ganzen Ablauf bis zu den fertigen Dateien. Sie zahlen erst, wenn eine Maschine das Limit übersteigt oder Sie saubere Exporte möchten.",
+    "per_month": "/ Monat",
+    "featured": "Hier anfangen",
+    "plans": [
+      {
+        "id": "free",
+        "name": "Free",
+        "price": "0 €",
+        "unit": "dauerhaft",
+        "points": [
+          "Unbegrenzt viele Projekte bis {{site.free_io_limit}} E/A",
+          "Alle Generatoren, Simulation und Dokumentation",
+          "Sicherheitsfunktionen und Freigabe",
+          "Exporte mit {{site.brand}}-Fußzeile",
+          "Kein DXF-Export"
+        ],
+        "cta": "Kostenlos laden"
+      },
+      {
+        "id": "pro",
+        "name": "Pro",
+        "price": "39 €",
+        "unit": "/ Monat",
+        "points": [
+          "Ohne Begrenzung der Projektgröße",
+          "Saubere Exporte ohne Fußzeile",
+          "Export der Schaltpläne nach DXF",
+          "Lizenz für 1 Rechner, funktioniert offline"
+        ],
+        "cta": "Pro wählen"
+      },
+      {
+        "id": "firma",
+        "name": "Firma",
+        "price": "119 €",
+        "unit": "/ Monat",
+        "points": [
+          "Alles aus Pro für ein Team bis 5 Rechner",
+          "Eigene Bibliothek von Bausteinvorlagen",
+          "Firmeneigene Benennung und Statuswörter"
+        ],
+        "cta": "Firma wählen"
+      }
+    ],
+    "vat": "Preise zzgl. MwSt.",
+    "unlock": "Stoßen Sie bei einer echten Maschine an das Limit von {{site.free_io_limit}} E/A? Schreiben Sie uns, und wir schalten Ihr erstes Projekt komplett kostenlos frei.",
+    "unlock_cta": "Freischaltung anfragen",
+    "faq_title": "Zahlung und Lizenzen",
+    "faq": [
+      {
+        "q": "Was passiert, wenn eine Zahlung fehlschlägt?",
+        "a": "Nichts wird gesperrt. Die Lizenz gilt noch einen Monat nach Ende des Zeitraums, damit Sie nicht mitten im Auftrag stehen bleiben. Gesperrt wird erst ein gekündigtes Abonnement."
+      },
+      {
+        "q": "Braucht die Lizenz Internet?",
+        "a": "Nur beim ersten Eingeben und danach gelegentlich im Hintergrund. Offline läuft die Anwendung weiter."
+      },
+      {
+        "q": "Warum eine Fußzeile in den Exporten der Free-Version?",
+        "a": "Es ist die einzige Grenze, die sich nicht durch Aufteilen einer Maschine in zwei Projekte umgehen lässt. Und Dokumentation mit Fußzeile hilft uns, wenn sie weitere Leute aus der Branche erreicht."
+      },
+      {
+        "q": "Stellen Sie Rechnungen an Firmen aus?",
+        "a": "Ja. Die Rechnungsdaten geben Sie bei der Bestellung an, die Rechnung kommt per E-Mail."
+      }
+    ],
+    "order_terms": "Mit der Bestellung stimmen Sie den Geschäfts- und Lizenzbedingungen zu und nehmen die Datenschutzerklärung zur Kenntnis."
+  },
+  "ukazka": {
+    "title": "Beispieldokumentation — {{site.brand}}",
+    "description": "Vollständige Dokumentation einer Beispielmaschine: Funktionsbeschreibung, E/A-Liste, Schaltpläne, Meldungen, FAT, Sicherheitsfunktionen, Freigabeprotokoll und Inbetriebnahmeplan. PDF zum Download.",
+    "eyebrow": "Beispiel",
+    "h1": "Sehen Sie, was Sie erhalten",
+    "lead": "Beispielmaschine: eine Press- und Markierlinie mit Zuführung, Handhabung, Hydraulikpresse und Förderband. 29 Geräte, 44 Signale, ein Lichtvorhang, zwei Schutztüren und Zweihandschaltung. Das PDF entstand mit demselben Kern wie die Ergebnisse in der Anwendung.",
+    "pdf_cta": "Beispiel laden (PDF)",
+    "pdf": "{{site.pdf_de}}",
+    "pdf_note": "Ein Teil der Positionen ist im Beispiel von einer erfundenen Person freigegeben, ein Teil absichtlich nicht. Sie sehen, wie NICHT FREIGEGEBEN aussieht und eine nach der Freigabe geänderte Position.",
+    "contents_title": "Was das Beispiel enthält",
+    "contents": [
+      {
+        "name": "Freigabeprotokoll",
+        "desc": "Status jeder Position, wer wann freigegeben hat, Fingerabdruck des Inhalts."
+      },
+      {
+        "name": "Funktionsbeschreibung (FDS)",
+        "desc": "Betriebsarten, Ablauf, Störungen und Quittierung, Verriegelungen."
+      },
+      {
+        "name": "E/A-Liste und Klemmenplan",
+        "desc": "Adressen, Variablen, Klemmen, Aderkennzeichnung."
+      },
+      {
+        "name": "Schaltpläne",
+        "desc": "Blockschaltbild, Verdrahtung eines Eingangsmoduls, Sicherheitskreis."
+      },
+      {
+        "name": "Meldeliste und FAT",
+        "desc": "Reaktionen auf Störungen und das Prüfprotokoll für die Abnahme."
+      },
+      {
+        "name": "Sicherheitsfunktionen",
+        "desc": "Gefährdungen, PLr, Architektur, PL-Berechnung, Komponenten mit Quellen."
+      },
+      {
+        "name": "Inbetriebnahmeplan",
+        "desc": "Schritte nach Phasen mit erwartetem Ergebnis und Platz für Einträge."
+      },
+      {
+        "name": "Programmbeispiel",
+        "desc": "Auszug aus dem Hauptprogramm in SCL für Siemens."
+      }
+    ],
+    "fig_block": "Blockschaltbild der Beispielmaschine",
+    "fig_sheet": "Verdrahtung des Eingangsmoduls DI1 (Auszug)",
+    "fig_safety": "Schaltplan des Sicherheitskreises",
+    "fig_do1": "Verdrahtung des Ausgangsmoduls DO1 (Klemmleiste X3)",
+    "fig_timing": "Zeitdiagramm des Zyklus",
+    "fig_flow": "Funktionsdiagramm des Zyklus (Auszug)",
+    "figs_title": "Zeichnungen und Diagramme",
+    "pages_title": "Seitenvorschau",
+    "pages": [
+      {
+        "name": "Titelseite"
+      },
+      {
+        "name": "Freigabeprotokoll"
+      },
+      {
+        "name": "E/A-Liste"
+      },
+      {
+        "name": "Sicherheitsfunktionen (SRS)"
+      }
+    ],
+    "app_title": "Dasselbe Projekt in der Anwendung",
+    "app_lead": "Die Linie LL-03 aus der Beispieldokumentation, diesmal direkt in der Anwendung {{site.brand}}.",
+    "app_shots": [
+      {
+        "key": "ziva",
+        "path": "LL-03 / 7 · Programm › Live-Simulation",
+        "alt": "Live-Simulation: Linie LL-03 im AUTO-Betrieb in Schritt 10 von 18, aktive Leitungen und Ausgänge hervorgehoben, rechts der Zustand des Presszylinders Y1 und die Ereignisliste",
+        "cap": "Live-Simulation: die Linie im AUTO-Betrieb mitten im Zyklus, aktive Leitungen und Ausgänge hervorgehoben."
+      },
+      {
+        "key": "schvaleni",
+        "path": "LL-03 / 12 · Freigabe",
+        "alt": "Schritt Freigabe: 40 Positionen freigegeben, 3 nach der Freigabe geändert, 30 offen; die ausgewählte Schrittkette ist nach der Freigabe geändert",
+        "cap": "Freigabe: was freigegeben ist, was sich nach der Freigabe geändert hat und was noch offen ist."
+      }
+    ]
+  },
+  "stazeni": {
+    "title": "Download — {{site.brand}}",
+    "description": "{{site.brand}} kostenlos laden. Portable Anwendung für Windows ohne Installation, bis 64 E/A dauerhaft kostenlos.",
+    "eyebrow": "Download",
+    "h1": "{{site.brand}} laden",
+    "lead": "Geben Sie Ihre E-Mail ein, der Download-Link erscheint direkt hier unter dem Formular. Keine Installation: entpacken und starten, ohne Administratorrechte.",
+    "f_email": "E-Mail",
+    "f_placeholder": "sie@firma.de",
+    "f_hp": "Dieses Feld bitte leer lassen",
+    "f_submit": "Download-Link anzeigen",
+    "f_sending": "Wird gesendet…",
+    "f_ok": "Erledigt. Der Link ist unterwegs und 7 Tage gültig.",
+    "f_ok_direct": "Erledigt. Hier herunterladen (wir senden nichts per E-Mail):",
+    "f_err": "Etwas ist schiefgegangen. Bitte versuchen Sie es erneut.",
+    "f_net": "Verbindung fehlgeschlagen. Bitte versuchen Sie es gleich noch einmal.",
+    "f_note": "Weitere E-Mails erhalten Sie nur, wenn Sie sie anfordern. Wie wir mit Ihrer Adresse umgehen, steht auf der Seite",
+    "token_title": "Ihr Download-Link",
+    "token_body": "Laden Sie die portable Version für Windows. Der Link ist 7 Tage ab Anforderung gültig.",
+    "token_cta": "Für Windows laden (ZIP)",
+    "req_title": "Was Sie brauchen",
+    "req": [
+      "Windows 10 oder 11, 64 Bit",
+      "Keine Administratorrechte, keine Installation",
+      "Webversion: aktueller Edge, Chrome oder Firefox"
+    ],
+    "next_title": "Erste Schritte",
+    "next": [
+      "Öffnen Sie eine der 12 Beispielmaschinen und gehen Sie die Schritte von der Aufgabenstellung bis zur Dokumentation durch.",
+      "Dann probieren Sie eine kleinere Maschine, die Sie gut kennen.",
+      "Haben Sie ein bestehendes Projekt, beginnen Sie mit dem Import. Das spart viele Klicks."
+    ],
+    "f_consent": "Ich stimme den Geschäfts- und Lizenzbedingungen zu:",
+    "f_consent_err": "Für den Download ist die Zustimmung zu den Lizenzbedingungen nötig.",
+    "lead_mail": "Hinterlassen Sie Ihre E-Mail, und wir schicken Ihnen einen Download-Link. Keine Installation: entpacken und starten, ohne Administratorrechte.",
+    "f_submit_mail": "Download-Link senden"
+  },
+  "kontakt": {
+    "title": "Kontakt — {{site.brand}}",
+    "description": "Schreiben Sie uns: Fragen, Freischaltung eines Projekts über dem Limit, Rechnungen, Fehler in den Ergebnissen.",
+    "eyebrow": "Kontakt",
+    "h1": "Schreiben Sie uns",
+    "lead": "Fragen, Freischaltungen, Rechnungen und Fehler in den Ergebnissen. Wir antworten persönlich, meist innerhalb von zwei Arbeitstagen.",
+    "mail_label": "E-Mail",
+    "topics_title": "Worüber Sie uns schreiben können",
+    "topics": [
+      "Ihr Projekt ist über das Limit von {{site.free_io_limit}} E/A gewachsen und Sie möchten es freischalten.",
+      "Die Ausgabe für Ihre Plattform lässt sich nicht importieren oder übersetzen. Schicken Sie uns die Meldung der IDE, wir beheben es.",
+      "Rechnungen, Teamlizenzen, Freigabe einer Lizenz von einem anderen Rechner.",
+      "Ihnen fehlt eine Funktion, ein Baustein oder eine Dokumentart."
+    ],
+    "company_title": "Betreiber",
+    "company": "Die Angaben zum Betreiber ergänzen wir vor dem Verkaufsstart."
+  },
+  "podminky": {
+    "title": "Geschäfts- und Lizenzbedingungen — {{site.brand}}",
+    "description": "Geschäfts- und Lizenzbedingungen der Anwendung {{site.brand}}: Tarife, Abonnement, Lizenz, Art der Ergebnisse und Haftungsbeschränkung.",
+    "eyebrow": "Rechtliches",
+    "h1": "Geschäfts- und Lizenzbedingungen",
+    "lead": "Diese Bedingungen regeln die Nutzung der Anwendung {{site.brand}} (Desktop-Anwendung und Webversion) und der zugehörigen Dienste der Website. Die Anwendung richtet sich vor allem an Unternehmer: Integratoren, Maschinenbauer und Planer. Für Verbraucher gilt zusätzlich Artikel 9.",
+    "sections": [
+      {
+        "id": "provozovatel",
+        "h": "Betreiber und Vertragsschluss",
+        "body": [
+          "Betreiber ist {{site.operator.name}}, Firmennummer {{site.operator.id}}, Sitz {{site.operator.address}}, E-Mail {{site.email}} (im Folgenden „Betreiber“).",
+          "Der Lizenzvertrag kommt durch den Download der Anwendung mit Zustimmung zu diesen Bedingungen (Tarif Free) oder durch den Abschluss einer Bestellung eines kostenpflichtigen Tarifs (Pro, Firma) zustande. Vertragssprache ist Tschechisch oder die auf der Website gewählte Sprache."
+        ]
+      },
+      {
+        "id": "licence",
+        "h": "Lizenz",
+        "body": [
+          "Der Betreiber räumt dem Nutzer eine nicht ausschließliche, nicht übertragbare Lizenz zur Nutzung der Anwendung im Umfang des gewählten Tarifs ein, für die Vertragsdauer und ohne räumliche Beschränkung.",
+          "- Free: kostenlos und unbefristet, Projekte bis {{site.free_io_limit}} E/A, Exporte mit {{site.brand}}-Fußzeile, kein DXF-Export.",
+          "- Pro: ohne Begrenzung der Projektgröße, Exporte ohne Fußzeile, DXF-Export; ein Rechner.",
+          "- Firma: Umfang von Pro für ein Team, bis zu 5 Rechner, eigene Bibliothek von Bausteinvorlagen.",
+          "Die Anzahl der Rechner wird über die Lizenzaktivierung kontrolliert. Die Freigabe einer Lizenz von einem anderen Rechner nimmt der Betreiber auf Anfrage vor.",
+          "Der Nutzer darf die Lizenz weder weiterverkaufen noch Dritten überlassen, Lizenzmechanismen nicht umgehen und die Anwendung nicht zurückentwickeln, soweit das Gesetz es nicht erlaubt.",
+          "Ergebnisse, die der Nutzer in der Anwendung erstellt (Dokumentation, Schaltpläne, Programm), gehören dem Nutzer. Die Fußzeile in Ergebnissen des Tarifs Free darf nicht entfernt werden."
+        ]
+      },
+      {
+        "id": "predplatne",
+        "h": "Abonnement, Preis und Zahlung",
+        "body": [
+          "Kostenpflichtige Tarife werden monatlich im Voraus nach der Preisliste auf der Website bezahlt. Die Preise verstehen sich zuzüglich MwSt.; Verbrauchern wird vor Abschluss der Bestellung der Endpreis inklusive MwSt. angezeigt.",
+          "Zahlungen werden von Stripe oder Paddle abgewickelt. Bei Zahlung über Paddle ist Paddle Verkäufer (Merchant of Record), und für den Kauf selbst gelten auch dessen Bedingungen; Paddle stellt den Beleg aus und führt die MwSt. ab.",
+          "Das Abonnement verlängert sich automatisch um jeweils einen Monat, bis der Nutzer es kündigt. Eine Kündigung ist jederzeit zum Ende des bezahlten Zeitraums möglich. Für einen begonnenen Zeitraum wird nichts erstattet, sofern das Gesetz nichts anderes bestimmt.",
+          "Schlägt eine Zahlung fehl, bleibt die Lizenz mindestens einen Monat nach Ende des bezahlten Zeitraums funktionsfähig. Nach Kündigung oder dauerhafter Nichtzahlung wechselt die Anwendung in den Tarif Free; Daten und Projekte des Nutzers bleiben auf seinem Rechner.",
+          "Eine Preisänderung kündigt der Betreiber mindestens 30 Tage im Voraus per E-Mail an. Der neue Preis gilt ab dem folgenden Zeitraum; der Nutzer kann das Abonnement vor der Änderung kündigen."
+        ]
+      },
+      {
+        "id": "vystupy",
+        "h": "Art der Ergebnisse: die Anwendung entwirft, eine verantwortliche Person entscheidet",
+        "body": [
+          "Die Anwendung entwirft die Maschinensteuerung: Geräte, E/A, Schaltpläne, Prozesslogik und SPS-Programm, Sicherheitsfunktionen einschließlich PLr, Architektur, Komponenten und eines Programms für die Sicherheits-SPS, einen Inbetriebnahmeplan und die Dokumentation. Alle Ergebnisse sind ein Entwurf zur Prüfung.",
+          "Es gelten nur Positionen, die eine verantwortliche Person des Nutzers freigegeben hat (Name, Datum, Bemerkung). Die Freigabe ist eine Handlung des Nutzers, nicht des Betreibers. Nicht freigegebene Ergebnisse tragen die Kennzeichnung NICHT FREIGEGEBEN und dürfen nicht als Grundlage für Fertigung, Verdrahtung oder Inbetriebnahme der Maschine verwendet werden.",
+          "Die Simulation in der Anwendung prüft den Entwurf, nicht das in der Entwicklungsumgebung des SPS-Herstellers übersetzte Programm. Die Ausgaben für die einzelnen Plattformen sind nicht durch Übersetzen in deren Entwicklungsumgebung geprüft (auf der Website als beta gekennzeichnet).",
+          "Ergebnisse der KI-Funktionen (Gerätevorschlag, Auslesen von Schaltplänen und Fotos) können fehlerhaft oder unvollständig sein; die Anwendung legt sie immer als Entwurf zur Prüfung vor."
+        ]
+      },
+      {
+        "id": "stroj",
+        "h": "Verantwortung des Maschinenherstellers und Integrators",
+        "body": [
+          "Für die Maschine, ihre Steuerung und Sicherheit ist der Maschinenhersteller verantwortlich, gegebenenfalls der Integrator, der die Steuerung entwirft und in Betrieb nimmt. Er ist insbesondere verantwortlich für die Risikobeurteilung, den Entwurf und die Validierung der Sicherheitsfunktionen nach ISO 13849-1 und ISO 13849-2 (bzw. IEC 62061), die Übereinstimmung mit der Maschinenrichtlinie 2006/42/EG und der Maschinenverordnung (EU) 2023/1230, die technischen Unterlagen, die EU-Konformitätserklärung und die CE-Kennzeichnung.",
+          "Die Anwendung ist kein zertifiziertes Werkzeug für die Entwicklung von Sicherheitssystemen und ersetzt weder Fachkunde, Risikobeurteilung, die Prüfung des Programms auf der Zielplattform, die FAT noch die Validierung an der Maschine. Die Validierung der Sicherheitsfunktionen plant die Anwendung und hilft sie zu protokollieren; durchgeführt und unterschrieben wird sie von einem Menschen."
+        ]
+      },
+      {
+        "id": "odpovednost",
+        "h": "Haftungsbeschränkung",
+        "body": [
+          "Die Anwendung wird so bereitgestellt, wie sie ist. Der Betreiber haftet nicht dafür, dass sie einem bestimmten Zweck des Nutzers genügt, sofern er dies nicht ausdrücklich zugesagt hat.",
+          "Soweit gesetzlich zulässig, haftet der Betreiber nicht für mittelbare Schäden, entgangenen Gewinn, Datenverlust, Stillstand oder Schäden aus der Verwendung von Ergebnissen, die die verantwortliche Person nicht geprüft oder nicht freigegeben hat, oder aus ihrer Verwendung entgegen den Artikeln 4 und 5.",
+          "Die Gesamthaftung des Betreibers gegenüber dem Nutzer aus dem Vertrag ist auf den Betrag begrenzt, den der Nutzer dem Betreiber in den 12 Monaten vor Entstehen des Schadens gezahlt hat. Beim Tarif Free, für den der Nutzer nichts zahlt, haftet der Betreiber nur in dem Umfang, der vertraglich nicht ausgeschlossen werden kann.",
+          "Die Beschränkungen gelten nicht für Schäden an Leben, Gesundheit und anderen natürlichen Rechten eines Menschen, für vorsätzlich oder grob fahrlässig verursachte Schäden (§ 2898 des tschechischen Bürgerlichen Gesetzbuchs) und nicht für Verbraucherrechte, die vertraglich nicht beschränkt werden können."
+        ]
+      },
+      {
+        "id": "ai",
+        "h": "KI-Funktionen",
+        "body": [
+          "Die KI-Funktionen sind optional. Bei ihrer Nutzung sendet die Anwendung den eingegebenen Text, Unterlagen oder Bilder mit dem API-Schlüssel des Nutzers an den KI-Anbieter (Anthropic). Für die Bedingungen und Kosten des Anbieters ist der Nutzer verantwortlich; der Betreiber hat keinen Zugriff auf die gesendeten Daten.",
+          "Der Nutzer ist dafür verantwortlich, dass er die Unterlagen an den KI-Anbieter weitergeben darf (zum Beispiel im Hinblick auf Vertraulichkeit gegenüber seinen Kunden). Ohne diese Funktionen bleiben Projektinhalte auf dem Rechner des Nutzers."
+        ]
+      },
+      {
+        "id": "provoz",
+        "h": "Verfügbarkeit, Support und Updates",
+        "body": [
+          "Die Anwendung funktioniert auch ohne Internetverbindung. Dienste der Website (Download, Aktivierung und Prüfung der Lizenz) können vorübergehend nicht verfügbar sein; die Lizenz wird daher offline mit Toleranz geprüft.",
+          "Support erfolgt per E-Mail ohne garantierte Reaktionszeit, sofern nichts anderes vereinbart ist. Updates können Funktionen der Anwendung ändern; eine wesentliche Einschränkung kostenpflichtiger Funktionen kündigt der Betreiber vorher an."
+        ]
+      },
+      {
+        "id": "spotrebitel",
+        "h": "Verbraucher",
+        "body": [
+          "Verbraucher können von einem Fernabsatzvertrag ohne Angabe von Gründen innerhalb von 14 Tagen nach Vertragsschluss per E-Mail an {{site.email}} zurücktreten. Der Betreiber erstattet erhaltene Zahlungen innerhalb von 14 Tagen nach dem Rücktritt.",
+          "Bei digitalen Inhalten, die nicht auf einem körperlichen Datenträger geliefert werden, erlischt das Rücktrittsrecht mit Beginn der Leistung, wenn der Verbraucher vorher ausdrücklich zugestimmt und zur Kenntnis genommen hat, dass er damit sein Rücktrittsrecht verliert (§ 1837 Buchst. l des tschechischen Bürgerlichen Gesetzbuchs). Diese Zustimmung wird bei der Bestellung erteilt.",
+          "Verbraucher haben Rechte aus mangelhafter Leistung digitaler Inhalte und Dienste nach dem Bürgerlichen Gesetzbuch; Mängel können per E-Mail gemeldet werden."
+        ]
+      },
+      {
+        "id": "spory",
+        "h": "Anwendbares Recht und Streitbeilegung",
+        "body": [
+          "Der Vertrag unterliegt dem Recht der Tschechischen Republik, insbesondere dem Bürgerlichen Gesetzbuch. Das UN-Kaufrecht (CISG) findet keine Anwendung.",
+          "Streitigkeiten mit Unternehmern entscheiden die nach dem Sitz des Betreibers zuständigen ordentlichen Gerichte der Tschechischen Republik. Verbrauchern wird dadurch nicht der Schutz durch zwingende Vorschriften ihres Wohnsitzstaates entzogen.",
+          "Verbraucher können Streitigkeiten außergerichtlich bei der Tschechischen Handelsinspektion beilegen (www.coi.cz, Abteilung ADR). Die europäische Plattform zur Online-Streitbeilegung (OS) wurde am 20. 7. 2025 eingestellt."
+        ]
+      },
+      {
+        "id": "zmeny",
+        "h": "Änderungen der Bedingungen und Inkrafttreten",
+        "body": [
+          "Der Betreiber kann die Bedingungen ändern; die Änderung kündigt er mindestens 30 Tage im Voraus per E-Mail oder in der Anwendung an. Ist der Nutzer nicht einverstanden, kann er den Vertrag vor Inkrafttreten der Änderung beenden.",
+          "Diese Bedingungen treten am {{site.legal_effective}} in Kraft."
+        ]
+      }
+    ]
+  },
+  "soukromi": {
+    "title": "Datenschutzerklärung — {{site.brand}}",
+    "description": "Welche personenbezogenen Daten {{site.brand}} verarbeitet, warum, wie lange und welche Rechte Sie haben.",
+    "eyebrow": "Rechtliches",
+    "h1": "Datenschutzerklärung",
+    "lead": "Wir verarbeiten nur, was wir für die Bereitstellung der Anwendung, der Lizenzen und der Zahlungen brauchen. Den Inhalt Ihrer Projekte verarbeiten wir nicht: Er bleibt auf Ihrem Rechner.",
+    "sections": [
+      {
+        "id": "spravce",
+        "h": "Verantwortlicher",
+        "body": [
+          "Verantwortlicher für die personenbezogenen Daten ist {{site.operator.name}}, Firmennummer {{site.operator.id}}, {{site.operator.address}}. Kontakt für Datenschutz: {{site.email}}."
+        ]
+      },
+      {
+        "id": "udaje",
+        "h": "Welche Daten, warum und auf welcher Grundlage",
+        "body": [
+          "- Download-Formular: E-Mail, Sprache, Herkunft des Besuchs (utm), Zeitpunkt der Zustimmung zu den Bedingungen und des Downloads. Zweck: Bereitstellung des Download-Links und Nachweis der Zustimmung zu den Lizenzbedingungen. Grundlage: Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO).",
+          "- Lizenz: E-Mail, Lizenzschlüssel, Tarif, anonymer Fingerabdruck des Rechners, die von Ihnen eingegebene Rechnerbezeichnung, Zeitpunkte von Aktivierung und Prüfung. Zweck: Ausstellung der Lizenz und Kontrolle der Anzahl der Rechner. Grundlage: Vertragserfüllung.",
+          "- Zahlungen: Vom Zahlungsdienst erhalten wir E-Mail, Abonnement-Kennung und Zahlungsstatus; Zahlungsdaten (Karte) erreichen uns nicht. Zweck: Ausstellung und Verwaltung der Lizenz, Buchhaltung. Grundlage: Vertragserfüllung und rechtliche Verpflichtung (Art. 6 Abs. 1 lit. c).",
+          "- Kommunikation: Inhalt der E-Mails, die Sie uns senden. Zweck: Antwort und Support. Grundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f).",
+          "- Schutz der Website: IP-Adresse und technische Browserdaten bei der Turnstile-Prüfung und in Betriebsprotokollen des Hostings. Zweck: Schutz der Formulare vor Bots und Sicherheit des Dienstes. Grundlage: berechtigtes Interesse.",
+          "Wir nutzen Ihre Daten nicht für Marketing, versenden keine Newsletter ohne Ihre ausdrückliche Einwilligung und führen kein Profiling durch."
+        ]
+      },
+      {
+        "id": "projekty",
+        "h": "Projektinhalte und KI-Funktionen",
+        "body": [
+          "Projekte (Maschinenbeschreibungen, E/A, Schaltpläne, Programme, Dokumentation) verarbeitet die Anwendung nur auf Ihrem Rechner; sie werden nicht auf unsere Server hochgeladen.",
+          "Ausnahme sind die optionalen KI-Funktionen: Bei ihrer Nutzung sendet die Anwendung den eingegebenen Text, Unterlagen oder Bilder mit Ihrem API-Schlüssel direkt an den KI-Anbieter (Anthropic, PBC, USA). Diese Verarbeitung richtet sich nach dem Vertrag zwischen Ihnen und dem Anbieter; wir haben keinen Zugriff auf die gesendeten Daten. Sie müssen die KI-Funktionen nicht nutzen."
+        ]
+      },
+      {
+        "id": "prijemci",
+        "h": "Auftragsverarbeiter und Empfänger",
+        "body": [
+          "- Cloudflare, Inc.: Hosting der Website, Datenbank, Turnstile-Schutz. Übermittlung in die USA auf Grundlage des EU-US Data Privacy Framework und der Standardvertragsklauseln.",
+          "- Stripe Payments Europe, Ltd. (Irland) oder Paddle.com Market Ltd. (Vereinigtes Königreich) als Verkäufer (Merchant of Record) und eigenständiger Verantwortlicher für Zahlungsdaten; welcher Dienst genutzt wird, hängt von der gewählten Zahlungsart ab.",
+          "- Resend (Plus Five Five, Inc., USA): Versand von E-Mails mit Link und Lizenz, sobald aktiviert.",
+          "- GitHub, Inc.: Hosting der Download-Dateien; verarbeitet beim Download Ihre IP-Adresse.",
+          "Wir verkaufen keine Daten und geben sie nicht an Dritte weiter, sofern das Gesetz es nicht verlangt."
+        ]
+      },
+      {
+        "id": "doba",
+        "h": "Wie lange wir Daten speichern",
+        "body": [
+          "- Daten aus dem Download-Formular: 3 Jahre nach dem letzten Download, danach Löschung.",
+          "- Lizenzdaten: für die Dauer der Lizenz und 3 Jahre nach ihrem Ende.",
+          "- Buchhaltungs- und Steuerbelege: 10 Jahre nach tschechischem Umsatzsteuer- und Buchhaltungsrecht.",
+          "- Betriebsprotokolle des Hostings: nach Einstellung des Anbieters, meist Tage bis Wochen."
+        ]
+      },
+      {
+        "id": "prava",
+        "h": "Ihre Rechte",
+        "body": [
+          "Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung und Datenübertragbarkeit, das Recht auf Widerspruch gegen die Verarbeitung auf Grundlage berechtigter Interessen und das Recht, eine Einwilligung zu widerrufen. Schreiben Sie einfach an {{site.email}}; wir antworten innerhalb eines Monats.",
+          "Sie haben außerdem das Recht, sich beim tschechischen Amt für den Schutz personenbezogener Daten (www.uoou.gov.cz) oder bei der Aufsichtsbehörde Ihres Landes zu beschweren."
+        ]
+      },
+      {
+        "id": "ucinnost",
+        "h": "Gültigkeit",
+        "body": [
+          "Diese Erklärung gilt ab dem {{site.legal_effective}}. Über wesentliche Änderungen informieren wir auf der Website und, wenn Sie eine Lizenz haben, per E-Mail."
+        ]
+      }
+    ]
+  },
+  "cookies": {
+    "title": "Cookies — {{site.brand}}",
+    "description": "Die Website {{site.brand}} verwendet keine Analyse- oder Werbe-Cookies.",
+    "eyebrow": "Rechtliches",
+    "h1": "Cookies und ähnliche Technologien",
+    "lead": "Die Website verwendet keine Analyse-, Werbe- oder Tracking-Cookies und speichert nichts im Speicher des Browsers. Deshalb fragen wir nicht per Banner nach Einwilligung.",
+    "sections": [
+      {
+        "id": "web",
+        "h": "Was die Website verwendet",
+        "body": [
+          "- Die Schriften sind Systemschriften; die Website lädt keine externen Bibliotheken oder Schriften.",
+          "- Die Download-Seite lädt den Schutz Cloudflare Turnstile. Er verarbeitet technische Browserdaten, um Menschen von Bots zu unterscheiden; er setzt keine Werbe- oder Analyse-Cookies.",
+          "- Das Hosting von Cloudflare kann aus Sicherheitsgründen ein technisch notwendiges Cookie setzen (zum Beispiel __cf_bm). Es dient nur dem Schutz des Dienstes und läuft nach höchstens 30 Minuten ab.",
+          "- Wird eine Besucherstatistik eingeschaltet, verwenden wir Cloudflare Web Analytics, das keine Cookies nutzt."
+        ]
+      },
+      {
+        "id": "platby",
+        "h": "Bestellung",
+        "body": [
+          "Bei der Bestellung eines kostenpflichtigen Tarifs öffnet sich das Zahlungsfenster von Stripe oder Paddle. Es kann nach eigenen Richtlinien notwendige Cookies setzen, zum Beispiel für die Zahlungssicherheit und Betrugsprävention."
+        ]
+      },
+      {
+        "id": "admin",
+        "h": "Administration",
+        "body": [
+          "Die Seite /admin/ ist nur für Inhaltsverwalter. Bei der Anmeldung über GitHub speichert sie Anmeldedaten im Browserspeicher des Verwalters."
+        ]
+      },
+      {
+        "id": "nastaveni",
+        "h": "Wie Sie Cookies einschränken",
+        "body": [
+          "Cookies können Sie in den Einstellungen Ihres Browsers sperren oder löschen. Die Website funktioniert weiter; ohne Turnstile-Schutz kann das Download-Formular das Absenden verweigern.",
+          "Diese Informationen gelten ab dem {{site.legal_effective}}."
+        ]
+      }
+    ]
+  },
+  "notfound": {
+    "title": "Seite nicht gefunden — {{site.brand}}",
+    "h1": "Diese Seite gibt es nicht",
+    "body": "Der Link ist vielleicht veraltet oder ein Zeichen fehlt."
+  },
+  "pdf": {
+    "doc_title": "Beispiel einer Maschinendokumentation",
+    "meta_line": "{devs} Geräte · {io} E/A-Signale · erzeugt am {date}",
+    "approval_line": "Freigabestatus: {ok} von {total} Positionen freigegeben, {stale} nach Freigabe geändert. Die übrigen tragen NICHT FREIGEGEBEN.",
+    "cover_note": "Beispiel. Die freigebende Person ist erfunden. Erzeugt in {{site.brand}} aus dem Beispielprojekt, ohne manuelle Änderungen.",
+    "footer": "Erzeugt in {{site.brand}} · Beispiel",
+    "approver": "Jan Muster",
+    "approver_note": "Beispiel, erfundene Person",
+    "fig_block": "Blockschaltbild",
+    "fig_sheet": "Verdrahtung des Eingangsmoduls DI1",
+    "fig_safety": "Schaltplan des Sicherheitskreises",
+    "safety_prog": "Sicherheitsprogramm",
+    "code": "Programm für Siemens (Auszug)",
+    "code_note": "Auszug, das vollständige Programm ist im Dateisatz des Projekts",
+    "excerpt_note": "Auszug: erste Phasen des Inbetriebnahmeplans. Das vollständige Protokoll enthält alle Phasen und liegt auch als CSV zum Ausdrucken vor."
+  }
+}

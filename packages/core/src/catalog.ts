@@ -11,6 +11,35 @@ import { CATALOG_DATA, SUPPLIERS_DATA } from "./catalog_data.js";
 
 export const CATALOG_DATE = "2026-10-02";
 
+/**
+ * Hardwarová data položky PLC (sestava hardware.ts) — z rešerše se zdrojem (`src` položky, `hwSrc`).
+ *   I/O modul:  ch (kanály podle směru), bus (rack / sběrnice, do které se zasouvá), pts (body FX5), sig
+ *   CPU:        builtin (vestavěné I/O), builtinSig, slots (sběrnice → max. modulů v lokálním racku),
+ *               maxPts (FX5: body I/O celkem), remote (sběrnice vzdálených stanic), family (AML)
+ *   hlava:      head (sběrnice modulů stanice), slots, net (síť ke CPU), family, acc (příslušenství stanice)
+ */
+export interface CatalogHw {
+  ch?: Partial<Record<"DI" | "DO" | "AI" | "AO", number>>;
+  bus?: string;
+  /** modul zabírá místo i v dalším limitu racku (FX5: inteligentní modul i mezi 12 moduly vpravo; Delta: analog i mezi 32) */
+  also?: string;
+  pts?: number;
+  sig?: Partial<Record<"DI" | "DO" | "AI" | "AO", string>>;
+  builtin?: Partial<Record<"DI" | "DO" | "AI" | "AO", number>>;
+  builtinSig?: Partial<Record<"DI" | "DO" | "AI" | "AO", string>>;
+  slots?: Record<string, number>;
+  maxPts?: number;
+  remote?: string;
+  head?: string;
+  net?: string;
+  family?: string;
+  acc?: string[];
+  /** CPU se volí jen výslovně v kusovníku (automatický výběr ho přeskočí) */
+  auto?: boolean;
+  /** URL zdroje hardwarových údajů (manuál výrobce), pokud je jiný než `src` */
+  hwSrc?: string;
+}
+
 export interface CatalogBrand {
   brand: string;
   series: string[];
@@ -22,6 +51,14 @@ export interface CatalogBrand {
   priceLevel?: "nízká" | "střední" | "vysoká";
   suppliers: string[];
   note?: string;
+  /** hardwarová data pro sestavu (moduly, CPU, hlavy vzdálených I/O) */
+  hw?: CatalogHw;
+}
+
+/** Identifikace volby z katalogu (značka + kód / řada) — hodnota v `prj.bom.brand` / `lines[].brand`. */
+export function brandOptId(b: CatalogBrand): string {
+  const what = b.orderCode || (b.series || [])[0] || "";
+  return what ? b.brand + " · " + what : b.brand;
 }
 
 export interface CatalogCategory {
@@ -44,6 +81,10 @@ export interface Supplier {
 export const CAT_LABEL: Record<string, string> = {
   plc_cpu: N_("Řídicí systém PLC (CPU)"),
   plc_coupler: N_("Hlava vzdálených I/O"),
+  plc_busadapter: N_("Sběrnicový adaptér (BusAdapter)"),
+  plc_server: N_("Server modul (zakončení stanice)"),
+  plc_baseunit_first: N_("BaseUnit světlá (otevírá potenciálovou skupinu)"),
+  plc_baseunit: N_("BaseUnit tmavá"),
   plc_di: N_("Modul digitálních vstupů"),
   plc_do: N_("Modul digitálních výstupů"),
   plc_ai: N_("Modul analogových vstupů"),
@@ -57,6 +98,10 @@ export const CAT_LABEL: Record<string, string> = {
   motor_starter: N_("Kompaktní spouštěč"),
   aux_contact: N_("Pomocný kontakt"),
   vfd: N_("Frekvenční měnič"),
+  positioning_drive: N_("Polohovací pohon (řadič se záznamy)"),
+  linear_axis: N_("Elektrická lineární osa / aktuátor"),
+  servo_drive: N_("Servoměnič"),
+  servo_motor: N_("Servomotor"),
   valve_solenoid: N_("Pneumatický rozváděč"),
   valve_terminal: N_("Ventilový terminál"),
   cylinder: N_("Pneumatický válec"),

@@ -1,5 +1,6 @@
 import { PlatformKey, Project } from "./model.js";
-import { CatalogBrand } from "./catalog.js";
+import { CatalogBrand, brandOptId } from "./catalog.js";
+export { brandOptId };
 export interface BomLine {
     /** stabilní klíč řádku: označení + kategorie (pro volby uživatele a pro CAD v PRO) */
     id: string;
@@ -32,8 +33,6 @@ export interface Bom {
     plat: PlatformKey;
     lines: BomLine[];
 }
-/** Identifikace volby z katalogu (značka + kód / řada) — hodnota v `prj.bom.brand` / `lines[].brand`. */
-export declare function brandOptId(b: CatalogBrand): string;
 /** Nabídka katalogu pro řádek kusovníku (kategorie + platforma). */
 export declare function bomOptions(cat: string, plat: PlatformKey): Array<{
     id: string;
@@ -41,6 +40,33 @@ export declare function bomOptions(cat: string, plat: PlatformKey): Array<{
 }>;
 /** Výchozí platforma kusovníku: volba v `prj.bom`, jinak první zvolená platforma. */
 export declare function bomPlatform(prj: Project): PlatformKey;
+/**
+ * Položka kusovníku od dalšího modulu (bezpečnostní funkce…): `item` a `preset` (značka, typ,
+ * kód, zdroj) nahradí katalog, pokud kategorie v katalogu není nebo modul zná konkrétní typ;
+ * volby uživatele (`prj.bom.lines`) mají přednost.
+ */
+export interface BomExtra {
+    tag: string;
+    cat: string;
+    qty: number;
+    desc: string;
+    item?: string;
+    note?: string;
+    safety?: boolean;
+    devId?: number;
+    preset?: {
+        brand?: string;
+        type?: string;
+        orderCode?: string;
+        src?: string;
+    };
+}
+export type BomProvider = (prj: Project, plat: PlatformKey) => {
+    add: BomExtra[];
+    drop?: string[];
+};
+/** Přihlásí zdroj dalších řádků kusovníku (`drop` = id řádků, které nahrazuje). Vrací odhlášení. */
+export declare function registerBomProvider(fn: BomProvider, name: string): () => void;
 /** Sestaví kusovník. Výsledek je deterministický (stejný projekt → stejné řádky). */
 export declare function buildBom(prj: Project): Bom;
 /** CSV pro Excel (středník, UTF-8 s BOM — česká lokalizace Excelu). */

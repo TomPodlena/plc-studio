@@ -1,4 +1,4 @@
-"""PLC Studio — spouštěč bez konzole (dvojklik / zástupce na ploše).
+"""PLCdesk — spouštěč bez konzole (dvojklik / zástupce na ploše).
 
 Spouští se přes ``pythonw``; ten nemá konzoli, takže případný pád při startu
 se zapíše do logu a ukáže v okně, místo aby aplikace tiše zmizela.
@@ -26,7 +26,7 @@ def _run() -> int:
             log = None
         try:
             from tkinter import messagebox
-            messagebox.showerror("PLC Studio nejde spustit",
+            messagebox.showerror("PLCdesk nejde spustit",
                                  detail[-1500:] + (f"\n\nLog: {log}" if log else ""))
         except Exception:
             pass

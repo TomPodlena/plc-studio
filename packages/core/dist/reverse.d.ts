@@ -1,5 +1,5 @@
 /**
- * PLC Studio — import stávajícího zařízení: přesné zpětné zpracování exportů a programů z PLC
+ * PLCdesk — import stávajícího zařízení: přesné zpětné zpracování exportů a programů z PLC
  * (bez AI). Společné typy pro jádro i AI vrstvu (apps/web/src/import_ai.js).
  *
  *  extractFiles()   soubory → signály (tagy s kanonickou adresou) + POU (těla programů)

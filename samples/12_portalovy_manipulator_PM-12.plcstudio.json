@@ -1,0 +1,429 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Portálový manipulátor PM-12 (servoosa X, pick & place)",
+   "desc": "Portálový manipulátor přenáší díly ze vstupního místa na výstupní pás. Osa X je servoosa (servoměnič se servomotorem, kuličkový šroub, rozsah 0–600 mm) řízená po síti blokem FB_Axis nad bloky PLCopen Motion Control platformy. Na začátku cyklu se osa referuje, najede na pojmenovanou polohu „vstup“, po hlášení dílu zdvih spustí chapadlo, díl sevře a zvedne. Osa vyrazí na polohu „výstup“ a během jízdy se rozběhne výstupní pás; po dojetí (čekání na dokončení pohybu) chapadlo díl odloží, osa odjede o 60 mm, pás se zastaví a osa se vrátí na vstup. Hlídání: porucha osy (pohon, chyba sledování, ztráta komunikace, softwarové limity), polohy válců, hlášení chodu pásu. Ochrany: nouzové zastavení a kryt pracoviště v blokování; bezpečnostní funkce pohonu (STO, SS1, SLS pro seřizování) řeší servoměnič s integrovanou bezpečností a bezpečnostní logika.",
+   "takt": 12
+  },
+  "platforms": [
+   "siemens",
+   "beckhoff",
+   "codesys",
+   "omron",
+   "rockwell",
+   "wago",
+   "delta"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "fd7de51b-c76a-4b2b-a018-14716ec92b58"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Kryt pracoviště zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "f938af8e-1a08-47b1-b632-59656f0c92eb"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Díl na vstupním místě (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "90313402-8562-4460-89aa-694181f66924"
+   },
+   {
+    "id": 4,
+    "name": "M1",
+    "cls": "Axis",
+    "desc": "Osa X portálu (servo, kuličkový šroub)",
+    "opt": {},
+    "unit": "mm",
+    "rmin": 0,
+    "rmax": 0,
+    "axis": {
+     "vMax": 800,
+     "aMax": 4000,
+     "dMax": 4000,
+     "jerk": 0,
+     "vDef": 500,
+     "limNeg": -5,
+     "limPos": 605,
+     "homePos": 0,
+     "posTol": 0.05,
+     "followMax": 3,
+     "jogVel": 50,
+     "startPos": 20,
+     "drive": "servoměnič s integrovanou bezpečností (STO, SS1, SLS)",
+     "positions": [
+      {
+       "name": "vstup",
+       "pos": 20
+      },
+      {
+       "name": "kontrola",
+       "pos": 300
+      },
+      {
+       "name": "výstup",
+       "pos": 580
+      }
+     ]
+    },
+    "guid": "a210a26b-ec09-4ffa-80a6-51e670501983"
+   },
+   {
+    "id": 5,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Zdvih chapadla dolů",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "3af98ceb-7440-4df7-8b29-928d819c036a"
+   },
+   {
+    "id": 6,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Chapadlo sevřít",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6eb6fb1f-c7b5-4a49-9b77-56f72718f7e0"
+   },
+   {
+    "id": 7,
+    "name": "M2",
+    "cls": "Motor",
+    "desc": "Výstupní pás",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "2ee33431-ab2d-42e2-bc76-bac628728271"
+   },
+   {
+    "id": 8,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelený – cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "7cfb905b-5e1f-4723-aaaa-f9248ebe87e2"
+   },
+   {
+    "id": 9,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červený – porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "06a409b6-d313-46f0-9315-1e13f92a77b5"
+   }
+  ],
+  "io": [
+   {
+    "key": "1:in",
+    "devId": 1,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S1_in",
+    "addr": "%I0.0",
+    "cmt": "Nouzové zastavení (NC)",
+    "nc": true,
+    "guid": "161aa319-d55c-8083-963a-884817ba3bb3"
+   },
+   {
+    "key": "2:in",
+    "devId": 2,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S2_in",
+    "addr": "%I0.1",
+    "cmt": "Kryt pracoviště zavřen (NC)",
+    "nc": true,
+    "guid": "e3f207c8-2c9d-8f72-9663-ea6278335802"
+   },
+   {
+    "key": "3:in",
+    "devId": 3,
+    "sig": "in",
+    "dir": "DI",
+    "tag": "S3_in",
+    "addr": "%I0.2",
+    "cmt": "Díl na vstupním místě (optický snímač)",
+    "nc": false,
+    "guid": "2060872e-d606-8656-bf79-3523cb32c7d0"
+   },
+   {
+    "key": "5:fbkOpen",
+    "devId": 5,
+    "sig": "fbkOpen",
+    "dir": "DI",
+    "tag": "Y1_fbkOpen",
+    "addr": "%I0.3",
+    "cmt": "Zdvih chapadla dolů – otevřeno",
+    "nc": false,
+    "guid": "025c82aa-352a-88af-a566-27cf97b7938f"
+   },
+   {
+    "key": "5:fbkClosed",
+    "devId": 5,
+    "sig": "fbkClosed",
+    "dir": "DI",
+    "tag": "Y1_fbkClosed",
+    "addr": "%I0.4",
+    "cmt": "Zdvih chapadla dolů – zavřeno",
+    "nc": false,
+    "guid": "5ecc9b52-6128-8ae9-b2e2-43466d667352"
+   },
+   {
+    "key": "5:outOpen",
+    "devId": 5,
+    "sig": "outOpen",
+    "dir": "DO",
+    "tag": "Y1_outOpen",
+    "addr": "%Q0.0",
+    "cmt": "Zdvih chapadla dolů – povel otevřít",
+    "nc": false,
+    "guid": "86bc5d0c-5e24-8399-aa88-794ac500992d"
+   },
+   {
+    "key": "6:fbkOpen",
+    "devId": 6,
+    "sig": "fbkOpen",
+    "dir": "DI",
+    "tag": "Y2_fbkOpen",
+    "addr": "%I0.5",
+    "cmt": "Chapadlo sevřít – otevřeno",
+    "nc": false,
+    "guid": "20b31390-7b70-8f75-8f96-f67b4cec2aa1"
+   },
+   {
+    "key": "6:fbkClosed",
+    "devId": 6,
+    "sig": "fbkClosed",
+    "dir": "DI",
+    "tag": "Y2_fbkClosed",
+    "addr": "%I0.6",
+    "cmt": "Chapadlo sevřít – zavřeno",
+    "nc": false,
+    "guid": "de4548a3-a5e7-80a0-839e-d8c951e6e623"
+   },
+   {
+    "key": "6:outOpen",
+    "devId": 6,
+    "sig": "outOpen",
+    "dir": "DO",
+    "tag": "Y2_outOpen",
+    "addr": "%Q0.1",
+    "cmt": "Chapadlo sevřít – povel otevřít",
+    "nc": false,
+    "guid": "2c314a7d-1ad8-85c8-97a7-d1c5361be039"
+   },
+   {
+    "key": "7:fbkRunning",
+    "devId": 7,
+    "sig": "fbkRunning",
+    "dir": "DI",
+    "tag": "M2_fbkRunning",
+    "addr": "%I0.7",
+    "cmt": "Výstupní pás – běh",
+    "nc": false,
+    "guid": "e578559d-7b7a-8ef5-a486-b3b60af500df"
+   },
+   {
+    "key": "7:fault",
+    "devId": 7,
+    "sig": "fault",
+    "dir": "DI",
+    "tag": "M2_fault",
+    "addr": "%I8.0",
+    "cmt": "Výstupní pás – porucha",
+    "nc": false,
+    "guid": "c60b0174-2ccc-8d9f-9c4e-be65bc229ce7"
+   },
+   {
+    "key": "7:outRun",
+    "devId": 7,
+    "sig": "outRun",
+    "dir": "DO",
+    "tag": "M2_outRun",
+    "addr": "%Q0.2",
+    "cmt": "Výstupní pás – povel chod",
+    "nc": false,
+    "guid": "066e5e39-addf-8f0d-9adb-4446be6ef83e"
+   },
+   {
+    "key": "8:out",
+    "devId": 8,
+    "sig": "out",
+    "dir": "DO",
+    "tag": "H1_out",
+    "addr": "%Q0.3",
+    "cmt": "Maják zelený – cyklus běží",
+    "nc": false,
+    "guid": "08492f17-f8d9-86c1-8851-9c7da84eb4f3"
+   },
+   {
+    "key": "9:out",
+    "devId": 9,
+    "sig": "out",
+    "dir": "DO",
+    "tag": "H2_out",
+    "addr": "%Q0.4",
+    "cmt": "Maják červený – porucha",
+    "nc": false,
+    "guid": "e9e0f369-65dc-863e-b65e-81a39f296cbd"
+   }
+  ],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "seq": [
+    {
+     "dev": 4,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 4,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 2,
+     "posRef": "vstup"
+    },
+    {
+     "dev": 3,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 15
+    },
+    {
+     "dev": 5,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 6,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 5,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 4,
+     "act": "moveAbs",
+     "cond": "time",
+     "timeS": 0.3,
+     "posRef": "výstup",
+     "vel": 700
+    },
+    {
+     "dev": 7,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 4,
+     "act": "waitInPos",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 5,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 6,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 5,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 4,
+     "act": "moveRel",
+     "cond": "fbk",
+     "timeS": 2,
+     "pos": -60
+    },
+    {
+     "dev": 7,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 4,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "vstup"
+    }
+   ],
+   "interlocks": [
+    2
+   ]
+  },
+  "nextId": 10,
+  "concept": null,
+  "guid": "c8d4fd93-87cc-456d-949d-1cb509bc06b0",
+  "hw": {
+   "plat": "siemens",
+   "ver": 1
+  },
+  "moduleGuids": {
+   "S0.2": "526ba007-6f27-4bfe-bd65-9c3b18f37d79"
+  }
+ }
+}

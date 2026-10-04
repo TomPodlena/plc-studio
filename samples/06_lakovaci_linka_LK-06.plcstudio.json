@@ -20,7 +20,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "635f2f95-fe30-4c4e-9634-0f112f21caec"
    },
    {
     "id": 2,
@@ -33,7 +34,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "2ee8792d-3077-4125-b6ad-d95f70ac5bb8"
    },
    {
     "id": 3,
@@ -46,7 +48,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "d36e51c1-475a-4091-9e13-076a11349c4b"
    },
    {
     "id": 4,
@@ -59,7 +62,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "afa756ca-e3b5-4515-8803-2f3cbdb0f04d"
    },
    {
     "id": 5,
@@ -72,7 +76,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "d5c3bae7-01e8-4a9b-8590-c4a45f740d0d"
    },
    {
     "id": 6,
@@ -85,7 +90,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "66e54b73-9177-456f-8366-fbff192e4fd1"
    },
    {
     "id": 7,
@@ -98,7 +104,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "4c156e32-9438-40e1-9366-f15f7e88fa97"
    },
    {
     "id": 8,
@@ -111,7 +118,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "05f139da-29b1-4c7e-854d-4b6d011ce49c"
    },
    {
     "id": 9,
@@ -124,7 +132,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "0adbb055-ef92-4239-ab99-b3ee2bea2c5b"
    },
    {
     "id": 10,
@@ -137,7 +146,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "24c56a1d-c093-47dd-a918-ef8e6b84c05c"
    },
    {
     "id": 11,
@@ -150,7 +160,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "93b95290-babc-4e96-871f-6c77b786745f"
    },
    {
     "id": 12,
@@ -163,7 +174,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "7f16efcb-24f3-41d5-8df7-b566d9c68701"
    },
    {
     "id": 13,
@@ -176,7 +188,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "0e22cd16-2a4b-43a4-86ca-f572b9e59405"
    },
    {
     "id": 14,
@@ -189,7 +202,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "e8ff40c3-5a9f-48ef-856c-1e06294ae5eb"
    },
    {
     "id": 15,
@@ -202,7 +216,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "73c3f3a4-c089-40fe-96ef-515ec51a7f50"
    },
    {
     "id": 16,
@@ -214,7 +229,8 @@
     "rmin": 0,
     "rmax": 100,
     "limLo": 45,
-    "limHi": 70
+    "limHi": 70,
+    "guid": "740b77fc-60ca-4534-a919-5f3005bf966d"
    },
    {
     "id": 17,
@@ -226,7 +242,8 @@
     "rmin": 0,
     "rmax": 14,
     "limLo": 9,
-    "limHi": 12
+    "limHi": 12,
+    "guid": "91d30e83-27b7-4f41-bb89-b14d5e3f8850"
    },
    {
     "id": 18,
@@ -238,7 +255,8 @@
     "rmin": 0,
     "rmax": 400,
     "limLo": 120,
-    "limHi": 320
+    "limHi": 320,
+    "guid": "dfdb80a1-180b-42be-8ed9-6acd6d4bf3a4"
    },
    {
     "id": 19,
@@ -250,7 +268,8 @@
     "rmin": 0,
     "rmax": 400,
     "limLo": 80,
-    "limHi": 300
+    "limHi": 300,
+    "guid": "d7cfb8f3-0342-4a1a-bfb9-86c47b24807f"
    },
    {
     "id": 20,
@@ -261,7 +280,8 @@
     "unit": "µS/cm",
     "rmin": 0,
     "rmax": 2000,
-    "limHi": 100
+    "limHi": 100,
+    "guid": "3bc39fed-aacc-49b6-91e6-27f4ca28d836"
    },
    {
     "id": 21,
@@ -273,7 +293,8 @@
     "rmin": 0,
     "rmax": 200,
     "limLo": 90,
-    "limHi": 140
+    "limHi": 140,
+    "guid": "6cedb345-3bd0-49e9-8b56-351f3dd3e925"
    },
    {
     "id": 22,
@@ -285,7 +306,8 @@
     "rmin": 0,
     "rmax": 200,
     "limLo": 20,
-    "limHi": 120
+    "limHi": 120,
+    "guid": "ce5676f5-77b1-4d8b-8fa8-48d2e84e7d73"
    },
    {
     "id": 23,
@@ -297,7 +319,8 @@
     "rmin": 0,
     "rmax": 10,
     "limLo": 2,
-    "limHi": 6
+    "limHi": 6,
+    "guid": "a52c5b7e-75f0-44a5-82f0-c4577de3d19f"
    },
    {
     "id": 24,
@@ -309,7 +332,8 @@
     "rmin": 0,
     "rmax": 1000,
     "limLo": 100,
-    "limHi": 600
+    "limHi": 600,
+    "guid": "91ab37a8-760a-4ecd-add3-201acf532a8d"
    },
    {
     "id": 25,
@@ -321,7 +345,8 @@
     "rmin": 0,
     "rmax": 250,
     "limLo": 160,
-    "limHi": 220
+    "limHi": 220,
+    "guid": "769684bb-275f-4f3e-8898-ee731082b651"
    },
    {
     "id": 26,
@@ -332,7 +357,8 @@
     "unit": "°C",
     "rmin": 0,
     "rmax": 100,
-    "limHi": 40
+    "limHi": 40,
+    "guid": "281a18ed-34cb-4414-802e-01d407d6bf66"
    },
    {
     "id": 27,
@@ -343,7 +369,8 @@
     "unit": "%",
     "rmin": 0,
     "rmax": 100,
-    "setpoint": 60
+    "setpoint": 60,
+    "guid": "99c1f588-6750-45f7-bc5c-f3ebb4d6b3cb"
    },
    {
     "id": 28,
@@ -354,7 +381,8 @@
     "unit": "%",
     "rmin": 0,
     "rmax": 100,
-    "setpoint": 70
+    "setpoint": 70,
+    "guid": "bdc7191b-a347-4061-94fc-bab6fcc42c19"
    },
    {
     "id": 29,
@@ -365,7 +393,8 @@
     "unit": "%",
     "rmin": 0,
     "rmax": 100,
-    "setpoint": 80
+    "setpoint": 80,
+    "guid": "16bf5bea-8f21-452a-939b-08556cdf27c8"
    },
    {
     "id": 30,
@@ -376,7 +405,8 @@
     "unit": "%",
     "rmin": 0,
     "rmax": 100,
-    "setpoint": 50
+    "setpoint": 50,
+    "guid": "93d43422-99e3-4c49-8a1e-3144be31369d"
    },
    {
     "id": 31,
@@ -387,7 +417,8 @@
     "unit": "%",
     "rmin": 0,
     "rmax": 100,
-    "setpoint": 60
+    "setpoint": 60,
+    "guid": "c923c047-4c79-433a-a41e-6b6c78fb7727"
    },
    {
     "id": 32,
@@ -397,7 +428,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "b0a1a1fe-e24e-48c2-9edd-5d051cf066c8"
    },
    {
     "id": 33,
@@ -407,7 +439,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "44e6e6d2-5d7c-4a4d-a725-2241414acf8d"
    },
    {
     "id": 34,
@@ -417,7 +450,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "01469fcd-23fd-4740-a1c4-825d7459d9e3"
    },
    {
     "id": 35,
@@ -427,7 +461,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "9f1094e7-b91d-4f43-b993-60efd95b26d3"
    },
    {
     "id": 36,
@@ -437,7 +472,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "77db0441-7b62-4b89-ab5f-7cfebb87e55b"
    },
    {
     "id": 37,
@@ -447,7 +483,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "276f3f0c-16ad-473c-9d32-6faf81bb0163"
    },
    {
     "id": 38,
@@ -457,7 +494,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "361d980d-403f-4a63-b323-75596b5319b3"
    },
    {
     "id": 39,
@@ -467,7 +505,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "6ee8080a-2607-4343-8ba8-eb29085a296b"
    },
    {
     "id": 40,
@@ -477,7 +516,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "8ca5ff28-4b05-4665-97cf-3beb56ecfb65"
    },
    {
     "id": 41,
@@ -487,7 +527,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "0b7e7b96-b070-4d26-86a4-e096338b13d1"
    },
    {
     "id": 42,
@@ -497,7 +538,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "944cca5a-b6aa-45e2-98e2-43dbc859a396"
    },
    {
     "id": 43,
@@ -508,7 +550,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "run"
+    "role": "run",
+    "guid": "b2ffc296-ad9c-47d8-9e99-6422575cebd6"
    },
    {
     "id": 44,
@@ -519,7 +562,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "fault"
+    "role": "fault",
+    "guid": "6c774b4b-555c-4d55-906c-cc3d341f9d1a"
    },
    {
     "id": 45,
@@ -530,7 +574,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "ready"
+    "role": "ready",
+    "guid": "32d60ab8-2470-48ff-8c2c-ad3228611bec"
    },
    {
     "id": 46,
@@ -541,7 +586,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "fault"
+    "role": "fault",
+    "guid": "7de8bb6f-6ed4-4d35-86a6-c6652100e364"
    },
    {
     "id": 47,
@@ -552,7 +598,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "lock"
+    "role": "lock",
+    "guid": "3c355053-5348-4380-aff6-583528244373"
    }
   ],
   "io": [],
@@ -774,6 +821,15 @@
     }
    ]
   },
-  "nextId": 48
+  "nextId": 48,
+  "guid": "29410bae-761b-41d6-9f7d-932a65a51cee",
+  "moduleGuids": {
+   "S0.2": "77de12a3-2fe4-4592-9b70-086219d12a92",
+   "S0.3": "2624f0ab-944b-4bd8-bbfe-2e22c171fcc8",
+   "S0.4": "f0063a8f-7265-4916-b5f6-62d8a21d5388",
+   "S0.5": "2b37386b-1e32-4b97-9ba1-ce4a4f782bb8",
+   "S0.6": "46b9498f-67d1-41d4-a1bc-2bb9207cfd78",
+   "S0.7": "2868474e-736c-4218-9172-a848a7aabe67"
+  }
  }
 }

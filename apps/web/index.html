@@ -3,18 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PLC Studio</title>
+<title>PLCdesk</title>
+<link rel="icon" type="image/svg+xml" href="../../brand/plcdesk-favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="biz.css">
+<link rel="stylesheet" href="gen_extra.css">
 </head>
 <body>
 <div class="wrap">
   <header class="app">
-    <h1>PLC Studio</h1>
+    <h1><picture><source srcset="../../brand/plcdesk-symbol-inverse.svg" media="(prefers-color-scheme: dark)"><img src="../../brand/plcdesk-symbol.svg" alt="" width="28" height="28"></picture><span><span style="font-weight:700">PLC</span><span style="font-weight:400">desk</span></span></h1>
     <span class="badge" id="badgeTagline">AI návrh · schéma · kód · dokumentace</span>
     <span class="badge" id="badgePlat">8 platforem</span>
     <span id="projName"></span>
+    <button type="button" class="badge apprbadge" id="badgeApproval" hidden></button>
     <select id="lang" aria-label="Jazyk"></select>
   </header>
   <nav class="stepper" id="stepper" aria-label="Kroky návrhu"></nav>

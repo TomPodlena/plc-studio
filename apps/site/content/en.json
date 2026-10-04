@@ -1,0 +1,1028 @@
+{
+  "meta": {
+    "lang": "en",
+    "locale": "en_GB",
+    "title": "{{site.brand}} — machine control from specification to approved documentation",
+    "description": "Describe the machine, {{site.brand}} designs the I/O, schematics, program for 8 PLC platforms, safety functions and commissioning. A responsible person approves every item. Free up to 64 I/O."
+  },
+  "ui": {
+    "skip": "Skip to content",
+    "nav_label": "Main menu",
+    "lang_label": "Language",
+    "menu": "Menu",
+    "foot_product": "Product",
+    "foot_contact": "Contact",
+    "foot_legal": "Legal",
+    "foot_tag": "Control design and documentation for machines, built for small integrators and machine builders.",
+    "made": "Outputs are a proposal. What counts is what a responsible person approves.",
+    "beta": "beta",
+    "pending_legal": "Awaiting legal review",
+    "back_home": "Back to home",
+    "legal_draft": "Draft text for review by a lawyer. Not in force until the effective date and the operator details are added.",
+    "legal_effective": "Effective from",
+    "legal_operator": "Operator",
+    "legal_id": "Company ID",
+    "legal_contact": "Contact",
+    "legal_toc": "Contents",
+    "lb_close": "Close",
+    "lb_label": "Enlarged app screenshot"
+  },
+  "nav": {
+    "home": "Home",
+    "funkce": "Features",
+    "platformy": "Platforms",
+    "cenik": "Pricing",
+    "ukazka": "Sample documentation",
+    "stazeni": "Download",
+    "kontakt": "Contact",
+    "podminky": "Terms of use",
+    "soukromi": "Privacy",
+    "cta": "Download free",
+    "cookies": "Cookies"
+  },
+  "home": {
+    "title": "{{site.brand}} — machine control from specification to approved documentation",
+    "description": "Describe the machine, {{site.brand}} designs the I/O, schematics, program for 8 PLC platforms, safety functions and commissioning. A responsible person approves every item. Free up to 64 I/O.",
+    "eyebrow": "For integrators and machine builders",
+    "h1": "Machine control from specification to signed-off documentation",
+    "lead": "You describe the machine. {{site.brand}} designs the devices, I/O, schematics, program, safety functions and commissioning plan, and prepares the documentation for all of it. You review and approve. Anything you have not approved is marked NOT APPROVED in the documents.",
+    "cta1": "Download free",
+    "cta2": "Sample documentation (PDF)",
+    "fine": "Free forever up to {{site.free_io_limit}} I/O. Windows 10/11 or a browser. No credit card.",
+    "mock_title": "Item approval",
+    "mock_project": "Press and marking line LL-03",
+    "mock_caption": "Excerpt from the approval record of the sample project. The name is fictitious.",
+    "mock_h_item": "Item",
+    "mock_h_state": "Status",
+    "mock_h_who": "Approved by",
+    "mock_rows": [
+      {
+        "item": "I/O table (44 signals)",
+        "state": "Approved",
+        "cls": "ok",
+        "who": "J. Sample, 2 Oct"
+      },
+      {
+        "item": "SF1 Emergency stop, PLr d, cat. 3",
+        "state": "Approved",
+        "cls": "ok",
+        "who": "J. Sample, 2 Oct"
+      },
+      {
+        "item": "Cycle sequence, step 4: 6 s → 8 s",
+        "state": "Changed after approval",
+        "cls": "stale",
+        "who": "needs re-approval"
+      },
+      {
+        "item": "SF6 Two-hand control, PLr e, cat. 4",
+        "state": "Awaiting approval",
+        "cls": "wait",
+        "who": "—"
+      },
+      {
+        "item": "Safety program (F-program)",
+        "state": "Not generated yet",
+        "cls": "lock",
+        "who": "after SF1–SF10 are approved"
+      }
+    ],
+    "facts": [
+      {
+        "n": "8",
+        "t": "PLC platforms"
+      },
+      {
+        "n": "16",
+        "t": "documents from one machine description"
+      },
+      {
+        "n": "5",
+        "t": "languages for the app and outputs"
+      },
+      {
+        "n": "{{site.free_io_limit}}",
+        "t": "I/O free forever"
+      }
+    ],
+    "live": {
+      "eyebrow": "Live simulation",
+      "title": "The machine runs before it exists",
+      "lead": "The simulator executes the same logic that {{site.brand}} generates for the PLC, scan by scan. The system diagram shows wiring, drives and sequence steps in real time.",
+      "points": [
+        "AUTO mode, cycle start, emergency stop and fault acknowledgement as on the machine.",
+        "Manual commands, forced inputs and faults: jammed movement, lost feedback, analog value out of range.",
+        "The same project is then checked by the state matrix and the simulation verification report."
+      ],
+      "note": "The simulation verifies the design, not the program compiled in your IDE.",
+      "path": "LL-03 / 7 · Program › Live simulation",
+      "caption": "Recorded in the app: line LL-03, one complete cycle in AUTO mode, 2× speed.",
+      "video_label": "Animation of the live simulation of line LL-03 in {{site.brand}}: sensors, PLC modules, motors and cylinders during the cycle"
+    },
+    "flow_eyebrow": "How it works",
+    "flow_title": "From machine description to handover in days, not weeks",
+    "flow_lead": "One project from the machine description to the program, drawings and documentation. Each step builds on the previous one, nothing is retyped between tools.",
+    "flow": [
+      {
+        "name": "Describe the machine",
+        "desc": "In plain language, from standard blocks, or load an existing machine: PLC export, program, schematic."
+      },
+      {
+        "name": "{{site.brand}} designs the whole control system",
+        "desc": "Devices, I/O with addresses, schematics, sequence, interlocks, safety functions with PLr and components, bill of materials."
+      },
+      {
+        "name": "It verifies the design by simulation",
+        "desc": "Normal cycle, faults, emergency stop in every step, watchdog times and cycle time. The result goes into a report."
+      },
+      {
+        "name": "You approve",
+        "desc": "Item by item, with your name and date. Anything that changes after approval goes back for approval."
+      },
+      {
+        "name": "Hand over program and documentation",
+        "desc": "Files for your development environment, documentation for the customer and a commissioning plan for the machine."
+      }
+    ],
+    "tour": {
+      "eyebrow": "Real screenshots",
+      "title": "Take a look at the app",
+      "lead": "The {{site.brand}} desktop app with the LL-03 sample line, the same project as the sample documentation. The screenshots come straight from the app, nothing is retouched. Click a screenshot to enlarge it.",
+      "tabs_label": "App steps",
+      "items": [
+        {
+          "key": "schema",
+          "tab": "Diagrams",
+          "path": "LL-03 / 6 · Diagrams",
+          "title": "Clickable block diagram",
+          "desc": "Signal sources, PLC modules and actuators. Click a device to see its inputs and outputs with addresses and terminals, and the program steps that use it.",
+          "alt": "Diagrams step in {{site.brand}}: block diagram of the LL-03 line with press cylinder Y1 highlighted and a panel with its signals, addresses, terminals and program steps"
+        },
+        {
+          "key": "ziva",
+          "tab": "Live simulation",
+          "path": "LL-03 / 7 · Program › Live simulation",
+          "title": "Live machine simulation",
+          "desc": "System diagram with wiring and animated drives. AUTO mode, cycle start, emergency stop and fault acknowledgement as on the machine, plus manual commands and forced inputs.",
+          "alt": "Live simulation: LL-03 line in AUTO mode at step 10 of 18, active wires and outputs highlighted, state of press cylinder Y1 and the event log on the right"
+        },
+        {
+          "key": "bezpecnost",
+          "tab": "Safety",
+          "path": "LL-03 / 11 · Safety",
+          "title": "Safety functions and PL",
+          "desc": "Functions derived from the machine hazards: required performance level PLr, achieved PL, design and the approval state of every function.",
+          "alt": "Safety step: table of ten safety functions with PLr, achieved PL and approval state, description of the emergency stop function and its approval on the right"
+        },
+        {
+          "key": "schvaleni",
+          "tab": "Approval",
+          "path": "LL-03 / 12 · Approval",
+          "title": "Approval by the responsible person",
+          "desc": "Every item is approved with a name and date. If the content changes after approval, it goes back for approval. Shown here: the sequence after a longer watchdog time.",
+          "alt": "Approval step: 40 items approved, 3 changed after approval, 30 pending; the selected automatic sequence is changed after approval, with name and date of the original approval"
+        },
+        {
+          "key": "kusovnik",
+          "tab": "Bill of materials",
+          "path": "LL-03 / 10 · Bill of materials",
+          "title": "Bill of materials with catalogue",
+          "desc": "PLC, modules and the parts of every device with IEC 81346 designations, manufacturer, type, order code and supplier. Export to CSV.",
+          "alt": "Bill of materials step: 66 items with designation, manufacturer, type, order code and supplier, geared motor -M1 selected with a type choice from the catalogue"
+        },
+        {
+          "key": "generovat",
+          "tab": "Code",
+          "path": "LL-03 / 8 · Generate",
+          "title": "Program for the selected platforms",
+          "desc": "A complete program with state machines, watchdog times and operating modes for every selected platform, plus the import procedure for the IDE.",
+          "alt": "Generate step: source code of the main block Gen_Main.scl for Siemens SIMATIC, with tabs for other platforms and files above it"
+        }
+      ]
+    },
+    "show_eyebrow": "Real output",
+    "show_title": "Drawings from the sample project",
+    "show_lead": "Generated directly by the application for the LL-03 press and marking line, the same as in the sample documentation.",
+    "trust_eyebrow": "Why trust it",
+    "trust_title": "It designs everything. Only what you approve counts.",
+    "trust_lead": "In machine control, what matters is not who wrote the first version but who stands behind it. That is why {{site.brand}} does as much of the design work as possible and lets nothing through without a decision by the responsible person.",
+    "trust": [
+      {
+        "name": "You approve items, not the whole project",
+        "desc": "Every device, the I/O table, sequence, interlocks, limits, simulation result, every safety function, the safety program and the commissioning plan separately. With name, date and note."
+      },
+      {
+        "name": "Approval is tied to content",
+        "desc": "A fingerprint of what you approved is stored. Change a step time, an address or a PLr and the item goes back for approval. Editing a description or switching language does not cancel the approval."
+      },
+      {
+        "name": "Unapproved items are visible",
+        "desc": "Documents with unapproved items carry a prominent NOT APPROVED. The safety program is only generated once the safety functions have been approved."
+      },
+      {
+        "name": "The documentation shows who approved what and when",
+        "desc": "The approval record is part of the machine documentation: status of each item, name, date, note and content fingerprint. For the customer, for the technical file and for later changes."
+      }
+    ],
+    "trust_note": "Proposals come with reasoning and sources: the ISO 13849-1 risk graph and tables, catalogue values of components, simulation results. {{site.brand}} plans the validation of safety functions on the machine according to ISO 13849-2 and prepares the record for it. A person carries it out and signs it.",
+    "docs_eyebrow": "Documentation",
+    "docs_title": "Documentation you can hand to your customer",
+    "docs_lead": "One machine description produces the complete set, and it stays consistent. Add a valve and it appears in the I/O list, terminal plan, schematic, FDS, alarms, FAT and bill of materials at once.",
+    "docs": [
+      "Functional design specification (FDS)",
+      "I/O list and terminal plan",
+      "Electrical schematics (SVG and DXF)",
+      "Alarm list with reactions",
+      "FAT protocol",
+      "Operating manual (outline)",
+      "Software documentation",
+      "Simulation verification report",
+      "Bill of materials with suppliers",
+      "Approval record",
+      "Commissioning plan and record",
+      "Safety functions (SRS) and validation plan"
+    ],
+    "docs_cta": "See the sample",
+    "local_title": "Your projects stay with you",
+    "local_body": "Both the desktop application and the web version run on your computer. We do not store projects on any server. If you work under an NDA with a carmaker or an OEM, there is nothing to explain.",
+    "local_ai": "The exception are the AI features: proposing a device list from a free-text description and reading schematics and photos of an existing machine. When you use them, the text or image is sent to the AI provider. Without them nothing leaves your computer. The application only goes online to activate the licence and occasionally to check it, without any project content.",
+    "faq_title": "Questions we get",
+    "faq": [
+      {
+        "q": "Should software design safety functions?",
+        "a": "Propose, yes. Decide, no. {{site.brand}} prepares a proposal with reasoning and sources, but until the responsible person approves it, it is not valid anywhere and no safety program is generated. Responsibility stays where it always was. You just have a record of what you checked."
+      },
+      {
+        "q": "Is this generated by AI?",
+        "a": "{{site.brand}} builds documentation, schematics, program and calculations by fixed rules: the same input always gives the same output. AI only helps where the input is free-form: it proposes a device list from a machine description and reads signals from schematics or photos of an existing machine. That too is a proposal you review and approve."
+      },
+      {
+        "q": "Is the program ready to load into the PLC?",
+        "a": "It is a complete program with state machines, modes, faults and acknowledgement, and the design is verified by simulation. However, we have not yet verified the import by compiling it in the development environment on any platform, so all platforms are marked beta. Before commissioning, the program belongs in your platform's simulator and on the FAT."
+      },
+      {
+        "q": "I have an existing machine. Do I have to re-enter it?",
+        "a": "No. {{site.brand}} reads an export or program from the PLC (TIA Portal, Studio 5000, ST sources, tag tables) and derives devices, I/O, sequence and interlocks from it. For every item it shows where it came from and how certain it is."
+      },
+      {
+        "q": "What if a real job exceeds the {{site.free_io_limit}} I/O limit?",
+        "a": "Write to us and we will unlock your first project above the limit completely free. Further machines of that size need the Pro plan."
+      },
+      {
+        "q": "Does it work offline?",
+        "a": "Yes. Only the AI features need the internet. The licence is a signed file that the application verifies offline."
+      }
+    ],
+    "reference": {
+      "eyebrow": "In practice",
+      "quote": "",
+      "name": "",
+      "role": ""
+    },
+    "end_title": "Try it on a machine you know",
+    "end_body": "Take a smaller machine you know by heart. In an afternoon you will see whether the outputs suit you.",
+    "end_cta": "Download free"
+  },
+  "funkce": {
+    "title": "Features — {{site.brand}}",
+    "description": "Device and I/O design, IEC schematics, program for 8 platforms, simulation, safety functions to ISO 13849, commissioning, documentation, bill of materials and import of existing machines.",
+    "eyebrow": "Features",
+    "h1": "What {{site.brand}} does for you",
+    "lead": "From specification to machine handover. You review and approve everything it proposes. The documentation then shows what you approved.",
+    "toc": "On this page",
+    "groups": [
+      {
+        "id": "navrh",
+        "name": "Design from the specification",
+        "lead": "Start with what you know about the machine.",
+        "points": [
+          "Describe the machine in plain language. The designer builds the device list from it and asks about what is missing.",
+          "Standard blocks: motor, valve, analog input and output, sensors, indicator lights.",
+          "Emergency stop, interlock inputs (guards, light curtains, air pressure) and the required cycle time."
+        ],
+        "shot": {
+          "key": "navrh",
+          "path": "LL-03 / 2 · AI design",
+          "alt": "AI design step: the LL-03 line described in plain language, the designer's answer with 29 devices and an 18-step sequence, and the table of the proposed devices"
+        }
+      },
+      {
+        "id": "io",
+        "name": "Devices, I/O and addresses",
+        "lead": "One table, converted for every platform.",
+        "points": [
+          "Addresses in one notation, converted to each platform's syntax.",
+          "Tags checked for portability (ASCII where the platform requires it).",
+          "NC and NO contacts, limits of analog measurements, setpoints.",
+          "Output roles: running, fault, ready, stopped, lock, AUTO."
+        ],
+        "shot": {
+          "key": "zarizeni",
+          "path": "LL-03 / 4 · Devices",
+          "alt": "Devices step: table of the line's devices with class, description and options, press cylinder Y1 with addresses, terminals and program steps on the right"
+        }
+      },
+      {
+        "id": "schemata",
+        "name": "Schematics",
+        "lead": "Drawings that match the documentation.",
+        "points": [
+          "Block diagram and electrical I/O wiring per module.",
+          "Designation to IEC 81346, wire numbers, NC/NO to IEC 60617, frame and title block.",
+          "Terminal plan, safety circuit schematic, function and timing diagram of the cycle.",
+          "SVG preview and DXF export for AutoCAD and other ECAD tools."
+        ],
+        "shot": {
+          "key": "diagram",
+          "path": "LL-03 / 6 · Diagrams › Cycle function chart",
+          "alt": "Cycle function chart: sequence steps with transition conditions, watchdog times and times from the nominal simulated cycle, the selected step and its device on the right"
+        }
+      },
+      {
+        "id": "program",
+        "name": "PLC program",
+        "lead": "A complete program, not an empty template.",
+        "points": [
+          "Device state machines with watchdog times and status words.",
+          "AUTO and manual mode, cycle start, acknowledgement, manual commands, machine fault with the step where it occurred.",
+          "8 platforms; single-file import where the IDE supports it (PLCopen XML, L5X).",
+          "Import instructions and the shortest test for each platform."
+        ],
+        "shot": {
+          "key": "generovat",
+          "path": "LL-03 / 8 · Generate",
+          "alt": "Generate step: source code of the main block Gen_Main.scl for Siemens SIMATIC, with tabs for other platforms and files above it"
+        }
+      },
+      {
+        "id": "simulace",
+        "name": "Simulation and verification",
+        "lead": "The design is tested before the control cabinet is built.",
+        "points": [
+          "The simulator runs the same logic the program contains, scan by scan.",
+          "Normal cycle, fault scenarios and a state matrix: emergency stop in every step, interlocks, AUTO off, loss of feedback.",
+          "Concept check: inputs the program does not read, outputs it does not control, measurements without limits.",
+          "Timing: cycle time and watchdog margin. The result goes into a report."
+        ],
+        "note": "Simulation verifies the design, not the program compiled in your IDE. It does not replace a test in the platform simulator or the FAT.",
+        "shot": {
+          "key": "ziva",
+          "path": "LL-03 / 7 · Program › Live simulation",
+          "alt": "Live simulation: LL-03 line in AUTO mode at step 10 of 18, active wires and outputs highlighted, state of press cylinder Y1 and the event log on the right"
+        }
+      },
+      {
+        "id": "bezpecnost",
+        "name": "Safety functions",
+        "lead": "A reasoned proposal. Valid only after approval.",
+        "points": [
+          "Derives functions from the machine's hazards: emergency stop, guards, guard locking, light curtains, two-hand control, air exhaust, hydraulics.",
+          "PLr from the ISO 13849-1 risk graph, category and architecture, PL calculation from MTTFd, DC and CCF.",
+          "Components with catalogue values and sources, safety distances to ISO 13855, safety circuit schematic.",
+          "Safety program for Siemens F, Rockwell GuardLogix and PLCopen Safety, configuration for Pilz, SICK and Schmersal. Generated only after the functions are approved.",
+          "Safety requirements specification (SRS) and a validation plan with checklists."
+        ],
+        "note": "Safety logic belongs in a safety PLC or safety relay. In the standard program the emergency stop remains a status signal only. {{site.brand}} plans and records the validation on the machine; a person carries it out.",
+        "shot": {
+          "key": "bezpecnost",
+          "path": "LL-03 / 11 · Safety",
+          "alt": "Safety step: table of ten safety functions with PLr, achieved PL and approval state, description of the emergency stop function on the right"
+        }
+      },
+      {
+        "id": "ozivovani",
+        "name": "Commissioning",
+        "lead": "A plan for the machine and a record you fill in.",
+        "points": [
+          "Plan by phase: control cabinet, loop check of every signal, drives, analogs, emergency stop, sequence, safety functions, handover.",
+          "Record for printing or for entering results directly in the application.",
+          "Tuning proposals (limits, watchdog times, unused signals). Each one goes back for approval."
+        ],
+        "shot": {
+          "key": "ozivovani",
+          "path": "LL-03 / 13 · Commissioning",
+          "alt": "Commissioning step: plan by phases, control cabinet done and part of the I/O loop test marked OK, description of the next step and a field for the measured value on the right"
+        }
+      },
+      {
+        "id": "dokumentace",
+        "name": "Documentation",
+        "lead": "16 linked documents from a single description.",
+        "points": [
+          "FDS, I/O list, terminal plan, alarm list, FAT protocol, operating manual, software documentation.",
+          "Simulation report, bill of materials, approval record, commissioning plan and record.",
+          "Safety functions (SRS) and validation plan.",
+          "Markdown and CSV that open in Word and Excel."
+        ],
+        "shot": {
+          "key": "dokumentace",
+          "path": "LL-03 / 9 · Documentation",
+          "alt": "Documentation step: list of project files (FDS, I/O list, terminals, alarms, FAT, drawings) and a preview of the functional specification"
+        }
+      },
+      {
+        "id": "kusovnik",
+        "name": "Bill of materials with catalogue",
+        "lead": "A basis for your enquiry, not an empty table.",
+        "points": [
+          "Designation to IEC 81346: PLC and platform modules, parts of every device, control cabinet.",
+          "Typical brands, types and suppliers from market research, with sources.",
+          "CSV export for Excel and enquiries."
+        ],
+        "shot": {
+          "key": "kusovnik",
+          "path": "LL-03 / 10 · Bill of materials",
+          "alt": "Bill of materials step: items with designation, manufacturer, type, order code and supplier, geared motor -M1 selected"
+        }
+      },
+      {
+        "id": "import",
+        "name": "Import of existing machines",
+        "lead": "Retrofits and rebuilds without re-entering everything.",
+        "points": [
+          "PLC exports and programs read back: TIA Portal (SimaticML, tag tables), Studio 5000 (L5X, CSV), ST sources and GVL, label tables.",
+          "Derives devices, I/O, emergency stop, interlocks, sequence and limits from the program. Shows the source and certainty of every item.",
+          "AI reads schematics in PDF and photos of nameplates or the cabinet. Exactly parsed data takes precedence, conflicts are reported."
+        ],
+        "shot": {
+          "key": "import",
+          "path": "Import › Review and accept",
+          "alt": "Import wizard, review step: devices recognised from a public PLCopen XML project with colour-coded confidence (sure, guess) and the source cited as file:line"
+        }
+      },
+      {
+        "id": "jazyky",
+        "name": "5 languages",
+        "lead": "Interface and outputs in your customer's language.",
+        "points": [
+          "Czech, English, German, Spanish and Chinese.",
+          "Documentation, README and simulation messages in the project language. Code comments and DXF texts always in Latin script.",
+          "Translations are machine-made with a technical glossary. Have a native speaker review them before handing over to a customer."
+        ]
+      },
+      {
+        "id": "aplikace",
+        "name": "Web and desktop",
+        "lead": "One core, two ways to use it.",
+        "points": [
+          "The web version runs in the browser without installation.",
+          "The Windows desktop application adds clickable schematics, a live simulation with a system schematic and a scenario player.",
+          "Desktop as a portable ZIP: unzip and run, no administrator rights."
+        ],
+        "shot": {
+          "key": "web-schema",
+          "path": "Browser / 6 · Diagrams",
+          "alt": "The {{site.brand}} web version in a browser: Diagrams step with the block diagram of the LL-03 line"
+        }
+      }
+    ],
+    "ai_title": "Where AI helps",
+    "ai_body": "In only two places: proposing a device list from a free-text description and reading schematics and photos during import. The result is always a proposal for approval. When used, text or images are sent to the AI provider. Everything else is calculated by {{site.brand}} on your computer by fixed rules."
+  },
+  "platformy": {
+    "title": "Platforms and verification — {{site.brand}}",
+    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Mitsubishi, Schneider, OMRON and Unitronics. How the output is verified and what is still beta.",
+    "eyebrow": "Platforms",
+    "h1": "8 platforms. We say what is verified.",
+    "lead": "We verify the output of every platform against the manufacturer's manuals. We have not yet tried importing and compiling it in the development environment, so all platforms carry a beta label. Once a platform is verified by compiling, the label goes and we add the version and date.",
+    "checked": "Status as of",
+    "h_platform": "Platform",
+    "h_ide": "Development environment",
+    "h_output": "What you get",
+    "h_check": "How it is verified",
+    "h_state": "Status",
+    "rows": [
+      {
+        "name": "Siemens SIMATIC",
+        "ide": "TIA Portal V17–V21",
+        "output": "SCL sources, SimaticML XML, tag table",
+        "check": "Siemens manuals, SimaticML format"
+      },
+      {
+        "name": "Rockwell Allen-Bradley",
+        "ide": "Studio 5000 Logix Designer",
+        "output": "L5X (Add-On Instructions, tags, routine) and tag CSV",
+        "check": "manual 1756-RM014, real L5X exports"
+      },
+      {
+        "name": "Beckhoff",
+        "ide": "TwinCAT 3",
+        "output": "PLCopen XML, ST blocks, GVL",
+        "check": "ST parser for TwinCAT, PLCopen TC6 schema"
+      },
+      {
+        "name": "CODESYS",
+        "ide": "CODESYS V3.5",
+        "output": "PLCopen XML, ST blocks, GVL",
+        "check": "PLCopen TC6 schema, CODESYS manuals"
+      },
+      {
+        "name": "Mitsubishi",
+        "ide": "GX Works3",
+        "output": "ST and global label CSV",
+        "check": "Mitsubishi manuals; the CSV format varies by version"
+      },
+      {
+        "name": "Schneider Electric",
+        "ide": "EcoStruxure Machine Expert",
+        "output": "PLCopen XML, ST blocks, GVL",
+        "check": "PLCopen TC6 schema, Schneider manuals"
+      },
+      {
+        "name": "OMRON",
+        "ide": "Sysmac Studio",
+        "output": "ST and variable table",
+        "check": "OMRON manuals"
+      },
+      {
+        "name": "Unitronics",
+        "ide": "UniLogic (UniStream)",
+        "output": "flat ST and tag list",
+        "check": "Unitronics manuals; the dialect will be confirmed by the first compile"
+      }
+    ],
+    "state_beta": "beta: IDE import not verified",
+    "why_title": "What beta means",
+    "why_body": "The files follow the manufacturer's documentation and pass our checks: block pairing, declared identifiers, XML schema, ASCII where needed. What we do not know yet is what the compiler of your IDE version will say. The README for each platform therefore describes the shortest test: import, compile and run in the platform simulator. If you find a deviation, write to us. We fix it and move the platform towards verified.",
+    "safety_title": "Safety program",
+    "safety_lead": "Built from the manufacturer's certified blocks, only after the safety functions have been approved. As with the standard program: beta until we verify it by compiling.",
+    "safety_rows": [
+      {
+        "name": "Siemens",
+        "what": "F-program (TIA Portal Safety)"
+      },
+      {
+        "name": "Rockwell",
+        "what": "GuardLogix (L5X)"
+      },
+      {
+        "name": "PLCopen Safety",
+        "what": "blocks for TwinSAFE, CODESYS Safety and others"
+      },
+      {
+        "name": "Pilz, SICK, Schmersal",
+        "what": "configuration for PNOZmulti, Flexi Soft, PROTECT PSC1"
+      },
+      {
+        "name": "Safety relays",
+        "what": "wiring and settings"
+      }
+    ],
+    "lang_title": "Languages",
+    "lang_body": "Application and outputs in five languages: Czech, English, German, Spanish and Chinese. Comments in the generated code and DXF drawing texts stay in Latin script, in English when the project is in Chinese. Output for Unitronics and DXF is plain ASCII."
+  },
+  "cenik": {
+    "title": "Pricing — {{site.brand}}",
+    "description": "Free up to 64 I/O forever, Pro without size limits, Company for teams with their own block library.",
+    "eyebrow": "Pricing",
+    "h1": "Try it on a real job",
+    "lead": "The free version takes you through the whole workflow to finished files. You pay only when a machine outgrows the limit or you want clean exports.",
+    "per_month": "/ month",
+    "featured": "Start here",
+    "plans": [
+      {
+        "id": "free",
+        "name": "Free",
+        "price": "€0",
+        "unit": "forever",
+        "points": [
+          "Unlimited projects up to {{site.free_io_limit}} I/O",
+          "All generators, simulation and documentation",
+          "Safety functions and approval",
+          "Exports with {{site.brand}} footer",
+          "No DXF export"
+        ],
+        "cta": "Download free"
+      },
+      {
+        "id": "pro",
+        "name": "Pro",
+        "price": "€39",
+        "unit": "/ month",
+        "points": [
+          "No project size limit",
+          "Clean exports without footer",
+          "Schematic export to DXF",
+          "Licence for 1 computer, works offline"
+        ],
+        "cta": "Get Pro"
+      },
+      {
+        "id": "firma",
+        "name": "Company",
+        "price": "€119",
+        "unit": "/ month",
+        "points": [
+          "Everything in Pro for a team of up to 5 computers",
+          "Your own library of block templates",
+          "Company naming conventions and status words"
+        ],
+        "cta": "Get Company"
+      }
+    ],
+    "vat": "Prices exclude VAT.",
+    "unlock": "Hit the {{site.free_io_limit}} I/O limit on a real machine? Write to us and we will unlock your first project completely free.",
+    "unlock_cta": "Ask for an unlock",
+    "faq_title": "Payments and licences",
+    "faq": [
+      {
+        "q": "What happens if a payment fails?",
+        "a": "Nothing locks. The licence stays valid for a month after the end of the period so you are not stopped in the middle of a job. Only a cancelled subscription locks."
+      },
+      {
+        "q": "Does the licence need the internet?",
+        "a": "Only when you first enter it and occasionally in the background. When you are offline, the application keeps running."
+      },
+      {
+        "q": "Why a footer in Free exports?",
+        "a": "It is the only limit that cannot be bypassed by splitting a machine into two projects. And documentation with the footer helps us when it reaches other people in the industry."
+      },
+      {
+        "q": "Do you invoice companies?",
+        "a": "Yes. You enter your billing details when ordering and receive the invoice by e-mail."
+      }
+    ],
+    "order_terms": "By ordering you agree to the terms of sale and licence and acknowledge the privacy policy."
+  },
+  "ukazka": {
+    "title": "Sample documentation — {{site.brand}}",
+    "description": "Complete documentation of a sample machine: FDS, I/O list, schematics, alarms, FAT, safety functions, approval record and commissioning plan. PDF download.",
+    "eyebrow": "Sample",
+    "h1": "See what you get",
+    "lead": "Sample machine: a press and marking line with feeder, handling unit, hydraulic press and conveyor. 29 devices, 44 signals, a light curtain, two guards and two-hand control. The PDF was produced by the same core as the outputs in the application.",
+    "pdf_cta": "Download sample (PDF)",
+    "pdf": "{{site.pdf_en}}",
+    "pdf_note": "Some items in the sample are approved by a fictitious person, some deliberately not. You will see what NOT APPROVED looks like and an item changed after approval.",
+    "contents_title": "What the sample contains",
+    "contents": [
+      {
+        "name": "Approval record",
+        "desc": "Status of every item, who approved it and when, content fingerprint."
+      },
+      {
+        "name": "Functional design specification (FDS)",
+        "desc": "Modes, sequence, faults and acknowledgement, interlocks."
+      },
+      {
+        "name": "I/O list and terminal plan",
+        "desc": "Addresses, tags, terminals, wire numbers."
+      },
+      {
+        "name": "Schematics",
+        "desc": "Block diagram, input module wiring, safety circuit."
+      },
+      {
+        "name": "Alarm list and FAT",
+        "desc": "Reactions to faults and the test protocol for acceptance."
+      },
+      {
+        "name": "Safety functions",
+        "desc": "Hazards, PLr, architecture, PL calculation, components with sources."
+      },
+      {
+        "name": "Commissioning plan",
+        "desc": "Steps by phase with expected result and space for notes."
+      },
+      {
+        "name": "Program sample",
+        "desc": "Excerpt of the main program in SCL for Siemens."
+      }
+    ],
+    "fig_block": "Block diagram of the sample machine",
+    "fig_sheet": "Wiring of input module DI1 (excerpt)",
+    "fig_safety": "Safety circuit schematic",
+    "fig_do1": "Wiring of output module DO1 (terminal strip X3)",
+    "fig_timing": "Cycle timing diagram",
+    "fig_flow": "Cycle function diagram (excerpt)",
+    "figs_title": "Drawings and diagrams",
+    "pages_title": "Page preview",
+    "pages": [
+      {
+        "name": "Cover page"
+      },
+      {
+        "name": "Approval record"
+      },
+      {
+        "name": "I/O list"
+      },
+      {
+        "name": "Safety functions (SRS)"
+      }
+    ],
+    "app_title": "The same project in the app",
+    "app_lead": "The LL-03 line from the sample documentation, this time directly in the {{site.brand}} app.",
+    "app_shots": [
+      {
+        "key": "ziva",
+        "path": "LL-03 / 7 · Program › Live simulation",
+        "alt": "Live simulation: LL-03 line in AUTO mode at step 10 of 18, active wires and outputs highlighted, state of press cylinder Y1 and the event log on the right",
+        "cap": "Live simulation: the line in AUTO mode mid-cycle, with active wires and outputs highlighted."
+      },
+      {
+        "key": "schvaleni",
+        "path": "LL-03 / 12 · Approval",
+        "alt": "Approval step: 40 items approved, 3 changed after approval, 30 pending; the selected automatic sequence is changed after approval",
+        "cap": "Approval: what is approved, what changed after approval and what is still pending."
+      }
+    ]
+  },
+  "stazeni": {
+    "title": "Download — {{site.brand}}",
+    "description": "Download {{site.brand}} for free. Portable application for Windows without installation, free forever up to 64 I/O.",
+    "eyebrow": "Download",
+    "h1": "Download {{site.brand}}",
+    "lead": "Enter your e-mail and the download link appears right here below the form. Nothing to install: unzip and run, no administrator rights needed.",
+    "f_email": "E-mail",
+    "f_placeholder": "you@company.com",
+    "f_hp": "Leave this field empty",
+    "f_submit": "Show download link",
+    "f_sending": "Sending…",
+    "f_ok": "Done. The link is on its way and is valid for 7 days.",
+    "f_ok_direct": "Done. Download here (we do not send anything by e-mail):",
+    "f_err": "Something went wrong. Please try again.",
+    "f_net": "Connection failed. Please try again in a moment.",
+    "f_note": "We will not send you further e-mails unless you ask for them. How we handle your address is described on the page",
+    "token_title": "Your download link",
+    "token_body": "Download the portable version for Windows. The link is valid for 7 days from the request.",
+    "token_cta": "Download for Windows (ZIP)",
+    "req_title": "What you need",
+    "req": [
+      "Windows 10 or 11, 64-bit",
+      "No administrator rights, no installation",
+      "Web version: current Edge, Chrome or Firefox"
+    ],
+    "next_title": "Getting started",
+    "next": [
+      "Open one of the 12 sample machines and go through the steps from specification to documentation.",
+      "Then try a smaller machine you know by heart.",
+      "If you have an existing project, start with the import. It saves a lot of clicking."
+    ],
+    "f_consent": "I agree to the terms of sale and licence:",
+    "f_consent_err": "Please accept the licence terms to download.",
+    "lead_mail": "Leave your e-mail and we will send you a download link. Nothing to install: unzip and run, no administrator rights needed.",
+    "f_submit_mail": "Send download link"
+  },
+  "kontakt": {
+    "title": "Contact — {{site.brand}}",
+    "description": "Write to us: questions, unlocking a project above the limit, invoicing, errors in outputs.",
+    "eyebrow": "Contact",
+    "h1": "Write to us",
+    "lead": "Questions, project unlocks, invoicing and errors in outputs. We answer personally, usually within two working days.",
+    "mail_label": "E-mail",
+    "topics_title": "What to contact us about",
+    "topics": [
+      "Your project has outgrown the {{site.free_io_limit}} I/O limit and you want it unlocked.",
+      "The output for your platform does not import or compile. Send us the IDE message and we will fix it.",
+      "Invoicing, team licences, releasing a licence from another computer.",
+      "You are missing a feature, block or document type."
+    ],
+    "company_title": "Operator",
+    "company": "Operator details will be added before sales start."
+  },
+  "podminky": {
+    "title": "Terms of sale and licence — {{site.brand}}",
+    "description": "Terms of sale and licence for the {{site.brand}} application: plans, subscription, licence, nature of outputs and limitation of liability.",
+    "eyebrow": "Legal",
+    "h1": "Terms of sale and licence",
+    "lead": "These terms govern the use of the {{site.brand}} application (desktop application and web version) and the related website services. The application is intended primarily for businesses: integrators, machine builders and designers. Article 9 additionally applies to consumers.",
+    "sections": [
+      {
+        "id": "provozovatel",
+        "h": "Operator and conclusion of the contract",
+        "body": [
+          "The operator is {{site.operator.name}}, company ID {{site.operator.id}}, registered office {{site.operator.address}}, e-mail {{site.email}} (the “operator”).",
+          "The licence agreement is concluded by downloading the application with consent to these terms (Free plan) or by completing an order for a paid plan (Pro, Company). The contract is concluded in Czech or in the language selected on the website."
+        ]
+      },
+      {
+        "id": "licence",
+        "h": "Licence",
+        "body": [
+          "The operator grants the user a non-exclusive, non-transferable licence to use the application within the scope of the selected plan, for the term of the contract and without territorial restriction.",
+          "- Free: free of charge and without time limit, projects up to {{site.free_io_limit}} I/O, exports with the {{site.brand}} footer, no DXF export.",
+          "- Pro: no project size limit, exports without footer, DXF export; one computer.",
+          "- Company: the scope of Pro for a team, up to 5 computers, own library of block templates.",
+          "The number of computers is controlled by licence activation. The operator releases a licence from another computer on request.",
+          "The user may not resell the licence or provide it to third parties, circumvent licence mechanisms or reverse engineer the application, except where permitted by law.",
+          "Outputs the user creates in the application (documentation, schematics, program) belong to the user. The footer in Free plan outputs must not be removed."
+        ]
+      },
+      {
+        "id": "predplatne",
+        "h": "Subscription, price and payment",
+        "body": [
+          "Paid plans are paid monthly in advance according to the price list on the website. Prices are shown excluding VAT; consumers see the final price including VAT before completing the order.",
+          "Payments are processed by Stripe or Paddle. When paying via Paddle, Paddle is the seller (Merchant of Record) and its terms also apply to the purchase itself; Paddle issues the receipt and remits VAT.",
+          "The subscription renews automatically for another month until cancelled by the user. It can be cancelled at any time, effective at the end of the paid period. Payment for a started period is not refunded unless the law provides otherwise.",
+          "If a payment fails, the licence remains functional for at least one month after the end of the paid period. After cancellation or persistent non-payment the application switches to the Free plan; the user's data and projects remain on the user's computer.",
+          "The operator will announce a price change at least 30 days in advance by e-mail. The new price applies from the following period; the user may cancel the subscription before the change."
+        ]
+      },
+      {
+        "id": "vystupy",
+        "h": "Nature of the outputs: the application proposes, a responsible person decides",
+        "body": [
+          "The application proposes machine control: devices, I/O, schematics, process logic and PLC program, safety functions including PLr, architecture, components and a program for the safety PLC, a commissioning plan and documentation. All outputs are a proposal for review.",
+          "Only items approved by the user's responsible person (name, date, note) are valid. Approval is an act of the user, not of the operator. Unapproved outputs are marked NOT APPROVED and must not be used as a basis for manufacturing, wiring or putting the machine into service.",
+          "The simulation in the application verifies the design, not the program compiled in the PLC manufacturer's development environment. Outputs for the individual platforms have not been verified by compiling in their development environment (marked beta on the website).",
+          "Outputs of the AI features (device list proposal, reading of schematics and photos) may be incorrect or incomplete; the application always presents them as a proposal for review."
+        ]
+      },
+      {
+        "id": "stroj",
+        "h": "Responsibility of the machine manufacturer and integrator",
+        "body": [
+          "The machine manufacturer, or the integrator who designs the control system and puts it into service, is responsible for the machine, its control and safety. In particular, they are responsible for the risk assessment, the design and validation of safety functions according to ISO 13849-1 and ISO 13849-2 (or IEC 62061), compliance with Machinery Directive 2006/42/EC and Machinery Regulation (EU) 2023/1230, the technical file, the EU declaration of conformity and the CE marking.",
+          "The application is not a certified tool for developing safety systems and does not replace professional competence, risk assessment, verification of the program on the target platform, FAT or validation on the machine. The application plans the validation of safety functions and helps record it; a person carries it out and signs it."
+        ]
+      },
+      {
+        "id": "odpovednost",
+        "h": "Limitation of liability",
+        "body": [
+          "The application is provided as is. The operator is not liable for its suitability for a particular purpose of the user unless expressly promised.",
+          "To the extent permitted by law, the operator is not liable for indirect damage, loss of profit, loss of data, downtime, or damage caused by using outputs that the responsible person has not verified or approved, or by using them contrary to articles 4 and 5.",
+          "The operator's total liability to the user under the contract is limited to the amount the user paid to the operator in the 12 months before the damage occurred. For the Free plan, for which the user pays nothing, the operator is liable only to the extent that cannot be excluded by contract.",
+          "These limitations do not apply to harm to life, health and other natural rights of a person, to damage caused intentionally or by gross negligence (Section 2898 of the Czech Civil Code), or to consumer rights that cannot be limited by contract."
+        ]
+      },
+      {
+        "id": "ai",
+        "h": "AI features",
+        "body": [
+          "The AI features are optional. When used, the application sends the entered text, documents or images to the AI provider (Anthropic) using the user's API key. The user is responsible for the provider's terms and costs of use; the operator has no access to the data sent.",
+          "The user is responsible for being allowed to pass the documents to the AI provider (for example with regard to confidentiality towards their customers). Without these features, project content stays on the user's computer."
+        ]
+      },
+      {
+        "id": "provoz",
+        "h": "Availability, support and updates",
+        "body": [
+          "The application works without an internet connection. Website services (download, licence activation and check) may be temporarily unavailable; the licence is therefore verified offline with a grace period.",
+          "Support is provided by e-mail without a guaranteed response time unless agreed otherwise. Updates may change application features; the operator will announce any substantial restriction of paid features in advance."
+        ]
+      },
+      {
+        "id": "spotrebitel",
+        "h": "Consumers",
+        "body": [
+          "A consumer may withdraw from a distance contract without giving a reason within 14 days of its conclusion by e-mail to {{site.email}}. The operator will refund payments received within 14 days of withdrawal.",
+          "For digital content not supplied on a tangible medium, the right of withdrawal ends when performance begins if the consumer gave prior express consent and acknowledged losing the right of withdrawal (Section 1837(l) of the Czech Civil Code). This consent is given when ordering.",
+          "The consumer has rights arising from defective performance of digital content and services under the Civil Code; defects can be reported by e-mail."
+        ]
+      },
+      {
+        "id": "spory",
+        "h": "Governing law and dispute resolution",
+        "body": [
+          "The contract is governed by the law of the Czech Republic, in particular the Civil Code. The UN Convention on Contracts for the International Sale of Goods does not apply.",
+          "Disputes with businesses are decided by the general courts of the Czech Republic competent according to the operator's registered office. This does not deprive consumers of the protection afforded by mandatory provisions of the law of their country of residence.",
+          "Consumers may resolve disputes out of court with the Czech Trade Inspection Authority (www.coi.cz, ADR department). The European online dispute resolution (ODR) platform ceased operation on 20 July 2025."
+        ]
+      },
+      {
+        "id": "zmeny",
+        "h": "Changes to the terms and effective date",
+        "body": [
+          "The operator may change these terms; the change will be announced at least 30 days in advance by e-mail or in the application. If the user does not agree, they may terminate the contract before the change takes effect.",
+          "These terms take effect on {{site.legal_effective}}."
+        ]
+      }
+    ]
+  },
+  "soukromi": {
+    "title": "Privacy policy — {{site.brand}}",
+    "description": "What personal data {{site.brand}} processes, why, for how long and what rights you have.",
+    "eyebrow": "Legal",
+    "h1": "Privacy policy",
+    "lead": "We process only what we need to deliver the application, licences and payments. We do not process the content of your projects: it stays on your computer.",
+    "sections": [
+      {
+        "id": "spravce",
+        "h": "Controller",
+        "body": [
+          "The controller of personal data is {{site.operator.name}}, company ID {{site.operator.id}}, {{site.operator.address}}. Data protection contact: {{site.email}}."
+        ]
+      },
+      {
+        "id": "udaje",
+        "h": "What data, why and on what basis",
+        "body": [
+          "- Download form: e-mail, language, visit source (utm), time of consent to the terms and time of download. Purpose: to provide the download link and record consent to the licence terms. Basis: performance of a contract (Art. 6(1)(b) GDPR).",
+          "- Licence: e-mail, licence key, plan, anonymous computer fingerprint, the computer description you enter, times of activation and checks. Purpose: issuing the licence and controlling the number of computers. Basis: performance of a contract.",
+          "- Payments: from the payment service we receive the e-mail, subscription identifier and payment status; payment details (card) never reach us. Purpose: issuing and managing the licence, accounting. Basis: performance of a contract and legal obligation (Art. 6(1)(c)).",
+          "- Communication: the content of e-mails you send us. Purpose: replies and support. Basis: legitimate interest (Art. 6(1)(f)).",
+          "- Website protection: IP address and technical browser data during Turnstile verification and in the hosting's operational logs. Purpose: protecting forms against bots and service security. Basis: legitimate interest.",
+          "We do not use your data for marketing, do not send newsletters without your express consent and do not carry out profiling."
+        ]
+      },
+      {
+        "id": "projekty",
+        "h": "Project content and AI features",
+        "body": [
+          "Projects (machine descriptions, I/O, schematics, programs, documentation) are processed by the application only on your computer; they are not uploaded to our servers.",
+          "The exception are the optional AI features: when used, the application sends the entered text, documents or images directly to the AI provider (Anthropic, PBC, USA) using your API key. This processing is governed by the agreement between you and the provider; we have no access to the data sent. You do not have to use the AI features."
+        ]
+      },
+      {
+        "id": "prijemci",
+        "h": "Processors and recipients",
+        "body": [
+          "- Cloudflare, Inc.: website hosting, database, Turnstile protection. Transfer to the USA based on the EU-US Data Privacy Framework and standard contractual clauses.",
+          "- Stripe Payments Europe, Ltd. (Ireland), or Paddle.com Market Ltd. (United Kingdom) as seller (Merchant of Record) and independent controller of payment data; the service used depends on the selected payment method.",
+          "- Resend (Plus Five Five, Inc., USA): sending e-mails with the link and licence, once enabled.",
+          "- GitHub, Inc.: hosting of download files; processes your IP address when downloading.",
+          "We do not sell data or pass it on to other parties unless required by law."
+        ]
+      },
+      {
+        "id": "doba",
+        "h": "How long we keep data",
+        "body": [
+          "- Download form data: 3 years after the last download, then deleted.",
+          "- Licence data: for the duration of the licence and 3 years after it ends.",
+          "- Accounting and tax documents: 10 years under Czech VAT and accounting law.",
+          "- Hosting operational logs: according to the provider's settings, usually days to weeks."
+        ]
+      },
+      {
+        "id": "prava",
+        "h": "Your rights",
+        "body": [
+          "You have the right of access to your data, rectification, erasure, restriction of processing and portability, the right to object to processing based on legitimate interest and to withdraw consent where processing is based on consent. Just write to {{site.email}}; we will reply within a month.",
+          "You also have the right to lodge a complaint with the Czech Office for Personal Data Protection (www.uoou.gov.cz) or the supervisory authority of your country."
+        ]
+      },
+      {
+        "id": "ucinnost",
+        "h": "Effective date",
+        "body": [
+          "This policy applies from {{site.legal_effective}}. We will inform you of substantial changes on the website and, if you hold a licence, by e-mail."
+        ]
+      }
+    ]
+  },
+  "cookies": {
+    "title": "Cookies — {{site.brand}}",
+    "description": "The {{site.brand}} website uses no analytics or advertising cookies.",
+    "eyebrow": "Legal",
+    "h1": "Cookies and similar technologies",
+    "lead": "The website uses no analytics, advertising or tracking cookies and stores nothing in the browser's storage. That is why we do not ask for consent with a banner.",
+    "sections": [
+      {
+        "id": "web",
+        "h": "What the website uses",
+        "body": [
+          "- Fonts are system fonts; the website loads no external libraries or fonts.",
+          "- The Download page loads Cloudflare Turnstile protection. It processes technical browser data to tell humans from bots; it sets no advertising or analytics cookies.",
+          "- Cloudflare hosting may set a strictly necessary technical cookie for security reasons (for example __cf_bm). It serves only to protect the service and expires after 30 minutes at most.",
+          "- If visitor statistics are enabled, we will use Cloudflare Web Analytics, which uses no cookies."
+        ]
+      },
+      {
+        "id": "platby",
+        "h": "Ordering",
+        "body": [
+          "When ordering a paid plan, the payment window of Stripe or Paddle opens. It may set its own necessary cookies according to its policies, for example for payment security and fraud prevention."
+        ]
+      },
+      {
+        "id": "admin",
+        "h": "Administration",
+        "body": [
+          "The /admin/ page is for content administrators only. When signing in via GitHub, it stores sign-in data in the administrator's browser storage."
+        ]
+      },
+      {
+        "id": "nastaveni",
+        "h": "How to limit cookies",
+        "body": [
+          "You can block or delete cookies in your browser settings. The website will keep working; without Turnstile protection the download form may refuse to submit.",
+          "This information applies from {{site.legal_effective}}."
+        ]
+      }
+    ]
+  },
+  "notfound": {
+    "title": "Page not found — {{site.brand}}",
+    "h1": "This page does not exist",
+    "body": "The link may be outdated or missing a character."
+  },
+  "pdf": {
+    "doc_title": "Sample machine documentation",
+    "meta_line": "{devs} devices · {io} I/O signals · generated {date}",
+    "approval_line": "Approval status: {ok} of {total} items approved, {stale} changed after approval. The rest are marked NOT APPROVED.",
+    "cover_note": "Sample. The approving person is fictitious. Generated in {{site.brand}} from the sample project without manual edits.",
+    "footer": "Generated in {{site.brand}} · sample",
+    "approver": "Jan Sample",
+    "approver_note": "sample, fictitious person",
+    "fig_block": "Block diagram",
+    "fig_sheet": "Wiring of input module DI1",
+    "fig_safety": "Safety circuit schematic",
+    "safety_prog": "Safety program",
+    "code": "Program for Siemens (excerpt)",
+    "code_note": "excerpt, the full program is in the project file set",
+    "excerpt_note": "Excerpt: first phases of the commissioning plan. The full record contains all phases and is also available as CSV for printing."
+  }
+}

@@ -1,0 +1,3831 @@
+{
+ "meta": {
+  "title": "Katalog typických bezpečnostních funkcí strojů – podklad pro modul Bezpečnostní funkce (PLCdesk)",
+  "created": "2026-10-03",
+  "language": "cs",
+  "disclaimer": "Návrh k revizi, nenahrazuje posouzení rizik ani normu; bezpečnostní funkce schvaluje odpovědná osoba. Hodnoty PLr, kategorií a vzdáleností jsou typické příklady z citovaných výkladů, ne závazné hodnoty. Texty norem nejsou citovány (placené), čerpáno z veřejných výkladů.",
+  "requires_user_approval": true,
+  "device_types": {
+   "motor": "motor / pohon",
+   "valve_pneu": "pneumatický ventil",
+   "cylinder_pneu": "pneumatický válec",
+   "hydraulic": "hydraulika",
+   "press": "lis",
+   "conveyor": "dopravník",
+   "robot": "robot / manipulátor",
+   "heater": "ohřev",
+   "pressure": "tlak / tlakové zařízení"
+  },
+  "stop_categories": {
+   "0": "Okamžité odpojení energie od pohonů (neřízené zastavení).",
+   "1": "Řízené zastavení s energií, po zastavení odpojení energie.",
+   "2": "Řízené zastavení, energie zůstává připojena (držení polohy).",
+   "note": "Kategorie zastavení (IEC 60204-1) ≠ kategorie dle ISO 13849-1. Každý stroj musí mít minimálně stop kategorie 0; nouzové zastavení jen 0 nebo 1.",
+   "sources": [
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+   ]
+  },
+  "risk_graph": {
+   "description": "Risk graf ISO 13849-1 příl. A (dle výkladu IFA).",
+   "parameters": {
+    "S1": "lehké (obvykle vratné) zranění",
+    "S2": "vážné (obvykle nevratné) zranění nebo smrt",
+    "F1": "zřídka až méně často a/nebo krátká expozice",
+    "F2": "často až trvale a/nebo dlouhá expozice; ISO 13849-1:2023 (IFA 1/2025): F2 při zásazích častoji než 1× za 15 min, jinak F1, pokud expozice nepřesáhne 1/20 doby provozu",
+    "P1": "možné za určitých podmínek",
+    "P2": "sotva možné",
+    "P_factors_2023": "Tab. faktorů (IFA 1/2025 tab. 6.4): rychlost > 1000 mm/s nebo < 1 s do nebezpečí = C; 251–1000 mm/s nebo 1–3 s = B; < 250 mm/s nebo ≥ 3 s = A; dále prostorová možnost úniku, vnímání, složitost, laik/odborník. Aspoň jednou C nebo aspoň třikrát B → P2; žádné C a nejvýše jednou B → P1; jinak individuálně."
+   },
+   "mapping": {
+    "S1F1P1": "a",
+    "S1F1P2": "b",
+    "S1F2P1": "b",
+    "S1F2P2": "c",
+    "S2F1P1": "c",
+    "S2F1P2": "d",
+    "S2F2P1": "d",
+    "S2F2P2": "e"
+   },
+   "mapping_note": "Standardní větvení risk grafu (obrázek v IFA 2/2017 obr. 5.9 / IFA 1/2025 obr. 6.9); tabulka přepsána z grafu – ověřit proti obrázku.",
+   "sources": [
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+   ]
+  },
+  "standard_versions_noted": {
+   "ISO 13849-1": "2023 (4. vydání) – IFA 1/2025; Rockwell AT203 (2024) již podle 2023",
+   "ISO 13855": "2024 (3. vydání), dle GIT zatím neharmonizovaná",
+   "ISO 14119": "2024 (3. vydání) – typ 5 uvězněný klíč",
+   "ISO 13851": "2019 (2. vydání) – přechod z kategorií na PL",
+   "ISO 10218-1/-2": "2025 (únor 2025) – ruční snížená rychlost ≤ 250 mm/s",
+   "IEC 62046": "2018 (dříve IEC/TS 62046:2008)",
+   "Nařízení (EU) 2023/1230": "použije se od 20. 1. 2027, nahrazuje 2006/42/ES",
+   "sources": [
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf",
+    "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen",
+    "https://cdn.standards.iteh.ai/samples/75942/ae89318fbad443898f48680f49db9779/ISO-14119-2024.pdf",
+    "https://cdn.standards.iteh.ai/samples/70295/48c735b3148b4aa4943c9f1095f6541a/ISO-13851-2019.pdf",
+    "https://blog.ansi.org/ansi/iso-10218-1-2025-robots-and-robotic-devices-safety/",
+    "https://cdn.standards.iteh.ai/samples/20537/2ef12b276a9c45c1b70d3caab93b1e71/IEC-62046-2018.pdf"
+   ]
+  },
+  "sources": [
+   {
+    "id": "IFA217",
+    "title": "IFA Report 2/2017e Functional safety of machine controls – Application of EN ISO 13849",
+    "publisher": "IFA / DGUV",
+    "url": "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+   },
+   {
+    "id": "IFA125",
+    "title": "IFA Report 1/2025 Funktionale Sicherheit von Maschinensteuerungen – Anwendung der DIN EN ISO 13849 (Oktober 2025)",
+    "publisher": "IFA / DGUV",
+    "url": "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+   },
+   {
+    "id": "SICK",
+    "title": "SICK Guide for Safe Machinery – Six steps to a safe machine (8007988/2015-07-07), zrcadlo distributora",
+    "publisher": "SICK AG",
+    "url": "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+   },
+   {
+    "id": "SICK_MUT",
+    "title": "SICK White paper: Protecting automated loading and unloading points (2017)",
+    "publisher": "SICK AG",
+    "url": "https://www.sick.com/media/docs/9/99/499/whitepaper_protecting_automated_loading_and_unloading_points_en_im0072499.pdf"
+   },
+   {
+    "id": "HSG180",
+    "title": "HSG180 Application of electro-sensitive protective equipment using light curtains and light beam devices to machinery",
+    "publisher": "HSE (UK)",
+    "url": "https://www.hse.gov.uk/pubns/priced/hsg180.pdf"
+   },
+   {
+    "id": "FBHM005",
+    "title": "DGUV Fachbereich AKTUELL FBHM-005 Gravity-loaded axes (vertical axes)",
+    "publisher": "DGUV",
+    "url": "https://publikationen.dguv.de/widgets/pdf/download/article/4334"
+   },
+   {
+    "id": "ISO14119_PRE",
+    "title": "ISO 14119:2024 – volný náhled (předmluva, rozsah)",
+    "publisher": "ISO / iTeh",
+    "url": "https://cdn.standards.iteh.ai/samples/75942/ae89318fbad443898f48680f49db9779/ISO-14119-2024.pdf"
+   },
+   {
+    "id": "ISO13851_PRE",
+    "title": "ISO 13851:2019 – volný náhled (tab. 1 typy a PL)",
+    "publisher": "ISO / iTeh",
+    "url": "https://cdn.standards.iteh.ai/samples/70295/48c735b3148b4aa4943c9f1095f6541a/ISO-13851-2019.pdf"
+   },
+   {
+    "id": "IEC62046_PRE",
+    "title": "IEC 62046:2018 – volný náhled",
+    "publisher": "IEC / iTeh",
+    "url": "https://cdn.standards.iteh.ai/samples/20537/2ef12b276a9c45c1b70d3caab93b1e71/IEC-62046-2018.pdf"
+   },
+   {
+    "id": "ISSA_THC",
+    "title": "ISSA Safety flyer Two-hand controls (2020)",
+    "publisher": "ISSA Section Machine and System Safety",
+    "url": "https://www.safe-machines-at-work.org/fileadmin/user_upload/Two-Hand-Controls_08_2020.pdf"
+   },
+   {
+    "id": "GT",
+    "title": "GT Engineering – výklad EN ISO 13855:2024 (rovnice, kolmý/paralelní přístup, dvouruční ovládání, kryty)",
+    "publisher": "GT Engineering",
+    "url": "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/6-detection-zone-orthogonal-to-the-direction-of-approach/"
+   },
+   {
+    "id": "LEUZE",
+    "title": "Leuze on ISO 13855:2024 (MPE Magazine 2025)",
+    "publisher": "Leuze",
+    "url": "https://mpemagazine.co.uk/2025/08/01/leuze-on-iso-138552024-new-guidelines-for-safer-sensor-positioning-in-industrial-automation/"
+   },
+   {
+    "id": "MB13855",
+    "title": "ISO 13855:2024 – new guidelines for safer sensor positioning",
+    "publisher": "machinebuilding.net",
+    "url": "https://www.machinebuilding.net/iso-138552024--new-guidelines-for-safer-sensor-positioning-in-industrial-automation"
+   },
+   {
+    "id": "GIT",
+    "title": "Zur aktualisierten Version der ISO 13855",
+    "publisher": "GIT SICHERHEIT",
+    "url": "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen"
+   },
+   {
+    "id": "MB2BEAM",
+    "title": "Is it still acceptable to use two-beam safety light barriers?",
+    "publisher": "machinebuilding.net",
+    "url": "https://www.machinebuilding.net/is-it-still-acceptable-to-use-two-beam-safety-light-barriers"
+   },
+   {
+    "id": "KEYENCE",
+    "title": "Light Curtain Installation and Safety Distance – Safety Knowledge",
+    "publisher": "Keyence",
+    "url": "https://www.keyence.eu/ss/products/safetyknowledge/caution/"
+   },
+   {
+    "id": "REER",
+    "title": "Calculating Safety Distance in the Industrial Environment",
+    "publisher": "ReeR",
+    "url": "https://www.reersafety.com/en/academy/industrial-safety-guide/determination-of-the-safety-distance/"
+   },
+   {
+    "id": "REER14119",
+    "title": "EN ISO 14119 Machinery Safety",
+    "publisher": "ReeR",
+    "url": "https://www.reersafety.com/en/academy/industrial-safety-guide/en-iso-14119safety-of-machinery/"
+   },
+   {
+    "id": "SCHMERSAL",
+    "title": "Calculating Safety Distances",
+    "publisher": "Schmersal USA",
+    "url": "https://www.schmersalusa.com/press/technical-articles/calculating-safety-distances"
+   },
+   {
+    "id": "AT071",
+    "title": "Safety Function: Two Hand Control (SAFETY-AT071)",
+    "publisher": "Rockwell Automation",
+    "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at071_-en-e.pdf"
+   },
+   {
+    "id": "AT086",
+    "title": "Safety Function: Safe Limited Speed and Safe Maximum Speed (SAFETY-AT086)",
+    "publisher": "Rockwell Automation",
+    "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at086_-en-p.pdf"
+   },
+   {
+    "id": "AT088",
+    "title": "Safety Function: Cable Pull Switch (SAFETY-AT088)",
+    "publisher": "Rockwell Automation",
+    "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at088_-en-p.pdf"
+   },
+   {
+    "id": "AT122",
+    "title": "Safety Function: Safety Mat Stop (SAFETY-AT122)",
+    "publisher": "Rockwell Automation",
+    "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+   },
+   {
+    "id": "AT128",
+    "title": "Pneumatic Safety Valves Safety Function (SAFETY-AT128)",
+    "publisher": "Rockwell Automation",
+    "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at128_-en-p.pdf"
+   },
+   {
+    "id": "AT203",
+    "title": "Emergency Stop Category 1 using SS1 and SBC (SAFETY-AT203, 2024)",
+    "publisher": "Rockwell Automation",
+    "url": "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf"
+   },
+   {
+    "id": "SIEMENS",
+    "title": "Safety Integrated for drives – brochure",
+    "publisher": "Siemens",
+    "url": "https://assets.new.siemens.com/siemens/assets/api/uuid:53893f9b-f3ef-4480-b16b-5f735363d46b/safety-integrated-drives-brochure.pdf"
+   },
+   {
+    "id": "MS101_RESET",
+    "title": "The manual reset function",
+    "publisher": "machinerysafety101.com",
+    "url": "https://machinerysafety101.com/2021/05/19/understanding-safety-functions-manual-reset/"
+   },
+   {
+    "id": "MS101_ESTOP",
+    "title": "ISO 13850 Emergency Stop Requirements Explained",
+    "publisher": "machinerysafety101.com",
+    "url": "https://machinerysafety101.com/2026/05/18/iso-13850-emergency-stop-requirements/"
+   },
+   {
+    "id": "MS101_GL",
+    "title": "Guard Locking and ISO 14119: Getting It Right",
+    "publisher": "machinerysafety101.com",
+    "url": "https://machinerysafety101.com/2025/12/17/guard-locking-and-iso-14119/"
+   },
+   {
+    "id": "IDEC13850",
+    "title": "ISO 13850 – výklad",
+    "publisher": "IDEC",
+    "url": "https://www.idec.com/en-eu/solutions/safety/law/iso-iec/iso13850"
+   },
+   {
+    "id": "EURLEX",
+    "title": "Nařízení (EU) 2023/1230 o strojních zařízeních",
+    "publisher": "EUR-Lex",
+    "url": "https://eur-lex.europa.eu/eli/reg/2023/1230/oj/eng"
+   },
+   {
+    "id": "FESTO_MSSV",
+    "title": "Festo MS6-SV-...-E soft start/quick exhaust valve – návod",
+    "publisher": "Festo (přes RS Online)",
+    "url": "https://docs.rs-online.com/34ef/A700000007850995.pdf"
+   },
+   {
+    "id": "ISO4414_ITEH",
+    "title": "EN ISO 4414:2010 – katalogový popis",
+    "publisher": "iTeh Standards",
+    "url": "https://standards.iteh.ai/catalog/standards/cen/365f07d1-cb0f-4414-9fe9-240ac4c21109/en-iso-4414-2010"
+   },
+   {
+    "id": "GT14118",
+    "title": "ISO 14118 – výklad",
+    "publisher": "GT Engineering",
+    "url": "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/iso-14118/"
+   },
+   {
+    "id": "ISO10218_ANSI",
+    "title": "ISO 10218-1:2025 – Robots and robotic devices safety",
+    "publisher": "ANSI Blog",
+    "url": "https://blog.ansi.org/ansi/iso-10218-1-2025-robots-and-robotic-devices-safety/"
+   },
+   {
+    "id": "EN14597",
+    "title": "DIN EN 14597 – Temperature control devices and temperature limiters",
+    "publisher": "GlobalSpec",
+    "url": "https://standards.globalspec.com/std/9902605/din-en-14597"
+   }
+  ]
+ },
+ "iso13855": {
+  "editions": {
+   "2010": {
+    "formula": "S = K·T + C",
+    "status": "harmonizovaná EN ISO 13855:2010 (stav podle zdrojů)",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.keyence.eu/ss/products/safetyknowledge/caution/",
+     "https://www.reersafety.com/en/academy/industrial-safety-guide/determination-of-the-safety-distance/"
+    ]
+   },
+   "2024": {
+    "formula": "S = K·T + D_DS + Z",
+    "published": "listopad 2024 (3. vydání)",
+    "status": "GIT-Sicherheit: EN ISO 13855:2024 zatím nebyla harmonizována, ale odpovídá stavu techniky",
+    "terminology": "'minimum distance' → 'separation distance'; C → D_DS (dosah) určovaný ze tří kritérií: přesah přes pole D_DO, průnik polem D_DT, podsah pod polem D_DU",
+    "sources": [
+     "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen",
+     "https://www.machinebuilding.net/iso-138552024--new-guidelines-for-safer-sensor-positioning-in-industrial-automation",
+     "https://mpemagazine.co.uk/2025/08/01/leuze-on-iso-138552024-new-guidelines-for-safer-sensor-positioning-in-industrial-automation/",
+     "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/5-general-equations-for-the-calculation-of-the-overall-system-stopping-performance-and-minimum-distances/"
+    ]
+   }
+  },
+  "parameters": {
+   "S": {
+    "unit": "mm",
+    "meaning": "minimální (oddělovací) vzdálenost od pole/ovladače k nebezpečnému místu"
+   },
+   "K": {
+    "unit": "mm/s",
+    "values": {
+     "2000": "pohyb horních končetin (ruka/paže)",
+     "1600": "chůze / přiblížení těla"
+    },
+    "sources": [
+     "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/5-general-equations-for-the-calculation-of-the-overall-system-stopping-performance-and-minimum-distances/",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "T": {
+    "unit": "s",
+    "meaning": "celková doba zastavení systému",
+    "2010": "doba zastavení stroje + reakční doba řízení + reakční doba ESPE (SICK)",
+    "2024": "T ≥ t_SRP/CS + t_ME + t_F (reakce řídicí bezpečnostní části + stroje + toleranční přídavek) – GT Engineering",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/5-general-equations-for-the-calculation-of-the-overall-system-stopping-performance-and-minimum-distances/"
+    ]
+   },
+   "C_or_D_DS": {
+    "unit": "mm",
+    "meaning": "přídavná vzdálenost (průnik před zareagováním zařízení)"
+   },
+   "Z": {
+    "unit": "mm",
+    "meaning": "aplikační přídavky (2024), např. nepřesnost měření laserového skeneru, opotřebení brzd vozidel",
+    "sources": [
+     "https://www.machinebuilding.net/iso-138552024--new-guidelines-for-safer-sensor-positioning-in-industrial-automation",
+     "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen"
+    ]
+   }
+  },
+  "cases": [
+   {
+    "id": "orthogonal_d_le_40",
+    "name": "Kolmý přístup, rozlišení d ≤ 40 mm (prst/ruka)",
+    "edition": "2010",
+    "steps": [
+     {
+      "formula": "S = 2000·T + 8·(d − 14)",
+      "valid_if": "výsledné S ≤ 500 mm",
+      "min_S": 100
+     },
+     {
+      "formula": "S = 1600·T + 8·(d − 14)",
+      "valid_if": "první krok dal S > 500 mm",
+      "min_S": 500
+     }
+    ],
+    "approach_angle": "β = 90° ± 5°; β > 30° posuzovat jako kolmý přístup",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.keyence.eu/ss/products/safetyknowledge/caution/",
+     "https://www.reersafety.com/en/academy/industrial-safety-guide/determination-of-the-safety-distance/"
+    ]
+   },
+   {
+    "id": "orthogonal_40_70_2010",
+    "name": "Kolmý přístup, 40 < d ≤ 70 mm (a d > 70 mm u mříží)",
+    "edition": "2010",
+    "formula": "S = 1600·T + 850",
+    "beam_rule": "nejnižší paprsek ≤ 300 mm, nejvyšší ≥ 900 mm nad referenční rovinou",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.keyence.eu/ss/products/safetyknowledge/caution/",
+     "https://www.reersafety.com/en/academy/industrial-safety-guide/determination-of-the-safety-distance/"
+    ]
+   },
+   {
+    "id": "orthogonal_2024",
+    "name": "Kolmý přístup – ISO 13855:2024 (výklad GT Engineering)",
+    "edition": "2024",
+    "subcases": [
+     {
+      "de_range": "d ≤ 40 mm",
+      "D_DT": "8·(d − 14)",
+      "K": "2000; pokud S > 500 mm pak 1600",
+      "min_S": 100
+     },
+     {
+      "de_range": "40 mm ≤ d ≤ 55 mm",
+      "D_DT": "208 + 12·(d − 40)",
+      "K": "2000; pokud S > 500 mm pak 1600",
+      "min_S": 500
+     },
+     {
+      "de_range": "55 mm ≤ d ≤ 120 mm",
+      "D_DT": "850",
+      "K": "1600"
+     }
+    ],
+    "reach_over": "S = K·T + D_DO + Z; D_DO z tabulky normy (max. 1200 mm podle poměru horní hrany pole a výšky nebezpečného místa – Leuze)",
+    "reach_under": "S = K·T + D_DU + Z; H_DB (spodní hrana) ≤ 300 mm; K = 1600; D_DU = 8·(d + H_DB − 14) (+Z), nikdy < 0 – zápis dle GT Engineering",
+    "rule": "S se určí pro všechna tři kritéria (přes, skrz, pod); rozhoduje největší (výklad Leuze/GIT: D_DS ze tří kritérií)",
+    "sources": [
+     "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/6-detection-zone-orthogonal-to-the-direction-of-approach/",
+     "https://mpemagazine.co.uk/2025/08/01/leuze-on-iso-138552024-new-guidelines-for-safer-sensor-positioning-in-industrial-automation/",
+     "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen"
+    ]
+   },
+   {
+    "id": "multibeam",
+    "name": "Vícepaprskové mříže (přístup tělem)",
+    "edition": "2010",
+    "formula": "S = 1600·T + 850",
+    "beam_heights_mm": {
+     "2": [
+      400,
+      900
+     ],
+     "3": [
+      300,
+      700,
+      1100
+     ],
+     "4": [
+      300,
+      600,
+      900,
+      1200
+     ]
+    },
+    "note_2010": "Výška 400 mm pro nejnižší paprsek (2 paprsky) jen pokud to připouští posouzení rizik (nehrozí podlezení).",
+    "changes_2024": [
+     "vzdálenost mezi paprsky max. 400 mm",
+     "hodnota proti podlezení snížena z 300 na 200 mm",
+     "hodnota proti překročení zůstává 900 mm",
+     "důsledek: nově nejméně třípaprskové mříže (dvoupaprskové dříve s odůvodněním)"
+    ],
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.reersafety.com/en/academy/industrial-safety-guide/determination-of-the-safety-distance/",
+     "https://www.machinebuilding.net/is-it-still-acceptable-to-use-two-beam-safety-light-barriers",
+     "https://mpemagazine.co.uk/2025/08/01/leuze-on-iso-138552024-new-guidelines-for-safer-sensor-positioning-in-industrial-automation/",
+     "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen"
+    ]
+   },
+   {
+    "id": "parallel_2010",
+    "name": "Paralelní přístup (horizontální pole, skener, horizontální závora)",
+    "edition": "2010",
+    "formula": "S = 1600·T + (1200 − 0,4·H)",
+    "conditions": [
+     "C = 1200 − 0,4·H ≥ 850 mm",
+     "H ≤ 1000 mm",
+     "15·(d − 50) ≤ H, tj. d ≤ H/15 + 50 (pro H = 1000 → d ≤ 117 mm)",
+     "β < 30° posuzovat jako paralelní přístup"
+    ],
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.keyence.eu/ss/products/safetyknowledge/caution/",
+     "https://www.reersafety.com/en/academy/industrial-safety-guide/determination-of-the-safety-distance/"
+    ]
+   },
+   {
+    "id": "parallel_2024",
+    "name": "Paralelní přístup – ISO 13855:2024 (výklad GT Engineering)",
+    "edition": "2024",
+    "formula": "S = 1600·T + 1200 + Z",
+    "conditions": [
+     "H_D ≥ 15·(d − 50)",
+     "0 ≤ H_D ≤ 1000 mm",
+     "při H_D > 200 mm riziko nezjištěného podlezení"
+    ],
+    "note": "Zjednodušení paušálními hodnotami (Leuze/machinebuilding); přídavky Z pro nepřesnost skeneru.",
+    "sources": [
+     "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/6-3-detection-zone-parallel-to-the-direction-of-approach/",
+     "https://www.machinebuilding.net/iso-138552024--new-guidelines-for-safer-sensor-positioning-in-industrial-automation",
+     "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen"
+    ]
+   },
+   {
+    "id": "two_hand",
+    "name": "Dvouruční ovládání",
+    "2010": {
+     "formula": "S = 1600·T + 250",
+     "note": "C = 0, pokud jsou ovladače zakryty (nelze přiblížit ruku)",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+      "https://www.safe-machines-at-work.org/fileadmin/user_upload/Two-Hand-Controls_08_2020.pdf"
+     ]
+    },
+    "2024": {
+     "formula": "S = 1600·T + D_DS, D_DS = 550 mm",
+     "note": "D_DS může být 0, pokud je vyloučeno přiblížení rukou k nebezpečí a S ≥ 100 mm (GT Engineering); změna vzorce potvrzena machinebuilding.net",
+     "sources": [
+      "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/8-two-hand-control-devices/",
+      "https://www.machinebuilding.net/iso-138552024--new-guidelines-for-safer-sensor-positioning-in-industrial-automation"
+     ]
+    }
+   },
+   {
+    "id": "pressure_mat",
+    "name": "Bezpečnostní rohož",
+    "formula_2010": "S = 1600·T + 1200 (Rockwell AT122 s odkazem na EN ISO 13856-1)",
+    "formula_2024": "S = 1600·T + 1200 + Z (Schmersal)",
+    "sources": [
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf",
+     "https://www.schmersalusa.com/press/technical-articles/calculating-safety-distances"
+    ]
+   },
+   {
+    "id": "interlocking_guard",
+    "name": "Blokovaný kryt bez zámku",
+    "edition": "2024",
+    "formula": "S = 1600·T + D_GT",
+    "note": "D_GT = dosah skrz ochrannou konstrukci dle ISO 13857:2019; T = doba od otevření krytu do zastavení",
+    "sources": [
+     "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/9-interlocking-guards-without-guard-locking/",
+     "https://www.schmersalusa.com/press/technical-articles/calculating-safety-distances"
+    ]
+   },
+   {
+    "id": "press_supplement",
+    "name": "Lisy (EN 692/693) – přídavek C podle rozlišení",
+    "edition": "C-norma",
+    "table": [
+     {
+      "d_mm": "≤ 14",
+      "C_mm": 0,
+      "stroke_initiation_by_ESPE": "povoleno"
+     },
+     {
+      "d_mm": "14 < d ≤ 20",
+      "C_mm": 80,
+      "stroke_initiation_by_ESPE": "povoleno"
+     },
+     {
+      "d_mm": "20 < d ≤ 30",
+      "C_mm": 130,
+      "stroke_initiation_by_ESPE": "povoleno"
+     },
+     {
+      "d_mm": "30 < d ≤ 40",
+      "C_mm": 240,
+      "stroke_initiation_by_ESPE": "nepovoleno"
+     },
+     {
+      "d_mm": "> 40",
+      "C_mm": 850,
+      "stroke_initiation_by_ESPE": "nepovoleno"
+     }
+    ],
+    "note": "C-norma má přednost před B-normou ISO 13855.",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.machinebuilding.net/is-it-still-acceptable-to-use-two-beam-safety-light-barriers"
+    ]
+   }
+  ],
+  "general_conditions": [
+   {
+    "text": "Pokud je vzdálenost ergonomicky nepřijatelná, zkrátit celkovou dobu zastavení nebo zvolit ESPE s lepším rozlišením; zabránit stání za polem.",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   {
+    "text": "Ovladač resetu umístit tak, aby byl vidět celý nebezpečný prostor a nešel dosáhnout zevnitř.",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   {
+    "text": "U vozidel se vzdálenost určuje z rychlosti vozidla, ne z rychlosti přiblížení člověka.",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   {
+    "text": "C-normy (např. lisy) mohou mít zvláštní požadavky s předností před ISO 13855.",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.machinebuilding.net/is-it-still-acceptable-to-use-two-beam-safety-light-barriers"
+    ]
+   }
+  ],
+  "worked_examples": [
+   {
+    "name": "Ochrana nebezpečného místa, závora 14 mm, kolmo",
+    "inputs": {
+     "T_s": 0.16,
+     "d_mm": 14,
+     "K": 2000
+    },
+    "calc": "S = 2000·0,16 + 8·(14 − 14) = 320 mm",
+    "result_mm": 320,
+    "edition": "2010",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   {
+    "name": "Horizontální pole, rozlišení 80 mm, H = 500 mm",
+    "inputs": {
+     "T_s": 0.16,
+     "H_mm": 500,
+     "d_mm": 80
+    },
+    "calc": "S = 1600·0,16 + (1200 − 0,4·500) = 256 + 1000 = 1256 mm",
+    "result_mm": 1256,
+    "edition": "2010",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   {
+    "name": "Přístupová ochrana, 3 paprsky (300/700/1100 mm)",
+    "inputs": {
+     "T_s": 0.16
+    },
+    "calc": "S = 1600·0,16 + 850 = 1106 mm",
+    "result_mm": 1106,
+    "edition": "2010",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   {
+    "name": "Bezpečnostní rohož",
+    "inputs": {
+     "Ts_s": 0.25,
+     "Tc_s": 0.055
+    },
+    "calc": "S = 1600·0,305 + 1200 = 1688 mm",
+    "result_mm": 1688,
+    "edition": "2010 / EN ISO 13856-1",
+    "sources": [
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+    ]
+   },
+   {
+    "name": "Srovnání 2010 × 2024 pro d = 50 mm (vypočteno z uvedených vzorců, ne převzato)",
+    "inputs": {
+     "T_s": 0.1,
+     "d_mm": 50
+    },
+    "calc": "2010: 1600·0,1 + 850 = 1010 mm; 2024 (40 ≤ d ≤ 55): D_DT = 208 + 12·10 = 328 → 2000·0,1 + 328 = 528 > 500 → 1600·0,1 + 328 = 488 → min. 500 mm",
+    "result_mm": {
+     "2010": 1010,
+     "2024": 500
+    },
+    "computed_by": "tento podklad",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/6-detection-zone-orthogonal-to-the-direction-of-approach/"
+    ]
+   }
+  ]
+ },
+ "functions": [
+  {
+   "id": "emergency_stop",
+   "name": "Nouzové zastavení (E-stop)",
+   "category": "doplňková ochranná opatření",
+   "hazards": [
+    "všechna nebezpečí stroje v nouzové situaci (doplňkové opatření, nenahrazuje ochranné kryty)"
+   ],
+   "applies_to": [
+    "motor",
+    "valve_pneu",
+    "cylinder_pneu",
+    "hydraulic",
+    "press",
+    "conveyor",
+    "robot",
+    "heater",
+    "pressure"
+   ],
+   "use_situations": [
+    "každý stroj (až na výjimky ISO 13850)",
+    "ovladač u každého pracovního místa a v dosahu obsluhy",
+    "lankové spínače podél dopravníků"
+   ],
+   "trigger": "Stisk hřibového tlačítka / tah za lanko nouzového zastavení (přímé rozpínání, mechanická aretace).",
+   "reaction": {
+    "description": "Ukončit nebezpečný stav co nejrychleji bez vzniku dalších rizik; povel má přednost před všemi ostatními funkcemi ve všech režimech; stav drží do ručního odjištění ovladače a resetu; odjištění nesmí stroj spustit.",
+    "stop_category": [
+     0,
+     1
+    ],
+    "stop_category_note": "Nouzové zastavení musí být stop kategorie 0 nebo 1 (volí se podle posouzení rizik); u pohonů typicky STO nebo SS1. Nouzové vypnutí (emergency switching off) jen kategorie 0.",
+    "drive_mapping": [
+     "STO",
+     "SS1"
+    ],
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "reset": {
+    "description": "Odjištění ovladače ručně na místě; reset jen připraví stroj k opětovnému uvedení do chodu, start samostatným povelem. U lanka musí být z místa resetu vidět celá délka lanka.",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.idec.com/en-eu/solutions/safety/law/iso-iec/iso13850",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at128_-en-p.pdf"
+    ]
+   },
+   "typical_plr": {
+    "value": "c (minimum dle ISO 13850:2015), často d",
+    "sfp_typical": "neuvedeno ve zdrojích; PLr c odpovídá v risk grafu S1/F2/P2 nebo S2/F1/P1, PLr d S2/F1/P2 nebo S2/F2/P1",
+    "reasoning": "ISO 13850:2015 požaduje pro nouzové zastavení minimálně PL c (resp. SIL 1); výklady IDEC a machinerysafety101 to uvádějí shodně. Aplikační příklady IFA a Rockwell počítají s PLr d.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.idec.com/en-eu/solutions/safety/law/iso-iec/iso13850",
+     "https://machinerysafety101.com/2026/05/18/iso-13850-emergency-stop-requirements/",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at128_-en-p.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf"
+    ],
+    "examples_from_sources": [
+     "IFA 2/2017 příklad 6: start/stop s nouzovým zastavením, kat. 1, PL c",
+     "IFA 2/2017 příklad 29: kaskáda E-stop přes bezpečnostní modul, kat. 3, dosaženo PL e, 'PLr d is thus surpassed'",
+     "Rockwell AT128 / AT203: PLr = kat. 3, PL d"
+    ]
+   },
+   "typical_architecture": {
+    "category": "1 (PL c) nebo 3 (PL d/e)",
+    "channels": "dvoukanálově (2 rozpínací kontakty přímého rozpínání) u kat. 3; jednokanálově u kat. 1",
+    "edm": "ano u kat. 3 – zpětné čtení nuceně vázaných kontaktů K2/K3 v bezpečnostním modulu",
+    "components": [
+     "tlačítko nouzového zastavení dle ISO 13850 / IEC 60947-5-5 (červené na žlutém, aretace, přímé rozpínání dle IEC 60947-5-1 příl. K)",
+     "lankový spínač (alternativa)",
+     "bezpečnostní modul nebo bezpečnostní PLC s pulzním testováním vstupů",
+     "2 stykače s nuceně vázanými kontakty nebo STO měniče"
+    ],
+    "notes": [
+     "Rockwell AT203: jednoakční elektromechanické zařízení je omezeno na PL d, pokud nelze uplatnit vyloučení poruchy; pro tlačítko dle IEC 60947-5-5 je vyloučení dle ISO 13849-2 tab. D.8 přípustné a PL e je dosažitelné.",
+     "IFA příklad 29: každé tlačítko je samostatná bezpečnostní funkce; organizačně každé tlačítko aktivovat aspoň 1× ročně (předpoklad výpočtu)."
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Funkční zkouška každého tlačítka/lanka",
+     "kind": "funkční",
+     "procedure": "Za chodu v každém režimu stisknout každé tlačítko zvlášť.",
+     "expected": "Zastavení v předepsané stop kategorii; přednost před všemi povely; stroj stojí do odjištění a resetu.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf",
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Odjištění nespustí stroj",
+     "kind": "funkční",
+     "procedure": "Odjistit tlačítko bez resetu.",
+     "expected": "Stroj zůstane stát; reset jen připraví, start je samostatný povel.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf",
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Rozpojení vodiče kanálu 1 (tlačítka nouzového zastavení)",
+     "kind": "porucha",
+     "procedure": "Za chodu odpojit vodič kanálu 1 tlačítka nouzového zastavení na vstupu bezpečnostního modulu / PLC.",
+     "expected": "Okamžité vypnutí bezpečných výstupů (STO / odpadnutí stykačů). Po připojení vodiče stroj nesmí jít resetovat bez cyklu ovladače (diskrepance).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Totéž pro kanál 2",
+     "kind": "porucha",
+     "procedure": "Opakovat s druhým kanálem.",
+     "expected": "Stejná reakce jako u kanálu 1.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Přemostění kanálu (vstup trvale sepnut)",
+     "kind": "porucha",
+     "procedure": "Za chodu přemostit kontakt jednoho kanálu tlačítka nouzového zastavení (např. S11–S12), pak tlačítka nouzového zastavení aktivovat.",
+     "expected": "Funkce vypne druhým kanálem; po uvolnění nelze resetovat, dokud není přemostění odstraněno (diskrepance kanálů detekována).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat vstupu na +24 V",
+     "kind": "porucha",
+     "procedure": "Krátce zkratovat vstup kanálu na +24 V DC.",
+     "expected": "Okamžité vypnutí a zablokování v poruše; reset tlačítkem nejde, nutné odstranit poruchu (u Rockwell GSR i cyklus napájení).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat vstupu na 0 V",
+     "kind": "porucha",
+     "procedure": "Krátce zkratovat vstup kanálu na 0 V.",
+     "expected": "Okamžité vypnutí, porucha zablokována do odstranění.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Příčný zkrat mezi kanály",
+     "kind": "porucha",
+     "procedure": "Krátce propojit vstupy kanálu 1 a 2 (např. S12–S22).",
+     "expected": "Detekce příčného zkratu (pulzní testování), vypnutí a zablokování.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf",
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Svařený / nepřitažený výkonový stykač (EDM)",
+     "kind": "porucha",
+     "procedure": "Simulovat, že jeden z redundantních stykačů neodpadne (mechanicky blokovat kotvu nebo přemostit jeho hlavní kontakty; zpětnovazební rozpínací kontakt zůstane rozepnut).",
+     "expected": "Porucha zjištěna přes nuceně vázané / zrcadlové kontakty nejpozději před dalším startem; nový start není možný.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Doba zastavení",
+     "kind": "měření",
+     "procedure": "Změřit dobu doběhu po nouzovém zastavení (u SS1 i dobu do STO).",
+     "expected": "Odpovídá specifikaci; u SS1-t časovač nastaven tak, aby pohyb zastavil i za nepříznivých podmínek.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 13850",
+    "IEC 60204-1",
+    "ISO 13849-1",
+    "ISO 13849-2",
+    "IEC 60947-5-5",
+    "IEC 60947-5-1",
+    "ISO 12100",
+    "IEC 62061"
+   ],
+   "sources": [
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://www.idec.com/en-eu/solutions/safety/law/iso-iec/iso13850",
+    "https://machinerysafety101.com/2026/05/18/iso-13850-emergency-stop-requirements/",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at128_-en-p.pdf",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+   ]
+  },
+  {
+   "id": "guard_interlock",
+   "name": "Blokování pohyblivého ochranného krytu (bez jištění)",
+   "category": "ochranné zařízení – zastavení iniciované krytem",
+   "hazards": [
+    "přístup k pohyblivým částem za krytem (pohmoždění, střih, navinutí)"
+   ],
+   "applies_to": [
+    "motor",
+    "cylinder_pneu",
+    "valve_pneu",
+    "hydraulic",
+    "press",
+    "conveyor",
+    "robot"
+   ],
+   "use_situations": [
+    "kryty, které se otvírají pravidelně / alespoň 1× za směnu nebo jdou sundat bez nářadí",
+    "kdy je doba zastavení kratší než doba přístupu osoby k nebezpečí (jinak kryt se zámkem)"
+   ],
+   "trigger": "Otevření krytu (opuštění polohy 'zavřeno' detekované spínačem).",
+   "reaction": {
+    "description": "Bezpečnostní zastavení (STO, SS1 nebo SS2) nebezpečných pohybů; při otevřeném krytu blokován start; po zavření jen ruční reset/start (automatický restart jen u krytů se startovací funkcí dle ISO 12100).",
+    "stop_category": [
+     0,
+     1,
+     2
+    ],
+    "stop_category_note": "Volí se podle doby doběhu a posouzení rizik; IFA uvádí odezvu STO, SS1 nebo SS2.",
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "typical_plr": {
+    "value": "d",
+    "sfp_typical": "neuvedeno; PLr d odpovídá S2/F1/P2 nebo S2/F2/P1",
+    "reasoning": "Aplikační příklady IFA a Rockwell pro dveřní blokování pracují s kat. 3 PL d; IFA uvádí i PL c (kat. 1) a PL e (kat. 4) varianty podle rizika.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf"
+    ],
+    "examples_from_sources": [
+     "IFA 2/2017 př. 5: kat. 1, PL c (jeden spínač s přímým rozpínáním)",
+     "IFA 2/2017 př. 18: kat. 3, PL d (spínač NC + NO, standardní PLC + 2 stykače)",
+     "IFA 2/2017 př. 28/34: kat. 4, PL e"
+    ]
+   },
+   "typical_architecture": {
+    "category": "3 (PL d) typicky",
+    "channels": "dvoukanálově, ideálně diverzitně (rozpínací + spínací kontakt, nebo dva spínače) pro odhalení mechanické poruchy ovládání",
+    "edm": "ano – zrcadlové kontakty stykačů Q1/Q2 čtené v logice",
+    "components": [
+     "blokovací zařízení typ 1–4 dle ISO 14119 (typ 1 mech. nekódovaný, typ 2 mech. kódovaný jazýček, typ 3 bezkontaktní nekódovaný, typ 4 bezkontaktní kódovaný RFID/magnet); ISO 14119:2024 doplnila typ 5 = systémy s uvězněným klíčem",
+     "kontakt s přímým rozpínáním dle IEC 60947-5-1 příl. K (mechanické spínače); typ 3/4 jako jediný spínač na krytu musí splnit IEC 60947-5-3",
+     "bezpečnostní modul / bezpečnostní PLC",
+     "stykače s nuceně vázanými/zrcadlovými kontakty nebo STO"
+    ],
+    "coding_levels": {
+     "low": "1–9 variant kódu",
+     "medium": "10–1000 variant",
+     "high": "> 1000 variant",
+     "sources": [
+      "https://www.reersafety.com/en/academy/industrial-safety-guide/en-iso-14119safety-of-machinery/"
+     ]
+    },
+    "anti_defeat": [
+     "montáž mimo dosah / zakrytí / skrytá poloha",
+     "kódovaný aktuátor proti záměně",
+     "nerozebíratelná montáž (nýty, jednosměrné šrouby, svar)",
+     "sledování stavu / cyklické testování (plauzibilita)",
+     "spínač není mechanický doraz; poloha zajištěna tvarově"
+    ],
+    "notes": [
+     "Typ 3 jen pokud posouzení rizik ukazuje, že manipulace není předvídatelná, nebo jsou přijata další opatření (SICK).",
+     "Kryty otevírané alespoň 1× za směnu = 'často otevírané' – musí být blokované (SICK)."
+    ],
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://cdn.standards.iteh.ai/samples/75942/ae89318fbad443898f48680f49db9779/ISO-14119-2024.pdf",
+     "https://www.reersafety.com/en/academy/industrial-safety-guide/en-iso-14119safety-of-machinery/",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Otevření krytu za chodu",
+     "kind": "funkční",
+     "procedure": "Za chodu otevřít kryt.",
+     "expected": "Zastavení v předepsané kategorii; nebezpečí nedosažitelné dřív, než se pohyb zastaví (ověřit S = K·T + D_GT).",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/9-interlocking-guards-without-guard-locking/"
+     ]
+    },
+    {
+     "name": "Start při otevřeném krytu",
+     "kind": "funkční",
+     "procedure": "Kryt otevřený, dát START.",
+     "expected": "Stroj se nerozběhne.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Zavření krytu nespustí stroj",
+     "kind": "funkční",
+     "procedure": "Zavřít kryt bez resetu.",
+     "expected": "Bez resetu/startu žádný pohyb.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Obejití jednoduchým prostředkem",
+     "kind": "manipulace",
+     "procedure": "Zkusit aktivovat spínač náhradním aktuátorem, magnetem, šroubovákem, drátem (bez rozebírání).",
+     "expected": "Spínač nesepne / porucha detekována; jinak doplnit opatření proti obejití (ISO 14119).",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+      "https://www.reersafety.com/en/academy/industrial-safety-guide/en-iso-14119safety-of-machinery/"
+     ]
+    },
+    {
+     "name": "Mechanická porucha ovládání (jeden spínač 'nevidí' otevření)",
+     "kind": "porucha",
+     "procedure": "Simulovat zaseknutí jednoho spínače v poloze zavřeno a otevřít kryt.",
+     "expected": "Druhý kanál zastaví; nesoulad kanálů zablokuje další start.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Rozpojení vodiče kanálu 1 (spínače krytu)",
+     "kind": "porucha",
+     "procedure": "Za chodu odpojit vodič kanálu 1 spínače krytu na vstupu bezpečnostního modulu / PLC.",
+     "expected": "Okamžité vypnutí bezpečných výstupů (STO / odpadnutí stykačů). Po připojení vodiče stroj nesmí jít resetovat bez cyklu ovladače (diskrepance).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Totéž pro kanál 2",
+     "kind": "porucha",
+     "procedure": "Opakovat s druhým kanálem.",
+     "expected": "Stejná reakce jako u kanálu 1.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Přemostění kanálu (vstup trvale sepnut)",
+     "kind": "porucha",
+     "procedure": "Za chodu přemostit kontakt jednoho kanálu spínače krytu (např. S11–S12), pak spínače krytu aktivovat.",
+     "expected": "Funkce vypne druhým kanálem; po uvolnění nelze resetovat, dokud není přemostění odstraněno (diskrepance kanálů detekována).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat vstupu na +24 V",
+     "kind": "porucha",
+     "procedure": "Krátce zkratovat vstup kanálu na +24 V DC.",
+     "expected": "Okamžité vypnutí a zablokování v poruše; reset tlačítkem nejde, nutné odstranit poruchu (u Rockwell GSR i cyklus napájení).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat vstupu na 0 V",
+     "kind": "porucha",
+     "procedure": "Krátce zkratovat vstup kanálu na 0 V.",
+     "expected": "Okamžité vypnutí, porucha zablokována do odstranění.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Příčný zkrat mezi kanály",
+     "kind": "porucha",
+     "procedure": "Krátce propojit vstupy kanálu 1 a 2 (např. S12–S22).",
+     "expected": "Detekce příčného zkratu (pulzní testování), vypnutí a zablokování.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf",
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Svařený / nepřitažený výkonový stykač (EDM)",
+     "kind": "porucha",
+     "procedure": "Simulovat, že jeden z redundantních stykačů neodpadne (mechanicky blokovat kotvu nebo přemostit jeho hlavní kontakty; zpětnovazební rozpínací kontakt zůstane rozepnut).",
+     "expected": "Porucha zjištěna přes nuceně vázané / zrcadlové kontakty nejpozději před dalším startem; nový start není možný.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 14119",
+    "ISO 13849-1",
+    "ISO 13849-2",
+    "ISO 13855",
+    "ISO 13857",
+    "ISO 14120",
+    "IEC 60947-5-1",
+    "IEC 60947-5-3",
+    "IEC 60204-1"
+   ],
+   "sources": [
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://cdn.standards.iteh.ai/samples/75942/ae89318fbad443898f48680f49db9779/ISO-14119-2024.pdf",
+    "https://www.reersafety.com/en/academy/industrial-safety-guide/en-iso-14119safety-of-machinery/",
+    "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/9-interlocking-guards-without-guard-locking/"
+   ]
+  },
+  {
+   "id": "guard_locking",
+   "name": "Kryt se zámkem (jištění krytu) a uvolnění zámku po zastavení",
+   "category": "ochranné zařízení – zabránění přístupu po dobu nebezpečí",
+   "hazards": [
+    "doběh setrvačných hmot (vřetena, kotouče, odstředivky, roboty), kdy je doba zastavení delší než doba přístupu"
+   ],
+   "applies_to": [
+    "motor",
+    "press",
+    "robot",
+    "conveyor",
+    "hydraulic"
+   ],
+   "use_situations": [
+    "doba zastavení nebezpečného stavu > doba, za kterou osoba dosáhne nebezpečného místa",
+    "ochrana procesu (bez bezpečnostní funkce) – jiný princip zámku"
+   ],
+   "trigger": "Požadavek na otevření (tlačítko 'odjistit') nebo otevření dveří při zamčení není možné.",
+   "reaction": {
+    "description": "Kryt zůstane zamčený, dokud nebezpečný stav trvá; odjištění: (a) automaticky jen při zjištěném klidu (hlídač klidu), (b) časově – porucha časovače nesmí zkrátit zpoždění, (c) ručně – doba od odjištění po uvolnění krytu delší než doba zastavení. Stroj lze spustit jen se zavřeným a zamčeným krytem.",
+    "stop_category": [
+     0,
+     1,
+     2
+    ],
+    "stop_category_note": "Zámek řeší přístup; vlastní zastavení dle souvisejícího blokování (STO/SS1/SS2).",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "locking_principle": {
+    "power_to_unlock": "Pružinou zamčeno, energií odemčeno (klidový proud) – preferováno pro ochranu osob; při výpadku napájení zůstane zamčeno.",
+    "power_to_lock": "Energií zamčeno, pružinou odemčeno (pracovní proud) – preferováno pro ochranu procesu; výpadek energie kryt uvolní.",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://machinerysafety101.com/2025/12/17/guard-locking-and-iso-14119/"
+    ]
+   },
+   "escape_release": "Pokud posouzení rizik ukáže, že osoba může být uvězněna, nouzové odjištění / únikové odjištění zevnitř bez nářadí (rozlišit od mechanického odjištění s nářadím).",
+   "locking_force": "Výběr podle statických sil na kryt; ISO 14119:2013 příl. I uvádí max. statické síly (např. 600 N tah vsedě jednou rukou, 1100–1400 N obouruč) – SICK Guide.",
+   "typical_plr": {
+    "value": "d",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "IFA př. 19: funkce 'jištění krytu' vychází výpočtem PL e, ale je omezena na PL d, protože spínač hlídání zámku je jen jeden (vyloučení poruchy mechaniky jen dle údajů výrobce).",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ],
+    "examples_from_sources": [
+     "IFA 2/2017 př. 19: blokovací zařízení se zámkem, kat. 3, PL d; uvolnění zámku přes hlídač klidu (sin/cos snímač + monitor, PFH 3,2e-8/h)"
+    ]
+   },
+   "typical_architecture": {
+    "category": "3 (PL d)",
+    "channels": "hlídání zámku dvěma kontakty s přímým rozpínáním do bezpečnostního modulu; hlídač klidu kat. 4",
+    "edm": "ano – K4/K5 s nuceně vázanými kontakty",
+    "components": [
+     "elektromechanický zámek s fail-safe zajišťovacím prvkem (power-to-unlock)",
+     "hlídač klidu / bezpečné snímání otáček nebo SS1 + časovač",
+     "bezpečnostní modul nebo PLC",
+     "nouzové/únikové odjištění dle posouzení rizik"
+    ],
+    "notes": [
+     "IFA: odemykací cívka je napájena jen při zavřených dveřích → žádné dynamické síly; zámek není mechanický doraz."
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Pokus o otevření za chodu",
+     "kind": "funkční",
+     "procedure": "Za chodu se pokusit otevřít kryt / dát požadavek odjištění.",
+     "expected": "Kryt zůstane zamčený do zastavení (klid potvrzen).",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Odjištění po zastavení",
+     "kind": "funkční",
+     "procedure": "Zastavit stroj a změřit čas od povelu po odjištění.",
+     "expected": "Odjištění až po klidu; čas ≥ změřená doba doběhu.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Výpadek napájení zámku",
+     "kind": "porucha",
+     "procedure": "Za chodu odpojit napájení stroje i zámku.",
+     "expected": "U power-to-unlock zůstane kryt zamčený.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+      "https://machinerysafety101.com/2025/12/17/guard-locking-and-iso-14119/"
+     ]
+    },
+    {
+     "name": "Porucha hlídače klidu / snímače otáček",
+     "kind": "porucha",
+     "procedure": "Simulovat ztrátu signálu snímače otáček.",
+     "expected": "Nepovolí odjištění (bezpečný stav = zamčeno) a hlásí poruchu.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Start s nezamčeným krytem",
+     "kind": "funkční",
+     "procedure": "Zavřít kryt bez zamčení a dát START.",
+     "expected": "Start blokován.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Únikové odjištění",
+     "kind": "funkční",
+     "procedure": "Ověřit ovládání únikového odjištění zevnitř.",
+     "expected": "Kryt jde otevřít bez nářadí, stroj zastaví.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Rozpojení vodiče kanálu 1 (kontaktů hlídání zámku)",
+     "kind": "porucha",
+     "procedure": "Za chodu odpojit vodič kanálu 1 kontaktů hlídání zámku na vstupu bezpečnostního modulu / PLC.",
+     "expected": "Okamžité vypnutí bezpečných výstupů (STO / odpadnutí stykačů). Po připojení vodiče stroj nesmí jít resetovat bez cyklu ovladače (diskrepance).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Totéž pro kanál 2",
+     "kind": "porucha",
+     "procedure": "Opakovat s druhým kanálem.",
+     "expected": "Stejná reakce jako u kanálu 1.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Přemostění kanálu (vstup trvale sepnut)",
+     "kind": "porucha",
+     "procedure": "Za chodu přemostit kontakt jednoho kanálu kontaktů hlídání zámku (např. S11–S12), pak kontaktů hlídání zámku aktivovat.",
+     "expected": "Funkce vypne druhým kanálem; po uvolnění nelze resetovat, dokud není přemostění odstraněno (diskrepance kanálů detekována).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat vstupu na +24 V",
+     "kind": "porucha",
+     "procedure": "Krátce zkratovat vstup kanálu na +24 V DC.",
+     "expected": "Okamžité vypnutí a zablokování v poruše; reset tlačítkem nejde, nutné odstranit poruchu (u Rockwell GSR i cyklus napájení).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat vstupu na 0 V",
+     "kind": "porucha",
+     "procedure": "Krátce zkratovat vstup kanálu na 0 V.",
+     "expected": "Okamžité vypnutí, porucha zablokována do odstranění.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Příčný zkrat mezi kanály",
+     "kind": "porucha",
+     "procedure": "Krátce propojit vstupy kanálu 1 a 2 (např. S12–S22).",
+     "expected": "Detekce příčného zkratu (pulzní testování), vypnutí a zablokování.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf",
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Svařený / nepřitažený výkonový stykač (EDM)",
+     "kind": "porucha",
+     "procedure": "Simulovat, že jeden z redundantních stykačů neodpadne (mechanicky blokovat kotvu nebo přemostit jeho hlavní kontakty; zpětnovazební rozpínací kontakt zůstane rozepnut).",
+     "expected": "Porucha zjištěna přes nuceně vázané / zrcadlové kontakty nejpozději před dalším startem; nový start není možný.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 14119",
+    "ISO 13849-1",
+    "ISO 13849-2",
+    "ISO 13855",
+    "IEC 60947-5-1",
+    "IEC 61800-5-2",
+    "IEC 60204-1"
+   ],
+   "sources": [
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://machinerysafety101.com/2025/12/17/guard-locking-and-iso-14119/",
+    "https://cdn.standards.iteh.ai/samples/75942/ae89318fbad443898f48680f49db9779/ISO-14119-2024.pdf"
+   ]
+  },
+  {
+   "id": "espe_light_curtain",
+   "name": "Světelná závora (AOPD) – ochrana nebezpečného místa (prst/ruka)",
+   "category": "elektrocitlivé ochranné zařízení (ESPE)",
+   "hazards": [
+    "vniknutí ruky/prstu do nebezpečného místa (lis, stanice s ruční obsluhou, vstupní otvor)"
+   ],
+   "applies_to": [
+    "press",
+    "cylinder_pneu",
+    "valve_pneu",
+    "hydraulic",
+    "motor",
+    "conveyor",
+    "robot"
+   ],
+   "use_situations": [
+    "časté vkládání ručně, kde by kryt bránil",
+    "nevhodné při vymršťování částí/třísek (pak pevný kryt)"
+   ],
+   "trigger": "Přerušení ochranného pole (objekt ≥ rozlišení d).",
+   "reaction": {
+    "description": "OSSD vypnou → bezpečnostní zastavení (STO/SS1) a blokování opětovného rozběhu; u oblastí, kde se lze schovat za pole, ruční reset (restart interlock).",
+    "stop_category": [
+     0,
+     1
+    ],
+    "stop_category_note": "Podle doby doběhu; doba doběhu vstupuje do bezpečné vzdálenosti S.",
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "positioning": "Bezpečná vzdálenost dle ISO 13855 – viz sekce iso13855 (kolmý přístup, d ≤ 40 mm).",
+   "typical_plr": {
+    "value": "d nebo e (lisy s ruční obsluhou e)",
+    "sfp_typical": "u ručně zakládaných lisů F2 (zásah častoji než 1× za 15 min), S2, P2 → e (IFA uvádí ručně zakládaný lis jako příklad F2)",
+    "reasoning": "AOPD typ 4 (IEC 61496) – ochranná funkce zachována i při více poruchách; typ 2 – funkce může být ztracena mezi testy (IFA př. 9/10: testovaná závora typ 2 → PL c).",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ],
+    "examples_from_sources": [
+     "IFA 2/2017 př. 9 a 10: testované světelné závory, kat. 2, PL c",
+     "IFA 2/2017 př. 15: ochranné zařízení + hydraulika s PLC, kat. 3, PL d"
+    ]
+   },
+   "typical_architecture": {
+    "category": "AOPD typ 4 → kat. 4 / PL e; typ 2 → kat. 2 / max. PL c",
+    "channels": "2 OSSD (pulzně testované) do bezpečnostního modulu / PLC",
+    "edm": "ano – zpětná vazba stykačů (EDM vstup závory nebo logiky)",
+    "components": [
+     "bezpečnostní světelná závora typ 4 s rozlišením 14 mm (prst) nebo 30 mm (ruka)",
+     "bezpečnostní modul / PLC",
+     "tlačítko reset mimo nebezpečný prostor s výhledem",
+     "výkonové prvky se zpětnou vazbou"
+    ],
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.hse.gov.uk/pubns/priced/hsg180.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Zkouška zkušební tyčí",
+     "kind": "funkční",
+     "procedure": "Při zastaveném stroji a zapnuté závoře pomalu provést zkušební tyč o průměru = rozlišení ve třech místech (u vysílače, u přijímače, uprostřed).",
+     "expected": "Indikace přerušení se změní při vstupu i výstupu tyče a po celou dobu v poli zůstane přerušená.",
+     "sources": [
+      "https://www.hse.gov.uk/pubns/priced/hsg180.pdf"
+     ]
+    },
+    {
+     "name": "Zastavení za chodu",
+     "kind": "funkční",
+     "procedure": "Spustit stroj a vložit zkušební tyč (kolmo k poli).",
+     "expected": "Nebezpečný pohyb se okamžitě zastaví.",
+     "sources": [
+      "https://www.hse.gov.uk/pubns/priced/hsg180.pdf"
+     ]
+    },
+    {
+     "name": "Nelze stát mezi polem a nebezpečím / obejít pole",
+     "kind": "kontrola",
+     "procedure": "Ověřit, že nebezpečí není dosažitelné z nechráněných směrů a nelze stát mezi závorou a nebezpečným místem.",
+     "expected": "Splněno, jinak doplnit kryty / horizontální pole.",
+     "sources": [
+      "https://www.hse.gov.uk/pubns/priced/hsg180.pdf",
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Bezpečná vzdálenost",
+     "kind": "měření",
+     "procedure": "Změřit celkovou dobu zastavení T (měřič doběhu) a ověřit S ≥ K·T + C (D_DS) a vzdálenost uvedenou na štítku.",
+     "expected": "Skutečná vzdálenost ≥ vypočtená.",
+     "sources": [
+      "https://www.hse.gov.uk/pubns/priced/hsg180.pdf",
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Reset",
+     "kind": "funkční",
+     "procedure": "Ověřit, že po přerušení je nutný reset z místa s výhledem a že reset nespustí stroj.",
+     "expected": "Splněno.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat / rozpojení OSSD",
+     "kind": "porucha",
+     "procedure": "Rozpojit jeden OSSD, zkratovat OSSD na +24 V, propojit OSSD1–OSSD2.",
+     "expected": "Závora/logika poruchu zjistí, výstupy zůstanou vypnuté.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Svařený / nepřitažený výkonový stykač (EDM)",
+     "kind": "porucha",
+     "procedure": "Simulovat, že jeden z redundantních stykačů neodpadne (mechanicky blokovat kotvu nebo přemostit jeho hlavní kontakty; zpětnovazební rozpínací kontakt zůstane rozepnut).",
+     "expected": "Porucha zjištěna přes nuceně vázané / zrcadlové kontakty nejpozději před dalším startem; nový start není možný.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "periodic_inspection": {
+    "text": "HSE doporučuje periodickou prohlídku a zkoušku kompetentní osobou max. po 6 měsících u ESPE typ 4 a po 12 měsících u typu 2 (podle rizika); denní funkční kontroly obsluhou jako dobrá praxe.",
+    "sources": [
+     "https://www.hse.gov.uk/pubns/priced/hsg180.pdf"
+    ]
+   },
+   "relevant_standards": [
+    "IEC 61496-1",
+    "IEC 61496-2",
+    "ISO 13855",
+    "ISO 13849-1",
+    "IEC 62046",
+    "IEC 60204-1"
+   ],
+   "sources": [
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://www.hse.gov.uk/pubns/priced/hsg180.pdf",
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+    "https://www.keyence.eu/ss/products/safetyknowledge/caution/",
+    "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/6-detection-zone-orthogonal-to-the-direction-of-approach/"
+   ]
+  },
+  {
+   "id": "espe_multibeam_access",
+   "name": "Vícepaprsková světelná mříž – ochrana přístupu (tělo)",
+   "category": "ESPE – přístupová ochrana",
+   "hazards": [
+    "vstup celého těla do nebezpečného prostoru (robotová buňka, paletizace, dopravníkové uzly)"
+   ],
+   "applies_to": [
+    "robot",
+    "conveyor",
+    "press",
+    "motor"
+   ],
+   "use_situations": [
+    "přístupové otvory do oplocených buněk",
+    "kombinace s mutingem pro průchod materiálu"
+   ],
+   "trigger": "Přerušení kteréhokoli paprsku.",
+   "reaction": {
+    "description": "Bezpečnostní zastavení a blokování rozběhu; protože lze stát za mříží nezjištěn, vždy ruční reset z místa s výhledem a případně doplňkové opatření (detekce přítomnosti).",
+    "stop_category": [
+     0,
+     1
+    ],
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "positioning": "S = 1600·T + 850 (ISO 13855:2010); výšky paprsků a změny 2024 viz iso13855.",
+   "typical_plr": {
+    "value": "d",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "Aplikační příklad IFA (paletizace, trojpaprsková mříž typ 4) je řešen jako kat. 3 PL d (funkce muting).",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ],
+    "examples_from_sources": [
+     "IFA 2/2017 př. 22: muting ochranného zařízení u paletizace, kat. 3, PL d"
+    ]
+   },
+   "typical_architecture": {
+    "category": "typ 4 (IEC 61496) do kat. 3/4",
+    "channels": "2 OSSD",
+    "edm": "ano",
+    "components": [
+     "vícepaprskový světelný závěs typ 4 (2/3/4 paprsky)",
+     "bezpečnostní modul / PLC",
+     "reset mimo prostor s výhledem"
+    ],
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Přerušení každého paprsku",
+     "kind": "funkční",
+     "procedure": "Za chodu přerušit postupně každý paprsek.",
+     "expected": "Vždy zastavení.",
+     "sources": [
+      "https://www.hse.gov.uk/pubns/priced/hsg180.pdf"
+     ]
+    },
+    {
+     "name": "Podlezení / překročení",
+     "kind": "kontrola",
+     "procedure": "Ověřit výšku nejnižšího a nejvyššího paprsku vůči referenční rovině a vzdálenosti mezi paprsky.",
+     "expected": "Odpovídá ISO 13855 (2010: nejnižší ≤ 300 mm, nejvyšší ≥ 900 mm; 2024: rozteč ≤ 400 mm, min. 3 paprsky).",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+      "https://mpemagazine.co.uk/2025/08/01/leuze-on-iso-138552024-new-guidelines-for-safer-sensor-positioning-in-industrial-automation/",
+      "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen"
+     ]
+    },
+    {
+     "name": "Stání za mříží",
+     "kind": "kontrola",
+     "procedure": "Vstoupit, nechat mříž uvolnit a zkusit reset zevnitř.",
+     "expected": "Reset nedosažitelný zevnitř; reset jen s výhledem.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Svařený / nepřitažený výkonový stykač (EDM)",
+     "kind": "porucha",
+     "procedure": "Simulovat, že jeden z redundantních stykačů neodpadne (mechanicky blokovat kotvu nebo přemostit jeho hlavní kontakty; zpětnovazební rozpínací kontakt zůstane rozepnut).",
+     "expected": "Porucha zjištěna přes nuceně vázané / zrcadlové kontakty nejpozději před dalším startem; nový start není možný.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "IEC 61496-1",
+    "IEC 61496-2",
+    "ISO 13855",
+    "ISO 13849-1",
+    "IEC 62046"
+   ],
+   "sources": [
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://www.reersafety.com/en/academy/industrial-safety-guide/determination-of-the-safety-distance/",
+    "https://www.machinebuilding.net/is-it-still-acceptable-to-use-two-beam-safety-light-barriers",
+    "https://mpemagazine.co.uk/2025/08/01/leuze-on-iso-138552024-new-guidelines-for-safer-sensor-positioning-in-industrial-automation/",
+    "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen",
+    "https://www.hse.gov.uk/pubns/priced/hsg180.pdf"
+   ]
+  },
+  {
+   "id": "espe_laser_scanner",
+   "name": "Bezpečnostní laserový skener (AOPDDR) – ochrana prostoru / detekce přítomnosti",
+   "category": "ESPE – horizontální ochranné pole (paralelní přístup)",
+   "hazards": [
+    "vstup do nebezpečného prostoru stroje / robota, setrvání v něm"
+   ],
+   "applies_to": [
+    "robot",
+    "conveyor",
+    "press",
+    "motor"
+   ],
+   "use_situations": [
+    "ochrana prostoru před strojem (paralelní přístup)",
+    "detekce přítomnosti – brání rozběhu, když je osoba uvnitř",
+    "přepínání polí podle režimu"
+   ],
+   "trigger": "Objekt v ochranném poli.",
+   "reaction": {
+    "description": "Bezpečnostní zastavení; při trvalé detekci přítomnosti nemusí být samostatný reset (osobu nelze uvnitř přehlédnout), jinak ruční reset.",
+    "stop_category": [
+     0,
+     1,
+     2
+    ],
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "positioning": "Paralelní přístup: 2010 S = 1600·T + (1200 − 0,4·H), C ≥ 850 mm, H ≤ 1000 mm; 2024 D_DS = 1200 mm + přídavky Z (nepřesnost měření skeneru). Viz iso13855.",
+   "typical_plr": {
+    "value": "d",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "Laserové skenery jsou typ 3 dle IEC 61496-3; konkrétní PLr ve volných zdrojích k této funkci nenalezen – použito obecné doporučení příkladů IFA/Rockwell pro ochranná zařízení (kat. 3 PL d). Ověřit.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "typical_architecture": {
+    "category": "typ 3 (AOPDDR) – PL d",
+    "channels": "2 OSSD nebo bezpečná sběrnice",
+    "edm": "ano",
+    "components": [
+     "bezpečnostní laserový skener",
+     "bezpečnostní PLC",
+     "reset s výhledem"
+    ],
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Kontrola hranic pole zkušebním tělesem",
+     "kind": "funkční",
+     "procedure": "Projít hranicí ochranného pole zkušebním tělesem (dle výrobce) na více místech.",
+     "expected": "Detekce na celé hranici; mezera mezi polem a strojem neumožní stát nezjištěn.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Výška pole a rozlišení",
+     "kind": "kontrola",
+     "procedure": "Ověřit výšku H ochranného pole a rozlišení d (H ≥ 15·(d − 50)).",
+     "expected": "Splněno.",
+     "sources": [
+      "https://www.keyence.eu/ss/products/safetyknowledge/caution/",
+      "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/6-3-detection-zone-parallel-to-the-direction-of-approach/"
+     ]
+    },
+    {
+     "name": "Přídavky Z",
+     "kind": "kontrola",
+     "procedure": "Ověřit, že ve vzdálenosti jsou zahrnuty přídavky na nepřesnost měření skeneru (ISO 13855:2024).",
+     "expected": "Splněno.",
+     "sources": [
+      "https://www.machinebuilding.net/iso-138552024--new-guidelines-for-safer-sensor-positioning-in-industrial-automation",
+      "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen"
+     ]
+    },
+    {
+     "name": "Svařený / nepřitažený výkonový stykač (EDM)",
+     "kind": "porucha",
+     "procedure": "Simulovat, že jeden z redundantních stykačů neodpadne (mechanicky blokovat kotvu nebo přemostit jeho hlavní kontakty; zpětnovazební rozpínací kontakt zůstane rozepnut).",
+     "expected": "Porucha zjištěna přes nuceně vázané / zrcadlové kontakty nejpozději před dalším startem; nový start není možný.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "IEC 61496-1",
+    "IEC 61496-3",
+    "ISO 13855",
+    "ISO 13849-1"
+   ],
+   "sources": [
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://www.keyence.eu/ss/products/safetyknowledge/caution/",
+    "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/6-3-detection-zone-parallel-to-the-direction-of-approach/",
+    "https://www.machinebuilding.net/iso-138552024--new-guidelines-for-safer-sensor-positioning-in-industrial-automation",
+    "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen",
+    "https://www.reersafety.com/en/academy/industrial-safety-guide/determination-of-the-safety-distance/"
+   ]
+  },
+  {
+   "id": "two_hand_control",
+   "name": "Dvouruční ovládání",
+   "category": "ochranné zařízení vázané na polohu (chrání jen osobu, která ho ovládá)",
+   "hazards": [
+    "sevření/střih rukou v nástroji při zavírání (lisy, ohraňování, nýtování, pneumatické přípravky)"
+   ],
+   "applies_to": [
+    "press",
+    "cylinder_pneu",
+    "valve_pneu",
+    "hydraulic"
+   ],
+   "use_situations": [
+    "jedna obsluha na pracovním místě – každá další osoba potřebuje vlastní dvouruční ovládání"
+   ],
+   "trigger": "Uvolnění kteréhokoli ze dvou ovladačů (nebo nesynchronní stisk u typu III).",
+   "reaction": {
+    "description": "Výstupní signál jen při současném držení obou ovladačů; uvolnění jednoho ukončí nebezpečný pohyb; nový cyklus až po uvolnění obou a novém stisku (typ II/III); typ III navíc synchronní stisk ≤ 0,5 s.",
+    "stop_category": [
+     0,
+     1
+    ],
+    "sources": [
+     "https://cdn.standards.iteh.ai/samples/70295/48c735b3148b4aa4943c9f1095f6541a/ISO-13851-2019.pdf",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "types": {
+    "I": {
+     "features": "oba ruce, vztah vstup/výstup, ukončení signálu, ochrana proti náhodnému ovládání a obejití",
+     "min_pl": "PL c (SIL 1)"
+    },
+    "II": {
+     "features": "jako I + opětovné zahájení až po uvolnění obou",
+     "min_pl": "PL d kat. 3 (SIL 2, HFT=1)"
+    },
+    "IIIA": {
+     "features": "jako II + synchronní ovládání ≤ 0,5 s",
+     "min_pl": "PL c (SIL 1)",
+     "inputs": "1 NO kontakt na ovladač (2 vstupy) – SICK"
+    },
+    "IIIB": {
+     "features": "jako IIIA",
+     "min_pl": "PL d kat. 3 (SIL 2, HFT=1)"
+    },
+    "IIIC": {
+     "features": "jako IIIA",
+     "min_pl": "PL e kat. 4 (SIL 3, HFT=1)",
+     "inputs": "NO + NC kontakt na ovladač (4 vstupy) – SICK"
+    },
+    "note": "Přiřazení PL dle tabulky 1 ISO 13851:2019 (výňatek z náhledu normy; text tabulky extrahován z PDF – sloupce ověřit v normě). U typu I pečlivě posoudit, zda lze synchronnost a opětovné zahájení zanedbat.",
+    "sources": [
+     "https://cdn.standards.iteh.ai/samples/70295/48c735b3148b4aa4943c9f1095f6541a/ISO-13851-2019.pdf",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.safe-machines-at-work.org/fileadmin/user_upload/Two-Hand-Controls_08_2020.pdf"
+    ]
+   },
+   "positioning": "ISO 13855:2010: S = 1600·T + 250 mm (C = 0 při zakrytí ovladačů); ISO 13855:2024 (výklad GT Engineering): D_DS = 550 mm, 0 pokud je vyloučeno přiblížení rukou a S ≥ 100 mm. Přenosné stanice: distanční tyč / délka kabelu.",
+   "typical_plr": {
+    "value": "e (typ IIIC) u lisů; jinak podle typu",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "IFA př. 35: dvouruční ovládání typ IIIC, kat. 4, PL e – vhodné např. pro mechanické lisy (EN 692). Rockwell AT071 předpokládá PLr e kat. 4 (v jiném místě dokumentu uvádí PLr d).",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at071_-en-e.pdf",
+     "https://cdn.standards.iteh.ai/samples/70295/48c735b3148b4aa4943c9f1095f6541a/ISO-13851-2019.pdf"
+    ]
+   },
+   "typical_architecture": {
+    "category": "4 (IIIC) / 3 (IIIB, II) / 1 (I, IIIA)",
+    "channels": "každý ovladač NO+NC (antivalentně) do logiky typ IIIC; výstupní stykače s nuceně vázanými kontakty ve zpětné vazbě",
+    "edm": "ano",
+    "components": [
+     "2 ovladače dle IEC 60947-5-1 se zakrytím proti obejití (lokty, jedna ruka)",
+     "logika dvouručního ovládání typ IIIC / bezpečnostní PLC",
+     "stykače / ventily se zpětnou vazbou"
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Synchronnost 0,5 s",
+     "kind": "funkční",
+     "procedure": "Stisknout druhý ovladač později než 0,5 s po prvním.",
+     "expected": "Výstup se nevytvoří (typ III).",
+     "sources": [
+      "https://cdn.standards.iteh.ai/samples/70295/48c735b3148b4aa4943c9f1095f6541a/ISO-13851-2019.pdf",
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Uvolnění jednoho ovladače",
+     "kind": "funkční",
+     "procedure": "Během nebezpečného pohybu uvolnit jeden ovladač.",
+     "expected": "Pohyb se zastaví; pokračování až po uvolnění obou a novém synchronním stisku.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Ovládání jednou rukou / loktem / předmětem",
+     "kind": "manipulace",
+     "procedure": "Zkusit sepnout oba ovladače jednou rukou, loktem nebo zaklíněním jednoho ovladače.",
+     "expected": "Nelze (rozmístění/zakrytí dle ISO 13851); zaklíněný ovladač neumožní nový cyklus.",
+     "sources": [
+      "https://cdn.standards.iteh.ai/samples/70295/48c735b3148b4aa4943c9f1095f6541a/ISO-13851-2019.pdf",
+      "https://www.safe-machines-at-work.org/fileadmin/user_upload/Two-Hand-Controls_08_2020.pdf"
+     ]
+    },
+    {
+     "name": "Bezpečná vzdálenost",
+     "kind": "měření",
+     "procedure": "Změřit dobu od uvolnění ovladače do zastavení a ověřit vzdálenost S.",
+     "expected": "S skutečná ≥ vypočtená.",
+     "sources": [
+      "https://www.safe-machines-at-work.org/fileadmin/user_upload/Two-Hand-Controls_08_2020.pdf",
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Porucha kontaktu ovladače",
+     "kind": "porucha",
+     "procedure": "Simulovat svařený NO nebo nerozepnutý NC jednoho ovladače.",
+     "expected": "Logika poruchu zjistí, další cyklus blokován.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat vodičů k ovladačům",
+     "kind": "porucha",
+     "procedure": "Zkratovat vodiče kanálů ovladače.",
+     "expected": "Detekce v logice (jinak vyloučení dle ISO 13849-2 tab. D.4).",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Svařený / nepřitažený výkonový stykač (EDM)",
+     "kind": "porucha",
+     "procedure": "Simulovat, že jeden z redundantních stykačů neodpadne (mechanicky blokovat kotvu nebo přemostit jeho hlavní kontakty; zpětnovazební rozpínací kontakt zůstane rozepnut).",
+     "expected": "Porucha zjištěna přes nuceně vázané / zrcadlové kontakty nejpozději před dalším startem; nový start není možný.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 13851",
+    "ISO 13855",
+    "ISO 13849-1",
+    "IEC 60947-5-1",
+    "EN 692 / ISO 16092 (lisy)"
+   ],
+   "sources": [
+    "https://cdn.standards.iteh.ai/samples/70295/48c735b3148b4aa4943c9f1095f6541a/ISO-13851-2019.pdf",
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://www.safe-machines-at-work.org/fileadmin/user_upload/Two-Hand-Controls_08_2020.pdf",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at071_-en-e.pdf",
+    "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/8-two-hand-control-devices/"
+   ]
+  },
+  {
+   "id": "prevent_unexpected_startup",
+   "name": "Ochrana proti neočekávanému rozběhu (odpojení a vybití energie, LOTO, blokování startu)",
+   "category": "bezpečnostní funkce / konstrukční opatření",
+   "hazards": [
+    "rozběh při údržbě, čištění, odstraňování poruch",
+    "uvolnění akumulované energie (tlak, pružiny, gravitace)"
+   ],
+   "applies_to": [
+    "motor",
+    "valve_pneu",
+    "cylinder_pneu",
+    "hydraulic",
+    "press",
+    "conveyor",
+    "robot",
+    "heater",
+    "pressure"
+   ],
+   "use_situations": [
+    "delší zásahy: odpojení od všech zdrojů + uzamčení + vybití (LOTO)",
+    "časté krátké zásahy: automatické řídicí funkce (STO s blokováním startu, kryty se zámkem)"
+   ],
+   "trigger": "Zásah osoby v nebezpečném prostoru (otevření krytu, režim údržby, odpojovač v poloze 0).",
+   "reaction": {
+    "description": "Stroj zůstane bezpečně zastaven, dokud je osoba v nebezpečném prostoru; obnovení napájení ani reset nesmí stroj rozběhnout. Postup odpojení a vybití energie: odpojit od všech zdrojů, uzamknout odpojovače v poloze 'odpojeno', vybít nebo zadržet akumulovanou energii.",
+    "stop_category": [
+     0
+    ],
+    "drive_mapping": [
+     "STO",
+     "PUS (VDMA 24584)",
+     "SDE (pneumatika/hydraulika)"
+    ],
+    "sources": [
+     "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/iso-14118/",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "typical_plr": {
+    "value": "podle funkce, kterou chrání (typicky d)",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "IFA uvádí 'zabránění neočekávanému rozběhu' jako samostatnou bezpečnostní funkci (manuální zásah v nebezpečném prostoru); PLr se odvozuje z rizika zásahu. Rockwell: STO chrání proti neočekávanému rozběhu motoru.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "typical_architecture": {
+    "category": "dle PLr",
+    "channels": "STO dvoukanálově; u fluidu redundantní ventily s odvětráním",
+    "edm": "ano",
+    "components": [
+     "uzamykatelný hlavní vypínač (odpojovač) dle IEC 60204-1",
+     "uzamykatelný uzavírací ventil s odvzdušněním (pneumatika) – ISO 4414",
+     "vybíjení / oddělení hydraulického akumulátoru – ISO 4413",
+     "STO měniče",
+     "zablokování/podepření svislých os (viz vertical_axis_holding)"
+    ],
+    "sources": [
+     "https://standards.iteh.ai/catalog/standards/cen/365f07d1-cb0f-4414-9fe9-240ac4c21109/en-iso-4414-2010",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/iso-14118/"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Obnova napájení",
+     "kind": "funkční",
+     "procedure": "Při otevřeném krytu / aktivní funkci vypnout a zapnout napájení (elektrické i pneumatické).",
+     "expected": "Stroj se nerozběhne.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Uzamčení odpojovačů",
+     "kind": "kontrola",
+     "procedure": "Ověřit, že všechny odpojovače (el., vzduch, hydraulika) jdou uzamknout v poloze odpojeno.",
+     "expected": "Splněno.",
+     "sources": [
+      "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/iso-14118/",
+      "https://standards.iteh.ai/catalog/standards/cen/365f07d1-cb0f-4414-9fe9-240ac4c21109/en-iso-4414-2010"
+     ]
+    },
+    {
+     "name": "Nulová energie",
+     "kind": "měření",
+     "procedure": "Po odpojení změřit zbytkový tlak ve válcích/akumulátorech a napětí v DC meziobvodu dle návodu.",
+     "expected": "Bez nebezpečné zbytkové energie, případně je viditelně indikována.",
+     "sources": [
+      "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/iso-14118/"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 14118",
+    "IEC 60204-1",
+    "ISO 4413",
+    "ISO 4414",
+    "ISO 12100",
+    "ISO 13849-1"
+   ],
+   "sources": [
+    "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/iso-14118/",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://standards.iteh.ai/catalog/standards/cen/365f07d1-cb0f-4414-9fe9-240ac4c21109/en-iso-4414-2010"
+   ]
+  },
+  {
+   "id": "safely_limited_speed",
+   "name": "Bezpečně omezená rychlost (SLS) – seřizovací / servisní režim",
+   "category": "bezpečnostní funkce pohonu (IEC 61800-5-2)",
+   "hazards": [
+    "pohyb při seřizování s otevřeným krytem"
+   ],
+   "applies_to": [
+    "motor",
+    "conveyor",
+    "robot",
+    "press"
+   ],
+   "use_situations": [
+    "krokování/seřizování při otevřeném krytu",
+    "robot ruční režim T1 (ISO 10218: TCP ≤ 250 mm/s)"
+   ],
+   "trigger": "Překročení parametrizované mezní rychlosti v režimu se SLS (otevřený kryt, zvolený seřizovací režim).",
+   "reaction": {
+    "description": "Při překročení meze bezpečné zastavení (STO/SS1); pohyb jen při aktivním povolení (tlačítko krokování / povolovací zařízení).",
+    "stop_category": [
+     0,
+     1
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://assets.new.siemens.com/siemens/assets/api/uuid:53893f9b-f3ef-4480-b16b-5f735363d46b/safety-integrated-drives-brochure.pdf"
+    ]
+   },
+   "typical_plr": {
+    "value": "d",
+    "sfp_typical": "S2/F1/P1 by dalo c; s pomalým pohybem lze uvažovat P1 (rychlost < 250 mm/s = faktor A v tab. P-parametru ISO 13849-1:2023)",
+    "reasoning": "IFA př. 21 (SLS s měničem bez integrované bezpečnosti, dva snímače otáček, bezpečnostní PLC) je kat. 3 PL d; Rockwell AT086 PLr kat. 3 PL d; IFA př. 24 (tiskařský stroj) PL d/c.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at086_-en-p.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "typical_architecture": {
+    "category": "3 (PL d)",
+    "channels": "dva nezávislé snímače otáček / bezpečný snímač; dvoukanálové srovnání v bezpečnostním PLC nebo integrovaná SLS v měniči",
+    "edm": "ano – hlavní stykač s rozpínacím kontaktem do obou kanálů",
+    "components": [
+     "měnič s integrovanou SLS (IEC 61800-5-2) nebo bezpečnostní PLC + 2 snímače",
+     "volič režimu",
+     "tlačítko krokování / povolovací zařízení"
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://assets.new.siemens.com/siemens/assets/api/uuid:53893f9b-f3ef-4480-b16b-5f735363d46b/safety-integrated-drives-brochure.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Překročení meze",
+     "kind": "funkční",
+     "procedure": "V režimu SLS zadat žádanou rychlost nad mezí.",
+     "expected": "Pohon zastaví bezpečnou funkcí (nepojede nad mezí).",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Porucha snímače otáček",
+     "kind": "porucha",
+     "procedure": "Odpojit jeden snímač otáček.",
+     "expected": "Nesoulad kanálů → bezpečné zastavení.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Porucha měniče (rozběh/zvýšení otáček)",
+     "kind": "porucha",
+     "procedure": "Simulovat chybnou žádanou hodnotu z běžného řízení.",
+     "expected": "Zjištěno nezávislým měřením, zastavení.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Hlavní stykač neodpadne",
+     "kind": "porucha",
+     "procedure": "Simulovat nepřitažený rozpínací kontakt Q1.",
+     "expected": "Start a povolení měniče blokovány.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "IEC 61800-5-2",
+    "ISO 13849-1",
+    "IEC 60204-1",
+    "ISO 12100",
+    "ISO 10218-1/-2 (roboty)"
+   ],
+   "sources": [
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at086_-en-p.pdf",
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://assets.new.siemens.com/siemens/assets/api/uuid:53893f9b-f3ef-4480-b16b-5f735363d46b/safety-integrated-drives-brochure.pdf",
+    "https://blog.ansi.org/ansi/iso-10218-1-2025-robots-and-robotic-devices-safety/"
+   ]
+  },
+  {
+   "id": "operating_mode_selection",
+   "name": "Volba provozního režimu (volič s uzamčením)",
+   "category": "bezpečnostní funkce – aktivace bezpečnostních funkcí podle režimu",
+   "hazards": [
+    "provoz v nesprávném režimu bez potřebných ochranných funkcí"
+   ],
+   "applies_to": [
+    "motor",
+    "press",
+    "robot",
+    "conveyor",
+    "hydraulic",
+    "cylinder_pneu"
+   ],
+   "use_situations": [
+    "stroj s více režimy vyžadujícími různá ochranná opatření (automat, seřizování, údržba)"
+   ],
+   "trigger": "Změna polohy voliče režimů.",
+   "reaction": {
+    "description": "Aktivují se bezpečnostní funkce zvoleného režimu; zvolený režim má přednost před všemi ostatními kromě nouzového zastavení; změna režimu nesmí sama spustit pohyb.",
+    "stop_category": null,
+    "legal": "Nařízení (EU) 2023/1230, příl. III bod 1.2.5: stroj s více režimy s rozdílnými ochrannými opatřeními musí mít volič režimů uzamykatelný v každé poloze; každá poloha jednoznačně identifikovatelná a odpovídá jedinému režimu (stejně jako 2006/42/ES). Nařízení se použije od 20. 1. 2027.",
+    "sources": [
+     "https://eur-lex.europa.eu/eli/reg/2023/1230/oj/eng",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://blog.ansi.org/ansi/iso-10218-1-2025-robots-and-robotic-devices-safety/"
+    ]
+   },
+   "typical_plr": {
+    "value": "nejvyšší PLr ze všech funkcí, které režim aktivuje (pokud C-norma neříká jinak)",
+    "sfp_typical": "neaplikuje se",
+    "reasoning": "IFA: selhání volby režimu může způsobit, že potřebné funkce nebudou aktivní – proto je logické převzít nejvyšší PLr všech bezpečnostních funkcí stroje.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "typical_architecture": {
+    "category": "dle převzatého PLr",
+    "channels": "vačkový přepínač s kontakty s přímým rozpínáním čtený dvoukanálově, nebo klíč (RFID) + HMI s potvrzením v bezpečnostním PLC",
+    "edm": "n/a",
+    "components": [
+     "uzamykatelný volič / klíčový přepínač",
+     "bezpečnostní PLC",
+     "IFA 1/2025 příl. J: volba na HMI s klíčem – bezpečnostní PLC ověří oprávnění, vrátí režim na HMI k potvrzení a porovná potvrzený s vybraným"
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Každá poloha = jeden režim",
+     "kind": "funkční",
+     "procedure": "Projít všechny polohy a ověřit aktivní bezpečnostní funkce.",
+     "expected": "Odpovídá specifikaci; změna režimu nespustí pohyb.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Mezipoloha / dvě polohy zároveň",
+     "kind": "porucha",
+     "procedure": "Simulovat stav, kdy volič hlásí dvě nebo žádnou polohu.",
+     "expected": "Bezpečný stav (nejpřísnější režim / zastavení) a porucha.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Uzamčení",
+     "kind": "kontrola",
+     "procedure": "Ověřit uzamykatelnost v každé poloze.",
+     "expected": "Splněno.",
+     "sources": [
+      "https://eur-lex.europa.eu/eli/reg/2023/1230/oj/eng"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "Nařízení (EU) 2023/1230 příl. III 1.2.5",
+    "ISO 12100",
+    "ISO 13849-1",
+    "IEC 60204-1"
+   ],
+   "sources": [
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+    "https://eur-lex.europa.eu/eli/reg/2023/1230/oj/eng"
+   ]
+  },
+  {
+   "id": "enabling_device",
+   "name": "Povolovací zařízení (3polohové) pro práci v nebezpečném prostoru",
+   "category": "ovládací zařízení vyžadující trvalé působení",
+   "hazards": [
+    "pohyb při seřizování/programování uvnitř prostoru s potlačenými ochrannými zařízeními"
+   ],
+   "applies_to": [
+    "robot",
+    "motor",
+    "press",
+    "conveyor"
+   ],
+   "use_situations": [
+    "seřizování, údržba, sledování procesu zblízka – vždy spolu s dalšími opatřeními (snížená rychlost/síla)"
+   ],
+   "trigger": "Uvolnění (poloha 1) nebo promáčknutí (poloha 3) povolovacího tlačítka.",
+   "reaction": {
+    "description": "Poloha 1 nestisknuto = vypnuto, poloha 2 střední = povolení, poloha 3 promáčknuto = vypnuto (u SICK: nouzové zastavení). Při návratu z polohy 3 do 2 se povolení NEsmí obnovit. Povolovací zařízení samo pohyb nespouští – pohyb jen se samostatným povelem a po dobu držení.",
+    "stop_category": [
+     0,
+     1
+    ],
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "typical_plr": {
+    "value": "d",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "Ve volných zdrojích nenalezen konkrétní PLr pro povolovací funkci; obvykle stejný jako funkce, kterou nahrazuje (ochranné zařízení). Ověřit.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "typical_architecture": {
+    "category": "3",
+    "channels": "2 kontakty polohy 2 dvoukanálově; kontakty polohy 3 doporučeno zapojit do okruhu nouzového zastavení (SICK)",
+    "edm": "ano",
+    "components": [
+     "3polohové povolovací tlačítko dle IEC 60947-5-8",
+     "bezpečnostní PLC/modul",
+     "SLS"
+    ],
+    "sources": [
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Tři polohy",
+     "kind": "funkční",
+     "procedure": "Ověřit polohy 1–2–3.",
+     "expected": "Pohyb jen v poloze 2.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Návrat z polohy 3 do 2",
+     "kind": "funkční",
+     "procedure": "Promáčknout do 3 a povolit do 2.",
+     "expected": "Povolení se neobnoví (nutné uvolnit do 1).",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Zaklínění v poloze 2",
+     "kind": "manipulace",
+     "procedure": "Zkusit povolovací tlačítko zafixovat.",
+     "expected": "Konstrukční ochrana proti manipulaci; případně časové omezení.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Rozpojení vodiče kanálu 1 (povolovacího tlačítka)",
+     "kind": "porucha",
+     "procedure": "Za chodu odpojit vodič kanálu 1 povolovacího tlačítka na vstupu bezpečnostního modulu / PLC.",
+     "expected": "Okamžité vypnutí bezpečných výstupů (STO / odpadnutí stykačů). Po připojení vodiče stroj nesmí jít resetovat bez cyklu ovladače (diskrepance).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Totéž pro kanál 2",
+     "kind": "porucha",
+     "procedure": "Opakovat s druhým kanálem.",
+     "expected": "Stejná reakce jako u kanálu 1.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Přemostění kanálu (vstup trvale sepnut)",
+     "kind": "porucha",
+     "procedure": "Za chodu přemostit kontakt jednoho kanálu povolovacího tlačítka (např. S11–S12), pak povolovacího tlačítka aktivovat.",
+     "expected": "Funkce vypne druhým kanálem; po uvolnění nelze resetovat, dokud není přemostění odstraněno (diskrepance kanálů detekována).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat vstupu na +24 V",
+     "kind": "porucha",
+     "procedure": "Krátce zkratovat vstup kanálu na +24 V DC.",
+     "expected": "Okamžité vypnutí a zablokování v poruše; reset tlačítkem nejde, nutné odstranit poruchu (u Rockwell GSR i cyklus napájení).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat vstupu na 0 V",
+     "kind": "porucha",
+     "procedure": "Krátce zkratovat vstup kanálu na 0 V.",
+     "expected": "Okamžité vypnutí, porucha zablokována do odstranění.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Příčný zkrat mezi kanály",
+     "kind": "porucha",
+     "procedure": "Krátce propojit vstupy kanálu 1 a 2 (např. S12–S22).",
+     "expected": "Detekce příčného zkratu (pulzní testování), vypnutí a zablokování.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf",
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "IEC 60204-1 (10.9)",
+    "IEC 60947-5-8",
+    "ISO 13849-1",
+    "ISO 10218-1/-2"
+   ],
+   "sources": [
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://blog.ansi.org/ansi/iso-10218-1-2025-robots-and-robotic-devices-safety/"
+   ]
+  },
+  {
+   "id": "pneumatic_safe_exhaust",
+   "name": "Bezpečné odvzdušnění pneumatiky (SDE) a blokování pneumatických pohybů (SSC)",
+   "category": "bezpečnostní funkce fluidní techniky (VDMA 24584)",
+   "hazards": [
+    "pohyb pneumatického válce, sevření, vymrštění; zbytkový tlak"
+   ],
+   "applies_to": [
+    "valve_pneu",
+    "cylinder_pneu",
+    "press"
+   ],
+   "use_situations": [
+    "po nouzovém zastavení / otevření krytu odvzdušnit pohony (SDE)",
+    "kde by odvzdušnění způsobilo pohyb (svislé válce, upínače) – zastavit a uzavřít komory (SSC) nebo brzda pístnice"
+   ],
+   "trigger": "Požadavek bezpečnostní funkce (E-stop, otevření krytu).",
+   "reaction": {
+    "description": "SDE: bezpečné odvzdušnění (u hydrauliky odlehčení tlaku); SSC: pohon zastaven, uzavřen přívod/odvod alespoň jedné komory; STO (fluid): pohonu není dodávána energie, energie v komorách je odvedena. Pokud uvězněný vzduch představuje další nebezpečí, jsou nutná další opatření.",
+    "stop_category": [
+     0,
+     1
+    ],
+    "sources": [
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "typical_plr": {
+    "value": "d (e pro lisy / vysoké riziko)",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "Rockwell AT128: odpojení pneumatického bezpečnostního ventilu přes E-stop, PLr kat. 3 PL d. IFA: pneumatické podsystémy kat. 1 PL c (př. 2), kat. 2 PL d (př. 11), kat. 3 PL d (př. 14, ventil + brzda pístnice), kat. 3 PL e (př. 25), kat. 4 PL e (př. 31). Festo MS6-SV-E: odvzdušnění kat. 4 PL e (údaj výrobce).",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at128_-en-p.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://docs.rs-online.com/34ef/A700000007850995.pdf"
+    ]
+   },
+   "typical_architecture": {
+    "category": "3 nebo 4",
+    "channels": "dva nezávislé ventily (např. směrový ventil s uzavřenou střední polohou + uzavírací ventily na válci řízené pilotním ventilem), nebo redundantní odvzdušňovací ventil s vlastní diagnostikou",
+    "edm": "ano – tlakový spínač nebo snímače polohy šoupátek; ventily spínány cyklicky v procesu",
+    "components": [
+     "bezpečnostní odvzdušňovací ventil (redundantní, s monitorováním)",
+     "směrový ventil s uzavřenou střední polohou a pružinovým centrováním",
+     "tlakový spínač",
+     "brzda/upínač pístnice (svislé osy)",
+     "uzamykatelný uzavírací ventil s odvzdušněním (ISO 4414)"
+    ],
+    "notes": [
+     "Bezpečná poloha ventilu musí nastat odebráním řídicího signálu z jakékoli polohy (IFA).",
+     "Ventily bez sledování polohy kontrolovat pravidelně (IFA př. 25).",
+     "Omezení tlaku (pojistné / redukční ventily se sekundárním odvzdušněním) je základní bezpečnostní princip (IFA 1/2025 příl. C)."
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at128_-en-p.pdf",
+     "https://docs.rs-online.com/34ef/A700000007850995.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Odvzdušnění po požadavku",
+     "kind": "funkční",
+     "procedure": "Aktivovat funkci a změřit pokles tlaku za ventilem.",
+     "expected": "Tlak klesne na bezpečnou hodnotu ve stanoveném čase; pohon se nepohne nebezpečně.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at128_-en-p.pdf",
+      "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+     ]
+    },
+    {
+     "name": "Porucha jednoho ventilu",
+     "kind": "porucha",
+     "procedure": "Simulovat zaseknutí jednoho ventilu (např. trvale buzený / mechanicky blokovaný).",
+     "expected": "Funkce zachována druhým ventilem; porucha zjištěna (tlakový spínač / poloha) a další cyklus blokován.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Zbytková energie",
+     "kind": "kontrola",
+     "procedure": "Ověřit, že uvězněný vzduch nezpůsobí pohyb a že lze bezpečně vypustit.",
+     "expected": "Splněno, jinak doplnit opatření.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Ztráta a obnova přívodu vzduchu",
+     "kind": "funkční",
+     "procedure": "Vypnout a zapnout přívod vzduchu.",
+     "expected": "Obnova nezpůsobí nebezpečný pohyb (soft-start).",
+     "sources": [
+      "https://standards.iteh.ai/catalog/standards/cen/365f07d1-cb0f-4414-9fe9-240ac4c21109/en-iso-4414-2010"
+     ]
+    },
+    {
+     "name": "Rozpojení vodiče kanálu 1 (vstupu iniciující funkci)",
+     "kind": "porucha",
+     "procedure": "Za chodu odpojit vodič kanálu 1 vstupu iniciující funkci na vstupu bezpečnostního modulu / PLC.",
+     "expected": "Okamžité vypnutí bezpečných výstupů (STO / odpadnutí stykačů). Po připojení vodiče stroj nesmí jít resetovat bez cyklu ovladače (diskrepance).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Totéž pro kanál 2",
+     "kind": "porucha",
+     "procedure": "Opakovat s druhým kanálem.",
+     "expected": "Stejná reakce jako u kanálu 1.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Přemostění kanálu (vstup trvale sepnut)",
+     "kind": "porucha",
+     "procedure": "Za chodu přemostit kontakt jednoho kanálu vstupu iniciující funkci (např. S11–S12), pak vstupu iniciující funkci aktivovat.",
+     "expected": "Funkce vypne druhým kanálem; po uvolnění nelze resetovat, dokud není přemostění odstraněno (diskrepance kanálů detekována).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat vstupu na +24 V",
+     "kind": "porucha",
+     "procedure": "Krátce zkratovat vstup kanálu na +24 V DC.",
+     "expected": "Okamžité vypnutí a zablokování v poruše; reset tlačítkem nejde, nutné odstranit poruchu (u Rockwell GSR i cyklus napájení).",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Zkrat vstupu na 0 V",
+     "kind": "porucha",
+     "procedure": "Krátce zkratovat vstup kanálu na 0 V.",
+     "expected": "Okamžité vypnutí, porucha zablokována do odstranění.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Příčný zkrat mezi kanály",
+     "kind": "porucha",
+     "procedure": "Krátce propojit vstupy kanálu 1 a 2 (např. S12–S22).",
+     "expected": "Detekce příčného zkratu (pulzní testování), vypnutí a zablokování.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf",
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 4414",
+    "ISO 13849-1",
+    "ISO 13849-2",
+    "ISO 14118",
+    "VDMA 24584"
+   ],
+   "sources": [
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at128_-en-p.pdf",
+    "https://docs.rs-online.com/34ef/A700000007850995.pdf",
+    "https://standards.iteh.ai/catalog/standards/cen/365f07d1-cb0f-4414-9fe9-240ac4c21109/en-iso-4414-2010"
+   ]
+  },
+  {
+   "id": "hydraulic_safe_stop",
+   "name": "Bezpečné zastavení / odpojení hydrauliky (redundantní ventily se sledováním polohy)",
+   "category": "bezpečnostní funkce fluidní techniky",
+   "hazards": [
+    "nebezpečný pohyb hydraulického válce/lisu, pád břemene, tlaková energie v akumulátoru"
+   ],
+   "applies_to": [
+    "hydraulic",
+    "press"
+   ],
+   "use_situations": [
+    "hydraulické lisy, upínače, zdvihy"
+   ],
+   "trigger": "Požadavek bezpečnostní funkce (ochranné zařízení, E-stop).",
+   "reaction": {
+    "description": "Zastavení nebezpečného pohybu a zabránění rozběhu z klidu dvěma nezávislými ventily; při zjištěné poruše ventilu blokovat další nebezpečný pohyb; případně odlehčení tlaku (SDE) a oddělení/vybití akumulátoru.",
+    "stop_category": [
+     0,
+     1
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "typical_plr": {
+    "value": "d až e (lisy e)",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "IFA: kat. 1 PL c (př. 3), kat. 2 PL d (př. 12), kat. 3 PL e (př. 27 – jen jeden ventil se sledováním polohy, ostatní odhaleny procesem), kat. 4 PL e (př. 32 – oba ventily se sledováním polohy), elektrohydraulický lis kat. 4 PL e (př. 33).",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "typical_architecture": {
+    "category": "3 nebo 4",
+    "channels": "dva směrové ventily s uzavřenou střední polohou, dostatečným překrytím a pružinovým centrováním; kat. 4: oba s elektrickým sledováním polohy (1S3, 1S4)",
+    "edm": "ano – snímače polohy šoupátek; vyhodnocení musí zvládat poruchy",
+    "components": [
+     "redundantní směrové / logické ventily se snímáním polohy",
+     "pojistný ventil (omezení tlaku)",
+     "filtrace",
+     "zabezpečovací blok akumulátoru (oddělení a vybití)"
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Zastavení na požadavek",
+     "kind": "funkční",
+     "procedure": "Aktivovat funkci během pohybu.",
+     "expected": "Pohyb zastaví; doběh odpovídá výpočtu vzdálenosti.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Ventil nepřepne (simulace sledování polohy)",
+     "kind": "porucha",
+     "procedure": "Simulovat, že snímač polohy ventilu hlásí 'nevypnuto'.",
+     "expected": "Další nebezpečný pohyb je zablokován.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Ventil necyklovaný v procesu",
+     "kind": "kontrola",
+     "procedure": "U ventilu spínaného jen na požadavek ověřit testování alespoň 1× za směnu (předpoklad IFA př. 27).",
+     "expected": "Splněno.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Akumulátor po vypnutí",
+     "kind": "měření",
+     "procedure": "Po vypnutí ověřit tlak v okruhu / akumulátoru.",
+     "expected": "Akumulátor oddělen a okruh bez nebezpečného tlaku.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 4413",
+    "ISO 13849-1",
+    "ISO 13849-2",
+    "ISO 16092-3 (hydraulické lisy)",
+    "VDMA 24584"
+   ],
+   "sources": [
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+   ]
+  },
+  {
+   "id": "drive_safe_stop",
+   "name": "Bezpečné zastavení pohonu – STO, SS1, SS2, SOS, SBC (IEC 61800-5-2)",
+   "category": "bezpečnostní (dílčí) funkce pohonů",
+   "hazards": [
+    "nebezpečný pohyb motoru/osy"
+   ],
+   "applies_to": [
+    "motor",
+    "conveyor",
+    "robot",
+    "press"
+   ],
+   "use_situations": [
+    "reakce na E-stop, ochranné zařízení, kryt",
+    "náhrada stykačů za STO měniče"
+   ],
+   "trigger": "Bezpečnostní požadavek z nadřazené funkce.",
+   "reaction": {
+    "description": "Viz definice.",
+    "stop_category": [
+     0,
+     1,
+     2
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "definitions": {
+    "STO": "Motor nedostává energii schopnou vytvořit točivý moment; stop kategorie 0.",
+    "SS1-r / SS1-t": "Motor brzdí; SS1-r hlídá brzdnou rampu a po zastavení STO; SS1-t STO po uplynutí času; stop kategorie 1.",
+    "SS2-r / SS2-t": "Motor brzdí; po zastavení (r) nebo po čase (t) SOS; stop kategorie 2.",
+    "SOS": "Motor stojí a odolává vnějším silám (s momentem, poloha hlídána).",
+    "SLS": "Brání překročení meze rychlosti.",
+    "SBC": "Bezpečné ovládání externí brzdy.",
+    "SBT": "Bezpečný test brzdy (Siemens; až 2 brzdy na osu cyklicky) – není v tabulce IEC 61800-5-2 dle IFA.",
+    "SDI / SLP / SLT / SLA / SLI / SSM / SMT": "bezpečný směr / omezená poloha / omezený moment / omezené zrychlení / omezený krok / hlídání rychlosti (signál) / teplota motoru",
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+     "https://assets.new.siemens.com/siemens/assets/api/uuid:53893f9b-f3ef-4480-b16b-5f735363d46b/safety-integrated-drives-brochure.pdf",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+    ]
+   },
+   "typical_plr": {
+    "value": "d",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "IFA př. 20: bezpečné zastavení pohonu řízeného PLC (SS1-t, dva vypínací kanály – PLC a relé se zpožděným odpadem), kat. 3 PL d. Rockwell AT203: E-stop kat. 1 přes SS1 + SBC, kat. 3 PL d (ISO 13849-1:2023).",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf"
+    ]
+   },
+   "typical_architecture": {
+    "category": "3",
+    "channels": "STO dvoukanálově (STO1/STO2); u SS1-t druhý kanál se zpožděním, které zastaví pohyb i v nepříznivých podmínkách",
+    "edm": "diagnostika STO v měniči / zpětná vazba",
+    "components": [
+     "měnič s certifikovanou STO (případně SS1/SLS)",
+     "bezpečnostní modul s časovým zpožděním / bezpečnostní PLC",
+     "brzda + SBC u svislých os"
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "STO – odpojení momentu",
+     "kind": "funkční",
+     "procedure": "Aktivovat STO za chodu.",
+     "expected": "Motor bez momentu (volný doběh); rozběh blokován.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "SS1 – brzdná rampa / zpoždění",
+     "kind": "měření",
+     "procedure": "Změřit čas a průběh brzdění do STO.",
+     "expected": "Zastavení do nastaveného času; druhý kanál vypne nejpozději po zpoždění.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Ztráta jednoho kanálu STO",
+     "kind": "porucha",
+     "procedure": "Odpojit jeden kanál STO.",
+     "expected": "Měnič zjistí nesoulad, zůstane v bezpečném stavu, hlásí poruchu.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Delší doběh při poruše prvního kanálu",
+     "kind": "porucha",
+     "procedure": "Simulovat selhání 1. vypínací cesty.",
+     "expected": "Zastavení druhou cestou; doběh zohledněn v bezpečné vzdálenosti.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "IEC 61800-5-2",
+    "IEC 60204-1",
+    "ISO 13849-1",
+    "IEC 62061"
+   ],
+   "sources": [
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+    "https://assets.new.siemens.com/siemens/assets/api/uuid:53893f9b-f3ef-4480-b16b-5f735363d46b/safety-integrated-drives-brochure.pdf",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf",
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+   ]
+  },
+  {
+   "id": "stopping_performance_monitoring",
+   "name": "Hlídání zastavení a doby doběhu (klid, měření doběhu, monitor brzdného výkonu)",
+   "category": "doplněk ochranných zařízení",
+   "hazards": [
+    "prodloužení doby doběhu opotřebením brzdy → bezpečná vzdálenost už nestačí",
+    "otevření krytu před zastavením"
+   ],
+   "applies_to": [
+    "motor",
+    "press",
+    "robot",
+    "conveyor",
+    "hydraulic"
+   ],
+   "use_situations": [
+    "cyklické ručně zakládané stroje s ESPE jako spouštěcím prvkem",
+    "uvolnění zámku krytu při klidu"
+   ],
+   "trigger": "Překročení povolené doby/dráhy doběhu, nebo dotaz na klid pro uvolnění zámku.",
+   "reaction": {
+    "description": "Při prodloužení doběhu nad mez zablokovat další cyklus; klid potvrzený hlídačem klidu povolí odjištění krytu.",
+    "stop_category": null,
+    "sources": [
+     "https://www.hse.gov.uk/pubns/priced/hsg180.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "rules": [
+    {
+     "text": "HSE: monitor brzdného výkonu (SPM) je nezbytný všude, kde se prostředky zastavení přirozeně zhoršují; u ostatních strojů doporučen, pokud nelze prokázat, že se celková doba zastavení mezi prohlídkami nezhorší o více než 10 %.",
+     "sources": [
+      "https://www.hse.gov.uk/pubns/priced/hsg180.pdf"
+     ]
+    },
+    {
+     "text": "Doba doběhu T vstupuje do bezpečné vzdálenosti (ISO 13855); k měření je potřeba specifické vybavení (SICK nabízí jako službu).",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "text": "Statický test brzdy neprokazuje dynamické brzdné vlastnosti – i po úspěšném statickém testu může být doběh při nouzovém zastavení mírně delší (DGUV FBHM-005).",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4334"
+     ]
+    }
+   ],
+   "typical_plr": {
+    "value": "podle funkce, kterou doplňuje",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "IFA př. 19: hlídač klidu (sin/cos snímač + monitor klidu) splňuje kat. 4 / PL e pro uvolnění zámku.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "typical_architecture": {
+    "category": "3–4",
+    "channels": "dvoukanálové snímání (enkodér + monitor klidu, nebo odečet indukovaného napětí)",
+    "edm": "n/a",
+    "components": [
+     "hlídač klidu / bezpečné snímání otáček",
+     "monitor brzdného výkonu",
+     "měřič doběhu (pro validaci)"
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://www.hse.gov.uk/pubns/priced/hsg180.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Měření doběhu",
+     "kind": "měření",
+     "procedure": "Změřit celkovou dobu zastavení při nejhorších podmínkách (max. rychlost, zatížení) několikrát.",
+     "expected": "Nejdelší naměřený čas použit ve výpočtu S.",
+     "sources": [
+      "https://www.hse.gov.uk/pubns/priced/hsg180.pdf",
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Monitor brzdného výkonu",
+     "kind": "funkční",
+     "procedure": "Simulovat prodloužený doběh (např. nastavení meze).",
+     "expected": "Další cyklus zablokován.",
+     "sources": [
+      "https://www.hse.gov.uk/pubns/priced/hsg180.pdf"
+     ]
+    },
+    {
+     "name": "Hlídač klidu – ztráta signálu",
+     "kind": "porucha",
+     "procedure": "Odpojit snímač.",
+     "expected": "Neuvolní zámek; hlásí poruchu.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 13855",
+    "ISO 13849-1",
+    "IEC 61800-5-2",
+    "ISO 14119"
+   ],
+   "sources": [
+    "https://www.hse.gov.uk/pubns/priced/hsg180.pdf",
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/4334"
+   ]
+  },
+  {
+   "id": "muting",
+   "name": "Muting (dočasné automatické přemostění ochranného zařízení) a override",
+   "category": "bezpečnostní funkce dle ISO 13849-1 / IEC 62046",
+   "hazards": [
+    "vstup osoby při průchodu materiálu ochranným polem (paletizace, dopravníky)"
+   ],
+   "applies_to": [
+    "conveyor",
+    "robot"
+   ],
+   "use_situations": [
+    "průchod palet/materiálu přes světelnou mříž bez zastavení"
+   ],
+   "trigger": "Platná sekvence mutingových senzorů (materiál, ne osoba) v časovém okně.",
+   "reaction": {
+    "description": "Ochranné zařízení dočasně přemostěno jen po dobu průchodu materiálu; během mutingu musí materiál bránit přístupu nebo jiná opatření; při chybné sekvenci/čase se muting nespustí a ochranné zařízení zastaví stroj. Override = ruční vyvolání přemostění po poruše (vyvezení palety), jen po vizuální kontrole prostoru a bez osob v nebezpečném prostoru.",
+    "stop_category": [
+     0,
+     1
+    ],
+    "sources": [
+     "https://www.sick.com/media/docs/9/99/499/whitepaper_protecting_automated_loading_and_unloading_points_en_im0072499.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "parameters": {
+    "sensors": "2 senzory (křížově) nebo 4 senzory (paralelně, obousměrně); detekovat náklad, ne osobu ani paletu bez nákladu",
+    "time_limit": "IEC/TS 62046 doporučuje max. 4 s mezi aktivací senzorů S1 a S2 (resp. S3 a S4) – SICK",
+    "plc_timers": "IFA př. 22: T1 = max. doba mezi F1 a F2 (zahájení), T2 = od uvolnění F2 – musí odpovídat rychlosti dopravy",
+    "indicator": "Mutingová lampa nebo stavový signál; některé C-normy lampu předepisují (SICK); IFA: dvě dobře viditelné lampy u přístupu",
+    "not_allowed_when": "výstupy ochranného zařízení VYPNUTO, zařízení zablokováno, nebo už je aktivní některý mutingový senzor (SICK s odkazem na IEC 60204-1 9.2.4)",
+    "sources": [
+     "https://www.sick.com/media/docs/9/99/499/whitepaper_protecting_automated_loading_and_unloading_points_en_im0072499.pdf",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "typical_plr": {
+    "value": "d",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "IFA př. 22 / IFA 1/2025 př. 17: muting ochranného zařízení, kat. 3, PL d. Muting nesmí snížit PL přemosťované funkce.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "typical_architecture": {
+    "category": "3",
+    "channels": "4 mutingové senzory sledované PLC (sekvence + časy); povolovací relé K2/K3 s nuceně vázanými kontakty; muting realizován jen ve výstupním obvodu",
+    "edm": "ano – rozpínací kontakty K2/K3 do PLC; porucha zjištěna nejpozději před dalším startem",
+    "components": [
+     "trojpaprsková mříž typ 4 s blokováním startu/restartu",
+     "4 mutingové senzory",
+     "mutingové lampy",
+     "klíčový spínač pro (opětovný) start, tlačítko krokování pro vyvezení palety"
+    ],
+    "notes": [
+     "Ovládací prvky mimo nebezpečný prostor s výhledem na něj (IFA)."
+    ],
+    "sources": [
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Platný průchod materiálu",
+     "kind": "funkční",
+     "procedure": "Projet paletou s nákladem.",
+     "expected": "Muting aktivní jen po dobu průchodu, lampa svítí.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Osoba místo materiálu",
+     "kind": "funkční",
+     "procedure": "Projít mříží bez aktivace mutingových senzorů / aktivovat jen jeden senzor.",
+     "expected": "Stroj zastaví.",
+     "sources": [
+      "https://www.sick.com/media/docs/9/99/499/whitepaper_protecting_automated_loading_and_unloading_points_en_im0072499.pdf"
+     ]
+    },
+    {
+     "name": "Překročení času",
+     "kind": "porucha",
+     "procedure": "Aktivovat S2 později než nastavený limit (≤ 4 s).",
+     "expected": "Muting se nespustí, zastavení.",
+     "sources": [
+      "https://www.sick.com/media/docs/9/99/499/whitepaper_protecting_automated_loading_and_unloading_points_en_im0072499.pdf"
+     ]
+    },
+    {
+     "name": "Chybná sekvence / zaseknutý senzor",
+     "kind": "porucha",
+     "procedure": "Trvale aktivovat jeden mutingový senzor.",
+     "expected": "Muting nelze zahájit; porucha zjištěna PLC.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://www.sick.com/media/docs/9/99/499/whitepaper_protecting_automated_loading_and_unloading_points_en_im0072499.pdf"
+     ]
+    },
+    {
+     "name": "Override",
+     "kind": "funkční",
+     "procedure": "Ověřit, že override vyžaduje úmyslnou akci (klíč/držení), je časově omezen a jen v bezpečném stavu.",
+     "expected": "Splněno.",
+     "sources": [
+      "https://www.sick.com/media/docs/9/99/499/whitepaper_protecting_automated_loading_and_unloading_points_en_im0072499.pdf",
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Výpadek a obnova napájení",
+     "kind": "funkční",
+     "procedure": "Vypnout/zapnout napájení při přerušené mříži.",
+     "expected": "Bez samovolného rozběhu; restart jen startovacím tlačítkem.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "name": "Svařený / nepřitažený výkonový stykač (EDM)",
+     "kind": "porucha",
+     "procedure": "Simulovat, že jeden z redundantních stykačů neodpadne (mechanicky blokovat kotvu nebo přemostit jeho hlavní kontakty; zpětnovazební rozpínací kontakt zůstane rozepnut).",
+     "expected": "Porucha zjištěna přes nuceně vázané / zrcadlové kontakty nejpozději před dalším startem; nový start není možný.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "IEC 62046 (dříve IEC/TS 62046:2008)",
+    "ISO 13849-1",
+    "IEC 61496-1",
+    "IEC 60204-1",
+    "ISO 13855"
+   ],
+   "sources": [
+    "https://www.sick.com/media/docs/9/99/499/whitepaper_protecting_automated_loading_and_unloading_points_en_im0072499.pdf",
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+    "https://cdn.standards.iteh.ai/samples/20537/2ef12b276a9c45c1b70d3caab93b1e71/IEC-62046-2018.pdf"
+   ]
+  },
+  {
+   "id": "manual_reset",
+   "name": "Ruční reset (potvrzení) po zásahu ochranného zařízení",
+   "category": "bezpečnostní funkce dle ISO 13849-1 (5.2.2 v ed. 2015)",
+   "hazards": [
+    "rozběh stroje, když je osoba v prostoru, za který lze vstoupit (např. za světelnou mříž)"
+   ],
+   "applies_to": [
+    "motor",
+    "valve_pneu",
+    "cylinder_pneu",
+    "hydraulic",
+    "press",
+    "conveyor",
+    "robot"
+   ],
+   "use_situations": [
+    "po každém zastavení ochranným zařízením, kde lze zůstat v nebezpečném prostoru nezjištěn"
+   ],
+   "trigger": "Úmyslné ovládání samostatného resetovacího ovladače.",
+   "reaction": {
+    "description": "Reset jen samostatným ručně ovládaným zařízením; sám nesmí spustit pohyb ani nebezpečnou situaci – jen umožní přijmout samostatný START; jen když jsou všechny bezpečnostní funkce a ochranná zařízení funkční; signál se přijme až při uvolnění ovladače z polohy ZAP (sestupná hrana). Ovladač mimo nebezpečný prostor na bezpečném místě s dobrým výhledem.",
+    "stop_category": null,
+    "sources": [
+     "https://machinerysafety101.com/2021/05/19/understanding-safety-functions-manual-reset/",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "implementation": {
+    "edge": "IFA 1/2025 př. 30: monitorovaná změna signálu = stisk a uvolnění (náběžná, pak sestupná hrana) v okně min. 0,2 s až max. 3 s",
+    "wiring": "Signál resetu je součástí bezpečnostní funkce – přímo na bezpečnostní logiku nebo bezpečnou sběrnicí (SICK); dotykové panely nevhodné (SICK).",
+    "limited_view": "Pokud není vidět celý prostor: dvě resetovací tlačítka s časovou logikou (machinerysafety101).",
+    "sources": [
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+     "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+     "https://machinerysafety101.com/2021/05/19/understanding-safety-functions-manual-reset/"
+    ]
+   },
+   "typical_plr": {
+    "value": "nesmí snížit PL související funkce (příklad IFA: PL d)",
+    "sfp_typical": "neaplikuje se",
+    "reasoning": "ISO 13849-1: PL části realizující reset se volí tak, aby nesnížila bezpečnost související funkce. IFA 1/2025 př. 30: ruční reset u robotové buňky, kat. 2, PL d.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://machinerysafety101.com/2021/05/19/understanding-safety-functions-manual-reset/",
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "typical_architecture": {
+    "category": "2 (příklad IFA)",
+    "channels": "1 spínací kontakt + testovací kanál v bezpečnostním PLC (hlídání hran a času)",
+    "edm": "n/a",
+    "components": [
+     "tlačítko dle IEC 60947-5-1",
+     "bezpečnostní PLC"
+    ],
+    "sources": [
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Držené / zaseknuté tlačítko",
+     "kind": "porucha",
+     "procedure": "Držet reset trvale (nebo přemostit) a uvolnit ochranné zařízení.",
+     "expected": "Reset se nepřijme (vyžaduje hranu uvolnění v časovém okně).",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Příliš krátký / dlouhý stisk",
+     "kind": "funkční",
+     "procedure": "Stisk < 0,2 s a > 3 s.",
+     "expected": "Neplatné (dle parametrů příkladu IFA).",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+     ]
+    },
+    {
+     "name": "Reset nespustí pohyb",
+     "kind": "funkční",
+     "procedure": "Provést reset.",
+     "expected": "Žádný pohyb do samostatného START.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    },
+    {
+     "name": "Reset s aktivním ochranným zařízením",
+     "kind": "funkční",
+     "procedure": "Reset při přerušené závoře/otevřeném krytu.",
+     "expected": "Nepřijat.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Umístění a výhled",
+     "kind": "kontrola",
+     "procedure": "Ověřit, že reset nelze dosáhnout zevnitř a z jeho místa je vidět celý prostor.",
+     "expected": "Splněno.",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+      "https://machinerysafety101.com/2021/05/19/understanding-safety-functions-manual-reset/"
+     ]
+    },
+    {
+     "name": "Zkrat vodičů resetu",
+     "kind": "porucha",
+     "procedure": "Zkratovat vodič resetu na +24 V.",
+     "expected": "Chyba zjištěna, reset blokován (nebo vyloučení dle ISO 13849-2 tab. D.4).",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 13849-1",
+    "IEC 60204-1",
+    "ISO 13855",
+    "IEC 60947-5-1"
+   ],
+   "sources": [
+    "https://machinerysafety101.com/2021/05/19/understanding-safety-functions-manual-reset/",
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+   ]
+  },
+  {
+   "id": "vertical_axis_holding",
+   "name": "Bezpečné zadržení svislé (gravitačně zatížené) osy – SBC, test brzdy (SBT), redundantní brzda",
+   "category": "bezpečnostní funkce proti pádu",
+   "hazards": [
+    "nechtěný pokles/pád osy při STO, výpadku energie, opotřebení brzdy"
+   ],
+   "applies_to": [
+    "robot",
+    "press",
+    "motor",
+    "hydraulic",
+    "cylinder_pneu"
+   ],
+   "use_situations": [
+    "lineární roboty a manipulátory, svislé osy obráběcích center, lisy, zdvihy, kde je přístup pod osu"
+   ],
+   "trigger": "STO/SS1 osy, výpadek energie, otevření krytu, test brzdy.",
+   "reaction": {
+    "description": "Brzda zabrzdí řízeně (SBC) po zastavení; preferovat stop kategorie 1 (řízené zastavení), aby brzda nesloužila k zastavování; při selhání testu brzdy zablokovat přístup/provoz.",
+    "stop_category": [
+     1
+    ],
+    "sources": [
+     "https://publikationen.dguv.de/widgets/pdf/download/article/4334",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf",
+     "https://assets.new.siemens.com/siemens/assets/api/uuid:53893f9b-f3ef-4480-b16b-5f735363d46b/safety-integrated-drives-brochure.pdf"
+    ]
+   },
+   "rules": [
+    {
+     "text": "Vysoká expozice (častý / dlouhý pobyt pod osou): redundantní zadržení dle ISO 13849-1 kat. 3 (např. motorová brzda + druhá brzda / mechanický zámek / upínač).",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4334"
+     ]
+    },
+    {
+     "text": "Nižší expozice: cyklický test jediné motorové brzdy (kat. 2) automaticky v provozu, nejpozději po 8 h / směně; u přístupu přes kryt se zámkem lze testovat těsně před odjištěním.",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4334"
+     ]
+    },
+    {
+     "text": "Testovací moment 1,3× zatěžovací moment; při dvou brzdách zkoušet každou zvlášť na prosté zatížení; po opravě brzdy vynucený test před dalším provozem; přejímací zkouška při uvedení do provozu se simulací poruchy.",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4334"
+     ]
+    },
+    {
+     "text": "SBT (Siemens): cyklický test až 2 brzd na osu, detekuje opotřebení; s SBC tvoří bezpečnou brzdu.",
+     "sources": [
+      "https://assets.new.siemens.com/siemens/assets/api/uuid:53893f9b-f3ef-4480-b16b-5f735363d46b/safety-integrated-drives-brochure.pdf"
+     ]
+    }
+   ],
+   "typical_plr": {
+    "value": "c (redundantní zadržení kat. 3 PL c dle DGUV) až d",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "DGUV FBHM-005 tab. 2: u redundantního zadržení opatření pro částečnou detekci poruch dle kat. 3 PL c. Rockwell AT203: SS1 + SBC kat. 3 PL d.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://publikationen.dguv.de/widgets/pdf/download/article/4334",
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf"
+    ]
+   },
+   "typical_architecture": {
+    "category": "2 (test brzdy) nebo 3 (redundance)",
+    "channels": "brzda motoru + druhá nezávislá brzda/zámek",
+    "edm": "hlídání stavu brzdy (pokud má výstup), jinak vynucená dynamizace testem",
+    "components": [
+     "motorová brzda",
+     "druhá brzda / pístnicová brzda / mechanický zámek / hydraulický upínač",
+     "SBC/SBT v měniči nebo bezpečnostním PLC"
+    ],
+    "sources": [
+     "https://publikationen.dguv.de/widgets/pdf/download/article/4334",
+     "https://assets.new.siemens.com/siemens/assets/api/uuid:53893f9b-f3ef-4480-b16b-5f735363d46b/safety-integrated-drives-brochure.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Test brzdy 1,3×",
+     "kind": "měření",
+     "procedure": "Zatížit brzdu testovacím momentem 1,3× zatěžovacího.",
+     "expected": "Osa se nepohne (v toleranci).",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4334"
+     ]
+    },
+    {
+     "name": "Simulace vadné brzdy",
+     "kind": "porucha",
+     "procedure": "Při přejímce simulovat neúspěšný test.",
+     "expected": "Správná reakce na poruchu (blokování provozu/přístupu).",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4334"
+     ]
+    },
+    {
+     "name": "Výpadek energie",
+     "kind": "funkční",
+     "procedure": "Vypnout napájení při zvednuté ose.",
+     "expected": "Osa drží.",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4334"
+     ]
+    },
+    {
+     "name": "Doběh při nouzovém zastavení",
+     "kind": "měření",
+     "procedure": "Změřit dráhu poklesu při E-stop.",
+     "expected": "V mezích posouzení rizik (statický test dynamiku nepokrývá).",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/4334"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 13849-1",
+    "IEC 61800-5-2",
+    "IEC 60204-1",
+    "ISO 10218-2",
+    "ISO 16092 (lisy)"
+   ],
+   "sources": [
+    "https://publikationen.dguv.de/widgets/pdf/download/article/4334",
+    "https://assets.new.siemens.com/siemens/assets/api/uuid:53893f9b-f3ef-4480-b16b-5f735363d46b/safety-integrated-drives-brochure.pdf",
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf"
+   ]
+  },
+  {
+   "id": "pressure_sensitive_mat",
+   "name": "Bezpečnostní rohož (tlakově citlivá)",
+   "category": "tlakově citlivé ochranné zařízení (ISO 13856-1)",
+   "hazards": [
+    "vstup do prostoru stroje / setrvání v něm"
+   ],
+   "applies_to": [
+    "robot",
+    "conveyor",
+    "press",
+    "motor"
+   ],
+   "use_situations": [
+    "ochrana prostoru před strojem, detekce přítomnosti; rohož není fyzická bariéra"
+   ],
+   "trigger": "Šlápnutí na rohož (osoba > 35 kg, resp. > 20 kg; pod 20 kg nedetekuje).",
+   "reaction": {
+    "description": "Bezpečnostní zastavení; po sestoupení reset a samostatný start.",
+    "stop_category": [
+     0,
+     1
+    ],
+    "sources": [
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+    ]
+   },
+   "positioning": "S = K·T + C, K = 1600 mm/s, C = 1200 mm (Rockwell AT122 s odkazem na EN ISO 13856-1); ISO 13855:2024: S = 1600·T + 1200 + Z (Schmersal).",
+   "typical_plr": {
+    "value": "d",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "Rockwell AT122: bezpečnostní rohož + E-stop, PLr kat. 3 PL d.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+    ]
+   },
+   "typical_architecture": {
+    "category": "3",
+    "channels": "4vodičová rohož (příčný zkrat při šlápnutí) do dvouvstupového bezpečnostního relé",
+    "edm": "ano",
+    "components": [
+     "rohož dle ISO 13856-1",
+     "bezpečnostní relé s detekcí příčného zkratu",
+     "stykače"
+    ],
+    "sources": [
+     "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Šlápnutí na každou část rohože",
+     "kind": "funkční",
+     "procedure": "Za chodu šlápnout na rohož (všechny segmenty).",
+     "expected": "Zastavení; reset nejde, dokud osoba stojí na rohoži.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Rozpojení vodiče rohože",
+     "kind": "porucha",
+     "procedure": "Odpojit vstupní vodič rohože.",
+     "expected": "Okamžité vypnutí, porucha.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Bezpečná vzdálenost",
+     "kind": "měření",
+     "procedure": "Ověřit S = 1600·T + 1200 a rozměr rohože.",
+     "expected": "Vzdálenější hrana rohože ≥ S od nebezpečí.",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf"
+     ]
+    },
+    {
+     "name": "Svařený / nepřitažený výkonový stykač (EDM)",
+     "kind": "porucha",
+     "procedure": "Simulovat, že jeden z redundantních stykačů neodpadne (mechanicky blokovat kotvu nebo přemostit jeho hlavní kontakty; zpětnovazební rozpínací kontakt zůstane rozepnut).",
+     "expected": "Porucha zjištěna přes nuceně vázané / zrcadlové kontakty nejpozději před dalším startem; nový start není možný.",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 13856-1",
+    "ISO 13855",
+    "ISO 13849-1"
+   ],
+   "sources": [
+    "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at122_-en-p.pdf",
+    "https://www.schmersalusa.com/press/technical-articles/calculating-safety-distances"
+   ]
+  },
+  {
+   "id": "overtemperature_limit",
+   "name": "Omezení přehřátí (bezpečnostní omezovač teploty) – ohřev",
+   "category": "bezpečnostní funkce procesu (ochrana proti požáru / popálení / poškození)",
+   "hazards": [
+    "přehřátí, požár, popálení, rozklad materiálu"
+   ],
+   "applies_to": [
+    "heater"
+   ],
+   "use_situations": [
+    "topná tělesa, temperace, ohřevy nástrojů a trysek"
+   ],
+   "trigger": "Teplota nad mezní hodnotou nebo porucha čidla.",
+   "reaction": {
+    "description": "Odpojení přívodu energie k ohřevu nezávisle na regulátoru; omezovač se samočinně nevrací – vyžaduje ruční reset.",
+    "stop_category": [
+     0
+    ],
+    "sources": [
+     "https://standards.globalspec.com/std/9902605/din-en-14597"
+    ]
+   },
+   "typical_plr": {
+    "value": "neověřeno",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "Ve volně dostupných výkladech IFA/SICK/Rockwell nenalezen aplikační příklad s PLr pro omezení teploty. EN 14597 pokrývá regulátory a omezovače teploty (≤ 690 V, ≤ 63 A). U motorů existuje funkce SMT (IEC 61800-5-2). Hodnotu musí určit uživatel z posouzení rizik.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://standards.globalspec.com/std/9902605/din-en-14597",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+    ]
+   },
+   "typical_architecture": {
+    "category": "neověřeno",
+    "channels": "omezovač nezávislý na regulační smyčce (vlastní čidlo, vlastní vypínací prvek)",
+    "edm": "doporučeno sledovat stykač ohřevu (neověřeno zdrojem)",
+    "components": [
+     "bezpečnostní omezovač teploty dle EN 14597",
+     "samostatné čidlo",
+     "stykač ohřevu"
+    ],
+    "sources": [
+     "https://standards.globalspec.com/std/9902605/din-en-14597"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Překročení meze",
+     "kind": "funkční",
+     "procedure": "Simulovat teplotu nad mezí (kalibrátor).",
+     "expected": "Ohřev odpojen, nutný ruční reset.",
+     "sources": [
+      "https://standards.globalspec.com/std/9902605/din-en-14597"
+     ]
+    },
+    {
+     "name": "Přerušení / zkrat čidla",
+     "kind": "porucha",
+     "procedure": "Odpojit / zkratovat čidlo omezovače.",
+     "expected": "Odpojení ohřevu (neověřeno konkrétním zdrojem – ověřit v návodu omezovače).",
+     "sources": []
+    }
+   ],
+   "relevant_standards": [
+    "EN 14597",
+    "IEC 60730-2-9",
+    "IEC 60204-1",
+    "ISO 13849-1",
+    "ISO 13732-1 (horké povrchy)"
+   ],
+   "sources": [
+    "https://standards.globalspec.com/std/9902605/din-en-14597"
+   ],
+   "confidence": "nízká – doplnit ze zdrojů výrobců omezovačů"
+  },
+  {
+   "id": "overpressure_limit",
+   "name": "Omezení tlaku (pojistný ventil) a hlídání tlaku",
+   "category": "základní bezpečnostní princip fluidní techniky + případně bezpečnostní funkce",
+   "hazards": [
+    "přetlak, prasknutí hadice/nádoby, vymrštění"
+   ],
+   "applies_to": [
+    "pressure",
+    "hydraulic",
+    "valve_pneu",
+    "cylinder_pneu"
+   ],
+   "use_situations": [
+    "každý hydraulický/pneumatický systém (omezení tlaku)",
+    "tlakové nádoby a akumulátory"
+   ],
+   "trigger": "Tlak nad nastavenou mez.",
+   "reaction": {
+    "description": "Pojistný ventil (hydraulika) / redukční ventil se sekundárním odvzdušněním (pneumatika) zabrání nárůstu tlaku nad nastavenou úroveň – mechanicky, nezávisle na řízení. Hlídání tlaku tlakovým spínačem se v příkladech IFA používá jako diagnostika ventilů.",
+    "stop_category": null,
+    "sources": [
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+     "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+     "https://standards.iteh.ai/catalog/standards/cen/365f07d1-cb0f-4414-9fe9-240ac4c21109/en-iso-4414-2010"
+    ]
+   },
+   "typical_plr": {
+    "value": "neaplikuje se (mechanický princip) / neověřeno",
+    "sfp_typical": "neuvedeno",
+    "reasoning": "IFA 1/2025 příl. C řadí omezení tlaku mezi základní bezpečnostní principy fluidní techniky (kat. B), ne mezi řídicí funkce s PLr.",
+    "note": "Typický příklad převzatý z citovaného zdroje (aplikační příklad / výklad), NE závazná hodnota. PLr musí určit odpovědná osoba z posouzení rizik konkrétního stroje (ISO 12100, ISO 13849-1 příl. A) nebo z C-normy daného stroje.",
+    "is_example_only": true,
+    "requires_user_approval": true,
+    "sources": [
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "typical_architecture": {
+    "category": "B (základní princip)",
+    "channels": "mechanický pojistný ventil",
+    "edm": "n/a",
+    "components": [
+     "pojistný (přetlakový) ventil",
+     "tlakový spínač / snímač (diagnostika)",
+     "filtrace média"
+    ],
+    "sources": [
+     "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+    ]
+   },
+   "validation_tests": [
+    {
+     "name": "Nastavení pojistného ventilu",
+     "kind": "měření",
+     "procedure": "Ověřit otevírací tlak a zajištění nastavení.",
+     "expected": "Nepřekročí max. pracovní tlak nejslabší části.",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+     ]
+    }
+   ],
+   "relevant_standards": [
+    "ISO 4413",
+    "ISO 4414",
+    "ISO 13849-2 (příl. B, C)",
+    "směrnice 2014/68/EU (tlaková zařízení) – neověřeno v tomto průzkumu"
+   ],
+   "sources": [
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091",
+    "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+    "https://standards.iteh.ai/catalog/standards/cen/365f07d1-cb0f-4414-9fe9-240ac4c21109/en-iso-4414-2010"
+   ],
+   "confidence": "nízká – normy ISO 4413/4414 nejsou volně dostupné"
+  }
+ ],
+ "discrepancies": [
+  {
+   "topic": "ISO 13855: přídavek pro rozlišení 40–70 mm",
+   "variants": [
+    {
+     "claim": "2010: pro 40 < d ≤ 70 mm C = 850 mm, K = 1600",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+      "https://www.keyence.eu/ss/products/safetyknowledge/caution/",
+      "https://www.reersafety.com/en/academy/industrial-safety-guide/determination-of-the-safety-distance/"
+     ]
+    },
+    {
+     "claim": "2024: pro 40 ≤ d ≤ 55 mm D_DT = 208 + 12·(d − 40) a S ≥ 500 mm; 850 mm až od 55 mm do 120 mm",
+     "sources": [
+      "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/6-detection-zone-orthogonal-to-the-direction-of-approach/"
+     ]
+    }
+   ],
+   "resolution": "Rozdíl mezi vydáními. Hodnoty 2024 jsou jen z jednoho volného výkladu (GT Engineering) – ověřit v normě před použitím."
+  },
+  {
+   "topic": "ISO 13855: paralelní přístup",
+   "variants": [
+    {
+     "claim": "2010: C = 1200 − 0,4·H ≥ 850 mm",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+      "https://www.keyence.eu/ss/products/safetyknowledge/caution/",
+      "https://www.reersafety.com/en/academy/industrial-safety-guide/determination-of-the-safety-distance/"
+     ]
+    },
+    {
+     "claim": "2024: paušálně D_DS = 1200 mm + Z",
+     "sources": [
+      "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/6-3-detection-zone-parallel-to-the-direction-of-approach/",
+      "https://www.machinebuilding.net/iso-138552024--new-guidelines-for-safer-sensor-positioning-in-industrial-automation"
+     ]
+    }
+   ],
+   "resolution": "Rozdíl mezi vydáními; 2024 vychází konzervativněji (vyšší S)."
+  },
+  {
+   "topic": "ISO 13855: dvouruční ovládání",
+   "variants": [
+    {
+     "claim": "C = 250 mm (0 při zakrytí)",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+      "https://www.safe-machines-at-work.org/fileadmin/user_upload/Two-Hand-Controls_08_2020.pdf"
+     ]
+    },
+    {
+     "claim": "2024: D_DS = 550 mm (0 při vyloučení přiblížení rukou a S ≥ 100 mm)",
+     "sources": [
+      "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/8-two-hand-control-devices/"
+     ]
+    },
+    {
+     "claim": "machinebuilding.net: vzorec pro dvouruční ovladače byl v 2024 změněn (bez čísla)",
+     "sources": [
+      "https://www.machinebuilding.net/iso-138552024--new-guidelines-for-safer-sensor-positioning-in-industrial-automation"
+     ]
+    }
+   ],
+   "resolution": "ISSA leták 2020 a SICK 2015 popisují stav 2010; hodnota 550 mm jen z GT Engineering – ověřit."
+  },
+  {
+   "topic": "ISO 13855: podlezení vícepaprskové mříže",
+   "variants": [
+    {
+     "claim": "Leuze/GIT: hodnota proti podlezení snížena z 300 na 200 mm; rozteč paprsků max. 400 mm; nově min. 3 paprsky",
+     "sources": [
+      "https://mpemagazine.co.uk/2025/08/01/leuze-on-iso-138552024-new-guidelines-for-safer-sensor-positioning-in-industrial-automation/",
+      "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen"
+     ]
+    },
+    {
+     "claim": "GT Engineering (2024, podsah pod polem): spodní hrana H_DB ≤ 300 mm s výpočtem D_DU",
+     "sources": [
+      "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/6-detection-zone-orthogonal-to-the-direction-of-approach/"
+     ]
+    }
+   ],
+   "resolution": "Nejasné, zda jde o různá pravidla (pevná výška paprsku × vypočtený podsah). Ověřit v normě."
+  },
+  {
+   "topic": "Harmonizace EN ISO 13855:2024",
+   "variants": [
+    {
+     "claim": "Nová norma platí od listopadu 2024",
+     "sources": [
+      "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen"
+     ]
+    },
+    {
+     "claim": "Zatím není harmonizovaná (předpoklad shody dává stále 2010), ale odpovídá stavu techniky",
+     "sources": [
+      "https://git-sicherheit.de/de/topstories/zur-aktualisierten-version-der-iso-13855-zur-anordnung-von-schutzeinrichtungen-an-maschinen"
+     ]
+    }
+   ],
+   "resolution": "Ověřit aktuální seznam harmonizovaných norem v Úředním věstníku EU."
+  },
+  {
+   "topic": "Dvouruční ovládání – PL podle typu",
+   "variants": [
+    {
+     "claim": "ISO 13851:2019 tab. 1: I a IIIA min. PL c; II a IIIB min. PL d kat. 3; IIIC PL e kat. 4",
+     "sources": [
+      "https://cdn.standards.iteh.ai/samples/70295/48c735b3148b4aa4943c9f1095f6541a/ISO-13851-2019.pdf"
+     ]
+    },
+    {
+     "claim": "Některé internetové výklady: IIIA i IIIB 'alespoň PL c'",
+     "sources": [
+      "https://industrialmonitordirect.com/blogs/knowledgebase/implementing-two-hand-control-safety-per-iso-13851"
+     ]
+    },
+    {
+     "claim": "Rockwell AT071: na jednom místě 'assumed PLr e, kat. 4', jinde 'PLr d, kat. 3' (dosaženo PL e)",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at071_-en-e.pdf"
+     ]
+    }
+   ],
+   "resolution": "Platí tabulka normy (náhled ISO); přiřazení sloupců bylo čteno z PDF extraktu – ověřit vizuálně v normě."
+  },
+  {
+   "topic": "Nouzové zastavení – PLr",
+   "variants": [
+    {
+     "claim": "ISO 13850:2015 minimum PL c / SIL 1",
+     "sources": [
+      "https://www.idec.com/en-eu/solutions/safety/law/iso-iec/iso13850",
+      "https://machinerysafety101.com/2026/05/18/iso-13850-emergency-stop-requirements/"
+     ]
+    },
+    {
+     "claim": "Aplikační příklady IFA a Rockwell: PLr d",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf",
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at128_-en-p.pdf",
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf"
+     ]
+    }
+   ],
+   "resolution": "Není rozpor – c je minimum normy, d je typická volba příkladů; vyšší PLr podle posouzení rizik."
+  },
+  {
+   "topic": "Jednoakční elektromechanická zařízení (E-stop, spínač krytu) a PL e",
+   "variants": [
+    {
+     "claim": "Rockwell AT203: bez vyloučení poruchy omezeno na PL d; pro E-stop dle IEC 60947-5-5 vyloučení dle ISO 13849-2 tab. D.8 přípustné → PL e",
+     "sources": [
+      "https://literature.rockwellautomation.com/idc/groups/literature/documents/at/safety-at203_-en-p.pdf"
+     ]
+    },
+    {
+     "claim": "IFA př. 19: zámek krytu omezen na PL d, protože spínač hlídání zámku je jen jeden",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    }
+   ],
+   "resolution": "Konzistentní: rozhoduje přípustnost vyloučení poruchy pro daný prvek."
+  },
+  {
+   "topic": "Ruční reset – hrana",
+   "variants": [
+    {
+     "claim": "Reset se přijme při uvolnění ovladače (sestupná hrana)",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+      "https://machinerysafety101.com/2021/05/19/understanding-safety-functions-manual-reset/"
+     ]
+    },
+    {
+     "claim": "IFA 1/2025: hlídaná sekvence náběžná + sestupná hrana v okně 0,2–3 s",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+     ]
+    }
+   ],
+   "resolution": "Nejde o rozpor – IFA konkretizuje implementaci; časové okno je parametr příkladu, ne normy."
+  },
+  {
+   "topic": "Muting – stav normy a časy",
+   "variants": [
+    {
+     "claim": "SICK (2017) cituje IEC/TS 62046:2008, doporučení max. 4 s mezi senzory",
+     "sources": [
+      "https://www.sick.com/media/docs/9/99/499/whitepaper_protecting_automated_loading_and_unloading_points_en_im0072499.pdf"
+     ]
+    },
+    {
+     "claim": "IEC 62046 vyšla 2018 jako mezinárodní norma (Edition 1.0 2018-03)",
+     "sources": [
+      "https://cdn.standards.iteh.ai/samples/20537/2ef12b276a9c45c1b70d3caab93b1e71/IEC-62046-2018.pdf"
+     ]
+    },
+    {
+     "claim": "Doba override 15–60 s (jen příklad z neověřeného webu)",
+     "sources": [
+      "https://industrialmonitordirect.com/blogs/knowledgebase/muting-safety-light-curtains-with-non-photoelectric-sensors-standards-and-implementation"
+     ]
+    }
+   ],
+   "resolution": "4 s ověřit v IEC 62046:2018; dobu override neuvádět jako normovou."
+  },
+  {
+   "topic": "SICK muting whitepaper – zjevná chyba",
+   "variants": [
+    {
+     "claim": "'If d ≥ 40 mm, C = 8·(d − 14)' (překlep; jinde v témže dokumentu i v SICK Guide platí d ≤ 40 mm)",
+     "sources": [
+      "https://www.sick.com/media/docs/9/99/499/whitepaper_protecting_automated_loading_and_unloading_points_en_im0072499.pdf",
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+     ]
+    }
+   ],
+   "resolution": "Používat d ≤ 40 mm."
+  },
+  {
+   "topic": "Periodická kontrola ESPE",
+   "variants": [
+    {
+     "claim": "HSE: max. 6 měsíců (typ 4), 12 měsíců (typ 2)",
+     "sources": [
+      "https://www.hse.gov.uk/pubns/priced/hsg180.pdf"
+     ]
+    }
+   ],
+   "resolution": "Britská praxe (PUWER), ne norma EU; v ČR intervaly určuje výrobce/posouzení rizik."
+  },
+  {
+   "topic": "Verze IFA reportu",
+   "variants": [
+    {
+     "claim": "IFA Report 2/2017e (EN) – ISO 13849-1:2015",
+     "sources": [
+      "https://www.dguv.de/medien/ifa/en/pub/rep/pdf/reports-2019/report0217e/rep0217e.pdf"
+     ]
+    },
+    {
+     "claim": "IFA Report 1/2025 (DE, říjen 2025) – ISO 13849-1:2023, F2 = zásah častoji než 1× za 15 min, tabulka faktorů pro parametr P, vazba na nařízení 2023/1230",
+     "sources": [
+      "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+     ]
+    }
+   ],
+   "resolution": "Pro nové projekty preferovat IFA 1/2025; čísla příkladů se mezi vydáními liší (např. muting př. 22 → př. 17)."
+  },
+  {
+   "topic": "Princip zámku krytu",
+   "variants": [
+    {
+     "claim": "SICK 2015 / machinerysafety101 2025: pro ochranu osob preferovat power-to-unlock (pružinou zamčeno)",
+     "sources": [
+      "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf",
+      "https://machinerysafety101.com/2025/12/17/guard-locking-and-iso-14119/"
+     ]
+    }
+   ],
+   "resolution": "Shoda zdrojů."
+  }
+ ],
+ "unverified": [
+  {
+   "item": "Plné znění ISO 4413 a ISO 4414 (placené) – použity jen souhrny (iTeh katalog, IFA).",
+   "sources": [
+    "https://standards.iteh.ai/catalog/standards/cen/365f07d1-cb0f-4414-9fe9-240ac4c21109/en-iso-4414-2010",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+   ]
+  },
+  {
+   "item": "ISO 14119:2024 – tvrzení o povinném hlídání přídržné síly s koeficientem 1,3 (jen neověřený web fabrico.io); oficiální předmluva uvádí jen: typ 5 (uvězněný klíč, z ISO/TS 19837), přepracovaná tab. 5, zkušební postupy v příl. I, ISO/TR 24119 v příl. J.",
+   "sources": [
+    "https://cdn.standards.iteh.ai/samples/75942/ae89318fbad443898f48680f49db9779/ISO-14119-2024.pdf",
+    "https://www.fabrico.io/blog/machine-guard-interlocks/"
+   ]
+  },
+  {
+   "item": "Tabulka D_DO (přesah přes pole) ISO 13855:2024 a konkrétní přídavky Z pro skenery – nejsou ve volných zdrojích.",
+   "sources": [
+    "https://www.gt-engineering.it/en/technical-standards/en-iso-standards/en-iso-13855/6-detection-zone-orthogonal-to-the-direction-of-approach/",
+    "https://mpemagazine.co.uk/2025/08/01/leuze-on-iso-138552024-new-guidelines-for-safer-sensor-positioning-in-industrial-automation/"
+   ]
+  },
+  {
+   "item": "Znění nařízení (EU) 2023/1230 příl. III 1.2.5 – EUR-Lex nešel stáhnout (blokace robotů); text převzat z výňatku vyhledávače a odpovídá 2006/42/ES 1.2.5. Datum použití 20. 1. 2027 ověřeno v IFA 1/2025.",
+   "sources": [
+    "https://eur-lex.europa.eu/eli/reg/2023/1230/oj/eng",
+    "https://publikationen.dguv.de/widgets/pdf/download/article/5091"
+   ]
+  },
+  {
+   "item": "PLr pro omezovač teploty a pro laserový skener / povolovací zařízení – nenalezen volný aplikační příklad.",
+   "sources": []
+  },
+  {
+   "item": "Stránky Pilz (ISO 13855, ISO 14119 tisková zpráva) a Festo (safe pneumatics) vrátily HTTP 403 – nečerpáno.",
+   "sources": [
+    "https://www.pilz.com/en-US/support/law-standards-norms/iso-standards/efficiency-guards/en-iso-13855",
+    "https://www.festo.com/us/en/e/solutions/machine-safety/safe-pneumatics-id_4562/"
+   ]
+  },
+  {
+   "item": "SICK Guide for Safe Machinery (8007988/2015-07-07) načten z veřejného zrcadla distributora, ne z sick.com.",
+   "sources": [
+    "https://maxter-automatyka.pl/image/plik_o/960_bezpieczenstwo-maszyn-sick.pdf"
+   ]
+  }
+ ]
+}

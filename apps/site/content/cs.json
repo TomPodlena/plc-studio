@@ -1,0 +1,1028 @@
+{
+  "meta": {
+    "lang": "cs",
+    "locale": "cs_CZ",
+    "title": "{{site.brand}} — řízení stroje od zadání po schválenou dokumentaci",
+    "description": "Popíšete stroj, {{site.brand}} navrhne I/O, schémata, program pro 8 platforem PLC, bezpečnostní funkce i oživení. Každou položku schvaluje odpovědná osoba. Do 64 I/O zdarma."
+  },
+  "ui": {
+    "skip": "Přeskočit na obsah",
+    "nav_label": "Hlavní menu",
+    "lang_label": "Jazyk",
+    "menu": "Menu",
+    "foot_product": "Produkt",
+    "foot_contact": "Kontakt",
+    "foot_legal": "Právní informace",
+    "foot_tag": "Návrh řízení a dokumentace strojů pro malé integrátory a strojírny.",
+    "made": "Výstupy jsou návrh. Platí to, co schválí odpovědná osoba.",
+    "beta": "beta",
+    "pending_legal": "Čeká na právníka",
+    "back_home": "Zpět na úvod",
+    "legal_draft": "Návrh textu k revizi právníkem. Do doby účinnosti a doplnění údajů o provozovateli neplatí.",
+    "legal_effective": "Účinnost od",
+    "legal_operator": "Provozovatel",
+    "legal_id": "IČO",
+    "legal_contact": "Kontakt",
+    "legal_toc": "Obsah",
+    "lb_close": "Zavřít",
+    "lb_label": "Zvětšený snímek aplikace"
+  },
+  "nav": {
+    "home": "Úvod",
+    "funkce": "Funkce",
+    "platformy": "Platformy",
+    "cenik": "Ceník",
+    "ukazka": "Ukázka dokumentace",
+    "stazeni": "Ke stažení",
+    "kontakt": "Kontakt",
+    "podminky": "Podmínky užití",
+    "soukromi": "Ochrana osobních údajů",
+    "cta": "Stáhnout zdarma",
+    "cookies": "Cookies"
+  },
+  "home": {
+    "title": "{{site.brand}} — řízení stroje od zadání po schválenou dokumentaci",
+    "description": "Popíšete stroj, {{site.brand}} navrhne I/O, schémata, program pro 8 platforem PLC, bezpečnostní funkce i oživení. Každou položku schvaluje odpovědná osoba. Do 64 I/O zdarma.",
+    "eyebrow": "Pro integrátory a strojírny",
+    "h1": "Řízení stroje od zadání po podepsanou dokumentaci",
+    "lead": "Popíšete stroj. {{site.brand}} navrhne zařízení, I/O, schémata, program, bezpečnostní funkce i plán oživení a ke všemu připraví dokumentaci. Vy procházíte a schvalujete. Co neschválíte, nese v dokumentech NESCHVÁLENO.",
+    "cta1": "Stáhnout zdarma",
+    "cta2": "Ukázková dokumentace (PDF)",
+    "fine": "Do {{site.free_io_limit}} I/O zdarma natrvalo. Windows 10/11 nebo prohlížeč. Bez platební karty.",
+    "mock_title": "Schválení položek",
+    "mock_project": "Lisovací a značicí linka LL-03",
+    "mock_caption": "Výřez z protokolu schválení ukázkového projektu. Jméno je smyšlené.",
+    "mock_h_item": "Položka",
+    "mock_h_state": "Stav",
+    "mock_h_who": "Schválil",
+    "mock_rows": [
+      {
+        "item": "Tabulka I/O (44 signálů)",
+        "state": "Schváleno",
+        "cls": "ok",
+        "who": "J. Vzorový, 2. 10."
+      },
+      {
+        "item": "SF1 Nouzové zastavení, PLr d, kat. 3",
+        "state": "Schváleno",
+        "cls": "ok",
+        "who": "J. Vzorový, 2. 10."
+      },
+      {
+        "item": "Sekvence cyklu, krok 4: 6 s → 8 s",
+        "state": "Změněno po schválení",
+        "cls": "stale",
+        "who": "znovu ke schválení"
+      },
+      {
+        "item": "SF6 Dvouruční ovládání, PLr e, kat. 4",
+        "state": "Čeká na schválení",
+        "cls": "wait",
+        "who": "—"
+      },
+      {
+        "item": "Bezpečnostní program (F-program)",
+        "state": "Zatím negenerován",
+        "cls": "lock",
+        "who": "až po schválení SF1–SF10"
+      }
+    ],
+    "facts": [
+      {
+        "n": "8",
+        "t": "platforem PLC"
+      },
+      {
+        "n": "16",
+        "t": "dokumentů z jednoho popisu stroje"
+      },
+      {
+        "n": "5",
+        "t": "jazyků aplikace i výstupů"
+      },
+      {
+        "n": "{{site.free_io_limit}}",
+        "t": "I/O zdarma natrvalo"
+      }
+    ],
+    "live": {
+      "eyebrow": "Živá simulace",
+      "title": "Stroj běží dřív, než existuje",
+      "lead": "Simulátor provádí stejnou logiku, jakou {{site.brand}} vygeneruje do PLC, scan po scanu. Na grafickém schématu systému vidíte vodiče, pohony a kroky sekvence v reálném čase.",
+      "points": [
+        "Režim AUTO, start cyklu, nouzové zastavení a kvitace jako na stroji.",
+        "Ruční povely, vnucené vstupy a poruchy: zaseknutý pohyb, ztráta hlášení, analog mimo mez.",
+        "Stejný projekt pak ověří matice stavů a protokol o ověření simulací."
+      ],
+      "note": "Simulace ověřuje návrh, ne program přeložený ve vašem IDE.",
+      "path": "LL-03 / 7 · Program › Živá simulace",
+      "caption": "Záznam z aplikace: linka LL-03, jeden celý cyklus v režimu AUTO, zrychleno 2×.",
+      "video_label": "Animace živé simulace linky LL-03 v aplikaci {{site.brand}}: snímače, moduly PLC, motory a válce během cyklu"
+    },
+    "flow_eyebrow": "Jak to probíhá",
+    "flow_title": "Od popisu stroje k předání za dny, ne týdny",
+    "flow_lead": "Jeden projekt od popisu stroje po program, výkresy a dokumentaci. Každý krok navazuje na předchozí, nic se mezi nástroji nepřepisuje ručně.",
+    "flow": [
+      {
+        "name": "Popíšete stroj",
+        "desc": "Běžnou řečí, z typových bloků, nebo načtete stávající zařízení: export z PLC, program, schéma."
+      },
+      {
+        "name": "{{site.brand}} navrhne celé řízení",
+        "desc": "Zařízení, I/O s adresami, schémata, sekvenci, blokování, bezpečnostní funkce s PLr a komponentami, kusovník."
+      },
+      {
+        "name": "Návrh ověří simulací",
+        "desc": "Běžný cyklus, poruchy, nouzové zastavení v každém kroku, hlídací časy a takt. Výsledek je v protokolu."
+      },
+      {
+        "name": "Vy schvalujete",
+        "desc": "Položku po položce, jménem a datem. Co se po schválení změní, vrátí se ke schválení."
+      },
+      {
+        "name": "Předáte program a dokumentaci",
+        "desc": "Soubory pro vaše vývojové prostředí, dokumentaci pro zákazníka a plán oživení na stroj."
+      }
+    ],
+    "tour": {
+      "eyebrow": "Skutečné snímky",
+      "title": "Prohlédněte si aplikaci",
+      "lead": "Desktopová aplikace {{site.brand}} s ukázkovou linkou LL-03, stejným projektem jako ukázková dokumentace. Snímky jsou pořízené přímo z aplikace, nic není dokreslené. Kliknutím snímek zvětšíte.",
+      "tabs_label": "Kroky aplikace",
+      "items": [
+        {
+          "key": "schema",
+          "tab": "Schéma",
+          "path": "LL-03 / 6 · Schéma",
+          "title": "Klikací blokové schéma",
+          "desc": "Zdroje signálů, moduly PLC a akční členy. Klik na zařízení ukáže jeho vstupy a výstupy s adresami a svorkami a kroky programu, ve kterých se používá.",
+          "alt": "Krok Schéma v aplikaci {{site.brand}}: blokové schéma linky LL-03 se zvýrazněným lisovacím válcem Y1 a panelem s jeho signály, adresami, svorkami a kroky programu"
+        },
+        {
+          "key": "ziva",
+          "tab": "Živá simulace",
+          "path": "LL-03 / 7 · Program › Živá simulace",
+          "title": "Živá simulace stroje",
+          "desc": "Schéma systému s vodiči a animovanými pohony. Režim AUTO, start cyklu, nouzové zastavení a kvitace jako na stroji, k tomu ruční povely a vnucené vstupy.",
+          "alt": "Živá simulace: linka LL-03 v režimu AUTO v kroku 10 z 18, aktivní vodiče a sepnuté výstupy zvýrazněné, vpravo stav lisovacího válce Y1 a seznam událostí"
+        },
+        {
+          "key": "bezpecnost",
+          "tab": "Bezpečnost",
+          "path": "LL-03 / 11 · Bezpečnost",
+          "title": "Bezpečnostní funkce a PL",
+          "desc": "Funkce navržené z nebezpečí stroje: požadovaná úroveň PLr, dosažené PL, návrh a stav schválení každé funkce.",
+          "alt": "Krok Bezpečnost: tabulka deseti bezpečnostních funkcí s PLr, dosaženým PL a stavem schválení, vpravo popis funkce nouzového zastavení a její schválení"
+        },
+        {
+          "key": "schvaleni",
+          "tab": "Schválení",
+          "path": "LL-03 / 12 · Schválení",
+          "title": "Schválení odpovědnou osobou",
+          "desc": "Každá položka se schvaluje jménem a datem. Když se obsah po schválení změní, jde znovu ke schválení. Na snímku sekvence po prodloužení hlídacího času.",
+          "alt": "Krok Schválení: 40 položek schváleno, 3 změněné po schválení, 30 čeká; vybraná automatická sekvence ve stavu změněno po schválení se jménem a datem původního schválení"
+        },
+        {
+          "key": "kusovnik",
+          "tab": "Kusovník",
+          "path": "LL-03 / 10 · Kusovník",
+          "title": "Kusovník s katalogem",
+          "desc": "PLC, moduly a díly každého zařízení s označením podle IEC 81346, výrobcem, typem, objednacím kódem a dodavatelem. Export do CSV.",
+          "alt": "Krok Kusovník: 66 položek s označením, výrobcem, typem, objednacím kódem a dodavatelem, vybraný převodový motor -M1 s volbou typu z katalogu"
+        },
+        {
+          "key": "generovat",
+          "tab": "Kód",
+          "path": "LL-03 / 8 · Generovat",
+          "title": "Program pro zvolené platformy",
+          "desc": "Úplný program se stavovými automaty, hlídacími časy a režimy pro každou zvolenou platformu, k tomu postup importu do IDE.",
+          "alt": "Krok Generovat: zdrojový kód hlavního bloku Gen_Main.scl pro Siemens SIMATIC, nad ním záložky dalších platforem a souborů"
+        }
+      ]
+    },
+    "show_eyebrow": "Skutečné výstupy",
+    "show_title": "Výkresy z ukázkového projektu",
+    "show_lead": "Přímý výstup aplikace pro lisovací a značicí linku LL-03, stejný jako v ukázkové dokumentaci.",
+    "trust_eyebrow": "Proč tomu věřit",
+    "trust_title": "Navrhne všechno. Platí jen to, co schválíte.",
+    "trust_lead": "U řízení stroje nerozhoduje, kdo napsal první verzi, ale kdo za ni ručí. {{site.brand}} proto odvede maximum práce na návrhu a nic nepustí dál bez rozhodnutí odpovědné osoby.",
+    "trust": [
+      {
+        "name": "Schvaluje se položka, ne celý projekt",
+        "desc": "Každé zařízení, tabulka I/O, sekvence, blokování, meze, výsledek simulace, každá bezpečnostní funkce, bezpečnostní program i plán oživení zvlášť. Se jménem, datem a poznámkou."
+      },
+      {
+        "name": "Schválení drží obsah",
+        "desc": "Ukládá se otisk toho, co jste schválili. Změníte čas kroku, adresu nebo PLr a položka se vrátí ke schválení. Oprava popisu nebo přepnutí jazyka schválení nezruší."
+      },
+      {
+        "name": "Neschválené je vidět",
+        "desc": "Dokumenty s neschválenými položkami nesou výrazné NESCHVÁLENO. Bezpečnostní program vznikne až po schválení bezpečnostních funkcí."
+      },
+      {
+        "name": "Dokumentace dokládá kdo, co a kdy",
+        "desc": "Protokol schválení je součástí dokumentace stroje: stav každé položky, jméno, datum, poznámka a otisk obsahu. Pro zákazníka, pro technickou dokumentaci i pro pozdější úpravy."
+      }
+    ],
+    "trust_note": "Návrhy mají zdůvodnění a zdroj: graf rizik a tabulky ISO 13849-1, katalogové hodnoty komponent, výsledky simulace. Validaci bezpečnostních funkcí na stroji podle ISO 13849-2 {{site.brand}} naplánuje a připraví k ní protokol. Provádí ji a podepisuje člověk.",
+    "docs_eyebrow": "Dokumentace",
+    "docs_title": "Dokumentace, kterou předáte zákazníkovi",
+    "docs_lead": "Z jednoho popisu stroje vznikne celá sada a drží pohromadě. Přidáte ventil a objeví se v I/O listu, svorkovnici, schématu, FDS, alarmech, FAT i kusovníku zároveň.",
+    "docs": [
+      "Funkční specifikace (FDS)",
+      "I/O list a svorkovnice",
+      "Elektrická schémata (SVG a DXF)",
+      "Seznam alarmů s reakcemi",
+      "Protokol FAT",
+      "Návod k obsluze (kostra)",
+      "Softwarová dokumentace",
+      "Protokol ověření simulací",
+      "Kusovník s dodavateli",
+      "Protokol schválení",
+      "Plán a protokol oživení",
+      "Bezpečnostní funkce (SRS) a plán validace"
+    ],
+    "docs_cta": "Prohlédnout ukázku",
+    "local_title": "Vaše projekty zůstávají u vás",
+    "local_body": "Desktopová aplikace i webová verze pracují ve vašem počítači. Projekty neukládáme na žádný server. Pracujete-li pod NDA s automobilkou nebo OEM, nemusíte nikomu nic vysvětlovat.",
+    "local_ai": "Výjimkou jsou funkce s umělou inteligencí: návrh sestavy z volného popisu a rozbor schémat a fotek stávajícího stroje. Když je použijete, odejde text nebo obrázek poskytovateli AI. Bez nich z počítače nic neodchází. Aplikace se online ozve jen při aktivaci licence a občas kvůli její kontrole, bez obsahu projektů.",
+    "faq_title": "Otázky, které dostáváme",
+    "faq": [
+      {
+        "q": "Smí bezpečnostní funkce navrhnout software?",
+        "a": "Navrhnout ano, rozhodnout ne. {{site.brand}} připraví návrh se zdůvodněním a zdroji, ale dokud ho odpovědná osoba neschválí, nikde neplatí a bezpečnostní program nevznikne. Odpovědnost zůstává tam, kde byla. Jen máte doloženo, co jste zkontrolovali."
+      },
+      {
+        "q": "Generuje to umělá inteligence?",
+        "a": "Dokumentaci, schémata, program i výpočty skládá {{site.brand}} podle pevných pravidel: stejný vstup dá vždy stejný výstup. Umělá inteligence pomáhá jen tam, kde je vstup volný: z popisu stroje navrhne sestavu zařízení a ze schémat nebo fotek stávajícího stroje vyčte signály. I to je návrh, který projdete a schválíte."
+      },
+      {
+        "q": "Je program hotový k nahrání do PLC?",
+        "a": "Je to úplný program se stavovými automaty, režimy, poruchami a kvitací a návrh je ověřený simulací. Import do vývojového prostředí jsme ale zatím na žádné platformě neověřili překladem, proto u všech platforem píšeme beta. Před nasazením patří program do simulátoru vaší platformy a na FAT."
+      },
+      {
+        "q": "Mám existující stroj. Musím ho přepisovat?",
+        "a": "Ne. {{site.brand}} načte export nebo program z PLC (TIA Portal, Studio 5000, ST zdroje, tabulky tagů) a odvodí z něj zařízení, I/O, sekvenci a blokování. U každé položky ukáže, odkud ji vzal a jak si je jistý."
+      },
+      {
+        "q": "Co když u zakázky narazím na limit {{site.free_io_limit}} I/O?",
+        "a": "Napište nám a první projekt nad limit vám odemkneme celý zdarma. Další stroje této velikosti už potřebují tarif Pro."
+      },
+      {
+        "q": "Funguje to bez internetu?",
+        "a": "Ano. Bez internetu nefungují jen funkce s umělou inteligencí. Licence je podepsaný soubor, který aplikace ověří offline."
+      }
+    ],
+    "reference": {
+      "eyebrow": "Z praxe",
+      "quote": "",
+      "name": "",
+      "role": ""
+    },
+    "end_title": "Zkuste to na stroji, který znáte",
+    "end_body": "Vezměte menší stroj, který znáte nazpaměť. Za odpoledne uvidíte, jestli vám výstupy sedí.",
+    "end_cta": "Stáhnout zdarma"
+  },
+  "funkce": {
+    "title": "Funkce — {{site.brand}}",
+    "description": "Návrh zařízení a I/O, schémata IEC, program pro 8 platforem, simulace, bezpečnostní funkce podle ISO 13849, oživení, dokumentace, kusovník a import stávajících zařízení.",
+    "eyebrow": "Funkce",
+    "h1": "Co {{site.brand}} udělá za vás",
+    "lead": "Od zadání po předání stroje. Všechno, co navrhne, projdete a schválíte. Dokumentace pak dokládá, co jste schválili.",
+    "toc": "Na této stránce",
+    "groups": [
+      {
+        "id": "navrh",
+        "name": "Návrh od zadání",
+        "lead": "Začnete tím, co o stroji víte.",
+        "points": [
+          "Popis stroje běžnou řečí. Návrhář z něj sestaví zařízení a doptá se na to, co chybí.",
+          "Typové bloky: motor, ventil, analogový vstup a výstup, čidla, signálky.",
+          "Nouzové zastavení, blokovací vstupy (kryty, závory, tlak vzduchu) a požadovaný takt."
+        ],
+        "shot": {
+          "key": "navrh",
+          "path": "LL-03 / 2 · AI návrh",
+          "alt": "Krok AI návrh: zadání linky LL-03 běžnou řečí, odpověď návrháře s 29 zařízeními a sekvencí o 18 krocích a tabulka navržené sestavy"
+        }
+      },
+      {
+        "id": "io",
+        "name": "Zařízení, I/O a adresy",
+        "lead": "Jedna tabulka, převedená na každou platformu.",
+        "points": [
+          "Adresy v jednotné notaci, převod do zápisu každé platformy.",
+          "Tagy hlídané na přenositelnost (ASCII tam, kde to platforma vyžaduje).",
+          "NC a NO kontakty, meze analogových měření, žádané hodnoty.",
+          "Role výstupů: chod, porucha, připraveno, zastaveno, zámek, AUTO."
+        ],
+        "shot": {
+          "key": "zarizeni",
+          "path": "LL-03 / 4 · Zařízení",
+          "alt": "Krok Zařízení: tabulka zařízení linky s třídou, popisem a volbami, vpravo lisovací válec Y1 s adresami, svorkami a kroky programu"
+        }
+      },
+      {
+        "id": "schemata",
+        "name": "Schémata",
+        "lead": "Výkresy, které sedí s dokumentací.",
+        "points": [
+          "Blokové schéma a elektrické zapojení I/O po modulech.",
+          "Značení podle IEC 81346, čísla vodičů, NC/NO podle IEC 60617, rámeček a popisové pole.",
+          "Svorkovnice, schéma bezpečnostního okruhu, funkční a časový diagram cyklu.",
+          "Náhled SVG a export DXF pro AutoCAD a další ECAD."
+        ],
+        "shot": {
+          "key": "diagram",
+          "path": "LL-03 / 6 · Schéma › Funkční diagram cyklu",
+          "alt": "Funkční diagram cyklu: kroky sekvence s podmínkami přechodu, hlídacími časy a časy z běžného cyklu simulace, vpravo vybraný krok a jeho zařízení"
+        }
+      },
+      {
+        "id": "program",
+        "name": "Program pro PLC",
+        "lead": "Úplný program, ne prázdná šablona.",
+        "points": [
+          "Stavové automaty zařízení s hlídacími časy a stavovými slovy.",
+          "Režim AUTO a ruční, start cyklu, kvitace, ruční povely, porucha stroje s krokem, kde vznikla.",
+          "8 platforem; import jedním souborem tam, kde to IDE umí (PLCopen XML, L5X).",
+          "Ke každé platformě postup importu a nejkratší test."
+        ],
+        "shot": {
+          "key": "generovat",
+          "path": "LL-03 / 8 · Generovat",
+          "alt": "Krok Generovat: zdrojový kód hlavního bloku Gen_Main.scl pro Siemens SIMATIC, nad ním záložky dalších platforem a souborů"
+        }
+      },
+      {
+        "id": "simulace",
+        "name": "Simulace a ověření",
+        "lead": "Návrh se odzkouší dřív, než vznikne rozvaděč.",
+        "points": [
+          "Simulátor provádí stejnou logiku, jakou generuje program, scan po scanu.",
+          "Běžný cyklus, poruchové scénáře a matice stavů: nouzové zastavení v každém kroku, blokování, vypnutí AUTO, ztráta hlášení.",
+          "Kontrola konceptu: vstupy, které program nečte, výstupy, které neovládá, měření bez mezí.",
+          "Časové hledisko: takt a rezerva hlídacích časů. Výsledek v protokolu."
+        ],
+        "note": "Simulace ověřuje návrh, ne program přeložený ve vašem IDE. Test v simulátoru platformy a FAT nenahrazuje.",
+        "shot": {
+          "key": "ziva",
+          "path": "LL-03 / 7 · Program › Živá simulace",
+          "alt": "Živá simulace: linka LL-03 v režimu AUTO v kroku 10 z 18, aktivní vodiče a sepnuté výstupy zvýrazněné, vpravo stav lisovacího válce Y1 a seznam událostí"
+        }
+      },
+      {
+        "id": "bezpecnost",
+        "name": "Bezpečnostní funkce",
+        "lead": "Návrh se zdůvodněním. Platí až po schválení.",
+        "points": [
+          "Z nebezpečí stroje navrhne funkce: nouzové zastavení, kryty, zámky, světelné závory, dvouruční ovládání, odvzdušnění, hydrauliku.",
+          "PLr grafem rizik podle ISO 13849-1, kategorie a architektura, výpočet PL z MTTFd, DC a CCF.",
+          "Komponenty s katalogovými hodnotami a zdrojem, bezpečné vzdálenosti podle ISO 13855, schéma bezpečnostního okruhu.",
+          "Bezpečnostní program pro Siemens F, Rockwell GuardLogix a PLCopen Safety, konfigurace Pilz, SICK a Schmersal. Vznikne až po schválení funkcí.",
+          "Dokument bezpečnostních funkcí (SRS) a plán validace s kontrolními seznamy."
+        ],
+        "note": "Bezpečnostní logika patří do bezpečnostního PLC nebo relé. Ve standardním programu zůstává nouzové zastavení jen stavovým signálem. Validaci na stroji {{site.brand}} plánuje a protokoluje, provádí ji člověk.",
+        "shot": {
+          "key": "bezpecnost",
+          "path": "LL-03 / 11 · Bezpečnost",
+          "alt": "Krok Bezpečnost: tabulka deseti bezpečnostních funkcí s PLr, dosaženým PL a stavem schválení, vpravo popis funkce nouzového zastavení"
+        }
+      },
+      {
+        "id": "ozivovani",
+        "name": "Oživení",
+        "lead": "Plán na stroj a protokol, který vyplníte.",
+        "points": [
+          "Plán po fázích: rozvaděč, smyčkový test každého signálu, pohony, analogy, nouzové zastavení, sekvence, bezpečnostní funkce, předání.",
+          "Protokol k tisku i k zápisu výsledků přímo v aplikaci.",
+          "Návrhy ladění (meze, hlídací časy, nevyužité signály). Každý jde zase ke schválení."
+        ],
+        "shot": {
+          "key": "ozivovani",
+          "path": "LL-03 / 13 · Oživení",
+          "alt": "Krok Oživení: plán po fázích, rozvaděč hotový a část smyčkového testu I/O s výsledkem OK, vpravo popis dalšího kroku a pole pro naměřenou hodnotu"
+        }
+      },
+      {
+        "id": "dokumentace",
+        "name": "Dokumentace",
+        "lead": "16 dokumentů z jednoho popisu, vzájemně provázaných.",
+        "points": [
+          "FDS, I/O list, svorkovnice, seznam alarmů, protokol FAT, návod k obsluze, SW dokumentace.",
+          "Protokol ověření simulací, kusovník, protokol schválení, plán a protokol oživení.",
+          "Bezpečnostní funkce (SRS) a plán validace.",
+          "Markdown a CSV, které otevřete ve Wordu i Excelu."
+        ],
+        "shot": {
+          "key": "dokumentace",
+          "path": "LL-03 / 9 · Dokumentace",
+          "alt": "Krok Dokumentace: seznam souborů projektu (FDS, I/O list, svorkovnice, alarmy, FAT, schémata) a náhled funkční specifikace"
+        }
+      },
+      {
+        "id": "kusovnik",
+        "name": "Kusovník s katalogem",
+        "lead": "Podklad pro poptávku, ne prázdná tabulka.",
+        "points": [
+          "Označení podle IEC 81346: PLC a moduly platformy, díly každého zařízení, rozvaděč.",
+          "Typické značky, typy a dodavatelé z rešerše českého trhu, se zdroji.",
+          "Export do CSV pro Excel a poptávku."
+        ],
+        "shot": {
+          "key": "kusovnik",
+          "path": "LL-03 / 10 · Kusovník",
+          "alt": "Krok Kusovník: položky s označením, výrobcem, typem, objednacím kódem a dodavatelem, vybraný převodový motor -M1"
+        }
+      },
+      {
+        "id": "import",
+        "name": "Import stávajících zařízení",
+        "lead": "Modernizace a rekonstrukce bez přepisování.",
+        "points": [
+          "Exporty a programy z PLC zpětně: TIA Portal (SimaticML, tabulky tagů), Studio 5000 (L5X, CSV), ST zdroje a GVL, tabulky návěští.",
+          "Z programu odvodí zařízení, I/O, nouzové zastavení, blokování, sekvenci a meze. U každé položky ukáže zdroj a jistotu.",
+          "Schémata v PDF a fotky štítků nebo rozvaděče přečte umělá inteligence. Přesně načtené má přednost, rozpory hlásí."
+        ],
+        "shot": {
+          "key": "import",
+          "path": "Import › Kontrola a převzetí",
+          "alt": "Průvodce importem, krok Kontrola a převzetí: zařízení rozpoznaná z veřejného projektu v PLCopen XML s jistotou barevně (jisté, odhad) a citací zdroje soubor:řádek"
+        }
+      },
+      {
+        "id": "jazyky",
+        "name": "5 jazyků",
+        "lead": "Rozhraní i výstupy v jazyce zákazníka.",
+        "points": [
+          "Čeština, angličtina, němčina, španělština a čínština.",
+          "Dokumentace, README a hlášení simulace v jazyce projektu. Komentáře kódu a texty DXF vždy latinkou.",
+          "Překlady jsou strojové s oborovým slovníkem. Před předáním zákazníkovi je dobré nechat je projít rodilým mluvčím."
+        ]
+      },
+      {
+        "id": "aplikace",
+        "name": "Web i desktop",
+        "lead": "Stejné jádro, dvě cesty.",
+        "points": [
+          "Webová verze běží v prohlížeči bez instalace.",
+          "Desktopová aplikace pro Windows navíc: klikací schémata, živá simulace se schématem systému a přehrávač scénářů.",
+          "Desktop jako přenosný ZIP: rozbalit a spustit, bez práv správce."
+        ],
+        "shot": {
+          "key": "web-schema",
+          "path": "Prohlížeč / 6 · Schéma",
+          "alt": "Webová verze {{site.brand}} v prohlížeči: krok Schéma s blokovým schématem linky LL-03"
+        }
+      }
+    ],
+    "ai_title": "Kde pomáhá umělá inteligence",
+    "ai_body": "Jen na dvou místech: návrh sestavy z volného popisu a rozbor schémat a fotek při importu. Výsledek je vždy návrh ke schválení. Při použití odchází text nebo obrázek poskytovateli AI. Všechno ostatní počítá {{site.brand}} ve vašem počítači podle pevných pravidel."
+  },
+  "platformy": {
+    "title": "Platformy a ověření — {{site.brand}}",
+    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Mitsubishi, Schneider, OMRON a Unitronics. Jak je výstup ověřený a co je zatím beta.",
+    "eyebrow": "Platformy",
+    "h1": "8 platforem. Píšeme, co je ověřené.",
+    "lead": "Výstup každé platformy ověřujeme proti příručkám výrobce. Import a překlad ve vývojovém prostředí jsme zatím nezkoušeli, proto mají všechny platformy štítek beta. Jakmile platformu ověříme překladem, štítek zmizí a doplníme verzi a datum.",
+    "checked": "Stav k",
+    "h_platform": "Platforma",
+    "h_ide": "Vývojové prostředí",
+    "h_output": "Co dostanete",
+    "h_check": "Jak je ověřeno",
+    "h_state": "Stav",
+    "rows": [
+      {
+        "name": "Siemens SIMATIC",
+        "ide": "TIA Portal V17–V21",
+        "output": "SCL zdroje, SimaticML XML, tabulka tagů",
+        "check": "příručky Siemens, formát SimaticML"
+      },
+      {
+        "name": "Rockwell Allen-Bradley",
+        "ide": "Studio 5000 Logix Designer",
+        "output": "L5X (Add-On Instructions, tagy, rutina) a CSV tagů",
+        "check": "příručka 1756-RM014, reálné exporty L5X"
+      },
+      {
+        "name": "Beckhoff",
+        "ide": "TwinCAT 3",
+        "output": "PLCopen XML, ST bloky, GVL",
+        "check": "parser ST pro TwinCAT, schéma PLCopen TC6"
+      },
+      {
+        "name": "CODESYS",
+        "ide": "CODESYS V3.5",
+        "output": "PLCopen XML, ST bloky, GVL",
+        "check": "schéma PLCopen TC6, příručky CODESYS"
+      },
+      {
+        "name": "Mitsubishi",
+        "ide": "GX Works3",
+        "output": "ST a CSV globálních návěští",
+        "check": "příručky Mitsubishi; formát CSV se liší podle verze"
+      },
+      {
+        "name": "Schneider Electric",
+        "ide": "EcoStruxure Machine Expert",
+        "output": "PLCopen XML, ST bloky, GVL",
+        "check": "schéma PLCopen TC6, příručky Schneider"
+      },
+      {
+        "name": "OMRON",
+        "ide": "Sysmac Studio",
+        "output": "ST a tabulka proměnných",
+        "check": "příručky OMRON"
+      },
+      {
+        "name": "Unitronics",
+        "ide": "UniLogic (UniStream)",
+        "output": "plochý ST a seznam tagů",
+        "check": "příručky Unitronics; dialekt ověří až první překlad"
+      }
+    ],
+    "state_beta": "beta: import v IDE neověřen",
+    "why_title": "Co znamená beta",
+    "why_body": "Soubory odpovídají dokumentaci výrobce a projdou našimi kontrolami: párování bloků, deklarované identifikátory, schéma XML, ASCII tam, kde je potřeba. Nevíme ale ještě, co řekne překladač vaší verze IDE. README u každé platformy proto popisuje nejkratší test: import, překlad a běh v simulátoru platformy. Narazíte-li na odchylku, napište nám. Opravíme ji a platformu posuneme k ověřeným.",
+    "safety_title": "Bezpečnostní program",
+    "safety_lead": "Vzniká z certifikovaných bloků výrobce, až po schválení bezpečnostních funkcí. Stejně jako u standardního programu: beta, dokud ho neověříme překladem.",
+    "safety_rows": [
+      {
+        "name": "Siemens",
+        "what": "F-program (TIA Portal Safety)"
+      },
+      {
+        "name": "Rockwell",
+        "what": "GuardLogix (L5X)"
+      },
+      {
+        "name": "PLCopen Safety",
+        "what": "bloky pro TwinSAFE, CODESYS Safety a další"
+      },
+      {
+        "name": "Pilz, SICK, Schmersal",
+        "what": "konfigurace PNOZmulti, Flexi Soft, PROTECT PSC1"
+      },
+      {
+        "name": "Bezpečnostní relé",
+        "what": "zapojení a nastavení"
+      }
+    ],
+    "lang_title": "Jazyky",
+    "lang_body": "Aplikace i výstupy v pěti jazycích: čeština, angličtina, němčina, španělština a čínština. Komentáře generovaného kódu a texty výkresů DXF zůstávají latinkou, u čínštiny anglicky. Výstup pro Unitronics a DXF je čisté ASCII."
+  },
+  "cenik": {
+    "title": "Ceník — {{site.brand}}",
+    "description": "Free do 64 I/O natrvalo, Pro bez omezení velikosti, Firma pro tým s vlastní knihovnou bloků.",
+    "eyebrow": "Ceník",
+    "h1": "Vyzkoušejte na skutečné zakázce",
+    "lead": "Free verze projde celým postupem až k hotovým souborům. Platíte, až když stroj přeroste limit nebo chcete čisté exporty.",
+    "per_month": "/ měsíc",
+    "featured": "Začněte tady",
+    "plans": [
+      {
+        "id": "free",
+        "name": "Free",
+        "price": "0 Kč",
+        "unit": "natrvalo",
+        "points": [
+          "Neomezeně projektů do {{site.free_io_limit}} I/O",
+          "Všechny generátory, simulace a dokumentace",
+          "Bezpečnostní funkce a schvalování",
+          "Exporty s patičkou {{site.brand}}",
+          "Bez exportu DXF"
+        ],
+        "cta": "Stáhnout zdarma"
+      },
+      {
+        "id": "pro",
+        "name": "Pro",
+        "price": "990 Kč",
+        "unit": "/ měsíc",
+        "points": [
+          "Bez omezení velikosti projektu",
+          "Čisté exporty bez patičky",
+          "Export schémat do DXF",
+          "Licence pro 1 počítač, funguje offline"
+        ],
+        "cta": "Chci Pro"
+      },
+      {
+        "id": "firma",
+        "name": "Firma",
+        "price": "2 990 Kč",
+        "unit": "/ měsíc",
+        "points": [
+          "Vše z Pro pro tým do 5 počítačů",
+          "Vlastní knihovna šablon bloků",
+          "Firemní názvosloví a stavová slova"
+        ],
+        "cta": "Chci Firmu"
+      }
+    ],
+    "vat": "Ceny jsou bez DPH.",
+    "unlock": "Narazíte na limit {{site.free_io_limit}} I/O u reálného stroje? Napište nám a první projekt vám odemkneme celý zdarma.",
+    "unlock_cta": "Napsat o odemčení",
+    "faq_title": "Platby a licence",
+    "faq": [
+      {
+        "q": "Co se stane, když platba neprojde?",
+        "a": "Nic se nezamkne. Licence platí ještě měsíc po konci období, abyste nepřišli o práci uprostřed zakázky. Zamyká se až zrušené předplatné."
+      },
+      {
+        "q": "Potřebuje licence internet?",
+        "a": "Jen při prvním vložení a pak občas na pozadí. Když nejste online, aplikace běží dál."
+      },
+      {
+        "q": "Proč patička v exportech Free verze?",
+        "a": "Je to jediné omezení, které nejde obejít rozdělením stroje na dva projekty. A dokumentace s patičkou nám pomáhá, když se dostane k dalším lidem v oboru."
+      },
+      {
+        "q": "Fakturujete na firmu?",
+        "a": "Ano. Fakturační údaje vyplníte při objednávce, fakturu dostanete e-mailem."
+      }
+    ],
+    "order_terms": "Objednáním souhlasíte s obchodními a licenčními podmínkami a berete na vědomí zásady ochrany osobních údajů."
+  },
+  "ukazka": {
+    "title": "Ukázková dokumentace — {{site.brand}}",
+    "description": "Celá dokumentace ukázkového stroje: FDS, I/O list, schémata, alarmy, FAT, bezpečnostní funkce, protokol schválení a plán oživení. PDF ke stažení.",
+    "eyebrow": "Ukázka",
+    "h1": "Podívejte se, co dostanete",
+    "lead": "Ukázkový stroj: lisovací a značicí linka s podavačem, manipulátorem, hydraulickým lisem a dopravníkem. 29 zařízení, 44 signálů, světelná závora, dva kryty a dvouruční ovládání. PDF vzniklo stejným jádrem jako výstupy v aplikaci.",
+    "pdf_cta": "Stáhnout ukázku (PDF)",
+    "pdf": "{{site.pdf_cs}}",
+    "pdf_note": "Část položek je v ukázce schválená smyšlenou osobou, část záměrně ne. Uvidíte, jak vypadá NESCHVÁLENO i položka změněná po schválení.",
+    "contents_title": "Co v ukázce najdete",
+    "contents": [
+      {
+        "name": "Protokol schválení",
+        "desc": "Stav každé položky, kdo a kdy schválil, otisk obsahu."
+      },
+      {
+        "name": "Funkční specifikace (FDS)",
+        "desc": "Režimy, sekvence, poruchy a kvitace, blokování."
+      },
+      {
+        "name": "I/O list a svorkovnice",
+        "desc": "Adresy, tagy, svorky, čísla vodičů."
+      },
+      {
+        "name": "Schémata",
+        "desc": "Blokové schéma, zapojení vstupního modulu, bezpečnostní okruh."
+      },
+      {
+        "name": "Seznam alarmů a FAT",
+        "desc": "Reakce na poruchy a testovací protokol pro přejímku."
+      },
+      {
+        "name": "Bezpečnostní funkce",
+        "desc": "Nebezpečí, PLr, architektura, výpočet PL, komponenty se zdroji."
+      },
+      {
+        "name": "Plán oživení",
+        "desc": "Kroky po fázích s očekávaným výsledkem a místem pro zápis."
+      },
+      {
+        "name": "Ukázka programu",
+        "desc": "Výřez hlavního programu v SCL pro Siemens."
+      }
+    ],
+    "fig_block": "Blokové schéma ukázkového stroje",
+    "fig_sheet": "Zapojení vstupního modulu DI1 (výřez)",
+    "fig_safety": "Schéma bezpečnostního okruhu",
+    "fig_do1": "Zapojení výstupního modulu DO1 (svorkovnice X3)",
+    "fig_timing": "Časový diagram cyklu",
+    "fig_flow": "Funkční diagram cyklu (výřez)",
+    "figs_title": "Výkresy a diagramy",
+    "pages_title": "Náhled stránek",
+    "pages": [
+      {
+        "name": "Titulní strana"
+      },
+      {
+        "name": "Protokol schválení"
+      },
+      {
+        "name": "I/O list"
+      },
+      {
+        "name": "Bezpečnostní funkce (SRS)"
+      }
+    ],
+    "app_title": "Stejný projekt v aplikaci",
+    "app_lead": "Linka LL-03 z ukázkové dokumentace, tentokrát přímo v aplikaci {{site.brand}}.",
+    "app_shots": [
+      {
+        "key": "ziva",
+        "path": "LL-03 / 7 · Program › Živá simulace",
+        "alt": "Živá simulace: linka LL-03 v režimu AUTO v kroku 10 z 18, aktivní vodiče a sepnuté výstupy zvýrazněné, vpravo stav lisovacího válce Y1 a seznam událostí",
+        "cap": "Živá simulace: linka v režimu AUTO uprostřed cyklu, zvýrazněné aktivní vodiče a sepnuté výstupy."
+      },
+      {
+        "key": "schvaleni",
+        "path": "LL-03 / 12 · Schválení",
+        "alt": "Krok Schválení: 40 položek schváleno, 3 změněné po schválení, 30 čeká; vybraná automatická sekvence ve stavu změněno po schválení",
+        "cap": "Schválení: co je schválené, co se po schválení změnilo a co ještě čeká."
+      }
+    ]
+  },
+  "stazeni": {
+    "title": "Ke stažení — {{site.brand}}",
+    "description": "Stáhněte {{site.brand}} zdarma. Přenosná aplikace pro Windows bez instalace, do 64 I/O zdarma natrvalo.",
+    "eyebrow": "Ke stažení",
+    "h1": "Stáhnout {{site.brand}}",
+    "lead": "Zadejte e-mail a odkaz ke stažení se zobrazí hned tady pod formulářem. Aplikace se neinstaluje: rozbalíte a spustíte, práva správce nepotřebujete.",
+    "f_email": "E-mail",
+    "f_placeholder": "vas@email.cz",
+    "f_hp": "Tohle pole nevyplňujte",
+    "f_submit": "Zobrazit odkaz ke stažení",
+    "f_sending": "Odesílám…",
+    "f_ok": "Hotovo. Odkaz je na cestě, platí 7 dní.",
+    "f_ok_direct": "Hotovo. Stahujte tady (e-mailem nic neposíláme):",
+    "f_err": "Něco se nepovedlo. Zkuste to prosím znovu.",
+    "f_net": "Spojení se nezdařilo. Zkuste to prosím za chvíli.",
+    "f_note": "Žádné další e-maily vám nepošleme, pokud si je nevyžádáte. Jak s adresou zacházíme, popisuje stránka",
+    "token_title": "Váš odkaz ke stažení",
+    "token_body": "Stáhněte si přenosnou verzi pro Windows. Odkaz platí 7 dní od vyžádání.",
+    "token_cta": "Stáhnout pro Windows (ZIP)",
+    "req_title": "Co potřebujete",
+    "req": [
+      "Windows 10 nebo 11, 64bit",
+      "Bez práv správce, bez instalace",
+      "Webová verze: aktuální Edge, Chrome nebo Firefox"
+    ],
+    "next_title": "Jak začít",
+    "next": [
+      "Otevřete jeden z 12 příkladových strojů a projděte kroky od zadání po dokumentaci.",
+      "Pak zkuste menší stroj, který znáte nazpaměť.",
+      "Máte-li existující projekt, začněte importem. Ušetří vám to klikání."
+    ],
+    "f_consent": "Souhlasím s obchodními a licenčními podmínkami:",
+    "f_consent_err": "Pro stažení je potřeba souhlas s licenčními podmínkami.",
+    "lead_mail": "Nechte nám e-mail a pošleme vám odkaz ke stažení. Aplikace se neinstaluje: rozbalíte a spustíte, práva správce nepotřebujete.",
+    "f_submit_mail": "Poslat odkaz ke stažení"
+  },
+  "kontakt": {
+    "title": "Kontakt — {{site.brand}}",
+    "description": "Napište nám: dotazy, odemčení projektu nad limit, fakturace, chyby ve výstupech.",
+    "eyebrow": "Kontakt",
+    "h1": "Napište nám",
+    "lead": "Dotazy, odemčení projektu, fakturace i chyby ve výstupech. Odpovídáme osobně, obvykle do dvou pracovních dnů.",
+    "mail_label": "E-mail",
+    "topics_title": "S čím se ozvat",
+    "topics": [
+      "Projekt přerostl limit {{site.free_io_limit}} I/O a chcete ho odemknout.",
+      "Výstup pro vaši platformu nejde importovat nebo přeložit. Pošlete hlášení IDE, opravíme to.",
+      "Fakturace, licence pro tým, uvolnění licence z jiného počítače.",
+      "Chybí vám funkce, blok nebo typ dokumentu."
+    ],
+    "company_title": "Provozovatel",
+    "company": "Údaje o provozovateli doplníme před spuštěním prodeje."
+  },
+  "podminky": {
+    "title": "Obchodní a licenční podmínky — {{site.brand}}",
+    "description": "Obchodní a licenční podmínky aplikace {{site.brand}}: tarify, předplatné, licence, povaha výstupů a omezení odpovědnosti.",
+    "eyebrow": "Právní informace",
+    "h1": "Obchodní a licenční podmínky",
+    "lead": "Tyto podmínky upravují užívání aplikace {{site.brand}} (desktopová aplikace a webová verze) a souvisejících služeb webu. Aplikace je určena především podnikatelům: integrátorům, výrobcům strojů a projektantům. Pro spotřebitele platí navíc ustanovení v článku 9.",
+    "sections": [
+      {
+        "id": "provozovatel",
+        "h": "Provozovatel a uzavření smlouvy",
+        "body": [
+          "Provozovatelem je {{site.operator.name}}, IČO {{site.operator.id}}, se sídlem {{site.operator.address}}, e-mail {{site.email}} (dále jen „provozovatel“).",
+          "Smlouva o licenci vzniká stažením aplikace se souhlasem s těmito podmínkami (tarif Free), nebo dokončením objednávky placeného tarifu (Pro, Firma). Smlouva se uzavírá v češtině, případně v jazyce zvoleném na webu."
+        ]
+      },
+      {
+        "id": "licence",
+        "h": "Licence",
+        "body": [
+          "Provozovatel poskytuje uživateli nevýhradní, nepřevoditelnou licenci k užívání aplikace v rozsahu zvoleného tarifu, po dobu trvání smlouvy a bez územního omezení.",
+          "- Free: bezplatně a bez časového omezení, projekty do {{site.free_io_limit}} I/O, exporty s patičkou {{site.brand}}, bez exportu DXF.",
+          "- Pro: bez omezení velikosti projektu, exporty bez patičky, export DXF; jeden počítač.",
+          "- Firma: rozsah tarifu Pro pro tým, až 5 počítačů, vlastní knihovna šablon bloků.",
+          "Počet počítačů se hlídá aktivací licence. Uvolnění licence z jiného počítače provede provozovatel na žádost.",
+          "Uživatel nesmí licenci dále prodávat ani poskytovat třetím osobám, obcházet licenční mechanismy ani aplikaci zpětně analyzovat, pokud to nepovoluje zákon.",
+          "Výstupy, které uživatel v aplikaci vytvoří (dokumentace, schémata, program), náležejí uživateli. Patička ve výstupech tarifu Free se nesmí odstraňovat."
+        ]
+      },
+      {
+        "id": "predplatne",
+        "h": "Předplatné, cena a platby",
+        "body": [
+          "Placené tarify se platí měsíčně předem podle ceníku na webu. Ceny jsou uvedeny bez DPH; spotřebiteli se před dokončením objednávky zobrazí konečná cena včetně DPH.",
+          "Platby zpracovává platební služba Stripe, nebo Paddle. Při platbě přes Paddle je prodejcem (Merchant of Record) společnost Paddle a pro samotný nákup platí i její podmínky; Paddle také vystavuje doklad a odvádí DPH.",
+          "Předplatné se automaticky obnovuje vždy o další měsíc, dokud ho uživatel nezruší. Zrušit lze kdykoli s účinností ke konci zaplaceného období. Za započaté období se platba nevrací, pokud zákon nestanoví jinak.",
+          "Když platba neprojde, licence zůstává funkční ještě nejméně měsíc od konce zaplaceného období. Po zrušení nebo trvalém nezaplacení přejde aplikace do režimu Free; data a projekty uživatele zůstávají v jeho počítači.",
+          "Změnu ceny oznámí provozovatel nejméně 30 dní předem e-mailem. Nová cena platí od následujícího období; uživatel může předplatné před změnou zrušit."
+        ]
+      },
+      {
+        "id": "vystupy",
+        "h": "Povaha výstupů: aplikace navrhuje, rozhoduje odpovědná osoba",
+        "body": [
+          "Aplikace navrhuje řízení stroje: zařízení, I/O, schémata, procesní logiku a program PLC, bezpečnostní funkce včetně PLr, architektury, komponent a programu pro bezpečnostní PLC, plán oživení a dokumentaci. Všechny výstupy jsou návrh k revizi.",
+          "Platí jen položky, které schválila odpovědná osoba uživatele (jméno, datum, poznámka). Schválení je úkonem uživatele, nikoli provozovatele. Neschválené výstupy nesou označení NESCHVÁLENO a nesmí se použít jako podklad pro výrobu, zapojení ani uvedení stroje do provozu.",
+          "Simulace v aplikaci ověřuje návrh, nikoli program přeložený ve vývojovém prostředí výrobce PLC. Výstupy pro jednotlivé platformy nejsou ověřené překladem v jejich vývojovém prostředí (označení beta na webu).",
+          "Výstupy funkcí s umělou inteligencí (návrh sestavy, rozbor schémat a fotek) mohou být chybné nebo neúplné; aplikace je vždy předkládá jako návrh ke kontrole."
+        ]
+      },
+      {
+        "id": "stroj",
+        "h": "Odpovědnost výrobce stroje a integrátora",
+        "body": [
+          "Za stroj, jeho řízení a bezpečnost odpovídá výrobce stroje, případně integrátor, který řízení navrhuje a uvádí do provozu. Zejména odpovídá za posouzení rizik, návrh a validaci bezpečnostních funkcí podle ISO 13849-1 a ISO 13849-2 (příp. IEC 62061), za shodu se směrnicí 2006/42/ES o strojních zařízeních a s nařízením (EU) 2023/1230 o strojních výrobcích, za technickou dokumentaci, EU prohlášení o shodě a označení CE.",
+          "Aplikace není certifikovaným nástrojem pro vývoj bezpečnostních systémů a nenahrazuje odbornou způsobilost, posouzení rizik, ověření programu na cílové platformě, zkoušky FAT ani validaci na stroji. Validaci bezpečnostních funkcí aplikace plánuje a pomáhá zaznamenat, provádí ji a podepisuje člověk."
+        ]
+      },
+      {
+        "id": "odpovednost",
+        "h": "Omezení odpovědnosti",
+        "body": [
+          "Aplikace se poskytuje ve stavu, v jakém je. Provozovatel neodpovídá za to, že bude vyhovovat konkrétnímu účelu uživatele, pokud to výslovně neslíbil.",
+          "V rozsahu, který právní předpisy dovolují, provozovatel neodpovídá za nepřímé škody, ušlý zisk, ztrátu dat, prostoje ani za škody vzniklé použitím výstupů, které odpovědná osoba neověřila nebo neschválila, nebo jejich použitím v rozporu s článkem 4 a 5.",
+          "Celková odpovědnost provozovatele vůči uživateli ze smlouvy je omezena částkou, kterou uživatel provozovateli zaplatil za posledních 12 měsíců před vznikem škody. U tarifu Free, za který uživatel nic neplatí, odpovídá provozovatel jen v rozsahu, který nelze smluvně vyloučit.",
+          "Omezení se nevztahují na újmu na životě, zdraví a jiných přirozených právech člověka, na škodu způsobenou úmyslně nebo z hrubé nedbalosti (§ 2898 občanského zákoníku) ani na práva spotřebitele, která nelze smluvně omezit."
+        ]
+      },
+      {
+        "id": "ai",
+        "h": "Funkce s umělou inteligencí",
+        "body": [
+          "Funkce s umělou inteligencí jsou volitelné. Aplikace při nich odesílá zadaný text, podklady nebo obrázky poskytovateli AI (Anthropic) s API klíčem uživatele. Za podmínky a náklady užití služby poskytovatele odpovídá uživatel; provozovatel k odeslaným datům nemá přístup.",
+          "Uživatel odpovídá za to, že smí podklady poskytovateli AI předat (například s ohledem na mlčenlivost vůči svým zákazníkům). Bez použití těchto funkcí zůstává obsah projektů v počítači uživatele."
+        ]
+      },
+      {
+        "id": "provoz",
+        "h": "Dostupnost, podpora a aktualizace",
+        "body": [
+          "Aplikace pracuje i bez připojení k internetu. Služby webu (stažení, aktivace a kontrola licence) mohou být dočasně nedostupné; licence se proto ověřuje offline s tolerancí.",
+          "Podpora probíhá e-mailem bez garantované doby odezvy, pokud není dohodnuto jinak. Aktualizace mohou měnit funkce aplikace; podstatné omezení placených funkcí oznámí provozovatel předem."
+        ]
+      },
+      {
+        "id": "spotrebitel",
+        "h": "Spotřebitelé",
+        "body": [
+          "Spotřebitel může od smlouvy uzavřené distančně odstoupit bez udání důvodu do 14 dnů od jejího uzavření, a to e-mailem na {{site.email}}. Provozovatel vrátí přijaté platby do 14 dnů od odstoupení.",
+          "Jde-li o digitální obsah, který není dodáván na hmotném nosiči, právo na odstoupení zaniká začátkem plnění, pokud spotřebitel k tomu dal předem výslovný souhlas a byl poučen, že tím právo na odstoupení ztrácí (§ 1837 písm. l) občanského zákoníku). Tento souhlas se uděluje při objednávce.",
+          "Spotřebitel má práva z vadného plnění digitálního obsahu a služby podle občanského zákoníku; vady lze oznámit e-mailem."
+        ]
+      },
+      {
+        "id": "spory",
+        "h": "Rozhodné právo a řešení sporů",
+        "body": [
+          "Smlouva se řídí právem České republiky, zejména občanským zákoníkem. Úmluva OSN o smlouvách o mezinárodní koupi zboží se nepoužije.",
+          "Spory s podnikateli rozhodují obecné soudy České republiky příslušné podle sídla provozovatele. Spotřebitele tím nezbavujeme ochrany, kterou mu poskytují kogentní předpisy státu jeho bydliště.",
+          "Spotřebitel může spor řešit mimosoudně u České obchodní inspekce (www.coi.cz, oddělení ADR). Evropská platforma pro řešení sporů on-line (ODR) ukončila provoz 20. 7. 2025."
+        ]
+      },
+      {
+        "id": "zmeny",
+        "h": "Změny podmínek a účinnost",
+        "body": [
+          "Provozovatel může podmínky změnit; změnu oznámí nejméně 30 dní předem e-mailem nebo v aplikaci. Nesouhlasí-li uživatel, může smlouvu do účinnosti změny ukončit.",
+          "Tyto podmínky nabývají účinnosti dnem {{site.legal_effective}}."
+        ]
+      }
+    ]
+  },
+  "soukromi": {
+    "title": "Ochrana osobních údajů — {{site.brand}}",
+    "description": "Jaké osobní údaje {{site.brand}} zpracovává, proč, jak dlouho a jaká máte práva.",
+    "eyebrow": "Právní informace",
+    "h1": "Ochrana osobních údajů",
+    "lead": "Zpracováváme jen to, co potřebujeme k doručení aplikace, licencí a plateb. Obsah vašich projektů nezpracováváme: zůstává ve vašem počítači.",
+    "sections": [
+      {
+        "id": "spravce",
+        "h": "Správce",
+        "body": [
+          "Správcem osobních údajů je {{site.operator.name}}, IČO {{site.operator.id}}, {{site.operator.address}}. Kontakt pro ochranu osobních údajů: {{site.email}}."
+        ]
+      },
+      {
+        "id": "udaje",
+        "h": "Jaké údaje, proč a na jakém základě",
+        "body": [
+          "- Formulář ke stažení: e-mail, jazyk, zdroj návštěvy (utm), čas souhlasu s podmínkami a čas stažení. Účel: poskytnout odkaz ke stažení a evidovat souhlas s licenčními podmínkami. Základ: plnění smlouvy (čl. 6 odst. 1 písm. b GDPR).",
+          "- Licence: e-mail, licenční klíč, tarif, anonymní otisk počítače, vámi zadaný popis počítače, časy aktivace a kontroly. Účel: vydání licence a hlídání počtu počítačů. Základ: plnění smlouvy.",
+          "- Platby: od platební služby dostáváme e-mail, identifikátor předplatného a stav platby; platební údaje (karta) k nám nechodí. Účel: vystavení a správa licence, účetnictví. Základ: plnění smlouvy a právní povinnost (čl. 6 odst. 1 písm. c).",
+          "- Komunikace: obsah e-mailů, které nám pošlete. Účel: odpověď a podpora. Základ: oprávněný zájem (čl. 6 odst. 1 písm. f).",
+          "- Ochrana webu: IP adresa a technické údaje prohlížeče při ověření Turnstile a v provozních záznamech hostingu. Účel: ochrana formulářů před boty a bezpečnost služby. Základ: oprávněný zájem.",
+          "Nepoužíváme vaše údaje k marketingu, neposíláme newslettery bez vašeho výslovného souhlasu a neprovádíme profilování."
+        ]
+      },
+      {
+        "id": "projekty",
+        "h": "Obsah projektů a funkce s umělou inteligencí",
+        "body": [
+          "Projekty (popisy strojů, I/O, schémata, programy, dokumentace) zpracovává aplikace jen ve vašem počítači; na naše servery se nenahrávají.",
+          "Výjimkou jsou volitelné funkce s umělou inteligencí: aplikace při nich odesílá zadaný text, podklady nebo obrázky přímo poskytovateli AI (Anthropic, PBC, USA) s vaším API klíčem. Toto zpracování se řídí smlouvou mezi vámi a poskytovatelem; my k odeslaným datům přístup nemáme. Funkce AI nemusíte používat."
+        ]
+      },
+      {
+        "id": "prijemci",
+        "h": "Zpracovatelé a příjemci",
+        "body": [
+          "- Cloudflare, Inc.: hosting webu, databáze, ochrana Turnstile. Přenos do USA na základě rámce EU-US Data Privacy Framework a standardních smluvních doložek.",
+          "- Stripe Payments Europe, Ltd. (Irsko), nebo Paddle.com Market Ltd. (Spojené království) jako prodejce (Merchant of Record) a samostatný správce údajů o platbě; použitá služba závisí na zvoleném způsobu platby.",
+          "- Resend (Plus Five Five, Inc., USA): odesílání e-mailů s odkazem a licencí, jakmile bude zapnuto.",
+          "- GitHub, Inc.: hosting souborů ke stažení; při stažení zpracovává vaši IP adresu.",
+          "Údaje neprodáváme a nepředáváme dalším osobám, ledaže to ukládá zákon."
+        ]
+      },
+      {
+        "id": "doba",
+        "h": "Jak dlouho údaje uchováváme",
+        "body": [
+          "- Údaje z formuláře ke stažení: 3 roky od posledního stažení, pak je smažeme.",
+          "- Údaje o licenci: po dobu trvání licence a 3 roky po jejím skončení.",
+          "- Účetní a daňové doklady: 10 let podle zákona o DPH a účetních předpisů.",
+          "- Provozní záznamy hostingu: podle nastavení poskytovatele, obvykle dny až týdny."
+        ]
+      },
+      {
+        "id": "prava",
+        "h": "Vaše práva",
+        "body": [
+          "Máte právo na přístup ke svým údajům, jejich opravu, výmaz, omezení zpracování a přenositelnost, právo vznést námitku proti zpracování na základě oprávněného zájmu a odvolat souhlas, pokud zpracování na souhlasu stojí. Stačí napsat na {{site.email}}; odpovíme do měsíce.",
+          "Máte také právo podat stížnost u Úřadu pro ochranu osobních údajů (www.uoou.gov.cz)."
+        ]
+      },
+      {
+        "id": "ucinnost",
+        "h": "Účinnost",
+        "body": [
+          "Tyto zásady platí ode dne {{site.legal_effective}}. O podstatných změnách vás budeme informovat na webu, a máte-li u nás licenci, e-mailem."
+        ]
+      }
+    ]
+  },
+  "cookies": {
+    "title": "Cookies — {{site.brand}}",
+    "description": "Web {{site.brand}} nepoužívá analytické ani reklamní cookies.",
+    "eyebrow": "Právní informace",
+    "h1": "Cookies a podobné technologie",
+    "lead": "Web nepoužívá analytické, reklamní ani sledovací cookies a neukládá nic do úložiště prohlížeče. Proto se vás neptáme na souhlas lištou.",
+    "sections": [
+      {
+        "id": "web",
+        "h": "Co web používá",
+        "body": [
+          "- Písma jsou systémová, web nenačítá žádné externí knihovny ani písma.",
+          "- Stránka Ke stažení načítá ochranu Cloudflare Turnstile. Ta zpracovává technické údaje prohlížeče, aby rozlišila člověka od bota; nevkládá reklamní ani analytické cookies.",
+          "- Hosting Cloudflare může z bezpečnostních důvodů nastavit nezbytnou technickou cookie (například __cf_bm). Slouží jen k ochraně služby a zaniká nejpozději po 30 minutách.",
+          "- Bude-li zapnuto měření návštěvnosti, použijeme Cloudflare Web Analytics, které cookies nepoužívá."
+        ]
+      },
+      {
+        "id": "platby",
+        "h": "Objednávka",
+        "body": [
+          "Při objednávce placeného tarifu se otevře platební okno služby Stripe, nebo Paddle. Ta může nastavit vlastní nezbytné cookies podle svých zásad, například pro zabezpečení platby a ochranu před podvody."
+        ]
+      },
+      {
+        "id": "admin",
+        "h": "Administrace",
+        "body": [
+          "Stránka /admin/ slouží jen správcům obsahu. Při přihlášení přes GitHub ukládá přihlašovací údaje do úložiště prohlížeče správce."
+        ]
+      },
+      {
+        "id": "nastaveni",
+        "h": "Jak cookies omezit",
+        "body": [
+          "Cookies můžete zakázat nebo smazat v nastavení prohlížeče. Web bude fungovat dál; formulář ke stažení může bez ochrany Turnstile odmítnout odeslání.",
+          "Tyto informace platí ode dne {{site.legal_effective}}."
+        ]
+      }
+    ]
+  },
+  "notfound": {
+    "title": "Stránka nenalezena — {{site.brand}}",
+    "h1": "Tahle stránka tu není",
+    "body": "Odkaz je možná starý nebo v něm chybí znak."
+  },
+  "pdf": {
+    "doc_title": "Ukázka dokumentace stroje",
+    "meta_line": "{devs} zařízení · {io} signálů I/O · vygenerováno {date}",
+    "approval_line": "Stav schválení: {ok} z {total} položek schváleno, {stale} změněno po schválení. Ostatní nesou NESCHVÁLENO.",
+    "cover_note": "Ukázka. Schvalující osoba je smyšlená. Vygenerováno v {{site.brand}} ze vzorového projektu, bez ručních úprav.",
+    "footer": "Vygenerováno v {{site.brand}} · ukázka",
+    "approver": "Jan Vzorový",
+    "approver_note": "ukázka, smyšlená osoba",
+    "fig_block": "Blokové schéma",
+    "fig_sheet": "Zapojení vstupního modulu DI1",
+    "fig_safety": "Schéma bezpečnostního okruhu",
+    "safety_prog": "Bezpečnostní program",
+    "code": "Program pro Siemens (výřez)",
+    "code_note": "výřez, celý program je v sadě souborů projektu",
+    "excerpt_note": "Výřez: první fáze plánu oživení. Úplný protokol obsahuje všechny fáze a je k dispozici i jako CSV k tisku."
+  }
+}

@@ -43,15 +43,27 @@ GAP = 12
 
 SIG = {"fbkRunning": N_("běh"), "fault": N_("porucha"), "outRun": N_("chod"),
        "fbkOpen": N_("otevřeno"), "fbkClosed": N_("zavřeno"), "outOpen": N_("otevřít"),
-       "raw": N_("hodnota"), "in": N_("vstup"), "out": N_("výstup")}
+       "raw": N_("hodnota"), "in": N_("vstup"), "out": N_("výstup"),
+       # pohony fáze 2a
+       "ready": N_("připraven"), "atSpeed": N_("otáčky"), "outRev": N_("vzad"), "outReset": N_("kvitace"),
+       "rawSpeed": N_("žádaná"), "rawAct": N_("skutečná"), "inPos": N_("v poloze"), "homed": N_("referováno"),
+       "outEnable": N_("povolení"), "outStart": N_("start"), "outHome": N_("referování"), "outHalt": N_("HALT"),
+       "rawSp": N_("žádaná")}
+MOTION_CLS = ("Vfd", "PosDrive", "PropValve")
 LEFT_CLS = ("DI", "AnalogIn")
-WIRE_OFF = "#C3CEC7"
-WIRE_IN, WIRE_OUT, WIRE_AN = "#1F6FB2", theme.ACCENT, "#7A4FB5"
-FILL = {"on": "#D5EFE0", "active": "#FFEFC2", "err": theme.DANGER_BG, "off": "#ECEFED", None: "#FFFFFF"}
-EDGE = {"on": theme.ACCENT, "active": theme.WARN, "err": theme.ERR, "off": "#9FB0A6", None: "#9FB0A6"}
+# Barvy stavu jsou sémantické (theme.SIG_* / STATE_*), ne značkový akcent: DI modrá,
+# DO zelená, analog fialová, aktivní žlutá/oranžová, porucha červená.
+WIRE_OFF = "#C3CAD6"
+WIRE_DIM = "#E6E9EF"               # vodič mimo vybrané zařízení / modul
+WIRE_FOCUS = "#3A4660"             # vybraný vodič v klidu (FALSE)
+WIRE_IN, WIRE_OUT, WIRE_AN = theme.SIG_IN, theme.SIG_OUT, theme.SIG_AN
+FILL = {"on": theme.STATE_ON_BG, "active": theme.STATE_ACTIVE_BG, "err": theme.DANGER_BG,
+        "off": theme.STATE_OFF_BG, None: "#FFFFFF"}
+EDGE = {"on": theme.STATE_ON, "active": theme.WARN, "err": theme.ERR, "off": theme.NEUTRAL,
+        None: theme.NEUTRAL}
 LAMP = "#F5C518"
-BTN_BG, BTN_EDGE = "#F1F5F2", "#9FB0A6"     # tlačítko vstupu v klidu
-KNOB_BG, KNOB_TRACK = "#F4F7F5", "#E4EAE6"
+BTN_BG, BTN_EDGE = theme.FIELD, theme.NEUTRAL     # tlačítko vstupu v klidu
+KNOB_BG, KNOB_TRACK = theme.FIELD, "#E3E7EE"
 SWEEP, START = 270, 225                       # potenciometr: úhel otáčení, začátek vlevo dole
 RAW_MAX = 27648
 
@@ -93,8 +105,10 @@ class Mimic(ttk.Frame):
         self._fit = True
         self._res: dict | None = None
         self._sel: int | None = None
+        self._mod: int | None = None      # vybraný modul PLC (index v ``mods``) — zvýrazní jeho vodiče
         self._phase = 0.0                 # posun čárkování aktivních vodičů
         self._angle: dict[int, float] = {}
+        self._cart: dict[int, float] = {}     # polohovací pohon: poslední klidová poloha vozíku
         self._press = None
         self._dragging = False
         self._cache: dict = {}            # poslední nastavené hodnoty prvků (méně volání Tk)
@@ -113,9 +127,11 @@ class Mimic(ttk.Frame):
             self._release.pack(side="left")
             self._release.state(["disabled"])
             hint = _("klik na vstup = přepnout a vnutit, ↺ = zpět stroji · potenciometr: "
-                     "táhni nebo kolečko · klik na blok = výběr")
+                     "táhni nebo kolečko · klik na blok nebo modul = výběr a zvýraznění vodičů, "
+                     "klik do prázdna = zrušit")
         else:
-            hint = _("svítí při TRUE: vstupy modře, výstupy zeleně · klik = výběr zařízení")
+            hint = _("svítí při TRUE: vstupy modře, výstupy zeleně · klik na zařízení nebo modul "
+                     "= zvýraznění vodičů")
         tip = ttk.Label(self, style="Dim.TLabel", text=hint, justify="left")   # vlastní řádek,
         tip.pack(fill="x", pady=(0, 4))                                        # ať se vejde
         tip.bind("<Configure>", lambda e: tip.configure(wraplength=max(200, e.width - 4)))
@@ -159,7 +175,8 @@ class Mimic(ttk.Frame):
         for d in prj["devices"]:
             side = "L" if d["cls"] in LEFT_CLS else "R"
             n = max(1, len(self.io_of[d["id"]]))
-            h = max(36 + n * ROW + 6, 74 if d["cls"] in ("Motor", "Ventil", "AnalogIn") else 54)
+            h = max(36 + n * ROW + 6, 92 if d["cls"] == "Axis" else  # osa: vedení + poloha pod ním
+                    74 if d["cls"] in ("Motor", "Ventil", "AnalogIn", *MOTION_CLS) else 54)
             x = X_LEFT if side == "L" else X_RIGHT
             self.dev_box[d["id"]] = (x, y[side], W_DEV, h, side)
             for j, e in enumerate(self.io_of[d["id"]]):
@@ -223,7 +240,7 @@ class Mimic(ttk.Frame):
         for key, w in self.wires.items():
             flat = [P(v) for pt in w["pts"] for v in pt]
             self.items["wire"][key] = c.create_line(*flat, fill=WIRE_OFF, width=1,
-                                                    joinstyle="round")
+                                                    joinstyle="round", tags=("wire",))
 
         # PLC: hlavička
         x, y, w, h = self.plc_head
@@ -243,12 +260,18 @@ class Mimic(ttk.Frame):
 
         # PLC: moduly a kanály
         tag_of = {e["key"]: e["tag"] for e in self.prj["io"]}
-        for x, y, w, h, m in self.mod_box:
-            c.create_rectangle(P(x), P(y), P(x + w), P(y + h), outline="#9FB0A6", fill="#FFFFFF")
-            c.create_rectangle(P(x), P(y), P(x + w), P(y + 18), outline="#9FB0A6", fill=theme.FIELD)
+        self.items["mod"], self.items["chtext"] = {}, {}
+        for idx, (x, y, w, h, m) in enumerate(self.mod_box):
+            mt = (f"mod:{idx}",)                    # klik na modul = zvýraznit jeho vodiče
+            self.items["mod"][idx] = c.create_rectangle(P(x), P(y), P(x + w), P(y + h),
+                                                        outline=theme.NEUTRAL, fill="#FFFFFF", tags=mt)
+            c.create_rectangle(P(x), P(y), P(x + w), P(y + 18), outline=theme.NEUTRAL, fill=theme.FIELD,
+                               tags=mt)
             c.create_text(P(x + 8), P(y + 9),
                           text=m["name"] + "  ·  " + _("{n} kanálů", n=len(m["ch"])),
-                          anchor="w", fill=theme.PRIMARY, font=self._font(10, bold=True))
+                          anchor="w", fill=theme.PRIMARY, font=self._font(10, bold=True), tags=mt)
+            c.tag_bind(mt[0], "<Enter>", lambda _e: c.configure(cursor="hand2"))
+            c.tag_bind(mt[0], "<Leave>", lambda _e: c.configure(cursor=""))
             for i, key in enumerate(m["ch"]):
                 cy = self.chan[key]
                 left = self.wires.get(key, {}).get("cx", x) == x
@@ -256,15 +279,17 @@ class Mimic(ttk.Frame):
                 self.items["led"].setdefault(key, []).append(
                     c.create_oval(P(lx - 3.5), P(cy - 3.5), P(lx + 3.5), P(cy + 3.5),
                                   outline=theme.FG, fill=""))
-                c.create_text(P(x + 18) if left else P(x + w - 18), P(cy),
-                              text=f"{i:>2} {_clip(tag_of.get(key, ''), 24)}",
-                              anchor="w" if left else "e", fill=theme.FG,
-                              font=self._font(9.5, mono=True))
+                self.items["chtext"][key] = c.create_text(
+                    P(x + 18) if left else P(x + w - 18), P(cy),
+                    text=f"{i:>2} {_clip(tag_of.get(key, ''), 24)}",
+                    anchor="w" if left else "e", fill=theme.FG,
+                    font=self._font(9.5, mono=True), tags=mt)
 
         for d in self.prj["devices"]:
             self._build_device(d)
         self.items["sel"] = c.create_rectangle(0, 0, 0, 0, outline=theme.PRIMARY, width=2,
                                                dash=(5, 3), state="hidden")
+        self.items["focus"] = []                    # rámečky protějšků vybraného zařízení / modulu
         c.configure(scrollregion=(0, 0, P(W), P(self.height)))
         if self._res is not None:
             self.update(self._res, 0.0)
@@ -276,7 +301,7 @@ class Mimic(ttk.Frame):
         x, y, w, h, side = self.dev_box[d["id"]]
         tag = f"dev:{d['id']}"
         it: dict = {"cls": d["cls"]}
-        it["rect"] = c.create_rectangle(P(x), P(y), P(x + w), P(y + h), outline="#9FB0A6",
+        it["rect"] = c.create_rectangle(P(x), P(y), P(x + w), P(y + h), outline=theme.NEUTRAL,
                                         fill="#FFFFFF", tags=(tag,))
         estop = self.prj["program"]["estop"] == d["id"]
         lock = d["id"] in self.locks
@@ -296,7 +321,8 @@ class Mimic(ttk.Frame):
             self.items["led"].setdefault(e["key"], []).append(
                 c.create_oval(P(px - 4), P(py - 4), P(px + 4), P(py + 4), outline=theme.FG,
                               fill="#FFFFFF", tags=(tag,)))
-            label = _(SIG[e["sig"]]) if e["sig"] in SIG else e["sig"]
+            label = _(SIG[e["sig"]]) if e["sig"] in SIG else \
+                _("bit {k}", k=e["sig"][6:]) if e["sig"].startswith("outSel") else e["sig"]
             if side == "L":
                 t = c.create_text(P(px - 11), P(py), text=label, anchor="e", fill=theme.FG,
                                   font=self._font(9.5), tags=(tag,))
@@ -319,6 +345,75 @@ class Mimic(ttk.Frame):
             c.create_text(P(mx - r - 12), P(cy), text="M", fill=theme.FG,
                           font=self._font(11, bold=True), tags=(tag,))
             it["geo"] = (mx, cy, r - 3)
+        elif d["cls"] == "Vfd":                          # měnič: blok ~ a motor s rotorem, otáčky
+            fx = gx - 10
+            c.create_rectangle(P(fx), P(cy - 13), P(fx + 26), P(cy + 13), outline=theme.FG,
+                               fill="#FFFFFF", width=max(1, round(1.2 * s)), tags=(tag,))
+            c.create_line(P(fx), P(cy + 13), P(fx + 26), P(cy - 13), fill=theme.FG, tags=(tag,))
+            c.create_text(P(fx + 19), P(cy + 6), text="~", fill=theme.FG, font=self._font(10, bold=True), tags=(tag,))
+            mx, r = gx + 44, 14
+            c.create_line(P(fx + 26), P(cy), P(mx - r), P(cy), fill=theme.FG, tags=(tag,))
+            it["body"] = c.create_oval(P(mx - r), P(cy - r), P(mx + r), P(cy + r), outline=theme.FG,
+                                       width=max(1, round(1.5 * s)), fill="#FFFFFF", tags=(tag,))
+            it["rotor"] = c.create_line(P(mx), P(cy), P(mx + r - 3), P(cy), fill=theme.FG,
+                                        width=max(1, round(2 * s)), tags=(tag,))
+            it["value"] = c.create_text(P(gx - 10), P(cy + 24), text="", anchor="w", fill=theme.FG,
+                                        font=self._font(9.5, mono=True), tags=(tag,))
+            it["geo"] = (mx, cy, r - 3)
+        elif d["cls"] == "PosDrive":                     # elektrická osa: vedení a vozík, záznam
+            x0, x1 = gx - 12, gx + 70
+            c.create_rectangle(P(x0), P(cy - 3), P(x1), P(cy + 3), outline=theme.FG, fill=theme.FIELD, tags=(tag,))
+            recs = {r["no"]: r for r in d.get("records") or []}
+            nmax = max([(1 << int(d.get("selBits") or 3)) - 1, *recs])
+            pos = {n: r["pos"] for n, r in recs.items() if r.get("pos") is not None}
+            lo, hi = min([0, *pos.values()]), max([1, *pos.values()])
+            # poloha záznamu na vedení: zadaná poloha, jinak rovnoměrně podle čísla; 0 = reference vlevo
+            it["recx"] = {n: x0 + 6 + (x1 - x0 - 12) * ((pos[n] - lo) / ((hi - lo) or 1) if n in pos else n / nmax)
+                          for n in range(0, nmax + 1)}
+            it["recx"][0] = x0 + 6
+            for n, xx in it["recx"].items():
+                if n in recs or n == 0:
+                    c.create_line(P(xx), P(cy + 5), P(xx), P(cy + 9), fill=theme.DIM, tags=(tag,))
+            it["cart"] = c.create_rectangle(0, 0, 0, 0, outline=theme.FG, fill=theme.DIM, tags=(tag,))
+            it["value"] = c.create_text(P(x0), P(cy + 20), text="", anchor="w", fill=theme.FG,
+                                        font=self._font(9.5, mono=True), tags=(tag,))
+            it["geo"] = (x0, x1, cy)
+        elif d["cls"] == "Axis":                         # servoosa: vedení s polohami, vozík podle skutečné polohy
+            # spojení s PLC po síti (bez vodičů I/O): čárkovaně k hlavičce CPU
+            hx, hy, hw, hh = self.plc_head
+            c.create_line(P(x), P(y + 18), P(hx + hw + 30), P(y + 18), P(hx + hw + 30), P(hy + hh - 10),
+                          P(hx + hw), P(hy + hh - 10), fill=theme.PRIMARY, dash=(4, 3), width=max(1, round(1.2 * s)),
+                          tags=(tag,))
+            c.create_text(P(x - 4), P(y + 12), text=_("síť"), anchor="e", fill=theme.PRIMARY,
+                          font=self._font(9), tags=(tag,))
+            x0, x1 = gx - 30, gx + 76
+            c.create_rectangle(P(x0), P(cy - 3), P(x1), P(cy + 3), outline=theme.FG, fill=theme.FIELD, tags=(tag,))
+            ax = d.get("axis") or {}
+            pts = [p_["pos"] for p_ in ax.get("positions") or [] if isinstance(p_.get("pos"), (int, float))]
+            home = ax.get("homePos", 0)
+            lo = ax["limNeg"] if isinstance(ax.get("limNeg"), (int, float)) else min([home, ax.get("startPos", 0), *pts])
+            hi = ax["limPos"] if isinstance(ax.get("limPos"), (int, float)) else max([home, ax.get("startPos", 0), *pts])
+            span = (hi - lo) or 1
+            for v in [home, *pts]:                        # značky reference a pojmenovaných poloh
+                xx = x0 + 6 + (x1 - x0 - 12) * min(1, max(0, (v - lo) / span))
+                c.create_line(P(xx), P(cy + 5), P(xx), P(cy + 10), fill=theme.DIM, tags=(tag,))
+            c.create_text(P(x1 + 3), P(cy), text="M", anchor="w", fill=theme.FG, font=self._font(10, bold=True), tags=(tag,))
+            it["cart"] = c.create_rectangle(0, 0, 0, 0, outline=theme.FG, fill=theme.DIM, tags=(tag,))
+            it["value"] = c.create_text(P(x0), P(cy + 20), text="", anchor="w", fill=theme.FG,
+                                        font=self._font(9.5, mono=True), tags=(tag,))
+            it["geo"] = (x0, x1, cy)
+        elif d["cls"] == "PropValve":                    # proporcionální ventil: šipka + sloupec skutečné hodnoty
+            vx = gx - 8
+            c.create_rectangle(P(vx), P(cy - 12), P(vx + 24), P(cy + 12), outline=theme.FG, fill="#FFFFFF",
+                               width=max(1, round(1.2 * s)), tags=(tag,))
+            c.create_line(P(vx + 4), P(cy + 8), P(vx + 20), P(cy - 8), fill=theme.FG, arrow="last", tags=(tag,))
+            x0, x1 = gx + 24, gx + 80
+            c.create_rectangle(P(x0), P(cy - 4), P(x1), P(cy + 6), outline=theme.FG, fill="#FFFFFF", tags=(tag,))
+            it["bar"] = c.create_rectangle(P(x0), P(cy - 4), P(x0), P(cy + 6), outline="", fill=WIRE_AN, tags=(tag,))
+            it["mark"] = c.create_line(0, 0, 0, 0, fill=theme.WARN, width=max(1, round(2 * s)), tags=(tag,))
+            it["value"] = c.create_text(P(vx), P(cy + 22), text="", anchor="w", fill=theme.FG,
+                                        font=self._font(9.5, mono=True), tags=(tag,))
+            it["geo"] = (x0, x1, cy)
         elif d["cls"] == "Ventil":
             bx0, bx1 = gx + 6, gx + 52                 # tělo válce
             c.create_rectangle(P(bx0), P(cy - 9), P(bx1), P(cy + 9), outline=theme.FG,
@@ -418,14 +513,21 @@ class Mimic(ttk.Frame):
         force = res.get("force") or {}
         self._phase = (self._phase + dt * 40) % 1000
 
+        focus = self.focus_keys()
         for key, item in self.items["wire"].items():
             w, val = self.wires[key], io.get(key)
-            if w["dir"] in ("AI", "AO"):
-                self._set(item, fill=WIRE_AN, width=max(1, round(1.4 * s)), dash=(2, 3))
+            if focus is not None and key not in focus:   # mimo výběr: ztlumit, bez animace
+                self._set(item, fill=WIRE_DIM, width=1, dash=())
+            elif w["dir"] in ("AI", "AO"):
+                k = 2.6 if focus else 1.4
+                self._set(item, fill=WIRE_AN, width=max(1, round(k * s)), dash=(2, 3))
             elif val is True:
+                k = 3.4 if focus else 2.4
                 self._set(item, fill=WIRE_IN if w["dir"] == "DI" else WIRE_OUT,
-                          width=max(2, round(2.4 * s)), dash=(7, 4))
+                          width=max(2, round(k * s)), dash=(7, 4))
                 c.itemconfigure(item, dashoffset=-int(self._phase) % 11)
+            elif focus is not None:                       # vybraný vodič v klidu: výrazně, plně
+                self._set(item, fill=WIRE_FOCUS, width=max(2, round(2 * s)), dash=())
             else:
                 self._set(item, fill=WIRE_OFF, width=1, dash=())
         for key, leds in self.items["led"].items():
@@ -455,7 +557,57 @@ class Mimic(ttk.Frame):
                 c.coords(it["rotor"], P(mx - r * math.cos(a)), P(cy - r * math.sin(a)),
                          P(mx + r * math.cos(a)), P(cy + r * math.sin(a)))
                 self._set(it["body"], fill=theme.DANGER_BG if state["error"] else
-                          "#BFE6CF" if pos >= 1 else "#FFEFC2" if pos > 0 else "#FFFFFF")
+                          theme.STATE_ON_FULL if pos >= 1 else theme.STATE_ACTIVE_BG if pos > 0 else "#FFFFFF")
+            elif d["cls"] == "Vfd":
+                self._set(it["state"], text=state["label"], fill=theme.ERR if state["error"] else theme.DIM)
+                mx, cy, r = it["geo"]
+                pos = state["pos"]                         # otáčky / horní mez rozsahu
+                self._angle[d["id"]] = a = (self._angle.get(d["id"], 0.0) + dt * 12 * pos) % (2 * math.pi)
+                c.coords(it["rotor"], P(mx - r * math.cos(a)), P(cy - r * math.sin(a)),
+                         P(mx + r * math.cos(a)), P(cy + r * math.sin(a)))
+                self._set(it["body"], fill=theme.DANGER_BG if state["error"] else
+                          theme.STATE_ON_FULL if state["step"] == 20 else theme.STATE_ACTIVE_BG if pos > 0 else "#FFFFFF")
+                unit = d.get("unit") or ""
+                self._set(it["value"], text=f"{state.get('value', 0):.3g} → {state.get('cmd', 0):.3g} {unit}".strip())
+            elif d["cls"] == "PosDrive":
+                self._set(it["state"], text=state["label"], fill=theme.ERR if state["error"] else theme.DIM)
+                x0, x1, cy = it["geo"]
+                recx, rec = it["recx"], state.get("rec", -1)
+                last = self._cart.get(d["id"], recx.get(0, x0 + 6))      # poslední klidová poloha vozíku
+                if rec is not None and rec >= 0:
+                    cx = recx.get(rec, last)
+                    self._cart[d["id"]] = cx
+                elif state["pos"] > 0:                     # jede: mezi poslední polohou a cílem
+                    cx = last + (recx.get(state.get("cmd", 0), last) - last) * state["pos"]
+                else:
+                    cx = last
+                c.coords(it["cart"], P(cx - 7), P(cy - 8), P(cx + 7), P(cy + 8))
+                self._set(it["cart"], fill=theme.ERR if state["error"] else WIRE_OUT if state["busy"] else theme.DIM)
+                self._set(it["value"], text=(_("záznam {n}", n=rec) if rec is not None and rec > 0 else
+                                             _("reference") if rec == 0 else _("jede…") if state["pos"] > 0 else "—"))
+            elif d["cls"] == "Axis":
+                self._set(it["state"], text=state["label"], fill=theme.ERR if state["error"] else theme.DIM)
+                x0, x1, cy = it["geo"]
+                cx = x0 + 6 + (x1 - x0 - 12) * state["pos"]     # pos = skutečná poloha v rozsahu limitů (jádro)
+                c.coords(it["cart"], P(cx - 7), P(cy - 8), P(cx + 7), P(cy + 8))
+                self._set(it["cart"], fill=theme.ERR if state["error"] else WIRE_OUT if state.get("moving") else
+                          theme.STATE_ON if state.get("powered") else theme.DIM)
+                unit = d.get("unit") or ""
+                txt = f"{state.get('value', 0):.1f} {unit}".strip()
+                if state.get("moving"):
+                    txt += f" → {state.get('cmd', 0):.4g}"
+                elif state.get("powered") and not state.get("homed"):
+                    txt += "  " + _("nereferováno")
+                self._set(it["value"], text=txt)
+            elif d["cls"] == "PropValve":
+                self._set(it["state"], text=state["label"], fill=theme.ERR if state["error"] else theme.DIM)
+                x0, x1, cy = it["geo"]
+                c.coords(it["bar"], P(x0), P(cy - 4), P(x0 + state["pos"] * (x1 - x0)), P(cy + 6))
+                span = (d["rmax"] - d["rmin"]) or 1
+                mf = min(1.0, max(0.0, (state.get("cmd", d["rmin"]) - d["rmin"]) / span))
+                c.coords(it["mark"], P(x0 + mf * (x1 - x0)), P(cy - 7), P(x0 + mf * (x1 - x0)), P(cy + 9))
+                unit = d.get("unit") or ""
+                self._set(it["value"], text=f"{state.get('value', 0):.3g} → {state.get('cmd', 0):.3g} {unit}".strip())
             elif d["cls"] == "Ventil":
                 self._set(it["state"], text=state["label"],
                           fill=theme.ERR if state["error"] else theme.DIM)
@@ -508,7 +660,7 @@ class Mimic(ttk.Frame):
             self._release.state(["!disabled"] if force else ["disabled"])
 
         plc = self.items["plc"]
-        self._set(plc["enable"], fill=theme.ACCENT if fr["enable"] else theme.ERR)
+        self._set(plc["enable"], fill=theme.STATE_ON if fr["enable"] else theme.ERR)
         auto = res.get("modeAuto", True)
         self._set(plc["mode"], text=_("režim: AUTO") if auto
                   else _("režim: RUČNĚ (povely z HMI)"))
@@ -534,18 +686,72 @@ class Mimic(ttk.Frame):
     # --- výběr, zoom, myš ---------------------------------------------------------------
 
     def select(self, dev_id: int | None) -> None:
-        self._sel = dev_id
+        self._sel, self._mod = dev_id, None
         self._place_selection()
 
+    def select_module(self, idx: int | None) -> None:
+        """Výběr modulu PLC: zvýrazní vodiče všech jeho kanálů a zařízení na nich."""
+        self._mod = idx if idx is not None and 0 <= idx < len(self.mod_box) else None
+        if self._mod is not None:
+            self._sel = None
+        self._place_selection()
+
+    def focus_keys(self) -> set[str] | None:
+        """Klíče I/O, jejichž vodiče se mají zvýraznit (None = nic není vybráno)."""
+        if self._mod is not None:
+            return set(self.mod_box[self._mod][4]["ch"])
+        if self._sel is not None and self._sel in self.io_of:
+            return {e["key"] for e in self.io_of[self._sel]}
+        return None
+
     def _place_selection(self) -> None:
+        c, s = self.canvas, self._scale
+        for item in self.items["focus"]:
+            c.delete(item)
+        self.items["focus"] = []
         box = self.dev_box.get(self._sel) if self._sel is not None else None
+        if box is None and self._mod is not None:
+            box = self.mod_box[self._mod][:4] + (None,)
         if box is None:
-            self.canvas.itemconfigure(self.items["sel"], state="hidden")
-            return
-        x, y, w, h, _side = box
-        s = self._scale
-        self.canvas.coords(self.items["sel"], (x - 4) * s, (y - 4) * s, (x + w + 4) * s, (y + h + 4) * s)
-        self.canvas.itemconfigure(self.items["sel"], state="normal")
+            c.itemconfigure(self.items["sel"], state="hidden")
+        else:
+            x, y, w, h, _side = box
+            c.coords(self.items["sel"], (x - 4) * s, (y - 4) * s, (x + w + 4) * s, (y + h + 4) * s)
+            c.itemconfigure(self.items["sel"], state="normal")
+            c.tag_raise(self.items["sel"])
+        self._apply_focus()
+
+    def _apply_focus(self) -> None:
+        """Zvýrazní protějšky výběru: vodiče nahoru, kanály v modulech a bloky zařízení."""
+        c, s = self.canvas, self._scale
+        focus = self.focus_keys()
+        for key, item in self.items["chtext"].items():
+            on = focus is not None and key in focus
+            c.itemconfigure(item, fill=theme.PRIMARY if on else (theme.DIM if focus else theme.FG),
+                            font=self._font(9.5, bold=on, mono=True))
+        for key in focus or ():                    # nad ostatní vodiče, ale pod bloky
+            item = self.items["wire"].get(key)
+            if item is not None:
+                c.tag_raise(item, "wire")
+        if focus is None:
+            pass
+        elif self._mod is not None:                # rámečky zařízení zapojených do modulu
+            devs = {e["devId"] for e in self.prj["io"] if e["key"] in focus}
+            for dev_id in devs:
+                b = self.dev_box.get(dev_id)
+                if b:
+                    x, y, w, h, _side = b
+                    self.items["focus"].append(c.create_rectangle(
+                        (x - 3) * s, (y - 3) * s, (x + w + 3) * s, (y + h + 3) * s,
+                        outline=theme.ACCENT, width=2, dash=(3, 2)))
+        else:                                      # vybrané zařízení: rámečky jeho modulů
+            for x, y, w, h, m in self.mod_box:
+                if focus & set(m["ch"]):
+                    self.items["focus"].append(c.create_rectangle(
+                        (x - 3) * s, (y - 3) * s, (x + w + 3) * s, (y + h + 3) * s,
+                        outline=theme.ACCENT, width=2, dash=(3, 2)))
+        if self._res is not None:
+            self.update(self._res, 0.0)
 
     def see(self, dev_id: int) -> None:
         box = self.dev_box.get(dev_id)
@@ -660,11 +866,22 @@ class Mimic(ttk.Frame):
                     self.on_force(key, io.get(key) is not True)
             return
         was_drag, self._press, self._dragging = self._dragging, None, False
-        if was_drag or self.on_select is None:
+        if was_drag:
             return
         dev_id = self.device_at(e.x, e.y)
         if dev_id is not None:
-            self.on_select(dev_id)
+            if self.on_select is not None:
+                self.on_select(dev_id)              # volající zavolá select() → zvýraznění
+            else:
+                self.select(dev_id)
+            return
+        mod = self._hit(e.x, e.y, "mod:")
+        if mod is not None:                         # opakovaný klik na týž modul výběr zruší
+            idx = int(mod)
+            self.select_module(None if self._mod == idx else idx)
+        elif self._sel is not None or self._mod is not None:
+            self._sel, self._mod = None, None       # klik do prázdna: zrušit zvýraznění
+            self._place_selection()
 
     def device_at(self, x: int, y: int) -> int | None:
         c = self.canvas

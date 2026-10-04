@@ -20,7 +20,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "49f79754-8f46-4728-9600-f52e65291152"
    },
    {
     "id": 2,
@@ -33,7 +34,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "052af566-550e-4147-bb6a-116fe0862ef5"
    },
    {
     "id": 3,
@@ -46,7 +48,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "640d7558-e629-4eaa-bf59-e3351530edc0"
    },
    {
     "id": 4,
@@ -59,7 +62,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "a1b56432-e540-49b6-98d7-e24f8b14caab"
    },
    {
     "id": 5,
@@ -72,7 +76,8 @@
     },
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "1efebbf9-33ea-4bb1-ab7b-254347075c5e"
    },
    {
     "id": 6,
@@ -84,7 +89,8 @@
     "rmin": 0,
     "rmax": 10,
     "limHi": 8,
-    "limLo": 4.5
+    "limLo": 4.5,
+    "guid": "647ee50e-1663-4734-9413-960c58504403"
    },
    {
     "id": 7,
@@ -95,7 +101,8 @@
     "unit": "kN",
     "rmin": 0,
     "rmax": 50,
-    "limHi": 40
+    "limHi": 40,
+    "guid": "d8aecff9-7f05-4c19-8284-29b4b2f310a4"
    },
    {
     "id": 8,
@@ -105,7 +112,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "d363e0bc-d011-4f74-8e79-19b0f691933a"
    },
    {
     "id": 9,
@@ -115,7 +123,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "a20c86cc-b17b-4174-b30d-1220e5440c5f"
    },
    {
     "id": 10,
@@ -125,7 +134,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "b357c189-ca88-443d-a78a-50eb3f0da006"
    },
    {
     "id": 11,
@@ -135,7 +145,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "d24edac7-4f0b-464d-865e-d1bc4470deb8"
    },
    {
     "id": 12,
@@ -145,7 +156,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "158b98ef-b4c7-4426-a2f6-1677254e53bb"
    },
    {
     "id": 13,
@@ -155,7 +167,8 @@
     "opt": {},
     "unit": "",
     "rmin": 0,
-    "rmax": 100
+    "rmax": 100,
+    "guid": "31a917fd-b298-41db-9b4d-8e34691c69ad"
    },
    {
     "id": 14,
@@ -166,7 +179,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "run"
+    "role": "run",
+    "guid": "5d9feaa3-4555-4d54-a1ac-8099c9652796"
    },
    {
     "id": 15,
@@ -177,7 +191,8 @@
     "unit": "",
     "rmin": 0,
     "rmax": 100,
-    "role": "fault"
+    "role": "fault",
+    "guid": "8f72ea76-cada-4c0f-bed0-e4eac23a5634"
    }
   ],
   "io": [],
@@ -275,6 +290,12 @@
     }
    ]
   },
-  "nextId": 16
+  "nextId": 16,
+  "guid": "fac14881-ea27-4d44-91c2-9acedba204cc",
+  "moduleGuids": {
+   "S0.2": "84b638cf-b772-4bbc-9eb8-7f06b2e6e3d3",
+   "S0.3": "70419db4-837b-45aa-bcb6-9a943b4e49d4",
+   "S0.4": "37ad15d8-8ed0-4924-be96-22dea974ed02"
+  }
  }
 }

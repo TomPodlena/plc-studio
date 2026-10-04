@@ -26,10 +26,14 @@ ERRORS = {
     "rate_limited": N_("Příliš mnoho dotazů — zkus to za chvíli."),
     "invalid_json": N_("Odpověď se nepodařilo přečíst — zkus to znovu."),
 }
-ACTS = ("start", "stop", "open", "close", "wait", "waitOn", "waitOff")
+ACTS = ("start", "stop", "open", "close", "wait", "waitOn", "waitOff",
+        "home", "posRecord", "setPressure", "setFlow",      # + pohony fáze 2a
+        "moveAbs", "moveRel", "velocity", "halt", "waitInPos")   # + servoosa (fáze 2b)
 WAIT_ACTS = ("waitOn", "waitOff")          # čekání na digitální vstup (TRUE / FALSE)
 DO_ROLES = ("run", "fault", "ready", "stopped", "lock", "auto")   # klíče DO_ROLES z jádra
-EXTRA = {"AnalogIn": ("limHi", "limLo"), "AnalogOut": ("setpoint",)}
+EXTRA = {"AnalogIn": ("limHi", "limLo"), "AnalogOut": ("setpoint",),
+         "Vfd": ("setpoint", "rampS"), "PropValve": ("setpoint", "rampS", "tol", "tolTimeS"),
+         "PosDrive": ("selBits",)}
 
 
 def _is_num(v) -> bool:
@@ -44,18 +48,26 @@ def apply_proposal(app) -> None:
     if not pr or not pr["devices"]:
         return
     p = app.prj
+    # zařízení se stejným označením a třídou si nechá GUID (identita pro opakovaný export do EPLAN)
+    old_guid = {(d["name"], d["cls"]): d["guid"] for d in p["devices"] if d.get("guid")}
     p["devices"], p["io"], p["nextId"] = [], [], 1
     by_name = {}
     for d in pr["devices"]:
         name = d["name"] or app.core("nextName", p, d["cls"])
         nd = {"id": p["nextId"], "name": name, "cls": d["cls"], "desc": d["desc"],
               "opt": d["opt"], "unit": d["unit"], "rmin": d["rmin"], "rmax": d["rmax"]}
+        if (name, d["cls"]) in old_guid:
+            nd["guid"] = old_guid[(name, d["cls"])]
         # meze měření, žádaná hodnota a role výstupu (aiNorm je pustí jen u správné třídy)
         for key in EXTRA.get(d["cls"], ()):
             if _is_num(d.get(key)):
                 nd[key] = d[key]
         if d["cls"] == "DO" and d.get("role") in DO_ROLES:
             nd["role"] = d["role"]
+        if d["cls"] == "PosDrive" and isinstance(d.get("records"), list):
+            nd["records"] = d["records"]
+        if d["cls"] == "Axis" and isinstance(d.get("axis"), dict):   # konfigurace osy (aiNorm ji pročistil)
+            nd["axis"] = d["axis"]
         p["nextId"] += 1
         p["devices"].append(nd)
         by_name[name] = nd
@@ -73,6 +85,13 @@ def apply_proposal(app) -> None:
         dev_id = dev["id"] if dev and act != "wait" and (not wait_di or dev["cls"] == "DI") else 0
         step = {"dev": dev_id, "act": act,
                 "cond": "fbk" if wait_di else s["cond"], "timeS": s["timeS"]}
+        for key in ("sp", "rec", "pos", "vel", "acc", "dec"):   # parametry kroků pohonů a osy (aiNorm je pustí jen platné)
+            if _is_num(s.get(key)):
+                step[key] = s[key]
+        if isinstance(s.get("posRef"), str) and s["posRef"]:
+            step["posRef"] = s["posRef"]
+        if s.get("rev") is True:
+            step["rev"] = True
         if step["act"] == "wait" or step["dev"]:
             seq.append(step)
     p["program"]["seq"] = seq

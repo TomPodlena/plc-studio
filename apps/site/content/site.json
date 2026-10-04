@@ -1,0 +1,26 @@
+{
+  "_poznamka": "Spolecne udaje pro vsechny jazyky. Nazev znacky, adresa webu, kontakt a provozovatel jsou JEN TADY - texty v cs/en/de.json je pisi jako {{site.brand}}, {{site.email}}, {{site.operator.name}}. Adresu webu lze pri buildu prebit promennou SITE_URL; Worker ma svou kopii v wrangler.toml (PUBLIC_SITE) a obe musi sedet. Totez payments.provider vs. PAYMENT_PROVIDER.",
+  "brand": "PLCdesk",
+  "url": "https://plcdesk.podlena-t.workers.dev",
+  "email": "podlena.t@gmail.com",
+  "free_io_limit": "64",
+  "platforms_checked": "2026-10-03",
+  "turnstile_sitekey": "0x4AAAAAAFM-FbL-8dZLSk-N",
+  "pdf_cs": "/assets/ukazka/ukazka-dokumentace-cs.pdf",
+  "pdf_en": "/assets/ukazka/ukazka-dokumentace-en.pdf",
+  "pdf_de": "/assets/ukazka/ukazka-dokumentace-de.pdf",
+  "operator": {
+    "name": "TBC",
+    "id": "TBC",
+    "address": "TBC"
+  },
+  "legal_effective": "TBC",
+  "payments": {
+    "provider": "",
+    "stripe_link_pro": "",
+    "stripe_link_firma": "",
+    "paddle_client_token": "",
+    "paddle_price_pro": "",
+    "paddle_price_firma": ""
+  }
+}

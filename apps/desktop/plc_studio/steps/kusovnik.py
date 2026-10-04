@@ -60,7 +60,7 @@ def render(app, parent) -> None:
     wrap_label(body, _(
         "Z návrhu vznikne kusovník: PLC a I/O moduly zvolené platformy, ke každému zařízení "
         "jeho komponenty (motor → jistič motoru a stykač, válec → rozváděč a snímače polohy…) "
-        "a rozvaděč. Značky, typy a dodavatele nabízí katalog PLC Studia (stav k {date}); "
+        "a rozvaděč. Značky, typy a dodavatele nabízí katalog PLCdesk (stav k {date}); "
         "u řádku nebo celé kategorie je můžeš změnit nebo zadat vlastní.", date=data["date"]))
     note_box(body, _(
         "Kusovník je podklad k poptávce, ne projekt elektro: dimenzování (výkony, jištění, "
@@ -118,6 +118,8 @@ def render(app, parent) -> None:
     nb.add(t_items, text=_("Položky ({n})", n=len(lines)))
     nb.add(t_sup, text=_("Dodavatelé ({n})", n=len(data["suppliers"])))
     nb.bind("<<NotebookTabChanged>>", lambda _e: ui.update(tab=nb.index("current")))
+    from . import nabidka                                  # nabídka — interní podklad (quote.ts)
+    nabidka.build_tab(app, nb, ui)
 
     # --- tabulka -----------------------------------------------------------------
     by_id = {ln["id"]: ln for ln in lines}
@@ -216,7 +218,7 @@ def render(app, parent) -> None:
         refill()
 
     tbl = Table(t_items, cols, height=7, editable=tuple(k for k in edit_keys if k != "note"),
-                on_edit=on_edit)
+                on_edit=on_edit, ellipsis=True)
     tbl.pack(fill="both", expand=True)
     tbl.tv.tag_configure("safety", foreground="#B45309")
     for k in keys:

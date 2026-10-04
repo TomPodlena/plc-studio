@@ -12,12 +12,20 @@ from ..project import parse_num
 from ..widgets import Table, card, field, note_box, wrap_label
 
 DEFAULT_ON = ("fbk", "fbkOpen")  # volby zapnuté už při založení zařízení
+RANGE_CLS = ("AnalogIn", "AnalogOut", "Vfd", "PropValve")   # třídy s rozsahem a jednotkou
+MOTION_CLS = ("Vfd", "PosDrive", "PropValve")              # pohony fáze 2a (přes běžné I/O)
+# servoosa (fáze 2b): konfigurační list osy — klíč AxisCfg, popisek (shodně s AXIS_FIELDS v jádře)
+AXIS_FIELDS = (("vMax", N_("max. rychlost")), ("aMax", N_("max. zrychlení")), ("dMax", N_("max. zpomalení")),
+               ("vDef", N_("výchozí rychlost")), ("limNeg", N_("SW limit −")), ("limPos", N_("SW limit +")),
+               ("homePos", N_("poloha reference")), ("posTol", N_("okno v poloze")),
+               ("followMax", N_("max. chyba sledování")), ("jogVel", N_("rychlost ručního pojezdu")),
+               ("startPos", N_("poloha po zapnutí (model)")))
 
 
 def _opts_text(app, d: dict) -> str:
     cls = app.CLS[d["cls"]]
     txt = ", ".join(cls["opts"].get(k, k) for k, v in (d.get("opt") or {}).items() if v)
-    if d["cls"].startswith("Analog"):
+    if d["cls"] in RANGE_CLS:
         unit = f" {d['unit']}" if d.get("unit") else ""
         txt = f"{txt}{unit} {d['rmin']:g}–{d['rmax']:g}".strip()
     extra = []
@@ -29,12 +37,25 @@ def _opts_text(app, d: dict) -> str:
         extra.append(_("žádaná {v}", v=f"{d['setpoint']:g}"))
     if d.get("role"):
         extra.append(app.DO_ROLES.get(d["role"], d["role"]))
+    if d["cls"] in ("Vfd", "PropValve") and (d.get("rampS") or 0) > 0:
+        extra.append(_("rampa {t} s", t=f"{d['rampS']:g}"))
+    if d["cls"] == "PropValve" and d.get("tol") is not None:
+        extra.append(_("tolerance ± {v}", v=f"{d['tol']:g}"))
+    if d["cls"] == "PosDrive":
+        extra.append(_("záznamy 1–{max}", max=(1 << int(d.get("selBits") or 3)) - 1))
+    if d["cls"] == "Axis":
+        ax = d.get("axis") or {}
+        extra.append(_("max. {v} {unit}/s, {n} poloh", v=f"{ax.get('vMax', 500):g}", unit=d.get("unit") or "",
+                       n=len(ax.get("positions") or [])))
     if extra:
         txt = (txt + " · " if txt else "") + ", ".join(extra)
     return txt or "—"
 
 
-PARAM_LABEL = {"limLo": N_("mez min"), "limHi": N_("mez max"), "setpoint": N_("žádaná hodnota")}
+PARAM_LABEL = {"limLo": N_("mez min"), "limHi": N_("mez max"), "setpoint": N_("žádaná hodnota"),
+               "rampS": N_("rampa [s]"), "tol": N_("tolerance ±"), "tolTimeS": N_("doba odchylky [s]"),
+               "selBits": N_("bity výběru záznamu"), "travelS": N_("doba jízdy (model) [s]"),
+               **{"ax:" + k: lbl for k, lbl in AXIS_FIELDS}}
 
 
 def _opt_num(value: str, key: str = ""):
@@ -64,6 +85,44 @@ def param_fields(app, parent, cls: str, d: dict | None = None) -> dict:
         num_field("limHi", _(PARAM_LABEL["limHi"]))
     elif cls == "AnalogOut":
         num_field("setpoint", _(PARAM_LABEL["setpoint"]))
+    elif cls in ("Vfd", "PropValve"):
+        # pohony fáze 2a: výchozí žádaná, rampa v PLC, u ventilu tolerance a doba odchylky
+        for key in ("setpoint", "rampS") + (("tol", "tolTimeS") if cls == "PropValve" else ()):
+            num_field(key, _(PARAM_LABEL[key]))
+    elif cls == "PosDrive":
+        num_field("selBits", _(PARAM_LABEL["selBits"]))
+        num_field("travelS", _(PARAM_LABEL["travelS"]))
+        ttk.Label(parent, text=_("záznamy")).pack(side="left")
+        rec_var = tk.StringVar(value=app.core("recordsText", d.get("records") or []))
+        ent = ttk.Entry(parent, textvariable=rec_var, width=34)
+        ent.pack(side="left", padx=(6, 14))
+        out["records"] = rec_var
+        out["_app"] = app
+    elif cls == "Axis":
+        # servoosa: mřížka polí konfigurace (prázdné = výchozí z jádra, axisCfgOf), polohy a pohon
+        ax = d.get("axis") or {}
+        box = ttk.Frame(parent)
+        box.pack(side="left", fill="x")
+        ttk.Label(box, text=_("jednotka")).grid(row=0, column=0, sticky="w")
+        unit_var = tk.StringVar(value=d.get("unit") or "mm")
+        ttk.Entry(box, textvariable=unit_var, width=6).grid(row=0, column=1, sticky="w", padx=(6, 14))
+        out["unit"] = unit_var
+        for i, (key, label) in enumerate(AXIS_FIELDS, start=1):
+            r, c = divmod(i, 6)
+            ttk.Label(box, text=_(label)).grid(row=r, column=2 * c, sticky="w")
+            var = tk.StringVar(value="" if ax.get(key) is None else f"{ax[key]:g}")
+            ttk.Entry(box, textvariable=var, width=7).grid(row=r, column=2 * c + 1, sticky="w", padx=(6, 14))
+            out["ax:" + key] = var
+        ttk.Label(box, text=_("pojmenované polohy")).grid(row=2, column=0, sticky="w")
+        pos_var = tk.StringVar(value=app.core("axisPositionsText", ax.get("positions") or []))
+        ttk.Entry(box, textvariable=pos_var, width=40).grid(row=2, column=1, columnspan=5, sticky="we", padx=(6, 14))
+        ttk.Label(box, text=_("pohon")).grid(row=2, column=6, sticky="w")
+        drv_var = tk.StringVar(value=ax.get("drive") or "")
+        ttk.Entry(box, textvariable=drv_var, width=30).grid(row=2, column=7, columnspan=5, sticky="we", padx=(6, 14))
+        out["axpos"] = pos_var
+        out["axdrive"] = drv_var
+        out["_ax"] = dict(ax)
+        out["_app"] = app
     elif cls == "DO":
         ttk.Label(parent, text=_("vazba na stav stroje")).pack(side="left")
         keys = ["", *app.DO_ROLES]
@@ -79,6 +138,16 @@ def read_params(vars_: dict) -> dict:
     """Parametry z polí; neplatné číslo nebo min ≥ max → ``ValueError`` (text pro uživatele)."""
     res: dict = {}
     for key, v in vars_.items():
+        if key in ("_app", "_ax"):
+            continue
+        if key.startswith("ax"):            # servoosa: složí se níže do slovníku ``axis``
+            continue
+        if key == "unit":
+            res["unit"] = v.get().strip() or "mm"
+            continue
+        if key == "records":         # „1 = převzetí @ 0; 2 = lis @ 180“ → tabulka záznamů
+            res["records"] = vars_["_app"].core("parseRecords", v.get())
+            continue
         if key == "role":
             cb, keys = v
             res["role"] = keys[max(cb.current(), 0)] or None
@@ -90,6 +159,28 @@ def read_params(vars_: dict) -> dict:
     if res.get("limLo") is not None and res.get("limHi") is not None \
             and res["limLo"] >= res["limHi"]:
         raise ValueError(_("Mez min musí být menší než mez max."))
+    if res.get("selBits") is not None:
+        res["selBits"] = min(6, max(1, int(round(res["selBits"]))))
+    if "_ax" in vars_:
+        ax = dict(vars_["_ax"])
+        for key, label in AXIS_FIELDS:
+            try:
+                n = _opt_num(vars_["ax:" + key].get(), "ax:" + key)
+            except ValueError as exc:
+                raise ValueError(_("Neplatné číslo v poli „{field}“.", field=exc)) from exc
+            if n is None:
+                ax.pop(key, None)
+            else:
+                ax[key] = n
+        ax["positions"] = vars_["_app"].core("parseAxisPositions", vars_["axpos"].get())
+        drv = vars_["axdrive"].get().strip()
+        if drv:
+            ax["drive"] = drv
+        else:
+            ax.pop("drive", None)
+        res["axis"] = ax
+    if res.get("rampS") is not None and res["rampS"] < 0:
+        raise ValueError(_("Rampa musí být 0 (bez rampy) nebo kladný čas v sekundách."))
     return res
 
 
@@ -137,10 +228,16 @@ def render(app, parent) -> None:
             w.destroy()
         opt_vars.clear()
         key = labels[var_cls.get()]
+        dflt = app.core("devDefaults", key) if key in MOTION_CLS or key == "Axis" else {}
         for ok, olabel in app.CLS[key]["opts"].items():
-            opt_vars[ok] = tk.BooleanVar(value=ok in DEFAULT_ON)
+            on = (dflt.get("opt") or {}).get(ok, ok in DEFAULT_ON)
+            opt_vars[ok] = tk.BooleanVar(value=bool(on))
             ttk.Checkbutton(opt_row, text=olabel, variable=opt_vars[ok]).pack(side="left", padx=(0, 14))
-        if key.startswith("Analog"):
+        if key in MOTION_CLS:          # výchozí jednotka a rozsah měniče / ventilu
+            var_unit.set(dflt.get("unit", ""))
+            var_min.set(f"{dflt.get('rmin', 0):g}")
+            var_max.set(f"{dflt.get('rmax', 100):g}")
+        if key in RANGE_CLS:
             ttk.Label(opt_row, text=_("jednotka")).pack(side="left")
             ttk.Entry(opt_row, textvariable=var_unit, width=8).pack(side="left", padx=(6, 14))
             ttk.Label(opt_row, text=_("rozsah")).pack(side="left")
@@ -148,8 +245,8 @@ def render(app, parent) -> None:
             ttk.Label(opt_row, text=_("až")).pack(side="left")
             ttk.Entry(opt_row, textvariable=var_max, width=8).pack(side="left", padx=(6, 14))
         new_params.clear()
-        new_params.update(param_fields(app, opt_row, key))
-        if not opt_vars and not key.startswith("Analog") and not new_params:
+        new_params.update(param_fields(app, opt_row, key, dflt))
+        if not opt_vars and key not in RANGE_CLS and not new_params:
             ttk.Label(opt_row, text=_("— bez voleb"), style="Dim.TLabel").pack(side="left")
 
     def on_cls(_e=None) -> None:
@@ -163,7 +260,7 @@ def render(app, parent) -> None:
     def add() -> None:
         prj = app.prj
         key = labels[var_cls.get()]
-        analog = key.startswith("Analog")
+        analog = key in RANGE_CLS
         rmin = _num(var_min.get(), 0) if analog else 0
         rmax = _num(var_max.get(), 100) if analog else 100
         try:
@@ -184,6 +281,8 @@ def render(app, parent) -> None:
             "rmin": rmin, "rmax": rmax,
         })
         apply_params(prj["devices"][-1], params)
+        if key == "Axis":                    # osa nemá rozsah analogu
+            prj["devices"][-1].update(rmin=0, rmax=0)
         prj["nextId"] += 1
         app.sync()
         app.save()
@@ -195,6 +294,8 @@ def render(app, parent) -> None:
     ttk.Button(add_row, text=_("Přidat zařízení"), style="Accent.TButton", command=add
                ).pack(side="left")
     ent_desc.bind("<Return>", lambda _e: add())
+    from .knihovna import add_controls               # „Přidat z knihovny“ (jen s připojenou knihovnou)
+    add_controls(app, add_row)
     if app.ui.get("dev_cls") in app.CLS:     # po přidání zůstaň u stejné třídy
         var_cls.set(app.CLS[app.ui["dev_cls"]]["label"])
 
@@ -202,7 +303,13 @@ def render(app, parent) -> None:
     note_box(body, _(
         "Třídy Motor / Ventil / Analog dostanou hotový funkční blok (stavový automat, "
         "timeouty, status). Třídy DI/DO jsou volné signály pro vlastní logiku. "
-        "Popis upravíš dvojklikem do buňky."), side="bottom")
+        "Popis upravíš dvojklikem do buňky.") + " " + _(
+        "Měnič, polohovací pohon a proporcionální ventil se ovládají přes běžné I/O "
+        "(DO, DI, analog) — fungují na všech platformách; parametry pohonu (rampy, záznamy) "
+        "se nastavují v pohonu, README je vypíše.") + " " + _(
+        "Servoosa se řídí po síti bloky PLCopen Motion Control (Siemens, Beckhoff, CODESYS, WAGO, "
+        "Delta, Omron, Rockwell); osu samotnou (technologický objekt, osa NC / SoftMotion) "
+        "nastavíš v IDE podle konfiguračního listu v README."), side="bottom")
     tools = ttk.Frame(body)
     tools.pack(side="bottom", fill="x", pady=(6, 0))
     params_row = ttk.Frame(body)                    # parametry vybraného zařízení
@@ -257,7 +364,7 @@ def render(app, parent) -> None:
     def show_params(d: dict | None) -> None:
         for w in params_row.winfo_children():
             w.destroy()
-        if d is None or d["cls"] not in ("AnalogIn", "AnalogOut", "DO"):
+        if d is None or d["cls"] not in ("AnalogIn", "AnalogOut", "DO", "Axis", *MOTION_CLS):
             return
         ttk.Label(params_row, text=_("{dev}:", dev=d["name"]), font=theme.FONT_ACCENT).pack(side="left", padx=(0, 8))
         vars_ = param_fields(app, params_row, d["cls"], d)
@@ -268,7 +375,13 @@ def render(app, parent) -> None:
             except ValueError as exc:       # neplatné číslo mez dřív tiše smazalo
                 app.set_status(str(exc))
                 return
+            bits = d.get("selBits")
             apply_params(d, params)
+            if d["cls"] == "PosDrive" and d.get("selBits") != bits:   # jiný počet bitů = jiné signály
+                app.sync()
+                app.save()
+                app.render()
+                return
             app.save()
             tbl.tv.set(str(d["id"]), "opt", _opts_text(app, d))
             app.set_status(_("Parametry {dev} uloženy.", dev=d["name"]))

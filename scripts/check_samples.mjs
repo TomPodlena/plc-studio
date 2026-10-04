@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
  * Kontrola příkladových projektů v samples/*.plcstudio.json (nebo zadaných souborů):
- * načtení, syncIO, validace, generování kódu pro všech 8 platforem, strukturní kontroly
+ * načtení, syncIO, validace, generování kódu pro všechny platformy (+ styl OOP), strukturní kontroly
  * kódu, dokumentace a úplné ověření simulací (běžný cyklus + matice stavů + koncept).
  *
  *   node scripts/check_samples.mjs                 všechny příklady, souhrn
@@ -52,7 +52,7 @@ function codeProblems(plat, out, prj) {
   }
   if (plat === "rockwell") {
     /* L5X well-formed, žádné konstrukce IEC, TONR s PRE před voláním, vše deklarované, ASCII */
-    for (const e of core.logixProblems(out)) errs.push(`rockwell/${e}`);
+    for (const e of core.logixProblems(out, prj.devices.filter(d => d.cls === "Axis").map(core.axisObjName))) errs.push(`rockwell/${e}`);
     if (!/^0\.3$/m.test(out["Tags.csv"]) || /[^\x00-\x7F]/.test(out["Tags.csv"])) errs.push("rockwell/Tags.csv: hlavička nebo ASCII");
   }
   /* každý tag I/O musí být v generovaném kódu deklarovaný (soubor s tagy) */
@@ -70,14 +70,30 @@ for (const file of files) {
   try {
     const raw = JSON.parse(readFileSync(file, "utf8"));
     const prj = Object.assign(core.blankProject(), raw.prj || raw);
-    prj.platforms = Object.keys(core.PLAT);
+    /* projekt se servoosou: platformy bez podpory osy se do projektu nezařadí (validace by je hlásila jako chybu);
+       jejich výstup musí být jen README s vysvětlením — žádný nepřeložitelný kód */
+    const all = Object.keys(core.PLAT);
+    prj.platforms = all;
+    const blocked = all.filter(p => core.axisBlocked(prj, p));
+    prj.platforms = all.filter(p => !blocked.includes(p));
     core.syncIO(prj);
     r.name = prj.meta.name; r.devices = prj.devices.length; r.io = prj.io.length; r.steps = prj.program.seq.length;
+    r.axisBlocked = blocked;
     for (const v of core.validateProject(prj)) if (v.level === "error") r.errors.push(`validace: ${v.where}: ${v.msg}`);
-    for (const plat of Object.keys(core.PLAT)) r.errors.push(...codeProblems(plat, core.genFor(prj, plat), prj));
+    for (const plat of all) {
+      const out = core.genFor(prj, plat);
+      if (blocked.includes(plat)) {
+        if (Object.keys(out).join() !== "README.txt" || !/SERVOOSU NEPODPORUJE|servoosu nepodporuje/i.test(out["README.txt"])) r.errors.push(`${plat}: platforma bez podpory servoosy musí vrátit jen README s vysvětlením`);
+        continue;
+      }
+      r.errors.push(...codeProblems(plat, out, prj));
+    }
+    /* styl kódu OOP (rodina CODESYS): stejné strukturní kontroly */
+    const oop = { ...prj, codeStyle: "oop" };
+    for (const plat of all.filter(core.supportsOop).filter(p => !blocked.includes(p))) r.errors.push(...codeProblems(plat + "/oop", core.genFor(oop, plat), oop));
     const docs = core.allProjectFiles(prj);
     for (const f of docs) if (f.kind === "dxf" && /[^\x00-\x7F]/.test(f.body)) r.errors.push(`${f.save}: DXF není ASCII`);
-    const v = core.verifyProject(prj);
+    const v = core.verifyDesign(prj);              // = verifyProject nad návrhem; sdílí cache s dokumentací
     r.cycle = v.nominal ? v.nominal.cycleTime : null;
     for (const c of v.checks) {
       if (c.level === "error") r.errors.push(`ověření: ${c.title} — ${c.detail}`);

@@ -1,11 +1,13 @@
-"""Krok 8 — Generované zdroje: kód po platformách a souborech."""
+"""Krok 8 — Generované zdroje: záložky Kód (po platformách a souborech), HMI, Emulace kódu
+a SISTEMA a EPLAN (moduly ``hmi``, ``emulace``, ``exporty``; web má totéž v gen_tabs.js).
+Záložka se vykreslí až při prvním zobrazení — HMI ani exporty se zbytečně nepočítají."""
 
 from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
 
-from ..i18n import _
+from ..i18n import N_, _
 from ..widgets import card, note_box, save_file, save_many, scrolled_text, set_text, wrap_label
 
 
@@ -25,12 +27,43 @@ def _tsv_tabs(widget, text: str) -> tuple:
     return tuple(stops)
 
 
+TAB_CODE, TAB_HMI, TAB_EMU, TAB_EXPORTS = range(4)
+TABS = [N_("Kód"), N_("HMI"), N_("Emulace kódu"), N_("SISTEMA a EPLAN")]
+
+
 def render(app, parent) -> None:
+    from . import emulace, exporty, hmi          # kroky-záložky (import až tady: cyklus balíku)
     body = card(parent, "08", _("Generované zdroje"))
     if not app.prj["devices"]:
         wrap_label(body, _("Nejdřív přidej zařízení (krok 4), nech si je navrhnout v kroku "
                            "AI návrh, nebo použij volbu Import."))
         return
+    nb = ttk.Notebook(body)
+    nb.pack(fill="both", expand=True)
+    renderers = [render_code, hmi.render, emulace.render, exporty.render]
+    frames = []
+    for title in TABS:
+        f = ttk.Frame(nb, padding=10)
+        nb.add(f, text=_(title))
+        frames.append(f)
+    done: set[int] = set()
+
+    def show(_e=None) -> None:
+        i = nb.index("current")
+        app.ui["gen_tab"] = i
+        if i not in done:
+            done.add(i)
+            renderers[i](app, frames[i])
+
+    sel = app.ui.get("gen_tab", TAB_CODE)
+    nb.select(sel if isinstance(sel, int) and 0 <= sel < len(TABS) else TAB_CODE)
+    show()
+    nb.bind("<<NotebookTabChanged>>", show)
+    app.gen_notebook = nb             # testy a odkazy (app.ui["gen_tab"] vybere záložku)
+
+
+def render_code(app, body) -> None:
+    """Záložka Kód: soubory platforem s náhledem a ukládáním."""
     if not app.prj["platforms"]:
         wrap_label(body, _("Vyber aspoň jednu platformu (krok 3)."))
         return

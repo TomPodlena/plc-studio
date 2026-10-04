@@ -1,6 +1,8 @@
 /* Drobné UI utility. */
-import { tr, blankProject, CLS, PLAT } from "../../../packages/core/dist/index.js";
+import { tr, blankProject, CLS, PLAT, isGuid, ensureGuids } from "../../../packages/core/dist/index.js";
 import { aiNorm } from "./ai.js";
+import { normSafety } from "./safety_view.js";
+import { normBiz } from "./biz_view.js";
 
 const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
 /**
@@ -15,10 +17,21 @@ export function normProject(raw) {
     if (!(Number.isFinite(raw.meta.takt) && raw.meta.takt > 0)) delete p.meta.takt;
   }
   if (Array.isArray(raw.platforms)) p.platforms = raw.platforms.filter(k => k in PLAT);
+  /* styl kódu: jen "oop" se ukládá (výchozí klasický = bez pole) */
+  if (raw.codeStyle === "oop") p.codeStyle = "oop";
   if (Array.isArray(raw.devices)) {
     const seen = new Set();
     p.devices = raw.devices.filter(d => isObj(d) && CLS[d.cls] && Number.isFinite(d.id) && !seen.has(d.id) && seen.add(d.id))
-      .map(d => ({ ...d, name: String(d.name ?? ""), desc: String(d.desc ?? ""), opt: isObj(d.opt) ? d.opt : {} }));
+      .map(d => {
+        const nd = { ...d, name: String(d.name ?? ""), desc: String(d.desc ?? ""), opt: isObj(d.opt) ? d.opt : {} };
+        /* polohovací pohon: tabulka záznamů jen v platném tvaru (číslo, název, poloha) */
+        if (d.records !== undefined) {
+          if (Array.isArray(d.records)) nd.records = d.records.filter(r => isObj(r) && Number.isInteger(r.no))
+            .map(r => ({ no: r.no, name: String(r.name ?? ""), ...(Number.isFinite(r.pos) ? { pos: r.pos } : {}) }));
+          else delete nd.records;
+        }
+        return nd;
+      });
   }
   const ids = new Set(p.devices.map(d => d.id));
   if (Array.isArray(raw.io)) p.io = raw.io.filter(e => isObj(e) && typeof e.key === "string" && ids.has(e.devId))
@@ -54,7 +67,49 @@ export function normProject(raw) {
     }
     p.bom = b;
   }
+  /* schválení položek a výsledky oživení: jen záznamy v platném tvaru (jinak by shodily kroky 11–13) */
+  const str = v => typeof v === "string";
+  if (isObj(raw.approvals)) {
+    const a = {};
+    for (const [k, r] of Object.entries(raw.approvals)) {
+      if (!isObj(r) || !["approved", "rejected", "proposed"].includes(r.state) || !str(r.by) || !r.by.trim() || !str(r.at) || !str(r.hash)) continue;
+      a[k] = { state: r.state, by: r.by, at: r.at, hash: r.hash, ...(str(r.note) && r.note ? { note: r.note } : {}) };
+    }
+    if (Object.keys(a).length) p.approvals = a;
+  }
+  if (isObj(raw.commissioning)) {
+    const c = {};
+    for (const [k, r] of Object.entries(raw.commissioning)) {
+      if (!isObj(r) || !["ok", "nok", "na"].includes(r.result) || !str(r.by) || !r.by.trim() || !str(r.at)) continue;
+      c[k] = { result: r.result, by: r.by, at: r.at, ...(str(r.note) && r.note ? { note: r.note } : {}), ...(str(r.measured) && r.measured ? { measured: r.measured } : {}) };
+    }
+    if (Object.keys(c).length) p.commissioning = c;
+  }
+  /* bezpečnostní data (úpravy návrhu funkcí, parametry výpočtu) */
+  const sf = normSafety(raw.safety);
+  if (sf) p.safety = sf;
+  /* revize, volby nabídky a kopie firemní knihovny (biz_view.js) */
+  normBiz(raw, p);
+  /* časy modelu stroje pro simulaci (i výchozí z firemní knihovny) a zvolený koncept řešení */
+  if (isObj(raw.sim)) {
+    const s = {};
+    for (const f of ["motorDelay", "valveTravel"]) if (Number.isFinite(raw.sim[f]) && raw.sim[f] > 0) s[f] = raw.sim[f];
+    if (Object.keys(s).length) p.sim = s;
+  }
+  if (isObj(raw.concept)) p.concept = raw.concept;
   p.nextId = Math.max(Number.isFinite(raw.nextId) ? raw.nextId : 1, ...p.devices.map(d => d.id + 1));
+  /* GUID (export EPLAN páruje podle nich): převzít uložené, chybějící doplnit — nikdy při exportu */
+  if (isGuid(raw.guid)) p.guid = raw.guid;
+  if (isObj(raw.moduleGuids)) {
+    const mg = Object.fromEntries(Object.entries(raw.moduleGuids).filter(([, g]) => isGuid(g)));
+    if (Object.keys(mg).length) p.moduleGuids = mg;
+  }
+  /* značka sestavy hardwaru: adresy I/O patří platformě `plat` (hardware.ts) — bez ní se přidělí znovu */
+  if (isObj(raw.hw) && raw.hw.plat in PLAT && Number.isInteger(raw.hw.ver)) p.hw = { plat: raw.hw.plat, ver: raw.hw.ver };
+  /* migrace: starý projekt bez GUID → doplnit; volající ho podle `guidsAdded` uloží (projekt změněn) */
+  const hadGuid = isGuid(raw.guid);
+  const added = ensureGuids(p);
+  Object.defineProperty(p, "guidsAdded", { value: added || !hadGuid, enumerable: false });
   return p;
 }
 

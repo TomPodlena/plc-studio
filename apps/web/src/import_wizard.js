@@ -239,7 +239,7 @@ export function makeImportWizard(ctx) {
       return f.pasted ? tr("vložený text") : k === "pdf" ? "PDF" : k === "image" ? tr("obrázek") : k === "text" ? tr("text / export") : tr("binární (převeď do PDF nebo CSV)");
     };
     body.innerHTML = `
-      <p class="hint" style="margin-top:0;max-width:80ch">${tr("Přidej všechno, co o stroji máš: exporty a programy z PLC (TIA Portal, Studio 5000 L5X, CODESYS / PLCopen XML, GX Works, Sysmac, výstupy PLC Studia), I/O listy (CSV), elektroschémata v PDF, fotky štítků a rozvaděče, popis funkce. Exporty a programy zpracuje přesně jádro; PDF, obrázky a neznámé texty může volitelně doplnit AI.")}</p>
+      <p class="hint" style="margin-top:0;max-width:80ch">${tr("Přidej všechno, co o stroji máš: exporty a programy z PLC (TIA Portal, Studio 5000 L5X, CODESYS / PLCopen XML, GX Works, Sysmac, výstupy PLCdesk), I/O listy (CSV), elektroschémata v PDF, fotky štítků a rozvaděče, popis funkce. Exporty a programy zpracuje přesně jádro; PDF, obrázky a neznámé texty může volitelně doplnit AI.")}</p>
       ${W.lost ? "<p class='warnbox'>" + tr("Některé dříve přidané soubory se nepodařilo obnovit — přidej je znovu.") + "</p>" : ""}
       <div class="drop" id="impDrop">
         <input type="file" id="impFiles" multiple aria-label="${esc(tr("Vybrat soubory"))}">
@@ -528,7 +528,7 @@ export function makeImportWizard(ctx) {
       W.ai ? tr("Návrh převzatý z importu stávajícího zařízení (souborů: {n}, s analýzou AI) — zkontroluj nejisté položky a pokračuj úpravami: napiš, co změnit.", { n: names.length })
         : tr("Návrh převzatý z importu stávajícího zařízení (souborů: {n}) — zkontroluj nejisté položky a pokračuj úpravami: napiš, co změnit.", { n: names.length }));
     const issues = validateProject(prjNew);
-    const nErr = issues.filter(i => i.level === "error").length, nWarn = issues.length - nErr;
+    const nErr = issues.filter(i => i.level === "error").length, nWarn = issues.filter(i => i.level === "warn").length;
     S.notice = {
       step: 3, level: nErr ? "err" : nWarn ? "warn" : "ok",
       text: tr("Import převzat: zařízení {n}, I/O {io}, kroků sekvence {seq}. Kontrola návrhu: chyb {err}, varování {warn} — podrobnosti v kroku I/O.", { n: prjNew.devices.length, io: prjNew.io.length, seq: prjNew.program.seq.length, err: nErr, warn: nWarn }),

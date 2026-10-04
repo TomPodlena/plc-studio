@@ -18,7 +18,16 @@ NO_ESTOP = N_("— žádný (doplníš ručně) —")
 WAIT = N_("— čekání (bez zařízení) —")
 ACT_LABEL = {"start": N_("start"), "stop": N_("stop"), "open": N_("otevřít"),
              "close": N_("zavřít"), "wait": N_("čekat"),
-             "waitOn": N_("čekat na TRUE"), "waitOff": N_("čekat na FALSE")}
+             "waitOn": N_("čekat na TRUE"), "waitOff": N_("čekat na FALSE"),
+             # pohony fáze 2a
+             "home": N_("referenční jízda"), "posRecord": N_("jízda na záznam"),
+             "setPressure": N_("nastavit tlak"), "setFlow": N_("nastavit průtok"),
+             # servoosa (fáze 2b)
+             "moveAbs": N_("najet na polohu"), "moveRel": N_("posun o dráhu"),
+             "velocity": N_("jízda rychlostí"), "halt": N_("zastavit osu"),
+             "waitInPos": N_("čekat na dojetí osy")}
+MOTION_CLS = ("Vfd", "PosDrive", "PropValve")
+BY_NUMBER = N_("— zadat číslem —")
 COND_LABEL = {"fbk": N_("přechod: zpětné hlášení"), "time": N_("přechod: čas")}
 LOCK_ROWS = 4          # víc řádků blokovacích vstupů → posuvné okno
 HINTS_MIN_H = 560      # nižší záložka Logika schová vysvětlující texty (tabulka má přednost)
@@ -51,7 +60,7 @@ def _logic(app, body) -> None:
     p = app.prj
     prog = p["program"]
     di = [d for d in p["devices"] if d["cls"] == "DI"]
-    act = [d for d in p["devices"] if d["cls"] in ("Motor", "Ventil")]
+    act = [d for d in p["devices"] if d["cls"] in ("Motor", "Ventil", "Axis", *MOTION_CLS)]
 
     # --- centrální uvolnění ---
     top = ttk.Frame(body)
@@ -176,13 +185,85 @@ def _logic(app, body) -> None:
     cb_cond.pack(side="left", padx=(6, 0))
     ttk.Spinbox(add, textvariable=var_time, from_=1, to=3600, width=6).pack(side="left", padx=(6, 2))
     ttk.Label(add, text=_("s (čas / hlídací čas)")).pack(side="left")
+    # parametr kroku pohonu: otáčky měniče (+ směr), číslo záznamu pohonu, žádaná ventilu
+    par = ttk.Frame(add)
+    par.pack(side="left", padx=(8, 0))
+    var_par, var_rev = tk.StringVar(), tk.BooleanVar(value=False)
+    par._vars = (var_par, var_rev)                 # proměnné naživu (GC)
+    # parametry kroku servoosy (vlastní řádek nad přidáním): cíl / dráha / rychlost, dynamika nepovinně
+    ax_row = ttk.Frame(body)
+    ax_row.pack(side="bottom", fill="x", pady=(6, 0))
+    ax_vars = {k: tk.StringVar() for k in ("ref", "pos", "vel", "acc", "dec")}
+    ax_row._vars = ax_vars
+
+    def refresh_axis(d, a) -> None:
+        for w in ax_row.winfo_children():
+            w.destroy()
+        if d is None or d["cls"] != "Axis" or a not in ("moveAbs", "moveRel", "velocity"):
+            return
+        cfg = app.core("axisCfgOf", d)
+        u = d.get("unit") or ""
+        ttk.Label(ax_row, text=_("{dev}:", dev=d["name"]), font=theme.FONT_ACCENT).pack(side="left", padx=(0, 8))
+
+        def num(key: str, label: str) -> None:
+            ttk.Label(ax_row, text=label).pack(side="left")
+            ttk.Entry(ax_row, textvariable=ax_vars[key], width=8).pack(side="left", padx=(4, 12))
+
+        if a == "moveAbs":
+            refs = [_(BY_NUMBER)] + [f"{x['name']} ({x['pos']:g})" for x in cfg["positions"]]
+            ttk.Label(ax_row, text=_("poloha")).pack(side="left")
+            cb = ttk.Combobox(ax_row, textvariable=ax_vars["ref"], values=refs, state="readonly",
+                              width=max(len(r) for r in refs) + 1)
+            cb.pack(side="left", padx=(4, 12))
+            cb._refs = cfg["positions"]
+            ax_row._ref_cb = cb
+            if ax_vars["ref"].get() not in refs:
+                ax_vars["ref"].set(refs[1] if len(refs) > 1 else refs[0])
+            num("pos", _("cíl") + (f" [{u}]" if u else ""))
+        elif a == "moveRel":
+            num("pos", _("dráha") + (f" [{u}]" if u else ""))
+        num("vel", (_("rychlost (± = směr)") if a == "velocity" else _("rychlost")) + (f" [{u}/s]" if u else ""))
+        num("acc", _("zrychlení") + (f" [{u}/s²]" if u else ""))
+        num("dec", _("zpomalení") + (f" [{u}/s²]" if u else ""))
+        ttk.Label(ax_row, text=_("prázdné = výchozí z konfigurace osy (rychlost {v})", v=f"{cfg['vDef']:g}"),
+                  style="Dim.TLabel").pack(side="left")
+
+    def refresh_par(*_a):
+        for w in par.winfo_children():
+            w.destroy()
+        d = devs.get(var_dev.get())
+        a = acts[max(cb_act.current(), 0)] if acts else ""
+        refresh_axis(d, a)
+        if d is None or d["cls"] not in MOTION_CLS or (d["cls"] == "Vfd" and a != "start") \
+                or (d["cls"] == "PosDrive" and a != "posRecord"):
+            return
+        unit = f" [{d['unit']}]" if d.get("unit") else ""
+        if d["cls"] == "PosDrive":
+            n_max = (1 << int(d.get("selBits") or 3)) - 1
+            names = {r["no"]: r.get("name") or "" for r in d.get("records") or []}
+            vals = [f"{n} – {names[n]}" if names.get(n) else str(n) for n in range(1, n_max + 1)]
+            ttk.Label(par, text=_("záznam")).pack(side="left")
+            cb = ttk.Combobox(par, textvariable=var_par, values=vals, state="readonly",
+                              width=max(6, *(len(v) + 1 for v in vals)))
+            cb.pack(side="left", padx=(4, 0))
+            if var_par.get() not in vals:
+                var_par.set(vals[0])
+        else:
+            ttk.Label(par, text=(_("otáčky") if d["cls"] == "Vfd" else _("žádaná")) + unit).pack(side="left")
+            if parse_num(var_par.get()) is None:
+                var_par.set("" if d.get("setpoint") is None else f"{d['setpoint']:g}")
+            ttk.Entry(par, textvariable=var_par, width=7).pack(side="left", padx=(4, 0))
+            if d["cls"] == "Vfd" and (d.get("opt") or {}).get("rev"):
+                ttk.Checkbutton(par, text=_("vzad"), variable=var_rev).pack(side="left", padx=(6, 0))
 
     def refresh_acts(*_a):
         d = devs.get(var_dev.get())
-        acts[:] = (["wait"] if d is None else ["start", "stop"] if d["cls"] == "Motor"
-                   else ["waitOn", "waitOff"] if d["cls"] == "DI" else ["open", "close"])
+        acts[:] = (["wait"] if d is None else ["waitOn", "waitOff"] if d["cls"] == "DI"
+                   else list(app.ACTS_FOR.get(d["cls"]) or (["start", "stop"] if d["cls"] == "Motor" else ["open", "close"])))
         cb_act.configure(values=[_(ACT_LABEL[k]) for k in acts])
         var_act.set(_(ACT_LABEL[acts[0]]))
+        var_par.set("")
+        refresh_par()
         # čekání na vstup: přechod je vždy na vstup, čas je hlídací
         if d is not None and d["cls"] == "DI":
             cb_cond.current(conds.index("fbk"))
@@ -191,6 +272,7 @@ def _logic(app, body) -> None:
         cb_cond.state(["disabled"] if d is None or d["cls"] == "DI" else ["!disabled"])
 
     var_dev.trace_add("write", refresh_acts)
+    var_act.trace_add("write", refresh_par)
     refresh_acts()
 
     # rozpracovaný krok (zařízení, akce, přechod, čas) přežije překreslení — např. po
@@ -227,9 +309,41 @@ def _logic(app, body) -> None:
         act_key = acts[max(cb_act.current(), 0)]
         cond = conds[max(cb_cond.current(), 0)]
         seq = app.prj["program"]["seq"]
-        seq.append({"dev": d["id"] if d else 0, "act": act_key if d else "wait",
-                    "cond": cond if d else "time",
-                    "timeS": int(time_s) if time_s.is_integer() else time_s})
+        step = {"dev": d["id"] if d else 0, "act": act_key if d else "wait",
+                "cond": cond if d else "time",
+                "timeS": int(time_s) if time_s.is_integer() else time_s}
+        if d is not None and d["cls"] in MOTION_CLS:     # otáčky / žádaná, záznam, směr
+            if d["cls"] == "PosDrive" and act_key == "posRecord":
+                step["rec"] = int(var_par.get().split(" ")[0] or 1)
+            elif d["cls"] == "PropValve" or act_key == "start":
+                sp = parse_num(var_par.get())
+                if sp is not None:
+                    step["sp"] = int(sp) if sp.is_integer() else sp
+                if d["cls"] == "Vfd" and var_rev.get():
+                    step["rev"] = True
+        if d is not None and d["cls"] == "Axis" and act_key in ("moveAbs", "moveRel", "velocity"):
+            cb = getattr(ax_row, "_ref_cb", None)
+            if act_key == "moveAbs" and cb is not None and cb.winfo_exists() and cb.current() > 0:
+                step["posRef"] = cb._refs[cb.current() - 1]["name"]
+            vals = {}
+            for key in ("pos", "vel", "acc", "dec"):
+                txt = ax_vars[key].get().strip()
+                if not txt:
+                    continue
+                v = parse_num(txt)
+                if v is None:
+                    app.set_status(_("Neplatné číslo v poli „{field}“.", field=key))
+                    return
+                vals[key] = int(v) if float(v).is_integer() else v
+            if act_key in ("moveAbs", "moveRel") and "posRef" not in step:
+                if "pos" not in vals:
+                    app.set_status(_("Zadej cílovou polohu / dráhu osy."))
+                    return
+                step["pos"] = vals["pos"]
+            for key in ("vel", "acc", "dec"):
+                if key in vals:
+                    step[key] = vals[key]
+        seq.append(step)
         app.ui["seq_sel"] = len(seq) - 1
         app.save()
         app.render()

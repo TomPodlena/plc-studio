@@ -83,13 +83,13 @@ export function genPLCopenXML(prj, plat = "codesys") {
     pous.push(parseStPou(genMainIEC(prj, plat)));
     let gvl = "";
     for (const e of prj.io) {
-        const at = addrFor(plat, e);
+        const at = addrFor(plat, e, prj);
         gvl += varXml({ name: e.tag, type: dtFor(e), address: at || undefined, comment: e.cmt || undefined }, "            ");
     }
     return `<?xml version="1.0" encoding="utf-8"?>
 <project xmlns="http://www.plcopen.org/xml/tc6_0200">
-  <fileHeader companyName="PLC Studio" productName="PLC Studio" productVersion="0.1" creationDateTime="${now}" />
-  <contentHeader name="${esc(prj.meta.name || "PLC-Studio-Project")}" modificationDateTime="${now}">
+  <fileHeader companyName="PLCdesk" productName="PLCdesk" productVersion="0.1" creationDateTime="${now}" />
+  <contentHeader name="${esc(prj.meta.name || "PLCdesk-Project")}" modificationDateTime="${now}">
     <coordinateInfo>
       <fbd><scaling x="1" y="1" /></fbd>
       <ld><scaling x="1" y="1" /></ld>

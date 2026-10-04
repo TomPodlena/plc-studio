@@ -1,4 +1,4 @@
-"""Spuštění PLC Studia:  ``python -m plc_studio``  (z adresáře apps/desktop).
+"""Spuštění PLCdesk:  ``python -m plc_studio``  (z adresáře apps/desktop).
 
 ``--smoke`` projde všechny kroky nad ukázkami i prázdným projektem a skončí
 (kontrola, že se každý krok vykreslí); ``--shots SLOŽKA`` k tomu uloží snímky.
@@ -15,7 +15,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox
 
-from . import theme
+from . import theme, updates
 from .app import STEPS, App
 from .bridge import BridgeError
 from .i18n import _
@@ -86,6 +86,10 @@ def _smoke(app: App, shots: Path | None) -> int:
             scen = range(3) if app.prj["program"]["seq"] else [0]
             return [("_0", {"prog_tab": 0}), ("_1", {"prog_tab": 1})] + [
                 (f"_2{t}", {"prog_tab": 2, "sim_tab": t}) for t in scen]
+        if step == 7 and app.prj["devices"]:              # Generovat: kód, HMI, emulace, SISTEMA a EPLAN
+            return [(f"_{t}", {"gen_tab": t}) for t in range(4)]
+        if step == 10 and app.prj["devices"]:             # Bezpečnost: funkce, nebezpečí, … výkres
+            return [(f"_{t}", {"safety": {"tab": t}}) for t in range(5)]
         return [("", {})]
 
     def walk(label: str) -> None:
@@ -124,6 +128,18 @@ def _smoke(app: App, shots: Path | None) -> int:
     walk_import("slozita")
     app.load_sample("small")
     walk("mala")
+    # pohony fáze 2a (měnič, polohovací pohon, proporcionální ventil): vzor 11 ze složky samples/
+    motion = Path(__file__).resolve().parents[3] / "samples" / "11_podavaci_lisovaci_stanice_PS-11.plcstudio.json"
+    if motion.exists() and app.open_project(motion):
+        walk("pohony")
+    # servoosa (fáze 2b): vzor 12 — vybraná osa v Zařízení / živé simulaci, krok osy rozpracovaný v Programu
+    axis = motion.with_name("12_portalovy_manipulator_PM-12.plcstudio.json")
+    if axis.exists() and app.open_project(axis):
+        ax = next((d for d in app.prj["devices"] if d["cls"] == "Axis"), None)
+        if ax is not None:
+            app.ui.update(dev_sel=ax["id"], live_sel=ax["id"],
+                          seq_add={"dev": ax["id"], "act": "moveAbs", "cond": "fbk", "time": "3"})
+        walk("osa")
     app.reset_project()
     walk("prazdny")
     errors = list(app.errors)
@@ -135,7 +151,7 @@ def _smoke(app: App, shots: Path | None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="plc_studio", description="PLC Studio — desktop")
+    ap = argparse.ArgumentParser(prog="plc_studio", description="PLCdesk — desktop")
     ap.add_argument("project", nargs="?", help="soubor projektu (.plcstudio.json) k otevření")
     ap.add_argument("--smoke", action="store_true", help="projít všechny kroky a skončit")
     ap.add_argument("--shots", metavar="SLOŽKA", help="při --smoke uložit snímky kroků")
@@ -151,12 +167,14 @@ def main(argv: list[str] | None = None) -> int:
         app = App(root)
     except BridgeError as exc:
         root.withdraw()
-        messagebox.showerror(_("PLC Studio nejde spustit"), str(exc))
+        messagebox.showerror(_("PLCdesk nejde spustit"), str(exc))
         return 2
     if args.smoke:
         return _smoke(app, Path(args.shots) if args.shots else None)
     if args.project:
         app.open_project(args.project)
+    # kontrola aktualizací na pozadí (nejvýš jednou denně, bez sítě tiše nic) — ne v --smoke
+    root.after(2000, lambda: updates.start_check(app))
     root.mainloop()
     return 0
 

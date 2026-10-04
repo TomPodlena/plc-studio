@@ -1,0 +1,59 @@
+# Web PLCdesk (apps/site): testy a nasazeni na Cloudflare Workers po pushi do main.
+# Postup zalozeni uctu a secrets: apps/site/NASAZENI.md
+#
+# Secrets v GitHubu (Settings > Secrets and variables > Actions):
+#   CLOUDFLARE_API_TOKEN    token s pravem "Edit Cloudflare Workers" (+ D1 Edit)
+#   CLOUDFLARE_ACCOUNT_ID   ID uctu Cloudflare
+# Volitelne promenne (Variables):
+#   SITE_URL                ostra adresa webu, napr. https://plcdesk.<ucet>.workers.dev
+#   TURNSTILE_SITEKEY       verejny klic Turnstile (bez nej web bezi na testovacim klici)
+# Tajne hodnoty Workeru (TURNSTILE_SECRET, LICENSE_PRIVATE_KEY, ADMIN_TOKEN, ...) sem NEPATRI -
+# nastavuji se jednou prikazem `npx wrangler secret put`, viz NASAZENI.md.
+#
+# Dokud CLOUDFLARE_API_TOKEN neni nastaveny, workflow jen otestuje a nasazeni preskoci.
+
+name: Web PLCdesk
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/site/**"
+      - "packages/core/dist/**"
+      - ".github/workflows/deploy-site.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: true
+
+jobs:
+  test-a-nasazeni:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/site
+    env:
+      SITE_URL: ${{ vars.SITE_URL }}
+      TURNSTILE_SITEKEY: ${{ vars.TURNSTILE_SITEKEY }}
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Kontrola syntaxe
+        run: for f in scripts/*.js worker/*.js test/*.js tools/*.js; do node --check "$f"; done
+      - name: Testy API (SQLite misto D1)
+        run: node test/api.test.js
+      - name: Build (musi skoncit 0 varovani)
+        run: node scripts/build.js
+      - name: Nasazeni na Cloudflare Workers
+        if: env.HAS_TOKEN == 'true'
+        run: npx --yes wrangler@4 deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Nasazeni preskoceno
+        if: env.HAS_TOKEN != 'true'
+        run: echo "CLOUDFLARE_API_TOKEN neni nastaveny - nasazeni preskoceno (viz apps/site/NASAZENI.md)."

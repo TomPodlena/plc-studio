@@ -1,5 +1,5 @@
 /**
- * PLC Studio — simulace procesu a ověření programu.
+ * PLCdesk — simulace procesu a ověření programu.
  *
  * Simulátor provádí scan po scanu STEJNOU logiku, jakou generuje codegen.ts
  * (šablony FB_Motor / FB_Ventil, sekvence CASE, porucha stroje a kvitace;
@@ -11,10 +11,25 @@
  * Co neověřuje: kód přeložený v cílovém IDE, HW konfiguraci, bezpečnostní
  * funkce. Nenahrazuje test v simulátoru platformy ani FAT.
  */
-import { Project, SeqStep } from "./model.js";
+import { Project, Device, IoEntry, SeqStep } from "./model.js";
 /** Timeouty šablon — musí odpovídat T#3S / T#5S v Gen_Library (hlídá test). */
 export declare const T_MOTOR_FBK = 3;
 export declare const T_VALVE_TRAVEL = 5;
+/** Pohony fáze 2a — časy šablon FB_Vfd / FB_PosDrive / FB_PropValve (hlídá test). */
+export declare const T_TICK = 0.1;
+export declare const T_VFD_SPEED = 5;
+export declare const T_POS_SEL = 0.1;
+export declare const T_POS_ACK = 1;
+export declare const T_POS_MOVE = 30;
+export declare const T_PROP_SETTLE = 5;
+/** Předvolby časovačů bloků pohonů podle jména v `MotionState.tons` (emulátor: horizont a přeskočení klidu). */
+/** Servoosa: regulace musí naběhnout do 5 s (T#5S v FB_Axis). */
+export declare const T_AXIS_POWER = 5;
+export declare const MOTION_TON_PT: Record<string, number>;
+/** Kódy chyb bloků pohonů (errCode) — shodné se šablonami a s dokumentací. */
+export declare const MOTION_ERR: Record<number, string>;
+/** Příčina poruchy servoosy v modelu (hlášení simulace; v PLC je v diagnostice osy). */
+export declare const AXIS_ERR_CAUSE: Record<number, string>;
 /** Zásahy scénáře v čase: poruchy stroje a úkony obsluhy. */
 export type SimFault = 
 /** Od `at` (do `until`) zamrznou zpětná hlášení zařízení (vadný snímač, zaseknutý pohon, slepený stykač). */
@@ -24,9 +39,23 @@ export type SimFault =
     at: number;
     until?: number;
 }
-/** Od `at` (do `until`) je aktivní vstup poruchy motoru (vybavený jistič). */
+/** Od `at` (do `until`) je aktivní vstup poruchy motoru (vybavený jistič); u servoosy porucha pohonu. */
  | {
     kind: "fault";
+    dev: number;
+    at: number;
+    until?: number;
+}
+/** Od `at` (do `until`) má servoosa přerušenou komunikaci s pohonem (PROFINET / EtherCAT…). */
+ | {
+    kind: "comm";
+    dev: number;
+    at: number;
+    until?: number;
+}
+/** Od `at` (do `until`) je pohon servoosy nepřipraven (STO aktivní, bez silového napájení): regulace nenaběhne. */
+ | {
+    kind: "notReady";
     dev: number;
     at: number;
     until?: number;
@@ -101,8 +130,19 @@ export interface SimDevState {
     label: string;
     error: boolean;
     busy: boolean;
-    /** Model stroje: 0..1 = rozběh motoru / poloha ventilu (0 zavřeno, 1 otevřeno). */
+    /** Model stroje: 0..1 = rozběh motoru / poloha ventilu (0 zavřeno, 1 otevřeno); měnič = otáčky / rozsah, ventil = skutečná / rozsah, pohon = postup jízdy. */
     pos: number;
+    /** Pohony fáze 2a: skutečná hodnota v jednotkách (otáčky, tlak), žádaná po rampě, záznam v poloze (−1 = neznámý), kód chyby. */
+    value?: number;
+    cmd?: number;
+    rec?: number;
+    errCode?: number;
+    /** PosDrive: blok hlásí dokončenou jízdu (done). */
+    done?: boolean;
+    /** Servoosa: regulace zapnuta, referováno, osa jede (moving). */
+    powered?: boolean;
+    homed?: boolean;
+    moving?: boolean;
 }
 export interface SimFrame {
     t: number;
@@ -182,8 +222,22 @@ export interface SimControls {
     man: Record<number, boolean>;
     /** Zařízení se zamrzlým zpětným hlášením (vadný snímač, zaseknutý pohon). */
     frozen: number[];
-    /** Motory s aktivním vstupem poruchy (vybavený jistič). */
+    /** Motory s aktivním vstupem poruchy (vybavený jistič); u servoosy porucha pohonu. */
     fault: number[];
+    /** Servoosy s přerušenou komunikací s pohonem. */
+    comm: number[];
+    /** Servoosy s nepřipraveným pohonem (STO aktivní, bez silového napájení) — regulace nenaběhne. */
+    notReady?: number[];
+    /**
+     * Ruční povely servoosy z HMI (manPower_ / manHome_ / manJogP_ / manJogN_). `man[id]` u osy =
+     * regulace + pojezd + (scénáře ručního režimu).
+     */
+    axMan: Record<number, {
+        power?: boolean;
+        home?: boolean;
+        jogP?: boolean;
+        jogN?: boolean;
+    }>;
     /** Ruční hodnoty volných digitálních vstupů (klíč I/O → hodnota). */
     di: Record<string, boolean>;
     /** Ruční surové hodnoty analogových vstupů (klíč I/O → 0..27648). */
@@ -267,6 +321,16 @@ export declare class Simulator {
     private readonly roles;
     /** Klidové hodnoty DI, na které čeká sekvence (proces je po kroku vrací). */
     private readonly diRest;
+    /** Povely sekvence pohonů fáze 2a podle jména proměnné (seqSpd_M5, seqRec_M6…; REAL ve float32). */
+    private readonly mseq;
+    /** Hodnoty po přerušení sekvence a povely kroků (předpočítané z IR — totéž jako generátor). */
+    private readonly mResets;
+    private readonly mStepSets;
+    private readonly mInSeq;
+    /** DO, které znamenají pohyb (motor, ventil, měnič chod, pohon start / referování) — po zastavení musí být FALSE. */
+    readonly motionOuts: string[];
+    /** DO pohonů, které pohyb nespouští (povolení, výběr záznamu, HALT, směr, kvitace) — nejsou „sepnuté výstupy“. */
+    private readonly passiveOuts;
     constructor(prj: Project, opts?: {
         dt?: number;
         motorDelay?: number;
@@ -288,6 +352,35 @@ export declare class Simulator {
     pressAck(duration?: number): void;
     outputsOn(): string[];
     private devState;
+    /** Hodnota výstupu instance bloku pohonu (`instM5.inSpeed`) pro podmínku kroku — stav z minulého scanu, jako v PLC. */
+    private member;
+    /** Vyhodnocení výrazu podmínky kroku (zrcadlo `irText` — jen co generátor do podmínek píše). */
+    private evalExpr;
+    /**
+     * Jeden scan bloku pohonu fáze 2a — přesné zrcadlo šablon ST_VFD / ST_POSDRIVE / ST_PROPVALVE
+     * (pořadí příkazů, hrany, časovače, REAL ve float32). Povely: sekvence (`mseq`) NEBO ruční povel
+     * mimo AUTO (bez sekvence jen ruční); vstupy z vrstvy `io` (co čte program).
+     */
+    private motionScan;
+    /**
+     * Jeden scan FB_Axis — přesné zrcadlo šablon axis_gen.ts (`AXIS_SM`, čtení stavu na začátku, bloky
+     * MC na konci); bloky MC a osa = model axis.ts (týž, který emulátor spouští pod kódem platformy).
+     * Vstupy: povel sekvence (`mseq`), regulace v AUTO / ručně, ruční referování a pojezd jen mimo AUTO.
+     */
+    private axisFbScan;
+    /** Výstupy bloku pohonu do I/O: DO podle jména výstupu bloku, AO = podíl rozsahu (0..27648, kanonicky). */
+    private writeOuts;
+    /**
+     * Model pohonu fáze 2a (reakce na výstupy do dalšího scanu; zapisuje jen do vrstvy `model`).
+     * Měnič: otáčky sledují žádanou rychlostí rozsah / motorDelay, při změně směru přes nulu;
+     * „otáčky dosaženy“ = chod a skutečné otáčky = žádaná. Pohon: start / referování potvrdí
+     * poklesem „v poloze“, jízda trvá `travelS`, HALT a odpojení povolení jízdu zastaví.
+     * Ventil: skutečná hodnota = žádaná po rampě (bez zpoždění — rampa je v PLC).
+     * Zamrzlé zařízení (zásah frozen) = zaseknutá mechanika: otáčky / poloha / tlak se nemění.
+     */
+    private motionPlant;
+    /** Zápis povelů sekvence pohonů (přerušení, krok, vstup do kroku); REAL ve float32. */
+    private applySets;
     /** Aktuální stav: krok sekvence, enable, porucha, stavy bloků a hodnoty I/O. */
     frame(t?: number): SimFrame;
     /** Zaznamená snímek, pokud se stav změnil (jen při `record`). */
@@ -308,6 +401,15 @@ export declare class Simulator {
     /** Jeden scan: vnější zásahy → program (enable → sekvence → časovače → instance → porucha) → stroj. */
     scan(): void;
 }
+/** Vstup, který zásah „analog“ vnutí: měření (AnalogIn raw), skutečná hodnota pohonu (rawAct). */
+export declare function analogFaultIo(prj: Project, d: Device): IoEntry | undefined;
+/** Vstup, který zásah „lost“ vnutí na FALSE: hlášení chodu / otevřeno / otáčky dosaženy / v poloze. */
+export declare function lostFaultIo(prj: Project, d: Device): IoEntry | undefined;
+/**
+ * Odhad doby cyklu pro strop simulace [s] (simulate i emulátor): výdrž / přechod časem = čas kroku,
+ * pohon fáze 2a podle modelu (jízda, rampa), ostatní nejdelší přestavení + rezerva.
+ */
+export declare function seqEstimate(prj: Project, motorDelay: number, valveTravel: number): number;
 /** Dávková simulace jednoho scénáře: start v čase `startAt`, zásahy podle `faults`. */
 export declare function simulate(prj: Project, options?: SimOptions, from?: Simulator): SimResult;
 /**
@@ -380,6 +482,30 @@ export interface StateMatrix {
     failed: number;
 }
 /**
+ * Zařízení pro sloupce matice stavů (sdílí emulátor): porucha pohonu (motor, měnič, polohovací
+ * pohon se vstupem poruchy), ztráta hlášení chodu (motor, měnič „otáčky dosaženy“), ztráta polohy
+ * ventilu, ztráta „v poloze“ polohovacího pohonu, odchylka proporcionálního ventilu se zpětnou vazbou.
+ */
+export declare function matrixDevs(prj: Project): {
+    fault: Device[];
+    lost: Device[];
+    lostv: Device[];
+    lostp: Device[];
+    dev: Device[];
+    comm: Device[];
+};
+/** DO, které znamenají pohyb (po zastavení stroje musí být FALSE): motor, ventil, měnič chod, pohon start / referování. */
+export declare function motionOutKeys(prj: Project): string[];
+/**
+ * Zamrzlé hlášení (zaseknutá mechanika) v kroku jde zjistit? Proporcionální ventil jen se zpětnou
+ * vazbou a se změnou žádané výrazně nad toleranci (malou změnu zaseknutý ventil „splní“); ostatní ano.
+ */
+export declare function frozenDetectable(prj: Project, s: SeqStep, d: Device, nominal: SimResult, run: SimStepRun): boolean;
+/** Lhůta, do které musí odchylka proporcionálního ventilu vyhlásit poruchu [s] (takty 0,1 s + scan + rezerva). */
+export declare function devDeadline(d: Device, dt: number): number;
+/** Surová hodnota skutečné hodnoty daleko mimo toleranci kolem žádané `sp` (zásah „odchylka“). */
+export declare function devFaultRaw(d: Device, sp: number): number;
+/**
  * Matice stavů: v klidu a v každém kroku sekvence se vyzkouší každý zásah (E-stop, blokování,
  * vypnutí AUTO, zamrzlé hlášení kroku, porucha a ztráta hlášení běžícího pohonu) a vyhodnotí
  * se proti konceptu (FDS): zásahy obsluhy a blokování zastaví stroj do 3 scanů a cyklus se
@@ -389,3 +515,7 @@ export declare function stateMatrix(prj: Project, base?: SimOptions, nominalRun?
 export declare function verifyProject(prj: Project, base?: SimOptions): VerifyResult;
 /** Protokol o ověření simulací (Markdown do dokumentace projektu). */
 export declare function docVerifyMd(prj: Project): string;
+/** Klíč „výstupu pohybu“ servoosy ve snímku simulace (osa jede — FB_Axis výstup moving). */
+export declare function axisMoveKey(d: {
+    id: number;
+}): string;

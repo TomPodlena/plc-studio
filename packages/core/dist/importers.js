@@ -1,5 +1,5 @@
 /**
- * PLC Studio — reverse engineering: import existujících projektů.
+ * PLCdesk — reverse engineering: import existujících projektů.
  * Parsery exportů (SimaticML, L5X, GVL/ST, CSV/tab tabulky, prostý I/O list)
  * a rekonstrukce zařízení + I/O z tagů.
  *

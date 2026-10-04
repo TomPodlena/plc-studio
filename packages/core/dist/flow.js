@@ -1,5 +1,5 @@
 /**
- * PLC Studio — diagramy funkce stroje:
+ * PLCdesk — diagramy funkce stroje:
  *  - funkční diagram cyklu (kroky sekvence a podmínky přechodu, styl GRAFCET),
  *  - časový diagram signálů z výsledku simulace.
  * Prvky nesou odkazy data-step / data-dev / data-io pro interaktivní náhledy.
@@ -7,6 +7,7 @@
 import { CLS, devById, ioOf, esc, enableInputs, interlockDevs } from "./model.js";
 import { stepTitle, stepCondText, stepWatchdog } from "./sim.js";
 import { tr, N_ } from "./i18n.js";
+import { hwAddrText } from "./hardware.js";
 const TXT = "font-family:ui-monospace,monospace;font-size:12px;fill:currentColor";
 const MUT = "font-family:ui-monospace,monospace;font-size:10.5px;fill:var(--muted, #777)";
 const sT = (x, y, txt, st, anch) => '<text x="' + x + '" y="' + y + '" style="' + (st || TXT) + '"' + (anch ? ' text-anchor="' + anch + '"' : "") + ">" + esc(txt) + "</text>";
@@ -22,7 +23,8 @@ function estopTag(prj) {
 }
 /** Nadpisy skupin — klíče překladu, překládají se až při kreslení (`tr(title)`). */
 const SECTIONS = [
-    ["Motor", N_("Pohony (motory, čerpadla)")], ["Ventil", N_("Ventily a válce")],
+    ["Motor", N_("Pohony (motory, čerpadla)")], ["Vfd", N_("Frekvenční měniče")], ["PosDrive", N_("Polohovací pohony")], ["Ventil", N_("Ventily a válce")],
+    ["PropValve", N_("Proporcionální ventily")],
     ["AnalogIn", N_("Analogová měření")], ["AnalogOut", N_("Analogové výstupy")],
     ["DI", N_("Digitální vstupy (snímače, tlačítka)")], ["DO", N_("Digitální výstupy (signalizace)")],
 ];
@@ -33,7 +35,7 @@ const SECTIONS = [
 export function svgMachine(prj) {
     const W = 980, cw = 300, gx = 20, cols = 3;
     let y = 64;
-    let s = sT(20, 26, tr("Blokové schéma stroje") + (prj.meta.name ? " — " + prj.meta.name.slice(0, 60) : ""), TXT + ";font-weight:700;fill:var(--accent, #00707e)");
+    let s = sT(20, 26, tr("Blokové schéma stroje") + (prj.meta.name ? " — " + prj.meta.name.slice(0, 60) : ""), TXT + ";font-weight:700;fill:var(--accent, #2457C5)");
     s += sT(20, 44, tr("zařízení jako bloky se svými signály; kolečko = stav signálu (v simulaci svítí při TRUE)"), MUT);
     if (!prj.devices.length) {
         s += sT(20, 80, tr("Projekt nemá žádná zařízení — přidej je v kroku Zařízení."), MUT);
@@ -60,15 +62,15 @@ export function svgMachine(prj) {
                     (lock ? "\n" + tr("Blokovací vstup → enable: FALSE zastaví stroj") : "") +
                     (steps.length ? "\n" + tr("Kroky sekvence: {list}", { list: steps.join(", ") }) : "");
                 s += '<g data-dev="' + d.id + '"><title>' + esc(tip) + "</title>" +
-                    '<rect x="' + x + '" y="' + y + '" width="' + cw + '" height="' + h + '" rx="6" fill="none" stroke="' + (estop ? "var(--accent, #00707e)" : "var(--line, #999)") + '"' + (estop ? ' stroke-width="1.5"' : "") + "/>" +
+                    '<rect x="' + x + '" y="' + y + '" width="' + cw + '" height="' + h + '" rx="6" fill="none" stroke="' + (estop ? "var(--accent, #2457C5)" : "var(--line, #999)") + '"' + (estop ? ' stroke-width="1.5"' : "") + "/>" +
                     sT(x + 10, y + 17, d.name, TXT + ";font-weight:600") +
                     sT(x + cw - 10, y + 17, lock ? tr("blokování → enable") : estop ? tr("E-stop → enable") : steps.length ? tr("kroky {list}", { list: steps.join(", ").slice(0, 22) }) : "", MUT, "end") +
                     sT(x + 10, y + 33, (d.desc || clsLabel).slice(0, 44), MUT);
                 io.forEach((e, i) => {
                     const yy = y + 54 + i * 17;
-                    s += '<g data-io="' + esc(e.key) + '"><title>' + esc(e.tag + "  " + e.addr + "\n" + (e.cmt || "")) + "</title>" +
+                    s += '<g data-io="' + esc(e.key) + '"><title>' + esc(e.tag + "  " + hwAddrText(prj, e) + "\n" + (e.cmt || "")) + "</title>" +
                         '<circle cx="' + (x + 16) + '" cy="' + (yy - 4) + '" r="4.5" fill="none" stroke="currentColor" stroke-width="1.2"/>' +
-                        sT(x + 28, yy, e.dir, MUT) + sT(x + 52, yy, e.tag.slice(0, 26), TXT) + sT(x + cw - 10, yy, e.addr, MUT, "end") + "</g>";
+                        sT(x + 28, yy, e.dir, MUT) + sT(x + 52, yy, e.tag.slice(0, 26), TXT) + sT(x + cw - 10, yy, hwAddrText(prj, e), MUT, "end") + "</g>";
                 });
                 s += "</g>";
             });
@@ -83,7 +85,7 @@ export function svgFlow(prj, run) {
     const seq = prj.program.seq;
     const W = 980, bx = 200, bw = 400, bh = 44, gap = 36, top = 84, cx = bx + bw / 2;
     const yy = (row) => top + row * (bh + gap);
-    let s = sT(20, 26, tr("Funkční diagram cyklu") + (prj.meta.name ? " — " + prj.meta.name.slice(0, 60) : ""), TXT + ";font-weight:700;fill:var(--accent, #00707e)");
+    let s = sT(20, 26, tr("Funkční diagram cyklu") + (prj.meta.name ? " — " + prj.meta.name.slice(0, 60) : ""), TXT + ";font-weight:700;fill:var(--accent, #2457C5)");
     const es = enableInputs(prj).map(x => x.io.tag).join(" AND ") || estopTag(prj);
     s += sT(20, 44, es ? tr("enable = {tag} (centrální uvolnění): při FALSE návrat do kroku 0 a vypnutí výstupů bloků", { tag: es }) : tr("enable = TRUE (centrální uvolnění není zvoleno)"), MUT);
     s += sT(20, 58, tr("porucha bloku nebo vypršení hlídacího času kroku → porucha stroje: krok 0, povely vypnuty, čeká na kvitaci"), MUT);
@@ -92,7 +94,7 @@ export function svgFlow(prj, run) {
         return svg(tr("Funkční diagram cyklu"), W, 110, s);
     }
     const stepBox = (row, t1, t2, attrs, title, acc) => "<g" + attrs + "><title>" + esc(title) + "</title>" +
-        '<rect x="' + bx + '" y="' + yy(row) + '" width="' + bw + '" height="' + bh + '" rx="5" fill="' + (acc ? "var(--chip, #eee)" : "none") + '" stroke="' + (acc ? "var(--accent, #00707e)" : "var(--line, #999)") + '"/>' +
+        '<rect x="' + bx + '" y="' + yy(row) + '" width="' + bw + '" height="' + bh + '" rx="5" fill="' + (acc ? "var(--chip, #eee)" : "none") + '" stroke="' + (acc ? "var(--accent, #2457C5)" : "var(--line, #999)") + '"/>' +
         sT(bx + 10, yy(row) + 18, t1, TXT + ";font-weight:600") + sT(bx + 10, yy(row) + 34, t2.slice(0, 52), MUT) + "</g>";
     const trans = (row, cond) => {
         const y1 = yy(row) + bh, ym = y1 + gap / 2;
@@ -143,7 +145,7 @@ export function svgTiming(prj, run) {
         .sort((a, b) => (a.dir === "DO" ? 0 : 1) - (b.dir === "DO" ? 0 : 1)).map(e => ({ e, d })));
     const H = top + (rows.length + 1) * rh + 44;
     const yRow = (i) => top + (i + 1) * rh;
-    let s = sT(20, 26, tr("Časový diagram") + (prj.meta.name ? " — " + prj.meta.name.slice(0, 60) : ""), TXT + ";font-weight:700;fill:var(--accent, #00707e)");
+    let s = sT(20, 26, tr("Časový diagram") + (prj.meta.name ? " — " + prj.meta.name.slice(0, 60) : ""), TXT + ";font-weight:700;fill:var(--accent, #2457C5)");
     s += sT(x1, 26, tr("výstup = plná, vstup = šedá") + " · " + (run.cycleTime !== null ? tr("cyklus {t} s", { t: run.cycleTime }) : tr("cyklus nedoběhl")), MUT, "end");
     /* časová osa a mřížka */
     const nice = [0.5, 1, 2, 5, 10, 20, 30, 60, 120].find(v => tEnd / v <= 12) || 300;
@@ -162,10 +164,10 @@ export function svgTiming(prj, run) {
     rows.forEach(({ e, d }, i) => {
         const y = yRow(i);
         const ref = ' data-io="' + esc(e.key) + '" data-dev="' + d.id + '"';
-        s += "<g" + ref + "><title>" + esc(e.tag + "  " + e.addr + "\n" + d.name + " — " + (e.cmt || d.desc)) + "</title>" +
+        s += "<g" + ref + "><title>" + esc(e.tag + "  " + hwAddrText(prj, e) + "\n" + d.name + " — " + (e.cmt || d.desc)) + "</title>" +
             sT(20, y + 14, e.tag.slice(0, 22), TXT) + "</g>" + ln(x0, y + rh - 3, x1, y + rh - 3, "var(--line, #999)", 0.6);
         let on = null;
-        const bar = (a, b) => '<rect' + ref + ' x="' + px(a) + '" y="' + (y + 5) + '" width="' + Math.max(1, r2(px(b) - px(a))) + '" height="' + (rh - 9) + '" fill="' + (e.dir === "DO" ? "var(--accent, #00707e)" : "var(--muted, #777)") + '" stroke="none"/>';
+        const bar = (a, b) => '<rect' + ref + ' x="' + px(a) + '" y="' + (y + 5) + '" width="' + Math.max(1, r2(px(b) - px(a))) + '" height="' + (rh - 9) + '" fill="' + (e.dir === "DO" ? "var(--sig-out, #1A7F37)" : "var(--muted, #777)") + '" stroke="none"/>';
         for (const f of run.frames) {
             const v = f.io[e.key] === true;
             if (v && on === null)

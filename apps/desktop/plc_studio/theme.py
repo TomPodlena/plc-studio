@@ -1,8 +1,12 @@
-"""Vizuální standard okna PLC Studia — paleta, ttk styly, chrome okna.
+"""Vizuální standard okna PLCdesk — paleta, ttk styly, chrome okna.
 
-Paleta i idiomy jsou převzaté ze sdíleného ``theme.py`` nástrojů PearTec
-(Report Studio, Simulation Hub): bílé pozadí, tmavě zelené nadpisy, zelené
-akcenty, ttk „clam", Segoe UI. Barvy neopisuj do kroků — importuj je odsud.
+Barvy = značka PLCdesk (``brand/README.md``, varianta A, azur): inkoust #111A2E,
+akcent #2457C5, světlé plochy. Idiomy (ttk „clam", Segoe UI) zůstávají ze sdíleného
+``theme.py`` nástrojů PearTec. Barvy neopisuj do kroků — importuj je odsud.
+
+Značkový ``ACCENT`` patří jen UI prvkům (tlačítka, výběr, odkazy, fokus). Stav stroje
+a výsledků má vlastní **sémantické** barvy (``OK`` / ``STATE_ON``, ``SIG_IN`` / ``SIG_OUT`` /
+``SIG_AN``, ``WARN``, ``ERR``) — modrý akcent by jinak splynul se vstupem DI.
 """
 
 from __future__ import annotations
@@ -14,24 +18,40 @@ import tkinter as tk
 from tkinter import ttk
 
 # --- Paleta (jediný zdroj pravdy) -----------------------------------------
-BG = "#FFFFFF"          # pozadí okna
-FG = "#22322A"          # text (zelenočerná)
-PRIMARY = "#1F482A"     # nadpisy (tmavě zelená)
-ACCENT = "#008639"      # brandová zelená (akcenty, tlačítka)
-ACCENT_ACTIVE = "#00A346"
+BG = "#FFFFFF"          # pozadí okna (surface)
+FG = "#111A2E"          # text (inkoust značky)
+PRIMARY = "#111A2E"     # nadpisy
+ACCENT = "#2457C5"      # značkový akcent — jen UI (tlačítka, výběr, odkazy, fokus)
+ACCENT_ACTIVE = "#1B45A0"
 ACCENT_FG = "#FFFFFF"
-FIELD = "#F1F5F2"       # pole/vstupy, karty
-BORDER = "#CFE0D5"
-DIM = "#8B8C8E"         # tlumené popisky
-BTN = "#E6EDE8"
-BTN_ACTIVE = "#D5E3DA"
-LOG_BG = "#F4F7F5"      # pozadí kódu/logu
-TREE_SEL = "#D6EADF"
-DISABLED_BG = "#E9EDEA"
+ACCENT_BG = "#EEF3FC"   # světlý nádech akcentu (zvýraznění při najetí)
+FIELD = "#F5F6F9"       # pole/vstupy, karty (bg značky)
+BORDER = "#D6DCE6"      # line
+DIM = "#5A6881"         # tlumené popisky (muted)
+BTN = "#E7ECF6"         # chip
+BTN_ACTIVE = "#D6DFF0"
+LOG_BG = "#F5F6F9"      # pozadí kódu/logu
+TREE_SEL = "#DCE6F8"
+TREE_SEL_ACTIVE = "#C9D7F2"
+SCROLL_ACTIVE = "#B4BFD1"
+DISABLED_BG = "#ECEEF2"
+NEUTRAL = "#9AA5B8"     # obrysy bloků a vodiče bez stavu (schémata, živá simulace)
 ERR = "#B3261E"         # chyby, duplicity
 WARN = "#B45309"        # varování, potenciál L+
 WARN_BG = "#FFF6E0"
 DANGER_BG = "#F6DFDC"
+
+# --- Sémantické barvy stavu (nezávislé na značce) -------------------------
+OK = "#1A7F37"          # v pořádku / schváleno / OK (= --ok webu)
+OK_BG = "#E3F3E8"
+STATE_ON = OK           # sepnuto / běží / otevřeno / signál TRUE
+STATE_ON_BG = "#D5EFE0"
+STATE_ON_FULL = "#BFE6CF"   # pohon v plných otáčkách
+STATE_ACTIVE_BG = "#FFEFC2"  # aktivní krok / rozběh (obrys WARN)
+STATE_OFF_BG = "#ECEEF2"     # blokováno (enable = FALSE)
+SIG_IN = "#1F6FB2"      # vstup DI (modrá)
+SIG_OUT = STATE_ON      # výstup DO (zelená — odlišná od DI i od akcentu)
+SIG_AN = "#7A4FB5"      # analog (fialová)
 
 # --- Písmo ----------------------------------------------------------------
 FONT_UI = ("Segoe UI", 10)
@@ -43,7 +63,7 @@ FONT_MONO = ("Consolas", 10)
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 ICON_FILE = ASSETS_DIR / "plc_studio.ico"
-APP_ID = "PearTec.PLCStudio"
+APP_ID = "PearTec.PLCdesk"
 
 _logo_cache: dict[int, tk.PhotoImage] = {}
 
@@ -90,7 +110,7 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
     style.configure("CardNum.TLabel", background=PRIMARY, foreground="#FFFFFF",
                     font=("Consolas", 10, "bold"), padding=(6, 1))
     style.configure("Err.TLabel", background=BG, foreground=ERR, font=FONT_UI)
-    style.configure("Ok.TLabel", background=BG, foreground=ACCENT, font=FONT_UI)
+    style.configure("Ok.TLabel", background=BG, foreground=OK, font=FONT_UI)
     style.configure("Link.TLabel", background=BG, foreground=ACCENT, font=FONT_UI + ("underline",))
     style.configure("Stat.TLabel", background=FIELD, foreground=FG, font=FONT_UI,
                     padding=(8, 3))
@@ -111,23 +131,25 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
                     bordercolor="#E7B9B4", lightcolor=DANGER_BG, darkcolor=DANGER_BG)
     style.map("Danger.TButton", background=[("active", "#EFC8C3")])
 
-    # Lišta kroků: běžný / hotový / aktuální krok. Vodorovná vycpávka je úzká, ať se
-    # lišta (9 kroků + Nápověda) vejde i do nejmenšího okna 1100 px v němčině.
+    # Lišta kroků: běžný / hotový / aktuální krok. Vodorovná vycpávka je úzká a tlačítka
+    # nemají minimální šířku (width=0), ať se lišta (13 kroků + Nápověda) vejde i do
+    # nejmenšího okna 1100 px v němčině — popisky podle místa zkracuje App._fit_nav.
     style.configure("Step.TButton", background=BG, foreground=FG, bordercolor=BORDER,
-                    lightcolor=BG, darkcolor=BG, padding=(6, 5))
+                    lightcolor=BG, darkcolor=BG, padding=(6, 5), width=0)
     style.map("Step.TButton", background=[("active", FIELD)])
     style.configure("StepDone.TButton", background=TREE_SEL, foreground=PRIMARY,
                     bordercolor=BORDER, lightcolor=TREE_SEL, darkcolor=TREE_SEL,
-                    padding=(6, 5))
-    style.map("StepDone.TButton", background=[("active", "#C6E0D1")])
-    style.configure("StepOn.TButton", background=PRIMARY, foreground="#FFFFFF",
-                    bordercolor=PRIMARY, lightcolor=PRIMARY, darkcolor=PRIMARY,
-                    font=FONT_ACCENT, padding=(6, 5))
-    style.map("StepOn.TButton", background=[("active", PRIMARY)])
+                    padding=(6, 5), width=0)
+    style.map("StepDone.TButton", background=[("active", TREE_SEL_ACTIVE)])
+    # aktuální krok = aktivní prvek → akcent značky (stejně jako lišta kroků webu)
+    style.configure("StepOn.TButton", background=ACCENT, foreground=ACCENT_FG,
+                    bordercolor=ACCENT, lightcolor=ACCENT, darkcolor=ACCENT,
+                    font=FONT_ACCENT, padding=(6, 5), width=0)
+    style.map("StepOn.TButton", background=[("active", ACCENT)])
     # štítek aktivního filtru (klik = zrušit)
     style.configure("Chip.TButton", background=TREE_SEL, foreground=PRIMARY, bordercolor=BORDER,
                     lightcolor=TREE_SEL, darkcolor=TREE_SEL, font=FONT_DIM, padding=(6, 1))
-    style.map("Chip.TButton", background=[("active", "#C6E0D1")])
+    style.map("Chip.TButton", background=[("active", TREE_SEL_ACTIVE)])
 
     # Přepínače záložek (platforma / soubor) — Radiobutton ve stylu tlačítka.
     style.configure("Tab.Toolbutton", background=BTN, foreground=FG, padding=(10, 4),
@@ -136,9 +158,9 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
               background=[("selected", ACCENT), ("active", BTN_ACTIVE)],
               foreground=[("selected", ACCENT_FG)])
 
-    # Úzký přepínač v řádku tabulky (vstupy živé simulace): „stroj" zeleně, vnucená
+    # Úzký přepínač v řádku tabulky (vstupy živé simulace): „stroj" zeleně (stav, STATE_ON), vnucená
     # hodnota 0 / 1 oranžově, ať je na první pohled vidět, co neřídí stroj.
-    for name, sel in (("Seg.Toolbutton", ACCENT), ("SegForce.Toolbutton", WARN)):
+    for name, sel in (("Seg.Toolbutton", STATE_ON), ("SegForce.Toolbutton", WARN)):
         style.configure(name, background=BTN, foreground=FG, padding=(6, 1),
                         bordercolor=BORDER, font=FONT_DIM)
         style.map(name, background=[("selected", sel), ("active", BTN_ACTIVE)],
@@ -196,7 +218,7 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
     # jezdec posuvníku musí být vidět i na bílém pozadí (BTN na bílé téměř splývá)
     style.configure("TScrollbar", background=BORDER, troughcolor=FIELD, bordercolor=BORDER,
                     lightcolor=BORDER, darkcolor=BORDER, gripcount=0, arrowcolor=DIM)
-    style.map("TScrollbar", background=[("active", "#B5CCBD"), ("pressed", "#B5CCBD")])
+    style.map("TScrollbar", background=[("active", SCROLL_ACTIVE), ("pressed", SCROLL_ACTIVE)])
     style.configure("TSeparator", background=BORDER)
     style.configure("Horizontal.TProgressbar", background=ACCENT, troughcolor=FIELD,
                     bordercolor=BORDER, lightcolor=ACCENT, darkcolor=ACCENT)
@@ -212,6 +234,22 @@ def text_widget(parent, *, mono: bool = False, **kw) -> tk.Text:
                 padx=8, pady=6, selectbackground=TREE_SEL, selectforeground=FG)
     opts.update(kw)
     return tk.Text(parent, **opts)
+
+
+def brand_symbol(parent, bg: str = BG) -> tk.Canvas:
+    """Symbol značky PLCdesk 28 × 28 px (``brand/plcdesk-symbol.svg``) na ``tk.Canvas``.
+
+    Kreslí se z celých pixelů (viewBox 64 → 28 px), ať je ostrý bez rasterizace SVG
+    a bez Pillow (přenosná verze ho nemá): rámeček tahem 2 px, razítko v pravém dolním
+    rohu zarovnané na vnitřní hranu rámečku, dvě linky razítka po 1 px."""
+    c = tk.Canvas(parent, width=28, height=28, bg=bg, highlightthickness=0, bd=0)
+    for box, fill in (((3, 5, 25, 24), FG),          # rámeček: plný obdélník inkoustu …
+                      ((5, 7, 23, 22), bg),          # … a vnitřek v barvě pozadí
+                      ((15, 15, 23, 22), ACCENT),    # razítko
+                      ((16, 17, 22, 18), ACCENT_FG), # linky razítka
+                      ((16, 19, 22, 20), ACCENT_FG)):
+        c.create_rectangle(*box, fill=fill, outline="", width=0)
+    return c
 
 
 def _logo_candidates() -> list[Path]:

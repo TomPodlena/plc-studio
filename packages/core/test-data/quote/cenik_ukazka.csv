@@ -1,0 +1,13 @@
+Ceník komponent – export z Excelu;;;;;;;;
+Platnost od 1. 10. 2026, ceny bez DPH;;;;;;;;
+;;;;;;;;
+Objednací kód;Typ;Výrobce;Kategorie;Cena bez DPH;Měna;Dodavatel;Dodací lhůta;Poznámka
+6ES7 212-1AG50-0XB0;CPU 1212C;Siemens;;8 450,00;CZK;Siemens s.r.o.;2 týdny;
+6ES7131-6BH01-0BA0;DI 16x24VDC ST;Siemens;;2 310,50;;Siemens s.r.o.;2 týdny;
+3RT2016-1BB41;;Siemens;;1 012,40 Kč;;Elektro Brno;skladem;
+574371;VUVG-L14-M52-MT-G18-1P3;Festo;;112,30;EUR;Festo s.r.o.;5 dní;"cena v EUR; přepočet kurzem"
+;PT5404;ifm;;4 210;CZK;ifm electronic;1 týden;
+;;;Řadové svorky;18,90;CZK;WAGO;skladem;cena za kus
+;;Siemens;pilot_light;389,00;CZK;Elektro Brno;skladem;
+3SK1111-1AB30;;Siemens;;na dotaz;;;;
+XYZ-999;Nepoužitá položka;Acme;;100;CZK;;;
