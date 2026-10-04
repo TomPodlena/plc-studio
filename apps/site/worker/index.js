@@ -326,7 +326,9 @@ const ROUTES = {
   "POST /api/lead": handleLead,
   "GET /api/download": handleDownload,
   "GET /api/release/latest": async (req, env) => json(await readManifest(env), 200, { "Cache-Control": "public, max-age=300" }),
-  "GET /api/config": async (req, env) => json({ free_io_limit: Number(env.FREE_IO_LIMIT ?? 64), site: env.PUBLIC_SITE, payment_provider: env.PAYMENT_PROVIDER || null }),
+  // version + stránka ke stažení: kontrola aktualizací v aplikaci (plc_studio/updates.py) jedním dotazem
+  "GET /api/config": async (req, env) => json({ free_io_limit: Number(env.FREE_IO_LIMIT ?? 64), site: env.PUBLIC_SITE, payment_provider: env.PAYMENT_PROVIDER || null,
+    version: env.RELEASE_VERSION || "0.0.0", download_page: (env.PUBLIC_SITE || "") + "/stazeni/" }),
   "POST /api/license/activate": handleActivate,
   "POST /api/license/check": handleCheck,
   "POST /api/unlock": handleUnlock,
