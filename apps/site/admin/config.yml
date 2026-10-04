@@ -1035,6 +1035,14 @@ collections:
                 label: "f_consent_err"
                 i18n: true
                 widget: string
+              - name: "lead_mail"
+                label: "lead_mail"
+                i18n: true
+                widget: text
+              - name: "f_submit_mail"
+                label: "f_submit_mail"
+                i18n: true
+                widget: string
           - name: "kontakt"
             label: "Kontakt"
             i18n: true

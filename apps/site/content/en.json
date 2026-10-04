@@ -732,14 +732,14 @@
     "description": "Download {{site.brand}} for free. Portable application for Windows without installation, free forever up to 64 I/O.",
     "eyebrow": "Download",
     "h1": "Download {{site.brand}}",
-    "lead": "Leave your e-mail and we will send you a download link. Nothing to install: unzip and run, no administrator rights needed.",
+    "lead": "Enter your e-mail and the download link appears right here below the form. Nothing to install: unzip and run, no administrator rights needed.",
     "f_email": "E-mail",
     "f_placeholder": "you@company.com",
     "f_hp": "Leave this field empty",
-    "f_submit": "Send download link",
+    "f_submit": "Show download link",
     "f_sending": "Sending…",
     "f_ok": "Done. The link is on its way and is valid for 7 days.",
-    "f_ok_direct": "Done. Download here:",
+    "f_ok_direct": "Done. Download here (we do not send anything by e-mail):",
     "f_err": "Something went wrong. Please try again.",
     "f_net": "Connection failed. Please try again in a moment.",
     "f_note": "We will not send you further e-mails unless you ask for them. How we handle your address is described on the page",
@@ -759,7 +759,9 @@
       "If you have an existing project, start with the import. It saves a lot of clicking."
     ],
     "f_consent": "I agree to the terms of sale and licence:",
-    "f_consent_err": "Please accept the licence terms to download."
+    "f_consent_err": "Please accept the licence terms to download.",
+    "lead_mail": "Leave your e-mail and we will send you a download link. Nothing to install: unzip and run, no administrator rights needed.",
+    "f_submit_mail": "Send download link"
   },
   "kontakt": {
     "title": "Contact — {{site.brand}}",

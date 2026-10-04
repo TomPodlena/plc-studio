@@ -732,14 +732,14 @@
     "description": "Stáhněte {{site.brand}} zdarma. Přenosná aplikace pro Windows bez instalace, do 64 I/O zdarma natrvalo.",
     "eyebrow": "Ke stažení",
     "h1": "Stáhnout {{site.brand}}",
-    "lead": "Nechte nám e-mail a pošleme vám odkaz ke stažení. Aplikace se neinstaluje: rozbalíte a spustíte, práva správce nepotřebujete.",
+    "lead": "Zadejte e-mail a odkaz ke stažení se zobrazí hned tady pod formulářem. Aplikace se neinstaluje: rozbalíte a spustíte, práva správce nepotřebujete.",
     "f_email": "E-mail",
     "f_placeholder": "vas@email.cz",
     "f_hp": "Tohle pole nevyplňujte",
-    "f_submit": "Poslat odkaz ke stažení",
+    "f_submit": "Zobrazit odkaz ke stažení",
     "f_sending": "Odesílám…",
     "f_ok": "Hotovo. Odkaz je na cestě, platí 7 dní.",
-    "f_ok_direct": "Hotovo. Stahujte tady:",
+    "f_ok_direct": "Hotovo. Stahujte tady (e-mailem nic neposíláme):",
     "f_err": "Něco se nepovedlo. Zkuste to prosím znovu.",
     "f_net": "Spojení se nezdařilo. Zkuste to prosím za chvíli.",
     "f_note": "Žádné další e-maily vám nepošleme, pokud si je nevyžádáte. Jak s adresou zacházíme, popisuje stránka",
@@ -759,7 +759,9 @@
       "Máte-li existující projekt, začněte importem. Ušetří vám to klikání."
     ],
     "f_consent": "Souhlasím s obchodními a licenčními podmínkami:",
-    "f_consent_err": "Pro stažení je potřeba souhlas s licenčními podmínkami."
+    "f_consent_err": "Pro stažení je potřeba souhlas s licenčními podmínkami.",
+    "lead_mail": "Nechte nám e-mail a pošleme vám odkaz ke stažení. Aplikace se neinstaluje: rozbalíte a spustíte, práva správce nepotřebujete.",
+    "f_submit_mail": "Poslat odkaz ke stažení"
   },
   "kontakt": {
     "title": "Kontakt — {{site.brand}}",

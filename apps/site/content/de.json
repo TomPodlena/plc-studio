@@ -732,14 +732,14 @@
     "description": "{{site.brand}} kostenlos laden. Portable Anwendung für Windows ohne Installation, bis 64 E/A dauerhaft kostenlos.",
     "eyebrow": "Download",
     "h1": "{{site.brand}} laden",
-    "lead": "Hinterlassen Sie Ihre E-Mail, und wir schicken Ihnen einen Download-Link. Keine Installation: entpacken und starten, ohne Administratorrechte.",
+    "lead": "Geben Sie Ihre E-Mail ein, der Download-Link erscheint direkt hier unter dem Formular. Keine Installation: entpacken und starten, ohne Administratorrechte.",
     "f_email": "E-Mail",
     "f_placeholder": "sie@firma.de",
     "f_hp": "Dieses Feld bitte leer lassen",
-    "f_submit": "Download-Link senden",
+    "f_submit": "Download-Link anzeigen",
     "f_sending": "Wird gesendet…",
     "f_ok": "Erledigt. Der Link ist unterwegs und 7 Tage gültig.",
-    "f_ok_direct": "Erledigt. Hier herunterladen:",
+    "f_ok_direct": "Erledigt. Hier herunterladen (wir senden nichts per E-Mail):",
     "f_err": "Etwas ist schiefgegangen. Bitte versuchen Sie es erneut.",
     "f_net": "Verbindung fehlgeschlagen. Bitte versuchen Sie es gleich noch einmal.",
     "f_note": "Weitere E-Mails erhalten Sie nur, wenn Sie sie anfordern. Wie wir mit Ihrer Adresse umgehen, steht auf der Seite",
@@ -759,7 +759,9 @@
       "Haben Sie ein bestehendes Projekt, beginnen Sie mit dem Import. Das spart viele Klicks."
     ],
     "f_consent": "Ich stimme den Geschäfts- und Lizenzbedingungen zu:",
-    "f_consent_err": "Für den Download ist die Zustimmung zu den Lizenzbedingungen nötig."
+    "f_consent_err": "Für den Download ist die Zustimmung zu den Lizenzbedingungen nötig.",
+    "lead_mail": "Hinterlassen Sie Ihre E-Mail, und wir schicken Ihnen einen Download-Link. Keine Installation: entpacken und starten, ohne Administratorrechte.",
+    "f_submit_mail": "Download-Link senden"
   },
   "kontakt": {
     "title": "Kontakt — {{site.brand}}",
