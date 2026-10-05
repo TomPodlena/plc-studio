@@ -16,6 +16,8 @@ export const SRC = {
   cdsAddr: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_operands_addresses.html",
   cdsPragma: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_pragma_attribute_qualified_only.html",
   cdsConv: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_operator_type_conversion.html",
+  /* PLCopen XML import — struktura ověřena skutečným importem a překladem v CODESYS 3.5.21.60 (2026-10-05) */
+  cdsPlcopen: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html",
   tcAt: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/11948825611.html",
   tcAlloc: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/12081664011.html",
   tcComment: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/2528329355.html",
@@ -294,6 +296,7 @@ export const RULES: Record<string, string> = {
   condition: N_("Podmínky IF / WHILE jsou typu BOOL"),
   "tag-table": N_("Tabulka tagů odpovídá kódu"),
   xml: N_("XML je well-formed"),
+  plcopen: N_("PLCopen XML pro import CODESYS: GVL v addData projektu, rozhraní POU shodné s ST (vč. VAR_IN_OUT), textová deklarace OOP tam, odkud ji CODESYS čte"),
   runtime: N_("Běhová chyba (dělení nulou, přetečení, nekonečný cyklus)"),
   oop: N_("OOP: rozhraní (IMPLEMENTS), abstraktní bloky, podpis metod, přístup, vlastnosti GET / SET"),
   "iface-guard": N_("Volání přes odkaz na rozhraní až po kontrole odkazu <> 0"),

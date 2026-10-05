@@ -7,6 +7,12 @@ import { AXIS_TYPE } from "../axis_gen.js";
 const MC_RT = { mcCall, lxExec };
 /** Zdroje pravidel OOP (CODESYS / TwinCAT). */
 const SRC_OOP = SRC.cdsItf, SRC_ABS = SRC.tcAbstract, SRC_PROP = SRC.cdsProp, SRC_REF = SRC.tcItfRef;
+/** Atributy {attribute …} před metodou / vlastností (normalizované, seřazené) — shoda rozhraní × implementace. */
+export function attrsOf(pragmas) {
+    /* token pragmy nese text bez složených závorek (lexer) */
+    return (pragmas || []).map(p => p.replace(/^\{|\}$/g, "").replace(/\s+/g, " ").trim())
+        .filter(p => /^attribute\b/i.test(p)).map(p => "{" + p.toLowerCase() + "}").sort().join(" ");
+}
 const LOGIX_TYPES = new Set(["BOOL", "SINT", "INT", "DINT", "LINT", "REAL"]);
 const ANYINT = { k: "elem", name: "ANY_INT", info: { cat: "sint", bits: 64 }, lit: true };
 const ANYREAL = { k: "elem", name: "ANY_REAL", info: { cat: "real", bits: 64 }, lit: true };
@@ -452,7 +458,7 @@ export function compile(inp) {
             /* metody: lokální proměnné metody leží v instanci (metody nejsou reentrantní) */
             for (const m of p.methods) {
                 const acc = m.kind === "property" ? [m.getter, m.setter].filter(Boolean) : [m];
-                const prop = m.kind === "property" ? { name: m.name, ty: m.retType ? resolveSpec(m.retType) : INT, owner: def, pos: m.pos, access: m.access } : undefined;
+                const prop = m.kind === "property" ? { name: m.name, ty: m.retType ? resolveSpec(m.retType) : INT, owner: def, pos: m.pos, access: m.access, attrs: attrsOf(m.pragmas) } : undefined;
                 if (prop) {
                     checkIdent(m.name, m.pos, tr("Vlastnost"));
                     if (def.map.has(key(m.name)))
@@ -546,7 +552,7 @@ export function compile(inp) {
             if (m.kind === "property") {
                 if (i.props.has(key(m.name)) || i.methods.has(key(m.name)))
                     add("error", "duplicate", m.pos, tr("Rozhraní {itf}: člen {name} je deklarován vícekrát", { itf: i.name, name: m.name }), SRC_OOP);
-                i.props.set(key(m.name), { name: m.name, ty: m.retType ? resolveSpec(m.retType) : INT, get: !!m.getter, set: !!m.setter, pos: m.pos });
+                i.props.set(key(m.name), { name: m.name, ty: m.retType ? resolveSpec(m.retType) : INT, get: !!m.getter, set: !!m.setter, pos: m.pos, attrs: attrsOf(m.pragmas) });
                 if (!m.getter && !m.setter)
                     add("error", "oop", m.pos, tr("Vlastnost {name} rozhraní {itf} nemá GET ani SET", { name: m.name, itf: i.name }), SRC.cdsItfProp);
                 continue;
@@ -556,7 +562,7 @@ export function compile(inp) {
             if (i.methods.has(key(m.name)) || i.props.has(key(m.name)))
                 add("error", "duplicate", m.pos, tr("Rozhraní {itf}: člen {name} je deklarován vícekrát", { itf: i.name, name: m.name }), SRC_OOP);
             checkIdent(m.name, m.pos, tr("Metoda"));
-            i.methods.set(key(m.name), { name: m.name, params: paramsOf(m.vars), retTy: m.retType ? resolveSpec(m.retType) : undefined, pos: m.pos });
+            i.methods.set(key(m.name), { name: m.name, params: paramsOf(m.vars), retTy: m.retType ? resolveSpec(m.retType) : undefined, pos: m.pos, attrs: attrsOf(m.pragmas) });
         }
     }
     /** Podpis metody: návratový typ a parametry (směr, jméno, typ) — pro přepsání a implementaci rozhraní. */
@@ -576,6 +582,9 @@ export function compile(inp) {
      * nebo s jiným podpisem. Hlášení jako překladač CODESYS / TwinCAT (C0434, „does not implement").
      */
     function checkOop() {
+        /* CODESYS 3.5.21.60 (import a překlad 2026-10-05): C568 „Interface of overridden method … doesn't match
+           declaration“, když se atributy ({attribute 'monitoring' := 'call'} …) implementace liší od rozhraní */
+        const attrWarn = (p, name, fb, itf, a, b) => add("warn", "oop", p, tr("Člen {name} bloku {fb} má jiné atributy než v rozhraní {itf} ({a} × {b}) — CODESYS hlásí C568", { name, fb, itf, a: a || "—", b: b || "—" }), SRC.cdsItfProp);
         for (const f of fbs.values()) {
             if (!f.pou || f.std)
                 continue;
@@ -612,6 +621,8 @@ export function compile(inp) {
                         add("error", "oop", m.pos, tr("Metoda {name} bloku {fb} má jiný podpis než v rozhraní {itf} ({a} × {b})", { name: m.name, fb: f.name, itf: i.name, a: methodSig(m), b: sigOf(im.retTy, im.params) }), SRC_OOP);
                     if (m.access && m.access !== "PUBLIC")
                         add("error", "oop", m.pos, tr("Metoda {name} implementuje rozhraní {itf} — musí být PUBLIC", { name: m.name, itf: i.name }), SRC_OOP);
+                    if (attrsOf(m.pou?.pragmas) !== im.attrs)
+                        attrWarn(m.pos, m.name, f.name, i.name, attrsOf(m.pou?.pragmas), im.attrs);
                 }
                 for (const [k, ip] of i.props) {
                     const pr = f.props.get(k);
@@ -625,6 +636,8 @@ export function compile(inp) {
                         add("error", "oop", pr.pos, tr("Vlastnost {name} bloku {fb} nemá GET, který rozhraní {itf} žádá", { name: ip.name, fb: f.name, itf: i.name }), SRC.cdsItfProp);
                     if (ip.set && !pr.setter)
                         add("error", "oop", pr.pos, tr("Vlastnost {name} bloku {fb} nemá SET, který rozhraní {itf} žádá", { name: ip.name, fb: f.name, itf: i.name }), SRC.cdsItfProp);
+                    if (pr.attrs !== ip.attrs)
+                        attrWarn(pr.pos, ip.name, f.name, i.name, pr.attrs, ip.attrs);
                 }
             }
         }

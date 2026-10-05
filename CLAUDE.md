@@ -39,7 +39,7 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
 
 ```bash
 pnpm -C packages/core build   # tsc → dist (dist je commitnutý, po změně core přegeneruj a commitni)
-pnpm -C packages/core test    # build + node --test dist/*.test.js: 204 testů (~4 min), bez závislostí
+pnpm -C packages/core test    # build + node --test dist/*.test.js: 227 testů (~4 min), bez závislostí
 node --test "packages/core/dist/*.test.js"   # totéž bez buildu; testy berou samples/ a test-data/ relativně k dist
 npx -y -p typescript tsc -p packages/core/tsconfig.json   # build bez pnpm (ověřeno: tsc 7 dává shodný dist)
 npx http-server . -p 8080     # → http://localhost:8080/apps/web/
@@ -300,6 +300,12 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   přeložený kód spustí scan po scanu proti modelu stroje simulátoru ve scénářích `verifyProject`
   (`emuScenarios`) a porovná chování kód ↔ návrh (`diffs`); `emulateFiles` / `emulateRunFiles` pro
   vlastní soubory. Cache podle otisku přeloženého programu (komentáře a jazyk ho nemění).
+- **Strukturní kontrola PLCopen_Import.xml** (`emu/plcopen_check.ts`, pravidlo `plcopen`, zdroj
+  `SRC.cdsPlcopen` + import v CODESYS 3.5.21.60 2026-10-05), rodina CODESYS: konfigurace v
+  `<configurations>` = chyba, GVL_IO v addData …/globalvars = GVL_IO.st (jméno, typ, adresa), rozhraní
+  POU a metod (sekce in / out / inOut / local) = deklarace ST z parseru emulátoru (klasika i OOP),
+  textová deklarace OOP jen na místech, odkud ji čte CODESYS. ST kód sám se v CODESYS přeložil bez
+  chyb (dialektová pravidla CODESYS potvrzena). Testy `plcopen.test.ts` (struktura + mutace).
 - Testy (`emu.test.ts`): 13 příkladů × 10 platforem × 5 jazyků bez chyby překladu a bez rozdílu proti
   návrhu, mutační testy (vložené chyby kódu musí emulátor chytit), výkon `emulateAll` největšího příkladu.
 - **Emulátor ≠ překladač výrobce.** Výhradu nese dokument `15_emulace_prekladu.md` (`emuDocMd`) i každé UI,
@@ -329,18 +335,26 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   `instM1.Fault/Status/Busy` (`hmiPlcPath(plat, t, prj)`). Žádné ukazatele, __NEW, WHILE.
 - Výstupy: ST výpis `Gen_Library.st` + `FB_Sequence.st` + `MAIN.st` (metody/vlastnosti za tělem
   bloku), `PLCopen_Import.xml` s addData CODESYS (pouinheritance, method, property, interface
-  v addData projektu, interfaceasplaintext — tvar podle exportu CODESYS V3.5 SP20 / TwinCAT), u
+  v addData projektu, interfaceasplaintext — tvar podle exportu CODESYS V3.5 SP21 Patch 6), u
   TwinCATu `I_Device.TcIO`, `FB_*.TcPOU`, `MAIN.TcPOU`, `GVL_IO.TcGVL` (tvar podle TcUnit / AixOCAT;
   Id = deterministické GUID, LineIds se nepíšou). Vše z jednoho modelu `OopPou` (`listingObj` /
-  `oopListing`). **Import v IDE NEOVĚŘEN** (README to uvádí) — nálezy z prvního importu zapsat sem.
+  `oopListing`). **PLCopen import ověřen v CODESYS 3.5 SP21 Patch 6 (2026-10-05)** — 0 chyb / 0 varování
+  a deklarace po importu = ST výpis (ABSTRACT, PROTECTED, komentáře, atributy). Pravidla:
+  textová deklarace (`InterfaceAsPlainText`) u **POU** jako `<data …/interfaceasplaintext>` v addData POU
+  **za `</body>`**, u **Method / Property / Interface** (i metod a vlastností rozhraní) jako **přímý
+  potomek** elementu (za body / accessory, před `<addData />`) — jinde ji CODESYS ignoruje a postaví
+  deklaraci ze struktury bez modifikátorů; **atributy vlastností `{attribute 'monitoring' := 'call'}`
+  i v I_Device** (jinak C568 u FB_DeviceBase a každého potomka). TwinCAT TcPOU / TcIO importem NEOVĚŘEN.
   ABSTRACT: CODESYS SP13+, TwinCAT 3.1.4024+. Diagram tříd `00_diagram_trid.svg` (`oopClassSvg`)
   a oddíl „Styl kódu OOP" v `07_softwarova_dokumentace.md` jen když je OOP aktivní.
 - Emulátor umí OOP (`compile.ts`): rozhraní jako typ (slot = adresa instance + 1), virtuální volání
   přes skrytý `__TID` instance (`dispatchFn`), THIS^ / SUPER^, vlastnosti GET/SET, ABSTRACT/FINAL,
   přístup PRIVATE/PROTECTED, VAR_IN_OUT (kopie tam a zpět), konstanty v mezích polí; kontroly
-  `oop` (IMPLEMENTS, podpisy, chybějící GET, abstraktní instance…), varování `iface-guard` (volání
+  `oop` (IMPLEMENTS, podpisy, chybějící GET, abstraktní instance…, varování na rozdílné atributy
+  člena rozhraní × implementace = C568), varování `iface-guard` (volání
   přes odkaz bez `<> 0`), za běhu `nullref`. `emu/oop_files.ts` sestaví z TcPOU / PLCopen výpis a
-  porovná ho s ST (importuje se tentýž kód, jaký emulátor ověřil). Testy `emu_oop.test.ts` (příklady
+  porovná ho s ST (importuje se tentýž kód, jaký emulátor ověřil); plaintext čte JEN z míst, odkud
+  ho čte CODESYS (jinak rozdíl proti ST). Testy `emu_oop.test.ts` (příklady
   × 5 platforem × 5 jazyků = návrh; lockstep OOP × klasika s náhodnými vstupy; mutace) a
   `codegen_oop.test.ts` (struktura, round-trip importu, HMI, dokumentace). Při změně šablon / IR
   držet obě podoby — emulátor rozdíl chytí.
@@ -541,8 +555,23 @@ beckhoff / schneider přidává `PLCopen_Import.xml` a README ho uvádí jako ne
 XML se staví z **finálního textu** `Gen_Library.st` (`splitLibrary`) a `MAIN.st` téže platformy
 (`parseStPou`) — ne ze surových šablon — takže import = ručně vložené soubory (ruční povely,
 porucha, `cmtSafe`, `rawMax`, adresy `addrFor` vč. `%I*` u TwinCATu). Ověřeno: well-formed a
-schéma TC6 v2.01 (Beremiz `tc6_xml_v201.xsd`, ns přepsán) na 14 projektech × 3 platformy;
-**reálný import v CODESYS / TwinCAT zatím neověřen** — nálezy zapsat sem.
+schéma TC6 v2.01 (Beremiz `tc6_xml_v201.xsd`, ns přepsán) na 14 projektech × 3 platformy.
+**Import ověřen v CODESYS 3.5 SP21 Patch 6 (2026-10-05)**: skutečný import (`import_xml` na Application)
++ Build + Generate code na CODESYS Control Win V3 x64, vzory 00b / 03 / 11 / 12 / sampleSmall /
+sampleComplex × klasika / OOP × codesys / schneider / wago / delta (osa jen codesys / delta) = 0 chyb,
+0 varování (jen C373 „adresa není v zařízení“ při generování — Control Win nemá I/O). Bez runtime.
+Pravidla struktury (zjištěná importem, tvar podle exportu téhož IDE; hlídá emulátor `plcopen_check.ts`):
+- GVL_IO v `<addData><data name="…/plcopenxml/globalvars"><globalVars name="GVL_IO">` **projektu**
+  (`plcopenGvlAddData`, `gvlVarsXml` = tytéž proměnné jako GVL_IO.st vč. AXIS_REF u TwinCATu),
+  `<instances><configurations /></instances>` prázdné — konfiguraci „Default“ CODESYS odmítne
+  („Object 'Default' is not accepted…“) a přeskočí s ní GVL i úlohu (stovky C46).
+- Úlohu import objektů nevytvoří → README (codesys / schneider / wago / delta): v MainTask nahradit
+  volání PLC_PRG voláním MAIN (ověřeno skriptem: `task.pous.replace(i, "MAIN")`); projekt jako Standard
+  project (knihovna Standard kvůli TON).
+- VAR_IN_OUT → `<inOutVars>` (jako localVars: C37 „'Axis' is no input of 'FB_AXIS'“ + C540).
+- OOP viz „Styl kódu OOP“ (umístění InterfaceAsPlainText, atributy rozhraní).
+TwinCAT (TcPOU i PLCopen) importem neověřen — formát addData je 3S, předpoklad stejný.
+Pipeline ověření (mimo repo, jobs tmp `codesys/`): `gen2.mjs` → `build2.py` (`run_cds.ps1`) → `VYSLEDEK_v2.md`.
 Úkoly v app (z handoffu main): proklikat krok Generovat (PLCopen_Import.xml se zobrazí a stáhne
 sám — Generovat i Dokumentace iterují přes soubory), volitelně badge „doporučeno".
 

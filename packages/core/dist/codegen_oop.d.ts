@@ -24,8 +24,8 @@
  * Robustnost: žádné ukazatele, __NEW ani dynamická paměť, meze polí konstantou, žádné WHILE.
  *
  * Výstupy: ST výpis (Gen_Library.st, FB_Sequence.st, MAIN.st), PLCopen XML s rozšířením CODESYS
- * (`addData`: pouinheritance, method, property, interface — podle exportu CODESYS V3.5 SP20 a
- * TwinCAT; NEOVĚŘENO importem) a u TwinCATu soubory .TcPOU / .TcIO / .TcGVL (podle reálných
+ * (`addData`: pouinheritance, method, property, interface, globalvars — podle exportu CODESYS
+ * V3.5 SP21 Patch 6; import a překlad ověřeny v CODESYS 3.5.21.60 2026-10-05) a u TwinCATu soubory .TcPOU / .TcIO / .TcGVL (podle reálných
  * souborů TcUnit / AixOCAT; NEOVĚŘENO importem). Všechny podoby se staví z jednoho modelu
  * (`OopPou`), emulátor z XML / TcPOU výpis zpětně sestaví a porovná s ST výpisem.
  */
@@ -139,7 +139,8 @@ export declare function tcGvl(name: string, decl: string): string;
  * PLCopen XML (TC6 v2.01, namespace tc6_0200) s rozšířením CODESYS pro OOP: dědičnost
  * (`pouinheritance`), metody (`method`), vlastnosti (`property`), rozhraní (`interface`,
  * v addData projektu) a textové deklarace (`interfaceasplaintext` — nese ABSTRACT / přístup,
- * pro které schéma strukturu nemá). NEOVĚŘENO importem v CODESYS / TwinCAT.
+ * pro které schéma strukturu nemá), GVL_IO v addData projektu (`plcopenGvlAddData`).
+ * Ověřeno importem a překladem v CODESYS V3.5 SP21 Patch 6 (2026-10-05); TwinCAT neověřen.
  */
 export declare function genPLCopenOopXML(prj: Project, plat: PlatformKey, prog?: OopProgram): string;
 /** README — oddíl o stylu OOP (dokument pro člověka → `tr`). */

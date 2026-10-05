@@ -62,6 +62,7 @@ export interface ItfDef {
         params: ParamSym[];
         retTy?: Ty;
         pos: Pos;
+        attrs: string;
     }>;
     props: Map<string, {
         name: string;
@@ -69,6 +70,7 @@ export interface ItfDef {
         get: boolean;
         set: boolean;
         pos: Pos;
+        attrs: string;
     }>;
     laid: boolean;
 }
@@ -81,7 +83,10 @@ export interface PropSym {
     owner: FbDef;
     pos: Pos;
     access?: Pou["access"];
+    attrs: string;
 }
+/** Atributy {attribute …} před metodou / vlastností (normalizované, seřazené) — shoda rozhraní × implementace. */
+export declare function attrsOf(pragmas: string[] | undefined): string;
 export interface VarSym {
     name: string;
     key: string;

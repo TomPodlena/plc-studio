@@ -24,16 +24,17 @@
  * Robustnost: žádné ukazatele, __NEW ani dynamická paměť, meze polí konstantou, žádné WHILE.
  *
  * Výstupy: ST výpis (Gen_Library.st, FB_Sequence.st, MAIN.st), PLCopen XML s rozšířením CODESYS
- * (`addData`: pouinheritance, method, property, interface — podle exportu CODESYS V3.5 SP20 a
- * TwinCAT; NEOVĚŘENO importem) a u TwinCATu soubory .TcPOU / .TcIO / .TcGVL (podle reálných
+ * (`addData`: pouinheritance, method, property, interface, globalvars — podle exportu CODESYS
+ * V3.5 SP21 Patch 6; import a překlad ověřeny v CODESYS 3.5.21.60 2026-10-05) a u TwinCATu soubory .TcPOU / .TcIO / .TcGVL (podle reálných
  * souborů TcUnit / AixOCAT; NEOVĚŘENO importem). Všechny podoby se staví z jednoho modelu
  * (`OopPou`), emulátor z XML / TcPOU výpis zpětně sestaví a porovná s ST výpisem.
  */
-import { PLAT, usedClasses, addrFor, dtFor, esc, stripDia, codeStyleFor, } from "./model.js";
+import { PLAT, usedClasses, esc, stripDia, codeStyleFor, } from "./model.js";
 import { buildIR, irText, irPortTypes, IR_CTRL } from "./ir.js";
 import { stCtx, renderSeq, renderWiring, renderDecls, enableText, stCallNotes, trComments, cmtSafe, fbTemplate, parseFbTemplate, codeLibrary, genTagFile, genReadme, rawMaxFor, portText, } from "./codegen.js";
 import { tr, trx, N_ } from "./i18n.js";
 import { derivedGuid } from "./guid.js";
+import { plcopenGvlAddData, gvlVarsXml } from "./plcopen.js";
 /** Rozhraní a jeho členové — jediný zdroj pro rozhraní, základní třídu i kontrolu emulátoru. */
 export const OOP_ITF = "I_Device";
 export const OOP_BASE = "FB_DeviceBase";
@@ -128,7 +129,8 @@ export function oopInterface() {
     return {
         kind: "interface", name: OOP_ITF, cmt: [], blocks: [], body: "",
         methods: [{ name: "Execute", blocks: [], body: "" }, { name: "Reset", blocks: [], body: "" }],
-        props: ITF_PROPS.map(([name, type]) => ({ name, type, get: "" })),
+        /* atribut shodný s implementací — jinak CODESYS 3.5.21.60 hlásí C568 (rozhraní vlastnosti ≠ deklarace) */
+        props: ITF_PROPS.map(([name, type]) => ({ name, type, pragma: PROP_PRAGMA, get: "" })),
     };
 }
 export function oopBase() {
@@ -351,7 +353,7 @@ export function methodDecl(m, inItf = false) {
     return [head, ...cmtBlock(m.cmt), ...blocksText(m.blocks)].join("\n");
 }
 export function propDecl(pr, inItf = false) {
-    return (pr.pragma && !inItf ? pr.pragma + "\n" : "") + "PROPERTY " + (inItf ? "" : (pr.access || "PUBLIC") + " ") + pr.name + " : " + pr.type;
+    return (pr.pragma ? pr.pragma + "\n" : "") + "PROPERTY " + (inItf ? "" : (pr.access || "PUBLIC") + " ") + pr.name + " : " + pr.type;
 }
 export function listingObj(p) {
     const itf = p.kind === "interface";
@@ -430,17 +432,24 @@ function varsXml(bs, ind, consts) {
 const NS = "http://www.3s-software.com/plcopenxml/";
 const xhtml = (s) => '<xhtml xmlns="http://www.w3.org/1999/xhtml">' + esc(s) + "</xhtml>";
 const objId = (path) => derivedGuid("4c9f1e2a-plcdesk-oop", "plcopen:" + path);
-const plain = (ind, decl) => ind + '<data name="' + NS + 'interfaceasplaintext" handleUnknown="implementation"><InterfaceAsPlainText>' + xhtml(decl) + "</InterfaceAsPlainText></data>\n";
+/*
+ * Textová deklarace (ABSTRACT, přístup, komentáře, atributy) — přesně tam, odkud ji čte import CODESYS
+ * V3.5 SP21 Patch 6 (export 3.5.21.60, ověřeno importem a překladem 2026-10-05):
+ *  - POU: `<data …/interfaceasplaintext>` v addData POU ZA `</body>` (v `<interface><addData>` ji import ignoruje),
+ *  - Method / Property (bloku i rozhraní) a Interface: element `<InterfaceAsPlainText>` jako přímý potomek
+ *    (za body / accessory, před `<addData />`), ne zabalený do addData.
+ * Jinde ji CODESYS nečte a deklaraci postaví ze strukturované části — bez ABSTRACT / PROTECTED a komentářů.
+ */
+const plainData = (ind, decl) => ind + '<data name="' + NS + 'interfaceasplaintext" handleUnknown="implementation"><InterfaceAsPlainText>' + xhtml(decl) + "</InterfaceAsPlainText></data>\n";
+const plainElem = (ind, decl) => ind + "<InterfaceAsPlainText>" + xhtml(decl) + "</InterfaceAsPlainText>\n";
 function pouXml(p, consts) {
     const I = "      ";
     let x = '    <pou name="' + esc(p.name) + '" pouType="' + (p.kind === "program" ? "program" : "functionBlock") + '">\n';
     x += "      <interface>\n" + varsXml(p.blocks, I + "  ", consts);
     const inh = (p.extends ? "<Extends>" + esc(p.extends) + "</Extends>" : "") + (p.implements || []).map(i => "<Implements>" + esc(i) + "</Implements>").join("");
-    x += I + "  <addData>\n";
     if (inh)
-        x += I + '    <data name="' + NS + 'pouinheritance" handleUnknown="implementation"><Inheritance>' + inh + "</Inheritance></data>\n";
-    x += plain(I + "    ", pouDecl(p));
-    x += I + "  </addData>\n" + I + "</interface>\n";
+        x += I + "  <addData>\n" + I + '    <data name="' + NS + 'pouinheritance" handleUnknown="implementation"><Inheritance>' + inh + "</Inheritance></data>\n" + I + "  </addData>\n";
+    x += I + "</interface>\n";
     x += I + "<body>\n" + I + "  <ST>\n" + I + "    " + xhtml(p.body) + "\n" + I + "  </ST>\n" + I + "</body>\n";
     x += I + "<addData>\n";
     for (const m of p.methods) {
@@ -448,7 +457,7 @@ function pouXml(p, consts) {
         x += I + '    <Method name="' + esc(m.name) + '" ObjectId="' + objId(p.name + "." + m.name) + '">\n';
         x += I + "      <interface>\n" + (m.ret ? I + "        <returnType>" + typeXml(m.ret, consts) + "</returnType>\n" : "") + varsXml(m.blocks, I + "        ", consts) + I + "      </interface>\n";
         x += I + "      <body>\n" + I + "        <ST>" + xhtml(m.body) + "</ST>\n" + I + "      </body>\n";
-        x += I + "      <addData>\n" + plain(I + "        ", methodDecl(m)) + I + "      </addData>\n";
+        x += plainElem(I + "      ", methodDecl(m)) + I + "      <addData />\n";
         x += I + "    </Method>\n" + I + "  </data>\n";
     }
     for (const pr of p.props) {
@@ -456,21 +465,22 @@ function pouXml(p, consts) {
         x += I + '    <Property name="' + esc(pr.name) + '" ObjectId="' + objId(p.name + "." + pr.name) + '">\n';
         x += I + "      <interface>\n" + I + "        <returnType>" + typeXml(pr.type, consts) + "</returnType>\n" + I + "      </interface>\n";
         x += I + "      <GetAccessor>\n" + I + "        <interface />\n" + I + "        <body>\n" + I + "          <ST>" + xhtml(pr.get) + "</ST>\n" + I + "        </body>\n" + I + "        <addData />\n" + I + "      </GetAccessor>\n";
-        x += I + "      <addData>\n" + plain(I + "        ", propDecl(pr)) + I + "      </addData>\n";
+        x += plainElem(I + "      ", propDecl(pr)) + I + "      <addData />\n";
         x += I + "    </Property>\n" + I + "  </data>\n";
     }
+    x += plainData(I + "  ", pouDecl(p));
     x += I + '  <data name="' + NS + 'objectid" handleUnknown="discard"><ObjectId>' + objId(p.name) + "</ObjectId></data>\n";
     return x + I + "</addData>\n    </pou>\n";
 }
 function itfXml(p) {
-    const I = "      ";
+    const I = "    ";
     let x = I + '<data name="' + NS + 'interface" handleUnknown="implementation">\n';
     x += I + '  <Interface name="' + esc(p.name) + '" ObjectId="' + objId(p.name) + '">\n';
     if (p.methods.length) {
         x += I + "    <Methods>\n";
         for (const m of p.methods)
             x += I + '      <Method name="' + esc(m.name) + '" ObjectId="' + objId(p.name + "." + m.name) + '">\n' + I + "        <interface />\n"
-                + I + "        <addData>\n" + plain(I + "          ", methodDecl(m, true)) + I + "        </addData>\n" + I + "      </Method>\n";
+                + plainElem(I + "        ", methodDecl(m, true)) + I + "        <addData />\n" + I + "      </Method>\n";
         x += I + "    </Methods>\n";
     }
     if (p.props.length) {
@@ -478,17 +488,18 @@ function itfXml(p) {
         for (const pr of p.props)
             x += I + '      <Property name="' + esc(pr.name) + '" ObjectId="' + objId(p.name + "." + pr.name) + '">\n'
                 + I + "        <interface><returnType>" + typeXml(pr.type, {}) + "</returnType></interface>\n" + I + "        <GetAccessor />\n"
-                + I + "        <addData>\n" + plain(I + "          ", propDecl(pr, true)) + I + "        </addData>\n" + I + "      </Property>\n";
+                + plainElem(I + "        ", propDecl(pr, true)) + I + "        <addData />\n" + I + "      </Property>\n";
         x += I + "    </Properties>\n";
     }
-    x += I + "    <addData>\n" + plain(I + "      ", pouDecl(p)) + I + "    </addData>\n";
+    x += plainElem(I + "    ", pouDecl(p)) + I + "    <addData />\n";
     return x + I + "  </Interface>\n" + I + "</data>\n";
 }
 /**
  * PLCopen XML (TC6 v2.01, namespace tc6_0200) s rozšířením CODESYS pro OOP: dědičnost
  * (`pouinheritance`), metody (`method`), vlastnosti (`property`), rozhraní (`interface`,
  * v addData projektu) a textové deklarace (`interfaceasplaintext` — nese ABSTRACT / přístup,
- * pro které schéma strukturu nemá). NEOVĚŘENO importem v CODESYS / TwinCAT.
+ * pro které schéma strukturu nemá), GVL_IO v addData projektu (`plcopenGvlAddData`).
+ * Ověřeno importem a překladem v CODESYS V3.5 SP21 Patch 6 (2026-10-05); TwinCAT neověřen.
  */
 export function genPLCopenOopXML(prj, plat, prog = oopProgram(prj, plat)) {
     const now = new Date().toISOString().slice(0, 19);
@@ -499,12 +510,7 @@ export function genPLCopenOopXML(prj, plat, prog = oopProgram(prj, plat)) {
                 for (const v of b.vars)
                     if (/^\d+$/.test(v.init || ""))
                         consts[v.name] = +v.init;
-    let gvl = "";
-    for (const e of prj.io) {
-        const at = addrFor(plat, e, prj);
-        gvl += '            <variable name="' + esc(e.tag) + '"' + (at ? ' address="' + esc(at) + '"' : "") + ">\n              <type>" + typeXml(dtFor(e), {}) + "</type>\n"
-            + (e.cmt ? '              <documentation><xhtml xmlns="http://www.w3.org/1999/xhtml">' + esc(e.cmt) + "</xhtml></documentation>\n" : "") + "            </variable>\n";
-    }
+    const gvl = gvlVarsXml(prj, plat);
     const itfs = prog.pous.filter(p => p.kind === "interface");
     return `<?xml version="1.0" encoding="utf-8"?>
 <project xmlns="http://www.plcopen.org/xml/tc6_0200">
@@ -522,21 +528,9 @@ export function genPLCopenOopXML(prj, plat, prog = oopProgram(prj, plat)) {
 ${prog.pous.filter(p => p.kind !== "interface").map(p => pouXml(p, consts)).join("")}    </pous>
   </types>
   <instances>
-    <configurations>
-      <configuration name="Default">
-        <resource name="Application">
-          <task name="MainTask" interval="PT0.010S" priority="1">
-            <pouInstance name="MAIN" typeName="MAIN" />
-          </task>
-          <globalVars name="GVL_IO">
-${gvl}          </globalVars>
-        </resource>
-      </configuration>
-    </configurations>
+    <configurations />
   </instances>
-  <addData>
-${itfs.map(itfXml).join("")}  </addData>
-</project>
+${plcopenGvlAddData(gvl, itfs.map(itfXml).join(""))}</project>
 `;
 }
 /* ================================================================ README a soubory */
@@ -564,9 +558,9 @@ export function oopReadme(prj, plat) {
   souborů TwinCAT). Druhá cesta: PLCopen_Import.xml (Import PLCopenXML). Ruční cesta: ST soubory
   jsou výpis — každou METHOD / PROPERTY přidej jako objekt pod blok.`)
         : tr(`Import: PLCopen_Import.xml — Project → Import PLCopenXML. OOP části (metody, vlastnosti,
-  rozhraní, EXTENDS / IMPLEMENTS) jsou v rozšíření addData podle exportu CODESYS V3.5 SP20 —
-  NEOVĚŘENO importem. Ruční cesta: ST soubory jsou výpis — rozhraní založ jako objekt Interface,
-  každou METHOD / PROPERTY přidej jako objekt pod blok (Add Object → Method / Property).`));
+  rozhraní, EXTENDS / IMPLEMENTS, ABSTRACT a přístup) jsou v rozšíření addData podle exportu
+  CODESYS V3.5 SP21 — import a překlad ověřeny v CODESYS V3.5 SP21 Patch 6. Ruční cesta: ST soubory
+  jsou výpis — rozhraní založ jako objekt Interface, každou METHOD / PROPERTY přidej jako objekt pod blok (Add Object → Method / Property).`));
 }
 /** Soubory programu ve stylu OOP (rodina CODESYS). */
 export function genForOop(prj, plat) {

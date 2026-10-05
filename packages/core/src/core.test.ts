@@ -1013,8 +1013,9 @@ test("PLCopen XML: POU, GVL s adresami, MAIN instance, escapování", () => {
     assert.ok(xml.includes('<pou name="' + pou + '" pouType="functionBlock">'), pou);
   }
   assert.ok(xml.includes('<pou name="MAIN" pouType="program">'));
-  assert.ok(xml.includes('<pouInstance name="MAIN" typeName="MAIN" />'));
-  assert.ok(xml.includes('<globalVars name="GVL_IO">'));
+  /* GVL v addData projektu, configurations prázdné (CODESYS 3.5.21.60 konfiguraci odmítne; úloha = krok README) */
+  assert.ok(xml.includes("<configurations />") && !xml.includes("<pouInstance"));
+  assert.ok(xml.includes('<data name="http://www.3s-software.com/plcopenxml/globalvars" handleUnknown="implementation">\n      <globalVars name="GVL_IO">'));
   assert.ok(xml.includes('address="%IX0.0"'));
   assert.ok(xml.includes('<derived name="TON" />'));
   assert.ok(xml.includes('<derived name="FB_Motor" />'), "instance v MAIN");
