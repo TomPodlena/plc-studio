@@ -20,6 +20,7 @@ on:
     paths:
       - "apps/site/**"
       - "packages/core/dist/**"
+      - "data/verification.json"
       - ".github/workflows/deploy-site.yml"
   workflow_dispatch:
 

@@ -92,6 +92,7 @@ class App:
         self.LANGS: dict = consts["LANGS"]
         i18n.set_catalog(self.lang, consts["I18N"])
         self.PLAT: dict = consts["PLAT"]
+        self.VERIF: dict = consts.get("VERIF", {})      # ověření platforem (data/verification.json)
         self.CLS: dict = consts["CLS"]
         self.ACTS_FOR: dict = consts.get("ACTS_FOR", {})
         self.DO_ROLES: dict = consts["DO_ROLES"]

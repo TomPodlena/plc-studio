@@ -40,3 +40,4 @@ export { axisCfgOf, axisObjName, axisPositionsText, parseAxisPositions, AXERR, t
 export * from "./axis_gen.js";
 export * from "./emu/index.js";
 export * from "./codesys_profiles.js";
+export * from "./verification.js";

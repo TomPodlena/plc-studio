@@ -3,7 +3,7 @@
     "lang": "cs",
     "locale": "cs_CZ",
     "title": "{{site.brand}} — řízení stroje od zadání po schválenou dokumentaci",
-    "description": "Popíšete stroj, {{site.brand}} navrhne I/O, schémata, program pro 10 platforem PLC, bezpečnostní funkce i oživení. Každou položku schvaluje odpovědná osoba. Do 64 I/O zdarma."
+    "description": "Popíšete stroj, {{site.brand}} navrhne I/O, schémata, program pro {{site.platform_count}} platforem PLC, bezpečnostní funkce i oživení. Každou položku schvaluje odpovědná osoba. Do 64 I/O zdarma."
   },
   "ui": {
     "skip": "Přeskočit na obsah",
@@ -42,7 +42,7 @@
   },
   "home": {
     "title": "{{site.brand}} — řízení stroje od zadání po schválenou dokumentaci",
-    "description": "Popíšete stroj, {{site.brand}} navrhne I/O, schémata, program pro 10 platforem PLC, bezpečnostní funkce i oživení. Každou položku schvaluje odpovědná osoba. Do 64 I/O zdarma.",
+    "description": "Popíšete stroj, {{site.brand}} navrhne I/O, schémata, program pro {{site.platform_count}} platforem PLC, bezpečnostní funkce i oživení. Každou položku schvaluje odpovědná osoba. Do 64 I/O zdarma.",
     "eyebrow": "Pro integrátory a strojírny",
     "h1": "Řízení stroje od zadání po podepsanou dokumentaci",
     "lead": "Popíšete stroj. {{site.brand}} navrhne zařízení, I/O, schémata, program, bezpečnostní funkce i plán oživení a ke všemu připraví dokumentaci. Vy procházíte a schvalujete. Co neschválíte, nese v dokumentech NESCHVÁLENO.",
@@ -89,7 +89,7 @@
     ],
     "facts": [
       {
-        "n": "10",
+        "n": "{{site.platform_count}}",
         "t": "platforem PLC"
       },
       {
@@ -258,7 +258,7 @@
       },
       {
         "q": "Je program hotový k nahrání do PLC?",
-        "a": "Je to úplný program se stavovými automaty, režimy, poruchami a kvitací a návrh je ověřený simulací. Import a překlad jsme ověřili ve skutečném CODESYS V3.5 SP21 bez chyby a bez varování; Schneider, WAGO a Delta AX mají ověřený jazyk, ne zařízení a adresy. Ostatní platformy ověřuje náš emulátor, který ale není překladač výrobce, proto u nich píšeme beta. Download do PLC jsme neověřili na žádné platformě. Před nasazením patří program do simulátoru vaší platformy a na FAT."
+        "a": "Je to úplný program se stavovými automaty, režimy, poruchami a kvitací a návrh je ověřený simulací. Import a překlad jsme ověřili ve skutečném CODESYS V3.5 SP21 bez chyby a bez varování; Schneider, WAGO, Delta AX, deset dalších systémů na CODESYS a Unitronics mají ověřený jazyk, ne zařízení a adresy. Ostatní platformy ověřuje náš emulátor, který ale není překladač výrobce, proto u nich píšeme beta. Download do PLC jsme neověřili na žádné platformě. Před nasazením patří program do simulátoru vaší platformy a na FAT."
       },
       {
         "q": "Mám existující stroj. Musím ho přepisovat?",
@@ -285,7 +285,7 @@
   },
   "funkce": {
     "title": "Funkce — {{site.brand}}",
-    "description": "Návrh zařízení a I/O, schémata IEC, program pro 10 platforem, simulace, bezpečnostní funkce podle ISO 13849, oživení, dokumentace, kusovník a import stávajících zařízení.",
+    "description": "Návrh zařízení a I/O, schémata IEC, program pro {{site.platform_count}} platforem, simulace, bezpečnostní funkce podle ISO 13849, oživení, dokumentace, kusovník a import stávajících zařízení.",
     "eyebrow": "Funkce",
     "h1": "Co {{site.brand}} udělá za vás",
     "lead": "Od zadání po předání stroje. Všechno, co navrhne, projdete a schválíte. Dokumentace pak dokládá, co jste schválili.",
@@ -345,7 +345,7 @@
         "points": [
           "Stavové automaty zařízení s hlídacími časy a stavovými slovy.",
           "Režim AUTO a ruční, start cyklu, kvitace, ruční povely, porucha stroje s krokem, kde vznikla.",
-          "10 platforem; import jedním souborem tam, kde to IDE umí (PLCopen XML, L5X).",
+          "{{site.platform_count}} platforem; import jedním souborem tam, kde to IDE umí (PLCopen XML, L5X).",
           "Ke každé platformě postup importu a nejkratší test."
         ],
         "shot": {
@@ -481,10 +481,10 @@
   },
   "platformy": {
     "title": "Platformy a ověření — {{site.brand}}",
-    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Schneider, WAGO, Delta Electronics, Mitsubishi, OMRON a Unitronics. Co je ověřené importem v IDE, co překladačem a co emulátorem.",
+    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Schneider, WAGO, Delta, Mitsubishi, OMRON, Unitronics a deset dalších systémů na CODESYS. Co je ověřené importem v IDE, co překladačem a co emulátorem.",
     "eyebrow": "Platformy",
-    "h1": "10 platforem. Píšeme, co je ověřené.",
-    "lead": "CODESYS jsme ověřili skutečným importem a překladem v CODESYS V3.5 SP21 Patch 6: příklady v klasickém stylu i OOP, pohony a servoosa bez chyby a bez varování. Schneider, WAGO a Delta AX stojí na stejném jazyce CODESYS, u nich jsme ověřili jazyk a import, ne knihovny, zařízení a adresy. Ostatní platformy ověřuje náš emulátor. Import ve vývojovém prostředí výrobce jsme u nich zatím nezkoušeli, proto nesou štítek beta.",
+    "h1": "{{site.platform_count}} platforem. Píšeme, co je ověřené.",
+    "lead": "CODESYS jsme ověřili skutečným importem a překladem v CODESYS V3.5 SP21 Patch 6: příklady v klasickém stylu i OOP, pohony a servoosa bez chyby a bez varování. Schneider, WAGO, Delta AX a deset dalších systémů na CODESYS stojí na stejném jazyce, u nich jsme ověřili jazyk a import, ne knihovny, zařízení a adresy. Unitronics prošel překladačem ST z UniLogicu. Ostatní platformy ověřuje náš emulátor. Import ve vývojovém prostředí výrobce jsme u nich zatím nezkoušeli, proto nesou štítek beta.",
     "checked": "Stav k",
     "h_platform": "Platforma",
     "h_ide": "Vývojové prostředí",
@@ -493,6 +493,7 @@
     "h_state": "Stav",
     "rows": [
       {
+        "key": "siemens",
         "name": "Siemens SIMATIC",
         "ide": "TIA Portal V17–V21",
         "output": "SCL zdroje, SimaticML XML, tabulka tagů",
@@ -500,6 +501,7 @@
         "state": "beta"
       },
       {
+        "key": "rockwell",
         "name": "Rockwell Allen-Bradley",
         "ide": "Studio 5000 Logix Designer",
         "output": "L5X (Add-On Instructions, tagy, rutina) a CSV tagů",
@@ -507,6 +509,7 @@
         "state": "beta"
       },
       {
+        "key": "beckhoff",
         "name": "Beckhoff",
         "ide": "TwinCAT 3",
         "output": "PLCopen XML, ST bloky, GVL",
@@ -514,6 +517,7 @@
         "state": "beta"
       },
       {
+        "key": "codesys",
         "name": "CODESYS",
         "ide": "CODESYS V3.5",
         "output": "PLCopen XML, ST bloky, GVL",
@@ -521,6 +525,7 @@
         "state": "verified"
       },
       {
+        "key": "schneider",
         "name": "Schneider Electric",
         "ide": "EcoStruxure Machine Expert",
         "output": "PLCopen XML, ST bloky, GVL",
@@ -528,6 +533,7 @@
         "state": "lang"
       },
       {
+        "key": "wago",
         "name": "WAGO",
         "ide": "e!COCKPIT / CODESYS V3.5",
         "output": "PLCopen XML, ST bloky, GVL (I/O se mapují v IDE)",
@@ -535,6 +541,7 @@
         "state": "lang"
       },
       {
+        "key": "delta",
         "name": "Delta Electronics AX",
         "ide": "DIADesigner-AX",
         "output": "PLCopen XML, ST bloky, GVL",
@@ -542,6 +549,66 @@
         "state": "lang"
       },
       {
+        "name": "Další CODESYS: Turck, Festo, ABB AC500 V3, Bosch Rexroth ctrlX, Inovance, Weidmüller, Eaton, Lenze, Berghof, Hitachi",
+        "ide": "IDE výrobců na CODESYS V3.5 (Festo Automation Suite, Automation Builder, ctrlX PLC Engineering, InoProShop, XSOFT-CODESYS-3, PLC Designer, HX-CODESYS…)",
+        "output": "PLCopen XML, ST bloky, GVL (I/O se mapují v IDE)",
+        "check": "jazyk a import PLCopen: překladač CODESYS 3.5.21.60, 5. 10. 2026: 58 kombinací vzorů (klasika i OOP, u Festo i servoosa) bez chyby a varování; IDE, balíky zařízení a knihovny výrobců a I/O na skutečném HW neověřeny",
+        "state": "lang",
+        "members": [
+          {
+            "key": "turck",
+            "name": "Turck",
+            "ide": "CODESYS + Turck package"
+          },
+          {
+            "key": "festo",
+            "name": "Festo",
+            "ide": "Festo Automation Suite"
+          },
+          {
+            "key": "abb",
+            "name": "ABB AC500 V3",
+            "ide": "Automation Builder"
+          },
+          {
+            "key": "rexroth",
+            "name": "Bosch Rexroth ctrlX",
+            "ide": "ctrlX PLC Engineering"
+          },
+          {
+            "key": "inovance",
+            "name": "Inovance",
+            "ide": "InoProShop"
+          },
+          {
+            "key": "weidmueller",
+            "name": "Weidmüller",
+            "ide": "CODESYS + u-OS package"
+          },
+          {
+            "key": "eaton",
+            "name": "Eaton",
+            "ide": "XSOFT-CODESYS-3"
+          },
+          {
+            "key": "lenze",
+            "name": "Lenze",
+            "ide": "PLC Designer"
+          },
+          {
+            "key": "berghof",
+            "name": "Berghof",
+            "ide": "CODESYS + Berghof target"
+          },
+          {
+            "key": "hitachi",
+            "name": "Hitachi",
+            "ide": "HX-CODESYS"
+          }
+        ]
+      },
+      {
+        "key": "mitsubishi",
         "name": "Mitsubishi",
         "ide": "GX Works3",
         "output": "ST a CSV globálních návěští",
@@ -549,6 +616,7 @@
         "state": "beta"
       },
       {
+        "key": "omron",
         "name": "OMRON",
         "ide": "Sysmac Studio",
         "output": "ST a tabulka proměnných",
@@ -556,11 +624,12 @@
         "state": "beta"
       },
       {
+        "key": "unitronics",
         "name": "Unitronics",
         "ide": "UniLogic (UniStream)",
         "output": "plochý ST a seznam tagů",
-        "check": "emulátor: plochý ST podle příruček Unitronics, běh proti modelu stroje; dialekt potvrdí až první překlad",
-        "state": "beta"
+        "check": "překladač ST z UniLogic 1.43.369 (Unitronics), 5. 10. 2026: Machine.st čtyř vzorů bez chyby; import tagů, build a běh v UniLogicu neověřeny",
+        "state": "lang"
       }
     ],
     "state_verified": "ověřeno v IDE",
@@ -574,7 +643,7 @@
       },
       {
         "state": "lang",
-        "text": "Platforma stojí na CODESYS V3.5. Jazyk a import PLCopen XML prošly překladačem CODESYS, knihovny a zařízení výrobce a adresy I/O jsme v jeho IDE neověřili."
+        "text": "Jazyk prošel překladačem: u platforem na CODESYS V3.5 import PLCopen XML a překlad v CODESYS, u Unitronics překladač ST z UniLogicu. Knihovny a zařízení výrobce, adresy I/O a import v jeho IDE jsme neověřili."
       },
       {
         "state": "beta",

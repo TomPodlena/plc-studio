@@ -3,7 +3,7 @@
     "lang": "en",
     "locale": "en_GB",
     "title": "{{site.brand}} — machine control from specification to approved documentation",
-    "description": "Describe the machine, {{site.brand}} designs the I/O, schematics, program for 10 PLC platforms, safety functions and commissioning. A responsible person approves every item. Free up to 64 I/O."
+    "description": "Describe the machine, {{site.brand}} designs the I/O, schematics, program for {{site.platform_count}} PLC platforms, safety functions and commissioning. A responsible person approves every item. Free up to 64 I/O."
   },
   "ui": {
     "skip": "Skip to content",
@@ -42,7 +42,7 @@
   },
   "home": {
     "title": "{{site.brand}} — machine control from specification to approved documentation",
-    "description": "Describe the machine, {{site.brand}} designs the I/O, schematics, program for 10 PLC platforms, safety functions and commissioning. A responsible person approves every item. Free up to 64 I/O.",
+    "description": "Describe the machine, {{site.brand}} designs the I/O, schematics, program for {{site.platform_count}} PLC platforms, safety functions and commissioning. A responsible person approves every item. Free up to 64 I/O.",
     "eyebrow": "For integrators and machine builders",
     "h1": "Machine control from specification to signed-off documentation",
     "lead": "You describe the machine. {{site.brand}} designs the devices, I/O, schematics, program, safety functions and commissioning plan, and prepares the documentation for all of it. You review and approve. Anything you have not approved is marked NOT APPROVED in the documents.",
@@ -89,7 +89,7 @@
     ],
     "facts": [
       {
-        "n": "10",
+        "n": "{{site.platform_count}}",
         "t": "PLC platforms"
       },
       {
@@ -258,7 +258,7 @@
       },
       {
         "q": "Is the program ready to load into the PLC?",
-        "a": "It is a complete program with state machines, modes, faults and acknowledgement, and the design is verified by simulation. We verified import and compilation in real CODESYS V3.5 SP21 without errors or warnings; Schneider, WAGO and Delta AX have the language verified, not the devices and addresses. The other platforms are checked by our emulator, which is not the manufacturer's compiler, so they are marked beta. We have not verified download to a PLC on any platform. Before commissioning, the program belongs in your platform's simulator and on the FAT."
+        "a": "It is a complete program with state machines, modes, faults and acknowledgement, and the design is verified by simulation. We verified import and compilation in real CODESYS V3.5 SP21 without errors or warnings; Schneider, WAGO, Delta AX, ten more CODESYS-based systems and Unitronics have the language verified, not the devices and addresses. The other platforms are checked by our emulator, which is not the manufacturer's compiler, so they are marked beta. We have not verified download to a PLC on any platform. Before commissioning, the program belongs in your platform's simulator and on the FAT."
       },
       {
         "q": "I have an existing machine. Do I have to re-enter it?",
@@ -285,7 +285,7 @@
   },
   "funkce": {
     "title": "Features — {{site.brand}}",
-    "description": "Device and I/O design, IEC schematics, program for 10 platforms, simulation, safety functions to ISO 13849, commissioning, documentation, bill of materials and import of existing machines.",
+    "description": "Device and I/O design, IEC schematics, program for {{site.platform_count}} platforms, simulation, safety functions to ISO 13849, commissioning, documentation, bill of materials and import of existing machines.",
     "eyebrow": "Features",
     "h1": "What {{site.brand}} does for you",
     "lead": "From specification to machine handover. You review and approve everything it proposes. The documentation then shows what you approved.",
@@ -345,7 +345,7 @@
         "points": [
           "Device state machines with watchdog times and status words.",
           "AUTO and manual mode, cycle start, acknowledgement, manual commands, machine fault with the step where it occurred.",
-          "10 platforms; single-file import where the IDE supports it (PLCopen XML, L5X).",
+          "{{site.platform_count}} platforms; single-file import where the IDE supports it (PLCopen XML, L5X).",
           "Import instructions and the shortest test for each platform."
         ],
         "shot": {
@@ -481,10 +481,10 @@
   },
   "platformy": {
     "title": "Platforms and verification — {{site.brand}}",
-    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Schneider, WAGO, Delta Electronics, Mitsubishi, OMRON and Unitronics. What is verified by import in the IDE, what by the compiler and what by the emulator.",
+    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Schneider, WAGO, Delta, Mitsubishi, OMRON, Unitronics and ten more CODESYS-based systems. What is verified by import in the IDE, what by the compiler and what by the emulator.",
     "eyebrow": "Platforms",
-    "h1": "10 platforms. We say what is verified.",
-    "lead": "We verified CODESYS by real import and compilation in CODESYS V3.5 SP21 Patch 6: examples in classic and OOP style, drives and the servo axis without a single error or warning. Schneider, WAGO and Delta AX use the same CODESYS language; for them we verified the language and the import, not the libraries, devices and addresses. The other platforms are checked by our emulator. We have not yet tried the import in the manufacturer's development environment, so they carry a beta label.",
+    "h1": "{{site.platform_count}} platforms. We say what is verified.",
+    "lead": "We verified CODESYS by real import and compilation in CODESYS V3.5 SP21 Patch 6: examples in classic and OOP style, drives and the servo axis without a single error or warning. Schneider, WAGO, Delta AX and ten more CODESYS-based systems use the same language; for them we verified the language and the import, not the libraries, devices and addresses. Unitronics passed the ST compiler from UniLogic. The other platforms are checked by our emulator. We have not yet tried the import in the manufacturer's development environment, so they carry a beta label.",
     "checked": "Status as of",
     "h_platform": "Platform",
     "h_ide": "Development environment",
@@ -493,6 +493,7 @@
     "h_state": "Status",
     "rows": [
       {
+        "key": "siemens",
         "name": "Siemens SIMATIC",
         "ide": "TIA Portal V17–V21",
         "output": "SCL sources, SimaticML XML, tag table",
@@ -500,6 +501,7 @@
         "state": "beta"
       },
       {
+        "key": "rockwell",
         "name": "Rockwell Allen-Bradley",
         "ide": "Studio 5000 Logix Designer",
         "output": "L5X (Add-On Instructions, tags, routine) and tag CSV",
@@ -507,6 +509,7 @@
         "state": "beta"
       },
       {
+        "key": "beckhoff",
         "name": "Beckhoff",
         "ide": "TwinCAT 3",
         "output": "PLCopen XML, ST blocks, GVL",
@@ -514,6 +517,7 @@
         "state": "beta"
       },
       {
+        "key": "codesys",
         "name": "CODESYS",
         "ide": "CODESYS V3.5",
         "output": "PLCopen XML, ST blocks, GVL",
@@ -521,6 +525,7 @@
         "state": "verified"
       },
       {
+        "key": "schneider",
         "name": "Schneider Electric",
         "ide": "EcoStruxure Machine Expert",
         "output": "PLCopen XML, ST blocks, GVL",
@@ -528,6 +533,7 @@
         "state": "lang"
       },
       {
+        "key": "wago",
         "name": "WAGO",
         "ide": "e!COCKPIT / CODESYS V3.5",
         "output": "PLCopen XML, ST blocks, GVL (I/O mapped in the IDE)",
@@ -535,6 +541,7 @@
         "state": "lang"
       },
       {
+        "key": "delta",
         "name": "Delta Electronics AX",
         "ide": "DIADesigner-AX",
         "output": "PLCopen XML, ST blocks, GVL",
@@ -542,6 +549,66 @@
         "state": "lang"
       },
       {
+        "name": "More CODESYS: Turck, Festo, ABB AC500 V3, Bosch Rexroth ctrlX, Inovance, Weidmüller, Eaton, Lenze, Berghof, Hitachi",
+        "ide": "manufacturer IDEs based on CODESYS V3.5 (Festo Automation Suite, Automation Builder, ctrlX PLC Engineering, InoProShop, XSOFT-CODESYS-3, PLC Designer, HX-CODESYS…)",
+        "output": "PLCopen XML, ST blocks, GVL (I/O mapped in the IDE)",
+        "check": "language and PLCopen import: CODESYS 3.5.21.60 compiler, 5 October 2026: 58 sample combinations (classic and OOP, for Festo also the servo axis) without errors or warnings; manufacturer IDEs, device packages and libraries and I/O on real hardware not verified",
+        "state": "lang",
+        "members": [
+          {
+            "key": "turck",
+            "name": "Turck",
+            "ide": "CODESYS + Turck package"
+          },
+          {
+            "key": "festo",
+            "name": "Festo",
+            "ide": "Festo Automation Suite"
+          },
+          {
+            "key": "abb",
+            "name": "ABB AC500 V3",
+            "ide": "Automation Builder"
+          },
+          {
+            "key": "rexroth",
+            "name": "Bosch Rexroth ctrlX",
+            "ide": "ctrlX PLC Engineering"
+          },
+          {
+            "key": "inovance",
+            "name": "Inovance",
+            "ide": "InoProShop"
+          },
+          {
+            "key": "weidmueller",
+            "name": "Weidmüller",
+            "ide": "CODESYS + u-OS package"
+          },
+          {
+            "key": "eaton",
+            "name": "Eaton",
+            "ide": "XSOFT-CODESYS-3"
+          },
+          {
+            "key": "lenze",
+            "name": "Lenze",
+            "ide": "PLC Designer"
+          },
+          {
+            "key": "berghof",
+            "name": "Berghof",
+            "ide": "CODESYS + Berghof target"
+          },
+          {
+            "key": "hitachi",
+            "name": "Hitachi",
+            "ide": "HX-CODESYS"
+          }
+        ]
+      },
+      {
+        "key": "mitsubishi",
         "name": "Mitsubishi",
         "ide": "GX Works3",
         "output": "ST and global label CSV",
@@ -549,6 +616,7 @@
         "state": "beta"
       },
       {
+        "key": "omron",
         "name": "OMRON",
         "ide": "Sysmac Studio",
         "output": "ST and variable table",
@@ -556,11 +624,12 @@
         "state": "beta"
       },
       {
+        "key": "unitronics",
         "name": "Unitronics",
         "ide": "UniLogic (UniStream)",
         "output": "flat ST and tag list",
-        "check": "emulator: flat ST from Unitronics manuals, run against the machine model; the dialect will be confirmed by the first compile",
-        "state": "beta"
+        "check": "ST compiler from UniLogic 1.43.369 (Unitronics), 5 October 2026: Machine.st of four samples without errors; tag import, build and run in UniLogic not verified",
+        "state": "lang"
       }
     ],
     "state_verified": "verified in IDE",
@@ -574,7 +643,7 @@
       },
       {
         "state": "lang",
-        "text": "The platform is built on CODESYS V3.5. The language and the PLCopen XML import passed the CODESYS compiler; we have not verified the manufacturer's libraries, devices and I/O addresses in its IDE."
+        "text": "The language passed a compiler: for platforms built on CODESYS V3.5 the PLCopen XML import and compilation in CODESYS, for Unitronics the ST compiler from UniLogic. We have not verified the manufacturer's libraries and devices, the I/O addresses or the import in its IDE."
       },
       {
         "state": "beta",

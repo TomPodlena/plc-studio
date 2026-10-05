@@ -182,7 +182,7 @@ test("Rockwell: rutina je zrcadlo IEC generátoru (pořadí, časovače za CASE,
   assert.ok(s2.includes("instM1.cmdStart := manRun_M1;") && !s2.includes("seqStep"));
   /* README: skutečný postup + štítek neověřeno */
   const r = genFor(p, "rockwell")["README.txt"];
-  assert.ok(r.includes("Import Program") && r.includes("NEOVĚŘENO") && r.includes("Local:1:I.Pt00.Data") && !r.includes("Gen_Library"));
+  assert.ok(r.includes("Import Program") && r.includes("STAV OVĚŘENÍ: BETA") && r.includes("Local:1:I.Pt00.Data") && !r.includes("Gen_Library"));
 });
 
 test("validace: označení zařízení pro Logix (max. 32 znaků, bez __ a _ na konci)", () => {
@@ -405,7 +405,7 @@ test("Unitronics: plochý ST pro UniLogic — bez FB, stav v globálních tazíc
     assert.deepEqual(unknown, [], "nedeklarované tagy");
     assert.equal(tags.size, files["Tags.csv"].split("\n").length - 1, "tagy jsou unikátní");
     assert.ok(!/[^\x00-\x7F]/.test(files["Tags.csv"]), "seznam tagů je čisté ASCII");
-    assert.ok(files["README.txt"].includes("NEOVĚŘENO PŘEKLADEM") && files["README.txt"].includes("Add Structured Text Function"));
+    assert.ok(files["README.txt"].includes("STAV OVĚŘENÍ: JAZYK OVĚŘEN") && files["README.txt"].includes("Add Structured Text Function"));
   }
   const p = sampleSmall();
   p.platforms = ["unitronics"];

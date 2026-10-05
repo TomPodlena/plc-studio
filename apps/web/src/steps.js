@@ -7,7 +7,7 @@ import {
   sampleSmall, sampleComplex, tr, N_, getLang, DO_ROLES, stepTitle,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
   buildBom, bomOptions, bomPlatform, bomCsv, catKey, suppliersFor, SUPPLIERS, CATALOG_DATE, PLATFORM_REFS,
-  hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis,
+  hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
 } from "../../../packages/core/dist/index.js";
 import { $, card, copyText, downloadFile, downloadFiles, normProject, normAi } from "./util.js";
 import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, SAMPLE_DESC, AI_EXAMPLE } from "./ai.js";
@@ -307,12 +307,13 @@ export function makeSteps(ctx) {
     const c = card(el, "03", tr("Cílové platformy"), `
     <p class="hint" style="margin-top:0">${tr("Vyber jednu nebo víc platforem — program se vygeneruje pro každou zvlášť. Logika je stejná (IEC 61131-3 ST), liší se dialekt, soubor s tagy a postup importu.")}</p>
     ${[Object.entries(PLAT).filter(([, pf]) => !pf.base), Object.entries(PLAT).filter(([, pf]) => pf.base)].map((grp, gi) => (gi ? "<p class='hint' style='margin-top:14px'>" + esc(tr("Další řídicí systémy na bázi CODESYS — stejný kód jako CODESYS, postup importu, I/O a kusovník podle výrobce:")) + "</p>" : "") + `
-    <div class="platgrid">${grp.map(([k, pf]) => `
+    <div class="platgrid">${grp.map(([k, pf]) => { const v = verificationInfo(k); return `
       <div class="plat ${p.platforms.includes(k) ? "on" : ""}" data-k="${k}" role="button" tabindex="0" aria-pressed="${p.platforms.includes(k)}">
-        <b>${pf.name}</b><span>${pf.ide} · ${pf.cpu}</span><span class="lng">${tr(pf.lang)} · ${tr(pf.imp)}</span>
+        <span class="plat-head"><b>${pf.name}</b><span class="verif verif-${v.state}" title="${esc(v.tip)}">${esc(v.label)}</span></span><span>${pf.ide} · ${pf.cpu}</span><span class="lng">${tr(pf.lang)} · ${tr(pf.imp)}</span>
         ${hasAxis(p) && !axisSupport(p, k).ok ? "<span class='lng' style='color:var(--warn)' title='" + esc(axisSupport(p, k).why) + "'>" + tr("servoosu nepodporuje") + "</span>" : ""}
-      </div>`).join("")}
+      </div>`; }).join("")}
     </div>`).join("")}
+    <p class="hint" style="margin-top:10px">${tr("Štítek u platformy říká, jak je výstup ověřený: ověřeno v IDE (import a překlad ve skutečném vývojovém prostředí), jazyk ověřen (překladačem, ne v IDE výrobce), beta (jen emulátor PLCdesk). Co ověřené není, ukáže bublina nad štítkem.")}</p>
     ${oopStyleHtml(p)}`);
     /* styl kódu (jen u platforem s OOP — rodina CODESYS) */
     c.querySelectorAll("input[name=codeStyle]").forEach(r => r.addEventListener("change", () => {

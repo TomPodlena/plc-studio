@@ -24,6 +24,14 @@ const site = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "site.json"),
 const SITE_URL = (process.env.SITE_URL || site.url).replace(/\/$/, "");
 site.url = SITE_URL;
 
+// Overeni platforem: jediny zdroj pravdy je data/verification.json v koreni repozitare (cte ho i jadro
+// pro README a aplikaci). Odtud pocet platforem ({{site.platform_count}}), "Stav k" (nejnovejsi datum)
+// a stav kazdeho radku tabulky; texty radku (nazev, IDE, vystup, jak overeno) jsou v content/<jazyk>.json.
+export const VERIF_FILE = process.env.VERIFICATION_JSON || path.join(ROOT, "..", "..", "data", "verification.json");
+const VERIF = JSON.parse(fs.readFileSync(VERIF_FILE, "utf-8")).platforms;
+site.platform_count = String(Object.keys(VERIF).length);
+site.platforms_checked = Object.values(VERIF).map((v) => v.date).sort().pop();
+
 // Verejny klic Turnstile smi byt v repozitari (tajny protejsek je secret Workeru).
 // Poradi: promenna TURNSTILE_SITEKEY > site.json turnstile_sitekey > testovaci klic Cloudflare
 // (pusti kazdeho). Volba --test vynuti testovaci klic (ostry klic na localhostu neprojde);
@@ -198,6 +206,43 @@ function sameShape(a, b, p, lang) {
   if (typeof a !== typeof b) warn(`${lang}: ${p} ma jiny typ nez v cestine`);
 }
 
+// Tabulka platforem x data/verification.json: kazda platforma prave v jednom radku (radek = "key",
+// slouceny radek = "members"), stav radku = stav vsech jeho platforem, pocet platforem v textech jen
+// pres {{site.platform_count}}. Kazdy nesoulad = varovani (build skonci chybou, deploy se zastavi).
+function rowKeys(r) {
+  return Array.isArray(r.members) ? r.members.map((m) => m.key) : r.key ? [r.key] : [];
+}
+function checkPlatforms(c, lang) {
+  const rows = (c.platformy && c.platformy.rows) || [];
+  const seen = new Map();
+  rows.forEach((r, i) => {
+    const keys = rowKeys(r);
+    if (!keys.length) warn(`${lang}: platformy.rows[${i}] (${r.name}) nema key ani members`);
+    for (const k of keys) {
+      if (seen.has(k)) warn(`${lang}: platforma ${k} je v tabulce dvakrat (radky ${seen.get(k)} a ${i})`);
+      seen.set(k, i);
+      if (!VERIF[k]) warn(`${lang}: platformy.rows[${i}] platforma ${k} neni v data/verification.json`);
+      else if (VERIF[k].state !== r.state)
+        warn(`${lang}: platformy.rows[${i}] ${k}: stav "${r.state}" nesouhlasi s data/verification.json ("${VERIF[k].state}")`);
+    }
+  });
+  for (const k of Object.keys(VERIF)) if (!seen.has(k)) warn(`${lang}: platforma ${k} z data/verification.json nema radek v platformy.rows`);
+  for (const st of new Set(rows.map((r) => r.state))) {
+    if (!c.platformy[`state_${st}`]) warn(`${lang}: chybi popisek platformy.state_${st}`);
+  }
+  // natvrdo napsany pocet platforem (napr. "10 platforem") misto {{site.platform_count}}
+  const raw = JSON.stringify(c);
+  for (const m of raw.matchAll(/(\d+)\s+(?:PLC[- ])?(?:SPS-)?(?:platfor|Plattform)/gi)) {
+    if (m[1] !== site.platform_count) warn(`${lang}: "${m[0]}" - pocet platforem pis jako {{site.platform_count}} (= ${site.platform_count})`);
+  }
+}
+// Dlazdice nad tabulkou: kazda platforma zvlast (slouceny radek se rozvine na sve cleny)
+function platformTiles(c) {
+  return (c.platformy.rows || []).flatMap((r) =>
+    Array.isArray(r.members) ? r.members.map((m) => ({ name: m.name, ide: m.ide, state: r.state })) : [{ name: r.name, ide: r.ide, state: r.state }]
+  );
+}
+
 function checkContent(c, lang) {
   const raw = JSON.stringify(c);
   // znacka jen v site.json
@@ -336,8 +381,10 @@ const content = Object.fromEntries(
 );
 for (const l of LANGS) {
   checkContent(content[l], l);
+  checkPlatforms(content[l], l);
   if (l !== "cs") sameShape(content.cs, content[l], "", l);
 }
+for (const l of LANGS) content[l].platformy.tiles = platformTiles(content[l]); // az po kontrole tvaru (neni v JSON)
 
 const urls = [];
 for (const lang of LANGS) {

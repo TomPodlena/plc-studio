@@ -129,7 +129,7 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(list(out), ["Tags.csv", "Machine.st", "README.txt"])
         self.assertNotIn("FUNCTION_BLOCK", out["Machine.st"])
         self.assertTrue(out["Machine.st"].isascii() and out["Tags.csv"].isascii())
-        self.assertIn("NEOVĚŘENO PŘEKLADEM", out["README.txt"])
+        self.assertIn("STAV OVĚŘENÍ: JAZYK OVĚŘEN", out["README.txt"])
 
     def test_sync_keeps_edits_and_returns_mutated_project(self):
         p = self.b.call("sampleSmall")
@@ -684,6 +684,22 @@ class GuiTest(unittest.TestCase):
         cards[0].event_generate("<Button-1>", x=5, y=5)
         self.root.update()
         self.assertEqual(self.app.prj["platforms"], ["rockwell"])
+
+    def test_platform_cards_verification_chip(self):
+        """Každá karta platformy má štítek ověření (data/verification.json) s bublinou, co neověřeno."""
+        self.app.reset_project()
+        self.goto(2)
+        chips = [w for w in walk(self.app.view) if isinstance(w, tk.Label) and hasattr(w, "verif_state")]
+        self.assertEqual(len(chips), len(self.app.PLAT))
+        states = {self.app.VERIF[k]["state"] for k in self.app.PLAT}
+        self.assertEqual({c.verif_state for c in chips}, states)
+        self.assertEqual(self.app.VERIF["codesys"]["state"], "verified")
+        self.assertEqual(self.app.VERIF["siemens"]["state"], "beta")
+        for c in chips:
+            self.assertTrue(c.cget("text"))
+            self.assertIn("\n", c.tip_text)              # význam, co ověřeno, kde, co neověřeno
+        tip = self.app.VERIF["wago"]["tip"]
+        self.assertIn(self.app.VERIF["wago"]["notVerified"], tip)
 
     def test_code_style_only_for_oop_platforms(self):
         """Styl kódu Klasický / OOP: volba jen při platformě s OOP; OOP → rozhraní a třídy v kódu."""

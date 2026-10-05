@@ -1,0 +1,242 @@
+{
+  "_poznamka": "Jediný zdroj pravdy o ověření platforem. Po každém ověření naostro: zapsat záznam sem + protokol do docs/verification/, pak python scripts/build_verification.py (→ packages/core/src/verification_data.ts), build jádra, i18n missing/merge, golden jen README (vědomě). README platforem, výběr platforem v aplikaci (web i desktop) a stránka Platformy webu (apps/site) se aktualizují samy. České texty (summary, notVerified, note) jsou klíče překladu; ide a file jsou technické (bez češtiny).",
+  "states": ["verified", "lang", "beta", "unsupported"],
+  "formatStates": ["ide", "compiler", "xsd", "structure", "emulator"],
+  "scopes": ["classic", "oop", "motion", "axis", "plcopen", "iec61131-10"],
+  "platforms": {
+    "siemens": {
+      "state": "beta",
+      "ide": null,
+      "date": "2026-10-04",
+      "scope": ["classic", "motion", "axis"],
+      "summary": "emulátor PLCdesk: vlastní parser a pravidla dialektu podle příruček výrobce, běh programu scan po scanu proti modelu stroje — všechny příklady bez rozdílu proti návrhu",
+      "notVerified": "import a překlad v TIA Portalu (externí zdroje SCL, SimaticML přes Openness, tabulka tagů), PLCSIM, běh na CPU",
+      "evidence": ["docs/verification/emulator.md"],
+      "formats": [
+        { "file": "Gen_Library.scl, Gen_Main.scl", "state": "emulator" },
+        { "file": "Gen_IO.xml", "state": "structure" },
+        { "file": "Gen_Tags.tsv", "state": "emulator" }
+      ]
+    },
+    "rockwell": {
+      "state": "beta",
+      "ide": null,
+      "date": "2026-10-04",
+      "scope": ["classic", "motion", "axis"],
+      "summary": "emulátor PLCdesk: vlastní parser a pravidla dialektu podle příruček výrobce, běh programu scan po scanu proti modelu stroje — všechny příklady bez rozdílu proti návrhu",
+      "notVerified": "import ve Studiu 5000 a Verify Controller (FBD_TIMER v AOI, výchozí hodnoty parametrů, verze souboru L5X), aliasy I/O na moduly, běh na CPU",
+      "evidence": ["docs/verification/emulator.md"],
+      "formats": [
+        { "file": "PLCdesk_Program.L5X", "state": "structure" },
+        { "file": "MainRoutine.st", "state": "emulator" },
+        { "file": "Tags.csv", "state": "emulator" }
+      ]
+    },
+    "beckhoff": {
+      "state": "beta",
+      "ide": null,
+      "date": "2026-10-04",
+      "scope": ["classic", "oop", "motion", "axis"],
+      "summary": "emulátor PLCdesk: vlastní parser a pravidla dialektu podle příruček výrobce, běh programu scan po scanu proti modelu stroje — všechny příklady bez rozdílu proti návrhu",
+      "notVerified": "import PLCopen XML a TcPOU v TwinCAT 3 (formát PLCopen ověřen jen v CODESYS), linkování I/O, běh na runtime",
+      "evidence": ["docs/verification/emulator.md"],
+      "formats": [
+        { "file": "PLCopen_Import.xml", "state": "xsd" },
+        { "file": "GVL_IO.st, Gen_Library.st, MAIN.st", "state": "emulator" },
+        { "file": "*.TcPOU, I_Device.TcIO (OOP)", "state": "structure" }
+      ]
+    },
+    "codesys": {
+      "state": "verified",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60), CODESYS Control Win V3 x64",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "axis", "plcopen"],
+      "summary": "import PLCopen_Import.xml beze změny, Build a Generate code bez chyb a varování (vzory 00b, 03, 11, 12, sampleSmall, sampleComplex; klasika i OOP, pohony i servoosa SoftMotion)",
+      "notVerified": "download a běh na runtime, skutečná zařízení a I/O",
+      "evidence": ["docs/verification/codesys-3.5.21.60.md"],
+      "formats": [
+        { "file": "PLCopen_Import.xml", "state": "ide" },
+        { "file": "GVL_IO.st, Gen_Library.st, MAIN.st", "state": "ide", "note": "tentýž kód k ručnímu vložení" }
+      ]
+    },
+    "mitsubishi": {
+      "state": "beta",
+      "ide": null,
+      "date": "2026-10-05",
+      "scope": ["classic", "motion", "iec61131-10"],
+      "summary": "emulátor PLCdesk: vlastní parser a pravidla dialektu podle příruček výrobce, běh programu scan po scanu proti modelu stroje — všechny příklady bez rozdílu proti návrhu",
+      "notVerified": "import IEC61131-10_Import.xml i CSV v GX Works3, překlad, GX Simulator3, běh na CPU",
+      "evidence": ["docs/verification/emulator.md"],
+      "formats": [
+        { "file": "IEC61131-10_Import.xml", "state": "xsd", "note": "schéma normy IEC 61131-10 a vzory ověřené v GX Works3" },
+        { "file": "GlobalLabels.csv", "state": "emulator", "note": "formát CSV se liší podle verze GX Works3" },
+        { "file": "Gen_Library.st, MAIN.st", "state": "emulator" }
+      ]
+    },
+    "schneider": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "EcoStruxure Machine Expert, knihovny a zařízení Schneider, adresy I/O, běh na runtime; servoosa se negeneruje",
+      "evidence": ["docs/verification/codesys-3.5.21.60.md"],
+      "formats": [
+        { "file": "PLCopen_Import.xml", "state": "compiler" },
+        { "file": "GVL_IO.st, Gen_Library.st, MAIN.st", "state": "compiler" }
+      ]
+    },
+    "omron": {
+      "state": "beta",
+      "ide": null,
+      "date": "2026-10-04",
+      "scope": ["classic", "motion", "axis"],
+      "summary": "emulátor PLCdesk: vlastní parser a pravidla dialektu podle příruček výrobce, běh programu scan po scanu proti modelu stroje — všechny příklady bez rozdílu proti návrhu",
+      "notVerified": "vložení do Sysmac Studia a překlad, simulace, běh na CPU",
+      "evidence": ["docs/verification/emulator.md"],
+      "formats": [
+        { "file": "Variables.txt", "state": "emulator" },
+        { "file": "Gen_Library.st, MAIN.st", "state": "emulator" }
+      ]
+    },
+    "unitronics": {
+      "state": "lang",
+      "ide": "UniLogic 1.43.369 (ST compiler Unitronics.Compiler.Ladder2C)",
+      "date": "2026-10-05",
+      "scope": ["classic", "motion"],
+      "summary": "ST ověřen překladačem UniLogicu: Machine.st vzorů 00b, 03, 11 a sampleSmall bez chyb (citlivost ověřena 29 vloženými chybami)",
+      "notVerified": "import tagů a ST v UniLogicu, build (fáze C / GCC), volání z Ladderu, TON jako globální tag, běh na UniStreamu",
+      "evidence": ["docs/verification/unilogic-1.43.md"],
+      "formats": [
+        { "file": "Machine.st", "state": "compiler" },
+        { "file": "Tags.csv", "state": "emulator" }
+      ]
+    },
+    "wago": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "e!COCKPIT, knihovny a zařízení WAGO, I/O mapování K-Bus, servoosa SoftMotion Light, běh na runtime",
+      "evidence": ["docs/verification/codesys-3.5.21.60.md"],
+      "formats": [
+        { "file": "PLCopen_Import.xml", "state": "compiler" },
+        { "file": "GVL_IO.st, Gen_Library.st, MAIN.st", "state": "compiler" }
+      ]
+    },
+    "delta": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "axis", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "DIADesigner-AX, knihovny a zařízení Delta, adresy I/O (BuiltIn_IO, LocalBus), běh na runtime",
+      "evidence": ["docs/verification/codesys-3.5.21.60.md"],
+      "formats": [
+        { "file": "PLCopen_Import.xml", "state": "compiler" },
+        { "file": "GVL_IO.st, Gen_Library.st, MAIN.st", "state": "compiler" }
+      ]
+    },
+    "turck": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "IDE a balíky zařízení výrobce, knihovny výrobce, I/O mapování a rozsahy analogů na skutečném HW, běh na runtime",
+      "evidence": ["docs/verification/codesys-profily.md"],
+      "formats": [{ "file": "PLCopen_Import.xml", "state": "compiler" }]
+    },
+    "festo": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "axis", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "IDE a balíky zařízení výrobce, knihovny výrobce, I/O mapování a rozsahy analogů na skutečném HW, běh na runtime",
+      "evidence": ["docs/verification/codesys-profily.md"],
+      "formats": [{ "file": "PLCopen_Import.xml", "state": "compiler" }]
+    },
+    "abb": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "IDE a balíky zařízení výrobce, knihovny výrobce, I/O mapování a rozsahy analogů na skutečném HW, běh na runtime",
+      "evidence": ["docs/verification/codesys-profily.md"],
+      "formats": [{ "file": "PLCopen_Import.xml", "state": "compiler" }]
+    },
+    "rexroth": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "IDE a balíky zařízení výrobce, knihovny výrobce, I/O mapování a rozsahy analogů na skutečném HW, běh na runtime",
+      "evidence": ["docs/verification/codesys-profily.md"],
+      "formats": [{ "file": "PLCopen_Import.xml", "state": "compiler" }]
+    },
+    "inovance": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika)",
+      "notVerified": "IDE a balíky zařízení výrobce, knihovny výrobce, I/O mapování a rozsahy analogů na skutečném HW, běh na runtime; import PLCopen ve starší verzi CODESYS výrobce",
+      "evidence": ["docs/verification/codesys-profily.md"],
+      "formats": [{ "file": "PLCopen_Import.xml", "state": "compiler" }]
+    },
+    "weidmueller": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "IDE a balíky zařízení výrobce, knihovny výrobce, I/O mapování a rozsahy analogů na skutečném HW, běh na runtime",
+      "evidence": ["docs/verification/codesys-profily.md"],
+      "formats": [{ "file": "PLCopen_Import.xml", "state": "compiler" }]
+    },
+    "eaton": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "IDE a balíky zařízení výrobce, knihovny výrobce, I/O mapování a rozsahy analogů na skutečném HW, běh na runtime",
+      "evidence": ["docs/verification/codesys-profily.md"],
+      "formats": [{ "file": "PLCopen_Import.xml", "state": "compiler" }]
+    },
+    "lenze": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "IDE a balíky zařízení výrobce, knihovny výrobce, I/O mapování a rozsahy analogů na skutečném HW, běh na runtime",
+      "evidence": ["docs/verification/codesys-profily.md"],
+      "formats": [{ "file": "PLCopen_Import.xml", "state": "compiler" }]
+    },
+    "berghof": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "IDE a balíky zařízení výrobce, knihovny výrobce, I/O mapování a rozsahy analogů na skutečném HW, běh na runtime",
+      "evidence": ["docs/verification/codesys-profily.md"],
+      "formats": [{ "file": "PLCopen_Import.xml", "state": "compiler" }]
+    },
+    "hitachi": {
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-05",
+      "scope": ["classic", "oop", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS: Build a Generate code bez chyb a varování (klasika i OOP)",
+      "notVerified": "IDE a balíky zařízení výrobce, knihovny výrobce, I/O mapování a rozsahy analogů na skutečném HW, běh na runtime; import PLCopen ve starší verzi CODESYS výrobce",
+      "evidence": ["docs/verification/codesys-profily.md"],
+      "formats": [{ "file": "PLCopen_Import.xml", "state": "compiler" }]
+    }
+  }
+}

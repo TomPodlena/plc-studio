@@ -52,6 +52,7 @@ node scripts/check_samples.mjs [soubor -v]  # příklady samples/: generování 
 node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s)
 node scripts/golden.mjs [--code] [--dump DIR]  # výstupy generátoru × referenční otisky (viz Mezivrstva)
 node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (nová platforma / styl kódu)
+python scripts/build_verification.py        # data/verification.json → verification_data.ts (viz Ověření platforem)
 ```
 
 ## Mezivrstva generátoru (ir.ts) a referenční test
@@ -315,6 +316,34 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   kontrola překladu funguje dál, běh vrátí nález `runtime` („Interní chyba emulátoru…“), nespadne.
   Při nasazení webu s CSP buď povolit `'unsafe-eval'`, nebo běh emulace pouštět ve workeru / v desktopu.
 
+## Ověření platforem (`data/verification.json`)
+
+- **Jediný zdroj pravdy o tom, co je u které platformy ověřené.** Záznam pro KAŽDOU platformu z `PLAT`:
+  `state` (`verified` = import a překlad ve skutečném IDE, `lang` = jazyk ověřen překladačem — CODESYS
+  pro platformy na jeho bázi, překladač ST UniLogicu —, import v IDE výrobce ne, `beta` = jen emulátor,
+  `unsupported`), `ide` (IDE / překladač a verze, technický text; `null` jen u beta), `date`, `scope`
+  (classic / oop / motion / axis / plcopen / iec61131-10), `summary` a `notVerified` (české klíče
+  překladu), `evidence` (protokoly v `docs/verification/`), `formats` (výstupy: ide / compiler / xsd /
+  structure / emulator + poznámka). Stav 2026-10-05: CODESYS `verified`; Schneider, WAGO, Delta,
+  10 profilů a Unitronics `lang`; Siemens, Rockwell, Beckhoff, Mitsubishi, OMRON `beta`.
+- `python scripts/build_verification.py` (`--check`) → `packages/core/src/verification_data.ts` (texty jako
+  `N_()`); `verification.ts`: `VERIFICATION`, `verificationInfo(plat)` (štítek, bublina `tip`),
+  `verificationReadme(plat)`, `verificationLatest()`. Test `verification.test.ts`: každá platforma má
+  záznam a žádný navíc, TS = JSON, protokoly existují, README každé platformy × 5 jazyků nese štítek.
+- Kdo to čte: **README platforem** (`genFor`: štítek „STAV OVĚŘENÍ“ hned pod nadpisem platformy, jednotně
+  — ručně psané věty o ověření do README NEPSAT), **aplikace** (krok Platformy: čip ověřeno v IDE / jazyk
+  ověřen / beta s bublinou, co neověřeno — web `steps.js` `verificationInfo`, desktop `platformy.py`
+  přes `VERIF` z mostu `init`), **web** `apps/site/scripts/build.js` (čte JSON přímo: `{{site.platform_count}}`,
+  „Stav k“ = nejnovější datum, stav každého řádku tabulky; texty řádků zůstávají v `content/<jazyk>.json`
+  s `key` nebo `members` — sloučený řádek profilů CODESYS, dlaždice se rozvinou po platformách; nesoulad
+  platforem / stavů nebo natvrdo psaný počet platforem = varování buildu → deploy se zastaví).
+- **Pravidlo: po každém ověření naostro** (import / překlad v IDE nebo překladači výrobce) zapsat záznam do
+  `data/verification.json` + protokol bez osobních údajů do `docs/verification/<ide>-<verze>.md`, pak
+  `build_verification.py`, build jádra, `i18n.py missing/merge`, golden **jen README** (vědomá změna, výběrové
+  přepsání otisků README, ne `--write` na vše), u nové platformy / změny stavu řádek v `apps/site/content/*.json`.
+  Web, README a aplikace se pak aktualizují samy. Protokoly: `codesys-3.5.21.60.md`, `codesys-profily.md`,
+  `unilogic-1.43.md`, `emulator.md` (co znamená beta).
+
 ## Styl kódu OOP a profily CODESYS (WAGO, Delta AX)
 
 - **Jedno chování, dvě podoby zápisu.** `prj.codeStyle?: "classic" | "oop"` (výchozí classic, ukládá
@@ -557,8 +586,11 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
 - **Unitronics (UniLogic / UniStream):** ST funkce nemá paměť a FB v ST nejsou → generuje se
   plochý ST (`Machine.st`) a seznam tagů (`Tags.csv`). Logika bloků se **neopisuje** — vzniká
   z týchž šablon `ST_MOTOR` / `ST_VENTIL` / … přes `parseFbTemplate()` + `inlineFb()` + `uniDialect()`,
-  takže změna šablony se propíše sama. Výstup je čisté ASCII a **není ověřen překladem**
-  v UniLogic (README to uvádí) — po prvním překladu u uživatele doplnit zjištěné odchylky dialektu.
+  takže změna šablony se propíše sama. Výstup je čisté ASCII. **ST ověřen překladačem UniLogic 1.43.369**
+  (2026-10-05, vzory 00b / 03 / 11 / sampleSmall 0 chyb, harness nad `Unitronics.Compiler.Ladder2C`,
+  `docs/verification/unilogic-1.43.md`, stav `lang`); import tagů a ST v GUI, build (C / GCC), volání
+  z Ladderu a TON jako globální tag neověřeny — po prvním překladu v GUI doplnit nálezy (i odchylky
+  emulátoru z protokolu: převody INT↔UINT / zúžení = chyba, END_IF bez `;` přijat, vnořené komentáře).
 - **Simulace = zrcadlo generátoru.** `sim.ts` (třída `Simulator`, jeden `scan()` = jeden scan
   programu; nad ní dávková `simulate()` i živá simulace v desktopu) provádí logiku, kterou generuje
   `codegen.ts` (FB_Motor/FB_Ventil, timeouty, CASE sekvence, pořadí enable → sekvence → TON →
@@ -624,7 +656,8 @@ pokyn k jazyku výstupu. Úkol pro app (apps/web):
 
 ## IEC 61131-10 XML (GX Works3, PLCnext)
 
-- **Stav: NEOVĚŘENO importem** (GX Works3 ani PLCnext Engineer tu nejsou) — README Mitsubishi to uvádí.
+- **Stav: NEOVĚŘENO importem** (GX Works3 ani PLCnext Engineer tu nejsou) — README Mitsubishi to uvádí
+  (štítek z `data/verification.json`: výstup `xsd`).
   Ověřeno: XSD normy (lxml, vzory 00a–12 × 5 jazyků, Mitsubishi i varianta PLCnext) a strukturní kontrola.
 - `iec61131_10.ts`: `iec61131_10Xml(prj, "mitsubishi" | "plcnext", files?)` staví XML z **finálního textu**
   platformy (Gen_Library.st / MAIN.st přes `splitLibrary` / `parseStPou` / `stSections`, globální návěští

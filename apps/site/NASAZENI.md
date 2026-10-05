@@ -57,6 +57,13 @@ node scripts/iso.js                            # izometrické ilustrace -> templ
 Texty jsou jen v `content/{cs,en,de}.json` (čeština je zdroj pravdy, struktura shodná).
 Název značky, adresa webu a kontakt jsou jen v `content/site.json`; v textech se píší jako `{{site.brand}}`.
 
+**Stav ověření platforem** je jen v `data/verification.json` (kořen repozitáře, sdílí ho jádro i aplikace).
+Build z něj bere počet platforem (`{{site.platform_count}}` v textech — číslo se nepíše natvrdo), „Stav k“
+(nejnovější datum) a stav každého řádku tabulky na stránce Platformy. Řádek v `content/<jazyk>.json` nese
+`key` (platforma) nebo `members` (sloučený řádek, dlaždice se rozvinou po platformách). Platforma bez řádku,
+řádek bez platformy nebo jiný stav = varování buildu → nasazení se zastaví. Po ověření nové platformy proto
+upravit `data/verification.json` (+ protokol v `docs/verification/`) a řádek ve všech třech jazycích.
+
 ---
 
 ## A. Start zdarma

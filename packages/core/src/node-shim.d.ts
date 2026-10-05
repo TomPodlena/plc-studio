@@ -6,6 +6,7 @@ declare module "node:test" {
 declare module "node:fs" {
   export function readFileSync(p: string | URL, enc: "utf8"): string;
   export function readdirSync(p: string | URL): string[];
+  export function existsSync(p: string | URL): boolean;
   export function writeFileSync(p: string, data: string): void;
   export function mkdtempSync(prefix: string): string;
   export function rmSync(p: string, opts?: { recursive?: boolean; force?: boolean }): void;
