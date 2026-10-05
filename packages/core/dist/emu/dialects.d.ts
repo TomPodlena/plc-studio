@@ -14,6 +14,7 @@ export declare const SRC: {
     readonly cdsAddr: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_operands_addresses.html";
     readonly cdsPragma: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_pragma_attribute_qualified_only.html";
     readonly cdsConv: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_operator_type_conversion.html";
+    readonly cdsPlcopen: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html";
     readonly tcAt: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/11948825611.html";
     readonly tcAlloc: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/12081664011.html";
     readonly tcComment: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/2528329355.html";

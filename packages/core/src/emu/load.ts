@@ -12,6 +12,8 @@ import type { CompileInput, TagDecl, AoiDecl } from "./compile.js";
 import { xmlProblems } from "../logix.js";
 import { isCodesysFamily } from "../model.js";
 import { checkOopFiles } from "./oop_files.js";
+import { checkPlcopenStructure } from "./plcopen_check.js";
+import { checkIec10Files } from "./iec61131_10_check.js";
 import { tr } from "../i18n.js";
 import { axisDialect } from "../axis_gen.js";
 import { axisCfgOf, axisObjName } from "../axis.js";
@@ -222,6 +224,10 @@ function loadIec(prj: Project, files: Record<string, string>, d: Dialect, out: E
   for (const n of Object.keys(files).sort()) if (/\.st$/i.test(n) && !["GVL_IO.st", "Gen_Library.st", "MAIN.st"].includes(n)) units.push(parseCode(files[n], n, d, out));
   if (main === undefined) { out.push({ level: "error", rule: "syntax", file: "MAIN.st", line: 0, col: 0, platform: plat, msg: tr("Chybí soubor {file}", { file: "MAIN.st" }) }); return; }
   units.push(parseCode(main, "MAIN.st", d, out));
+  /* PLCopen_Import.xml: struktura pro import CODESYS (GVL v addData, rozhraní POU = ST, textová deklarace OOP) */
+  if (isCodesysFamily(plat)) checkPlcopenStructure(files, units, plat, out);
+  /* IEC61131-10_Import.xml (Mitsubishi): struktura normy, POU = ST, globální návěští = GlobalLabels.csv */
+  if (plat === "mitsubishi") checkIec10Files(files, plat, out);
   const prog = units.flatMap(u => u.pous).find(p => p.kind === "program");
   return { d, units, tags, entry: { program: prog ? prog.name : "MAIN" } };
 }

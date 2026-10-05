@@ -5,12 +5,16 @@
 
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
-import { generateKeyPairSync, createHmac, createPublicKey, verify } from "node:crypto";
+import { generateKeyPairSync, createHmac, createPublicKey, verify, sign, hkdfSync, randomBytes } from "node:crypto";
 import worker from "../worker/index.js";
+import { ADMIN_PATHS, _resetAccessCache } from "../worker/admin.js";
 
 const db = new DatabaseSync(":memory:");
-for (const stmt of readFileSync(new URL("../schema.sql", import.meta.url), "utf8").split(";")) {
-  if (stmt.replace(/--.*$/gm, "").trim()) db.exec(stmt + ";");
+// schema.sql + migrace spravy zakazniku (schema_admin.sql) - stejne poradi jako pri nasazeni
+for (const f of ["../schema.sql", "../schema_admin.sql"]) {
+  for (const stmt of readFileSync(new URL(f, import.meta.url), "utf8").split(";")) {
+    if (stmt.replace(/--.*$/gm, "").trim()) db.exec(stmt + ";");
+  }
 }
 
 // --- D1 shim ---
@@ -68,13 +72,21 @@ const env = {
   ADMIN_TOKEN: "test-admin",
 };
 
-// Odchozi pozadavky odchytime: Resend a Turnstile. Nic jineho ven nesmi.
+// Klice Cloudflare Access (testovaci tymova domena) - plni je testy spravy nize
+const accessCerts = new Map();
+const accessCertFetches = [];
+
+// Odchozi pozadavky odchytime: Resend, Turnstile a certs Cloudflare Access. Nic jineho ven nesmi.
 const sentMail = [];
 globalThis.fetch = async (url, opts) => {
   const u = String(url);
   if (u.includes("resend.com")) {
     sentMail.push(JSON.parse(opts.body));
     return new Response(JSON.stringify({ id: "mock" }), { status: 200 });
+  }
+  if (accessCerts.has(u)) {
+    accessCertFetches.push(u);
+    return new Response(JSON.stringify(accessCerts.get(u)), { status: 200 });
   }
   if (u.includes("challenges.cloudflare.com/turnstile")) {
     const ok = opts.body.get("secret") === "ts-test-secret" && opts.body.get("response") === "human";
@@ -438,6 +450,700 @@ await check("subscription.canceled -> zruseno a zamceno", async () => {
   await paddle({ event_id: "evt_pdl_6", event_type: "subscription.canceled", data: { id: "sub_pdl_1" } });
   const key = db.prepare("SELECT key FROM licenses WHERE sub_id='sub_pdl_1'").get().key;
   eq((await call("POST", "/api/license/activate", { key, device_hash: "pc-9" })).status, 403, "status");
+});
+
+// =====================================================================================
+console.log("\nsprava zakazniku: prihlaseni tokenem");
+const SITE = "https://plcdesk.ucet.workers.dev";
+const COOKIE = "__Host-plcdesk_admin";
+const IP = "198.51.100.7";
+// pozadavek ze stranky /sprava: spravny Origin, X-Requested-With, IP klienta
+const adm = (method, path, body, headers = {}, e = env) =>
+  call(method, path, body, { Origin: SITE, "X-Requested-With": "plcdesk-admin", "CF-Connecting-IP": IP, ...headers }, e);
+const cookieOf = (r) => {
+  const m = new RegExp(`${COOKIE}=([^;]*)`).exec(r.headers.get("set-cookie") || "");
+  return m ? m[1] : null;
+};
+const withCookie = (c, extra = {}) => ({ Cookie: `${COOKIE}=${c}`, ...extra });
+const auditRows = (action) => db.prepare("SELECT * FROM admin_audit WHERE action = ? ORDER BY id").all(action);
+// cookie podepsana stejne jako ve Workeru (HKDF z tokenu -> HMAC-SHA256), at jde podvrhnout exp/nonce
+const sessionSig = (token, payload) =>
+  createHmac("sha256", Buffer.from(hkdfSync("sha256", token, "plcdesk-admin-session-v1", "cookie-hmac", 32))).update(payload).digest("base64url");
+
+let session;
+await check("spravny token -> 200 a cookie __Host- (HttpOnly, Secure, SameSite=Strict, Path=/, 8 h)", async () => {
+  const r = await adm("POST", "/api/admin/login", { token: "test-admin" });
+  eq(r.status, 200, "status");
+  const sc = r.headers.get("set-cookie");
+  for (const a of ["HttpOnly", "Secure", "SameSite=Strict", "Path=/", "Max-Age=28800"]) if (!sc.includes(a)) throw new Error("chybi " + a + ": " + sc);
+  if (/domain=/i.test(sc)) throw new Error("__Host- cookie nesmi mit Domain");
+  session = cookieOf(r);
+  if (!/^v1\.\d{10}\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$/.test(session)) throw new Error("tvar cookie " + session);
+  eq(r.headers.get("cache-control"), "no-store", "cache");
+  eq(auditRows("login").length, 1, "audit login");
+});
+await check("cookie otevre /api/admin/me (actor token, konec relace do 8 h)", async () => {
+  const r = await adm("GET", "/api/admin/me", undefined, withCookie(session));
+  eq(r.status, 200, "status");
+  const d = await r.json();
+  eq([d.actor, d.via], ["token", "token"], "kdo");
+  const left = Date.parse(d.expires_at) - Date.now();
+  if (left < 7.9 * 3600e3 || left > 8 * 3600e3 + 5000) throw new Error("platnost " + d.expires_at);
+});
+await check("spatny token -> 401, pokus v admin_attempts, v auditu i v logu (bez tokenu)", async () => {
+  const warn = console.warn;
+  const logged = [];
+  console.warn = (...a) => logged.push(a.join(" "));
+  try {
+    const r = await adm("POST", "/api/admin/login", { token: "test-admiN" }, { "CF-Connecting-IP": "192.0.2.10" });
+    eq(r.status, 401, "status");
+    eq(cookieOf(r), null, "cookie");
+  } finally {
+    console.warn = warn;
+  }
+  eq(count("SELECT COUNT(*) AS n FROM admin_attempts WHERE ip = '192.0.2.10' AND ok = 0"), 1, "pokusy");
+  if (!auditRows("login_failed").some((a) => a.ip === "192.0.2.10")) throw new Error("audit");
+  if (!logged.some((l) => l.includes("192.0.2.10"))) throw new Error("log");
+  if (logged.some((l) => l.includes("test-admiN"))) throw new Error("token v logu");
+});
+await check("prazdny / chybejici / prilis dlouhy token -> 401", async () => {
+  for (const token of ["", undefined, 42, "x".repeat(5000)]) {
+    eq((await adm("POST", "/api/admin/login", { token }, { "CF-Connecting-IP": "192.0.2.11" })).status, 401, String(token).slice(0, 10));
+  }
+});
+await check("5 neuspechu z jedne IP -> 429 s Retry-After, i spravny token; jina IP projde", async () => {
+  const ip = { "CF-Connecting-IP": "203.0.113.9" };
+  for (let i = 0; i < 5; i++) eq((await adm("POST", "/api/admin/login", { token: "zkouska" + i }, ip)).status, 401, "pokus " + i);
+  const r = await adm("POST", "/api/admin/login", { token: "test-admin" }, ip);
+  eq(r.status, 429, "status");
+  const ra = Number(r.headers.get("retry-after"));
+  if (!(ra > 0 && ra <= 900)) throw new Error("Retry-After " + ra);
+  eq(cookieOf(r), null, "cookie");
+  eq((await adm("POST", "/api/admin/login", { token: "test-admin" }, { "CF-Connecting-IP": "203.0.113.10" })).status, 200, "jina IP");
+});
+await check("po 15 minutach se IP odblokuje", async () => {
+  db.prepare("UPDATE admin_attempts SET at = ? WHERE ip = '203.0.113.9'").run(new Date(Date.now() - 16 * 60e3).toISOString());
+  eq((await adm("POST", "/api/admin/login", { token: "test-admin" }, { "CF-Connecting-IP": "203.0.113.9" })).status, 200, "status");
+});
+await check("IPv6: omezeni plati pro celou sit /64", async () => {
+  for (let i = 1; i <= 5; i++) await adm("POST", "/api/admin/login", { token: "x" }, { "CF-Connecting-IP": `2001:db8:0:7::${i}` });
+  eq((await adm("POST", "/api/admin/login", { token: "test-admin" }, { "CF-Connecting-IP": "2001:db8:0:7:abcd::99" })).status, 429, "stejna /64");
+  eq((await adm("POST", "/api/admin/login", { token: "test-admin" }, { "CF-Connecting-IP": "2001:db8:0:8::1" })).status, 200, "jina /64");
+});
+await check("skriptova cesta (X-Admin-Token) taky pocita neuspechy -> 429", async () => {
+  const ip = { "CF-Connecting-IP": "203.0.113.50" };
+  for (let i = 0; i < 5; i++) eq((await call("POST", "/api/admin/license", { email: "x@y.cz" }, { "X-Admin-Token": "spatne", ...ip })).status, 401, "pokus");
+  eq((await call("POST", "/api/admin/license", { email: "x@y.cz" }, { "X-Admin-Token": "test-admin", ...ip })).status, 429, "blok");
+});
+await check("prosla cookie (exp v minulosti, spravne podepsana) -> 401", async () => {
+  const exp = Math.floor(Date.now() / 1000) - 10;
+  const nonce = session.split(".")[2];
+  const c = `v1.${exp}.${nonce}.${sessionSig("test-admin", `v1.${exp}.${nonce}`)}`;
+  eq((await adm("GET", "/api/admin/me", undefined, withCookie(c))).status, 401, "status");
+});
+await check("cookie s exp dal nez 8 h (spravne podepsana) -> 401", async () => {
+  const exp = Math.floor(Date.now() / 1000) + 30 * 864e2;
+  const nonce = session.split(".")[2];
+  const c = `v1.${exp}.${nonce}.${sessionSig("test-admin", `v1.${exp}.${nonce}`)}`;
+  eq((await adm("GET", "/api/admin/me", undefined, withCookie(c))).status, 401, "status");
+});
+await check("relace prosla v D1 -> 401", async () => {
+  const c = cookieOf(await adm("POST", "/api/admin/login", { token: "test-admin" }));
+  db.prepare("UPDATE admin_sessions SET expires_at = ? WHERE id = ?").run(new Date(Date.now() - 1000).toISOString(), c.split(".")[2]);
+  eq((await adm("GET", "/api/admin/me", undefined, withCookie(c))).status, 401, "status");
+});
+await check("podvrzeny podpis, jiny klic, cizi nonce, nesmysl -> 401", async () => {
+  const [v, exp, nonce, sig] = session.split(".");
+  const flip = sig.slice(0, -2) + (sig.at(-2) === "A" ? "B" : "A") + sig.at(-1);
+  const otherKey = `${v}.${exp}.${nonce}.${sessionSig("jiny-token", `${v}.${exp}.${nonce}`)}`;
+  const n2 = randomBytes(16).toString("base64url");
+  const unknownNonce = `${v}.${exp}.${n2}.${sessionSig("test-admin", `${v}.${exp}.${n2}`)}`; // podpis sedi, relace v D1 neni
+  for (const c of [`${v}.${exp}.${nonce}.${flip}`, otherKey, unknownNonce, "nesmysl", session + "x", ""]) {
+    eq((await adm("GET", "/api/admin/me", undefined, withCookie(c))).status, 401, c.slice(0, 20));
+  }
+});
+await check("rotace ADMIN_TOKEN zneplatni dosavadni relace", async () => {
+  eq((await adm("GET", "/api/admin/me", undefined, withCookie(session), { ...env, ADMIN_TOKEN: "novy-token" })).status, 401, "status");
+});
+await check("odhlaseni smaze cookie a relaci zneplatni i na serveru", async () => {
+  const c = cookieOf(await adm("POST", "/api/admin/login", { token: "test-admin" }));
+  const r = await adm("POST", "/api/admin/logout", {}, withCookie(c));
+  eq(r.status, 200, "status");
+  if (!/Max-Age=0/.test(r.headers.get("set-cookie"))) throw new Error("cookie nesmazana");
+  eq((await adm("GET", "/api/admin/me", undefined, withCookie(c))).status, 401, "stara cookie");
+  eq(auditRows("logout").length, 1, "audit");
+});
+await check("bez ADMIN_TOKEN i bez Access -> 503 (login i API)", async () => {
+  const e = { ...env, ADMIN_TOKEN: undefined };
+  eq((await adm("POST", "/api/admin/login", { token: "x" }, {}, e)).status, 503, "login");
+  eq((await adm("GET", "/api/admin/summary", undefined, withCookie(session), e)).status, 503, "summary");
+});
+
+console.log("\nsprava zakazniku: Cloudflare Access");
+const accessKeys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+const rogueKeys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+const TEAM = "https://plcdesk-test.cloudflareaccess.com";
+accessCerts.set(`${TEAM}/cdn-cgi/access/certs`, {
+  keys: [{ ...accessKeys.publicKey.export({ format: "jwk" }), kid: "k1", alg: "RS256", use: "sig" }],
+});
+const aenv = { ...env, ADMIN_TOKEN: undefined, ACCESS_TEAM_DOMAIN: "plcdesk-test", ACCESS_AUD: "aud-plcdesk-123", ADMIN_EMAILS: "Boss@Firma.cz, druhy@firma.cz" };
+function jwt(claims = {}, { kid = "k1", alg = "RS256", key = accessKeys.privateKey, tamper } = {}) {
+  const nowS = Math.floor(Date.now() / 1000);
+  const head = Buffer.from(JSON.stringify({ alg, kid, typ: "JWT" })).toString("base64url");
+  const body = Buffer.from(JSON.stringify({ iss: TEAM, aud: ["aud-plcdesk-123"], email: "boss@firma.cz", iat: nowS, nbf: nowS, exp: nowS + 600, sub: "u1", ...claims })).toString("base64url");
+  const s = sign("sha256", Buffer.from(`${head}.${body}`), key).toString("base64url");
+  return `${head}.${tamper ? tamper(body) : body}.${s}`;
+}
+const viaAccess = (token, method = "GET", path = "/api/admin/me", body, e = aenv) => adm(method, path, body, { "Cf-Access-Jwt-Assertion": token }, e);
+_resetAccessCache();
+await check("platny JWT podepsany klicem tymu -> 200, actor = e-mail", async () => {
+  const r = await viaAccess(jwt());
+  eq(r.status, 200, "status");
+  const d = await r.json();
+  eq([d.actor, d.via], ["boss@firma.cz", "access"], "kdo");
+});
+await check("klice se cachuji (druhy pozadavek bez stahovani)", async () => {
+  const before = accessCertFetches.length;
+  eq((await viaAccess(jwt())).status, 200, "status");
+  eq(accessCertFetches.length, before, "stahovani");
+});
+await check("spatne aud -> 401", async () => eq((await viaAccess(jwt({ aud: ["jina-aplikace"] }))).status, 401, "status"));
+await check("spatne iss -> 401", async () => eq((await viaAccess(jwt({ iss: "https://jiny.cloudflareaccess.com" }))).status, 401, "status"));
+await check("prosly exp -> 401", async () => eq((await viaAccess(jwt({ exp: Math.floor(Date.now() / 1000) - 3600 }))).status, 401, "status"));
+await check("nbf v budoucnosti -> 401", async () => eq((await viaAccess(jwt({ nbf: Math.floor(Date.now() / 1000) + 3600 }))).status, 401, "status"));
+await check("bez exp -> 401", async () => eq((await viaAccess(jwt({ exp: undefined }))).status, 401, "status"));
+await check("e-mail mimo ADMIN_EMAILS -> 403", async () => eq((await viaAccess(jwt({ email: "cizi@firma.cz" }))).status, 403, "status"));
+await check("bez e-mailu (service token) -> 403", async () => eq((await viaAccess(jwt({ email: undefined }))).status, 403, "status"));
+await check("prazdne ADMIN_EMAILS -> nikdo (403)", async () => eq((await viaAccess(jwt(), "GET", "/api/admin/me", undefined, { ...aenv, ADMIN_EMAILS: "" })).status, 403, "status"));
+await check("podpis jinym klicem se stejnym kid -> 401", async () => eq((await viaAccess(jwt({}, { key: rogueKeys.privateKey }))).status, 401, "status"));
+await check("zmeneny payload po podpisu -> 401", async () => {
+  const forged = Buffer.from(JSON.stringify({ iss: TEAM, aud: ["aud-plcdesk-123"], email: "boss@firma.cz", exp: 9999999999 })).toString("base64url");
+  eq((await viaAccess(jwt({ email: "cizi@firma.cz" }, { tamper: () => forged }))).status, 401, "status");
+});
+await check("alg none / HS256 -> 401", async () => {
+  const nowS = Math.floor(Date.now() / 1000);
+  const p = Buffer.from(JSON.stringify({ iss: TEAM, aud: ["aud-plcdesk-123"], email: "boss@firma.cz", exp: nowS + 600 })).toString("base64url");
+  const none = `${Buffer.from('{"alg":"none","kid":"k1"}').toString("base64url")}.${p}.`;
+  const hsHead = Buffer.from('{"alg":"HS256","kid":"k1"}').toString("base64url");
+  const hs = `${hsHead}.${p}.${createHmac("sha256", "k1").update(`${hsHead}.${p}`).digest("base64url")}`;
+  eq((await viaAccess(none)).status, 401, "none");
+  eq((await viaAccess(hs)).status, 401, "HS256");
+});
+await check("neznamy kid -> znovu stahne klice, pak 401", async () => {
+  _resetAccessCache();
+  const before = accessCertFetches.length;
+  eq((await viaAccess(jwt({}, { kid: "k-neznamy" }))).status, 401, "status");
+  eq(accessCertFetches.length, before + 1, "stahovani");
+});
+await check("bez hlavicky JWT a bez cookie -> 401", async () => eq((await adm("GET", "/api/admin/me", undefined, {}, aenv)).status, 401, "status"));
+await check("tymova domena mimo cloudflareaccess.com -> zadne stahovani, 401", async () => {
+  _resetAccessCache();
+  const before = accessCertFetches.length;
+  eq((await viaAccess(jwt(), "GET", "/api/admin/me", undefined, { ...aenv, ACCESS_TEAM_DOMAIN: "https://utocnik.example.com" })).status, 401, "status");
+  eq(accessCertFetches.length, before, "stahovani");
+});
+await check("jen Access (bez ADMIN_TOKEN): prihlaseni tokenem -> 503", async () => {
+  eq((await adm("POST", "/api/admin/login", { token: "x" }, {}, aenv)).status, 503, "status");
+});
+await check("bez Access nastaveni se hlavicka JWT ignoruje (401)", async () => {
+  eq((await viaAccess(jwt(), "GET", "/api/admin/me", undefined, { ...aenv, ACCESS_AUD: "", ADMIN_TOKEN: "test-admin" })).status, 401, "status");
+});
+
+console.log("\nsprava zakazniku: CSRF a pristup");
+await check("vsechny /api/admin/* bez prihlaseni -> 401 (no-store, DENY)", async () => {
+  const routes = [["GET", "/api/admin/me"], ["GET", "/api/admin/summary"], ["GET", "/api/admin/customers"], ["GET", "/api/admin/customer?email=beta@firma.cz"],
+    ["POST", "/api/admin/license"], ["POST", "/api/admin/activation/release"], ["POST", "/api/admin/note"], ["GET", "/api/admin/export.csv?type=customers"], ["GET", "/api/admin/audit"],
+    ["GET", "/api/admin/crm"], ["GET", "/api/admin/crm/lead?id=x"], ["POST", "/api/admin/crm/lead"], ["POST", "/api/admin/crm/move"],
+    ["POST", "/api/admin/crm/note"], ["POST", "/api/admin/crm/delete"], ["POST", "/api/admin/crm/import"], ["GET", "/api/admin/crm/export.csv"]];
+  const covered = new Set(routes.map(([, p]) => p.split("?")[0]));
+  for (const p of ADMIN_PATHS) if (!covered.has(p) && !/login|logout/.test(p)) throw new Error("netestovana cesta " + p);
+  for (const [m, p] of routes) {
+    const r = await adm(m, p, m === "POST" ? { email: "beta@firma.cz", id: "x", body: "x", action: "cancel", key: "PLCD-AAAA-AAAA-AAAA-AAAA" } : undefined);
+    eq(r.status, 401, `${m} ${p}`);
+    eq(r.headers.get("cache-control"), "no-store", "cache " + p);
+    eq(r.headers.get("x-frame-options"), "DENY", "XFO " + p);
+  }
+});
+await check("neznama cesta /api/admin/* -> 404, spatna metoda -> 405", async () => {
+  eq((await adm("GET", "/api/admin/nic", undefined, withCookie(session))).status, 404, "404");
+  eq((await adm("GET", "/api/admin/note", undefined, withCookie(session))).status, 405, "405");
+});
+session = cookieOf(await adm("POST", "/api/admin/login", { token: "test-admin" }));
+const S = withCookie(session);
+await check("cizi Origin -> 403 (mutace, prihlaseni, odhlaseni)", async () => {
+  eq((await adm("POST", "/api/admin/note", { email: "beta@firma.cz", body: "x" }, { ...S, Origin: "https://utocnik.example" })).status, 403, "note");
+  eq((await adm("POST", "/api/admin/login", { token: "test-admin" }, { Origin: "https://utocnik.example" })).status, 403, "login");
+  eq((await adm("POST", "/api/admin/logout", {}, { ...S, Origin: "null" })).status, 403, "logout");
+});
+await check("chybejici Origin nebo X-Requested-With -> 403", async () => {
+  eq((await call("POST", "/api/admin/note", { email: "beta@firma.cz", body: "x" }, { ...S, "X-Requested-With": "x" })).status, 403, "bez Origin");
+  eq((await call("POST", "/api/admin/note", { email: "beta@firma.cz", body: "x" }, { ...S, Origin: SITE })).status, 403, "bez XRW");
+});
+await check("Sec-Fetch-Site: cross-site -> 403 i pro GET", async () => {
+  eq((await adm("GET", "/api/admin/summary", undefined, { ...S, "Sec-Fetch-Site": "cross-site" })).status, 403, "status");
+});
+await check("telo jinak nez JSON -> 415, prilis velke -> 413", async () => {
+  eq((await adm("POST", "/api/admin/note", "email=beta@firma.cz", { ...S, "Content-Type": "text/plain" })).status, 415, "415");
+  eq((await adm("POST", "/api/admin/note", { email: "beta@firma.cz", body: "x".repeat(20000) }, S)).status, 413, "413");
+});
+await check("stranka /sprava/: prisna CSP, X-Frame-Options DENY, no-store, noindex", async () => {
+  const r = await call("GET", "/sprava/");
+  const csp = r.headers.get("content-security-policy") || "";
+  for (const d of ["default-src 'self'", "frame-ancestors 'none'", "script-src 'self'", "object-src 'none'"]) if (!csp.includes(d)) throw new Error("CSP: " + csp);
+  if (csp.includes("unsafe")) throw new Error("unsafe v CSP");
+  eq([r.headers.get("x-frame-options"), r.headers.get("cache-control"), r.headers.get("x-robots-tag")], ["DENY", "no-store", "noindex, nofollow"], "hlavicky");
+  eq(assetHits.at(-1), "/sprava/", "ASSETS");
+  const other = await call("GET", "/funkce/");
+  eq(other.headers.get("content-security-policy"), null, "ostatni stranky beze zmeny");
+});
+
+console.log("\nsprava zakazniku: data");
+await check("souhrn odpovida databazi", async () => {
+  const r = await adm("GET", "/api/admin/summary", undefined, S);
+  eq(r.status, 200, "status");
+  const d = await r.json();
+  const nowI = new Date().toISOString();
+  eq(d.leads.total, count("SELECT COUNT(*) AS n FROM leads"), "leady");
+  eq(d.leads.d30, count(`SELECT COUNT(*) AS n FROM leads WHERE created_at >= '${new Date(Date.now() - 30 * 864e5).toISOString()}'`), "leady 30");
+  eq(d.licenses.active_total, count(`SELECT COUNT(*) AS n FROM licenses WHERE status='active' AND valid_until >= '${nowI}'`), "aktivni");
+  eq(d.licenses.canceled, count("SELECT COUNT(*) AS n FROM licenses WHERE status='canceled'"), "zrusene");
+  eq(d.licenses.past_due, count("SELECT COUNT(*) AS n FROM licenses WHERE status='past_due'"), "po splatnosti");
+  eq(d.activations, count("SELECT COUNT(*) AS n FROM activations WHERE revoked_at IS NULL"), "aktivace");
+  eq(d.payments_30d, count("SELECT COUNT(*) AS n FROM payment_events"), "platby");
+  if (!(d.licenses.active.pro >= 1)) throw new Error("rozpad podle tarifu " + JSON.stringify(d.licenses.active));
+});
+await check("seznam zakazniku = sjednoceni leads, licenses a unlocks, stav podle licence", async () => {
+  const d = await (await adm("GET", "/api/admin/customers", undefined, S)).json();
+  eq(d.total, count("SELECT COUNT(*) AS n FROM (SELECT email FROM leads UNION SELECT email FROM licenses UNION SELECT email FROM project_unlocks)"), "pocet");
+  const beta = d.customers.find((c) => c.email === "beta@firma.cz");
+  eq([beta.status, beta.plan, beta.devices], ["active", "pro", 1], "beta");
+  eq(d.customers.find((c) => c.email === "maly@integrator.cz").status, "lead", "jen odemceni");
+  eq(d.customers.find((c) => c.email === "integrator@firma.cz").status, "downloaded", "stahl");
+  eq(d.customers.find((c) => c.email === "platil@firma.cz").status, "canceled", "zrusena");
+});
+await check("hledani podle e-mailu i casti klice, filtr stavu, LIKE bez zastupnych znaku", async () => {
+  const q = async (qs) => await (await adm("GET", "/api/admin/customers?" + qs, undefined, S)).json();
+  eq((await q("q=BETA@")).customers.map((c) => c.email), ["beta@firma.cz"], "e-mail");
+  eq((await q("q=" + encodeURIComponent(licKey.slice(5, 14)))).customers.map((c) => c.email), ["beta@firma.cz"], "klic");
+  const canceled = (await q("status=canceled")).customers;
+  if (!canceled.length || canceled.some((c) => c.status !== "canceled")) throw new Error("filtr");
+  eq((await q("q=%25")).total, 0, "% doslova");
+  eq((await q("q=_")).total, 0, "_ doslova");
+  eq((await q("status=" + encodeURIComponent("x' OR 1=1 --"))).total, (await q("")).total, "neznamy stav = vse");
+});
+await check("strankovani po 50", async () => {
+  for (let i = 0; i < 55; i++) db.prepare("INSERT INTO leads (id, email, locale, created_at) VALUES (?, ?, 'cs', ?)").run("bulk" + i, `hromadny${i}@example.cz`, new Date(Date.now() - i * 1000).toISOString());
+  const p1 = await (await adm("GET", "/api/admin/customers?q=hromadny", undefined, S)).json();
+  const p2 = await (await adm("GET", "/api/admin/customers?q=hromadny&page=2", undefined, S)).json();
+  eq([p1.total, p1.pages, p1.customers.length, p2.customers.length], [55, 2, 50, 5], "strany");
+  if (p1.customers.some((c) => p2.customers.find((x) => x.email === c.email))) throw new Error("prekryv stran");
+});
+await check("detail zakaznika: lead, licence, pocitace (zkraceny otisk), platby, audit zobrazeni", async () => {
+  const r = await adm("GET", "/api/admin/customer?email=Beta@Firma.cz", undefined, S);
+  eq(r.status, 200, "status");
+  const d = await r.json();
+  eq(d.licenses.map((l) => l.key), [licKey], "licence");
+  eq(d.activations.length, 1, "pocitace");
+  if (d.activations[0].device_hash.length > 12) throw new Error("otisk nezkraceny");
+  if (!auditRows("customer_view").some((a) => a.target === "beta@firma.cz")) throw new Error("audit");
+  const p = await (await adm("GET", "/api/admin/customer?email=platil@firma.cz", undefined, S)).json();
+  // (testovaci udalosti Stripe bez id se neeviduji - realne Stripe id posila vzdy)
+  if (!p.payments.some((x) => x.type === "checkout.session.completed")) throw new Error("platby k zakaznikovi: " + JSON.stringify(p.payments));
+  // subscription.canceled e-mail nenese - k zakaznikovi se priradi pres predplatne (sub_id -> licence)
+  const z = await (await adm("GET", "/api/admin/customer?email=zakaznik@firma.eu", undefined, S)).json();
+  const types = z.payments.map((x) => x.type);
+  for (const ty of ["transaction.completed", "subscription.past_due", "subscription.canceled"]) if (!types.includes(ty)) throw new Error("Paddle platby: " + types);
+});
+await check("detail: neznamy e-mail -> 404, neplatny -> 400", async () => {
+  eq((await adm("GET", "/api/admin/customer?email=nikdo@nikde.cz", undefined, S)).status, 404, "404");
+  eq((await adm("GET", "/api/admin/customer?email=nesmysl", undefined, S)).status, 400, "400");
+});
+
+console.log("\nsprava zakazniku: licence, pocitace, poznamky");
+let uiKey;
+await check("vystaveni trial (vychozi 14 dni, 1 misto), podpis sedi, bez e-mailu, klic v auditu zkraceny", async () => {
+  const before = sentMail.length;
+  const r = await adm("POST", "/api/admin/license", { action: "issue", email: "Zkouska@Firma.cz", plan: "trial", note: "veletrh" }, S);
+  eq(r.status, 200, "status");
+  const d = await r.json();
+  uiKey = d.key;
+  eq([d.plan, d.seats, d.sent], ["trial", 1, false], "licence");
+  const days = (Date.parse(d.valid_until) - Date.now()) / 864e5;
+  if (days < 13.9 || days > 14.1) throw new Error("platnost " + d.valid_until);
+  const [p, sg] = d.license.split(".");
+  if (!verify(null, Buffer.from(p, "base64url"), createPublicKey(publicKey.export({ type: "spki", format: "pem" })), Buffer.from(sg, "base64url"))) throw new Error("podpis");
+  eq(JSON.parse(Buffer.from(p, "base64url")).email, "zkouska@firma.cz", "e-mail v licenci");
+  eq(sentMail.length, before, "maily");
+  const a = auditRows("license_issue").at(-1);
+  if (a.target.includes(uiKey) || !a.target.includes(uiKey.slice(0, 9) + "…")) throw new Error("klic v auditu nezkraceny: " + a.target);
+  eq(a.actor, "token", "kdo");
+});
+await check("vystaveni free-unlock s datem a firma (vychozi 5 mist)", async () => {
+  const until = new Date(Date.now() + 100 * 864e5).toISOString().slice(0, 10);
+  const r = await adm("POST", "/api/admin/license", { action: "issue", email: "skola@firma.cz", plan: "free-unlock", seats: 20, valid_until: until }, S);
+  eq(r.status, 200, "status");
+  eq((await r.json()).valid_until.slice(0, 10), until, "datum");
+  const f = await (await adm("POST", "/api/admin/license", { action: "issue", email: "skola@firma.cz", plan: "firma" }, S)).json();
+  eq(f.seats, 5, "firma = 5 mist");
+});
+await check("vystaveni s e-mailem posle licenci", async () => {
+  const before = sentMail.length;
+  const d = await (await adm("POST", "/api/admin/license", { action: "issue", email: "mail@firma.cz", plan: "pro", send: true }, S)).json();
+  eq(sentMail.length, before + 1, "maily");
+  if (!sentMail.at(-1).text.includes(d.key)) throw new Error("klic v mailu");
+});
+await check("bez LICENSE_PRIVATE_KEY se licence neulozi (500, zadny radek)", async () => {
+  const before = count("SELECT COUNT(*) AS n FROM licenses");
+  const err = console.error;
+  console.error = () => {};
+  try {
+    eq((await adm("POST", "/api/admin/license", { action: "issue", email: "bezklice@firma.cz", plan: "pro" }, S, { ...env, LICENSE_PRIVATE_KEY: undefined })).status, 500, "status");
+  } finally {
+    console.error = err;
+  }
+  eq(count("SELECT COUNT(*) AS n FROM licenses"), before, "licence");
+});
+await check("selhani e-mailu licenci neztrati (200, mail_error, soubor v odpovedi)", async () => {
+  const err = console.error;
+  console.error = () => {};
+  let d;
+  try {
+    d = await (await adm("POST", "/api/admin/license", { action: "issue", email: "mailfail@firma.cz", plan: "pro", send: true }, S, { ...env, RESEND_API_KEY: undefined })).json();
+  } finally {
+    console.error = err;
+  }
+  eq([d.ok, d.sent, d.mail_error, !!d.license], [true, false, true, true], "odpoved");
+  eq(count("SELECT COUNT(*) AS n FROM licenses WHERE email = 'mailfail@firma.cz'"), 1, "licence");
+});
+await check("validace: tarif, mista, dny, datum, e-mail, akce", async () => {
+  const bad = [
+    { email: "a@firma.cz", plan: "enterprise" }, { email: "a@firma.cz", plan: "pro", seats: 0 }, { email: "a@firma.cz", plan: "pro", seats: 1.5 },
+    { email: "a@firma.cz", plan: "pro", seats: 1000 }, { email: "a@firma.cz", plan: "pro", days: 99999 }, { email: "a@firma.cz", plan: "pro", days: -1 },
+    { email: "a@firma.cz", plan: "pro", valid_until: "2020-01-01" }, { email: "a@firma.cz", plan: "pro", valid_until: "zitra" }, { email: "nesmysl", plan: "pro" },
+    { action: "smazat", key: uiKey },
+  ];
+  for (const b of bad) eq((await adm("POST", "/api/admin/license", { action: "issue", ...b }, S)).status, 400, JSON.stringify(b));
+});
+await check("prodlouzeni: od konce platnosti, novy podepsany soubor s novym exp", async () => {
+  const old = db.prepare("SELECT valid_until FROM licenses WHERE key = ?").get(uiKey).valid_until;
+  const d = await (await adm("POST", "/api/admin/license", { action: "extend", key: uiKey, days: 30 }, S)).json();
+  const diff = (Date.parse(d.valid_until) - Date.parse(old)) / 864e5;
+  if (Math.abs(diff - 30) > 0.01) throw new Error("prodlouzeni o " + diff);
+  eq(JSON.parse(Buffer.from(d.license.split(".")[0], "base64url")).exp, d.valid_until, "exp v souboru");
+  eq(db.prepare("SELECT valid_until FROM licenses WHERE key = ?").get(uiKey).valid_until, d.valid_until, "D1");
+});
+await check("prodlouzeni / zruseni: neplatny a neznamy klic", async () => {
+  eq((await adm("POST", "/api/admin/license", { action: "extend", key: "nesmysl", days: 30 }, S)).status, 400, "tvar");
+  eq((await adm("POST", "/api/admin/license", { action: "cancel", key: "PLCD-AAAA-BBBB-CCCC-DDDD" }, S)).status, 404, "neznamy");
+});
+await check("zruseni: licence se zamkne, prodlouzit uz nejde (409), opakovani je neskodne", async () => {
+  eq((await adm("POST", "/api/admin/license", { action: "cancel", key: uiKey }, S)).status, 200, "zruseni");
+  eq((await call("POST", "/api/license/activate", { key: uiKey, device_hash: "pc-x" })).status, 403, "aktivace");
+  eq((await adm("POST", "/api/admin/license", { action: "extend", key: uiKey, days: 30 }, S)).status, 409, "prodlouzeni");
+  eq((await (await adm("POST", "/api/admin/license", { action: "cancel", key: uiKey }, S)).json()).already, true, "opakovani");
+});
+await check("zruseni licence s predplatnym upozorni, ze predplatne bezi dal", async () => {
+  const key = db.prepare("SELECT key FROM licenses WHERE sub_id = 'sub_pdl_2'").get().key;
+  const d = await (await adm("POST", "/api/admin/license", { action: "cancel", key }, S)).json();
+  eq(d.subscription_provider, "paddle", "poskytovatel");
+});
+await check("skripty: Authorization: Bearer i X-Admin-Token bez cookie a Origin, jen vystaveni", async () => {
+  const r = await call("POST", "/api/admin/license", { email: "skript@firma.cz", plan: "firma", send: false }, { Authorization: "Bearer test-admin", "CF-Connecting-IP": "198.51.100.200" });
+  eq(r.status, 200, "Bearer");
+  const d = await r.json();
+  eq([d.plan, d.seats], ["firma", 1], "puvodni chovani (mista z tela, vychozi 1)");
+  eq(auditRows("license_issue").at(-1).actor, "token-api", "audit");
+  eq((await call("POST", "/api/admin/license", { action: "cancel", key: d.key }, { "X-Admin-Token": "test-admin", "CF-Connecting-IP": "198.51.100.200" })).status, 400, "jen vystaveni");
+});
+await check("uvolneni pocitace: misto se uvolni pro jiny pocitac", async () => {
+  eq((await call("POST", "/api/license/activate", { key: licKey, device_hash: "stroj-B" })).status, 409, "plno");
+  const id = db.prepare("SELECT id FROM activations WHERE license_key = ? AND device_hash = 'stroj-A'").get(licKey).id;
+  eq((await adm("POST", "/api/admin/activation/release", { id }, S)).status, 200, "uvolneni");
+  if (!db.prepare("SELECT revoked_at FROM activations WHERE id = ?").get(id).revoked_at) throw new Error("revoked_at");
+  eq((await (await adm("POST", "/api/admin/activation/release", { id }, S)).json()).already, true, "opakovani");
+  eq((await call("POST", "/api/license/activate", { key: licKey, device_hash: "stroj-B" })).status, 200, "jiny pocitac");
+  eq((await adm("POST", "/api/admin/activation/release", { id: "neexistuje" }, S)).status, 404, "neznama");
+  eq((await adm("POST", "/api/admin/activation/release", { id: "a'; DROP TABLE activations; --" }, S)).status, 400, "tvar");
+});
+await check("poznamka: ulozi se s autorem, detail ji ukaze; validace", async () => {
+  const r = await adm("POST", "/api/admin/note", { email: "beta@firma.cz", body: "Faktura na nákup; <script>alert(1)</script>" }, S);
+  eq(r.status, 200, "status");
+  const d = await (await adm("GET", "/api/admin/customer?email=beta@firma.cz", undefined, S)).json();
+  eq([d.notes[0].body.startsWith("Faktura"), d.notes[0].author], [true, "token"], "poznamka");
+  eq((await adm("POST", "/api/admin/note", { email: "beta@firma.cz", body: "   " }, S)).status, 400, "prazdna");
+  eq((await adm("POST", "/api/admin/note", { email: "beta@firma.cz", body: "x".repeat(2001) }, S)).status, 400, "dlouha");
+  eq((await adm("POST", "/api/admin/note", { email: "nikdo@nikde.cz", body: "x" }, S)).status, 404, "neznamy zakaznik");
+});
+await check("mutace pres Access: v auditu je e-mail", async () => {
+  _resetAccessCache();
+  const r = await viaAccess(jwt(), "POST", "/api/admin/note", { email: "beta@firma.cz", body: "pres Access" });
+  eq(r.status, 200, "status");
+  const a = auditRows("note_add").at(-1);
+  eq([a.actor, a.via], ["boss@firma.cz", "access"], "audit");
+});
+
+console.log("\nsprava zakazniku: export a audit");
+await check("export zakazniku: BOM, strednik, CRLF, hlavicky ke stazeni", async () => {
+  const r = await adm("GET", "/api/admin/export.csv?type=customers", undefined, S);
+  eq(r.status, 200, "status");
+  eq(r.headers.get("content-type"), "text/csv; charset=utf-8", "typ");
+  if (!/attachment; filename="plcdesk-customers-\d{4}-\d{2}-\d{2}\.csv"/.test(r.headers.get("content-disposition"))) throw new Error("disposition");
+  eq(r.headers.get("cache-control"), "no-store", "cache");
+  const buf = Buffer.from(await r.arrayBuffer());
+  eq([...buf.subarray(0, 3)], [0xef, 0xbb, 0xbf], "BOM");
+  const lines = buf.toString("utf8").slice(1).split("\r\n");
+  eq(lines[0], "email;status;plan;licenses;devices;valid_until;lead_at;downloaded_at;locale;last_activity", "hlavicka");
+  eq(lines.at(-1), "", "konec CRLF");
+  eq(lines.length - 2, count("SELECT COUNT(*) AS n FROM (SELECT email FROM leads UNION SELECT email FROM licenses UNION SELECT email FROM project_unlocks)"), "radky");
+  if (!lines.some((l) => l.startsWith("beta@firma.cz;active;pro;"))) throw new Error("radek beta");
+});
+await check("export: vzorce Excelu neutralizovane, strednik a uvozovky v uvozovkach", async () => {
+  db.prepare("INSERT INTO leads (id, email, locale, source, created_at) VALUES ('evil', 'evil@example.cz', 'cs', ?, ?)").run('=HYPERLINK("http://x";"y")', new Date().toISOString());
+  const text = Buffer.from(await (await adm("GET", "/api/admin/export.csv?type=leads", undefined, S)).arrayBuffer()).toString("utf8");
+  const line = text.split("\r\n").find((l) => l.startsWith("evil@example.cz;"));
+  if (!line.includes(`"'=HYPERLINK(""http://x"";""y"")"`)) throw new Error(line);
+});
+await check("export licenci obsahuje klice a pocet aktivnich pocitacu; neznamy typ -> 400", async () => {
+  const text = Buffer.from(await (await adm("GET", "/api/admin/export.csv?type=licenses", undefined, S)).arrayBuffer()).toString("utf8");
+  if (!text.split("\r\n")[0].replace(/^﻿/, "").startsWith("key;email;plan;seats;status")) throw new Error("hlavicka");
+  if (!text.includes(licKey)) throw new Error("klic");
+  eq((await adm("GET", "/api/admin/export.csv?type=hesla", undefined, S)).status, 400, "typ");
+  eq(auditRows("export").length, 3, "audit exportu");
+});
+await check("audit: nejnovejsi prvni, hledani, bez celych klicu a tokenu", async () => {
+  const d = await (await adm("GET", "/api/admin/audit", undefined, S)).json();
+  eq(d.total, count("SELECT COUNT(*) AS n FROM admin_audit"), "pocet");
+  if (d.entries[0].id < d.entries[1].id) throw new Error("poradi");
+  const f = await (await adm("GET", "/api/admin/audit?q=login_failed", undefined, S)).json();
+  if (!f.entries.length || f.entries.some((e) => e.action !== "login_failed")) throw new Error("hledani");
+  const full = JSON.stringify(db.prepare("SELECT * FROM admin_audit").all());
+  for (const k of db.prepare("SELECT key FROM licenses").all().map((r) => r.key)) if (full.includes(k)) throw new Error("cely klic v auditu " + k);
+  if (full.includes("test-admin")) throw new Error("token v auditu");
+});
+
+await check("uchovani: neuspesna prihlaseni po 30 dnech pryc, ostatni audit 3 roky", async () => {
+  const old = new Date(Date.now() - 40 * 864e5).toISOString();
+  db.prepare("INSERT INTO admin_audit (at, actor, via, action, ip) VALUES (?, '-', '-', 'login_failed', '192.0.2.99')").run(old);
+  db.prepare("INSERT INTO admin_audit (at, actor, via, action, target) VALUES (?, 'token', 'token', 'note_add', 'stary@firma.cz')").run(old);
+  db.prepare("INSERT INTO admin_attempts (ip, ok, at) VALUES ('192.0.2.99', 0, ?)").run(old);
+  await adm("POST", "/api/admin/login", { token: "spatne" }, { "CF-Connecting-IP": "192.0.2.98" });
+  eq(count("SELECT COUNT(*) AS n FROM admin_audit WHERE ip = '192.0.2.99'"), 0, "stary login_failed");
+  eq(count("SELECT COUNT(*) AS n FROM admin_attempts WHERE ip = '192.0.2.99'"), 0, "stary pokus");
+  eq(count("SELECT COUNT(*) AS n FROM admin_audit WHERE target = 'stary@firma.cz'"), 1, "ostatni audit zustava");
+});
+
+// =====================================================================================
+console.log("\nsprava: obchodni kanban leadu (CRM)");
+const crmGet = async (qs = "") => (await adm("GET", "/api/admin/crm" + qs, undefined, S)).json();
+const crmCards = (d) => Object.values(d.columns).flatMap((c) => c.cards);
+const crmLead = (id) => db.prepare("SELECT * FROM crm_leads WHERE id = ?").get(id);
+const crmEvents = (id) => db.prepare("SELECT type, text, actor FROM crm_events WHERE lead_id = ? ORDER BY id").all(id);
+const isoIn = (days) => new Date(Date.now() + days * 864e5).toISOString();
+// zakaznik s aktivni licenci -> karta z formulare dostane navrh "won"
+db.prepare("INSERT INTO leads (id, email, locale, created_at) VALUES ('crm-l1', 'nakup@strojirna-test.cz', 'cs', ?)").run(isoIn(-3));
+db.prepare(`INSERT INTO licenses (key, email, plan, seats, status, valid_until, created_at, updated_at)
+  VALUES ('PLCD-CRMT-AAAA-BBBB-CC22', 'nakup@strojirna-test.cz', 'pro', 1, 'active', ?, ?, ?)`).run(isoIn(200), isoIn(-1), isoIn(-1));
+
+let crmManual;
+await check("tabule: sloupce vsech fazi, web leady se promitnou jako 'new' (bez duplicit), sync do auditu", async () => {
+  const leads = count("SELECT COUNT(*) AS n FROM leads");
+  const d = await crmGet();
+  eq(d.stages, ["prospect", "new", "contacted", "trial", "offer", "won", "lost"], "faze");
+  eq(d.synced, leads, "synchronizovano");
+  eq(count("SELECT COUNT(*) AS n FROM crm_leads WHERE source = 'web_form' AND stage = 'new'"), leads, "karty new");
+  eq(count("SELECT COUNT(*) AS n FROM crm_events WHERE type = 'import' AND text = 'web_form'"), leads, "udalosti");
+  eq(auditRows("crm_sync").length, 1, "audit sync");
+  const again = await crmGet();
+  eq(again.synced, 0, "druhe nacteni nic nepridava");
+  eq(count("SELECT COUNT(*) AS n FROM crm_leads"), leads, "bez duplicit");
+  eq(auditRows("crm_sync").length, 1, "audit jen pri zmene");
+});
+await check("karta z formulare: firma = domena, web, zeme z .cz; bezplatna schranka bez webu", async () => {
+  const c = db.prepare("SELECT * FROM crm_leads WHERE email = 'nakup@strojirna-test.cz'").get();
+  eq([c.company, c.website, c.domain, c.country, c.segment], ["strojirna-test.cz", "https://strojirna-test.cz", "strojirna-test.cz", "CZ", "jine"], "firma");
+  db.prepare("INSERT INTO leads (id, email, locale, created_at) VALUES ('crm-l2', 'jan.novak@gmail.com', 'cs', ?)").run(isoIn(0));
+  eq((await crmGet()).synced, 1, "novy lead");
+  const g = db.prepare("SELECT * FROM crm_leads WHERE email = 'jan.novak@gmail.com'").get();
+  eq([g.company, g.website, g.domain, g.country], ["jan.novak@gmail.com", null, null, null], "gmail");
+});
+await check("aktivni licence -> navrh 'won', faze se sama neprepise", async () => {
+  const d = await crmGet();
+  const card = crmCards(d).find((c) => c.company === "strojirna-test.cz");
+  eq([card.stage, card.licensed, card.suggest], ["new", true, "won"], "navrh");
+  if ("email" in card) throw new Error("tabule nema posilat e-maily");
+});
+await check("zalozeni karty: validace, faze new, udalost create, audit", async () => {
+  eq((await adm("POST", "/api/admin/crm/lead", { segment: "integrator" }, S)).status, 400, "bez firmy");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", website: "javascript:alert(1)" }, S)).json()).error, "bad website", "javascript: web");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", source_url: "ftp://x.cz/a" }, S)).json()).error, "bad source_url", "ftp zdroj");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", segment: "banka" }, S)).json()).error, "bad segment", "segment");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", next_date: "2026-02-30" }, S)).json()).error, "bad next_date", "datum");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", stage: "hotovo" }, S)).json()).error, "bad stage", "faze");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", value_czk: -5 }, S)).json()).error, "bad value_czk", "hodnota");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { company: "X", phone: "<script>" }, S)).json()).error, "bad phone", "telefon");
+  const r = await adm("POST", "/api/admin/crm/lead", { company: "  Automatizace Test s.r.o. ", website: "www.AutoTest.cz/kontakt", segment: "Integrátor",
+    country: "cz", city: "Brno", next_action: "Zavolat", next_date: "2026-11-02", value_czk: 120000, contact_name: "Ing. Test" }, S);
+  eq(r.status, 200, "status");
+  crmManual = (await r.json()).id;
+  const c = crmLead(crmManual);
+  eq([c.company, c.website, c.domain, c.segment, c.country, c.stage, c.source, c.value_czk], ["Automatizace Test s.r.o.", "https://www.autotest.cz/kontakt", "autotest.cz", "integrator", "CZ", "new", "manual", 120000], "ulozeno");
+  eq(crmEvents(crmManual).map((e) => e.type), ["create"], "udalost");
+  eq(auditRows("crm_lead_create").length, 1, "audit");
+});
+await check("duplicita: stejny e-mail vzdy 409, stejna domena 409 bez allow_duplicate", async () => {
+  const dupMail = await adm("POST", "/api/admin/crm/lead", { company: "Jina", email: "NAKUP@strojirna-test.cz", allow_duplicate: true }, S);
+  eq(dupMail.status, 409, "e-mail");
+  eq((await dupMail.json()).by, "email", "duvod");
+  const dupDom = await adm("POST", "/api/admin/crm/lead", { company: "Pobocka", website: "https://autotest.cz" }, S);
+  eq(dupDom.status, 409, "domena");
+  eq((await dupDom.json()).id, crmManual, "odkaz na existujici");
+  const ok = await adm("POST", "/api/admin/crm/lead", { company: "Pobocka", website: "https://autotest.cz", allow_duplicate: true }, S);
+  eq(ok.status, 200, "s potvrzenim");
+  eq((await adm("POST", "/api/admin/crm/delete", { id: (await ok.json()).id }, S)).status, 200, "uklid");
+});
+await check("uprava: jen poslana pole, udalost edit se seznamem poli, faze se upravou nemeni", async () => {
+  const r = await adm("POST", "/api/admin/crm/lead", { id: crmManual, city: "Ostrava", owner: "Tomáš", stage: "won" }, S);
+  eq(r.status, 200, "status");
+  eq((await r.json()).changed, ["city", "owner"], "zmenena pole");
+  const c = crmLead(crmManual);
+  eq([c.city, c.owner, c.stage, c.website], ["Ostrava", "Tomáš", "new", "https://www.autotest.cz/kontakt"], "ulozeno");
+  eq(crmEvents(crmManual).at(-1), { type: "edit", text: "city,owner", actor: "token" }, "udalost");
+  eq((await (await adm("POST", "/api/admin/crm/lead", { id: crmManual, city: "Ostrava" }, S)).json()).unchanged, true, "beze zmeny");
+  eq((await adm("POST", "/api/admin/crm/lead", { id: "neexistuje-1", city: "X" }, S)).status, 404, "neznama karta");
+  eq((await adm("POST", "/api/admin/crm/lead", { id: "../x", city: "X" }, S)).status, 400, "spatne id");
+});
+await check("presun: zmena faze + udalost stage_change, ztraceno s duvodem, neplatna faze 400", async () => {
+  const r = await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "contacted" }, S);
+  eq(await r.json(), { ok: true, stage: "contacted", from: "new" }, "odpoved");
+  eq((await (await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "contacted" }, S)).json()).already, true, "uz tam je");
+  eq((await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "zruseno" }, S)).status, 400, "faze");
+  await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "lost", lost_reason: "Ma vlastni reseni" }, S);
+  eq([crmLead(crmManual).stage, crmLead(crmManual).lost_reason], ["lost", "Ma vlastni reseni"], "ztraceno");
+  await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "trial" }, S);
+  eq(crmLead(crmManual).lost_reason, null, "duvod pri navratu pryc");
+  eq(crmEvents(crmManual).filter((e) => e.type === "stage_change").map((e) => e.text), ["new>contacted", "contacted>lost\nMa vlastni reseni", "lost>trial"], "historie");
+  eq(auditRows("crm_move").length, 3, "audit");
+  const d = await crmGet();
+  eq(d.columns.trial.count, 1, "pocet ve sloupci");
+  eq(d.columns.trial.value_czk, 120000, "soucet ve sloupci");
+});
+await check("poznamka a kontakt: udalost, prazdna / dlouha / spatny typ 400", async () => {
+  eq((await adm("POST", "/api/admin/crm/note", { id: crmManual, text: "Volal jsem, poslat nabidku" , type: "contact" }, S)).status, 200, "kontakt");
+  eq((await adm("POST", "/api/admin/crm/note", { id: crmManual, text: "Radek 1\nRadek 2" }, S)).status, 200, "poznamka");
+  eq((await adm("POST", "/api/admin/crm/note", { id: crmManual, text: "  " }, S)).status, 400, "prazdna");
+  eq((await adm("POST", "/api/admin/crm/note", { id: crmManual, text: "x".repeat(2001) }, S)).status, 400, "dlouha");
+  eq((await adm("POST", "/api/admin/crm/note", { id: crmManual, text: "x", type: "sms" }, S)).status, 400, "typ");
+  eq(crmEvents(crmManual).slice(-2).map((e) => [e.type, e.text]), [["contact", "Volal jsem, poslat nabidku"], ["note", "Radek 1\nRadek 2"]], "udalosti");
+});
+await check("detail: karta, historie nejnovejsi prvni, priznak zakaznika, zobrazeni do auditu", async () => {
+  const w = db.prepare("SELECT id FROM crm_leads WHERE email = 'nakup@strojirna-test.cz'").get().id;
+  const d = await (await adm("GET", "/api/admin/crm/lead?id=" + w, undefined, S)).json();
+  eq([d.lead.email, d.customer, d.licensed, d.suggest], ["nakup@strojirna-test.cz", true, true, "won"], "zakaznik");
+  const m = await (await adm("GET", "/api/admin/crm/lead?id=" + crmManual, undefined, S)).json();
+  eq([m.customer, m.events[0].type, m.events.at(-1).type], [false, "note", "create"], "historie");
+  eq(auditRows("crm_view").length, 2, "audit");
+  eq((await adm("GET", "/api/admin/crm/lead?id=nic", undefined, S)).status, 404, "404");
+});
+await check("filtr: segment, zeme, hledani (LIKE se escapuje)", async () => {
+  eq(crmCards(await crmGet("?segment=integrator")).map((c) => c.id), [crmManual], "segment");
+  eq(crmCards(await crmGet("?country=CZ")).some((c) => c.id === crmManual), true, "zeme");
+  eq(crmCards(await crmGet("?q=ostrava")).map((c) => c.id), [crmManual], "mesto");
+  eq(crmCards(await crmGet("?q=%25")).length, 0, "procento neni zastupny znak");
+  eq((await crmGet("?segment=banka")).filter.segment, "", "neznamy segment ignorovan");
+});
+
+const research = [
+  { company: "Alfa Automation s.r.o.", website: "https://www.alfa-automation.cz/", segment: "integrátor", country: "CZ", city: "Zlín", source_url: "https://firmy.example.cz/alfa", contact_name: "Jan Alfa", phone: "+420 600 000 000" },
+  { company: "Beta Maschinenbau GmbH", website: "beta-maschinenbau.de", segment: "Maschinenbau", country: "Deutschland", city: "Dresden" },
+  { company: "Alfa (duplicita v souboru)", website: "http://alfa-automation.cz/kontakt" },
+  { company: "Autotest pobocka", website: "autotest.cz" },
+  { company: "Gama", email: "NAKUP@strojirna-test.cz" },
+  { company: "", website: "x.cz" },
+  { company: "Delta", website: "javascript:alert(1)" },
+  "neni objekt",
+  { company: "Epsilon CNC", website: "epsilon-cnc.sk", note: "Hledaji PLC pro linku", segment: "výrobce" },
+];
+await check("import nahled (dry_run): pocty novych, duplicit (DB i soubor), chyb, osobni udaje; nic se neulozi", async () => {
+  const before = count("SELECT COUNT(*) AS n FROM crm_leads");
+  const d = await (await adm("POST", "/api/admin/crm/import", { leads: research, dry_run: true }, S)).json();
+  eq([d.total, d.new, d.duplicates, d.invalid, d.personal_ignored, d.imported], [9, 3, 3, 3, 1, 0], "pocty");
+  eq(d.duplicate_rows.map((x) => [x.row, x.by]), [[3, "file"], [4, "domain"], [5, "email"]], "duplicity");
+  eq(d.invalid_rows.map((x) => [x.row, x.error]), [[6, "bad company"], [7, "bad website"], [8, "bad row"]], "chyby");
+  eq(count("SELECT COUNT(*) AS n FROM crm_leads"), before, "nic neulozeno");
+  eq(auditRows("crm_import").length, 0, "nahled se neaudituje");
+});
+await check("import: faze prospect, source research, bez jmena a telefonu, udalost import, audit", async () => {
+  const d = await (await adm("POST", "/api/admin/crm/import", { leads: research }, S)).json();
+  eq([d.imported, d.new, d.duplicates], [3, 3, 3], "pocty");
+  const a = db.prepare("SELECT * FROM crm_leads WHERE domain = 'alfa-automation.cz'").get();
+  eq([a.stage, a.source, a.segment, a.city, a.country, a.contact_name, a.phone, a.email, a.source_url],
+    ["prospect", "research", "integrator", "Zlín", "CZ", null, null, null, "https://firmy.example.cz/alfa"], "karta");
+  const b = db.prepare("SELECT * FROM crm_leads WHERE domain = 'beta-maschinenbau.de'").get();
+  eq([b.segment, b.country, b.website], ["strojirna", "DE", "https://beta-maschinenbau.de"], "aliasy");
+  const e = db.prepare("SELECT * FROM crm_leads WHERE domain = 'epsilon-cnc.sk'").get();
+  eq([e.segment, e.country, e.value_note], ["vyrobce", "SK", "Hledaji PLC pro linku"], "zeme z domeny, poznamka");
+  eq(crmEvents(a.id).map((x) => [x.type, x.text]), [["import", "research"]], "udalost");
+  eq(auditRows("crm_import").length, 1, "audit");
+  const again = await (await adm("POST", "/api/admin/crm/import", { leads: research }, S)).json();
+  eq([again.imported, again.new, again.duplicates], [0, 0, 6], "opakovany import = same duplicity");
+});
+await check("import: limit 500 radku, prazdny seznam, ne-JSON, velke telo", async () => {
+  const many = Array.from({ length: 501 }, (_, i) => ({ company: `Firma ${i}`, website: `firma${i}.cz` }));
+  const r = await adm("POST", "/api/admin/crm/import", { leads: many, dry_run: true }, S);
+  eq([r.status, (await r.json()).error], [400, "too many"], "501");
+  const ok500 = await (await adm("POST", "/api/admin/crm/import", { leads: many.slice(0, 500), dry_run: true }, S)).json();
+  eq(ok500.new, 500, "500 projde");
+  eq((await adm("POST", "/api/admin/crm/import", { leads: [] }, S)).status, 400, "prazdny");
+  eq((await adm("POST", "/api/admin/crm/import", { leads: "x" }, S)).status, 400, "ne pole");
+  eq((await adm("POST", "/api/admin/crm/import", "[{}]", S)).status, 400, "pole misto objektu");
+  eq((await adm("POST", "/api/admin/crm/import", { leads: [{ company: "x".repeat(800 * 1024) }] }, S)).status, 413, "telo");
+});
+await check("CSRF: mutace CRM bez Origin / X-Requested-With / s cizim Origin -> 403, nic se nezmeni", async () => {
+  const before = crmLead(crmManual).stage;
+  eq((await adm("POST", "/api/admin/crm/move", { id: crmManual, stage: "won" }, { ...S, Origin: "https://utocnik.example" })).status, 403, "cizi Origin");
+  eq((await call("POST", "/api/admin/crm/move", { id: crmManual, stage: "won" }, { ...S, Origin: SITE })).status, 403, "bez XRW");
+  eq((await call("POST", "/api/admin/crm/import", { leads: research }, { ...S, "X-Requested-With": "x" })).status, 403, "bez Origin");
+  eq((await adm("POST", "/api/admin/crm/lead", { company: "CSRF" }, { ...S, "Sec-Fetch-Site": "cross-site" })).status, 403, "cross-site");
+  eq((await adm("POST", "/api/admin/crm/note", "id=x", { ...S, "Content-Type": "text/plain" })).status, 415, "formular");
+  eq(crmLead(crmManual).stage, before, "faze beze zmeny");
+  eq(count("SELECT COUNT(*) AS n FROM crm_leads WHERE company = 'CSRF'"), 0, "nic nezalozeno");
+});
+await check("export CSV: hlavicka, BOM, ochrana proti vzorcum, no-store, audit", async () => {
+  await adm("POST", "/api/admin/crm/lead", { company: "=HYPERLINK(\"http://x\")", website: "vzorec-test.cz" }, S);
+  const r = await adm("GET", "/api/admin/crm/export.csv", undefined, S);
+  eq([r.status, r.headers.get("cache-control"), r.headers.get("content-type")], [200, "no-store", "text/csv; charset=utf-8"], "hlavicky");
+  if (!/attachment; filename="plcdesk-leady-\d{4}-\d{2}-\d{2}\.csv"/.test(r.headers.get("content-disposition"))) throw new Error("nazev souboru");
+  const text = Buffer.from(await r.arrayBuffer()).toString("utf8");
+  if (!text.startsWith("﻿id;company;segment;country;city;website;email")) throw new Error("hlavicka CSV");
+  if (!text.includes(`"'=HYPERLINK(""http://x"")"`)) throw new Error("vzorec neosetren");
+  eq(text.trim().split("\r\n").length - 1, count("SELECT COUNT(*) AS n FROM crm_leads"), "radky");
+  eq(db.prepare("SELECT * FROM admin_audit WHERE action = 'export' AND target = 'crm'").all().length, 1, "audit");
+});
+await check("smazani (namitka): karta i historie pryc, e-mail se synchronizaci nevrati", async () => {
+  const g = db.prepare("SELECT id FROM crm_leads WHERE email = 'jan.novak@gmail.com'").get().id;
+  eq((await adm("POST", "/api/admin/crm/delete", { id: g }, S)).status, 200, "smazano");
+  eq([crmLead(g) ?? null, crmEvents(g).length], [null, 0], "karta a historie");
+  eq((await crmGet()).synced, 0, "nevraci se");
+  eq(count("SELECT COUNT(*) AS n FROM crm_leads WHERE email = 'jan.novak@gmail.com'"), 0, "bez karty");
+  eq((await adm("POST", "/api/admin/crm/delete", { id: g }, S)).status, 404, "podruhe 404");
+  eq(auditRows("crm_delete").length, 2, "audit");
+});
+await check("audit CRM: bez kontaktnich udaju a obsahu poznamek, 401 bez relace i s podvrzenou cookie", async () => {
+  const rows = JSON.stringify(db.prepare("SELECT target, detail FROM admin_audit WHERE action LIKE 'crm_%'").all());
+  for (const s of ["Ing. Test", "Volal jsem", "Radek 1"]) if (rows.includes(s)) throw new Error("v auditu: " + s);
+  eq((await adm("GET", "/api/admin/crm", undefined, withCookie("v1.9999999999.AAAAAAAAAAAAAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"))).status, 401, "podvrh");
+  eq((await adm("POST", "/api/admin/crm/import", { leads: research })).status, 401, "bez cookie");
+});
+
+// Cloudflare: s run_worker_first jako seznamem dostane Worker JEN uvedené cesty — bez "/api/*"
+// skončí celé API stránkou 404 z assets (lokální serve.js to neodhalí, výpadek 2026-10-04).
+await check("wrangler.toml: run_worker_first obsahuje /api/* i /sprava", async () => {
+  const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
+  const m = /^run_worker_first\s*=\s*(\[[^\]]*\]|true|false)/m.exec(toml);
+  if (!m) return;                                   // bez volby = výchozí chování, API jde do Workeru
+  if (m[1] === "true") return;
+  const list = JSON.parse(m[1]);
+  for (const p of ["/api/*", "/sprava", "/sprava/*"]) if (!list.includes(p)) throw new Error("chybi " + p);
 });
 
 console.log(`\n${pass} proslo, ${fail} selhalo`);

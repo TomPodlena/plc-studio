@@ -3,7 +3,7 @@
     "lang": "en",
     "locale": "en_GB",
     "title": "{{site.brand}} — machine control from specification to approved documentation",
-    "description": "Describe the machine, {{site.brand}} designs the I/O, schematics, program for 8 PLC platforms, safety functions and commissioning. A responsible person approves every item. Free up to 64 I/O."
+    "description": "Describe the machine, {{site.brand}} designs the I/O, schematics, program for {{site.platform_count}} PLC platforms, safety functions and commissioning. A responsible person approves every item. Free up to 64 I/O."
   },
   "ui": {
     "skip": "Skip to content",
@@ -42,7 +42,7 @@
   },
   "home": {
     "title": "{{site.brand}} — machine control from specification to approved documentation",
-    "description": "Describe the machine, {{site.brand}} designs the I/O, schematics, program for 8 PLC platforms, safety functions and commissioning. A responsible person approves every item. Free up to 64 I/O.",
+    "description": "Describe the machine, {{site.brand}} designs the I/O, schematics, program for {{site.platform_count}} PLC platforms, safety functions and commissioning. A responsible person approves every item. Free up to 64 I/O.",
     "eyebrow": "For integrators and machine builders",
     "h1": "Machine control from specification to signed-off documentation",
     "lead": "You describe the machine. {{site.brand}} designs the devices, I/O, schematics, program, safety functions and commissioning plan, and prepares the documentation for all of it. You review and approve. Anything you have not approved is marked NOT APPROVED in the documents.",
@@ -89,7 +89,7 @@
     ],
     "facts": [
       {
-        "n": "8",
+        "n": "{{site.platform_count}}",
         "t": "PLC platforms"
       },
       {
@@ -258,7 +258,7 @@
       },
       {
         "q": "Is the program ready to load into the PLC?",
-        "a": "It is a complete program with state machines, modes, faults and acknowledgement, and the design is verified by simulation. However, we have not yet verified the import by compiling it in the development environment on any platform, so all platforms are marked beta. Before commissioning, the program belongs in your platform's simulator and on the FAT."
+        "a": "It is a complete program with state machines, modes, faults and acknowledgement, and the design is verified by simulation. We verified import and compilation in real CODESYS V3.5 SP21 without errors or warnings; Schneider, WAGO, Delta AX, ten more CODESYS-based systems and Unitronics have the language verified, not the devices and addresses. The other platforms are checked by our emulator, which is not the manufacturer's compiler, so they are marked beta. We have not verified download to a PLC on any platform. Before commissioning, the program belongs in your platform's simulator and on the FAT."
       },
       {
         "q": "I have an existing machine. Do I have to re-enter it?",
@@ -285,7 +285,7 @@
   },
   "funkce": {
     "title": "Features — {{site.brand}}",
-    "description": "Device and I/O design, IEC schematics, program for 8 platforms, simulation, safety functions to ISO 13849, commissioning, documentation, bill of materials and import of existing machines.",
+    "description": "Device and I/O design, IEC schematics, program for {{site.platform_count}} platforms, simulation, safety functions to ISO 13849, commissioning, documentation, bill of materials and import of existing machines.",
     "eyebrow": "Features",
     "h1": "What {{site.brand}} does for you",
     "lead": "From specification to machine handover. You review and approve everything it proposes. The documentation then shows what you approved.",
@@ -345,7 +345,7 @@
         "points": [
           "Device state machines with watchdog times and status words.",
           "AUTO and manual mode, cycle start, acknowledgement, manual commands, machine fault with the step where it occurred.",
-          "8 platforms; single-file import where the IDE supports it (PLCopen XML, L5X).",
+          "{{site.platform_count}} platforms; single-file import where the IDE supports it (PLCopen XML, L5X).",
           "Import instructions and the shortest test for each platform."
         ],
         "shot": {
@@ -481,10 +481,10 @@
   },
   "platformy": {
     "title": "Platforms and verification — {{site.brand}}",
-    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Mitsubishi, Schneider, OMRON and Unitronics. How the output is verified and what is still beta.",
+    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Schneider, WAGO, Delta, Mitsubishi, OMRON, Unitronics and ten more CODESYS-based systems. What is verified by import in the IDE, what by the compiler and what by the emulator.",
     "eyebrow": "Platforms",
-    "h1": "8 platforms. We say what is verified.",
-    "lead": "We verify the output of every platform against the manufacturer's manuals. We have not yet tried importing and compiling it in the development environment, so all platforms carry a beta label. Once a platform is verified by compiling, the label goes and we add the version and date.",
+    "h1": "{{site.platform_count}} platforms. We say what is verified.",
+    "lead": "We verified CODESYS by real import and compilation in CODESYS V3.5 SP21 Patch 6: examples in classic and OOP style, drives and the servo axis without a single error or warning. Schneider, WAGO, Delta AX and ten more CODESYS-based systems use the same language; for them we verified the language and the import, not the libraries, devices and addresses. Unitronics passed the ST compiler from UniLogic. The other platforms are checked by our emulator. We have not yet tried the import in the manufacturer's development environment, so they carry a beta label.",
     "checked": "Status as of",
     "h_platform": "Platform",
     "h_ide": "Development environment",
@@ -493,59 +493,166 @@
     "h_state": "Status",
     "rows": [
       {
+        "key": "siemens",
         "name": "Siemens SIMATIC",
         "ide": "TIA Portal V17–V21",
         "output": "SCL sources, SimaticML XML, tag table",
-        "check": "Siemens manuals, SimaticML format"
+        "check": "emulator: SCL parser and dialect rules from Siemens manuals, run against the machine model; SimaticML format",
+        "state": "beta"
       },
       {
+        "key": "rockwell",
         "name": "Rockwell Allen-Bradley",
         "ide": "Studio 5000 Logix Designer",
         "output": "L5X (Add-On Instructions, tags, routine) and tag CSV",
-        "check": "manual 1756-RM014, real L5X exports"
+        "check": "emulator: L5X and Logix dialect per manual 1756-RM014, run against the machine model; real L5X exports",
+        "state": "beta"
       },
       {
+        "key": "beckhoff",
         "name": "Beckhoff",
         "ide": "TwinCAT 3",
         "output": "PLCopen XML, ST blocks, GVL",
-        "check": "ST parser for TwinCAT, PLCopen TC6 schema"
+        "check": "emulator: ST parser for TwinCAT, run against the machine model; PLCopen TC6 schema",
+        "state": "beta"
       },
       {
+        "key": "codesys",
         "name": "CODESYS",
         "ide": "CODESYS V3.5",
         "output": "PLCopen XML, ST blocks, GVL",
-        "check": "PLCopen TC6 schema, CODESYS manuals"
+        "check": "PLCopen XML import and compile in CODESYS V3.5 SP21 Patch 6 (3.5.21.60), 5 October 2026: classic and OOP, drives and SoftMotion servo axis, 0 errors, 0 warnings. Run on the runtime (download to the PLC) not verified",
+        "state": "verified"
       },
       {
-        "name": "Mitsubishi",
-        "ide": "GX Works3",
-        "output": "ST and global label CSV",
-        "check": "Mitsubishi manuals; the CSV format varies by version"
-      },
-      {
+        "key": "schneider",
         "name": "Schneider Electric",
         "ide": "EcoStruxure Machine Expert",
         "output": "PLCopen XML, ST blocks, GVL",
-        "check": "PLCopen TC6 schema, Schneider manuals"
+        "check": "language and PLCopen import: CODESYS 3.5.21.60 compiler; Schneider libraries, devices and I/O addresses not verified",
+        "state": "lang"
       },
       {
+        "key": "wago",
+        "name": "WAGO",
+        "ide": "e!COCKPIT / CODESYS V3.5",
+        "output": "PLCopen XML, ST blocks, GVL (I/O mapped in the IDE)",
+        "check": "language and PLCopen import: CODESYS 3.5.21.60 compiler; WAGO libraries, devices and I/O addresses not verified, SoftMotion Light servo axis not verified",
+        "state": "lang"
+      },
+      {
+        "key": "delta",
+        "name": "Delta Electronics AX",
+        "ide": "DIADesigner-AX",
+        "output": "PLCopen XML, ST blocks, GVL",
+        "check": "language and PLCopen import: CODESYS 3.5.21.60 compiler; Delta libraries, devices and I/O addresses not verified",
+        "state": "lang"
+      },
+      {
+        "name": "More CODESYS: Turck, Festo, ABB AC500 V3, Bosch Rexroth ctrlX, Inovance, Weidmüller, Eaton, Lenze, Berghof, Hitachi",
+        "ide": "manufacturer IDEs based on CODESYS V3.5 (Festo Automation Suite, Automation Builder, ctrlX PLC Engineering, InoProShop, XSOFT-CODESYS-3, PLC Designer, HX-CODESYS…)",
+        "output": "PLCopen XML, ST blocks, GVL (I/O mapped in the IDE)",
+        "check": "language and PLCopen import: CODESYS 3.5.21.60 compiler, 5 October 2026: 58 sample combinations (classic and OOP, for Festo also the servo axis) without errors or warnings; manufacturer IDEs, device packages and libraries and I/O on real hardware not verified",
+        "state": "lang",
+        "members": [
+          {
+            "key": "turck",
+            "name": "Turck",
+            "ide": "CODESYS + Turck package"
+          },
+          {
+            "key": "festo",
+            "name": "Festo",
+            "ide": "Festo Automation Suite"
+          },
+          {
+            "key": "abb",
+            "name": "ABB AC500 V3",
+            "ide": "Automation Builder"
+          },
+          {
+            "key": "rexroth",
+            "name": "Bosch Rexroth ctrlX",
+            "ide": "ctrlX PLC Engineering"
+          },
+          {
+            "key": "inovance",
+            "name": "Inovance",
+            "ide": "InoProShop"
+          },
+          {
+            "key": "weidmueller",
+            "name": "Weidmüller",
+            "ide": "CODESYS + u-OS package"
+          },
+          {
+            "key": "eaton",
+            "name": "Eaton",
+            "ide": "XSOFT-CODESYS-3"
+          },
+          {
+            "key": "lenze",
+            "name": "Lenze",
+            "ide": "PLC Designer"
+          },
+          {
+            "key": "berghof",
+            "name": "Berghof",
+            "ide": "CODESYS + Berghof target"
+          },
+          {
+            "key": "hitachi",
+            "name": "Hitachi",
+            "ide": "HX-CODESYS"
+          }
+        ]
+      },
+      {
+        "key": "mitsubishi",
+        "name": "Mitsubishi",
+        "ide": "GX Works3",
+        "output": "ST and global label CSV",
+        "check": "emulator: dialect from Mitsubishi manuals, run against the machine model; the CSV format varies by version",
+        "state": "beta"
+      },
+      {
+        "key": "omron",
         "name": "OMRON",
         "ide": "Sysmac Studio",
         "output": "ST and variable table",
-        "check": "OMRON manuals"
+        "check": "emulator: dialect from OMRON manuals, run against the machine model",
+        "state": "beta"
       },
       {
+        "key": "unitronics",
         "name": "Unitronics",
         "ide": "UniLogic (UniStream)",
         "output": "flat ST and tag list",
-        "check": "Unitronics manuals; the dialect will be confirmed by the first compile"
+        "check": "ST compiler from UniLogic 1.43.369 (Unitronics), 5 October 2026: Machine.st of four samples without errors; tag import, build and run in UniLogic not verified",
+        "state": "lang"
       }
     ],
+    "state_verified": "verified in IDE",
+    "state_lang": "language verified",
     "state_beta": "beta: IDE import not verified",
-    "why_title": "What beta means",
-    "why_body": "The files follow the manufacturer's documentation and pass our checks: block pairing, declared identifiers, XML schema, ASCII where needed. What we do not know yet is what the compiler of your IDE version will say. The README for each platform therefore describes the shortest test: import, compile and run in the platform simulator. If you find a deviation, write to us. We fix it and move the platform towards verified.",
+    "why_title": "What the labels mean",
+    "legend": [
+      {
+        "state": "verified",
+        "text": "We imported and compiled the output in the manufacturer's real development environment. The How it is verified column gives the version and date. Download to the PLC and running on the runtime are not verified by this."
+      },
+      {
+        "state": "lang",
+        "text": "The language passed a compiler: for platforms built on CODESYS V3.5 the PLCopen XML import and compilation in CODESYS, for Unitronics the ST compiler from UniLogic. We have not verified the manufacturer's libraries and devices, the I/O addresses or the import in its IDE."
+      },
+      {
+        "state": "beta",
+        "text": "The code passed our emulator: our own parser and dialect rules from the manufacturer's manuals, and a scan-by-scan run of the program against the machine model, with no difference from the design on any example. We have not yet tried the import in the manufacturer's IDE."
+      }
+    ],
+    "why_body": "The emulator is not the manufacturer's compiler. It catches what it knows from the manuals, but what the compiler of your IDE version says is confirmed only by a real import. The README for each platform therefore describes the shortest test: import, compile and run in the platform simulator. If you find a deviation, write to us. We fix it and move the platform towards verified.",
     "safety_title": "Safety program",
-    "safety_lead": "Built from the manufacturer's certified blocks, only after the safety functions have been approved. As with the standard program: beta until we verify it by compiling.",
+    "safety_lead": "Built from the manufacturer's certified blocks, only after the safety functions have been approved. We have not yet verified the safety program in the manufacturer's IDE, so it is beta on all platforms.",
     "safety_rows": [
       {
         "name": "Siemens",
@@ -825,7 +932,7 @@
         "body": [
           "The application proposes machine control: devices, I/O, schematics, process logic and PLC program, safety functions including PLr, architecture, components and a program for the safety PLC, a commissioning plan and documentation. All outputs are a proposal for review.",
           "Only items approved by the user's responsible person (name, date, note) are valid. Approval is an act of the user, not of the operator. Unapproved outputs are marked NOT APPROVED and must not be used as a basis for manufacturing, wiring or putting the machine into service.",
-          "The simulation in the application verifies the design, not the program compiled in the PLC manufacturer's development environment. Outputs for the individual platforms have not been verified by compiling in their development environment (marked beta on the website).",
+          "The simulation in the application verifies the design, not the program compiled in the PLC manufacturer's development environment. Outputs for the individual platforms have not been verified by compiling in the manufacturer's development environment, with the exception stated on the Platforms page.",
           "Outputs of the AI features (device list proposal, reading of schematics and photos) may be incorrect or incomplete; the application always presents them as a proposal for review."
         ]
       },
@@ -914,6 +1021,8 @@
           "- Payments: from the payment service we receive the e-mail, subscription identifier and payment status; payment details (card) never reach us. Purpose: issuing and managing the licence, accounting. Basis: performance of a contract and legal obligation (Art. 6(1)(c)).",
           "- Communication: the content of e-mails you send us. Purpose: replies and support. Basis: legitimate interest (Art. 6(1)(f)).",
           "- Website protection: IP address and technical browser data during Turnstile verification and in the hosting's operational logs. Purpose: protecting forms against bots and service security. Basis: legitimate interest.",
+          "- Customer admin: only the operator has access to the data above, through the protected customer admin (sign-in with a token, or via Cloudflare Access), and may add a note to a customer for support and licence management. Every view of a customer's details, every action (issuing, extending or cancelling a licence, releasing a computer, adding a note) and every export is written to an audit log (who, when, what). Failed sign-in attempts are recorded with the IP address and browser details to protect against misuse. Purpose: licence management and data security. Basis: performance of contract and legitimate interest.",
+          "- Business contacts (B2B): in an internal record of sales opportunities we keep companies that might use {{site.brand}} — for companies from our own research only publicly available company data (name, website, segment, city, country, link to the source); the contact person's name, phone and e-mail are added manually only once we are in contact with the company. It also includes download-form leads (e-mail and status: download, trial, licence) only to see the stage of the relationship (we do not use this data for marketing). Purpose: managing business relationships and offering the product to companies. Basis: legitimate interest (Art. 6(1)(f)). You can object to this processing at any time at {{site.email}} — we will then delete the record and not create it again. We do not send commercial e-mails without your consent unless you are our customer.",
           "We do not use your data for marketing, do not send newsletters without your express consent and do not carry out profiling."
         ]
       },
@@ -943,7 +1052,9 @@
           "- Download form data: 3 years after the last download, then deleted.",
           "- Licence data: for the duration of the licence and 3 years after it ends.",
           "- Accounting and tax documents: 10 years under Czech VAT and accounting law.",
-          "- Hosting operational logs: according to the provider's settings, usually days to weeks."
+          "- Hosting operational logs: according to the provider's settings, usually days to weeks.",
+          "- Customer admin: audit log 3 years, failed sign-in attempts 30 days, customer notes for as long as the customer's data is kept.",
+          "- Business contacts: for as long as sales talks continue, at most 3 years after the last contact; immediately after an objection."
         ]
       },
       {
@@ -968,7 +1079,7 @@
     "description": "The {{site.brand}} website uses no analytics or advertising cookies.",
     "eyebrow": "Legal",
     "h1": "Cookies and similar technologies",
-    "lead": "The website uses no analytics, advertising or tracking cookies and stores nothing in the browser's storage. That is why we do not ask for consent with a banner.",
+    "lead": "The website uses no analytics, advertising or tracking cookies and stores nothing in visitors' browser storage. That is why we do not ask for consent with a banner. The only exception is a strictly necessary cookie for the operator's sign-in to the customer admin (see Administration); it does not concern website visitors.",
     "sections": [
       {
         "id": "web",
@@ -989,9 +1100,11 @@
       },
       {
         "id": "admin",
-        "h": "Administration",
+        "h": "Administration and customer admin",
         "body": [
-          "The /admin/ page is for content administrators only. When signing in via GitHub, it stores sign-in data in the administrator's browser storage."
+          "The /admin/ page is for content administrators only. When signing in via GitHub, it stores sign-in data in the administrator's browser storage.",
+          "The customer admin page (/sprava/) is for the operator only. After sign-in it sets a single strictly necessary cookie, __Host-plcdesk_admin: it contains only a signed random session identifier and its expiry, lasts at most 8 hours and is deleted on sign-out. It is sent only over HTTPS, only to this website, and is not accessible to page scripts. It is never set for website visitors. The admin also remembers the chosen language in the operator's browser storage.",
+          "If the operator signs in via Cloudflare Access, Cloudflare sets its own strictly necessary sign-in cookie (CF_Authorization) under its own policy."
         ]
       },
       {

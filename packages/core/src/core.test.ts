@@ -182,7 +182,7 @@ test("Rockwell: rutina je zrcadlo IEC generátoru (pořadí, časovače za CASE,
   assert.ok(s2.includes("instM1.cmdStart := manRun_M1;") && !s2.includes("seqStep"));
   /* README: skutečný postup + štítek neověřeno */
   const r = genFor(p, "rockwell")["README.txt"];
-  assert.ok(r.includes("Import Program") && r.includes("NEOVĚŘENO") && r.includes("Local:1:I.Pt00.Data") && !r.includes("Gen_Library"));
+  assert.ok(r.includes("Import Program") && r.includes("STAV OVĚŘENÍ: BETA") && r.includes("Local:1:I.Pt00.Data") && !r.includes("Gen_Library"));
 });
 
 test("validace: označení zařízení pro Logix (max. 32 znaků, bez __ a _ na konci)", () => {
@@ -405,7 +405,7 @@ test("Unitronics: plochý ST pro UniLogic — bez FB, stav v globálních tazíc
     assert.deepEqual(unknown, [], "nedeklarované tagy");
     assert.equal(tags.size, files["Tags.csv"].split("\n").length - 1, "tagy jsou unikátní");
     assert.ok(!/[^\x00-\x7F]/.test(files["Tags.csv"]), "seznam tagů je čisté ASCII");
-    assert.ok(files["README.txt"].includes("NEOVĚŘENO PŘEKLADEM") && files["README.txt"].includes("Add Structured Text Function"));
+    assert.ok(files["README.txt"].includes("STAV OVĚŘENÍ: JAZYK OVĚŘEN") && files["README.txt"].includes("Add Structured Text Function"));
   }
   const p = sampleSmall();
   p.platforms = ["unitronics"];
@@ -1013,8 +1013,9 @@ test("PLCopen XML: POU, GVL s adresami, MAIN instance, escapování", () => {
     assert.ok(xml.includes('<pou name="' + pou + '" pouType="functionBlock">'), pou);
   }
   assert.ok(xml.includes('<pou name="MAIN" pouType="program">'));
-  assert.ok(xml.includes('<pouInstance name="MAIN" typeName="MAIN" />'));
-  assert.ok(xml.includes('<globalVars name="GVL_IO">'));
+  /* GVL v addData projektu, configurations prázdné (CODESYS 3.5.21.60 konfiguraci odmítne; úloha = krok README) */
+  assert.ok(xml.includes("<configurations />") && !xml.includes("<pouInstance"));
+  assert.ok(xml.includes('<data name="http://www.3s-software.com/plcopenxml/globalvars" handleUnknown="implementation">\n      <globalVars name="GVL_IO">'));
   assert.ok(xml.includes('address="%IX0.0"'));
   assert.ok(xml.includes('<derived name="TON" />'));
   assert.ok(xml.includes('<derived name="FB_Motor" />'), "instance v MAIN");
@@ -1177,6 +1178,8 @@ test("import: adresy — přesně tam, kde je výstup nese; jinak doplněné a h
     mitsubishi: ["M1_fbkRunning", "M1_outRun", "Y1_fbkClosed"], beckhoff: [], omron: [],
     /* profily CODESYS: WAGO bez AT (I/O mapování), Delta AX adresy CODESYS */
     wago: [], delta: all,
+    /* další profily CODESYS (codesys_profiles.ts): s AT jako CODESYS, jinak bez adres */
+    ...Object.fromEntries(CDS_PROFILE_KEYS.map(k => [k, CDS_PROFILES[k].at ? all : []])) as Record<CdsProfileKey, string[]>,
   };
   for (const plat of PLATS_ALL) {
     const r = inferProject(extractFiles(filesOf(genFor(p, plat))));
@@ -1888,6 +1891,7 @@ import {
 import { safetyProgramFiles, programFunctions } from "./safety_prog.js";
 import { safetySrsMd, safetyValidationMd, SAFETY_FILE_SRS, SAFETY_FILE_VALIDATION } from "./safety_docs.js";
 import { logixSafetyProblems } from "./logix.js";
+import { CDS_PROFILES, CDS_PROFILE_KEYS, type CdsProfileKey } from "./codesys_profiles.js";
 
 /* Modul zapíná klient (`registerSafetyModule`); ostatní testy počítají se zástupnou položkou
    „safety:external“ — modul se proto přihlašuje jen v testech bezpečnostního modulu. */

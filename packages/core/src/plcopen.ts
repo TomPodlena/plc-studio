@@ -10,14 +10,22 @@
  * Namespace tc6_0200 (nejširší kompatibilita; CODESYS/TwinCAT round-trip).
  * Import v IDE: Project / PLC projekt → Import PLCopenXML. Import je aditivní —
  * duplicitní názvy POU hlásí chybu (smazat staré, nebo importovat do prázdné aplikace).
+ *
+ * Struktura ověřená skutečným importem a překladem v CODESYS V3.5 SP21 Patch 6 (2026-10-05):
+ * GVL_IO v `addData …/plcopenxml/globalvars` projektu (ne v `<configurations>` — tu CODESYS
+ * odmítne celou), `<configurations />` prázdné, VAR_IN_OUT jako `<inOutVars>`. Úlohu import
+ * objektů nevytváří — README: v MainTask nahradit volání PLC_PRG voláním MAIN.
+ * Emulátor kontroluje strukturu (`emu/plcopen_check.ts`).
  */
 import { Project, PlatformKey, addrFor, dtFor, esc } from "./model.js";
 import { genLibrary, genMainIEC } from "./codegen.js";
+import { axisObjName } from "./axis.js";
+import { trx } from "./i18n.js";
 
 export interface ParsedVar { name: string; type: string; init?: string; comment?: string; address?: string; }
 export interface ParsedPou {
   name: string; kind: "functionBlock" | "program";
-  inputs: ParsedVar[]; outputs: ParsedVar[]; locals: ParsedVar[];
+  inputs: ParsedVar[]; outputs: ParsedVar[]; inouts: ParsedVar[]; locals: ParsedVar[];
   body: string;
 }
 
@@ -27,12 +35,13 @@ export function parseStPou(src: string): ParsedPou {
   if (!head) throw new Error("parseStPou: chybí hlavička POU");
   const kind = head[1] === "PROGRAM" ? "program" : "functionBlock";
   const name = head[2];
-  const inputs: ParsedVar[] = [], outputs: ParsedVar[] = [], locals: ParsedVar[] = [];
+  const inputs: ParsedVar[] = [], outputs: ParsedVar[] = [], inouts: ParsedVar[] = [], locals: ParsedVar[] = [];
   const re = /^\s*(VAR_INPUT|VAR_OUTPUT|VAR_IN_OUT|VAR)\b([\s\S]*?)^\s*END_VAR/gm;
   let m: RegExpExecArray | null, lastEnd = 0;
   while ((m = re.exec(src))) {
     lastEnd = re.lastIndex;
-    const bucket = m[1] === "VAR_INPUT" ? inputs : m[1] === "VAR_OUTPUT" ? outputs : locals;
+    /* VAR_IN_OUT = <inOutVars> — jako lokální proměnná hlásí CODESYS C37 „is no input“ a C540 no_assign (AXIS_REF) */
+    const bucket = m[1] === "VAR_INPUT" ? inputs : m[1] === "VAR_OUTPUT" ? outputs : m[1] === "VAR_IN_OUT" ? inouts : locals;
     for (const line of m[2].split("\n")) {
       const vm = line.match(/^\s*([A-Za-z_]\w*)\s*(?:AT\s*(%[\w.*]+)\s*)?:\s*([A-Za-z_]\w*)\s*(?::=\s*([^;]+?)\s*)?;\s*(?:\(\*\s*(.*?)\s*\*\))?/);
       if (vm && !/^(VAR|END)/i.test(vm[1])) {
@@ -42,7 +51,7 @@ export function parseStPou(src: string): ParsedPou {
   }
   let body = src.slice(lastEnd);
   body = body.replace(/END_(FUNCTION_BLOCK|PROGRAM)\s*$/m, "").trim();
-  return { name, kind, inputs, outputs, locals, body };
+  return { name, kind, inputs, outputs, inouts, locals, body };
 }
 
 /** Všechny FUNCTION_BLOCK z textu knihovny (Gen_Library.st obsahuje víc bloků za sebou). */
@@ -74,7 +83,7 @@ function varsSection(tag: string, vars: ParsedVar[], indent: string): string {
 function pouXml(p: ParsedPou): string {
   return `    <pou name="${esc(p.name)}" pouType="${p.kind}">
       <interface>
-${varsSection("inputVars", p.inputs, "        ")}${varsSection("outputVars", p.outputs, "        ")}${varsSection("localVars", p.locals, "        ")}      </interface>
+${varsSection("inputVars", p.inputs, "        ")}${varsSection("outputVars", p.outputs, "        ")}${varsSection("inOutVars", p.inouts, "        ")}${varsSection("localVars", p.locals, "        ")}      </interface>
       <body>
         <ST>
           <xhtml xmlns="http://www.w3.org/1999/xhtml">${esc(p.body)}</xhtml>
@@ -86,18 +95,15 @@ ${varsSection("inputVars", p.inputs, "        ")}${varsSection("outputVars", p.o
 
 /**
  * Kompletní PLCopen TC6 XML projektu: knihovna FB (jen použité třídy — přesně bloky
- * z Gen_Library.st), MAIN (= MAIN.st) a GVL_IO s adresami dle cílové platformy.
+ * z Gen_Library.st), MAIN (= MAIN.st) a GVL_IO s adresami dle cílové platformy
+ * (v addData projektu, viz `plcopenGvlAddData`).
  */
 export function genPLCopenXML(prj: Project, plat: PlatformKey = "codesys"): string {
   const now = new Date().toISOString().slice(0, 19);
   const pous: ParsedPou[] = splitLibrary(genLibrary(prj, plat)).map(parseStPou);
   pous.push(parseStPou(genMainIEC(prj, plat)));
 
-  let gvl = "";
-  for (const e of prj.io) {
-    const at = addrFor(plat, e, prj);
-    gvl += varXml({ name: e.tag, type: dtFor(e), address: at || undefined, comment: e.cmt || undefined }, "            ");
-  }
+  const gvl = gvlVarsXml(prj, plat);
 
   return `<?xml version="1.0" encoding="utf-8"?>
 <project xmlns="http://www.plcopen.org/xml/tc6_0200">
@@ -115,18 +121,40 @@ export function genPLCopenXML(prj: Project, plat: PlatformKey = "codesys"): stri
 ${pous.map(pouXml).join("")}    </pous>
   </types>
   <instances>
-    <configurations>
-      <configuration name="Default">
-        <resource name="Application">
-          <task name="MainTask" interval="PT0.020S" priority="1">
-            <pouInstance name="MAIN" typeName="MAIN" />
-          </task>
-          <globalVars name="GVL_IO">
-${gvl}          </globalVars>
-        </resource>
-      </configuration>
-    </configurations>
+    <configurations />
   </instances>
-</project>
+${plcopenGvlAddData(gvl)}</project>
+`;
+}
+
+/**
+ * Proměnné GVL_IO jako `<variable>` (odsazení 8) — tytéž, které deklaruje GVL_IO.st (`genGVL`):
+ * I/O s adresou platformy a u TwinCATu proměnné os AXIS_REF (bez nich by MAIN po importu neznal Ax_…).
+ */
+export function gvlVarsXml(prj: Project, plat: PlatformKey): string {
+  let s = "";
+  for (const e of prj.io) {
+    const at = addrFor(plat, e, prj);
+    s += varXml({ name: e.tag, type: dtFor(e), address: at || undefined, comment: e.cmt || undefined }, "        ");
+  }
+  if (plat === "beckhoff") for (const d of prj.devices.filter(x => x.cls === "Axis"))
+    s += varXml({ name: axisObjName(d), type: "AXIS_REF", comment: trx("osa {dev} - nalinkovat na osu NC (Link To NC)", { dev: d.name }) + (d.desc ? " - " + d.desc : "") }, "        ");
+  return s;
+}
+
+/**
+ * GVL_IO pro import CODESYS: rozšíření `addData …/plcopenxml/globalvars` na úrovni projektu
+ * (tvar exportu CODESYS V3.5 SP21 Patch 6). `<configurations>` zůstává prázdné — CODESYS
+ * 3.5.21.60 konfiguraci „Default“ při importu odmítne („Object 'Default' is not accepted…“)
+ * a GVL i úlohu z ní přeskočí. Úlohu PLCopen import objektů nevytvoří → krok v README.
+ * `vars` = řádky `<variable>` odsazené 8 mezerami; `extra` = další `<data>` v addData projektu.
+ */
+export function plcopenGvlAddData(vars: string, extra = ""): string {
+  return `  <addData>
+    <data name="http://www.3s-software.com/plcopenxml/globalvars" handleUnknown="implementation">
+      <globalVars name="GVL_IO">
+${vars}      </globalVars>
+    </data>
+${extra}  </addData>
 `;
 }

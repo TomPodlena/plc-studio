@@ -8,7 +8,8 @@
  * program, jaký emulátor ověřil. U PLCopen se navíc porovnají proměnné strukturované části
  * (`<interface>`, kterou čte import CODESYS) s textovou deklarací.
  *
- * Reálný import v CODESYS / TwinCAT tím ověřen NENÍ (formát podle reálných exportů a souborů).
+ * Kontrola sama import v IDE nenahrazuje. Tvar PLCopen XML je ověřen skutečným importem a překladem
+ * v CODESYS V3.5 SP21 Patch 6 (2026-10-05); TwinCAT (TcPOU i PLCopen) importem ověřen není.
  */
 import type { PlatformKey } from "../model.js";
 import type { EmuFinding } from "./types.js";
@@ -58,9 +59,25 @@ export function tcObject(xml: string): { name: string; obj: OopListingObj } | un
 
 /* ------------------------------------------------------------------ PLCopen XML */
 
-const PLAIN = /<data name="http:\/\/www\.3s-software\.com\/plcopenxml\/interfaceasplaintext"[^>]*><InterfaceAsPlainText><xhtml[^>]*>([\s\S]*?)<\/xhtml><\/InterfaceAsPlainText><\/data>/;
+/*
+ * Textová deklarace se čte JEN z míst, odkud ji čte import CODESYS V3.5 SP21 Patch 6 (ověřeno 2026-10-05):
+ * POU = `<data …/interfaceasplaintext>` v addData POU za `</body>`; Method / Property / Interface =
+ * `<InterfaceAsPlainText>` jako přímý potomek elementu. Jinde ji CODESYS ignoruje — emulátor ji pak
+ * nenajde a porovnání se ST výpisem nesouhlasí (stejně jako by se lišila deklarace v IDE).
+ */
+const PLAIN = /<data name="http:\/\/www\.3s-software\.com\/plcopenxml\/interfaceasplaintext"[^>]*>\s*<InterfaceAsPlainText>\s*<xhtml[^>]*>([\s\S]*?)<\/xhtml>\s*<\/InterfaceAsPlainText>\s*<\/data>/;
+const ELEM_PLAIN = /<InterfaceAsPlainText>\s*<xhtml[^>]*>([\s\S]*?)<\/xhtml>\s*<\/InterfaceAsPlainText>/;
 const xbody = (s: string) => { const m = /<ST>\s*<xhtml[^>]*>([\s\S]*?)<\/xhtml>\s*<\/ST>/.exec(s); return m ? unEsc(m[1]) : ""; };
-const plainOf = (s: string) => { const m = PLAIN.exec(s); return m ? unEsc(m[1]) : undefined; };
+/** POU: data v addData za </body> (bez metod a vlastností). */
+const pouPlainOf = (tail: string) => {
+  const own = tail.replace(/<data name="[^"]*\/plcopenxml\/(method|property)"[^>]*>[\s\S]*?<\/(Method|Property)>\s*<\/data>/g, "");
+  const m = PLAIN.exec(own); return m ? unEsc(m[1]) : undefined;
+};
+/** Method / Property / Interface: přímý potomek (ne v addData, ne v GET / SET). */
+const elemPlainOf = (inner: string) => {
+  const own = inner.replace(/<(GetAccessor|SetAccessor)>[\s\S]*?<\/\1>/g, "").replace(/<addData>[\s\S]*?<\/addData>/g, "");
+  const m = ELEM_PLAIN.exec(own); return m ? unEsc(m[1]) : undefined;
+};
 /** Jména proměnných strukturované části `<interface>` (bez addData). */
 const ifaceVars = (s: string) => {
   const m = /<interface>([\s\S]*?)<\/interface>/.exec(s);
@@ -78,23 +95,23 @@ export function plcopenObjects(xml: string): Array<{ name: string; obj: OopListi
     const tail = rest.slice(rest.indexOf("</body>"));
     const methods: OopListingObj["methods"] = [], props: OopListingObj["props"] = [], methodsVars: Array<{ name: string; xml: string[]; decl: string[] }> = [];
     for (const mm of tail.matchAll(/<Method name="([^"]+)"[^>]*>([\s\S]*?)<\/Method>/g)) {
-      const decl = plainOf(mm[2]) || "";
+      const decl = elemPlainOf(mm[2]) || "";
       methods.push({ decl, body: xbody(mm[2]) });
       methodsVars.push({ name: mm[1], xml: ifaceVars(mm[2]), decl: declVars(decl) });
     }
     for (const pm of tail.matchAll(/<Property name="([^"]+)"[^>]*>([\s\S]*?)<\/Property>/g)) {
       const ga = /<GetAccessor>([\s\S]*?)<\/GetAccessor>/.exec(pm[2]);
-      props.push({ decl: plainOf(pm[2].replace(/<GetAccessor>[\s\S]*?<\/GetAccessor>/, "")) || "", get: ga ? xbody(ga[1]) : "" });
+      props.push({ decl: elemPlainOf(pm[2]) || "", get: ga ? xbody(ga[1]) : "" });
     }
     out.push({ name: m[1], varsXml: ifaceVars(iface), methodsVars,
-      obj: { kind: m[2] === "program" ? "program" : "fb", decl: plainOf(iface) || "", body: xbody(rest.slice(0, rest.indexOf("</body>") + 7)), methods, props } });
+      obj: { kind: m[2] === "program" ? "program" : "fb", decl: pouPlainOf(tail) || "", body: xbody(rest.slice(0, rest.indexOf("</body>") + 7)), methods, props } });
   }
   for (const m of xml.matchAll(/<Interface name="([^"]+)"[^>]*>([\s\S]*?)<\/Interface>/g)) {
     const b = m[2];
-    const methods = [...b.matchAll(/<Method name="[^"]+"[^>]*>([\s\S]*?)<\/Method>/g)].map(x => ({ decl: plainOf(x[1]) || "", body: "" }));
-    const props = [...b.matchAll(/<Property name="[^"]+"[^>]*>([\s\S]*?)<\/Property>/g)].map(x => ({ decl: plainOf(x[1]) || "", get: "" }));
+    const methods = [...b.matchAll(/<Method name="[^"]+"[^>]*>([\s\S]*?)<\/Method>/g)].map(x => ({ decl: elemPlainOf(x[1]) || "", body: "" }));
+    const props = [...b.matchAll(/<Property name="[^"]+"[^>]*>([\s\S]*?)<\/Property>/g)].map(x => ({ decl: elemPlainOf(x[1]) || "", get: "" }));
     const own = b.replace(/<Methods>[\s\S]*?<\/Methods>/, "").replace(/<Properties>[\s\S]*?<\/Properties>/, "");
-    out.push({ name: m[1], varsXml: [], methodsVars: [], obj: { kind: "interface", decl: plainOf(own) || "", body: "", methods, props } });
+    out.push({ name: m[1], varsXml: [], methodsVars: [], obj: { kind: "interface", decl: elemPlainOf(own) || "", body: "", methods, props } });
   }
   return out;
 }

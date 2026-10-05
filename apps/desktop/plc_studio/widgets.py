@@ -49,6 +49,49 @@ def link(parent, text: str, command, *, bg: str = theme.BG, font=theme.FONT_UI) 
     return lbl
 
 
+def tooltip(widget, text: str, *, delay: int = 400) -> None:
+    """Bublina s textem po najetí myší (zmizí při odjetí / kliknutí). Text je i v ``widget.tip_text`` (testy)."""
+    state: dict = {"job": None, "tip": None}
+    widget.tip_text = text
+
+    def hide(_e=None) -> None:
+        if state["job"] is not None:
+            try:
+                widget.after_cancel(state["job"])
+            except tk.TclError:
+                pass
+            state["job"] = None
+        if state["tip"] is not None:
+            try:
+                state["tip"].destroy()
+            except tk.TclError:
+                pass
+            state["tip"] = None
+
+    def show() -> None:
+        state["job"] = None
+        if not widget.winfo_exists():
+            return
+        tip = tk.Toplevel(widget)
+        tip.wm_overrideredirect(True)
+        tip.attributes("-topmost", True)
+        tk.Label(tip, text=text, bg="#FFFFFF", fg=theme.FG, font=theme.FONT_DIM, justify="left",
+                 wraplength=420, padx=8, pady=5, highlightthickness=1,
+                 highlightbackground=theme.BORDER).pack()
+        x, y = widget.winfo_pointerxy()
+        tip.wm_geometry(f"+{x + 14}+{y + 16}")
+        state["tip"] = tip
+
+    def enter(_e=None) -> None:
+        hide()
+        state["job"] = widget.after(delay, show)
+
+    widget.bind("<Enter>", enter, add="+")
+    widget.bind("<Leave>", hide, add="+")
+    widget.bind("<ButtonPress>", hide, add="+")
+    widget.bind("<Destroy>", hide, add="+")
+
+
 def note_box(parent, text: str, *, warn: bool = False, **pack) -> tk.Label:
     """Poznámka v rámečku (běžná = zelenošedá, varování = žlutá)."""
     bg = theme.WARN_BG if warn else theme.FIELD

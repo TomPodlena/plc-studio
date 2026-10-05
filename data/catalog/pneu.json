@@ -249,7 +249,7 @@
   },
   "suppliers": [
     { "name": "Festo, s.r.o.", "url": "https://www.festo.com/cz/cs/", "country": "CZ", "kind": "výrobce",
-      "cats": ["valve_solenoid", "valve_terminal", "cylinder", "cylinder_switch", "air_prep", "proportional_valve"],
+      "cats": ["plc_cpu@festo", "plc_di@festo", "plc_do@festo", "plc_ai@festo", "plc_ao@festo", "plc_coupler@festo", "valve_solenoid", "valve_terminal", "cylinder", "cylinder_switch", "air_prep", "proportional_valve"],
       "note": "Web vrací robotům 403; datasheety podle obj. č. na ftp.festo.com fungují." },
     { "name": "SMC Industrial Automation CZ s.r.o.", "url": "https://www.smc.eu/cs-cz", "country": "CZ", "kind": "výrobce",
       "cats": ["valve_solenoid", "valve_terminal", "cylinder", "cylinder_switch", "air_prep", "proportional_valve"],

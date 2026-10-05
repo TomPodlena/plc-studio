@@ -11,7 +11,8 @@ import type { QuoteCfg } from "./quote.js";
 import type { CompanyLibrary } from "./library.js";
 import { type HwModule } from "./hardware.js";
 import { type AxisCfg } from "./axis.js";
-export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics" | "wago" | "delta";
+import { type CdsProfileKey } from "./codesys_profiles.js";
+export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics" | "wago" | "delta" | CdsProfileKey;
 /** Styl generovaného kódu: klasické FB (výchozí) nebo OOP (rozhraní, dědičnost) — viz codegen_oop.ts. */
 export type CodeStyle = "classic" | "oop";
 export type DeviceClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "DI" | "DO" | "Vfd" | "PosDrive" | "PropValve" | "Axis";

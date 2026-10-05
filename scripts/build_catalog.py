@@ -24,7 +24,8 @@ REFS_SRC = ROOT / "data" / "platform_refs.json"
 REFS_OUT = ROOT / "packages" / "core" / "src" / "platform_refs.ts"
 CATALOG_TS = ROOT / "packages" / "core" / "src" / "catalog.ts"
 CZ = re.compile(r"[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]")
-PLATS = {"siemens", "rockwell", "beckhoff", "codesys", "mitsubishi", "schneider", "omron", "unitronics", "wago", "delta"}
+PLATS = {"siemens", "rockwell", "beckhoff", "codesys", "mitsubishi", "schneider", "omron", "unitronics", "wago", "delta",
+         "turck", "festo", "abb", "rexroth", "inovance", "weidmueller", "eaton", "lenze", "berghof", "hitachi", "ifm"}
 
 
 def known_cats() -> set[str]:

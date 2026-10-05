@@ -2,6 +2,7 @@ import { blankProject, devSignals, autoAddr, sanitizeTag, stripDia, roleExpr, en
 import { tr, trIn, N_, LANGS } from "./i18n.js";
 import { hwPlatform, HW_VER } from "./hardware.js";
 import { parseXml, xmlAll, xmlChild, xmlText, splitDelimited, guessDelimiter, canonAddr, isMemAddr, } from "./importers.js";
+import { CDS_PROFILES, CDS_PROFILE_KEYS } from "./codesys_profiles.js";
 /* ====================================================================== pomocné */
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const up = (s) => s.toUpperCase();
@@ -84,6 +85,8 @@ const PLAT_BY_NAME = [
     [/- Mitsubishi \*\)/, "mitsubishi"], [/- OMRON \*\)/, "omron"],
     /* profily CODESYS (hlavička MAIN / Gen_Library: „… - WAGO *)“, „… - Delta Electronics *)“) */
     [/- WAGO \*\)/, "wago"], [/- Delta Electronics \*\)/, "delta"],
+    /* další profily CODESYS (codesys_profiles.ts): „… - Turck *)“, „… - Bosch Rexroth *)“ … */
+    ...CDS_PROFILE_KEYS.map(k => [new RegExp("- " + CDS_PROFILES[k].name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " \\*\\)"), k]),
 ];
 function platFromText(t) {
     for (const [re, p] of PLAT_BY_NAME)
@@ -918,6 +921,65 @@ function exPLCopen(f, t, sink) {
     }
     return { fmt: "PLCopen XML (TC6)", note: sfcSteps ? tr("SFC: {n} kroků převedeno na sekvenci (odhad).", { n: sfcSteps }) : sink.signals.length === s0 ? tr("Žádné proměnné s vazbou na I/O.") : undefined };
 }
+/* ------------------------------------------------- IEC 61131-10 XML (iec61131_10.ts) */
+/**
+ * IEC 61131-10 Ed. 1.0 (GX Works3 / PLCnext Engineer, náš IEC61131-10_Import.xml): POU (jen ST) jako
+ * pseudo-ST s deklaracemi, globální proměnné s Address.address = signály (operand X/Y GX Works3);
+ * globální proměnné řízení stroje pro HMI bez operandu (OUR_HMI_GLOBAL) jen jako deklarace — jako GlobalLabels.csv.
+ */
+function exIec10(f, t, sink) {
+    const doc = parseXml(t);
+    const s0 = sink.signals.length;
+    const tyOf = (v) => xmlText(xmlChild(xmlChild(v, "Type"), "TypeName")).trim();
+    const SEC = { InputVars: "VAR_INPUT", OutputVars: "VAR_OUTPUT", InoutVars: "VAR_IN_OUT", Vars: "VAR", TempVars: "VAR_TEMP", ExternalVars: "VAR_EXTERNAL" };
+    const gns = xmlAll(doc, "GlobalNamespace")[0];
+    for (const pou of gns ? gns.children.filter(c => /^(Program|FunctionBlock|Function)$/.test(c.name)) : []) {
+        const secs = [];
+        const lists = [...(xmlChild(pou, "Parameters")?.children || []), ...pou.children.filter(c => /^(Vars|TempVars|ExternalVars)$/.test(c.name))];
+        for (const sec of lists) {
+            const kw = SEC[sec.name];
+            if (!kw)
+                continue;
+            secs.push(kw + "\n" + sec.children.filter(c => c.name === "Variable").map(v => {
+                const init = xmlAll(v, "SimpleValue")[0]?.attrs.value;
+                return "    " + idOf(v.attrs.name) + " : " + idOf(tyOf(v)) + (init !== undefined ? " := " + init : "") + ";";
+            }).join("\n") + "\nEND_VAR");
+        }
+        const st = xmlAll(xmlChild(pou, "MainBody") || pou, "ST")[0];
+        const kind = pou.name === "Program" ? "program" : pou.name === "Function" ? "function" : "functionBlock";
+        sink.pous.push({ name: pou.attrs.name || "POU", kind, lang: st ? "ST" : "other", body: (st ? xmlText(st) : "") + "\n" + secs.join("\n") + "\n", src: { file: f.name, line: lineAt(t, (st || pou).pos) } });
+    }
+    /* globální proměnné (Configuration / Resource / Program) */
+    const res = xmlAll(doc, "Resource")[0];
+    const gx = /FX5|RCPU|LHCPU|MELSEC/i.test(res?.attrs.resourceTypeName || "") ||
+        xmlAll(doc, "Address").some(a => /^[XY][0-9A-F]+$/i.test(a.attrs.address || ""));
+    const plat = gx ? "mitsubishi" : undefined;
+    const hmiDecl = [];
+    for (const g of xmlAll(doc, "GlobalVars"))
+        for (const v of g.children.filter(c => c.name === "Variable")) {
+            const tag = v.attrs.name || "", raw = xmlChild(v, "Address")?.attrs.address || "";
+            const dt = normDt(tyOf(v));
+            if (!tag)
+                continue;
+            if (!raw && OUR_HMI_GLOBAL.test(tag)) {
+                hmiDecl.push("    " + tag + " : " + (dt || "BOOL") + ";");
+                continue;
+            }
+            if (dt && !ATOMIC.test(dt) && dt !== "WORD")
+                continue;
+            const addr = canonAddr(raw, plat);
+            addSig(sink, { tag, dt, addr, cmt: xmlText(xmlChild(v, "Documentation")).trim(), dir: dirOf(addr, dt, tag), src: { file: f.name, line: lineAt(t, v.pos), quote: quoteOf(tag + (raw ? " AT " + raw : "")) } });
+        }
+    pushDecls(sink, f, hmiDecl);
+    if (plat)
+        sink.plats.push(plat);
+    if (!sink.meta.name) {
+        const n = xmlAll(doc, "ContentHeader")[0]?.attrs.name;
+        if (n && !/^(PLCdesk-Project|Unnamed)$/.test(n))
+            sink.meta.name = n;
+    }
+    return { fmt: "IEC 61131-10 XML", note: sink.signals.length === s0 ? tr("Žádné proměnné s vazbou na I/O.") : undefined };
+}
 /* ----------------------------------------------------------------- ST / SCL zdroje */
 const POU_RE = /^[ \t]*(FUNCTION_BLOCK|PROGRAM|FUNCTION|ORGANIZATION_BLOCK|DATA_BLOCK|TYPE|INTERFACE)[ \t]+"?([^"\r\n:]+?)"?(?:[ \t]*:[ \t]*\w+)?[ \t]*$/gm;
 function gvlVars(f, t, block, offset, plat, sink, gvlName, onlyAt = false) {
@@ -1399,6 +1461,8 @@ export function extractFiles(files) {
                 r = exL5X(f, t, sink);
             else if (/^\s*(IE_VER\s*:=|CONTROLLER\s+\w+\s*\()/m.test(t) && /\bEND_CONTROLLER\b|\bEND_TAG\b/.test(t))
                 r = exL5K(f, t, sink);
+            else if (/www\.iec\.ch\/public\/TC65SC65BWG7TF10/.test(t))
+                r = exIec10(f, t, sink);
             else if (/plcopen\.org\/xml\/tc6|<project[\s>][\s\S]*<types>/.test(t))
                 r = exPLCopen(f, t, sink);
             else if (/<SW\.(Blocks|Types|TechnologicalObjects)\./.test(t))
@@ -1918,11 +1982,19 @@ export function inferProject(ex, base) {
     const types = new Map();
     const pous = [];
     const seenPou = new Set();
+    /* program se stejným kódem pod jiným jménem (MAIN.st × ProgPou v IEC 61131-10 XML pro GX Works3) jen jednou */
+    const progCode = (b) => b.replace(/\(\*[\s\S]*?\*\)/g, "").replace(/^\s*VAR(?:_\w+)?\b[\s\S]*?^\s*END_VAR\b/gm, "")
+        .replace(/^\s*PROGRAM\s+\S+.*$/gm, "").replace(/\bEND_PROGRAM\b/g, "").replace(/\s+/g, "");
     for (const p of ex.pous) { // stejný POU z víc souborů (MAIN.st + PLCopen) jen jednou
         const k = p.kind + ":" + up(p.name);
         if (seenPou.has(k))
             continue;
+        const c = p.kind === "program" && p.lang === "ST" ? progCode(p.body) : "";
+        if (c && seenPou.has("code:" + c))
+            continue;
         seenPou.add(k);
+        if (c)
+            seenPou.add("code:" + c);
         pous.push(p);
     }
     for (const p of pous)

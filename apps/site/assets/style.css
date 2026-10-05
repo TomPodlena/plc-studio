@@ -316,6 +316,10 @@ ul, ol { margin: 0; }
 .stamp-stale { color: var(--stale); background: var(--stale-soft); }
 .stamp-wait { color: var(--wait); background: var(--wait-soft); }
 .stamp-lock { color: var(--lock); background: var(--lock-soft); border-style: dashed; }
+/* stav overeni platforem: verified = import a preklad v IDE, lang = jazyk overen prekladacem CODESYS, beta = emulator */
+.stamp-verified { color: var(--ok); background: var(--ok-soft); }
+.stamp-lang { color: var(--accent-deep); background: var(--accent-soft); }
+.stamp-beta { color: var(--wait); background: var(--wait-soft); }
 
 /* ---------- fakta ---------- */
 .facts { border-top: 1px solid var(--line); background: var(--card); }
@@ -636,7 +640,13 @@ html.lb-open { overflow: hidden; }
 .ptile-n { font: 500 .7rem/1 var(--mono); color: var(--accent); }
 .ptiles strong { font-size: .98rem; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; }
 .ptiles li > span:last-child { font: 400 .74rem/1.35 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+@media (min-width: 1000px) { .ptiles { grid-template-columns: repeat(5, 1fr); } }
+.ptiles li.ptile-verified::after { background: var(--ok); }
+.ptiles li.ptile-beta::after { background: var(--wait); opacity: .45; }
 .checked { font: .85rem/1.4 var(--mono); color: var(--muted); }
+.legend { display: grid; gap: 12px; margin: 16px 0 18px; }
+.legend-row { display: grid; gap: 6px; padding-left: 12px; border-left: 2px solid var(--line-soft); }
+.legend dt, .legend dd { margin: 0; }
 .table-wrap { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-sm); overflow: hidden; }
 .ptable { width: 100%; border-collapse: collapse; font-size: .92rem; }
 .ptable th, .ptable td { text-align: left; padding: 13px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
@@ -650,7 +660,7 @@ html.lb-open { overflow: hidden; }
   .ptable tr { display: block; padding: 14px; border-bottom: 1px solid var(--line); }
   .ptable th, .ptable td { display: grid; grid-template-columns: minmax(7.5em, 34%) 1fr; gap: 10px; padding: 4px 0; border: 0; }
   .ptable tbody th { display: block; font-size: 1.02rem; padding-bottom: 8px; }
-  .ptable td::before { content: attr(data-l); font: 500 .7rem/1.6 var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .ptable td::before { content: attr(data-l); font: 500 .7rem/1.6 var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); min-width: 0; overflow-wrap: anywhere; hyphens: auto; }
 }
 .box { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 24px; margin-top: 24px; box-shadow: var(--shadow-sm); }
 .box h2 { font-size: 1.2rem; }

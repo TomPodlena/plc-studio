@@ -8,7 +8,8 @@
  * program, jaký emulátor ověřil. U PLCopen se navíc porovnají proměnné strukturované části
  * (`<interface>`, kterou čte import CODESYS) s textovou deklarací.
  *
- * Reálný import v CODESYS / TwinCAT tím ověřen NENÍ (formát podle reálných exportů a souborů).
+ * Kontrola sama import v IDE nenahrazuje. Tvar PLCopen XML je ověřen skutečným importem a překladem
+ * v CODESYS V3.5 SP21 Patch 6 (2026-10-05); TwinCAT (TcPOU i PLCopen) importem ověřen není.
  */
 import type { PlatformKey } from "../model.js";
 import type { EmuFinding } from "./types.js";

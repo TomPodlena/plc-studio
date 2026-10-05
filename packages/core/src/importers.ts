@@ -6,7 +6,7 @@
  * Pozn.: XML parsery potřebují DOMParser (prohlížeč). V Node je lze použít
  * s polyfillem (např. linkedom) předaným přes setDOMParser().
  */
-import { Device, IoEntry, DeviceClass, Dir, CLS, devSignals } from "./model.js";
+import { Device, IoEntry, DeviceClass, Dir, CLS, devSignals, PLAT, isCodesysFamily, type PlatformKey } from "./model.js";
 import { tr } from "./i18n.js";
 
 export interface ImportedTag { tag: string; dt: string; addr: string; cmt: string; dev?: string; cls?: string; _dir?: Dir; }
@@ -136,7 +136,8 @@ export function canonAddr(raw: string, plat?: string): string {
   if (!raw) return "";
   const a = raw.trim().toUpperCase().replace(/\s+/g, "");
   let m: RegExpMatchArray | null;
-  const iec = plat === "codesys" || plat === "beckhoff" || plat === "schneider";
+  /* rodina CODESYS vč. profilů (WAGO, Delta, Turck…): %IW = index slova */
+  const iec = !!plat && plat in PLAT && isCodesysFamily(plat as PlatformKey);
   if ((m = a.match(/^%([IQEA])X(\d+)\.([0-7])$/))) return "%" + (m[1] === "E" ? "I" : m[1] === "A" ? "Q" : m[1]) + m[2] + "." + m[3];
   if ((m = a.match(/^%?([IQEA])(\d+)\.([0-7])$/))) return "%" + (m[1] === "E" || m[1] === "I" ? "I" : "Q") + m[2] + "." + m[3];
   if ((m = a.match(/^%([IQ])W(\d+)$/))) return "%" + m[1] + "W" + (iec ? +m[2] * 2 : +m[2]);

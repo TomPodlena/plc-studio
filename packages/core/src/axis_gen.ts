@@ -32,6 +32,7 @@ import type { Project, PlatformKey, Device } from "./model.js";
 import { tr, N_ } from "./i18n.js";
 import { hwLayout } from "./hardware.js";
 import { axisCfgOf, axisObjName } from "./axis.js";
+import { cdsProfile } from "./codesys_profiles.js";
 
 export type AxisDialect = "s15" | "s12" | "tc" | "sm3" | "sml" | "om" | "lx";
 
@@ -75,7 +76,8 @@ export function axisDialect(prj: Project, plat: PlatformKey): AxisDialect | null
     case "wago": return "sml";
     case "omron": return "om";
     case "rockwell": return "lx";
-    default: return null;
+    /* profily CODESYS dalších výrobců: SoftMotion SM3 jen tam, kde ho výrobce dokládá (codesys_profiles.ts) */
+    default: return cdsProfile(plat)?.axis ?? null;
   }
 }
 
@@ -84,6 +86,8 @@ export function axisUnsupportedWhy(plat: PlatformKey): string {
   if (plat === "mitsubishi") return tr("FX5 bez modulu Simple Motion má jen pulzní instrukce (DRVA / DRVI / PLSV) a knihovna PLCopen pro FX5-SSC-S není ověřena (jen regionální distribuce Mitsubishi Europe) — použij polohovací pohon se záznamy přes I/O.");
   if (plat === "schneider") return tr("parametry knihovny GMC Independent PLCopen MC (GIPLC) se nepodařilo ověřit (EIO0000003592 nedostupný) — kód osy se negeneruje, aby nevznikl nepřeložitelný program.");
   if (plat === "unitronics") return tr("UniLogic má bloky MC jen v Ladderu a plochý ST (Machine.st) instance FB nemá — použij polohovací pohon se záznamy nebo měnič přes I/O.");
+  const prof = cdsProfile(plat);
+  if (prof && !prof.axis && prof.axisWhy) return tr(prof.axisWhy);
   return "";
 }
 

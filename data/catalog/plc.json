@@ -954,6 +954,425 @@
           "note": "Kód ověřen u zahraničního prodejce. Projekt v DIAStudio / DOPSoft." }
       ]
     },
+    "plc_cpu@turck": {
+      "label": "PLC – CPU (Turck)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Turck", "series": ["TX700 HMI/PLC (CODESYS V3)"], "typical": "TX707-P3CV01 – HMI/PLC 7\", CODESYS V3 s WebVisu, EtherCAT master, PROFINET controller, EtherNet/IP scanner, Modbus TCP/RTU, 3× Ethernet", "orderCode": "100002030", "src": "https://www.turck.us/en/product/100002030", "hw": {"slots": {}, "remote": "bl20", "hwSrc": "https://www.turck.us/attachment/100002669.pdf"}, "priceLevel": "střední", "suppliers": ["Turck, s.r.o. (Hradec Králové)"], "note": "Ident. č. 100002030 (typ TX707-P3CV01). Bez vlastních I/O a bez lokální sběrnice modulů — všechna I/O přes vzdálené stanice BL20 s gatewayí BL20-E-GW-EC (EtherCAT). Je zároveň operátorským panelem — samostatný panel HMI není nutný. Velikosti TX705/TX710/TX715/TX721 (ident. č. neověřena)."},
+        {"brand": "Turck", "series": ["TBEN-L…-PLC (IP67, CODESYS V3)"], "typical": "TBEN-L5-PLC-11 – kompaktní PLC IP67, CODESYS V3, WebVisu, EtherCAT / PROFINET / EtherNet/IP / Modbus master i slave, 8 univerzálních DXP kanálů", "orderCode": "100000272", "src": "https://www.turck.us/en/product/100000272", "hw": {"slots": {}, "remote": "bl20", "hwSrc": "https://www.turck.us/attachment/d301431.pdf"}, "priceLevel": "střední", "suppliers": ["Turck, s.r.o. (Hradec Králové)"], "note": "8 kanálů DXP (každý DI nebo DO) se do vestavěných I/O nezapočítává — směr se volí konfigurací. Rozšíření jen vzdálenými stanicemi (BL20-E-GW-EC přes EtherCAT)."}
+      ]
+    },
+    "plc_di@turck": {
+      "label": "PLC – digitální vstupy (Turck BL20)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Turck", "series": ["BL20 Economy"], "typical": "BL20-E-16DI-24VDC-P – 16 DI, 24 V DC, PNP, push-in svorky, IP20", "orderCode": "6827231", "src": "https://www.turck.us/en/product/6827231", "hw": {"ch": {"DI": 16}, "bus": "bl20"}, "priceLevel": "nízká", "suppliers": ["Turck, s.r.o. (Hradec Králové)"], "note": "Ident. č. 6827231. Řada Economy — elektronika a svorky v jednom pouzdře (bez bázového modulu)."}
+      ]
+    },
+    "plc_do@turck": {
+      "label": "PLC – digitální výstupy (Turck BL20)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Turck", "series": ["BL20 Economy"], "typical": "BL20-E-16DO-24VDC-0.5A-P – 16 DO, 24 V DC, 0,5 A, PNP, push-in svorky", "orderCode": "6827230", "src": "https://www.turck.us/en/product/6827230", "hw": {"ch": {"DO": 16}, "bus": "bl20"}, "priceLevel": "nízká", "suppliers": ["Turck, s.r.o. (Hradec Králové)"], "note": "Ident. č. 6827230."}
+      ]
+    },
+    "plc_ai@turck": {
+      "label": "PLC – analogové vstupy (Turck BL20)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Turck", "series": ["BL20"], "typical": "BL20-4AI-U/I – 4 AI, 0–10 V / ±10 V / 0–20 mA / 4–20 mA, formát Integer 15 bit + znaménko", "orderCode": "6827217", "src": "https://www.turck.us/en/product/6827217", "hw": {"ch": {"AI": 4}, "bus": "bl20"}, "priceLevel": "střední", "suppliers": ["Turck, s.r.o. (Hradec Králové)"], "note": "Ident. č. 6827217. Standardní řada BL20 — potřebuje bázový modul se svorkami (typ a ident. č. neověřeny). Rozsah a reprezentace (15 bit + znaménko / 12 bit zarovnáno vlevo) parametrem kanálu."}
+      ]
+    },
+    "plc_ao@turck": {
+      "label": "PLC – analogové výstupy (Turck BL20)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Turck", "series": ["BL20 Economy"], "typical": "BL20-E-4AO-U/I – 4 AO, 0–10 V / ±10 V / 0–20 mA / 4–20 mA", "orderCode": "6827328", "src": "https://www.turck.us/en/product/6827328", "hw": {"ch": {"AO": 4}, "bus": "bl20"}, "priceLevel": "střední", "suppliers": ["Turck, s.r.o. (Hradec Králové)"], "note": "Ident. č. 6827328. Režimy Standard / NE 43 / Extended Range — u Extended Range je konec jmenovitého rozsahu 27648, ne 32767."}
+      ]
+    },
+    "plc_coupler@turck": {
+      "label": "PLC – rozhraní vzdálených I/O (Turck BL20)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Turck", "series": ["BL20 gateway"], "typical": "BL20-E-GW-EC – gateway BL20 pro EtherCAT, 2× RJ45, MDP, max. 72 modulů ve stanici", "orderCode": "6827380", "src": "https://www.turck.us/en/product/6827380", "hw": {"head": "bl20", "slots": {"bl20": 72}, "net": "EtherCAT"}, "priceLevel": "střední", "suppliers": ["Turck, s.r.o. (Hradec Králové)"], "note": "Ident. č. 6827380; dodává se s koncovou deskou BL20-ABPL a 2 koncovými držáky. Limit 72 modulů (manuál D301260, kap. 8.1.3); při součtu proudu modulové sběrnice nad 700 mA je nutný modul BL20-BR-24VDC-D (ident. č. neověřeno)."}
+      ]
+    },
+    "plc_cpu@festo": {
+      "label": "PLC – CPU (Festo)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Festo", "series": ["CPX-E-CEC (CODESYS V3)"], "typical": "CPX-E-CEC-C1 – samostatný controller CPX-E, CODESYS V3, EtherCAT master, Modbus TCP, OPC UA, max. 10 modulů I/O CPX-E", "orderCode": "5226780", "src": "https://docs.rs-online.com/f03d/A700000012778786.pdf", "hw": {"slots": {"cpxe": 10}, "remote": "cpxe", "hwSrc": "https://docs.rs-online.com/f03d/A700000012778786.pdf"}, "priceLevel": "střední", "suppliers": ["Festo, s.r.o. (Praha)"], "note": "Objednací číslo 5226780 (typ CPX-E-CEC-C1) z katalogu Festo „Automation system CPX-E“ 2024/12 (kopie na RS). Systém = 1 controller + max. 10 modulů I/O; adresní prostor controlleru 64 B vstupů / 64 B výstupů může počet analogových modulů omezit dřív. Vzdálené I/O = další stanice CPX-E s modulem sběrnice CPX-E-EC na EtherCAT. Programování: Festo Automation Suite + CODESYS."},
+        {"brand": "Festo", "series": ["CPX-E-CEC (CODESYS V3 + SoftMotion)"], "typical": "CPX-E-CEC-M1 – samostatný controller CPX-E, CODESYS V3 se SoftMotion, EtherCAT master, max. 10 modulů I/O CPX-E", "orderCode": "5266781", "src": "https://docs.rs-online.com/f03d/A700000012778786.pdf", "hw": {"slots": {"cpxe": 10}, "remote": "cpxe", "hwSrc": "https://docs.rs-online.com/f03d/A700000012778786.pdf"}, "priceLevel": "vysoká", "suppliers": ["Festo, s.r.o. (Praha)"], "note": "Varianta pro servoosy (SoftMotion, AXIS_REF_SM3, aplikační nota Festo s CMMT). Stejné limity modulů jako C1."},
+        {"brand": "Festo", "series": ["CPX-E-CEC (PROFINET)"], "typical": "CPX-E-CEC-C1-PN – controller CPX-E, CODESYS V3, PROFINET device + EtherCAT master, 2× Ethernet, max. 10 modulů I/O CPX-E", "orderCode": "4252741", "src": "https://docs.rs-online.com/f03d/A700000012778786.pdf", "hw": {"slots": {"cpxe": 10}, "remote": "cpxe", "hwSrc": "https://docs.rs-online.com/f03d/A700000012778786.pdf"}, "priceLevel": "střední", "suppliers": ["Festo, s.r.o. (Praha)"], "note": "Varianta s rozhraním PROFINET k nadřazenému PLC (M1-PN = 4252743 se SoftMotion, C1-EP = 4252742 pro EtherNet/IP; kódy v témže katalogu)."}
+      ]
+    },
+    "plc_di@festo": {
+      "label": "PLC – digitální vstupy (Festo CPX-E)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Festo", "series": ["CPX-E"], "typical": "CPX-E-16DI – 16 DI, 24 V DC, PNP, IEC 61131-2 typ 3, pružinová svorkovnice", "orderCode": "4080492", "src": "https://docs.rs-online.com/f03d/A700000012778786.pdf", "hw": {"ch": {"DI": 16}, "bus": "cpxe"}, "priceLevel": "střední", "suppliers": ["Festo, s.r.o. (Praha)"], "note": "Typ CPX-E-16DI, objednací číslo 4080492 (katalog CPX-E)."}
+      ]
+    },
+    "plc_do@festo": {
+      "label": "PLC – digitální výstupy (Festo CPX-E)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Festo", "series": ["CPX-E"], "typical": "CPX-E-8DO – 8 DO, 24 V DC, PNP, IEC 61131-2 typ 0,5, elektronická pojistka na kanál", "orderCode": "4080491", "src": "https://docs.rs-online.com/f03d/A700000012778786.pdf", "hw": {"ch": {"DO": 8}, "bus": "cpxe"}, "priceLevel": "střední", "suppliers": ["Festo, s.r.o. (Praha)"], "note": "V řadě CPX-E není 16kanálový výstupní modul — 46 DO = 6 modulů. Typ CPX-E-8DO, číslo 4080491 (katalog CPX-E)."}
+      ]
+    },
+    "plc_ai@festo": {
+      "label": "PLC – analogové vstupy (Festo CPX-E)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Festo", "series": ["CPX-E"], "typical": "CPX-E-4AI-U-I – 4 AI, napětí ±10 V / 0–10 V / 1–5 V, proud 0–20 / 4–20 mA, 15 bit + znaménko", "orderCode": "4080493", "src": "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/4080493.pdf", "hw": {"ch": {"AI": 4}, "bus": "cpxe"}, "priceLevel": "vysoká", "suppliers": ["Festo, s.r.o. (Praha)"], "note": "Rozsah se nastavuje parametrem kanálu; formát dat s lineárním škálováním (meze parametrovatelné)."}
+      ]
+    },
+    "plc_ao@festo": {
+      "label": "PLC – analogové výstupy (Festo CPX-E)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Festo", "series": ["CPX-E"], "typical": "CPX-E-4AO-U-I – 4 AO, napětí ±10 V / 0–10 V, proud 0–20 / 4–20 mA, 15 bit + znaménko", "orderCode": "4080494", "src": "https://docs.rs-online.com/f03d/A700000012778786.pdf", "hw": {"ch": {"AO": 4}, "bus": "cpxe"}, "priceLevel": "vysoká", "suppliers": ["Festo, s.r.o. (Praha)"], "note": ""}
+      ]
+    },
+    "plc_coupler@festo": {
+      "label": "PLC – rozhraní vzdálených I/O (Festo CPX-E)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Festo", "series": ["CPX-E (moduly sběrnice)"], "typical": "CPX-E-EC – modul sběrnice EtherCAT pro vzdálenou stanici CPX-E, max. 10 modulů I/O", "orderCode": "4080498", "src": "https://docs.rs-online.com/f03d/A700000012778786.pdf", "hw": {"head": "cpxe", "slots": {"cpxe": 10}, "net": "EtherCAT"}, "priceLevel": "střední", "suppliers": ["Festo, s.r.o. (Praha)"], "note": "Adresní prostor modulu sběrnice 512 bit vstupů / 512 bit výstupů (max. 32 AI / 32 AO). Varianty: CPX-E-PN 4080497 (PROFINET), CPX-E-EP 4080499 (EtherNet/IP), CPX-E-PB 4080496."}
+      ]
+    },
+    "plc_cpu@abb": {
+      "label": "PLC – CPU (ABB)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "ABB", "series": ["AC500 V3 (PM56xx)"], "typical": "PM5630-2ETH – CPU AC500 V3, 8 MB, 2× Ethernet, RS-232/485, CAN, displej; rozšíření až 10 modulů S500 lokálně", "orderCode": "1SAP131000R0278", "src": "https://library.e.abb.com/public/d65ff4e975d74ca48124b3c25c6b8519/3ADR010331,%201,%20en_US%20Brochure_AC500_V3_lowres.pdf", "hw": {"slots": {"s500": 10}, "remote": "s500", "hwSrc": "https://library.e.abb.com/public/d65ff4e975d74ca48124b3c25c6b8519/3ADR010331,%201,%20en_US%20Brochure_AC500_V3_lowres.pdf"}, "priceLevel": "střední", "suppliers": ["ABB s.r.o. (ČR)"], "note": "Kód z brožury AC500 V3 (2019); distributoři uvádějí nástupce 1SAP131000R0378 (neověřeno u ABB). CPU potřebuje svorkovou základnu TB56xx-2ETH (např. TB5600-2ETH 1SAP110300R0278). Bez vestavěných I/O."},
+        {"brand": "ABB", "series": ["AC500 V3 (PM56xx)"], "typical": "PM5650-2ETH – výkonnější CPU AC500 V3, 80 MB, 2× Ethernet, RS-232/485, CAN; až 10 modulů S500 lokálně", "orderCode": "1SAP141000R0278", "src": "https://library.e.abb.com/public/d65ff4e975d74ca48124b3c25c6b8519/3ADR010331,%201,%20en_US%20Brochure_AC500_V3_lowres.pdf", "hw": {"slots": {"s500": 10}, "remote": "s500", "hwSrc": "https://library.e.abb.com/public/d65ff4e975d74ca48124b3c25c6b8519/3ADR010331,%201,%20en_US%20Brochure_AC500_V3_lowres.pdf"}, "priceLevel": "vysoká", "suppliers": ["ABB s.r.o. (ČR)"], "note": "Svorková základna TB56xx-2ETH se objednává zvlášť."}
+      ]
+    },
+    "plc_di@abb": {
+      "label": "PLC – digitální vstupy (ABB S500)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "ABB", "series": ["S500 I/O"], "typical": "DI524 – 32 DI, 24 V DC, na svorkovou jednotku TU515/TU516", "orderCode": "1SAP240000R0001", "src": "https://irp-cdn.multiscreensite.com/25ac0d36/files/uploaded/AC500.pdf", "hw": {"ch": {"DI": 32}, "bus": "s500"}, "priceLevel": "střední", "suppliers": ["ABB s.r.o. (ČR)"], "note": "Zdroj = hlavní katalog ABB 3ADR020077C0204 rev. C (12/2019, kopie u distributora), s. 90; produktová stránka abb.com/global/en/products/1sap240000r0001. Svorková jednotka TU516 (pružinové svorky) 1SAP212000R0001 zvlášť."}
+      ]
+    },
+    "plc_do@abb": {
+      "label": "PLC – digitální výstupy (ABB S500)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "ABB", "series": ["S500 I/O"], "typical": "DO524 – 32 DO, tranzistor 24 V DC, 0,5 A", "orderCode": "1SAP240700R0001", "src": "https://irp-cdn.multiscreensite.com/25ac0d36/files/uploaded/AC500.pdf", "hw": {"ch": {"DO": 32}, "bus": "s500"}, "priceLevel": "střední", "suppliers": ["ABB s.r.o. (ČR)"], "note": "Hlavní katalog ABB 3ADR020077C0204 rev. C, s. 90. Svorková jednotka TU515/TU516 zvlášť. Alternativa DC523 (24 kanálů konfigurovatelných jako DI/DO, 1SAP240500R0001)."}
+      ]
+    },
+    "plc_ai@abb": {
+      "label": "PLC – analogové vstupy (ABB S500)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "ABB", "series": ["S500 I/O"], "typical": "AI523 – 16 AI, 0…10 V / ±10 V / 0/4…20 mA / Pt100, Pt1000, Ni1000, 12 bit + znaménko", "orderCode": "1SAP250300R0001", "src": "https://irp-cdn.multiscreensite.com/25ac0d36/files/uploaded/AC500.pdf", "hw": {"ch": {"AI": 16}, "bus": "s500"}, "priceLevel": "vysoká", "suppliers": ["ABB s.r.o. (ČR)"], "note": "Hlavní katalog ABB, s. 91. Menší kombinovaný modul AX521 (4 AI + 4 AO, 1SAP250100R0001)."}
+      ]
+    },
+    "plc_ao@abb": {
+      "label": "PLC – analogové výstupy (ABB S500)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "ABB", "series": ["S500 I/O"], "typical": "AO523 – 16 AO, ±10 V / 0…20 mA / 4…20 mA (max. 8 proudových výstupů)", "orderCode": "1SAP250200R0001", "src": "https://irp-cdn.multiscreensite.com/25ac0d36/files/uploaded/AC500.pdf", "hw": {"ch": {"AO": 16}, "bus": "s500"}, "priceLevel": "vysoká", "suppliers": ["ABB s.r.o. (ČR)"], "note": "Hlavní katalog ABB, s. 91. Pro 6 AO lze i AX521 (4 AI + 4 AO, 1SAP250100R0001)."},
+        {"brand": "ABB", "series": ["S500 I/O"], "typical": "AX521 – kombinovaný modul 4 AI + 4 AO, ±10 V, 0/4…20 mA", "orderCode": "1SAP250100R0001", "src": "https://irp-cdn.multiscreensite.com/25ac0d36/files/uploaded/AC500.pdf", "hw": {"ch": {"AI": 4, "AO": 4}, "bus": "s500"}, "priceLevel": "střední", "suppliers": ["ABB s.r.o. (ČR)"], "note": "Hlavní katalog ABB, s. 91 (AI/AO/AC = 4/4/0)."}
+      ]
+    },
+    "plc_coupler@abb": {
+      "label": "PLC – rozhraní vzdálených I/O (ABB S500)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "ABB", "series": ["S500 communication interface modules (CI5xx)"], "typical": "CI522-MODTCP – hlava vzdálených I/O Modbus TCP, vestavěno 8 DI / 8 DO / 8 DC, až 10 modulů S500", "orderCode": "1SAP222200R0001", "src": "https://irp-cdn.multiscreensite.com/25ac0d36/files/uploaded/AC500.pdf", "hw": {"head": "s500", "slots": {"s500": 10}, "net": "Modbus TCP"}, "priceLevel": "střední", "suppliers": ["ABB s.r.o. (ČR)"], "note": "Hlavní katalog ABB, s. 93 a technická data (max. 10 rozšiřovacích modulů S500). Vestavěné kanály hlavy nejsou v hw uvedeny. Svorková jednotka TU507-ETH / TU508-ETH zvlášť. Modbus TCP je v CPU V3 na Ethernetu."},
+        {"brand": "ABB", "series": ["S500 communication interface modules (CI5xx)"], "typical": "CI502-PNIO – hlava vzdálených I/O PROFINET IO, vestavěno 8 DI / 8 DO / 8 DC, až 10 modulů S500", "orderCode": "1SAP220700R0001", "src": "https://irp-cdn.multiscreensite.com/25ac0d36/files/uploaded/AC500.pdf", "hw": {"head": "s500", "slots": {"s500": 10}, "net": "PROFINET"}, "priceLevel": "střední", "suppliers": ["ABB s.r.o. (ČR)"], "note": "CPU V3 potřebuje komunikační modul PROFINET controller CM579-PNIO (1SAP170901R0101) na svorkové základně TB56x0. Alternativa EtherCAT: CI512-ETHCAT 1SAP221000R0001 + CM579-ETHCAT 1SAP170902R0101."}
+      ]
+    },
+    "plc_cpu@rexroth": {
+      "label": "PLC – CPU (Bosch Rexroth)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Bosch Rexroth", "series": ["ctrlX CORE X3"], "typical": "ctrlX CORE X3 – kompaktní řídicí systém ctrlX OS, ARM A53 4 jádra, 2 GB RAM, 4 GB eMMC, 3× Gbit Ethernet, EtherCAT master; moduly ctrlX I/O přímo vpravo", "orderCode": "R911410037", "src": "https://buyrexroth.com/product/R911410037", "hw": {"slots": {"ctrlxio": 30}, "remote": "ctrlxio", "hwSrc": "https://community.boschrexroth.com/ctrlx-automation-how-tos-qmglrz33/post/ctrlx-configurator---start-guide-ctrlx-i-o-configurator-Qq5C8lg22Ue8r2a"}, "priceLevel": "střední", "suppliers": ["Bosch Rexroth, spol. s r.o. (ČR)", "ctrlX Shop (e-shop Bosch Rexroth)", "Automation24 (e-shop)"], "note": "Typový kód COREX-C-X3-11-ANNN-21.01-01RS-NN-NN (stejný typový kód nese i R911405975). Limit 30 aktivních modulů ctrlX I/O na stanici (hlavou je ctrlX CORE nebo spojka XB-EC-12) podle návodu ctrlX Configurator. Licence aplikace ctrlX PLC se kupuje zvlášť. Bez vestavěných I/O. E-shop ctrlX Shop prodává X3 pod číslem R914518354 (typ …-VSRS-…, 649 EUR)."}
+      ]
+    },
+    "plc_di@rexroth": {
+      "label": "PLC – digitální vstupy (ctrlX I/O)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Bosch Rexroth", "series": ["ctrlX I/O XI1"], "typical": "XI110116 – 16 DI, 24 V DC, 1vodičové připojení, vstupní filtr 3 ms", "orderCode": "R911406097", "src": "https://apps.boschrexroth.com/microsites/ctrlx-automation/files/ctrlx/Downloadable%20Assets/Product%20Information/ctrlX%20IO/ctrlX_IO_Produktinformation_EN_202408.pdf", "hw": {"ch": {"DI": 16}, "bus": "ctrlxio"}, "priceLevel": "nízká", "suppliers": ["Bosch Rexroth, spol. s r.o. (ČR)", "ctrlX Shop (e-shop Bosch Rexroth)", "Automation24 (e-shop)"], "note": "Produktová informace ctrlX I/O 08/2024. Datasheet R911415861."}
+      ]
+    },
+    "plc_do@rexroth": {
+      "label": "PLC – digitální výstupy (ctrlX I/O)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Bosch Rexroth", "series": ["ctrlX I/O XI2"], "typical": "XI211116 – 16 DO, 24 V DC, 0,5 A, 1vodičové připojení, modul max. 4 A", "orderCode": "R911406102", "src": "https://apps.boschrexroth.com/microsites/ctrlx-automation/files/ctrlx/Downloadable%20Assets/Product%20Information/ctrlX%20IO/ctrlX_IO_Produktinformation_EN_202408.pdf", "hw": {"ch": {"DO": 16}, "bus": "ctrlxio"}, "priceLevel": "nízká", "suppliers": ["Bosch Rexroth, spol. s r.o. (ČR)", "ctrlX Shop (e-shop Bosch Rexroth)", "Automation24 (e-shop)"], "note": "Produktová informace ctrlX I/O 08/2024."}
+      ]
+    },
+    "plc_ai@rexroth": {
+      "label": "PLC – analogové vstupy (ctrlX I/O)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Bosch Rexroth", "series": ["ctrlX I/O XI3"], "typical": "XI312204 – 4 AI, 0…10 V, diferenciální, 16 bit vč. znaménka, převod 100 µs", "orderCode": "R911406105", "src": "https://apps.boschrexroth.com/microsites/ctrlx-automation/files/ctrlx/Downloadable%20Assets/Product%20Information/ctrlX%20IO/ctrlX_IO_Produktinformation_EN_202408.pdf", "hw": {"ch": {"AI": 4}, "bus": "ctrlxio"}, "priceLevel": "střední", "suppliers": ["Bosch Rexroth, spol. s r.o. (ČR)", "ctrlX Shop (e-shop Bosch Rexroth)", "Automation24 (e-shop)"], "note": "Procesní data v mV (10 V = 10000)."},
+        {"brand": "Bosch Rexroth", "series": ["ctrlX I/O XI3"], "typical": "XI342204 – 4 AI, 4…20 mA, 16 bit vč. znaménka", "orderCode": "R911406107", "src": "https://apps.boschrexroth.com/microsites/ctrlx-automation/files/ctrlx/Downloadable%20Assets/Product%20Information/ctrlX%20IO/ctrlX_IO_Produktinformation_EN_202408.pdf", "hw": {"ch": {"AI": 4}, "bus": "ctrlxio"}, "priceLevel": "střední", "suppliers": ["Bosch Rexroth, spol. s r.o. (ČR)", "ctrlX Shop (e-shop Bosch Rexroth)", "Automation24 (e-shop)"], "note": "Procesní data v µA: 4 mA = 4000, 20 mA = 20000 (datasheet R911418501) – nula není 0, škálování 4000…20000."}
+      ]
+    },
+    "plc_ao@rexroth": {
+      "label": "PLC – analogové výstupy (ctrlX I/O)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Bosch Rexroth", "series": ["ctrlX I/O XI4"], "typical": "XI412204 – 4 AO, 0…10 V, 16 bit, aktualizace 250 µs", "orderCode": "R911406116", "src": "https://apps.boschrexroth.com/microsites/ctrlx-automation/files/ctrlx/Downloadable%20Assets/Product%20Information/ctrlX%20IO/ctrlX_IO_Produktinformation_EN_202408.pdf", "hw": {"ch": {"AO": 4}, "bus": "ctrlxio"}, "priceLevel": "střední", "suppliers": ["Bosch Rexroth, spol. s r.o. (ČR)", "ctrlX Shop (e-shop Bosch Rexroth)", "Automation24 (e-shop)"], "note": "Formát procesních dat výstupu neověřen (u vstupů mV / µA). Proudová varianta XI442204 4…20 mA = R911406114."}
+      ]
+    },
+    "plc_coupler@rexroth": {
+      "label": "PLC – rozhraní vzdálených I/O (ctrlX I/O)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Bosch Rexroth", "series": ["ctrlX I/O XB"], "typical": "XB-EC-12 – sběrnicová spojka EtherCAT pro stanici ctrlX I/O, napájení UP 8 A / UL 3 A", "orderCode": "R911406090", "src": "https://apps.boschrexroth.com/microsites/ctrlx-automation/files/ctrlx/Downloadable%20Assets/Product%20Information/ctrlX%20IO/ctrlX_IO_Produktinformation_EN_202408.pdf", "hw": {"head": "ctrlxio", "slots": {"ctrlxio": 30}, "net": "EtherCAT"}, "priceLevel": "střední", "suppliers": ["Bosch Rexroth, spol. s r.o. (ČR)", "ctrlX Shop (e-shop Bosch Rexroth)", "Automation24 (e-shop)"], "note": "Limit 30 aktivních modulů na konfiguraci (ctrlX Configurator); součet proudu UP max. 8 A. Rozšíření EtherCAT portu XB-EC-31 = R911406092."}
+      ]
+    },
+    "plc_cpu@inovance": {
+      "label": "PLC – CPU (Inovance)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Inovance", "series": ["AM600 (InoProShop / CODESYS)"], "typical": "AM600-CPU1608TP-INT (položka 01440168) – motion CPU, 16 rychlých DI / 8 rychlých DO PNP (source), 2× RS485, CAN, EtherCAT, Ethernet, USB, až 32 os", "orderCode": "AM600-CPU1608TP-INT", "src": "https://www.inovance.eu/fileadmin/downloads/Brochures/EN/AM600_Br_EN_Singles_Web_V2.2.pdf", "hw": {"builtin": {"DI": 16, "DO": 8}, "slots": {"gl10": 16, "gl10a": 16}, "remote": "gl10", "hwSrc": "https://www.manualslib.com/manual/1812322/Inovance-Am600-Series.html?page=13"}, "priceLevel": "střední", "suppliers": ["Inovance Technology Europe (pobočka Německo, Stuttgart)"], "note": "Kód a položka z evropské brožury AM600 V2.2. Limit 16 lokálních modulů na rack (napájecí modul a koncovka se nepočítají) – hardwarový manuál str. 13 a 14. Zvláštní limit analogových modulů u CPU nedoložen (u EtherCAT couplera max. 8 AI/AO) – gl10a = 16 jen formálně. TP verze vyžaduje kabel X210-5-x a svorkovnici T024-K. Varianta NPN: AM600-CPU1608TN (01440064)."}
+      ]
+    },
+    "plc_di@inovance": {
+      "label": "PLC – digitální vstupy (Inovance AM600 / GL10)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Inovance", "series": ["GL10 lokální moduly (dříve AM600-xxxx)"], "typical": "GL10-1600END-INT (položka 01440198) – 16 DI, 24 V DC, PNP/NPN (source/sink), šroubové svorky", "orderCode": "GL10-1600END-INT", "src": "https://www.inovance.eu/fileadmin/downloads/Brochures/EN/AM600_Br_EN_Singles_Web_V2.2.pdf", "hw": {"ch": {"DI": 16}, "bus": "gl10"}, "priceLevel": "nízká", "suppliers": ["Inovance Technology Europe (pobočka Německo, Stuttgart)"], "note": "Starší označení v hardwarovém manuálu AM600-1600END (kód 01440005, str. 15 manuálu)."}
+      ]
+    },
+    "plc_do@inovance": {
+      "label": "PLC – digitální výstupy (Inovance AM600 / GL10)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Inovance", "series": ["GL10 lokální moduly (dříve AM600-xxxx)"], "typical": "GL10-0016ETP-INT (položka 01440199) – 16 DO tranzistor PNP (source), 24 V DC, šroubové svorky", "orderCode": "GL10-0016ETP-INT", "src": "https://www.inovance.eu/fileadmin/downloads/Brochures/EN/AM600_Br_EN_Singles_Web_V2.2.pdf", "hw": {"ch": {"DO": 16}, "bus": "gl10"}, "priceLevel": "nízká", "suppliers": ["Inovance Technology Europe (pobočka Německo, Stuttgart)"], "note": "Starší označení AM600-0016ETP (kód 01440003, manuál str. 16)."}
+      ]
+    },
+    "plc_ai@inovance": {
+      "label": "PLC – analogové vstupy (Inovance AM600 / GL10)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Inovance", "series": ["GL10 lokální moduly (dříve AM600-xxxx)"], "typical": "GL10-4AD-INT (položka 01440197) – 4 AI, ±10 V / 0–10 V / 0(4)–20 mA, 16 bit", "orderCode": "GL10-4AD-INT", "src": "https://www.inovance.eu/fileadmin/downloads/Brochures/EN/AM600_Br_EN_Singles_Web_V2.2.pdf", "hw": {"ch": {"AI": 4}, "bus": "gl10a", "also": "gl10"}, "priceLevel": "střední", "suppliers": ["Inovance Technology Europe (pobočka Německo, Stuttgart)"], "note": "Rozsahy a 16 bit podle manuálu u AM600-4AD (kód 01440006, str. 16 a 39); digitální hodnota 0–20000 při 0–10 V."}
+      ]
+    },
+    "plc_ao@inovance": {
+      "label": "PLC – analogové výstupy (Inovance AM600 / GL10)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Inovance", "series": ["GL10 lokální moduly (dříve AM600-xxxx)"], "typical": "GL10-4DA-INT (položka 01440192) – 4 AO, ±10 V / 0–10 V / 0(4)–20 mA, 16 bit", "orderCode": "GL10-4DA-INT", "src": "https://www.inovance.eu/fileadmin/downloads/Brochures/EN/AM600_Br_EN_Singles_Web_V2.2.pdf", "hw": {"ch": {"AO": 4}, "bus": "gl10a", "also": "gl10"}, "priceLevel": "střední", "suppliers": ["Inovance Technology Europe (pobočka Německo, Stuttgart)"], "note": "Rozsahy podle manuálu u AM600-4DA (kód 01440007, str. 17 a 41); digitální hodnota 0–20000 při 0–10 V / 0–20 mA."}
+      ]
+    },
+    "plc_coupler@inovance": {
+      "label": "PLC – rozhraní vzdálených I/O (Inovance)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Inovance", "series": ["GL10-RTU-ECTA (EtherCAT coupler)"], "typical": "GL10-RTU-ECTA-INT (položka 01440194) – EtherCAT coupler pro lokální moduly GL10, automatické skenování, RJ45", "orderCode": "GL10-RTU-ECTA-INT", "src": "https://www.inovance.eu/fileadmin/downloads/Brochures/EN/AM600_Br_EN_Singles_Web_V2.2.pdf", "hw": {"head": "gl10", "slots": {"gl10": 16, "gl10a": 8}, "net": "EtherCAT"}, "priceLevel": "střední", "suppliers": ["Inovance Technology Europe (pobočka Německo, Stuttgart)"], "note": "Brožura: „Up to 16 DI/DO modules or up to eight AI/AO modules can be added for each GL10-RTU-ECTA“. Vzdálený rack potřebuje vlastní napájecí modul GL10-PS2-INT (01440196, 220 V AC → 24 V DC 2 A)."}
+      ]
+    },
+    "plc_cpu@weidmueller": {
+      "label": "PLC – CPU (Weidmüller)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Weidmüller", "series": ["u-control M3000 (u-OS, CODESYS Control SL)"], "typical": "UC20-M3000 – automatizační řadič IP20, ARM Cortex-A53 2 jádra 1,2 GHz, 2 GB RAM, 16 GB eMMC, 2× Ethernet, USB-C, u-OS, CODESYS; rozšíření moduly u-remote UR20 (max. 64)", "orderCode": "2839150000", "src": "https://www.farnell.com/datasheets/4423610.pdf", "hw": {"slots": {"ur20": 64}, "hwSrc": "https://www.farnell.com/datasheets/4423610.pdf"}, "priceLevel": "střední", "suppliers": ["Weidmüller, s.r.o. (česká pobočka, Praha)"], "note": "Datasheet Weidmüller (kopie Farnell): „max. number of modules 64“, programovací prostředí CODESYS. Bez vestavěných I/O. Runtime CODESYS Control SL for Weidmüller u-OS – licence se kupuje zvlášť (např. U-OS-CODESYS-STANDARD-L 2924060000, obsah licence neověřen)."},
+        {"brand": "Weidmüller", "series": ["u-control M4000 (u-OS, CODESYS Control SL)"], "typical": "UC20-M4000 – výkonnější varianta M3000: 4 jádra, 4× Ethernet, více RAM a flash, u-OS, CODESYS; moduly u-remote UR20 (max. 64)", "orderCode": "2839160000", "src": "https://files.kempstoncontrols.com/files/24ae5844baad0045de7a618f1a2a8e8c/2839160000.pdf", "hw": {"slots": {"ur20": 64}, "hwSrc": "https://files.kempstoncontrols.com/files/24ae5844baad0045de7a618f1a2a8e8c/2839160000.pdf"}, "priceLevel": "vysoká", "suppliers": ["Weidmüller, s.r.o. (česká pobočka, Praha)"], "note": "Datasheet Weidmüller (kopie Kempston Controls): Order No. 2839160000, „max. number of modules 64“. Kód potvrzen i u DigiKey."}
+      ]
+    },
+    "plc_di@weidmueller": {
+      "label": "PLC – digitální vstupy (Weidmüller u-remote)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Weidmüller", "series": ["u-remote UR20"], "typical": "UR20-16DI-P – 16 DI, 24 V DC, PNP (spínání plusem), filtr 3 ms, šířka 11,5 mm, push-in", "orderCode": "1315200000", "src": "https://eshop.weidmueller.com/en/ur20-16di-p/p/1315200000", "hw": {"ch": {"DI": 16}, "bus": "ur20"}, "priceLevel": "nízká", "suppliers": ["Weidmüller, s.r.o. (česká pobočka, Praha)"], "note": "Pozor: kód z zadání 1315170000 nepatří k UR20-16DI-P; správně 1315200000 (e-shop Weidmüller, Newark, DigiKey). E-shop Weidmüller blokuje automatické čtení – kód ověřen z URL a výpisů distributorů."}
+      ]
+    },
+    "plc_do@weidmueller": {
+      "label": "PLC – digitální výstupy (Weidmüller u-remote)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Weidmüller", "series": ["u-remote UR20"], "typical": "UR20-16DO-P – 16 DO, 24 V DC, PNP, 0,5 A na kanál, šířka 11,5 mm, push-in", "orderCode": "1315250000", "src": "https://tameson.com/products/weidmuller-ur20-16do-p-digital-output-module-24vdc-1315250000", "hw": {"ch": {"DO": 16}, "bus": "ur20"}, "priceLevel": "nízká", "suppliers": ["Weidmüller, s.r.o. (česká pobočka, Praha)", "Tameson (e-shop EU)"], "note": "Kód i na e-shopu Weidmüller (eshop.weidmueller.com/en/ur20-16do-p/p/1315250000)."}
+      ]
+    },
+    "plc_ai@weidmueller": {
+      "label": "PLC – analogové vstupy (Weidmüller u-remote)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Weidmüller", "series": ["u-remote UR20"], "typical": "UR20-4AI-UI-16 – 4 AI, ±10 V / 0–10 V / 0–5 V / 2–10 V / 0(4)–20 mA, 16 bit, přesnost 0,1 % FSR", "orderCode": "1315620000", "src": "https://tlauk.net/automation/weidmuller-automation/io-modules/weidmuller-1315620000-ur20-4ai-ui-16", "hw": {"ch": {"AI": 4}, "bus": "ur20"}, "priceLevel": "střední", "suppliers": ["Weidmüller, s.r.o. (česká pobočka, Praha)"], "note": "Kód i na e-shopu Weidmüller (eshop.weidmueller.com/en/ur20-4ai-ui-16/p/1315620000). Rozsah se nastavuje po kanálech v parametrech modulu."}
+      ]
+    },
+    "plc_ao@weidmueller": {
+      "label": "PLC – analogové výstupy (Weidmüller u-remote)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Weidmüller", "series": ["u-remote UR20"], "typical": "UR20-4AO-UI-16 – 4 AO, ±10 V / 0–10 V / 0–5 V / 2–10 V / 0(4)–20 mA, 16 bit, přesnost 0,05 %", "orderCode": "1315680000", "src": "https://eshop.weidmueller.com/en/ur20-4ao-ui-16/p/1315680000/downloads", "hw": {"ch": {"AO": 4}, "bus": "ur20"}, "priceLevel": "střední", "suppliers": ["Weidmüller, s.r.o. (česká pobočka, Praha)"], "note": "Kód ze stránky e-shopu Weidmüller (URL a výpis ve vyhledávání; stránka blokuje automatické čtení), shodně datasheet datasheet.weidmueller.com/pdf/en/1315680000. Kód 1315670000 ze zadání nepatří k tomuto modulu."}
+      ]
+    },
+    "plc_cpu@eaton": {
+      "label": "PLC – CPU (Eaton)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Eaton", "series": ["XControl XC300 (XC-303)"], "typical": "XC-303-C32-002 (kat. č. 191080) – modulární PLC, ARM Cortex-A7 2 jádra, 512 MB RAM, 3× Ethernet (1× EtherCAT), 2× CAN, RS485, SD, 4 lokální DIO, CODESYS 3, až 32 modulů XN300", "orderCode": "XC-303-C32-002", "src": "https://datasheet.eaton.com/datasheet.php?amp=&amp=&locale=pl_PL&model=191080&resources=", "hw": {"builtin": {"DI": 4}, "slots": {"xn300": 32}, "hwSrc": "https://es-assets.eaton.com/DOCUMENTATION/AWB_MANUALS/MN050005_EN.pdf"}, "priceLevel": "střední", "suppliers": ["Eaton Elektrotechnika s.r.o. (česká pobočka, Praha)"], "note": "Manuál MN050005EN (01/23), tabulka 1: XC-303-C32-002 – 32 modulů XN300, DIO 4×. Lokální DIO jsou ve výchozím stavu vstupy, lze je přepnout na výstupy (kap. 2.9 / 6.1) a mají vlastní napájení UL – v sestavě počítány jako 4 DI. Varianty bez lokálních DIO: XC-303-C21-001, XC-303-C11-000 (také 32 modulů XN300)."}
+      ]
+    },
+    "plc_di@eaton": {
+      "label": "PLC – digitální vstupy (Eaton XN300)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Eaton", "series": ["XN300 (XN-322)"], "typical": "XN-322-16DI-PD (kat. č. 183173) – 16 DI, 24 V DC, PNP (pulse-switching), 5,0 ms, push-in", "orderCode": "XN-322-16DI-PD", "src": "https://shop.shortec.com/eaton-moeller/183173-xn-322-16di-pd/", "hw": {"ch": {"DI": 16}, "bus": "xn300"}, "priceLevel": "nízká", "suppliers": ["Eaton Elektrotechnika s.r.o. (česká pobočka, Praha)"], "note": "Modul uveden v manuálu XN300 MN050002EN. Kód 183173 ověřen u distributora (Shortec) a ve výsledku Eaton skuPage.183173; jeden prodejce uvádí u 183173 filtr 0,5 ms – drobný rozpor. Alternativa XN-322-20DI-PD (178786) – 20 DI."}
+      ]
+    },
+    "plc_do@eaton": {
+      "label": "PLC – digitální výstupy (Eaton XN300)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Eaton", "series": ["XN300 (XN-322)"], "typical": "XN-322-16DO-P05 (kat. č. 178787) – 16 DO, 24 V DC / 0,5 A, PNP, odolné proti zkratu, push-in", "orderCode": "XN-322-16DO-P05", "src": "https://www.farnell.com/datasheets/3093403.pdf", "hw": {"ch": {"DO": 16}, "bus": "xn300"}, "priceLevel": "nízká", "suppliers": ["Eaton Elektrotechnika s.r.o. (česká pobočka, Praha)"], "note": "Datasheet Eaton (kopie Farnell): Part no. XN-322-16DO-P05, Catalog No. 178787."}
+      ]
+    },
+    "plc_ai@eaton": {
+      "label": "PLC – analogové vstupy (Eaton XN300)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Eaton", "series": ["XN300 (XN-322)"], "typical": "XN-322-7AI-U2PT (kat. č. 178789) – 6 AI ±10 V / 16 bit + 1 teplotní vstup KTY10/Pt1000, referenční výstup 10 V", "orderCode": "XN-322-7AI-U2PT", "src": "https://datasheet.eaton.com/datasheet.php?model=178789&locale=uk_EN", "hw": {"ch": {"AI": 6}, "bus": "xn300"}, "priceLevel": "střední", "suppliers": ["Eaton Elektrotechnika s.r.o. (česká pobočka, Praha)"], "note": "Napěťové vstupy jen ±10 V (pro 0–10 V vyhovuje); 7. kanál je jen teplotní, proto 6 AI. Kód 178789 také u UNI ELEKTRO (DE). Pro 0/4–20 mA modul XN-322-8AI-I (8 AI) – reprezentace 0…20000 (µA), jiná než u napěťových modulů (mV), kód nedoložen."}
+      ]
+    },
+    "plc_ao@eaton": {
+      "label": "PLC – analogové výstupy (Eaton XN300)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Eaton", "series": ["XN300 (XN-322)"], "typical": "XN-322-8AO-U2 (kat. č. 178790) – 8 AO ±10 V, 12 bit, přesnost ±0,5 %", "orderCode": "XN-322-8AO-U2", "src": "https://www.eaton.com/us/en-us/skuPage.178790.html", "hw": {"ch": {"AO": 8}, "bus": "xn300"}, "priceLevel": "střední", "suppliers": ["Eaton Elektrotechnika s.r.o. (česká pobočka, Praha)"], "note": "Kód z titulku stránky Eaton „178790 Model code: XN-322-8AO-U2“ (stránka při ověřování neodpovídala, viděn ve vyhledávání) a od prodejce electricautomationnetwork. Firmware XC303 3.5.20 přidává i XN-322-4AO-UI / 2AO-UI (proudový výstup) – kódy neověřeny."}
+      ]
+    },
+    "plc_cpu@lenze": {
+      "label": "PLC – CPU (Lenze)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Lenze", "series": ["Controller c300"], "typical": "Controller c300 – kompaktní řídicí systém na DIN lištu, Ethernet, EtherCAT master, CANopen, USB, SD; I/O system 1000 přímo na vnitřní sběrnici (až 64 modulů)", "orderCode": "C30GAC00000F3G0XXX-02S3C300000", "src": "https://automationdistribution.com/lenze-c30gac00000f3g0xxx-02s3c300000-controller-c300-with-no-option-interface/", "hw": {"slots": {"epms": 64}, "remote": "epms", "hwSrc": "https://emipowertek.com/catalogos/acontrol/Controller%20C300.pdf"}, "priceLevel": "střední", "suppliers": ["Lenze, s.r.o. (ČR)"], "note": "Varianta bez volitelného rozhraní (varianta 8 = PROFINET Device: C30GAC00000F3G8XXX-02S3C300000). Typový klíč a „I/O System 1000 – up to 64 modules“ z katalogového listu Lenze c300 (V04, 04/2017, kopie u distributora). Licence Application Credit podle použitých technologických modulů FAST. Bez vestavěných I/O. Controller c520 / c550 nehledány."}
+      ]
+    },
+    "plc_di@lenze": {
+      "label": "PLC – digitální vstupy (Lenze I/O system 1000)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Lenze", "series": ["I/O system 1000 (EPM-S2xx)"], "typical": "EPM-S202 – 8 DI, 24 V DC, šířka 12,5 mm", "orderCode": "EPM-S202", "src": "https://www.lenze.com/en-de/products/controllers/i/o-systems/i/o-system-1000", "hw": {"ch": {"DI": 8}, "bus": "epms"}, "priceLevel": "nízká", "suppliers": ["Lenze, s.r.o. (ČR)"], "note": "Označení na stránce Lenze; počet kanálů z produktové informace Lenze 13644173 (08/2023) a systémového manuálu EDSIO1000 v8.0. Distributoři uvádějí i variantu s verzí HW (EPM-S202.2A). Modul 16 DI v řadě není."}
+      ]
+    },
+    "plc_do@lenze": {
+      "label": "PLC – digitální výstupy (Lenze I/O system 1000)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Lenze", "series": ["I/O system 1000 (EPM-S3xx)"], "typical": "EPM-S302 – 8 DO, 24 V DC, 0,5 A", "orderCode": "EPM-S302", "src": "https://www.lenze.com/en-de/products/controllers/i/o-systems/i/o-system-1000", "hw": {"ch": {"DO": 8}, "bus": "epms"}, "priceLevel": "nízká", "suppliers": ["Lenze, s.r.o. (ČR)"], "note": "Systémový manuál EDSIO1000 v8.0, kap. 3.6.8 (8 digitálních výstupů 0,5 A)."}
+      ]
+    },
+    "plc_ai@lenze": {
+      "label": "PLC – analogové vstupy (Lenze I/O system 1000)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Lenze", "series": ["I/O system 1000 (EPM-S4xx)"], "typical": "EPM-S401 – 4 AI, 0…10 V, 12 bit", "orderCode": "EPM-S401", "src": "https://www.lenze.com/en-de/products/controllers/i/o-systems/i/o-system-1000", "hw": {"ch": {"AI": 4}, "bus": "epms"}, "priceLevel": "střední", "suppliers": ["Lenze, s.r.o. (ČR)"], "note": "Výchozí funkce kanálu 20h = 0…10 V / 0…16384; parametrem 10h = 0…27648 (EDSIO1000 v8.0, kap. 10.5.2)."},
+        {"brand": "Lenze", "series": ["I/O system 1000 (EPM-S4xx)"], "typical": "EPM-S403 – 4 AI, 0/4…20 mA, 12 bit", "orderCode": "EPM-S403", "src": "https://www.lenze.com/en-de/products/controllers/i/o-systems/i/o-system-1000", "hw": {"ch": {"AI": 4}, "bus": "epms"}, "priceLevel": "střední", "suppliers": ["Lenze, s.r.o. (ČR)"], "note": "Systémový manuál EDSIO1000 v8.0, kap. 3.7.5."}
+      ]
+    },
+    "plc_ao@lenze": {
+      "label": "PLC – analogové výstupy (Lenze I/O system 1000)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Lenze", "series": ["I/O system 1000 (EPM-S5xx)"], "typical": "EPM-S501 – 4 AO, 0…10 V, 12 bit", "orderCode": "EPM-S501", "src": "https://www.lenze.com/en-de/products/controllers/i/o-systems/i/o-system-1000", "hw": {"ch": {"AO": 4}, "bus": "epms"}, "priceLevel": "střední", "suppliers": ["Lenze, s.r.o. (ČR)"], "note": "Výchozí funkce 20h = 0…16384, parametrem 10h = 0…27648 (EDSIO1000 v8.0). Proudová varianta EPM-S503 (4 AO 0/4…20 mA)."}
+      ]
+    },
+    "plc_coupler@lenze": {
+      "label": "PLC – rozhraní vzdálených I/O (Lenze I/O system 1000)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Lenze", "series": ["I/O system 1000 – bus coupler"], "typical": "EPM-S130 – sběrnicová spojka EtherCAT pro až 64 modulů, integrovaný zdroj", "orderCode": "EPM-S130", "src": "https://www.stercontrol.pl/attachments/data//lenze/EPM-IO%20system%201000%20System%20Manual__v8-0EN.pdf", "hw": {"head": "epms", "slots": {"epms": 64}, "net": "EtherCAT"}, "priceLevel": "střední", "suppliers": ["Lenze, s.r.o. (ČR)"], "note": "Systémový manuál EDSIO1000 v8.0 (kopie u distributora), kap. 3.5.3: „EtherCAT bus coupler module for up to 64 peripheral modules“; jen moduly od HW verze 1B; bez Distributed Clock. Produktová informace 08/2023 uvádí EtherCAT spojku EPM-S131 (limit modulů pro ni neověřen); PROFINET EPM-S140."}
+      ]
+    },
+    "plc_cpu@berghof": {
+      "label": "PLC – CPU (Berghof)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Berghof Automation", "series": ["B-Nimis MC-Pi Pro"], "typical": "B-Nimis MC-Pi Pro S01 – modulární controller CODESYS V3 (Raspberry Pi CM4, 1,5 GHz quad core), 1 GB RAM, EtherCAT master s E-bus (LVDS), Ethernet, WebVisu", "orderCode": "S-01030301-0100", "src": "https://www.berghof-automation.com/fileadmin/BAT/Downloads/Automatisierungstechnik/Modulare_Steuerungen/Technical_Data_B-Nimis_MC-Pi_Pro.pdf", "hw": {"slots": {"bnimis": 10}, "remote": "bnimis", "hwSrc": "https://www.berghof-automation.com/fileadmin/BAT/Downloads/Automatisierungstechnik/Modulare_Steuerungen/B-Nimis_MC-BC-Pi_EN_V1_5.pdf"}, "priceLevel": "střední", "suppliers": ["Berghof Automation GmbH (Eningen, DE)", "Unchained Robotics (e-shop, DE)"], "note": "Controller zároveň napájí E-bus modulů (2 A) → max. 10 modulů MC-I/O přímo vpravo (manuál MC-Pi/BC-Pi 1.5). Další moduly přes bus coupler MC-I/O na EtherCAT. Varianta S02 (2 GB RAM) = S-01030301-0200, MC-Pi-Prime S01 = S-01030302-0100. Nutná placená Berghof Target License."}
+      ]
+    },
+    "plc_di@berghof": {
+      "label": "PLC – digitální vstupy (Berghof B-Nimis MC-I/O)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Berghof Automation", "series": ["B-Nimis MC-I/O (EtherCAT)"], "typical": "MC-I/O DI16 1MS – 16 DI, 24 V DC, IEC 61131-2 typ 1, vstupní zpoždění 1 ms", "orderCode": "S-01030201-0100", "src": "https://www.berghof-automation.com/fileadmin/BAT/Downloads/Automatisierungstechnik/Modulare_Steuerungen/Technical_Data_B-Nimis_MC-IO_EtherCAT_Extensions.pdf", "hw": {"ch": {"DI": 16}, "bus": "bnimis"}, "priceLevel": "nízká", "suppliers": ["Berghof Automation GmbH (Eningen, DE)"], "note": "Konektor 18pólový S-02020201-0800 není součástí modulu. PNP/NPN v datasheetu výslovně neuvedeno (typ 1 = spínání proti +24 V předpoklad)."}
+      ]
+    },
+    "plc_do@berghof": {
+      "label": "PLC – digitální výstupy (Berghof B-Nimis MC-I/O)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Berghof Automation", "series": ["B-Nimis MC-I/O (EtherCAT)"], "typical": "MC-I/O DO16 0,5A – 16 DO, 24 V DC, 0,5 A na výstup", "orderCode": "S-01030201-0300", "src": "https://www.berghof-automation.com/fileadmin/BAT/Downloads/Automatisierungstechnik/Modulare_Steuerungen/Technical_Data_B-Nimis_MC-IO_EtherCAT_Extensions.pdf", "hw": {"ch": {"DO": 16}, "bus": "bnimis"}, "priceLevel": "nízká", "suppliers": ["Berghof Automation GmbH (Eningen, DE)"], "note": "Konektor 18pólový S-02020201-0800 není součástí modulu."}
+      ]
+    },
+    "plc_ai@berghof": {
+      "label": "PLC – analogové vstupy (Berghof B-Nimis MC-I/O)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Berghof Automation", "series": ["B-Nimis MC-I/O (EtherCAT)"], "typical": "MC-I/O AI4-I 12BIT CoE – 4 AI proudové, 0–20 mA / 4–20 mA (volba po kanálech), 12 bit", "orderCode": "S-01030202-0100", "src": "https://www.berghof-automation.com/fileadmin/BAT/Downloads/Automatisierungstechnik/Modulare_Steuerungen/B-Nimis_MC-IO__EN_1.11.pdf", "hw": {"ch": {"AI": 4}, "bus": "bnimis"}, "priceLevel": "střední", "suppliers": ["Berghof Automation GmbH (Eningen, DE)"], "note": "Jen proud. Pro napětí 0–10 V: MC-I/O AI4/8-U 13BIT S-01030202-0300 (4 diferenciální / 8 nesymetrických vstupů)."},
+        {"brand": "Berghof Automation", "series": ["B-Nimis MC-I/O (EtherCAT)"], "typical": "MC-I/O AI4/8-U 13BIT – 4 diferenciální nebo 8 nesymetrických AI, 0(−10)…10 V, ±5 V, ±2,5 V, 13 bit", "orderCode": "S-01030202-0300", "src": "https://www.berghof-automation.com/fileadmin/BAT/Downloads/Automatisierungstechnik/Modulare_Steuerungen/B-Nimis_MC-IO__EN_1.11.pdf", "hw": {"ch": {"AI": 4}, "bus": "bnimis"}, "priceLevel": "střední", "suppliers": ["Berghof Automation GmbH (Eningen, DE)"], "note": "Počítáno 4 kanály (diferenciální zapojení); nesymetricky až 8."}
+      ]
+    },
+    "plc_ao@berghof": {
+      "label": "PLC – analogové výstupy (Berghof B-Nimis MC-I/O)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Berghof Automation", "series": ["B-Nimis MC-I/O (EtherCAT)"], "typical": "MC-I/O AO4-U/I 16BIT CoE – 4 univerzální AO, 0(−10)…10 V / 0(4)…20 mA, 16 bit", "orderCode": "S-01030202-0500", "src": "https://www.berghof-automation.com/fileadmin/BAT/Downloads/Automatisierungstechnik/Modulare_Steuerungen/Technical_Data_B-Nimis_MC-IO_EtherCAT_Extensions.pdf", "hw": {"ch": {"AO": 4}, "bus": "bnimis"}, "priceLevel": "střední", "suppliers": ["Berghof Automation GmbH (Eningen, DE)"], "note": ""}
+      ]
+    },
+    "plc_coupler@berghof": {
+      "label": "PLC – rozhraní vzdálených I/O (Berghof B-Nimis MC-I/O)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Berghof Automation", "series": ["B-Nimis MC-I/O (EtherCAT)"], "typical": "MC-I/O Buskoppler 3A – bus coupler EtherCAT (RJ45 In/Out) → E-bus, napájení E-bus 3 A (cca 20 modulů)", "orderCode": "S-01030203-0100", "src": "https://www.berghof-automation.com/fileadmin/BAT/Downloads/Automatisierungstechnik/Modulare_Steuerungen/B-Nimis_MC-IO__EN_1.11.pdf", "hw": {"head": "bnimis", "slots": {"bnimis": 20}, "net": "EtherCAT"}, "priceLevel": "nízká", "suppliers": ["Berghof Automation GmbH (Eningen, DE)"], "note": "Manuál: vstupní proud max. 3 A (ca. 20 modulů) — skutečný počet závisí na zatížení E-bus jednotlivých modulů (moduly s největší zátěží řadit hned za coupler)."}
+      ]
+    },
+    "plc_cpu@hitachi": {
+      "label": "PLC – CPU (Hitachi)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Hitachi", "series": ["HX (PAC, CODESYS V3.5 SP16)"], "typical": "HX-CP1S08 – CPU HX Standard pro base EH-BS, 8 MB program, EtherCAT master, Modbus TCP/RTU, OPC UA; moduly EH-150 (max. 11 na base, 5 rozšiřovacích base)", "orderCode": "HX-CP1S08", "src": "https://hitachi-industrial.eu/wp-content/uploads/2025/06/hitachi-hx-brochure-en.pdf", "hw": {"builtin": {}, "slots": {"eh150": 11}, "remote": "eh150", "hwSrc": "https://hiflex.nl/downloads/docu/hit_plc/application_manual_hardware_HX-CPU.pdf"}, "priceLevel": "střední", "suppliers": ["Hitachi Industrial Equipment Systems Europe GmbH", "Hiflex Automatiseringstechniek B.V."], "note": "Bez vestavěných I/O. Varianta „-0“ (HX-CP1S08-0) je samostatná CPU bez racku – pro sestavu s moduly EH-150 volit kód bez „-0“. Base EH-BS11A, napájení HX-PSD / HX-PSA a baterie HX-BAT (jen RTC) se objednávají zvlášť. Programování HX-CODESYS (EHV-CODESYS HX-CPU nepodporuje)."},
+        {"brand": "Hitachi", "series": ["HX (PAC, CODESYS V3.5 SP16)"], "typical": "HX-CP1H16 – CPU HX Full Function, 16 MB program, 3× Ethernet, SD karta, RS-485, web vizualizace", "orderCode": "HX-CP1H16", "src": "https://hitachi-industrial.eu/wp-content/uploads/2025/06/hitachi-hx-brochure-en.pdf", "hw": {"builtin": {}, "slots": {"eh150": 11}, "remote": "eh150", "hwSrc": "https://hiflex.nl/downloads/docu/hit_plc/application_manual_hardware_HX-CPU.pdf"}, "priceLevel": "střední", "suppliers": ["Hitachi Industrial Equipment Systems Europe GmbH", "Hiflex Automatiseringstechniek B.V."], "note": "Stejná sestava I/O jako HX-CP1S08; navíc web vizualizace, SD karta a RS-485."},
+        {"brand": "Hitachi", "series": ["HX Motion (SoftMotion SM3_Basic)"], "typical": "HX-CP1S08M – CPU HX Motion: PLCopen SoftMotion (SM3_Basic) + editor vaček, EtherCAT master min. 1 ms", "orderCode": "HX-CP1S08M", "src": "https://hitachi-industrial.eu/wp-content/uploads/2025/06/hitachi-hx-brochure-en.pdf", "hw": {"builtin": {}, "slots": {"eh150": 11}, "remote": "eh150", "auto": false, "hwSrc": "https://hiflex.nl/downloads/docu/hit_plc/application_manual_hardware_HX-CPU.pdf"}, "priceLevel": "vysoká", "suppliers": ["Hitachi Industrial Equipment Systems Europe GmbH", "Hiflex Automatiseringstechniek B.V."], "note": "Jen pro projekty se servoosou (SoftMotion jen modely Motion / CNC Motion: HX-CP1S08M, HX-CP1H16M). Volba v kusovníku."},
+        {"brand": "Hitachi", "series": ["EHV+ (CODESYS V3.5, starší runtime)"], "typical": "EHV-CPU1102 – CPU EHV+ 2 MB program, USB / Ethernet / sériový port, EtherCAT master; moduly EH-150", "orderCode": "EHV-CPU1102", "src": "https://www.hitachi-da.com/files/pdfs/produkte/SPS/EHV+/NJI-564JX_Application_Manual_EHV+CPU.pdf", "hw": {"builtin": {}, "slots": {"eh150": 11}, "remote": "eh150", "auto": false, "hwSrc": "https://www.hitachi-da.com/files/pdfs/produkte/SPS/EHV+/NJI-564JX_Application_Manual_EHV+CPU.pdf"}, "priceLevel": "střední", "suppliers": ["Hitachi Industrial Equipment Systems Europe GmbH", "Hiflex Automatiseringstechniek B.V."], "note": "Stále v brožuře Hitachi Europe 2025. Kompilátor 3.5.5.10 / runtime 3.5.4.10 → styl kódu OOP (ABSTRACT) nelze; CPU s pořadím bajtů Motorola – přímé IEC adresy jsou proti HX prohozené (generovat bez AT). Menší EHV-CPU1025 (512 kB)."}
+      ]
+    },
+    "plc_di@hitachi": {
+      "label": "PLC – digitální vstupy (Hitachi)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Hitachi", "series": ["EH-150 (I/O moduly pro EHV+ / HX)"], "typical": "EH-XD16 – 16 DI, 24 V DC, odezva 5 ms, odnímatelná šroubová svorkovnice", "orderCode": "EH-XD16", "src": "https://hitachi-industrial.eu/wp-content/uploads/2025/06/hitachi-hx-brochure-en.pdf", "hw": {"ch": {"DI": 16}, "bus": "eh150"}, "priceLevel": "nízká", "suppliers": ["Hitachi Industrial Equipment Systems Europe GmbH", "Hiflex Automatiseringstechniek B.V."], "note": "Hustší varianty: EH-XD32 (konektor), EH-XD32E (pružinová svorkovnice), EH-XD64 (konektor, 1 ms)."}
+      ]
+    },
+    "plc_do@hitachi": {
+      "label": "PLC – digitální výstupy (Hitachi)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Hitachi", "series": ["EH-150 (I/O moduly pro EHV+ / HX)"], "typical": "EH-YTP16 – 16 DO tranzistor 12/24 V DC, source (PNP), odnímatelná svorkovnice", "orderCode": "EH-YTP16", "src": "https://hitachi-industrial.eu/wp-content/uploads/2025/06/hitachi-hx-brochure-en.pdf", "hw": {"ch": {"DO": 16}, "bus": "eh150"}, "priceLevel": "nízká", "suppliers": ["Hitachi Industrial Equipment Systems Europe GmbH", "Hiflex Automatiseringstechniek B.V."], "note": "S ochranou proti zkratu EH-YTP16S; sink varianta EH-YT16; 32 / 64 bodů EH-YTP32 / EH-YTP64 (konektor)."}
+      ]
+    },
+    "plc_ai@hitachi": {
+      "label": "PLC – analogové vstupy (Hitachi)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Hitachi", "series": ["EH-150 (analogové moduly)"], "typical": "EH-AX8V – 8 AI 0–10 V, 12 bit (0–4095), převod max. 5 ms", "orderCode": "EH-AX8V", "src": "https://hitachi-industrial.eu/wp-content/uploads/2025/06/hitachi-hx-brochure-en.pdf", "hw": {"ch": {"AI": 8}, "bus": "eh150"}, "priceLevel": "střední", "suppliers": ["Hitachi Industrial Equipment Systems Europe GmbH", "Hiflex Automatiseringstechniek B.V."], "note": "Proudové 4–20 mA: EH-AX8I; kombinace 4 × 4–20 mA + 4 × 0–10 V: EH-AX44; 14 bit EH-AXH8M (jiný rozsah číselné hodnoty)."}
+      ]
+    },
+    "plc_ao@hitachi": {
+      "label": "PLC – analogové výstupy (Hitachi)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Hitachi", "series": ["EH-150 (analogové moduly)"], "typical": "EH-AY4V – 4 AO 0–10 V, 12 bit (0–4095), zátěž min. 10 kΩ", "orderCode": "EH-AY4V", "src": "https://hitachi-industrial.eu/wp-content/uploads/2025/06/hitachi-hx-brochure-en.pdf", "hw": {"ch": {"AO": 4}, "bus": "eh150"}, "priceLevel": "střední", "suppliers": ["Hitachi Industrial Equipment Systems Europe GmbH", "Hiflex Automatiseringstechniek B.V."], "note": "Proudové 4–20 mA: EH-AY4I; 2 × 0–10 V + 2 × 4–20 mA: EH-AY22."}
+      ]
+    },
+    "plc_coupler@hitachi": {
+      "label": "PLC – rozšiřovací base / vzdálené I/O (Hitachi)",
+      "unit": "ks",
+      "brands": [
+        {"brand": "Hitachi", "series": ["EH-150 rozšiřovací base"], "typical": "EH-IOCH2 – řadič I/O rozšiřovací base (1 na base, max. 5 base, kabel EH-CB05A/10A/20A, celkem max. 8 m)", "orderCode": "EH-IOCH2", "src": "https://hiflex.nl/downloads/docu/hit_plc/application_manual_hardware_HX-CPU.pdf", "hw": {"head": "eh150", "slots": {"eh150": 11}, "net": "rozšiřovací kabel EH-CB", "hwSrc": "https://hiflex.nl/downloads/docu/hit_plc/application_manual_hardware_HX-CPU.pdf"}, "priceLevel": "střední", "suppliers": ["Hitachi Industrial Equipment Systems Europe GmbH", "Hiflex Automatiseringstechniek B.V."], "note": "Každá rozšiřovací base potřebuje: base EH-BS11A (nebo menší), napájení HX-PSD / EH-PSD, EH-IOCH2 a kabel EH-CB. Max. 5 rozšiřovacích base (66 modulů celkem) – limit počtu stanic katalog nevyjadřuje. Vzdálené I/O po síti: EH-IOCA (EtherCAT slave controller, 176 slov) – nemodelováno."}
+      ]
+    },
     "power_supply_24v": {
       "label": "Napájecí zdroj 24 V DC",
       "unit": "ks",
@@ -1174,6 +1593,17 @@
     }
   },
   "suppliers": [
+    {"name": "Turck, s.r.o.", "url": "https://www.turck.cz/cs/kontakty-2967.php", "country": "CZ", "kind": "pobočka výrobce", "cats": ["plc_cpu@turck", "plc_di@turck", "plc_do@turck", "plc_ai@turck", "plc_ao@turck", "plc_coupler@turck"], "note": "Na Brně 2065, 500 06 Hradec Králové (IČO 64256642); na turck.cz i CODESYS ke stažení."},
+    {"name": "ABB s.r.o. (ČR)", "url": "https://new.abb.com/cz/o-nas/sidlo-a-pobocky-v-ceske-republice", "country": "CZ", "kind": "výrobce", "cats": ["plc_cpu@abb", "plc_di@abb", "plc_do@abb", "plc_ai@abb", "plc_ao@abb", "plc_coupler@abb"], "note": "Sídlo Praha 4, Vyskočilova 1561/4a (podle výsledku vyhledávání); konkrétní prodejní kanál PLC AC500 v ČR neověřen."},
+    {"name": "Bosch Rexroth, spol. s r.o. (ČR)", "url": "https://www.boschrexroth.com/cs/cz/produkty/reseni-pro-prumysl/elektricke-pohony-a-ovladaci-prvky/ctrlx-automation/", "country": "CZ", "kind": "výrobce", "cats": ["plc_cpu@rexroth", "plc_di@rexroth", "plc_do@rexroth", "plc_ai@rexroth", "plc_ao@rexroth", "plc_coupler@rexroth"], "note": "Brno, Těžební 1238/2, tel. +420 548 126 111 (podle výsledků vyhledávání); pobočky Praha a Ostrava; česká stránka ctrlX AUTOMATION."},
+    {"name": "ctrlX Shop (e-shop Bosch Rexroth)", "url": "https://www.ctrlx.shop/en", "country": "DE", "kind": "e-shop", "cats": ["plc_cpu@rexroth", "plc_di@rexroth", "plc_do@rexroth", "plc_ai@rexroth", "plc_ao@rexroth", "plc_coupler@rexroth"], "note": "Oficiální online obchod ctrlX AUTOMATION s cenami (EUR); dodání do ČR neověřeno."},
+    {"name": "Inovance Technology Europe", "url": "https://www.inovance.eu/home", "country": "DE", "kind": "pobočka výrobce (EU)", "cats": ["plc_cpu@inovance", "plc_di@inovance", "plc_do@inovance", "plc_ai@inovance", "plc_ao@inovance", "plc_coupler@inovance"], "note": "Kancelář Německo – Stuttgart (sales.de@inovance.eu), dále Itálie, Francie; uvedeno v brožuře AM600 V2.2. Český distributor nedohledán."},
+    {"name": "Weidmüller, s.r.o.", "url": "https://www.weidmueller.cz/cs/spolecnost/nase_spolecnost/pobocky/index.jsp", "country": "CZ", "kind": "pobočka výrobce", "cats": ["plc_cpu@weidmueller", "plc_di@weidmueller", "plc_do@weidmueller", "plc_ai@weidmueller", "plc_ao@weidmueller"], "note": "Lomnického 5/1705, 140 00 Praha 4, tel. +420 244 001 400, info@weidmueller.cz (IČO 48035611)."},
+    {"name": "Eaton Elektrotechnika s.r.o.", "url": "https://eatonelektrotechnika.com/contacts.html", "country": "CZ", "kind": "pobočka výrobce", "cats": ["plc_cpu@eaton", "plc_di@eaton", "plc_do@eaton", "plc_ai@eaton", "plc_ao@eaton"], "note": "Komárovská 2406/57, 193 00 Praha 9 – Horní Počernice, infolinka +420 267 990 400, technická podpora +420 267 990 440 (IČO 49811894)."},
+    {"name": "Lenze, s.r.o. (ČR)", "url": "https://www.lenze.com/en-de/company/global-presence/eastern-europe/lenze-in-czech", "country": "CZ", "kind": "výrobce", "cats": ["plc_cpu@lenze", "plc_di@lenze", "plc_do@lenze", "plc_ai@lenze", "plc_ao@lenze", "plc_coupler@lenze"], "note": "Sídlo CTPark Humpolec 1577, pobočka Náchod; sales.cz@lenze.com, +420 565 507 111 (podle výsledků vyhledávání)."},
+    {"name": "Unchained Robotics GmbH", "url": "https://unchainedrobotics.de/en/products/control-systems/berghof-b-nimis-mc-pi-pro", "country": "DE", "kind": "e-shop", "cats": ["plc_cpu@berghof"], "note": "Prodává MC-Pi Pro / Prime / Plus; česká pobočka ani distributor Berghof nenalezen."},
+    {"name": "Hitachi Industrial Equipment Systems Europe GmbH", "url": "https://hitachi-industrial.eu/about-us/", "country": "DE", "kind": "výrobce (evropská pobočka)", "cats": ["plc_cpu@hitachi", "plc_di@hitachi", "plc_do@hitachi", "plc_ai@hitachi", "plc_ao@hitachi", "plc_coupler@hitachi"], "note": "Düsseldorf; prodej PLC pro EMEA přes partnerskou síť (seznam partnerů veřejně neuveden). České zastoupení pro PLC nenalezeno."},
+    {"name": "Hiflex Automatiseringstechniek B.V.", "url": "https://hiflex.nl/", "country": "NL", "kind": "distributor", "cats": ["plc_cpu@hitachi", "plc_di@hitachi", "plc_do@hitachi", "plc_ai@hitachi", "plc_ao@hitachi", "plc_coupler@hitachi"], "note": "Značka Hitachi v sortimentu, e-shop shop.hiflex.nl; hostuje manuály HX-CPU a FAQ k verzím CODESYS. Konkrétní dostupnost modelů neověřena."},
     { "name": "Siemens, s.r.o.", "url": "https://www.siemens.com/cz", "country": "CZ", "kind": "výrobce",
       "cats": ["plc_cpu@siemens", "plc_di@siemens", "plc_do@siemens", "plc_ai@siemens", "plc_ao@siemens", "plc_coupler@siemens", "plc_hmi@siemens", "power_supply_24v", "mcb", "main_switch"],
       "note": "Česká pobočka; adresa a síť partnerů neověřeny v této rešerši." },

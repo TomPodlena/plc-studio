@@ -3,7 +3,7 @@
     "lang": "de",
     "locale": "de_DE",
     "title": "{{site.brand}} — Maschinensteuerung von der Aufgabenstellung bis zur freigegebenen Dokumentation",
-    "description": "Sie beschreiben die Maschine, {{site.brand}} entwirft E/A, Schaltpläne, das Programm für 8 SPS-Plattformen, Sicherheitsfunktionen und die Inbetriebnahme. Jede Position gibt eine verantwortliche Person frei. Bis 64 E/A kostenlos."
+    "description": "Sie beschreiben die Maschine, {{site.brand}} entwirft E/A, Schaltpläne, das Programm für {{site.platform_count}} SPS-Plattformen, Sicherheitsfunktionen und die Inbetriebnahme. Jede Position gibt eine verantwortliche Person frei. Bis 64 E/A kostenlos."
   },
   "ui": {
     "skip": "Zum Inhalt springen",
@@ -42,7 +42,7 @@
   },
   "home": {
     "title": "{{site.brand}} — Maschinensteuerung von der Aufgabenstellung bis zur freigegebenen Dokumentation",
-    "description": "Sie beschreiben die Maschine, {{site.brand}} entwirft E/A, Schaltpläne, das Programm für 8 SPS-Plattformen, Sicherheitsfunktionen und die Inbetriebnahme. Jede Position gibt eine verantwortliche Person frei. Bis 64 E/A kostenlos.",
+    "description": "Sie beschreiben die Maschine, {{site.brand}} entwirft E/A, Schaltpläne, das Programm für {{site.platform_count}} SPS-Plattformen, Sicherheitsfunktionen und die Inbetriebnahme. Jede Position gibt eine verantwortliche Person frei. Bis 64 E/A kostenlos.",
     "eyebrow": "Für Integratoren und Maschinenbauer",
     "h1": "Von der Aufgabenstellung zur unterschriebenen Dokumentation",
     "lead": "Sie beschreiben die Maschine. {{site.brand}} entwirft Geräte, E/A, Schaltpläne, Programm, Sicherheitsfunktionen und Inbetriebnahmeplan und erstellt zu allem die Dokumentation. Sie prüfen und geben frei. Was Sie nicht freigegeben haben, steht in den Dokumenten als NICHT FREIGEGEBEN.",
@@ -89,7 +89,7 @@
     ],
     "facts": [
       {
-        "n": "8",
+        "n": "{{site.platform_count}}",
         "t": "SPS-Plattformen"
       },
       {
@@ -258,7 +258,7 @@
       },
       {
         "q": "Ist das Programm fertig zum Laden in die SPS?",
-        "a": "Es ist ein vollständiges Programm mit Zustandsautomaten, Betriebsarten, Störungen und Quittierung, und der Entwurf ist durch Simulation geprüft. Den Import in die Entwicklungsumgebung haben wir aber noch auf keiner Plattform durch Übersetzen geprüft, deshalb steht bei allen Plattformen beta. Vor dem Einsatz gehört das Programm in den Simulator Ihrer Plattform und in die FAT."
+        "a": "Es ist ein vollständiges Programm mit Zustandsautomaten, Betriebsarten, Störungen und Quittierung, und der Entwurf ist durch Simulation geprüft. Import und Übersetzen haben wir im echten CODESYS V3.5 SP21 ohne Fehler und Warnungen geprüft; bei Schneider, WAGO, Delta AX, zehn weiteren Systemen auf CODESYS-Basis und Unitronics ist die Sprache geprüft, nicht Geräte und Adressen. Die übrigen Plattformen prüft unser Emulator, der kein Compiler des Herstellers ist, deshalb steht dort beta. Das Laden in eine SPS haben wir auf keiner Plattform geprüft. Vor dem Einsatz gehört das Programm in den Simulator Ihrer Plattform und in die FAT."
       },
       {
         "q": "Ich habe eine bestehende Maschine. Muss ich alles neu eingeben?",
@@ -285,7 +285,7 @@
   },
   "funkce": {
     "title": "Funktionen — {{site.brand}}",
-    "description": "Geräte- und E/A-Entwurf, Schaltpläne nach IEC, Programm für 8 Plattformen, Simulation, Sicherheitsfunktionen nach ISO 13849, Inbetriebnahme, Dokumentation, Stückliste und Import bestehender Anlagen.",
+    "description": "Geräte- und E/A-Entwurf, Schaltpläne nach IEC, Programm für {{site.platform_count}} Plattformen, Simulation, Sicherheitsfunktionen nach ISO 13849, Inbetriebnahme, Dokumentation, Stückliste und Import bestehender Anlagen.",
     "eyebrow": "Funktionen",
     "h1": "Was {{site.brand}} für Sie erledigt",
     "lead": "Von der Aufgabenstellung bis zur Übergabe der Maschine. Alles, was es vorschlägt, prüfen und geben Sie frei. Die Dokumentation belegt dann, was Sie freigegeben haben.",
@@ -345,7 +345,7 @@
         "points": [
           "Zustandsautomaten der Geräte mit Überwachungszeiten und Statuswörtern.",
           "Betriebsart AUTO und Hand, Zyklusstart, Quittierung, Handbefehle, Maschinenstörung mit dem Schritt, in dem sie auftrat.",
-          "8 Plattformen; Import in einer Datei, wo die IDE es kann (PLCopen XML, L5X).",
+          "{{site.platform_count}} Plattformen; Import in einer Datei, wo die IDE es kann (PLCopen XML, L5X).",
           "Zu jeder Plattform die Importanleitung und der kürzeste Test."
         ],
         "shot": {
@@ -481,71 +481,178 @@
   },
   "platformy": {
     "title": "Plattformen und Prüfung — {{site.brand}}",
-    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Mitsubishi, Schneider, OMRON und Unitronics. Wie die Ausgabe geprüft ist und was noch beta ist.",
+    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Schneider, WAGO, Delta, Mitsubishi, OMRON, Unitronics und zehn weitere Systeme auf CODESYS-Basis. Was durch Import in der IDE geprüft ist, was durch den Compiler und was durch den Emulator.",
     "eyebrow": "Plattformen",
-    "h1": "8 Plattformen. Wir sagen, was geprüft ist.",
-    "lead": "Die Ausgabe jeder Plattform prüfen wir gegen die Handbücher des Herstellers. Import und Übersetzen in der Entwicklungsumgebung haben wir noch nicht ausprobiert, deshalb tragen alle Plattformen das Etikett beta. Sobald eine Plattform durch Übersetzen geprüft ist, verschwindet es und wir ergänzen Version und Datum.",
+    "h1": "{{site.platform_count}} Plattformen. Wir sagen, was geprüft ist.",
+    "lead": "CODESYS haben wir durch echten Import und Übersetzen in CODESYS V3.5 SP21 Patch 6 geprüft: Beispiele im klassischen und im OOP-Stil, Antriebe und Servoachse ohne Fehler und ohne Warnung. Schneider, WAGO, Delta AX und zehn weitere Systeme auf CODESYS-Basis nutzen dieselbe Sprache; dort haben wir Sprache und Import geprüft, nicht Bibliotheken, Geräte und Adressen. Unitronics hat den ST-Compiler aus UniLogic bestanden. Die übrigen Plattformen prüft unser Emulator. Den Import in der Entwicklungsumgebung des Herstellers haben wir dort noch nicht ausprobiert, deshalb tragen sie das Etikett beta.",
     "checked": "Stand vom",
     "h_platform": "Plattform",
-    "h_ide": "Entwicklungsumgebung",
+    "h_ide": "Entwicklungs­umgebung",
     "h_output": "Was Sie erhalten",
     "h_check": "Wie geprüft",
     "h_state": "Status",
     "rows": [
       {
+        "key": "siemens",
         "name": "Siemens SIMATIC",
         "ide": "TIA Portal V17–V21",
         "output": "SCL-Quellen, SimaticML XML, Variablentabelle",
-        "check": "Siemens-Handbücher, Format SimaticML"
+        "check": "Emulator: SCL-Parser und Dialektregeln nach Siemens-Handbüchern, Lauf gegen das Maschinenmodell; Format SimaticML",
+        "state": "beta"
       },
       {
+        "key": "rockwell",
         "name": "Rockwell Allen-Bradley",
         "ide": "Studio 5000 Logix Designer",
         "output": "L5X (Add-On Instructions, Tags, Routine) und Tag-CSV",
-        "check": "Handbuch 1756-RM014, reale L5X-Exporte"
+        "check": "Emulator: L5X und Logix-Dialekt nach Handbuch 1756-RM014, Lauf gegen das Maschinenmodell; reale L5X-Exporte",
+        "state": "beta"
       },
       {
+        "key": "beckhoff",
         "name": "Beckhoff",
         "ide": "TwinCAT 3",
         "output": "PLCopen XML, ST-Bausteine, GVL",
-        "check": "ST-Parser für TwinCAT, Schema PLCopen TC6"
+        "check": "Emulator: ST-Parser für TwinCAT, Lauf gegen das Maschinenmodell; Schema PLCopen TC6",
+        "state": "beta"
       },
       {
+        "key": "codesys",
         "name": "CODESYS",
         "ide": "CODESYS V3.5",
         "output": "PLCopen XML, ST-Bausteine, GVL",
-        "check": "Schema PLCopen TC6, CODESYS-Handbücher"
+        "check": "Import von PLCopen XML und Übersetzen in CODESYS V3.5 SP21 Patch 6 (3.5.21.60), 5. Oktober 2026: klassisch und OOP, Antriebe und SoftMotion-Servoachse, 0 Fehler, 0 Warnungen. Lauf auf der Runtime (Laden in die SPS) ungeprüft",
+        "state": "verified"
       },
       {
-        "name": "Mitsubishi",
-        "ide": "GX Works3",
-        "output": "ST und CSV der globalen Labels",
-        "check": "Mitsubishi-Handbücher; das CSV-Format ändert sich je nach Version"
-      },
-      {
+        "key": "schneider",
         "name": "Schneider Electric",
         "ide": "EcoStruxure Machine Expert",
         "output": "PLCopen XML, ST-Bausteine, GVL",
-        "check": "Schema PLCopen TC6, Schneider-Handbücher"
+        "check": "Sprache und PLCopen-Import: Compiler CODESYS 3.5.21.60; Bibliotheken, Geräte und E/A-Adressen von Schneider ungeprüft",
+        "state": "lang"
       },
       {
+        "key": "wago",
+        "name": "WAGO",
+        "ide": "e!COCKPIT / CODESYS V3.5",
+        "output": "PLCopen XML, ST-Bausteine, GVL (E/A-Zuordnung in der IDE)",
+        "check": "Sprache und PLCopen-Import: Compiler CODESYS 3.5.21.60; Bibliotheken, Geräte und E/A-Adressen von WAGO ungeprüft, Servoachse SoftMotion Light ungeprüft",
+        "state": "lang"
+      },
+      {
+        "key": "delta",
+        "name": "Delta Electronics AX",
+        "ide": "DIADesigner-AX",
+        "output": "PLCopen XML, ST-Bausteine, GVL",
+        "check": "Sprache und PLCopen-Import: Compiler CODESYS 3.5.21.60; Bibliotheken, Geräte und E/A-Adressen von Delta ungeprüft",
+        "state": "lang"
+      },
+      {
+        "name": "Weitere CODESYS: Turck, Festo, ABB AC500 V3, Bosch Rexroth ctrlX, Inovance, Weidmüller, Eaton, Lenze, Berghof, Hitachi",
+        "ide": "Hersteller-IDEs auf CODESYS V3.5 (Festo Automation Suite, Automation Builder, ctrlX PLC Engineering, InoProShop, XSOFT-CODESYS-3, PLC Designer, HX-CODESYS…)",
+        "output": "PLCopen XML, ST-Bausteine, GVL (E/A werden in der IDE gemappt)",
+        "check": "Sprache und PLCopen-Import: Compiler CODESYS 3.5.21.60, 5. Oktober 2026: 58 Beispielkombinationen (klassisch und OOP, bei Festo auch die Servoachse) ohne Fehler und Warnungen; IDEs, Gerätepakete und Bibliotheken der Hersteller sowie E/A auf echter Hardware ungeprüft",
+        "state": "lang",
+        "members": [
+          {
+            "key": "turck",
+            "name": "Turck",
+            "ide": "CODESYS + Turck package"
+          },
+          {
+            "key": "festo",
+            "name": "Festo",
+            "ide": "Festo Automation Suite"
+          },
+          {
+            "key": "abb",
+            "name": "ABB AC500 V3",
+            "ide": "Automation Builder"
+          },
+          {
+            "key": "rexroth",
+            "name": "Bosch Rexroth ctrlX",
+            "ide": "ctrlX PLC Engineering"
+          },
+          {
+            "key": "inovance",
+            "name": "Inovance",
+            "ide": "InoProShop"
+          },
+          {
+            "key": "weidmueller",
+            "name": "Weidmüller",
+            "ide": "CODESYS + u-OS package"
+          },
+          {
+            "key": "eaton",
+            "name": "Eaton",
+            "ide": "XSOFT-CODESYS-3"
+          },
+          {
+            "key": "lenze",
+            "name": "Lenze",
+            "ide": "PLC Designer"
+          },
+          {
+            "key": "berghof",
+            "name": "Berghof",
+            "ide": "CODESYS + Berghof target"
+          },
+          {
+            "key": "hitachi",
+            "name": "Hitachi",
+            "ide": "HX-CODESYS"
+          }
+        ]
+      },
+      {
+        "key": "mitsubishi",
+        "name": "Mitsubishi",
+        "ide": "GX Works3",
+        "output": "ST und CSV der globalen Labels",
+        "check": "Emulator: Dialekt nach Mitsubishi-Handbüchern, Lauf gegen das Maschinenmodell; das CSV-Format ändert sich je nach Version",
+        "state": "beta"
+      },
+      {
+        "key": "omron",
         "name": "OMRON",
         "ide": "Sysmac Studio",
         "output": "ST und Variablentabelle",
-        "check": "OMRON-Handbücher"
+        "check": "Emulator: Dialekt nach OMRON-Handbüchern, Lauf gegen das Maschinenmodell",
+        "state": "beta"
       },
       {
+        "key": "unitronics",
         "name": "Unitronics",
         "ide": "UniLogic (UniStream)",
         "output": "flaches ST und Tag-Liste",
-        "check": "Unitronics-Handbücher; den Dialekt bestätigt erst die erste Übersetzung"
+        "check": "ST-Compiler aus UniLogic 1.43.369 (Unitronics), 5. Oktober 2026: Machine.st von vier Beispielen ohne Fehler; Tag-Import, Build und Lauf in UniLogic ungeprüft",
+        "state": "lang"
       }
     ],
+    "state_verified": "in IDE geprüft",
+    "state_lang": "Sprache geprüft",
     "state_beta": "beta: Import in IDE ungeprüft",
-    "why_title": "Was beta bedeutet",
-    "why_body": "Die Dateien entsprechen der Herstellerdokumentation und bestehen unsere Prüfungen: Bausteinpaare, deklarierte Bezeichner, XML-Schema, ASCII wo nötig. Was wir noch nicht wissen, ist, was der Compiler Ihrer IDE-Version dazu sagt. Die README jeder Plattform beschreibt deshalb den kürzesten Test: Import, Übersetzen und Lauf im Simulator der Plattform. Finden Sie eine Abweichung, schreiben Sie uns. Wir beheben sie und bringen die Plattform zu den geprüften.",
+    "why_title": "Was die Etiketten bedeuten",
+    "legend": [
+      {
+        "state": "verified",
+        "text": "Wir haben die Ausgabe in der echten Entwicklungsumgebung des Herstellers importiert und übersetzt. Version und Datum stehen in der Spalte Wie geprüft. Das Laden in die SPS und der Lauf auf der Runtime sind damit nicht geprüft."
+      },
+      {
+        "state": "lang",
+        "text": "Die Sprache hat einen Compiler bestanden: bei Plattformen auf CODESYS V3.5 Import von PLCopen XML und Übersetzen in CODESYS, bei Unitronics der ST-Compiler aus UniLogic. Bibliotheken und Geräte des Herstellers, E/A-Adressen und den Import in dessen IDE haben wir nicht geprüft."
+      },
+      {
+        "state": "beta",
+        "text": "Der Code hat unseren Emulator bestanden: eigener Parser und Dialektregeln nach den Handbüchern des Herstellers sowie ein Lauf des Programms Zyklus für Zyklus gegen das Maschinenmodell, bei allen Beispielen ohne Abweichung vom Entwurf. Den Import in der IDE des Herstellers haben wir noch nicht ausprobiert."
+      }
+    ],
+    "why_body": "Der Emulator ist kein Compiler des Herstellers. Er erkennt, was er aus den Handbüchern kennt, aber was der Compiler Ihrer IDE-Version sagt, bestätigt erst ein echter Import. Die README jeder Plattform beschreibt deshalb den kürzesten Test: Import, Übersetzen und Lauf im Simulator der Plattform. Finden Sie eine Abweichung, schreiben Sie uns. Wir beheben sie und bringen die Plattform zu den geprüften.",
     "safety_title": "Sicherheitsprogramm",
-    "safety_lead": "Entsteht aus zertifizierten Bausteinen des Herstellers, erst nach Freigabe der Sicherheitsfunktionen. Wie beim Standardprogramm: beta, bis wir es durch Übersetzen geprüft haben.",
+    "safety_lead": "Entsteht aus zertifizierten Bausteinen des Herstellers, erst nach Freigabe der Sicherheitsfunktionen. Das Sicherheitsprogramm haben wir in der IDE des Herstellers noch nicht geprüft, deshalb ist es auf allen Plattformen beta.",
     "safety_rows": [
       {
         "name": "Siemens",
@@ -825,7 +932,7 @@
         "body": [
           "Die Anwendung entwirft die Maschinensteuerung: Geräte, E/A, Schaltpläne, Prozesslogik und SPS-Programm, Sicherheitsfunktionen einschließlich PLr, Architektur, Komponenten und eines Programms für die Sicherheits-SPS, einen Inbetriebnahmeplan und die Dokumentation. Alle Ergebnisse sind ein Entwurf zur Prüfung.",
           "Es gelten nur Positionen, die eine verantwortliche Person des Nutzers freigegeben hat (Name, Datum, Bemerkung). Die Freigabe ist eine Handlung des Nutzers, nicht des Betreibers. Nicht freigegebene Ergebnisse tragen die Kennzeichnung NICHT FREIGEGEBEN und dürfen nicht als Grundlage für Fertigung, Verdrahtung oder Inbetriebnahme der Maschine verwendet werden.",
-          "Die Simulation in der Anwendung prüft den Entwurf, nicht das in der Entwicklungsumgebung des SPS-Herstellers übersetzte Programm. Die Ausgaben für die einzelnen Plattformen sind nicht durch Übersetzen in deren Entwicklungsumgebung geprüft (auf der Website als beta gekennzeichnet).",
+          "Die Simulation in der Anwendung prüft den Entwurf, nicht das in der Entwicklungsumgebung des SPS-Herstellers übersetzte Programm. Die Ausgaben für die einzelnen Plattformen sind nicht durch Übersetzen in der Entwicklungsumgebung des Herstellers geprüft, mit Ausnahme der auf der Seite Plattformen genannten.",
           "Ergebnisse der KI-Funktionen (Gerätevorschlag, Auslesen von Schaltplänen und Fotos) können fehlerhaft oder unvollständig sein; die Anwendung legt sie immer als Entwurf zur Prüfung vor."
         ]
       },
@@ -914,6 +1021,8 @@
           "- Zahlungen: Vom Zahlungsdienst erhalten wir E-Mail, Abonnement-Kennung und Zahlungsstatus; Zahlungsdaten (Karte) erreichen uns nicht. Zweck: Ausstellung und Verwaltung der Lizenz, Buchhaltung. Grundlage: Vertragserfüllung und rechtliche Verpflichtung (Art. 6 Abs. 1 lit. c).",
           "- Kommunikation: Inhalt der E-Mails, die Sie uns senden. Zweck: Antwort und Support. Grundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f).",
           "- Schutz der Website: IP-Adresse und technische Browserdaten bei der Turnstile-Prüfung und in Betriebsprotokollen des Hostings. Zweck: Schutz der Formulare vor Bots und Sicherheit des Dienstes. Grundlage: berechtigtes Interesse.",
+          "- Kundenverwaltung: Zugriff auf die oben genannten Daten hat nur der Betreiber über die geschützte Kundenverwaltung (Anmeldung mit Token oder über Cloudflare Access); er kann dort zu einem Kunden eine Notiz für Support und Lizenzverwaltung anlegen. Jede Ansicht der Kundendetails, jeder Eingriff (Ausstellen, Verlängern oder Kündigen einer Lizenz, Freigeben eines Computers, Notiz) und jeder Export wird in einem Audit-Protokoll erfasst (wer, wann, was). Fehlgeschlagene Anmeldeversuche werden zum Schutz vor Missbrauch mit IP-Adresse und Browserangaben protokolliert. Zweck: Lizenzverwaltung und Datensicherheit. Grundlage: Vertragserfüllung und berechtigtes Interesse.",
+          "- Geschäftskontakte (B2B): In einer internen Übersicht der Vertriebschancen führen wir Unternehmen, die {{site.brand}} nutzen könnten — bei Unternehmen aus eigener Recherche nur öffentlich zugängliche Firmendaten (Name, Website, Segment, Ort, Land, Link zur Quelle); Name, Telefon und E-Mail der Kontaktperson ergänzen wir nur manuell, wenn wir mit dem Unternehmen in Kontakt sind. Erfasst sind auch Interessenten aus dem Download-Formular (E-Mail und Status: Download, Test, Lizenz), nur als Übersicht, in welcher Phase die Beziehung ist (für Marketing nutzen wir diese Daten nicht). Zweck: Pflege von Geschäftsbeziehungen und Angebot des Produkts an Unternehmen. Grundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f). Sie können dieser Verarbeitung jederzeit unter {{site.email}} widersprechen — wir löschen den Eintrag dann und legen ihn nicht erneut an. Werbe-E-Mails senden wir ohne Ihre Einwilligung nicht, sofern Sie nicht unser Kunde sind.",
           "Wir nutzen Ihre Daten nicht für Marketing, versenden keine Newsletter ohne Ihre ausdrückliche Einwilligung und führen kein Profiling durch."
         ]
       },
@@ -943,7 +1052,9 @@
           "- Daten aus dem Download-Formular: 3 Jahre nach dem letzten Download, danach Löschung.",
           "- Lizenzdaten: für die Dauer der Lizenz und 3 Jahre nach ihrem Ende.",
           "- Buchhaltungs- und Steuerbelege: 10 Jahre nach tschechischem Umsatzsteuer- und Buchhaltungsrecht.",
-          "- Betriebsprotokolle des Hostings: nach Einstellung des Anbieters, meist Tage bis Wochen."
+          "- Betriebsprotokolle des Hostings: nach Einstellung des Anbieters, meist Tage bis Wochen.",
+          "- Kundenverwaltung: Audit-Protokoll 3 Jahre, fehlgeschlagene Anmeldeversuche 30 Tage, Notizen zum Kunden so lange, wie seine Daten aufbewahrt werden.",
+          "- Geschäftskontakte: solange Vertriebsgespräche laufen, höchstens 3 Jahre nach dem letzten Kontakt; nach einem Widerspruch sofort."
         ]
       },
       {
@@ -968,7 +1079,7 @@
     "description": "Die Website {{site.brand}} verwendet keine Analyse- oder Werbe-Cookies.",
     "eyebrow": "Rechtliches",
     "h1": "Cookies und ähnliche Technologien",
-    "lead": "Die Website verwendet keine Analyse-, Werbe- oder Tracking-Cookies und speichert nichts im Speicher des Browsers. Deshalb fragen wir nicht per Banner nach Einwilligung.",
+    "lead": "Die Website verwendet keine Analyse-, Werbe- oder Tracking-Cookies und speichert nichts im Browserspeicher der Besucher. Deshalb fragen wir nicht per Banner nach Einwilligung. Einzige Ausnahme ist ein technisch notwendiges Cookie für die Anmeldung des Betreibers in der Kundenverwaltung (siehe Administration); Besucher der Website betrifft es nicht.",
     "sections": [
       {
         "id": "web",
@@ -989,9 +1100,11 @@
       },
       {
         "id": "admin",
-        "h": "Administration",
+        "h": "Administration und Kundenverwaltung",
         "body": [
-          "Die Seite /admin/ ist nur für Inhaltsverwalter. Bei der Anmeldung über GitHub speichert sie Anmeldedaten im Browserspeicher des Verwalters."
+          "Die Seite /admin/ ist nur für Inhaltsverwalter. Bei der Anmeldung über GitHub speichert sie Anmeldedaten im Browserspeicher des Verwalters.",
+          "Die Seite der Kundenverwaltung (/sprava/) ist nur für den Betreiber. Nach der Anmeldung setzt sie ein einziges technisch notwendiges Cookie, __Host-plcdesk_admin: Es enthält nur eine signierte zufällige Sitzungskennung und deren Ablaufzeit, gilt höchstens 8 Stunden und wird bei der Abmeldung gelöscht. Es wird nur über HTTPS und nur an diese Website gesendet und ist für Skripte der Seite nicht zugänglich. Besuchern der Website wird es nie gesetzt. Die Verwaltung merkt sich außerdem die gewählte Sprache im Browserspeicher des Betreibers.",
+          "Meldet sich der Betreiber über Cloudflare Access an, setzt Cloudflare ein eigenes notwendiges Anmelde-Cookie (CF_Authorization) nach seinen eigenen Richtlinien."
         ]
       },
       {

@@ -39,7 +39,7 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
 
 ```bash
 pnpm -C packages/core build   # tsc → dist (dist je commitnutý, po změně core přegeneruj a commitni)
-pnpm -C packages/core test    # build + node --test dist/*.test.js: 204 testů (~4 min), bez závislostí
+pnpm -C packages/core test    # build + node --test dist/*.test.js: 227 testů (~4 min), bez závislostí
 node --test "packages/core/dist/*.test.js"   # totéž bez buildu; testy berou samples/ a test-data/ relativně k dist
 npx -y -p typescript tsc -p packages/core/tsconfig.json   # build bez pnpm (ověřeno: tsc 7 dává shodný dist)
 npx http-server . -p 8080     # → http://localhost:8080/apps/web/
@@ -52,6 +52,7 @@ node scripts/check_samples.mjs [soubor -v]  # příklady samples/: generování 
 node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s)
 node scripts/golden.mjs [--code] [--dump DIR]  # výstupy generátoru × referenční otisky (viz Mezivrstva)
 node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (nová platforma / styl kódu)
+python scripts/build_verification.py        # data/verification.json → verification_data.ts (viz Ověření platforem)
 ```
 
 ## Mezivrstva generátoru (ir.ts) a referenční test
@@ -277,9 +278,18 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
 
 ## Příklady a ověření simulací
 
-- `samples/*.plcstudio.json` — 13 příkladových strojů od pásu se 6 zařízeními po výrobní halu se 125 (11 = pohony fáze 2a)
-  zařízeními a 120 kroky (formát = uložený projekt desktopu / export webu). Každý musí projít
-  `check_samples.mjs`: validace, kód pro všech 8 platforem (párování IF/CASE/FB, ASCII u Unitronics
+- `samples/*.plcstudio.json` — 18 příkladových strojů od pásu se 6 zařízeními po výrobní halu se 125
+  zařízeními a 120 kroky (formát = uložený projekt desktopu / export webu). Vzory s pohony:
+  11 PS-11 (pás na měniči, osa se záznamy, lisovací tlak VPPM), 12 PM-12 (servoosa, fáze 2b),
+  13 TD-13 třídicí linka (3 měniče rozjezd / plíživá / stop, reverzní příčný pás výhybky, pneumatická
+  výhybka a doraz, světelná závora), 14 HL-14 hydraulický lis (čerpadlo na měniči, proporcionální
+  tlak i průtok se zpětnou vazbou, rychloposuv → pracovní posuv → lisování na tlak → dotlak →
+  odlehčení → zpětný chod, poloha beranu s mezí, dvouruční ovládání), 15 NV-15 nanášecí / navíjecí
+  stanice (odvíječ a navíječ na měničích, tanečník, dávkovací čerpadlo, proporcionální ventil průtoku,
+  polohovací pohon nože se záznamy), 16 PC-16 paletizační buňka (3 polohovací pohony se záznamy
+  a referováním, vakuový úchop, dopravník na měniči). 13–16 bez servoosy = všechny platformy
+  (desktop `--smoke` je prochází). Každý musí projít
+  `check_samples.mjs`: validace, kód pro všechny platformy (párování IF/CASE/FB, ASCII u Unitronics
   a DXF, deklarované identifikátory), dokumentace, ověření bez nálezu `error` a matice bez ✖.
 - `verifyProject()`: běžný cyklus, poruchové scénáře, **kontrola konceptu** (vstupy, které program
   nečte, výstupy, které neovládá, měření bez mezí, pohony mimo cyklus, blokování bez NC) a **matice
@@ -300,6 +310,12 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   přeložený kód spustí scan po scanu proti modelu stroje simulátoru ve scénářích `verifyProject`
   (`emuScenarios`) a porovná chování kód ↔ návrh (`diffs`); `emulateFiles` / `emulateRunFiles` pro
   vlastní soubory. Cache podle otisku přeloženého programu (komentáře a jazyk ho nemění).
+- **Strukturní kontrola PLCopen_Import.xml** (`emu/plcopen_check.ts`, pravidlo `plcopen`, zdroj
+  `SRC.cdsPlcopen` + import v CODESYS 3.5.21.60 2026-10-05), rodina CODESYS: konfigurace v
+  `<configurations>` = chyba, GVL_IO v addData …/globalvars = GVL_IO.st (jméno, typ, adresa), rozhraní
+  POU a metod (sekce in / out / inOut / local) = deklarace ST z parseru emulátoru (klasika i OOP),
+  textová deklarace OOP jen na místech, odkud ji čte CODESYS. ST kód sám se v CODESYS přeložil bez
+  chyb (dialektová pravidla CODESYS potvrzena). Testy `plcopen.test.ts` (struktura + mutace).
 - Testy (`emu.test.ts`): 13 příkladů × 10 platforem × 5 jazyků bez chyby překladu a bez rozdílu proti
   návrhu, mutační testy (vložené chyby kódu musí emulátor chytit), výkon `emulateAll` největšího příkladu.
 - **Emulátor ≠ překladač výrobce.** Výhradu nese dokument `15_emulace_prekladu.md` (`emuDocMd`) i každé UI,
@@ -308,6 +324,34 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
 - Běh staví program přes `new Function` (`compile.ts`). Stránka s CSP bez `'unsafe-eval'` ho zakáže →
   kontrola překladu funguje dál, běh vrátí nález `runtime` („Interní chyba emulátoru…“), nespadne.
   Při nasazení webu s CSP buď povolit `'unsafe-eval'`, nebo běh emulace pouštět ve workeru / v desktopu.
+
+## Ověření platforem (`data/verification.json`)
+
+- **Jediný zdroj pravdy o tom, co je u které platformy ověřené.** Záznam pro KAŽDOU platformu z `PLAT`:
+  `state` (`verified` = import a překlad ve skutečném IDE, `lang` = jazyk ověřen překladačem — CODESYS
+  pro platformy na jeho bázi, překladač ST UniLogicu —, import v IDE výrobce ne, `beta` = jen emulátor,
+  `unsupported`), `ide` (IDE / překladač a verze, technický text; `null` jen u beta), `date`, `scope`
+  (classic / oop / motion / axis / plcopen / iec61131-10), `summary` a `notVerified` (české klíče
+  překladu), `evidence` (protokoly v `docs/verification/`), `formats` (výstupy: ide / compiler / xsd /
+  structure / emulator + poznámka). Stav 2026-10-05: CODESYS `verified`; Schneider, WAGO, Delta,
+  10 profilů a Unitronics `lang`; Siemens, Rockwell, Beckhoff, Mitsubishi, OMRON `beta`.
+- `python scripts/build_verification.py` (`--check`) → `packages/core/src/verification_data.ts` (texty jako
+  `N_()`); `verification.ts`: `VERIFICATION`, `verificationInfo(plat)` (štítek, bublina `tip`),
+  `verificationReadme(plat)`, `verificationLatest()`. Test `verification.test.ts`: každá platforma má
+  záznam a žádný navíc, TS = JSON, protokoly existují, README každé platformy × 5 jazyků nese štítek.
+- Kdo to čte: **README platforem** (`genFor`: štítek „STAV OVĚŘENÍ“ hned pod nadpisem platformy, jednotně
+  — ručně psané věty o ověření do README NEPSAT), **aplikace** (krok Platformy: čip ověřeno v IDE / jazyk
+  ověřen / beta s bublinou, co neověřeno — web `steps.js` `verificationInfo`, desktop `platformy.py`
+  přes `VERIF` z mostu `init`), **web** `apps/site/scripts/build.js` (čte JSON přímo: `{{site.platform_count}}`,
+  „Stav k“ = nejnovější datum, stav každého řádku tabulky; texty řádků zůstávají v `content/<jazyk>.json`
+  s `key` nebo `members` — sloučený řádek profilů CODESYS, dlaždice se rozvinou po platformách; nesoulad
+  platforem / stavů nebo natvrdo psaný počet platforem = varování buildu → deploy se zastaví).
+- **Pravidlo: po každém ověření naostro** (import / překlad v IDE nebo překladači výrobce) zapsat záznam do
+  `data/verification.json` + protokol bez osobních údajů do `docs/verification/<ide>-<verze>.md`, pak
+  `build_verification.py`, build jádra, `i18n.py missing/merge`, golden **jen README** (vědomá změna, výběrové
+  přepsání otisků README, ne `--write` na vše), u nové platformy / změny stavu řádek v `apps/site/content/*.json`.
+  Web, README a aplikace se pak aktualizují samy. Protokoly: `codesys-3.5.21.60.md`, `codesys-profily.md`,
+  `unilogic-1.43.md`, `emulator.md` (co znamená beta).
 
 ## Styl kódu OOP a profily CODESYS (WAGO, Delta AX)
 
@@ -329,18 +373,26 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   `instM1.Fault/Status/Busy` (`hmiPlcPath(plat, t, prj)`). Žádné ukazatele, __NEW, WHILE.
 - Výstupy: ST výpis `Gen_Library.st` + `FB_Sequence.st` + `MAIN.st` (metody/vlastnosti za tělem
   bloku), `PLCopen_Import.xml` s addData CODESYS (pouinheritance, method, property, interface
-  v addData projektu, interfaceasplaintext — tvar podle exportu CODESYS V3.5 SP20 / TwinCAT), u
+  v addData projektu, interfaceasplaintext — tvar podle exportu CODESYS V3.5 SP21 Patch 6), u
   TwinCATu `I_Device.TcIO`, `FB_*.TcPOU`, `MAIN.TcPOU`, `GVL_IO.TcGVL` (tvar podle TcUnit / AixOCAT;
   Id = deterministické GUID, LineIds se nepíšou). Vše z jednoho modelu `OopPou` (`listingObj` /
-  `oopListing`). **Import v IDE NEOVĚŘEN** (README to uvádí) — nálezy z prvního importu zapsat sem.
+  `oopListing`). **PLCopen import ověřen v CODESYS 3.5 SP21 Patch 6 (2026-10-05)** — 0 chyb / 0 varování
+  a deklarace po importu = ST výpis (ABSTRACT, PROTECTED, komentáře, atributy). Pravidla:
+  textová deklarace (`InterfaceAsPlainText`) u **POU** jako `<data …/interfaceasplaintext>` v addData POU
+  **za `</body>`**, u **Method / Property / Interface** (i metod a vlastností rozhraní) jako **přímý
+  potomek** elementu (za body / accessory, před `<addData />`) — jinde ji CODESYS ignoruje a postaví
+  deklaraci ze struktury bez modifikátorů; **atributy vlastností `{attribute 'monitoring' := 'call'}`
+  i v I_Device** (jinak C568 u FB_DeviceBase a každého potomka). TwinCAT TcPOU / TcIO importem NEOVĚŘEN.
   ABSTRACT: CODESYS SP13+, TwinCAT 3.1.4024+. Diagram tříd `00_diagram_trid.svg` (`oopClassSvg`)
   a oddíl „Styl kódu OOP" v `07_softwarova_dokumentace.md` jen když je OOP aktivní.
 - Emulátor umí OOP (`compile.ts`): rozhraní jako typ (slot = adresa instance + 1), virtuální volání
   přes skrytý `__TID` instance (`dispatchFn`), THIS^ / SUPER^, vlastnosti GET/SET, ABSTRACT/FINAL,
   přístup PRIVATE/PROTECTED, VAR_IN_OUT (kopie tam a zpět), konstanty v mezích polí; kontroly
-  `oop` (IMPLEMENTS, podpisy, chybějící GET, abstraktní instance…), varování `iface-guard` (volání
+  `oop` (IMPLEMENTS, podpisy, chybějící GET, abstraktní instance…, varování na rozdílné atributy
+  člena rozhraní × implementace = C568), varování `iface-guard` (volání
   přes odkaz bez `<> 0`), za běhu `nullref`. `emu/oop_files.ts` sestaví z TcPOU / PLCopen výpis a
-  porovná ho s ST (importuje se tentýž kód, jaký emulátor ověřil). Testy `emu_oop.test.ts` (příklady
+  porovná ho s ST (importuje se tentýž kód, jaký emulátor ověřil); plaintext čte JEN z míst, odkud
+  ho čte CODESYS (jinak rozdíl proti ST). Testy `emu_oop.test.ts` (příklady
   × 5 platforem × 5 jazyků = návrh; lockstep OOP × klasika s náhodnými vstupy; mutace) a
   `codegen_oop.test.ts` (struktura, round-trip importu, HMI, dokumentace). Při změně šablon / IR
   držet obě podoby — emulátor rozdíl chytí.
@@ -352,6 +404,37 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   „ADRESY NEOVĚŘENY"** (BuiltIn_IO / Delta_LocalBus_Master bez doložených počátečních adres).
   Kusovník `plc_*@wago` / `plc_*@delta` v `data/catalog/plc.json` (jen kódy s URL), odkazy
   v `data/platform_refs.json`. Reverse pozná hlavičky „- WAGO *)" / „- Delta Electronics *)".
+- **Další profily CODESYS** (2026-10-05) jsou DATA v `codesys_profiles.ts` (`CDS_PROFILES`, `cdsProfile`,
+  `CDS_PROFILE_PLAT` → `PLAT`): název / IDE / CPU, verze CODESYS → `oop` (ABSTRACT až od V3.5 SP13),
+  `at` (false = GVL_IO bez AT, kanály v I/O mapování — `nativeAddr`), `rawMax` + `rawMod` (modul z katalogu;
+  bez něj README „NEOVĚŘENÝ odhad“), `axis` (`sm3` jen kde výrobce dokládá AXIS_REF_SM3, jinak `axisWhy`),
+  texty README (`setup` / `io` / `libs` / `test` = klíče překladu; `title`, `imp`, `cdsVer`, `rawMod` jsou
+  technické a NESMÍ obsahovat češtinu — jdou do všech jazyků), popis dialektu emulátoru a produkt HMI.
+  Generické napojení: `RAW_MAX` + README (`codegen.ts`), `axisDialect` / `axisUnsupportedWhy`, `driveNet`,
+  `DIALECTS` (dialekt codesys, `oop` dle profilu), `hmiFiles` (platBase codesys), `PLAT_BY_NAME` (reverse
+  podle `name`), `canonAddr` (rodina CODESYS). Nový profil = položka v tabulce + `plc_*@<klíč>` v katalogu
+  (CPU, DI, DO, AI, AO s `hw`; jinak „nevejde se“) + `platform_refs.json` + `PLATS` v `build_catalog.py`
+  + překlady + `golden --add`. Testy `codesys_profiles.test.ts`. UI (web i desktop) je ukazuje pod
+  nadpisem „Další řídicí systémy na bázi CODESYS“ (`PLAT[k].base`).
+
+  | profil | IDE | CODESYS | AT | osa | OOP | rawMax | ověření (2026-10-05) |
+  |---|---|---|---|---|---|---|---|
+  | `turck` | CODESYS + Turck package (TX700 / TBEN-L PLC + BL20 přes BL20-E-GW-EC) | 3.5.14–3.5.18 | ne | ne (SoftMotion nedoloženo) | ano | 32767 (BL20-4AI-U/I) | import + Build SP21 |
+  | `festo` | Festo Automation Suite + CODESYS (CPX-E-CEC-C1 / -M1, CPX-E) | 3.5.21.20 (FAS 2.8+) | ne | `sm3` (jen CPX-E-CEC-M1) | ano | 27648 | import + Build SP21 (vč. vzoru 12 s osou) |
+  | `abb` | Automation Builder (AC500 V3 + S500) | 3.5 SP20 P2 | ne | ne (PS5611-MC, vlastní AXIS_REF) | ano | 27648 (AI523) | import + Build SP21 |
+  | `rexroth` | ctrlX PLC Engineering (ctrlX CORE X3 + ctrlX I/O) | 3.5.20.50 | ne | ne (CXA_PLCopen / ctrlX MOTION) | ano | 10000 (XI312204 v mV) | import + Build SP21 |
+  | `inovance` | InoProShop (AM600 + GL10) | SP neuveden (SP11 dle třetí strany) | ne | ne (SM3 jen zdroj třetí strany) | **ne** | 20000 | import + Build SP21 (klasika) |
+  | `weidmueller` | CODESYS + u-OS package (UC20-M3000 / M4000 + UR20) | Control SL for u-OS 4.2x | ne | ne | ano | 27648 (třetí strany) | import + Build SP21 |
+  | `eaton` | XSOFT-CODESYS-3 (XC-303 + XN300) | 3.5.20 | ne | ne | ano | 10000 (XN300 v mV) | import + Build SP21 |
+  | `lenze` | PLC Designer (c300 + I/O system 1000) | 3.5.21 (PLC Designer 4.2) | ne | ne (FAST / L_MC1P) | ano | 16384 (EPM-S401, nastavení 20h) | import + Build SP21 |
+  | `berghof` | CODESYS + Berghof target (MC-Pi Pro + MC-I/O) | dle release (3.5 SP16 P4) | ne | ne (AXIS_REF_SM3 nedoloženo) | ano | 32767 (AI4-I) | import + Build SP21 |
+  | `hitachi` | HX-CODESYS (HX-CPU + EH-150; EHV+ = SP5, bez OOP) | 3.5 SP16 P2+ | ne (EHV+ prohozené bajty) | ne (SM3 jen HX Motion CPU) | ano | 4095 (12 bit) | import + Build SP21 |
+
+  „import + Build SP21“ = PLCopen_Import.xml vzorů 00b, 03, 11 (klasika + OOP kde platí) beze změny
+  importován do CODESYS V3.5 SP21 Patch 6 (Control Win), krok README s MainTask, Build a Generate code
+  0 chyb / 0 varování (58 / 58). **Neověřeno:** IDE výrobců (balíky zařízení, knihovny), skutečné I/O
+  mapování a rozsahy analogů na HW, PLCopen import ve starších verzích (InoProShop, EHV-CODESYS).
+  ifm (ecomatController, pevné I/O, SP11) záměrně vynechán — do sestavy se nevejde, mobilní stroje.
 - Golden: kód všech platforem + `code-oop/<platforma>/…`; `prj.platforms` reference zůstává na
   původních 8 (`GOLDEN_PROJECT_PLATFORMS`), aby nové platformy neměnily staré otisky dokumentace.
   Nové soubory do reference: `node scripts/golden.mjs --add` (existující otisky beze změny).
@@ -512,8 +595,11 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
 - **Unitronics (UniLogic / UniStream):** ST funkce nemá paměť a FB v ST nejsou → generuje se
   plochý ST (`Machine.st`) a seznam tagů (`Tags.csv`). Logika bloků se **neopisuje** — vzniká
   z týchž šablon `ST_MOTOR` / `ST_VENTIL` / … přes `parseFbTemplate()` + `inlineFb()` + `uniDialect()`,
-  takže změna šablony se propíše sama. Výstup je čisté ASCII a **není ověřen překladem**
-  v UniLogic (README to uvádí) — po prvním překladu u uživatele doplnit zjištěné odchylky dialektu.
+  takže změna šablony se propíše sama. Výstup je čisté ASCII. **ST ověřen překladačem UniLogic 1.43.369**
+  (2026-10-05, vzory 00b / 03 / 11 / sampleSmall 0 chyb, harness nad `Unitronics.Compiler.Ladder2C`,
+  `docs/verification/unilogic-1.43.md`, stav `lang`); import tagů a ST v GUI, build (C / GCC), volání
+  z Ladderu a TON jako globální tag neověřeny — po prvním překladu v GUI doplnit nálezy (i odchylky
+  emulátoru z protokolu: převody INT↔UINT / zúžení = chyba, END_IF bez `;` přijat, vnořené komentáře).
 - **Simulace = zrcadlo generátoru.** `sim.ts` (třída `Simulator`, jeden `scan()` = jeden scan
   programu; nad ní dávková `simulate()` i živá simulace v desktopu) provádí logiku, kterou generuje
   `codegen.ts` (FB_Motor/FB_Ventil, timeouty, CASE sekvence, pořadí enable → sekvence → TON →
@@ -541,8 +627,23 @@ beckhoff / schneider přidává `PLCopen_Import.xml` a README ho uvádí jako ne
 XML se staví z **finálního textu** `Gen_Library.st` (`splitLibrary`) a `MAIN.st` téže platformy
 (`parseStPou`) — ne ze surových šablon — takže import = ručně vložené soubory (ruční povely,
 porucha, `cmtSafe`, `rawMax`, adresy `addrFor` vč. `%I*` u TwinCATu). Ověřeno: well-formed a
-schéma TC6 v2.01 (Beremiz `tc6_xml_v201.xsd`, ns přepsán) na 14 projektech × 3 platformy;
-**reálný import v CODESYS / TwinCAT zatím neověřen** — nálezy zapsat sem.
+schéma TC6 v2.01 (Beremiz `tc6_xml_v201.xsd`, ns přepsán) na 14 projektech × 3 platformy.
+**Import ověřen v CODESYS 3.5 SP21 Patch 6 (2026-10-05)**: skutečný import (`import_xml` na Application)
++ Build + Generate code na CODESYS Control Win V3 x64, vzory 00b / 03 / 11 / 12 / sampleSmall /
+sampleComplex × klasika / OOP × codesys / schneider / wago / delta (osa jen codesys / delta) = 0 chyb,
+0 varování (jen C373 „adresa není v zařízení“ při generování — Control Win nemá I/O). Bez runtime.
+Pravidla struktury (zjištěná importem, tvar podle exportu téhož IDE; hlídá emulátor `plcopen_check.ts`):
+- GVL_IO v `<addData><data name="…/plcopenxml/globalvars"><globalVars name="GVL_IO">` **projektu**
+  (`plcopenGvlAddData`, `gvlVarsXml` = tytéž proměnné jako GVL_IO.st vč. AXIS_REF u TwinCATu),
+  `<instances><configurations /></instances>` prázdné — konfiguraci „Default“ CODESYS odmítne
+  („Object 'Default' is not accepted…“) a přeskočí s ní GVL i úlohu (stovky C46).
+- Úlohu import objektů nevytvoří → README (codesys / schneider / wago / delta): v MainTask nahradit
+  volání PLC_PRG voláním MAIN (ověřeno skriptem: `task.pous.replace(i, "MAIN")`); projekt jako Standard
+  project (knihovna Standard kvůli TON).
+- VAR_IN_OUT → `<inOutVars>` (jako localVars: C37 „'Axis' is no input of 'FB_AXIS'“ + C540).
+- OOP viz „Styl kódu OOP“ (umístění InterfaceAsPlainText, atributy rozhraní).
+TwinCAT (TcPOU i PLCopen) importem neověřen — formát addData je 3S, předpoklad stejný.
+Pipeline ověření (mimo repo, jobs tmp `codesys/`): `gen2.mjs` → `build2.py` (`run_cds.ps1`) → `VYSLEDEK_v2.md`.
 Úkoly v app (z handoffu main): proklikat krok Generovat (PLCopen_Import.xml se zobrazí a stáhne
 sám — Generovat i Dokumentace iterují přes soubory), volitelně badge „doporučeno".
 
@@ -561,6 +662,41 @@ pokyn k jazyku výstupu. Úkol pro app (apps/web):
    b) **Sestava zařízení** — stávající chování; `aiInstructions()` rozšířit, aby při
       existujícím prj.concept přikládala i koncept jako kontext (JSON.stringify(prj.concept)).
    Zvolený koncept zobrazit i v kroku Projekt (řádek s názvem + odkaz na dokument).
+
+## IEC 61131-10 XML (GX Works3, PLCnext)
+
+- **Stav: NEOVĚŘENO importem** (GX Works3 ani PLCnext Engineer tu nejsou) — README Mitsubishi to uvádí
+  (štítek z `data/verification.json`: výstup `xsd`).
+  Ověřeno: XSD normy (lxml, vzory 00a–12 × 5 jazyků, Mitsubishi i varianta PLCnext) a strukturní kontrola.
+- `iec61131_10.ts`: `iec61131_10Xml(prj, "mitsubishi" | "plcnext", files?)` staví XML z **finálního textu**
+  platformy (Gen_Library.st / MAIN.st přes `splitLibrary` / `parseStPou` / `stSections`, globální návěští
+  z GlobalLabels.csv přes `gxGlobalLabels`) — jako `plcopen.ts`. Kořen `<Project xmlns="www.iec.ch/public/
+  TC65SC65BWG7TF10" schemaVersion="1.0">` (namespace bez http://), FileHeader → ContentHeader →
+  Types/GlobalNamespace (FunctionBlock: Parameters Input/Output/InoutVars s `orderWithinParamSet` 1…n,
+  `Vars accessSpecifier="private"`, `MainBody/BodyContent xsi:type="ST"`) → Instances/Configuration.
+- **Mitsubishi** (`genFor` přidá `IEC61131-10_Import.xml`; README = doporučená cesta vedle CSV + ST):
+  GX Works3 od 1.110Q, Project → Import File → IEC61131-10 XML Format, všechny CPU vč. FX5, jen ST.
+  Mapování dle SH-081215ENG kap. 3.3 + Appendix 8: Program „ProgPou“ v Resource (programový soubor) „MAIN“
+  + ProgramInstance; jedna `Configuration/GlobalVars` (každá sada = seznam „Global“, duplicita se přeskočí),
+  operand jen v `Address address="X0"` bez % (tvar podle vzorů Jiecc, BSD-2, ověřených v GX Works3 1.110Q+).
+  FX5: **bez InitialValue** (vstupy s počáteční hodnotou se předávají při volání — test) a bez
+  „Access from External Device“. AddData výrobce (VariableComments, ResourceExecutionType,
+  VariableExternalDeviceAccess…) se negenerují — URI v manuálu není (jediné doložené je
+  `http://www.mitsubishielectric.com/xml/FunPouProperties` z Jiecc); typ spuštění Scan nastaví člověk (README).
+- **Schéma**: PLCopen Code Components `iec_61131-10_ed1_fdis.zip` — licence IEC CCv1 nedovoluje
+  redistribuci → v repu jen URL + SHA-256 (`IEC10_XSD`); test validuje přes lxml, když `IEC61131_10_XSD`
+  ukazuje na lokální `IEC61131_10_Ed1_0.xsd` (`PYTHON` = interpret s lxml), jinak se XSD část přeskočí.
+- **Emulátor**: `emu/iec61131_10_check.ts` (`iec10Problems`, pravidlo `iec61131_10`, volá `load.ts` u Mitsubishi):
+  kořen / namespace / pořadí, jedinečná jména, POU = ST (rozhraní, typy, pořadí, tělo), globální = GlobalLabels.csv,
+  FX5 bez počátečních hodnot, operand bez %, jedna sada GlobalVars, registrovaný program. Testy
+  `iec61131_10.test.ts` (vzory × 5 jazyků, mutace, import, PLCnext, XSD). Import (`reverse.ts` `exIec10`)
+  čte XML zpět; program se stejným kódem pod jiným jménem (ProgPou × MAIN) se v `inferProject` bere jednou.
+- **PLCnext (příprava, platforma zatím není)**: varianta `plcnext` jen v testu — kód rodiny CODESYS bez
+  `GVL_IO.`, I/O jako `Resource/GlobalVars` bez adres (import propojení nepřenáší → Data List), program čte
+  přes `ExternalVars`, úloha `StandardTask` + `ProgramInstance` (do projektu s controllerem; do prázdného se
+  úlohy a proměnné zdroje nenaimportují). Zdroje: https://engineer.plcnext.help/2024.0_LTS_en/Import_Types_FromIEC61131.htm
+  (TC6 jen 1.01 — https://engineer.plcnext.help/2023.6_en/ImportExport_Types_FromPLCopenXML.htm).
+  Neověřeno: tvar intervalu úlohy, jména zdroje, délka identifikátorů, TON, osa (PLCopen MC nedoloženo).
 
 ## Roadmapa (pořadí)
 
@@ -591,7 +727,8 @@ number (§11) až s přístupem k EPLAN Data Portal.
 **Fáze 3:** napojení do webu a desktopu, kontrola aktualizací (podpis instalátoru = placený certifikát,
 až po schválení), překlady, testy, commit.
 **Dál:** licence v aplikaci (Free 64 I/O, aktivace přes API); reálné ověření importu v CODESYS / TwinCAT
-(zdarma) a virtuální oživení se soft PLC (OPC UA / Modbus TCP); IEC 61131-10 XML pro GX Works3 / Sysmac;
+(zdarma) a virtuální oživení se soft PLC (OPC UA / Modbus TCP); IEC 61131-10 XML pro GX Works3 ✅
+(neověřeno importem; Sysmac a platforma PLCnext zbývají);
 Openness worker (TIA na klik); apps/api (účty, projekty v DB); AI přes backend, AI z fotky P&ID.
 
 Kontext a rozhodnutí průběžně viz claude.ai projekt „PLC programovani" (koncept, review, produktové zhodnocení).

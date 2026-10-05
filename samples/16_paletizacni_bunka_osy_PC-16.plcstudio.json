@@ -1,0 +1,549 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Paletizační buňka PC-16 se třemi polohovacími osami",
+   "desc": "Kartézský paletizátor ukládá kartony z dopravníku na paletu. Osy Z (zdvih, ozubený řemen s brzdou), X (pojezd, ozubený řemen) a C (otočná hlava) jsou elektrické polohovací pohony se záznamy řízené přes I/O (výběr záznamu, start, referování, HALT). Na začátku cyklu se osy referují v pořadí Z → C → X (Z nahoře, aby hlava nenarazila). Dopravník kartonů na frekvenčním měniči veze karton rychle (40 Hz), u snímače zpomalení přejde na 12 Hz a karton dojede k zarážce; dopravník zastaví. Hlava sjede na odběr, vakuové chapadlo (ejektor, snímač podtlaku) karton nasaje, Z vyjede nahoru, X přejede nad paletu a Z sjede na odkládací výšku; po vypnutí vakua (odfuk) Z vyjede. První karton se ukládá podélně (C 0°) na pozici 1, druhý se otočí o 90° a ukládá na pozici 2; hlava se vrátí do 0° a nad odběrové místo. Hlídání: porucha, nepřipravenost a referování pohonů, ztráta podtlaku při přenosu, nedojetí kartonu (hlídací časy kroků), tlak vzduchu (mez min). Ochrany: nouzové zastavení, dveře buňky (zámek během cyklu) a světelná závora výměny palety v blokování (STO pohonů a měniče řeší bezpečnostní technika). Jeden cyklus = dva kartony (zjednodušeno pro ukázku).",
+   "takt": 45
+  },
+  "platforms": [
+   "siemens",
+   "rockwell",
+   "beckhoff",
+   "codesys",
+   "mitsubishi",
+   "schneider",
+   "omron",
+   "unitronics",
+   "wago",
+   "delta"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "ac4696d3-64ba-48f0-afa9-47d3b006891e"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Dveře buňky zavřeny a zamčeny (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "a8e65698-e967-4b77-8191-3476f4b242c5"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Světelná závora výměny palety volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "70fffee4-095a-49a4-9d4d-d47a5cb61c8c"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Karton u snímače zpomalení (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6ec4f1fa-c5b7-44dc-b2d8-b1168b76b4e2"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Karton na odběrovém místě u zarážky (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "1934c3e0-d0a4-4fed-8a49-c607dc0bfdfd"
+   },
+   {
+    "id": 6,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Paleta v pozici (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "9203b371-dbf5-477d-bb24-7e293a4b69af"
+   },
+   {
+    "id": 7,
+    "name": "M1",
+    "cls": "Vfd",
+    "desc": "Dopravník kartonů — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 40,
+    "rampS": 1.5,
+    "guid": "9f98ac0c-123b-4edf-8b62-ea999af796d3"
+   },
+   {
+    "id": 8,
+    "name": "M2",
+    "cls": "PosDrive",
+    "desc": "Osa Z — zdvih hlavy (polohovací pohon se záznamy, brzda)",
+    "opt": {
+     "ready": true,
+     "fault": true,
+     "rst": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 0,
+    "selBits": 2,
+    "travelS": 1,
+    "records": [
+     {
+      "no": 1,
+      "name": "horní poloha (pojezd)",
+      "pos": 0
+     },
+     {
+      "no": 2,
+      "name": "odběr z dopravníku",
+      "pos": 850
+     },
+     {
+      "no": 3,
+      "name": "odložení na paletu — vrstva 1",
+      "pos": 1150
+     }
+    ],
+    "guid": "58748275-bbdf-41aa-b2d4-376e9366110e"
+   },
+   {
+    "id": 9,
+    "name": "M3",
+    "cls": "PosDrive",
+    "desc": "Osa X — pojezd hlavy (polohovací pohon se záznamy)",
+    "opt": {
+     "ready": true,
+     "fault": true,
+     "rst": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 0,
+    "selBits": 3,
+    "travelS": 1.6,
+    "records": [
+     {
+      "no": 1,
+      "name": "odběrové místo",
+      "pos": 0
+     },
+     {
+      "no": 2,
+      "name": "paleta — pozice 1",
+      "pos": 1450
+     },
+     {
+      "no": 3,
+      "name": "paleta — pozice 2",
+      "pos": 1850
+     },
+     {
+      "no": 4,
+      "name": "servisní poloha",
+      "pos": 2400
+     }
+    ],
+    "guid": "5e57ba8d-974f-468b-9841-7419f058c15f"
+   },
+   {
+    "id": 10,
+    "name": "M4",
+    "cls": "PosDrive",
+    "desc": "Osa C — otočná hlava (polohovací pohon se záznamy)",
+    "opt": {
+     "ready": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 0,
+    "selBits": 2,
+    "travelS": 0.6,
+    "records": [
+     {
+      "no": 1,
+      "name": "0° (podélně)",
+      "pos": 0
+     },
+     {
+      "no": 2,
+      "name": "90° (napříč)",
+      "pos": 90
+     }
+    ],
+    "guid": "956c18a8-063e-4cbe-8e89-910baec2f95e"
+   },
+   {
+    "id": 11,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Vakuové chapadlo — ejektor zapnout (snímač podtlaku)",
+    "opt": {
+     "fbkOpen": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "60567c39-3d87-4e5a-9e0a-ff9a56d4097b"
+   },
+   {
+    "id": 12,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Tlak vzduchu v rozvodu",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 5,
+    "guid": "d1f8bac8-7eff-4f0f-9367-8cc90bf53028"
+   },
+   {
+    "id": 13,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "dfc7a066-206f-4c39-ac47-ef897b9f9a9a"
+   },
+   {
+    "id": 14,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "6652bc8c-7d8c-4fcf-9c64-c6ddb99a5c54"
+   },
+   {
+    "id": 15,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "95ba1e7d-5e88-4ebf-a001-7664f2b40182"
+   },
+   {
+    "id": 16,
+    "name": "H4",
+    "cls": "DO",
+    "desc": "Zámek dveří buňky — zamknout",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "lock",
+    "guid": "9f14d2d4-18fd-42e6-ac7f-b97950d3328d"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2,
+    3
+   ],
+   "seq": [
+    {
+     "dev": 8,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 10,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 9,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 9,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 5,
+     "rec": 1
+    },
+    {
+     "dev": 10,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 7,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 40
+    },
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 7,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 12
+    },
+    {
+     "dev": 4,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 6
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 7,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 2
+    },
+    {
+     "dev": 11,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 5,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 9,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 5,
+     "rec": 2
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 3
+    },
+    {
+     "dev": 11,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 9,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 5,
+     "rec": 1
+    },
+    {
+     "dev": 7,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 40
+    },
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 7,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 12
+    },
+    {
+     "dev": 4,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 6
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 7,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 2
+    },
+    {
+     "dev": 11,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 5,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 2
+    },
+    {
+     "dev": 9,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 5,
+     "rec": 3
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 3
+    },
+    {
+     "dev": 11,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 10,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 9,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 5,
+     "rec": 1
+    }
+   ]
+  },
+  "nextId": 17,
+  "concept": null,
+  "guid": "6c0f6af3-eae0-4a44-a8df-bef95cc3efb1",
+  "moduleGuids": {
+   "S0.2": "4aa21934-546d-4dbd-887a-29344c51aa1b",
+   "S0.3": "5a21a8c6-8a0e-4c00-a814-f95e75519f61",
+   "S0.4": "983ba766-28b5-4048-a070-7e731ce5839a",
+   "S0.5": "a9bb9a64-0f16-4ea3-a4e7-1772abedb615",
+   "S0.6": "339b9b15-4d2d-41b8-aeb3-d773a9d59d3e"
+  }
+ }
+}

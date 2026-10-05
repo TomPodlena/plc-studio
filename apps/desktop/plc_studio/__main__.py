@@ -140,6 +140,12 @@ def _smoke(app: App, shots: Path | None) -> int:
             app.ui.update(dev_sel=ax["id"], live_sel=ax["id"],
                           seq_add={"dev": ax["id"], "act": "moveAbs", "cond": "fbk", "time": "3"})
         walk("osa")
+    # vzory 13–16 s pohony přes I/O (měniče, proporcionální ventily, polohovací pohony se záznamy)
+    for name in ("13_tridici_dopravnikova_linka_TD-13", "14_hydraulicky_lis_HL-14",
+                 "15_navijeci_davkovaci_stanice_NV-15", "16_paletizacni_bunka_osy_PC-16"):
+        path = motion.with_name(name + ".plcstudio.json")
+        if path.exists() and app.open_project(path):
+            walk("vzor" + name[:2])
     app.reset_project()
     walk("prazdny")
     errors = list(app.errors)

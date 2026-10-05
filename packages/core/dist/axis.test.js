@@ -17,6 +17,7 @@ import { parseAxisPositions, axisPositionsText, axisCfgOf } from "./axis.js";
 import { emulateCompile, emulateRunMany, emulateRunFiles } from "./emu/index.js";
 import { verifyProject } from "./sim.js";
 import { setLang } from "./i18n.js";
+import { CDS_PROFILES, CDS_PROFILE_KEYS } from "./codesys_profiles.js";
 const SUPPORTED = ["siemens", "beckhoff", "codesys", "omron", "rockwell", "wago", "delta"];
 const BLOCKED = ["mitsubishi", "schneider", "unitronics"];
 const errs = (fs) => fs.filter(f => f.level === "error").map(f => f.rule + " " + f.file + ":" + f.line + " " + f.msg);
@@ -68,7 +69,11 @@ test("osa: podpora platforem a dialekty (Siemens podle CPU)", () => {
     assert.deepEqual(Object.fromEntries(Object.keys(PLAT).map(k => [k, axisDialect(p, k)])), {
         siemens: "s12", beckhoff: "tc", codesys: "sm3", wago: "sml", delta: "sm3", omron: "om", rockwell: "lx",
         mitsubishi: null, schneider: null, unitronics: null,
+        /* profily CODESYS dalších výrobců: SM3 jen kde výrobce dokládá SoftMotion (codesys_profiles.ts) */
+        ...Object.fromEntries(CDS_PROFILE_KEYS.map(k => [k, CDS_PROFILES[k].axis])),
     });
+    for (const k of CDS_PROFILE_KEYS.filter(k => !CDS_PROFILES[k].axis))
+        assert.ok(axisSupport(axisPrj(), k).why.length > 40, k + ": důvod nepodpory osy");
     assert.equal(axisDialect(axisPrj({ s15: true }), "siemens"), "s15", "CPU S7-1500 z kusovníku → technologické objekty S7-1500");
     for (const k of BLOCKED) {
         const s = axisSupport(p, k);

@@ -87,6 +87,13 @@ td input.dup{border-color:var(--err);outline:1px solid var(--err)}
 .plat b{font-size:.9rem}
 .plat span{font-size:.75rem;color:var(--muted)}
 .plat .lng{font-family:var(--font-mono);font-size:.68rem;color:var(--accent)}
+/* štítek ověření platformy (data/verification.json); bublina title = co neověřeno */
+.plat .plat-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:inherit;color:inherit}
+.plat .verif{font-family:var(--font-mono);font-size:.62rem;border-radius:999px;padding:1px 8px;white-space:nowrap;cursor:help;border:1px solid currentColor}
+.plat .verif-verified{color:var(--ok)}
+.plat .verif-lang{color:var(--accent)}
+.plat .verif-beta{color:var(--warn)}
+.plat .verif-unsupported{color:var(--err)}
 .tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line)}
 .tabs button{border:none;background:none;border-radius:8px 8px 0 0;padding:8px 13px;font-weight:500;color:var(--muted);font-family:var(--font-mono);font-size:.76rem}
 .tabs button[aria-selected="true"]{color:var(--accent);background:var(--code-bg);font-weight:600}

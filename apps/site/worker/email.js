@@ -194,9 +194,12 @@ export function sendDownloadLink(env, { to, token, locale }) {
   return send(env, { to, subject: fill(t.dl_subject, v), text: fill(t.dl_body, v) });
 }
 
+// Nazvy tarifu v predmetu e-mailu (trial a free-unlock vystavuje jen sprava zakazniku)
+const PLAN_NAMES = { pro: "Pro", firma: "Firma", trial: "Trial", "free-unlock": "Free Unlock" };
+
 export function sendLicense(env, { to, key, file, plan, locale }) {
   const t = T[lang(locale)];
-  const v = { ...common(env), key, file, plan: plan === "firma" ? "Firma" : "Pro" };
+  const v = { ...common(env), key, file, plan: PLAN_NAMES[plan] || "Pro" };
   return send(env, { to, subject: fill(t.lic_subject, v), text: fill(t.lic_body, v) });
 }
 

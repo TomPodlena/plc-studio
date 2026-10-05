@@ -14,6 +14,7 @@ import {
 } from "./model.js";
 /* codegen_oop.ts a codegen.ts se importují navzájem: OOP renderer se volá až uvnitř genFor */
 import { genForOop } from "./codegen_oop.js";
+import { CDS_PROFILES, CDS_PROFILE_KEYS, type CdsProfileKey } from "./codesys_profiles.js";
 import {
   buildIR, irText, cmdIr, irBlocks, irPortTypes, irMember, IR_CTRL, IR_CLASS_ORDER, type IrProgram, type IrFb, type IrDeviceItem, type IrDecl, type IrNames,
   type IrType, type IrFbClass, type IrExpr, type IrSet, type IrStep, type IrPort,
@@ -30,12 +31,15 @@ const DO_ROLE_TECH: Record<string, string> = {
 };
 import { tr, trx, N_, getLang } from "./i18n.js";
 import { genPLCopenXML } from "./plcopen.js";
+/* iec61131_10.ts a codegen.ts se importují navzájem: XML se staví až uvnitř genFor */
+import { iec61131_10Xml, IEC10_FILE } from "./iec61131_10.js";
 import { genRockwellL5X, genLogixRoutine, genLogixTagsCsv, lxSlotText, lxTplProblems, LX_PROGRAM, LX_SOFTWARE_REVISION } from "./logix.js";
 /* library.ts a codegen.ts se importují navzájem: knihovna se čte až uvnitř funkcí */
 import { libraryOverrides, fbInterface, type LibraryIssue } from "./library.js";
 import { hwChannelText } from "./hardware.js";
 import { axisTemplate, axisTemplates, axisDialect, axisBlocked, axisReadme, axisSupport, AXIS_TPL_COMMENTS } from "./axis_gen.js";
 import { axisObjName } from "./axis.js";
+import { verificationReadme } from "./verification.js";
 
 /* ------------------------------------------------------------ šablony SCL */
 
@@ -1143,7 +1147,9 @@ export function seqBody(prj: Project, plat: PlatformKey): string {
    Předává se vždy — FX5 nezná počáteční hodnoty a výchozí 27648 je rozsah Siemens. */
 const RAW_MAX: Partial<Record<PlatformKey, number>> = { beckhoff: 32767, codesys: 32767, mitsubishi: 16000, schneider: 10000, omron: 32000,
   /* WAGO 750-455 (4–20 mA): 0…32767; Delta AS04AD-A: ±32000 — obojí TODO podle modulu */
-  wago: 32767, delta: 32000 };
+  wago: 32767, delta: 32000,
+  /* profily CODESYS dalších výrobců: rozsah analogového modulu z katalogu (codesys_profiles.ts, README) */
+  ...Object.fromEntries(CDS_PROFILE_KEYS.map(k => [k, CDS_PROFILES[k].rawMax])) };
 /** Surový rozsah analogu platformy (bez = Siemens 27648 z výchozí hodnoty šablony). */
 export function rawMaxFor(plat: PlatformKey): number | undefined { return RAW_MAX[plat]; }
 function rawMaxArg(plat: PlatformKey): string {
@@ -1614,6 +1620,9 @@ export function genReadme(prj: Project, plat: PlatformKey): string {
     tr("SPOLEČNÉ KROKY") + "\n" + steps.map((s, i) => (i + 1) + ". " + s).join("\n") + "\n";
   /* nadpis (název produktu se nepřekládá) + odrážky */
   const list = (title: string, ...items: string[]) => title + "\n" + items.map(s => "- " + s).join("\n");
+  /* rodina CODESYS: PLCopen_Import.xml ověřen importem a překladem v CODESYS V3.5 SP21 Patch 6 (2026-10-05);
+     úlohu import objektů nevytváří (konfigurace „Default“ CODESYS odmítá) → krok po importu */
+  const cdsTask = () => tr("Po importu: Task Configuration → MainTask — nahraď volání PLC_PRG voláním MAIN (Add Call → MAIN, PLC_PRG odeber); úlohu PLCopen import nepřenáší. Projekt založ jako Standard project — Library Manager musí mít knihovnu Standard (TON).");
   const spec: Record<PlatformKey, () => string> = {
     siemens: () => list("SIEMENS TIA PORTAL (V17–V21, S7-1200/1500)",
       tr("Gen_Tags.tsv: otevři v Excelu (UTF-8, oddělovač tabulátor), list přejmenuj na „PLC Tags“, ulož jako .xlsx a v tabulce tagů dej Import (sloupce Name / Data Type / Logical Address / Comment odpovídají formátu TIA)."),
@@ -1626,10 +1635,7 @@ export function genReadme(prj: Project, plat: PlatformKey): string {
       tr("Doplň diagnostické OB 82/86/121/122, ať CPU nejde do STOP při poruše periferie."),
       tr("Test: PLCSIM / PLCSIM Advanced.")),
     rockwell: () => list(
-      tr("ROCKWELL STUDIO 5000 LOGIX DESIGNER (CompactLogix 5380 / ControlLogix 5580) — soubory PLCdesk_Program.L5X, MainRoutine.st a Tags.csv") + "\n" +
-      tr(`POZOR — NEOVĚŘENO PŘEKLADEM: výstup pro Logix nebyl zkoušen ve Studiu 5000. Struktura L5X
-vychází z příručky 1756-RM014 a reálných exportů. Při prvním importu zkontroluj hlášení importu
-a Verify Controller (hlavně FBD_TIMER v AOI, výchozí hodnoty parametrů a verzi souboru).`) + "\n",
+      tr("ROCKWELL STUDIO 5000 LOGIX DESIGNER (CompactLogix 5380 / ControlLogix 5580) — soubory PLCdesk_Program.L5X, MainRoutine.st a Tags.csv"),
       tr(`PLCdesk_Program.L5X (hlavní cesta): v Controller Organizer pravý klik na MainTask →
   Add → Import Program… a vyber soubor. Vznikne program {prog} s rutinou MainRoutine (ST)
   a programovými tagy, Add-On Instructions FB_Motor / FB_Ventil / FB_AnalogIn / FB_AnalogOut
@@ -1667,12 +1673,16 @@ a Verify Controller (hlavně FBD_TIMER v AOI, výchozí hodnoty parametrů a ver
       tr("Test: lokální runtime na PC (TwinCAT XAR).")),
     codesys: () => list("CODESYS V3.5 (WAGO, Festo, Eaton…)",
       tr("NEJRYCHLEJI: PLCopen_Import.xml — Project → Import PLCopenXML (knihovna bloků, MAIN i GVL_IO najednou; import je aditivní, duplicitní POU hlásí chybu). Ruční cesta je níže."),
+      cdsTask(),
       tr("GVL_IO.st: Application → Add Object → Global Variable List s názvem přesně GVL_IO (MAIN píše GVL_IO.<tag>), obsah nahraď."),
       tr("Gen_Library.st / MAIN.st: editor POU má dvě části — do HORNÍ (deklarace) vlož řádky od FUNCTION_BLOCK / PROGRAM po poslední END_VAR, do DOLNÍ (implementace) zbytek BEZ END_FUNCTION_BLOCK / END_PROGRAM. Každý blok jako nový POU (Function Block, ST)."),
       tr("MAIN: vytvoř POU „MAIN“ (Program, ST) a přidej ho do MainTask místo PLC_PRG."),
       tr("Adresy jsou návrh (analogy jako index slova: %IW32 = bajty 64–65) — porovnej s I/O mapováním zařízení (WAGO: analogové moduly jsou v obrazu procesu první), nebo AT smaž a namapuj GVL_IO v I/O Mapping."),
       tr("Test: CODESYS Control Win (soft PLC).")),
     mitsubishi: () => list("MITSUBISHI GX WORKS3 (iQ-F/iQ-R)",
+      /* IEC 61131-10 XML (iec61131_10.ts): GX Works3 OM SH-081215ENG 3.3 + Appendix 8; import neověřen */
+      tr("DOPORUČENO: IEC61131-10_Import.xml (XML podle IEC 61131-10, GX Works3 od verze 1.110Q, všechny CPU vč. FX5) — Project → Import File → IEC61131-10 XML Format: bloky FB (ST), program ProgPou v programovém souboru MAIN a globální návěští s přiřazením X/Y najednou. V novém projektu zvol při dotazu na shodná jména Replace (nahradí prázdný ProgPou a soubor MAIN). Ruční cesta (CSV + ST) je níže."),
+      tr("Po importu XML: programový soubor MAIN musí být v Program → Scan (soubor bez typu spuštění zůstane v Unregistered Program — přetáhni ho do Scan), pak Rebuild All. XML nenese počáteční hodnoty (FX5 je nemá — meze a rawMax se předávají při volání) ani Access from External Device (u iQ-R ho zaškrtni v editoru globálních návěští); komentáře návěští se nemusí přenést. Časovače TIMER_100_FB_M zůstávají (standardní FB GX Works3)."),
       tr(`GlobalLabels.csv: Navigation → Label → Global Label → import CSV
   (sloupec Assign obsahuje návrh X/Y — ověř dle skutečných modulů; formát CSV
   se liší podle verze GX Works3, srovnej s exportem ze své instalace).`),
@@ -1688,6 +1698,7 @@ a Verify Controller (hlavně FBD_TIMER v AOI, výchozí hodnoty parametrů a ver
       tr("Test: GX Simulator3.")),
     schneider: () => list("SCHNEIDER ECOSTRUXURE MACHINE EXPERT (M241/M262)",
       tr("NEJRYCHLEJI: PLCopen_Import.xml — Project → Import PLCopenXML (báze CODESYS: knihovna bloků, MAIN i GVL_IO najednou). Ruční cesta je níže."),
+      cdsTask(),
       tr("Platforma je postavená na CODESYS — postup shodný: GVL, POU (ST), MAIN do tasku."),
       tr("Adresy %IX/%QX namapuj na embedded I/O / TM3 moduly v konfiguraci."),
       tr("Pro Control Expert (M580) je nutné bloky přenést jako DFB — struktura sedí."),
@@ -1695,6 +1706,7 @@ a Verify Controller (hlavně FBD_TIMER v AOI, výchozí hodnoty parametrů a ver
     /* profily CODESYS: stejný kód jako platforma CODESYS, jiné IDE, mapování I/O a kusovník */
     wago: () => list("WAGO e!COCKPIT / WAGO CODESYS V3.5 (PFC100 / PFC200, I/O 750)",
       tr("NEJRYCHLEJI: PLCopen_Import.xml — v e!COCKPIT záložka PROGRAM → Import PLCopenXML, ve WAGO CODESYS V3.5 Project → Import PLCopenXML (báze CODESYS: knihovna bloků, MAIN i GVL_IO najednou). Ruční cesta je níže."),
+      cdsTask(),
       tr("GVL_IO.st: globální seznam proměnných s názvem přesně GVL_IO (MAIN píše GVL_IO.<tag>), obsah nahraď."),
       tr(`I/O: proměnné GVL_IO jsou BEZ pevné adresy. Kanály modulů 750 na lokální sběrnici (K-Bus) přiřaď
   v I/O mapování zařízení (e!COCKPIT: detail kontroléru / modulu → kanál → vybrat GVL_IO.<tag>;
@@ -1709,10 +1721,28 @@ odvozené z návrhu. Počáteční adresy vestavěných I/O (BuiltIn_IO) a modul
 manuál Delta neuvádí — porovnej je s mapováním zařízení v projektu, nebo AT smaž a proměnné
 GVL_IO přiřaď kanálům v Edit IO Mapping.`) + "\n",
       tr("NEJRYCHLEJI: PLCopen_Import.xml — Project → Import PLCopenXML (standardní příkaz CODESYS V3.5; v dokumentaci Delta neověřeno). Ruční cesta je níže."),
+      cdsTask(),
       tr("Projekt založ v DIADesigner-AX se šablonou svého CPU (AX-308E…), moduly AS přidej pod Delta_LocalBus_Master (Product List nebo scan sběrnice)."),
       tr("GVL_IO.st: globální seznam proměnných s názvem přesně GVL_IO, obsah nahraď; Gen_Library.st / MAIN.st jako POU (ST), MAIN do cyklického tasku."),
       tr("rawMax analogů je v kódu 32000 (TODO) — uprav podle rozsahu modulu (AS04AD-A / AS04DA-A)."),
       tr("Test: simulace SoftPLC v DIADesigner-AX, pak CPU s odpojenými akčními členy.")),
+    /* profily CODESYS dalších výrobců (codesys_profiles.ts): stejný kód jako CODESYS, postup v IDE a I/O podle výrobce */
+    ...Object.fromEntries(CDS_PROFILE_KEYS.map(k => [k, () => {
+      const pr = CDS_PROFILES[k];
+      return list(pr.title,
+        ...(pr.old ? [tr("POZOR — STARŠÍ CODESYS ({ver}): import PLCopen XML je ověřen jen v CODESYS V3.5 SP21 — v této verzi ho ověř při prvním importu, případně vlož soubory ručně (postup níže). Styl kódu OOP (ABSTRACT od V3.5 SP13) se pro tuto platformu negeneruje.", { ver: pr.cdsVer }) + "\n"] : []),
+        tr("NEJRYCHLEJI: PLCopen_Import.xml — {cmd} (báze CODESYS {ver}: knihovna bloků, MAIN i GVL_IO najednou). Ruční cesta je níže.", { cmd: pr.imp, ver: pr.cdsVer }),
+        cdsTask(),
+        tr(pr.setup),
+        tr("GVL_IO.st: globální seznam proměnných s názvem přesně GVL_IO (MAIN píše GVL_IO.<tag>), obsah nahraď."),
+        tr(pr.io),
+        tr("Gen_Library.st / MAIN.st: každý blok jako nový POU (ST), MAIN přidej do cyklického tasku. Knihovna Standard (TON) je v projektu CODESYS V3 výchozí."),
+        ...(pr.libs ? [tr(pr.libs)] : []),
+        pr.rawMod
+          ? tr("rawMax analogů je v kódu {n} = plný rozsah modulu {mod} (TODO: při jiném modulu nebo rozsahu uprav).", { n: pr.rawMax, mod: pr.rawMod })
+          : tr("POZOR — rawMax analogů {n} je NEOVĚŘENÝ odhad (TODO): plný rozsah analogového modulu výrobce se nepodařilo doložit — nastav ho podle manuálu modulu, jinak budou měřené a žádané hodnoty ve špatném měřítku.", { n: pr.rawMax }),
+        tr(pr.test));
+    }])) as Record<CdsProfileKey, () => string>,
     omron: () => list("OMRON SYSMAC STUDIO (NX/NJ)",
       tr("Variables.txt: v Global Variables vyber první prázdnou buňku sloupce Name a vlož (Ctrl+V) — sloupce Name, Data Type, Initial Value, AT, Retain, Constant, Network Publish, Comment."),
       tr(`Globální jsou i řízení stroje pro HMI (enable, modeAuto, cmdAutoStart, cmdAck, machineFault, faultStep,
@@ -1725,9 +1755,7 @@ GVL_IO přiřaď kanálům v Edit IO Mapping.`) + "\n",
       tr("rawMax analogů je v kódu 32000 s poznámkou TODO — uprav podle rozsahu svého modulu NX."),
       tr("Test: Simulace přímo v Sysmac Studiu.")),
     unitronics: () => list(
-      tr("UNITRONICS UNILOGIC (řada UniStream) — soubory Tags.csv a Machine.st") + "\n" +
-      tr(`POZOR — NEOVĚŘENO PŘEKLADEM: výstup pro Unitronics nebyl zkoušen v UniLogic. Při prvním
-vložení zkontroluj syntaxi proti své verzi (CASE, volání TON, převody TO_REAL / TO_INT).`) + "\n",
+      tr("UNITRONICS UNILOGIC (řada UniStream) — soubory Tags.csv a Machine.st"),
       tr(`UniLogic programuje UniStream v Ladderu, C a Structured Textu. ST se píše jako FUNKCE,
   která nemá vlastní paměť (lokální tagy mezi voláními hodnotu nedrží). Logika bloků je
   proto rozepsaná „naplocho" do jedné funkce a veškerý stav je v globálních tazích
@@ -1750,7 +1778,10 @@ vložení zkontroluj syntaxi proti své verzi (CASE, volání TON, převody TO_R
   pro přepis do Ladderu a Tags.csv jako seznam operandů.`),
       tr("Test: nejdřív na PLC s odpojenými akčními členy.")),
   };
-  return libReadmeHead(prj, plat) + common + "\n" + spec[plat]() + motionReadme(prj, plat) + axisReadme(prj, plat) + libReadmeTail(prj, plat);
+  /* štítek ověření (data/verification.json → verification.ts) hned pod nadpisem platformy, jednotně */
+  const sp = spec[plat](), nl = sp.indexOf("\n");
+  const body = nl < 0 ? sp : sp.slice(0, nl + 1) + verificationReadme(plat) + "\n\n" + sp.slice(nl + 1);
+  return libReadmeHead(prj, plat) + common + "\n" + body + motionReadme(prj, plat) + axisReadme(prj, plat) + libReadmeTail(prj, plat);
 }
 
 /**
@@ -1980,6 +2011,8 @@ export function genFor(prj: Project, plat: PlatformKey): Record<string, string> 
     files["MAIN.st"] = genMainIEC(prj, plat);
     /* CODESYS rodina: celý program jedním importovatelným souborem (z téhož finálního textu) */
     if (isCodesysFamily(plat)) files["PLCopen_Import.xml"] = genPLCopenXML(prj, plat);
+    /* Mitsubishi: IEC 61131-10 XML (GX Works3 Import File) ze stejných souborů — viz iec61131_10.ts */
+    if (plat === "mitsubishi") files[IEC10_FILE] = iec61131_10Xml(prj, "mitsubishi", files);
     if (plat === "omron") for (const f of ["Gen_Library.st", "MAIN.st"]) files[f] = files[f].replace(/\breset\b/g, "resetIn");
   }
   files["README.txt"] = genReadme(prj, plat);

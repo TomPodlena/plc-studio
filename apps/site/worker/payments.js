@@ -63,11 +63,25 @@ async function seen(env, eventId) {
   if (!eventId) return false;
   return !!(await env.DB.prepare("SELECT event_id FROM payment_events WHERE event_id = ?").bind(eventId).first());
 }
-async function markSeen(env, provider, eventId, type) {
+async function markSeen(env, provider, eventId, type, info = {}) {
   if (!eventId) return;
   await env.DB.prepare("INSERT OR IGNORE INTO payment_events (event_id, provider, type, received_at) VALUES (?, ?, ?, ?)")
     .bind(eventId, provider, type ?? null, now())
     .run();
+  // Prehled plateb ve sprave zakazniku (schema_admin.sql). Jen evidence: chybejici tabulka
+  // (migrace jeste neprobehla) nesmi shodit zpracovani platby.
+  try {
+    const subId = info.subId ? String(info.subId).slice(0, 200) : null;
+    const email = validEmail(String(info.email ?? "").toLowerCase()) ? String(info.email).toLowerCase() : null;
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO payment_log (event_id, provider, type, sub_id, email, received_at)
+       VALUES (?, ?, ?, ?, COALESCE(?, (SELECT email FROM licenses WHERE sub_id = ?)), ?)`
+    )
+      .bind(eventId, provider, type ?? null, subId, email, subId ?? "", now())
+      .run();
+  } catch (err) {
+    console.error("payment_log: zapis se nezdaril (spustena migrace schema_admin.sql?)", err?.message ?? err);
+  }
 }
 
 async function issueLicense(env, { provider, subId, email, plan, locale }) {
@@ -141,7 +155,10 @@ export async function handleStripeWebhook(req, env) {
       await setStatus(env, obj.id, "canceled");
       break;
   }
-  await markSeen(env, "stripe", event.id, event.type);
+  await markSeen(env, "stripe", event.id, event.type, {
+    subId: event.type === "customer.subscription.deleted" ? obj.id : obj.subscription,
+    email: obj.customer_details?.email ?? obj.customer_email,
+  });
   return json({ received: true });
 }
 
@@ -201,6 +218,9 @@ export async function handlePaddleWebhook(req, env) {
       await setStatus(env, data.id, "canceled");
       break;
   }
-  await markSeen(env, "paddle", event.event_id, event.event_type);
+  await markSeen(env, "paddle", event.event_id, event.event_type, {
+    subId: String(event.event_type).startsWith("subscription.") ? data.id : data.subscription_id,
+    email: data.custom_data?.email ?? data.customer?.email,
+  });
   return json({ received: true });
 }

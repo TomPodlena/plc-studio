@@ -264,6 +264,8 @@ test("knihovna bez šablon a bez firmy: výstup generátoru beze změny", () => 
     const a = sampleSmall(), b = sampleSmall();
     a.platforms = b.platforms = [...ALL];
     attachLibrary(b, { ...blankLibrary("prázdná"), company: undefined }, false);
+    // čas vzniku v PLCopen / IEC 61131-10 XML (creationDateTime) se mezi dvěma generováními smí lišit
+    const noTime = (files) => JSON.parse(JSON.stringify(files).replace(/creationDateTime=\\"[^\\"]*\\"/g, 'creationDateTime=\\"*\\"'));
     for (const plat of ALL)
-        assert.deepEqual(genFor(b, plat), genFor(a, plat), plat);
+        assert.deepEqual(noTime(genFor(b, plat)), noTime(genFor(a, plat)), plat);
 });
