@@ -32,12 +32,25 @@ def render(app, parent) -> None:
         app.save()
         app.render()
 
-    for i, (key, pf) in enumerate(app.PLAT.items()):
+    # nejdřív základní platformy, pod nadpisem profily CODESYS dalších výrobců (PLAT[k].base)
+    own = [(k, pf) for k, pf in app.PLAT.items() if not pf.get("base")]
+    prof = [(k, pf) for k, pf in app.PLAT.items() if pf.get("base")]
+    cells = []
+    for i, item in enumerate(own):
+        cells.append((i // COLS, i % COLS, item))
+    head_row = (len(own) + COLS - 1) // COLS
+    if prof:
+        ttk.Label(grid, style="Dim.TLabel", text=_(
+            "Další řídicí systémy na bázi CODESYS — stejný kód jako CODESYS, postup importu, "
+            "I/O a kusovník podle výrobce:")).grid(row=head_row, column=0, columnspan=COLS, sticky="w", padx=5, pady=(10, 0))
+    for i, item in enumerate(prof):
+        cells.append((head_row + 1 + i // COLS, i % COLS, item))
+    for row, col, (key, pf) in cells:
         on = key in app.prj["platforms"]
         bg = theme.TREE_SEL if on else theme.FIELD
         box = tk.Frame(grid, bg=bg, cursor="hand2", highlightthickness=2 if on else 1,
                        highlightbackground=theme.ACCENT if on else theme.BORDER)
-        box.grid(row=i // COLS, column=i % COLS, sticky="nsew", padx=5, pady=5)
+        box.grid(row=row, column=col, sticky="nsew", padx=5, pady=5)
         parts = [
             tk.Label(box, text=("✔ " if on else "") + pf["name"], bg=bg, anchor="w",
                      fg=theme.PRIMARY, font=("Segoe UI", 11, "bold")),

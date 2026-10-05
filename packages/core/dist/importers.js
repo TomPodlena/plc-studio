@@ -6,7 +6,7 @@
  * Pozn.: XML parsery potřebují DOMParser (prohlížeč). V Node je lze použít
  * s polyfillem (např. linkedom) předaným přes setDOMParser().
  */
-import { CLS, devSignals } from "./model.js";
+import { CLS, devSignals, PLAT, isCodesysFamily } from "./model.js";
 import { tr } from "./i18n.js";
 let DP = (typeof DOMParser !== "undefined") ? DOMParser : null;
 export function setDOMParser(ctor) { DP = ctor; }
@@ -167,7 +167,8 @@ export function canonAddr(raw, plat) {
         return "";
     const a = raw.trim().toUpperCase().replace(/\s+/g, "");
     let m;
-    const iec = plat === "codesys" || plat === "beckhoff" || plat === "schneider";
+    /* rodina CODESYS vč. profilů (WAGO, Delta, Turck…): %IW = index slova */
+    const iec = !!plat && plat in PLAT && isCodesysFamily(plat);
     if ((m = a.match(/^%([IQEA])X(\d+)\.([0-7])$/)))
         return "%" + (m[1] === "E" ? "I" : m[1] === "A" ? "Q" : m[1]) + m[2] + "." + m[3];
     if ((m = a.match(/^%?([IQEA])(\d+)\.([0-7])$/)))

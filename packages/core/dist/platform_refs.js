@@ -2,6 +2,14 @@
 import { N_ } from "./i18n.js";
 /** Ověřené odkazy na dokumentaci platforem (stav k rešerši); `title` je klíč překladu. */
 export const PLATFORM_REFS = {
+    abb: [
+        { kind: "product", title: N_("AC500 V3 – brožura s objednacími údaji CPU a svorkových základen"), url: "https://library.e.abb.com/public/d65ff4e975d74ca48124b3c25c6b8519/3ADR010331,%201,%20en_US%20Brochure_AC500_V3_lowres.pdf", lang: "en" },
+        { kind: "manual", title: N_("Nápověda Automation Builder / AC500 (online help)"), url: "https://help.plc.abb.com/software_short_description_automation_builder.html", lang: "en" },
+        { kind: "import", title: N_("Příkaz Import PLCopenXML (nápověda ABB)"), url: "https://help.plc.abb.com/_cds_cmd_import_plcopenxml.html", lang: "en" },
+        { kind: "ide", title: N_("Automation Builder 2.8.2 – poznámky k vydání (CODESYS 3.5 SP20 P2)"), url: "https://library.e.abb.com/public/e7e3dc0e7eb441e4be73db0e388df403/Release%20Notes%20AB%202.8.2.pdf", lang: "en" },
+        { kind: "ide", title: N_("Automation Builder – edice a stažení"), url: "https://www.abb.com/global/en/areas/motion/digital-tools/automation-builder/engineering", lang: "en" },
+        { kind: "manual", title: N_("AC500 a pohony ABB po EtherCAT – aplikační poznámka (PLCopen PS552-MC-E, AXIS_REF)"), url: "https://library.e.abb.com/public/ecbf3cd142fc4d2d8e6fcfa0d4405100/AN00205-AC500_and_ABB_motion_drives-EtherCAT_Getting_Started_Rev_I_EN.pdf", lang: "en" },
+    ],
     beckhoff: [
         { kind: "product", title: N_("Embedded PC řady CX – produktová stránka"), url: "https://www.beckhoff.com/en-en/products/ipc/embedded-pcs/", lang: "en" },
         { kind: "ide", title: N_("TwinCAT 3 Engineering (XAE, TE1000) – produktová stránka"), url: "https://www.beckhoff.com/en-en/products/automation/twincat/texxxx-twincat-3-engineering/", lang: "en" },
@@ -11,6 +19,14 @@ export const PLATFORM_REFS = {
         { kind: "import", title: N_("Infosys – export a import PLC projektu (ZIP, archiv, PLCopen XML)"), url: "https://infosys.beckhoff.com/content/1033/tc3_plc_intro/2526208651.html", lang: "en" },
         { kind: "support", title: N_("Beckhoff – technická podpora"), url: "https://www.beckhoff.com/en-en/support/our-support-services/", lang: "en" },
         { kind: "cz", title: N_("Beckhoff Česká republika (Brno)"), url: "https://www.beckhoff.com/cs-cz/", lang: "cs" },
+    ],
+    berghof: [
+        { kind: "product", title: N_("Modulární controllery B-Nimis MC-Pi (přehled řady)"), url: "https://www.berghof-automation.com/en/solutions/automation-technology/modular-controllers", lang: "en" },
+        { kind: "manual", title: N_("Uživatelská příručka B-Nimis MC-Pi a BC-Pi 1.5 (limit 10 modulů, E-bus)"), url: "https://www.berghof-automation.com/fileadmin/BAT/Downloads/Automatisierungstechnik/Modulare_Steuerungen/B-Nimis_MC-BC-Pi_EN_V1_5.pdf", lang: "en" },
+        { kind: "manual", title: N_("Uživatelská příručka B-Nimis MC-I/O 1.11 (moduly EtherCAT, objednací čísla, škálování)"), url: "https://www.berghof-automation.com/fileadmin/BAT/Downloads/Automatisierungstechnik/Modulare_Steuerungen/B-Nimis_MC-IO__EN_1.11.pdf", lang: "en" },
+        { kind: "product", title: N_("Technická data B-Nimis MC-I/O EtherCAT Extensions"), url: "https://www.berghof-automation.com/fileadmin/BAT/Downloads/Automatisierungstechnik/Modulare_Steuerungen/Technical_data_B-Nimis_MC-IO_EtherCAT_Extensions.pdf", lang: "en" },
+        { kind: "ide", title: N_("FAQ: Berghof Target License a omezená oblast stahování"), url: "https://www.berghof-automation.com/en/automation-technology/faq", lang: "en", login: true },
+        { kind: "import", title: N_("CODESYS: příkaz Import PLCopenXML"), url: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html", lang: "en" },
     ],
     codesys: [
         { kind: "product", title: N_("CODESYS Control Win SL – SoftPLC pro Windows"), url: "https://store.codesys.com/en/codesys-control-win-sl-1.html", lang: "en" },
@@ -25,6 +41,44 @@ export const PLATFORM_REFS = {
         { kind: "product", title: N_("Delta – řešení pohybu na CODESYS (katalog AX-3 / AX-5 / AX-8)"), url: "https://www.deltaww.com/IA/downloadcenter/catalogue/2.Motion/Codesys/DELTA_%20IA-Delta_Motion_Control_Solution_Based_on_CODESYS_C_EN_20210929.pdf", lang: "en" },
         { kind: "manual", title: N_("Delta AX-3 – Operation Manual (DIADesigner-AX, Delta_LocalBus_Master, BuiltIn_IO; kopie u distributora)"), url: "https://dl.plc1.ir/manual/delta/plc/operation.manual/DELTA_IA_PLC_AX-3_OM_EN_20210931.pdf", lang: "en" },
         { kind: "import", title: N_("Příkaz Import PLCopenXML"), url: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html", lang: "en" },
+    ],
+    eaton: [
+        { kind: "manual", title: N_("Manuál modulárních PLC XControl XC-104/XC-204/XC-303 (MN050005EN)"), url: "https://es-assets.eaton.com/DOCUMENTATION/AWB_MANUALS/MN050005_EN.pdf", lang: "en" },
+        { kind: "manual", title: N_("Manuál I/O modulů XN300 (MN050002EN)"), url: "https://es-assets.eaton.com/DOCUMENTATION/AWB_MANUALS/MN050002_EN.pdf", lang: "en" },
+        { kind: "ide", title: N_("Release notes XC303 / XSOFT-CODESYS V3.5.20 (11/2025)"), url: "https://es-assets.eaton.com/AUTOMATION/DOWNLOAD/DOWNLOADCENTER/XSOFT-CODESYS-3/V3.5.20/3.5.20.50-247f/M006304-01.pdf", lang: "en" },
+        { kind: "product", title: N_("CODESYS pro řadiče XV a XC (XSOFT-CODESYS)"), url: "https://www.eaton.com/us/en-us/digital/brightlayer/brightlayer-industrial-suite/codesys-software-for-xv-and-xc-controllers.html", lang: "en" },
+        { kind: "import", title: N_("CODESYS – export a import projektu (PLCopenXML)"), url: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_project_export_import.html", lang: "en" },
+    ],
+    festo: [
+        { kind: "product", title: N_("Katalog Automation system CPX-E (controllery, moduly, objednací čísla)"), url: "https://www.festo.com/media/catalog/202715_documentation.pdf", lang: "en" },
+        { kind: "manual", title: N_("Manuál controlleru CPX-E-CEC-C1/-M1-PN"), url: "https://www.festo.com/net/de_group/SupportPortal/Files/753588/CPX-E-CEC_2018-09_8071237g1.pdf", lang: "en" },
+        { kind: "manual", title: N_("Aplikační nota CPX-E-CEC + CMMT (SoftMotion, AXIS_REF_SM3)"), url: "https://www.festo.com/net/SupportPortal/Files/703496/Application_Note-CODESYS%20CPX-E%20-%20Softmotion.pdf", lang: "en" },
+        { kind: "ide", title: N_("Festo Automation Suite (zdarma, CODESYS jako doplněk)"), url: "https://www.festo.com/us/en/e/solutions/digital-transformation/digital-engineering-tools/festo-automation-suite-id_330225", lang: "en", login: true },
+        { kind: "import", title: N_("CODESYS: příkaz Import PLCopenXML"), url: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html", lang: "en" },
+    ],
+    hitachi: [
+        { kind: "product", title: N_("Hitachi HX – brožura řady (modely CPU, moduly EH-150, specifikace)"), url: "https://hitachi-industrial.eu/wp-content/uploads/2025/06/hitachi-hx-brochure-en.pdf", lang: "en" },
+        { kind: "manual", title: N_("HX-CPU – aplikační manuál hardware (NJI-637D)"), url: "https://hiflex.nl/downloads/docu/hit_plc/application_manual_hardware_HX-CPU.pdf", lang: "en" },
+        { kind: "manual", title: N_("HX-CPU – aplikační manuál software (NJI-638, I/O mapování a adresy)"), url: "https://www.hitachi-da.com/files/pdfs/produkte/SPS/HX/NJI-638X_HX-CPU_Software.pdf", lang: "en" },
+        { kind: "manual", title: N_("EHV+ CPU – aplikační manuál (NJI-564J, moduly EH-150, pořadí bajtů Motorola)"), url: "https://www.hitachi-da.com/files/pdfs/produkte/SPS/EHV+/NJI-564JX_Application_Manual_EHV+CPU.pdf", lang: "en" },
+        { kind: "ide", title: N_("FAQ Hiflex – CPU Hitachi v CODESYS 3.5 (verze firmware, kompilátoru a knihoven)"), url: "https://hiflex.nl/downloads/docu/hit_plc/faq_Hitachi_CPUs_CODESYS_v3.5.pdf", lang: "nl" },
+        { kind: "manual", title: N_("HX-CPU – aplikační manuál Motion (SoftMotion)"), url: "https://www.hitachi-da.com/files/pdfs/produkte/SPS/HX/NJI-650X_HX-CPU_Motion%20Software.pdf", lang: "en" },
+        { kind: "import", title: N_("Příkaz Import PLCopenXML"), url: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html", lang: "en" },
+    ],
+    inovance: [
+        { kind: "product", title: N_("Brožura AM600 Motion Controller (objednací kódy CPU a modulů GL10/GR10)"), url: "https://www.inovance.eu/fileadmin/downloads/Brochures/EN/AM600_Br_EN_Singles_Web_V2.2.pdf", lang: "en" },
+        { kind: "manual", title: N_("Hardwarový manuál řady AM600"), url: "https://www.manualslib.com/manual/1812322/Inovance-Am600-Series.html", lang: "en" },
+        { kind: "manual", title: N_("Hardwarový manuál AM600 (PDF, kopie distributora)"), url: "https://idea-tech.in/wp-content/uploads/2020/04/INOVANCE-AM600-PLC-HARDWARE-MANUAL-ENGLISH-20-4-20.pdf", lang: "en" },
+        { kind: "ide", title: N_("Inovance a CODESYS – AM400/AM600/AC800 programované v InoProShop"), url: "https://www.inovance.eu/news/details/inovance-has-worked-with-codesys-since-2015-is-now-listed-on-the-codesys-website-173", lang: "en" },
+        { kind: "import", title: N_("Instalace InoProShop (zdarma; manuál AM600 str. 119)"), url: "https://www.manualslib.com/manual/1812322/Inovance-Am600-Series.html?page=119", lang: "en" },
+    ],
+    lenze: [
+        { kind: "product", title: N_("I/O system 1000 – přehled modulů (Lenze)"), url: "https://www.lenze.com/en-de/products/controllers/i/o-systems/i/o-system-1000", lang: "en" },
+        { kind: "manual", title: N_("Systémový manuál I/O system 1000 EDSIO1000 v8.0 (spojky, moduly, hodnoty analogů)"), url: "https://www.stercontrol.pl/attachments/data//lenze/EPM-IO%20system%201000%20System%20Manual__v8-0EN.pdf", lang: "en" },
+        { kind: "product", title: N_("Controller c300 – katalogový list (typový klíč, až 64 modulů I/O system 1000)"), url: "https://emipowertek.com/catalogos/acontrol/Controller%20C300.pdf", lang: "en" },
+        { kind: "ide", title: N_("PLC Designer 4.2 – založeno na CODESYS 3.5.21 (Lenze AKB)"), url: "https://www.lenze.com/en-de/application-knowledge-base/article/316195/1", lang: "en" },
+        { kind: "import", title: N_("Historie verzí PLC Designer V3.x (opravy importu PLCopenXML)"), url: "https://www.lenze.com/en-de/application-knowledge-base/article/308881/1", lang: "en" },
+        { kind: "manual", title: N_("PLC Designer – SoftMotion (softwarový manuál, starší R2-x)"), url: "https://www.lenze.org.ua/pdf/3200/SW_PLC-Designer_(R2-x)_SoftMotion_v5-2_EN.pdf", lang: "en" },
     ],
     mitsubishi: [
         { kind: "product", title: N_("MELSEC iQ-F – produktová stránka"), url: "https://www.mitsubishielectric.com/fa/products/cnt/plcf/items/index.html", lang: "en" },
@@ -45,6 +99,14 @@ export const PLATFORM_REFS = {
         { kind: "manual", title: N_("Sysmac Studio – provozní příručka (W504, PDF)"), url: "https://files.omron.eu/downloads/latest/manual/en/w504_sysmac_studio_operation_manual_en.pdf", lang: "en" },
         { kind: "support", title: N_("OMRON Knowledge Base"), url: "https://automation-knowledge-base.omron.eu/support/solutions", lang: "en" },
         { kind: "cz", title: N_("OMRON Česká republika – průmyslová automatizace"), url: "https://industrial.omron.cz/cs/home", lang: "cs" },
+    ],
+    rexroth: [
+        { kind: "product", title: N_("ctrlX I/O – produktová informace (moduly a objednací čísla)"), url: "https://apps.boschrexroth.com/microsites/ctrlx-automation/files/ctrlx/Downloadable%20Assets/Product%20Information/ctrlX%20IO/ctrlX_IO_Produktinformation_EN_202408.pdf", lang: "en" },
+        { kind: "manual", title: N_("ctrlX CORE X2, X3 – návod k obsluze (typový kód, montáž ctrlX I/O)"), url: "https://docs.automation.boschrexroth.com/pdf/document/ID1723541_130434617?filename=ctrlX+CORE+X2+X3+Controls,+Operating+Instructions&lang=eng", lang: "en" },
+        { kind: "import", title: N_("Import PLCopen XML v ctrlX PLC Engineering (komunita, Project → Import PLCOpenXML)"), url: "https://community.boschrexroth.com/ctrlx-plc-ctxo5cm7/post/import-plc-open-xml-file-gives-an-error-object-reference-not-set-to-an-weOjOGKkiwBViiL", lang: "en" },
+        { kind: "manual", title: N_("Propojení proměnných s I/O (GVL, AT %IB, Data Layer realtime)"), url: "https://community.boschrexroth.com/ctrlx-plc-ctxo5cm7/post/how-to-connect-variables-to-i-o-MYupvOVFPiRMP3N", lang: "en" },
+        { kind: "ide", title: N_("ctrlX WORKS – FAQ (instalace, licence, COREvirtual zdarma)"), url: "https://community.boschrexroth.com/ctrlx-automation-how-tos-qmglrz33/post/faq-for-ctrlx-works-cVdKgsuIAkMuEm4", lang: "en" },
+        { kind: "manual", title: N_("Pohyb přes PLCopen (CXA_PLCopen, ctrlX MOTION)"), url: "https://developer.community.boschrexroth.com/t5/ctrlX-PLC/Motion-with-PLCOpen/td-p/16236", lang: "en" },
     ],
     rockwell: [
         { kind: "product", title: N_("CompactLogix 5380 – produktová stránka"), url: "https://www.rockwellautomation.com/en-us/products/hardware/programmable-controllers/compactlogix-5380-controllers.html", lang: "en" },
@@ -75,6 +137,14 @@ export const PLATFORM_REFS = {
         { kind: "support", title: N_("Siemens Industry Online Support (SiePortal) – příručky, FAQ, trial TIA Portal"), url: "https://support.industry.siemens.com/cs/ww/en/", lang: "en" },
         { kind: "cz", title: N_("Siemens Česko – automatizační systémy SIMATIC"), url: "https://www.siemens.com/cz/cs/products/automation/systems/industrial.html", lang: "cs" },
     ],
+    turck: [
+        { kind: "manual", title: N_("Návod k použití TX700 HMI/PLC (CODESYS ≥ 3.5.18.0, protokoly)"), url: "https://www.turck.us/attachment/100002669.pdf", lang: "en" },
+        { kind: "manual", title: N_("Návod TBEN-L…-PLC (balík CODESYS, Local_IO, knihovny)"), url: "https://www.turck.us/attachment/d301431.pdf", lang: "en" },
+        { kind: "manual", title: N_("Návod BL20-E-GW-EC (gateway EtherCAT, limity stanice)"), url: "https://www.turck.com.au/attachment/D301260.pdf", lang: "en" },
+        { kind: "manual", title: N_("Návod BL20 I/O moduly (reprezentace analogových hodnot)"), url: "https://www.turck.us/attachment/D300717.pdf", lang: "en" },
+        { kind: "ide", title: N_("CODESYS 3.5.16.30 ke stažení (Turck CZ)"), url: "https://www.turck.cz/cs/product/SW_CODESYS_3_5_16_30", lang: "cs" },
+        { kind: "import", title: N_("CODESYS: příkaz Import PLCopenXML"), url: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html", lang: "en" },
+    ],
     unitronics: [
         { kind: "product", title: N_("UniStream – produktová stránka"), url: "https://www.unitronicsplc.com/programmable-controllers-unistream-series/", lang: "en" },
         { kind: "ide", title: N_("UniLogic – stránka softwaru a stažení zdarma"), url: "https://www.unitronicsplc.com/software-unilogic-for-programmable-controllers/", lang: "en" },
@@ -87,5 +157,13 @@ export const PLATFORM_REFS = {
         { kind: "product", title: N_("WAGO PFC100 750-8101 – kontrolér"), url: "https://www.wago.com/global/p/750-8101", lang: "en" },
         { kind: "manual", title: N_("WAGO – migrace z e!COCKPIT do WAGO CODESYS V3.5 (Kbus, I/O mapování)"), url: "https://techdocs.wago.com/Software/eCOCKPIT_Migration/en-US/2956425227.html", lang: "en" },
         { kind: "import", title: N_("Příkaz Import PLCopenXML"), url: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_import_plcopenxml.html", lang: "en" },
+    ],
+    weidmueller: [
+        { kind: "product", title: N_("Datasheet UC20-M3000 (2839150000)"), url: "https://www.farnell.com/datasheets/4423610.pdf", lang: "en" },
+        { kind: "ide", title: N_("UC20-M4000 – soubory ke stažení (balík CODESYS Control SL for Weidmüller u-OS)"), url: "https://eshop.weidmueller.com/en/uc20-m4000/p/2839160000/downloads", lang: "en" },
+        { kind: "manual", title: N_("Podpora u-remote (manuály, soubory zařízení)"), url: "https://www.weidmuller.com/en/service/support_for_u_remote.jsp", lang: "en" },
+        { kind: "manual", title: N_("Manuál systému u-remote (č. 1432790000, kopie Mouser)"), url: "https://www.mouser.com/pdfDocs/U-remotemanual.pdf", lang: "en" },
+        { kind: "import", title: N_("CODESYS – export a import projektu (PLCopenXML)"), url: "https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_project_export_import.html", lang: "en" },
+        { kind: "product", title: N_("u-OS – operační systém řadičů u-control"), url: "https://www.weidmuller.com/en/solutions/technologies/edge_computing_u_os/index.jsp", lang: "en" },
     ],
 };

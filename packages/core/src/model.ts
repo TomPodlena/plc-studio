@@ -14,11 +14,14 @@ import { newGuid, fillGuids, ioGuidFor, isGuid } from "./guid.js";
 import { hwLayout, hwAssign, hwGroups, hwNative, hwIssues, type HwModule } from "./hardware.js";
 import { axisCfgOf, type AxisCfg } from "./axis.js";
 import { axisSupport, axisDialect } from "./axis_gen.js";
+import { CDS_PROFILE_PLAT, cdsProfile, type CdsProfileKey } from "./codesys_profiles.js";
 
 export type PlatformKey =
   | "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics"
   /* profily platformy CODESYS (PLAT[…].base = "codesys"): sdílí dialekt, addrFor a emulátor */
-  | "wago" | "delta";
+  | "wago" | "delta"
+  /* další profily CODESYS (Turck, Festo, ABB, Rexroth, Inovance, Weidmüller, Eaton, Lenze, Berghof, Hitachi, ifm) — codesys_profiles.ts */
+  | CdsProfileKey;
 
 /** Styl generovaného kódu: klasické FB (výchozí) nebo OOP (rozhraní, dědičnost) — viz codegen_oop.ts. */
 export type CodeStyle = "classic" | "oop";
@@ -219,6 +222,8 @@ export const PLAT: Record<PlatformKey, PlatformInfo> = {
   unitronics: { name: "Unitronics", ide: "UniLogic", cpu: "UniStream (US5–US15, USC)", lang: N_("ST (funkce)"), imp: N_("ST funkce k vložení + seznam tagů k založení; Vision/Samba jen Ladder (předloha)") },
   wago:       { name: "WAGO", ide: "e!COCKPIT / CODESYS V3.5", cpu: "PFC100 / PFC200 + I/O 750", lang: "ST", imp: N_("POU + GVL / PLCopen XML (báze CODESYS)"), base: "codesys", oop: true },
   delta:      { name: "Delta Electronics", ide: "DIADesigner-AX (CODESYS V3.5)", cpu: "AX-3 / AX-5 / AX-8", lang: "ST", imp: N_("POU + GVL / PLCopen XML (báze CODESYS)"), base: "codesys", oop: true },
+  /* profily CODESYS dalších výrobců (codesys_profiles.ts) */
+  ...CDS_PROFILE_PLAT,
 };
 
 /** Základ platformy: profil (WAGO, Delta AX) → „codesys“, jinak platforma sama. */
@@ -590,6 +595,8 @@ export function nativeAddr(plat: PlatformKey, a: string, dir: Dir): string {
   /* WAGO e!COCKPIT: kanály lokální sběrnice se v I/O mapování přiřazují proměnným (obraz procesu
      řadí analogy před digitály, adresy se mění s osazením) — v kódu bez pevné adresy AT */
   if (plat === "wago") return "";
+  /* profily CODESYS bez AT (codesys_profiles.ts): kanály se přiřadí v I/O mapování zařízení */
+  if (cdsProfile(plat)?.at === false) return "";
   /* Delta AX (DIADesigner-AX): notace CODESYS; počáteční adresy BuiltIn IO / LocalBus neověřeny (README) */
   if (plat === "codesys" || plat === "schneider" || platBase(plat) === "codesys") {
     const m = a.match(/^%([IQ])(\d+)\.(\d+)$/);

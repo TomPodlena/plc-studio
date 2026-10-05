@@ -306,12 +306,13 @@ export function makeSteps(ctx) {
     const p = prj();
     const c = card(el, "03", tr("Cílové platformy"), `
     <p class="hint" style="margin-top:0">${tr("Vyber jednu nebo víc platforem — program se vygeneruje pro každou zvlášť. Logika je stejná (IEC 61131-3 ST), liší se dialekt, soubor s tagy a postup importu.")}</p>
-    <div class="platgrid">${Object.entries(PLAT).map(([k, pf]) => `
+    ${[Object.entries(PLAT).filter(([, pf]) => !pf.base), Object.entries(PLAT).filter(([, pf]) => pf.base)].map((grp, gi) => (gi ? "<p class='hint' style='margin-top:14px'>" + esc(tr("Další řídicí systémy na bázi CODESYS — stejný kód jako CODESYS, postup importu, I/O a kusovník podle výrobce:")) + "</p>" : "") + `
+    <div class="platgrid">${grp.map(([k, pf]) => `
       <div class="plat ${p.platforms.includes(k) ? "on" : ""}" data-k="${k}" role="button" tabindex="0" aria-pressed="${p.platforms.includes(k)}">
         <b>${pf.name}</b><span>${pf.ide} · ${pf.cpu}</span><span class="lng">${tr(pf.lang)} · ${tr(pf.imp)}</span>
         ${hasAxis(p) && !axisSupport(p, k).ok ? "<span class='lng' style='color:var(--warn)' title='" + esc(axisSupport(p, k).why) + "'>" + tr("servoosu nepodporuje") + "</span>" : ""}
       </div>`).join("")}
-    </div>
+    </div>`).join("")}
     ${oopStyleHtml(p)}`);
     /* styl kódu (jen u platforem s OOP — rodina CODESYS) */
     c.querySelectorAll("input[name=codeStyle]").forEach(r => r.addEventListener("change", () => {

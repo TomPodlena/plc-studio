@@ -116,7 +116,7 @@ class BridgeTest(unittest.TestCase):
         cls.b.close()
 
     def test_init_exposes_core_constants(self):
-        self.assertEqual(len(self.init["PLAT"]), 10)   # 8 platforem + profily CODESYS (WAGO, Delta AX)
+        self.assertEqual(len(self.init["PLAT"]), 20)   # 8 platforem + profily CODESYS (WAGO, Delta AX + 10 dalších)
         self.assertIn("unitronics", self.init["PLAT"])
         self.assertEqual(self.init["PLAT"]["wago"]["base"], "codesys")
         self.assertTrue(self.init["PLAT"]["delta"]["oop"])
@@ -2387,7 +2387,7 @@ class GuiTest(unittest.TestCase):
     def test_help_links_to_platform_documentation(self):
         self.goto("help")
         txt = self.find(tk.Text)[0]
-        self.assertEqual(len(txt.tag_ranges("link")) // 2, 66)   # 59 + profily WAGO (4) a Delta AX (3)
+        self.assertEqual(len(txt.tag_ranges("link")) // 2, 124)  # 59 + WAGO (4) + Delta AX (3) + další profily CODESYS (58)
         self.assertIn("Odkazy na dokumentaci platforem", txt.get("1.0", "end"))
         self.assertIn("10. Kusovník", txt.get("1.0", "end"))
         first = txt.tag_ranges("link")[0]

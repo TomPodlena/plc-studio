@@ -1147,6 +1147,8 @@ test("import: adresy — přesně tam, kde je výstup nese; jinak doplněné a h
         mitsubishi: ["M1_fbkRunning", "M1_outRun", "Y1_fbkClosed"], beckhoff: [], omron: [],
         /* profily CODESYS: WAGO bez AT (I/O mapování), Delta AX adresy CODESYS */
         wago: [], delta: all,
+        /* další profily CODESYS (codesys_profiles.ts): s AT jako CODESYS, jinak bez adres */
+        ...Object.fromEntries(CDS_PROFILE_KEYS.map(k => [k, CDS_PROFILES[k].at ? all : []])),
     };
     for (const plat of PLATS_ALL) {
         const r = inferProject(extractFiles(filesOf(genFor(p, plat))));
@@ -1848,6 +1850,7 @@ import { proposeSafety, plrFromGraph, plFromCategory, mttfdFromB10d, nopFrom, sy
 import { safetyProgramFiles, programFunctions } from "./safety_prog.js";
 import { safetySrsMd, safetyValidationMd, SAFETY_FILE_SRS, SAFETY_FILE_VALIDATION } from "./safety_docs.js";
 import { logixSafetyProblems } from "./logix.js";
+import { CDS_PROFILES, CDS_PROFILE_KEYS } from "./codesys_profiles.js";
 /* Modul zapíná klient (`registerSafetyModule`); ostatní testy počítají se zástupnou položkou
    „safety:external“ — modul se proto přihlašuje jen v testech bezpečnostního modulu. */
 unregisterSafetyModule();

@@ -11,7 +11,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { blankProject, syncIO, PLAT, isCodesysFamily } from "./model.js";
+import { blankProject, syncIO, PLAT, isCodesysFamily, supportsOop } from "./model.js";
+import { cdsProfile } from "./codesys_profiles.js";
 import { axisBlocked } from "./axis_gen.js";
 import { genFor } from "./codegen.js";
 import { parseStPou, splitLibrary } from "./plcopen.js";
@@ -21,6 +22,8 @@ import { emulateFiles } from "./emu/index.js";
 import { xmlProblems } from "./logix.js";
 const SAMPLE_DIR = new URL("../../../samples/", import.meta.url); // dist/ → kořen repozitáře
 const FAMILY = Object.keys(PLAT).filter(isCodesysFamily);
+/* rodina CODESYS se stylem OOP (profily se starším CODESYS — Inovance — OOP nemají) */
+const FAMILY_OOP = FAMILY.filter(supportsOop);
 function load(name) {
     const raw = JSON.parse(readFileSync(new URL(name, SAMPLE_DIR), "utf8"));
     const prj = Object.assign(blankProject(), raw.prj || raw);
@@ -45,9 +48,10 @@ test("PLCopen XML: GVL_IO v addData …/globalvars projektu, <configurations /> 
                 assert.ok(ad, at + ": GVL_IO v addData projektu za instances");
                 const names = [...ad[1].matchAll(/<variable name="([^"]+)"/g)].map(m => m[1]);
                 assert.deepEqual(names, prj.io.map(e => e.tag), at + ": všechny I/O v pořadí");
-                if (plat !== "wago")
+                /* WAGO a profily bez AT (I/O mapování) adresy nenesou */
+                if (plat !== "wago" && cdsProfile(plat)?.at !== false)
                     assert.ok(/<variable name="[^"]+" address="%[IQ]/.test(ad[1]), at + ": adresy");
-                if (style === "oop")
+                if (style === "oop" && supportsOop(plat))
                     assert.ok(/<\/data>\s*<data name="http:\/\/www\.3s-software\.com\/plcopenxml\/interface"/.test(x), at + ": rozhraní ve stejném addData projektu");
             }
 });
@@ -76,7 +80,7 @@ test("PLCopen XML OOP: InterfaceAsPlainText tam, odkud ho čte CODESYS (POU za <
     setLang("cs");
     const prj = sampleComplex();
     prj.codeStyle = "oop";
-    for (const plat of FAMILY) {
+    for (const plat of FAMILY_OOP) {
         const x = genFor(prj, plat)["PLCopen_Import.xml"];
         for (const p of pous(x)) {
             const iface = ifaceOf(p.body), tail = p.body.slice(p.body.indexOf("</body>"));
@@ -100,7 +104,7 @@ test("OOP: {attribute 'monitoring' := 'call'} i u vlastností I_Device (ST výpi
     setLang("cs");
     const prj = sampleSmall();
     prj.codeStyle = "oop";
-    for (const plat of FAMILY) {
+    for (const plat of FAMILY_OOP) {
         const f = genFor(prj, plat);
         const itf = /^INTERFACE I_Device[\s\S]*?^END_INTERFACE/m.exec(f["Gen_Library.st"])[0];
         for (const pr of ["Fault", "Status", "Busy"]) {

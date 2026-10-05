@@ -1,4 +1,5 @@
 import { N_ } from "../i18n.js";
+import { CDS_PROFILES, CDS_PROFILE_KEYS } from "../codesys_profiles.js";
 /** Zdroje pravidel (URL). */
 export const SRC = {
     iec: "https://plcopen.org/iec-61131-3",
@@ -171,6 +172,11 @@ export const DIALECTS = {
         plat: "delta", label: "Delta DIADesigner-AX (CODESYS V3.5, AX-3 / AX-5 / AX-8)", nestedComments: true, endSemi: "info",
         conv: convBy("warn", "warn", "error", "error"), src: CDS_SRC, oop: true,
     }),
+    /* další profily CODESYS (codesys_profiles.ts): překladač CODESYS V3.5; OOP jen kde ho verze CODESYS umí */
+    ...Object.fromEntries(CDS_PROFILE_KEYS.map(k => [k, base({
+            plat: k, label: CDS_PROFILES[k].emu, nestedComments: true, endSemi: "info",
+            conv: convBy("warn", "warn", "error", "error"), src: CDS_SRC, oop: CDS_PROFILES[k].oop,
+        })])),
     mitsubishi: base({
         plat: "mitsubishi", label: "Mitsubishi GX Works3 (MELSEC iQ-F FX5)",
         initValues: false, timerMaxMs: 32767,
@@ -228,6 +234,7 @@ export const RULES = {
     "tag-table": N_("Tabulka tagů odpovídá kódu"),
     xml: N_("XML je well-formed"),
     plcopen: N_("PLCopen XML pro import CODESYS: GVL v addData projektu, rozhraní POU shodné s ST (vč. VAR_IN_OUT), textová deklarace OOP tam, odkud ji CODESYS čte"),
+    iec61131_10: N_("IEC 61131-10 XML (GX Works3): kořen a jmenný prostor normy, jedinečná jména, rozhraní a tělo POU shodné s ST, globální návěští = tabulka návěští, bez počátečních hodnot FX5"),
     runtime: N_("Běhová chyba (dělení nulou, přetečení, nekonečný cyklus)"),
     oop: N_("OOP: rozhraní (IMPLEMENTS), abstraktní bloky, podpis metod, přístup, vlastnosti GET / SET"),
     "iface-guard": N_("Volání přes odkaz na rozhraní až po kontrole odkazu <> 0"),

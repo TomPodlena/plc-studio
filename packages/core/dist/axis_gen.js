@@ -1,6 +1,7 @@
 import { tr, N_ } from "./i18n.js";
 import { hwLayout } from "./hardware.js";
 import { axisCfgOf, axisObjName } from "./axis.js";
+import { cdsProfile } from "./codesys_profiles.js";
 /** Zdroje (manuály výrobců) — dokumentace, README, emulátor. */
 export const AXIS_SRC = {
     s15: "https://media.automation24.com/manual/405310.pdf",
@@ -37,7 +38,8 @@ export function axisDialect(prj, plat) {
         case "wago": return "sml";
         case "omron": return "om";
         case "rockwell": return "lx";
-        default: return null;
+        /* profily CODESYS dalších výrobců: SoftMotion SM3 jen tam, kde ho výrobce dokládá (codesys_profiles.ts) */
+        default: return cdsProfile(plat)?.axis ?? null;
     }
 }
 /** Proč platforma servoosu nepodporuje (text pro validaci a README); "" = podporuje. */
@@ -48,6 +50,9 @@ export function axisUnsupportedWhy(plat) {
         return tr("parametry knihovny GMC Independent PLCopen MC (GIPLC) se nepodařilo ověřit (EIO0000003592 nedostupný) — kód osy se negeneruje, aby nevznikl nepřeložitelný program.");
     if (plat === "unitronics")
         return tr("UniLogic má bloky MC jen v Ladderu a plochý ST (Machine.st) instance FB nemá — použij polohovací pohon se záznamy nebo měnič přes I/O.");
+    const prof = cdsProfile(plat);
+    if (prof && !prof.axis && prof.axisWhy)
+        return tr(prof.axisWhy);
     return "";
 }
 /** Podpora servoosy na platformě: `ok`, dialekt, důvod nepodpory. */

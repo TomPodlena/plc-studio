@@ -5,6 +5,7 @@ import { xmlProblems } from "../logix.js";
 import { isCodesysFamily } from "../model.js";
 import { checkOopFiles } from "./oop_files.js";
 import { checkPlcopenStructure } from "./plcopen_check.js";
+import { checkIec10Files } from "./iec61131_10_check.js";
 import { tr } from "../i18n.js";
 import { axisDialect } from "../axis_gen.js";
 import { axisCfgOf, axisObjName } from "../axis.js";
@@ -315,6 +316,9 @@ function loadIec(prj, files, d, out) {
     /* PLCopen_Import.xml: struktura pro import CODESYS (GVL v addData, rozhraní POU = ST, textová deklarace OOP) */
     if (isCodesysFamily(plat))
         checkPlcopenStructure(files, units, plat, out);
+    /* IEC61131-10_Import.xml (Mitsubishi): struktura normy, POU = ST, globální návěští = GlobalLabels.csv */
+    if (plat === "mitsubishi")
+        checkIec10Files(files, plat, out);
     const prog = units.flatMap(u => u.pous).find(p => p.kind === "program");
     return { d, units, tags, entry: { program: prog ? prog.name : "MAIN" } };
 }

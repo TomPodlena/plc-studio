@@ -15,10 +15,11 @@
  *  Omron NA (Sysmac)               proměnné k vložení (TSV), uživatelské alarmy (TSV)
  *  Unitronics                      bez exportu (HMI je součástí UniLogic, tagy jsou globální)
  */
-import { PLAT } from "./model.js";
+import { PLAT, platBase } from "./model.js";
 import { tr, N_, getLang, withLang } from "./i18n.js";
 import { buildHmi, hmiPlcPath, hmiAscii } from "./hmi.js";
 import { xlsxWorkbook } from "./hmi_xlsx.js";
+import { CDS_PROFILES, CDS_PROFILE_KEYS } from "./codesys_profiles.js";
 export function hmiStatusLabel(s) {
     return tr(s === "unverified" ? N_("neověřeno importem") : s === "reference" ? N_("referenční seznam (formát výrobce nezveřejněn)") : N_("kostra k doplnění"));
 }
@@ -108,6 +109,8 @@ SPECS.schneider = { product: "EcoStruxure Machine Expert (CODESYS Visualization)
 /* profily CODESYS: export HMI jako CODESYS (vizualizace / symbolová konfigurace) */
 SPECS.wago = { product: "WAGO e!COCKPIT / CODESYS Visualization", files: SPECS.codesys.files };
 SPECS.delta = { product: "DIADesigner-AX (CODESYS Visualization)", files: SPECS.codesys.files };
+for (const k of CDS_PROFILE_KEYS)
+    SPECS[k] = { product: CDS_PROFILES[k].hmi, files: SPECS.codesys.files };
 export function hmiExportSpec(plat) { return SPECS[plat] || null; }
 /* ================================================================ pomocné */
 const TIA_CULTURE = { cs: "cs-CZ", en: "en-US", de: "de-DE", es: "es-ES", zh: "zh-CN" };
@@ -422,6 +425,6 @@ export function hmiFiles(prj, plat, m = buildHmi(prj)) {
         case "beckhoff": return beckhoffFiles(prj, m);
         case "mitsubishi": return mitsubishiFiles(prj, ascii(prj, m));
         case "omron": return omronFiles(prj, m);
-        default: return {};
+        default: return platBase(plat) === "codesys" ? codesysFiles(prj, plat, m) : {};
     }
 }

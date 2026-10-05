@@ -31,6 +31,7 @@ import type { Project, IoEntry, IoModule, Dir, PlatformKey } from "./model.js";
 import { PLAT, addrOrd, nativeAddr } from "./model.js";
 import { brandsFor, catKey, brandOptId, type CatalogBrand, type CatalogHw } from "./catalog.js";
 import { tr, N_ } from "./i18n.js";
+import { cdsProfile } from "./codesys_profiles.js";
 
 /** Verze pravidel sestavy — změna přidělí adresy starších projektů znovu (viz `prj.hw`). */
 export const HW_VER = 1;
@@ -111,7 +112,9 @@ export interface HwLayout {
 
 /** Síť servopohonů podle platformy (Siemens PROFINET, TwinCAT / CODESYS / Sysmac / Delta EtherCAT…); "" = osy nepodporuje. */
 export function driveNet(plat: PlatformKey): string {
-  return ({ siemens: "PROFINET", beckhoff: "EtherCAT", codesys: "EtherCAT", delta: "EtherCAT", omron: "EtherCAT", wago: "EtherCAT / CANopen (CiA 402)", rockwell: "EtherNet/IP (CIP Motion)" } as Partial<Record<PlatformKey, string>>)[plat] || "";
+  return ({ siemens: "PROFINET", beckhoff: "EtherCAT", codesys: "EtherCAT", delta: "EtherCAT", omron: "EtherCAT", wago: "EtherCAT / CANopen (CiA 402)", rockwell: "EtherNet/IP (CIP Motion)" } as Partial<Record<PlatformKey, string>>)[plat]
+    /* profily CODESYS se SoftMotion SM3: pohon CiA 402 pod EtherCAT masterem */
+    || (cdsProfile(plat)?.axis === "sm3" ? "EtherCAT" : "");
 }
 
 /* ================================================================ volby katalogu */

@@ -366,6 +366,37 @@ node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (no
   „ADRESY NEOVĚŘENY"** (BuiltIn_IO / Delta_LocalBus_Master bez doložených počátečních adres).
   Kusovník `plc_*@wago` / `plc_*@delta` v `data/catalog/plc.json` (jen kódy s URL), odkazy
   v `data/platform_refs.json`. Reverse pozná hlavičky „- WAGO *)" / „- Delta Electronics *)".
+- **Další profily CODESYS** (2026-10-05) jsou DATA v `codesys_profiles.ts` (`CDS_PROFILES`, `cdsProfile`,
+  `CDS_PROFILE_PLAT` → `PLAT`): název / IDE / CPU, verze CODESYS → `oop` (ABSTRACT až od V3.5 SP13),
+  `at` (false = GVL_IO bez AT, kanály v I/O mapování — `nativeAddr`), `rawMax` + `rawMod` (modul z katalogu;
+  bez něj README „NEOVĚŘENÝ odhad“), `axis` (`sm3` jen kde výrobce dokládá AXIS_REF_SM3, jinak `axisWhy`),
+  texty README (`setup` / `io` / `libs` / `test` = klíče překladu; `title`, `imp`, `cdsVer`, `rawMod` jsou
+  technické a NESMÍ obsahovat češtinu — jdou do všech jazyků), popis dialektu emulátoru a produkt HMI.
+  Generické napojení: `RAW_MAX` + README (`codegen.ts`), `axisDialect` / `axisUnsupportedWhy`, `driveNet`,
+  `DIALECTS` (dialekt codesys, `oop` dle profilu), `hmiFiles` (platBase codesys), `PLAT_BY_NAME` (reverse
+  podle `name`), `canonAddr` (rodina CODESYS). Nový profil = položka v tabulce + `plc_*@<klíč>` v katalogu
+  (CPU, DI, DO, AI, AO s `hw`; jinak „nevejde se“) + `platform_refs.json` + `PLATS` v `build_catalog.py`
+  + překlady + `golden --add`. Testy `codesys_profiles.test.ts`. UI (web i desktop) je ukazuje pod
+  nadpisem „Další řídicí systémy na bázi CODESYS“ (`PLAT[k].base`).
+
+  | profil | IDE | CODESYS | AT | osa | OOP | rawMax | ověření (2026-10-05) |
+  |---|---|---|---|---|---|---|---|
+  | `turck` | CODESYS + Turck package (TX700 / TBEN-L PLC + BL20 přes BL20-E-GW-EC) | 3.5.14–3.5.18 | ne | ne (SoftMotion nedoloženo) | ano | 32767 (BL20-4AI-U/I) | import + Build SP21 |
+  | `festo` | Festo Automation Suite + CODESYS (CPX-E-CEC-C1 / -M1, CPX-E) | 3.5.21.20 (FAS 2.8+) | ne | `sm3` (jen CPX-E-CEC-M1) | ano | 27648 | import + Build SP21 (vč. vzoru 12 s osou) |
+  | `abb` | Automation Builder (AC500 V3 + S500) | 3.5 SP20 P2 | ne | ne (PS5611-MC, vlastní AXIS_REF) | ano | 27648 (AI523) | import + Build SP21 |
+  | `rexroth` | ctrlX PLC Engineering (ctrlX CORE X3 + ctrlX I/O) | 3.5.20.50 | ne | ne (CXA_PLCopen / ctrlX MOTION) | ano | 10000 (XI312204 v mV) | import + Build SP21 |
+  | `inovance` | InoProShop (AM600 + GL10) | SP neuveden (SP11 dle třetí strany) | ne | ne (SM3 jen zdroj třetí strany) | **ne** | 20000 | import + Build SP21 (klasika) |
+  | `weidmueller` | CODESYS + u-OS package (UC20-M3000 / M4000 + UR20) | Control SL for u-OS 4.2x | ne | ne | ano | 27648 (třetí strany) | import + Build SP21 |
+  | `eaton` | XSOFT-CODESYS-3 (XC-303 + XN300) | 3.5.20 | ne | ne | ano | 10000 (XN300 v mV) | import + Build SP21 |
+  | `lenze` | PLC Designer (c300 + I/O system 1000) | 3.5.21 (PLC Designer 4.2) | ne | ne (FAST / L_MC1P) | ano | 16384 (EPM-S401, nastavení 20h) | import + Build SP21 |
+  | `berghof` | CODESYS + Berghof target (MC-Pi Pro + MC-I/O) | dle release (3.5 SP16 P4) | ne | ne (AXIS_REF_SM3 nedoloženo) | ano | 32767 (AI4-I) | import + Build SP21 |
+  | `hitachi` | HX-CODESYS (HX-CPU + EH-150; EHV+ = SP5, bez OOP) | 3.5 SP16 P2+ | ne (EHV+ prohozené bajty) | ne (SM3 jen HX Motion CPU) | ano | 4095 (12 bit) | import + Build SP21 |
+
+  „import + Build SP21“ = PLCopen_Import.xml vzorů 00b, 03, 11 (klasika + OOP kde platí) beze změny
+  importován do CODESYS V3.5 SP21 Patch 6 (Control Win), krok README s MainTask, Build a Generate code
+  0 chyb / 0 varování (58 / 58). **Neověřeno:** IDE výrobců (balíky zařízení, knihovny), skutečné I/O
+  mapování a rozsahy analogů na HW, PLCopen import ve starších verzích (InoProShop, EHV-CODESYS).
+  ifm (ecomatController, pevné I/O, SP11) záměrně vynechán — do sestavy se nevejde, mobilní stroje.
 - Golden: kód všech platforem + `code-oop/<platforma>/…`; `prj.platforms` reference zůstává na
   původních 8 (`GOLDEN_PROJECT_PLATFORMS`), aby nové platformy neměnily staré otisky dokumentace.
   Nové soubory do reference: `node scripts/golden.mjs --add` (existující otisky beze změny).
@@ -591,6 +622,40 @@ pokyn k jazyku výstupu. Úkol pro app (apps/web):
       existujícím prj.concept přikládala i koncept jako kontext (JSON.stringify(prj.concept)).
    Zvolený koncept zobrazit i v kroku Projekt (řádek s názvem + odkaz na dokument).
 
+## IEC 61131-10 XML (GX Works3, PLCnext)
+
+- **Stav: NEOVĚŘENO importem** (GX Works3 ani PLCnext Engineer tu nejsou) — README Mitsubishi to uvádí.
+  Ověřeno: XSD normy (lxml, vzory 00a–12 × 5 jazyků, Mitsubishi i varianta PLCnext) a strukturní kontrola.
+- `iec61131_10.ts`: `iec61131_10Xml(prj, "mitsubishi" | "plcnext", files?)` staví XML z **finálního textu**
+  platformy (Gen_Library.st / MAIN.st přes `splitLibrary` / `parseStPou` / `stSections`, globální návěští
+  z GlobalLabels.csv přes `gxGlobalLabels`) — jako `plcopen.ts`. Kořen `<Project xmlns="www.iec.ch/public/
+  TC65SC65BWG7TF10" schemaVersion="1.0">` (namespace bez http://), FileHeader → ContentHeader →
+  Types/GlobalNamespace (FunctionBlock: Parameters Input/Output/InoutVars s `orderWithinParamSet` 1…n,
+  `Vars accessSpecifier="private"`, `MainBody/BodyContent xsi:type="ST"`) → Instances/Configuration.
+- **Mitsubishi** (`genFor` přidá `IEC61131-10_Import.xml`; README = doporučená cesta vedle CSV + ST):
+  GX Works3 od 1.110Q, Project → Import File → IEC61131-10 XML Format, všechny CPU vč. FX5, jen ST.
+  Mapování dle SH-081215ENG kap. 3.3 + Appendix 8: Program „ProgPou“ v Resource (programový soubor) „MAIN“
+  + ProgramInstance; jedna `Configuration/GlobalVars` (každá sada = seznam „Global“, duplicita se přeskočí),
+  operand jen v `Address address="X0"` bez % (tvar podle vzorů Jiecc, BSD-2, ověřených v GX Works3 1.110Q+).
+  FX5: **bez InitialValue** (vstupy s počáteční hodnotou se předávají při volání — test) a bez
+  „Access from External Device“. AddData výrobce (VariableComments, ResourceExecutionType,
+  VariableExternalDeviceAccess…) se negenerují — URI v manuálu není (jediné doložené je
+  `http://www.mitsubishielectric.com/xml/FunPouProperties` z Jiecc); typ spuštění Scan nastaví člověk (README).
+- **Schéma**: PLCopen Code Components `iec_61131-10_ed1_fdis.zip` — licence IEC CCv1 nedovoluje
+  redistribuci → v repu jen URL + SHA-256 (`IEC10_XSD`); test validuje přes lxml, když `IEC61131_10_XSD`
+  ukazuje na lokální `IEC61131_10_Ed1_0.xsd` (`PYTHON` = interpret s lxml), jinak se XSD část přeskočí.
+- **Emulátor**: `emu/iec61131_10_check.ts` (`iec10Problems`, pravidlo `iec61131_10`, volá `load.ts` u Mitsubishi):
+  kořen / namespace / pořadí, jedinečná jména, POU = ST (rozhraní, typy, pořadí, tělo), globální = GlobalLabels.csv,
+  FX5 bez počátečních hodnot, operand bez %, jedna sada GlobalVars, registrovaný program. Testy
+  `iec61131_10.test.ts` (vzory × 5 jazyků, mutace, import, PLCnext, XSD). Import (`reverse.ts` `exIec10`)
+  čte XML zpět; program se stejným kódem pod jiným jménem (ProgPou × MAIN) se v `inferProject` bere jednou.
+- **PLCnext (příprava, platforma zatím není)**: varianta `plcnext` jen v testu — kód rodiny CODESYS bez
+  `GVL_IO.`, I/O jako `Resource/GlobalVars` bez adres (import propojení nepřenáší → Data List), program čte
+  přes `ExternalVars`, úloha `StandardTask` + `ProgramInstance` (do projektu s controllerem; do prázdného se
+  úlohy a proměnné zdroje nenaimportují). Zdroje: https://engineer.plcnext.help/2024.0_LTS_en/Import_Types_FromIEC61131.htm
+  (TC6 jen 1.01 — https://engineer.plcnext.help/2023.6_en/ImportExport_Types_FromPLCopenXML.htm).
+  Neověřeno: tvar intervalu úlohy, jména zdroje, délka identifikátorů, TON, osa (PLCopen MC nedoloženo).
+
 ## Roadmapa (pořadí)
 
 Hotovo: PLCopen XML (TC6), import stávajících zařízení (reverse + AI, delta protokol), kusovník,
@@ -620,7 +685,8 @@ number (§11) až s přístupem k EPLAN Data Portal.
 **Fáze 3:** napojení do webu a desktopu, kontrola aktualizací (podpis instalátoru = placený certifikát,
 až po schválení), překlady, testy, commit.
 **Dál:** licence v aplikaci (Free 64 I/O, aktivace přes API); reálné ověření importu v CODESYS / TwinCAT
-(zdarma) a virtuální oživení se soft PLC (OPC UA / Modbus TCP); IEC 61131-10 XML pro GX Works3 / Sysmac;
+(zdarma) a virtuální oživení se soft PLC (OPC UA / Modbus TCP); IEC 61131-10 XML pro GX Works3 ✅
+(neověřeno importem; Sysmac a platforma PLCnext zbývají);
 Openness worker (TIA na klik); apps/api (účty, projekty v DB); AI přes backend, AI z fotky P&ID.
 
 Kontext a rozhodnutí průběžně viz claude.ai projekt „PLC programovani" (koncept, review, produktové zhodnocení).

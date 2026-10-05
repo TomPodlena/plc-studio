@@ -17,6 +17,7 @@ import { genFor, actuators, manVarOf } from "./codegen.js";
 import { setLang, LANGS } from "./i18n.js";
 import { sampleSmall, sampleComplex } from "./samples.js";
 import { emulateCompile, emulateRunMany, emulateFiles, emulateRunFiles } from "./emu/index.js";
+import { CDS_PROFILES, CDS_PROFILE_KEYS } from "./codesys_profiles.js";
 const SAMPLE_DIR = new URL("../../../samples/", import.meta.url); // dist/ → kořen repozitáře
 const OOP_PLATS = Object.keys(PLAT).filter(supportsOop);
 function load(name, style = "oop") {
@@ -29,8 +30,8 @@ function load(name, style = "oop") {
 }
 const samples = () => readdirSync(SAMPLE_DIR).filter(f => f.endsWith(".plcstudio.json")).sort();
 const errs = (fs) => fs.filter(f => f.level === "error").map(f => f.rule + " " + f.file + ":" + f.line + ":" + f.col + " " + f.msg);
-test("emu OOP: platformy se stylem OOP = rodina CODESYS (5), ostatní OOP nemají", () => {
-    assert.deepEqual(OOP_PLATS.sort(), ["beckhoff", "codesys", "delta", "schneider", "wago"]);
+test("emu OOP: platformy se stylem OOP = rodina CODESYS (5 + profily s CODESYS SP13+), ostatní OOP nemají", () => {
+    assert.deepEqual([...OOP_PLATS].sort(), ["beckhoff", "codesys", "delta", "schneider", "wago", ...CDS_PROFILE_KEYS.filter(k => CDS_PROFILES[k].oop)].sort());
     const p = sampleSmall();
     p.codeStyle = "oop";
     for (const plat of ["siemens", "rockwell", "mitsubishi", "omron", "unitronics"]) {

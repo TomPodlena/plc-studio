@@ -3,6 +3,7 @@ import { newGuid, fillGuids, ioGuidFor, isGuid } from "./guid.js";
 import { hwLayout, hwAssign, hwGroups, hwNative, hwIssues } from "./hardware.js";
 import { axisCfgOf } from "./axis.js";
 import { axisSupport, axisDialect } from "./axis_gen.js";
+import { CDS_PROFILE_PLAT, cdsProfile } from "./codesys_profiles.js";
 export const PLAT = {
     siemens: { name: "Siemens SIMATIC", ide: "TIA Portal V17–V21", cpu: "S7-1200 / S7-1500", lang: "SCL", imp: N_("externí zdroje .scl + SimaticML XML (Openness) + TSV tagů") },
     rockwell: { name: "Rockwell Allen-Bradley", ide: "Studio 5000", cpu: "CompactLogix / ControlLogix", lang: "ST", imp: N_("ST rutiny + CSV import tagů / L5X") },
@@ -14,6 +15,8 @@ export const PLAT = {
     unitronics: { name: "Unitronics", ide: "UniLogic", cpu: "UniStream (US5–US15, USC)", lang: N_("ST (funkce)"), imp: N_("ST funkce k vložení + seznam tagů k založení; Vision/Samba jen Ladder (předloha)") },
     wago: { name: "WAGO", ide: "e!COCKPIT / CODESYS V3.5", cpu: "PFC100 / PFC200 + I/O 750", lang: "ST", imp: N_("POU + GVL / PLCopen XML (báze CODESYS)"), base: "codesys", oop: true },
     delta: { name: "Delta Electronics", ide: "DIADesigner-AX (CODESYS V3.5)", cpu: "AX-3 / AX-5 / AX-8", lang: "ST", imp: N_("POU + GVL / PLCopen XML (báze CODESYS)"), base: "codesys", oop: true },
+    /* profily CODESYS dalších výrobců (codesys_profiles.ts) */
+    ...CDS_PROFILE_PLAT,
 };
 /** Základ platformy: profil (WAGO, Delta AX) → „codesys“, jinak platforma sama. */
 export function platBase(plat) {
@@ -404,6 +407,9 @@ export function nativeAddr(plat, a, dir) {
     /* WAGO e!COCKPIT: kanály lokální sběrnice se v I/O mapování přiřazují proměnným (obraz procesu
        řadí analogy před digitály, adresy se mění s osazením) — v kódu bez pevné adresy AT */
     if (plat === "wago")
+        return "";
+    /* profily CODESYS bez AT (codesys_profiles.ts): kanály se přiřadí v I/O mapování zařízení */
+    if (cdsProfile(plat)?.at === false)
         return "";
     /* Delta AX (DIADesigner-AX): notace CODESYS; počáteční adresy BuiltIn IO / LocalBus neověřeny (README) */
     if (plat === "codesys" || plat === "schneider" || platBase(plat) === "codesys") {
