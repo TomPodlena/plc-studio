@@ -10,7 +10,7 @@
   <div class="wrap">
     <ul class="ptiles" aria-hidden="true">
       {{#each page.rows}}
-      <li class="rv"><span class="ptile-n">{{@n}}</span><strong>{{.name}}</strong><span>{{.ide}}</span></li>
+      <li class="rv ptile-{{.state}}"><span class="ptile-n">{{@n}}</span><strong>{{.name}}</strong><span>{{.ide}}</span></li>
       {{/each}}
     </ul>
     <p class="checked">{{page.checked}} {{BLOCK.checked_date}}</p>
@@ -26,7 +26,7 @@
             <td data-l="{{page.h_ide}}">{{.ide}}</td>
             <td data-l="{{page.h_output}}">{{.output}}</td>
             <td data-l="{{page.h_check}}">{{.check}}</td>
-            <td data-l="{{page.h_state}}"><span class="stamp stamp-wait">{{page.state_beta}}</span></td>
+            <td data-l="{{page.h_state}}"><span class="stamp stamp-{{.state}}">{{page.state_{{.state}}}}</span></td>
           </tr>
           {{/each}}
         </tbody>
@@ -34,6 +34,11 @@
     </div>
     <div class="box measure">
       <h2>{{page.why_title}}</h2>
+      <dl class="legend">
+        {{#each page.legend}}
+        <div class="legend-row"><dt><span class="stamp stamp-{{.state}}">{{page.state_{{.state}}}}</span></dt><dd>{{.text}}</dd></div>
+        {{/each}}
+      </dl>
       <p>{{page.why_body}}</p>
     </div>
   </div>

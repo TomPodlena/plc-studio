@@ -670,7 +670,19 @@ collections:
                   - name: "check"
                     label: "check"
                     i18n: true
+                    widget: text
+                  - name: "state"
+                    label: "state"
+                    i18n: true
                     widget: string
+              - name: "state_verified"
+                label: "state_verified"
+                i18n: true
+                widget: string
+              - name: "state_lang"
+                label: "state_lang"
+                i18n: true
+                widget: string
               - name: "state_beta"
                 label: "state_beta"
                 i18n: true
@@ -679,6 +691,19 @@ collections:
                 label: "why_title"
                 i18n: true
                 widget: string
+              - name: "legend"
+                label: "legend"
+                i18n: true
+                widget: list
+                fields:
+                  - name: "state"
+                    label: "state"
+                    i18n: true
+                    widget: string
+                  - name: "text"
+                    label: "text"
+                    i18n: true
+                    widget: text
               - name: "why_body"
                 label: "why_body"
                 i18n: true

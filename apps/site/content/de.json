@@ -3,7 +3,7 @@
     "lang": "de",
     "locale": "de_DE",
     "title": "{{site.brand}} — Maschinensteuerung von der Aufgabenstellung bis zur freigegebenen Dokumentation",
-    "description": "Sie beschreiben die Maschine, {{site.brand}} entwirft E/A, Schaltpläne, das Programm für 8 SPS-Plattformen, Sicherheitsfunktionen und die Inbetriebnahme. Jede Position gibt eine verantwortliche Person frei. Bis 64 E/A kostenlos."
+    "description": "Sie beschreiben die Maschine, {{site.brand}} entwirft E/A, Schaltpläne, das Programm für 10 SPS-Plattformen, Sicherheitsfunktionen und die Inbetriebnahme. Jede Position gibt eine verantwortliche Person frei. Bis 64 E/A kostenlos."
   },
   "ui": {
     "skip": "Zum Inhalt springen",
@@ -42,7 +42,7 @@
   },
   "home": {
     "title": "{{site.brand}} — Maschinensteuerung von der Aufgabenstellung bis zur freigegebenen Dokumentation",
-    "description": "Sie beschreiben die Maschine, {{site.brand}} entwirft E/A, Schaltpläne, das Programm für 8 SPS-Plattformen, Sicherheitsfunktionen und die Inbetriebnahme. Jede Position gibt eine verantwortliche Person frei. Bis 64 E/A kostenlos.",
+    "description": "Sie beschreiben die Maschine, {{site.brand}} entwirft E/A, Schaltpläne, das Programm für 10 SPS-Plattformen, Sicherheitsfunktionen und die Inbetriebnahme. Jede Position gibt eine verantwortliche Person frei. Bis 64 E/A kostenlos.",
     "eyebrow": "Für Integratoren und Maschinenbauer",
     "h1": "Von der Aufgabenstellung zur unterschriebenen Dokumentation",
     "lead": "Sie beschreiben die Maschine. {{site.brand}} entwirft Geräte, E/A, Schaltpläne, Programm, Sicherheitsfunktionen und Inbetriebnahmeplan und erstellt zu allem die Dokumentation. Sie prüfen und geben frei. Was Sie nicht freigegeben haben, steht in den Dokumenten als NICHT FREIGEGEBEN.",
@@ -89,7 +89,7 @@
     ],
     "facts": [
       {
-        "n": "8",
+        "n": "10",
         "t": "SPS-Plattformen"
       },
       {
@@ -258,7 +258,7 @@
       },
       {
         "q": "Ist das Programm fertig zum Laden in die SPS?",
-        "a": "Es ist ein vollständiges Programm mit Zustandsautomaten, Betriebsarten, Störungen und Quittierung, und der Entwurf ist durch Simulation geprüft. Den Import in die Entwicklungsumgebung haben wir aber noch auf keiner Plattform durch Übersetzen geprüft, deshalb steht bei allen Plattformen beta. Vor dem Einsatz gehört das Programm in den Simulator Ihrer Plattform und in die FAT."
+        "a": "Es ist ein vollständiges Programm mit Zustandsautomaten, Betriebsarten, Störungen und Quittierung, und der Entwurf ist durch Simulation geprüft. Import und Übersetzen haben wir im echten CODESYS V3.5 SP21 ohne Fehler und Warnungen geprüft; bei Schneider, WAGO und Delta AX ist die Sprache geprüft, nicht Geräte und Adressen. Die übrigen Plattformen prüft unser Emulator, der kein Compiler des Herstellers ist, deshalb steht dort beta. Das Laden in eine SPS haben wir auf keiner Plattform geprüft. Vor dem Einsatz gehört das Programm in den Simulator Ihrer Plattform und in die FAT."
       },
       {
         "q": "Ich habe eine bestehende Maschine. Muss ich alles neu eingeben?",
@@ -285,7 +285,7 @@
   },
   "funkce": {
     "title": "Funktionen — {{site.brand}}",
-    "description": "Geräte- und E/A-Entwurf, Schaltpläne nach IEC, Programm für 8 Plattformen, Simulation, Sicherheitsfunktionen nach ISO 13849, Inbetriebnahme, Dokumentation, Stückliste und Import bestehender Anlagen.",
+    "description": "Geräte- und E/A-Entwurf, Schaltpläne nach IEC, Programm für 10 Plattformen, Simulation, Sicherheitsfunktionen nach ISO 13849, Inbetriebnahme, Dokumentation, Stückliste und Import bestehender Anlagen.",
     "eyebrow": "Funktionen",
     "h1": "Was {{site.brand}} für Sie erledigt",
     "lead": "Von der Aufgabenstellung bis zur Übergabe der Maschine. Alles, was es vorschlägt, prüfen und geben Sie frei. Die Dokumentation belegt dann, was Sie freigegeben haben.",
@@ -345,7 +345,7 @@
         "points": [
           "Zustandsautomaten der Geräte mit Überwachungszeiten und Statuswörtern.",
           "Betriebsart AUTO und Hand, Zyklusstart, Quittierung, Handbefehle, Maschinenstörung mit dem Schritt, in dem sie auftrat.",
-          "8 Plattformen; Import in einer Datei, wo die IDE es kann (PLCopen XML, L5X).",
+          "10 Plattformen; Import in einer Datei, wo die IDE es kann (PLCopen XML, L5X).",
           "Zu jeder Plattform die Importanleitung und der kürzeste Test."
         ],
         "shot": {
@@ -481,13 +481,13 @@
   },
   "platformy": {
     "title": "Plattformen und Prüfung — {{site.brand}}",
-    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Mitsubishi, Schneider, OMRON und Unitronics. Wie die Ausgabe geprüft ist und was noch beta ist.",
+    "description": "Siemens, Rockwell, Beckhoff, CODESYS, Schneider, WAGO, Delta Electronics, Mitsubishi, OMRON und Unitronics. Was durch Import in der IDE geprüft ist, was durch den Compiler und was durch den Emulator.",
     "eyebrow": "Plattformen",
-    "h1": "8 Plattformen. Wir sagen, was geprüft ist.",
-    "lead": "Die Ausgabe jeder Plattform prüfen wir gegen die Handbücher des Herstellers. Import und Übersetzen in der Entwicklungsumgebung haben wir noch nicht ausprobiert, deshalb tragen alle Plattformen das Etikett beta. Sobald eine Plattform durch Übersetzen geprüft ist, verschwindet es und wir ergänzen Version und Datum.",
+    "h1": "10 Plattformen. Wir sagen, was geprüft ist.",
+    "lead": "CODESYS haben wir durch echten Import und Übersetzen in CODESYS V3.5 SP21 Patch 6 geprüft: Beispiele im klassischen und im OOP-Stil, Antriebe und Servoachse ohne Fehler und ohne Warnung. Schneider, WAGO und Delta AX nutzen dieselbe CODESYS-Sprache; dort haben wir Sprache und Import geprüft, nicht Bibliotheken, Geräte und Adressen. Die übrigen Plattformen prüft unser Emulator. Den Import in der Entwicklungsumgebung des Herstellers haben wir dort noch nicht ausprobiert, deshalb tragen sie das Etikett beta.",
     "checked": "Stand vom",
     "h_platform": "Plattform",
-    "h_ide": "Entwicklungsumgebung",
+    "h_ide": "Entwicklungs­umgebung",
     "h_output": "Was Sie erhalten",
     "h_check": "Wie geprüft",
     "h_state": "Status",
@@ -496,56 +496,94 @@
         "name": "Siemens SIMATIC",
         "ide": "TIA Portal V17–V21",
         "output": "SCL-Quellen, SimaticML XML, Variablentabelle",
-        "check": "Siemens-Handbücher, Format SimaticML"
+        "check": "Emulator: SCL-Parser und Dialektregeln nach Siemens-Handbüchern, Lauf gegen das Maschinenmodell; Format SimaticML",
+        "state": "beta"
       },
       {
         "name": "Rockwell Allen-Bradley",
         "ide": "Studio 5000 Logix Designer",
         "output": "L5X (Add-On Instructions, Tags, Routine) und Tag-CSV",
-        "check": "Handbuch 1756-RM014, reale L5X-Exporte"
+        "check": "Emulator: L5X und Logix-Dialekt nach Handbuch 1756-RM014, Lauf gegen das Maschinenmodell; reale L5X-Exporte",
+        "state": "beta"
       },
       {
         "name": "Beckhoff",
         "ide": "TwinCAT 3",
         "output": "PLCopen XML, ST-Bausteine, GVL",
-        "check": "ST-Parser für TwinCAT, Schema PLCopen TC6"
+        "check": "Emulator: ST-Parser für TwinCAT, Lauf gegen das Maschinenmodell; Schema PLCopen TC6",
+        "state": "beta"
       },
       {
         "name": "CODESYS",
         "ide": "CODESYS V3.5",
         "output": "PLCopen XML, ST-Bausteine, GVL",
-        "check": "Schema PLCopen TC6, CODESYS-Handbücher"
-      },
-      {
-        "name": "Mitsubishi",
-        "ide": "GX Works3",
-        "output": "ST und CSV der globalen Labels",
-        "check": "Mitsubishi-Handbücher; das CSV-Format ändert sich je nach Version"
+        "check": "Import von PLCopen XML und Übersetzen in CODESYS V3.5 SP21 Patch 6 (3.5.21.60), 5. Oktober 2026: klassisch und OOP, Antriebe und SoftMotion-Servoachse, 0 Fehler, 0 Warnungen. Lauf auf der Runtime (Laden in die SPS) ungeprüft",
+        "state": "verified"
       },
       {
         "name": "Schneider Electric",
         "ide": "EcoStruxure Machine Expert",
         "output": "PLCopen XML, ST-Bausteine, GVL",
-        "check": "Schema PLCopen TC6, Schneider-Handbücher"
+        "check": "Sprache und PLCopen-Import: Compiler CODESYS 3.5.21.60; Bibliotheken, Geräte und E/A-Adressen von Schneider ungeprüft",
+        "state": "lang"
+      },
+      {
+        "name": "WAGO",
+        "ide": "e!COCKPIT / CODESYS V3.5",
+        "output": "PLCopen XML, ST-Bausteine, GVL (E/A-Zuordnung in der IDE)",
+        "check": "Sprache und PLCopen-Import: Compiler CODESYS 3.5.21.60; Bibliotheken, Geräte und E/A-Adressen von WAGO ungeprüft, Servoachse SoftMotion Light ungeprüft",
+        "state": "lang"
+      },
+      {
+        "name": "Delta Electronics AX",
+        "ide": "DIADesigner-AX",
+        "output": "PLCopen XML, ST-Bausteine, GVL",
+        "check": "Sprache und PLCopen-Import: Compiler CODESYS 3.5.21.60; Bibliotheken, Geräte und E/A-Adressen von Delta ungeprüft",
+        "state": "lang"
+      },
+      {
+        "name": "Mitsubishi",
+        "ide": "GX Works3",
+        "output": "ST und CSV der globalen Labels",
+        "check": "Emulator: Dialekt nach Mitsubishi-Handbüchern, Lauf gegen das Maschinenmodell; das CSV-Format ändert sich je nach Version",
+        "state": "beta"
       },
       {
         "name": "OMRON",
         "ide": "Sysmac Studio",
         "output": "ST und Variablentabelle",
-        "check": "OMRON-Handbücher"
+        "check": "Emulator: Dialekt nach OMRON-Handbüchern, Lauf gegen das Maschinenmodell",
+        "state": "beta"
       },
       {
         "name": "Unitronics",
         "ide": "UniLogic (UniStream)",
         "output": "flaches ST und Tag-Liste",
-        "check": "Unitronics-Handbücher; den Dialekt bestätigt erst die erste Übersetzung"
+        "check": "Emulator: flaches ST nach Unitronics-Handbüchern, Lauf gegen das Maschinenmodell; den Dialekt bestätigt erst die erste Übersetzung",
+        "state": "beta"
       }
     ],
+    "state_verified": "in IDE geprüft",
+    "state_lang": "Sprache geprüft",
     "state_beta": "beta: Import in IDE ungeprüft",
-    "why_title": "Was beta bedeutet",
-    "why_body": "Die Dateien entsprechen der Herstellerdokumentation und bestehen unsere Prüfungen: Bausteinpaare, deklarierte Bezeichner, XML-Schema, ASCII wo nötig. Was wir noch nicht wissen, ist, was der Compiler Ihrer IDE-Version dazu sagt. Die README jeder Plattform beschreibt deshalb den kürzesten Test: Import, Übersetzen und Lauf im Simulator der Plattform. Finden Sie eine Abweichung, schreiben Sie uns. Wir beheben sie und bringen die Plattform zu den geprüften.",
+    "why_title": "Was die Etiketten bedeuten",
+    "legend": [
+      {
+        "state": "verified",
+        "text": "Wir haben die Ausgabe in der echten Entwicklungsumgebung des Herstellers importiert und übersetzt. Version und Datum stehen in der Spalte Wie geprüft. Das Laden in die SPS und der Lauf auf der Runtime sind damit nicht geprüft."
+      },
+      {
+        "state": "lang",
+        "text": "Die Plattform basiert auf CODESYS V3.5. Sprache und PLCopen-XML-Import haben den CODESYS-Compiler bestanden; Bibliotheken und Geräte des Herstellers sowie E/A-Adressen haben wir in dessen IDE nicht geprüft."
+      },
+      {
+        "state": "beta",
+        "text": "Der Code hat unseren Emulator bestanden: eigener Parser und Dialektregeln nach den Handbüchern des Herstellers sowie ein Lauf des Programms Zyklus für Zyklus gegen das Maschinenmodell, bei allen Beispielen ohne Abweichung vom Entwurf. Den Import in der IDE des Herstellers haben wir noch nicht ausprobiert."
+      }
+    ],
+    "why_body": "Der Emulator ist kein Compiler des Herstellers. Er erkennt, was er aus den Handbüchern kennt, aber was der Compiler Ihrer IDE-Version sagt, bestätigt erst ein echter Import. Die README jeder Plattform beschreibt deshalb den kürzesten Test: Import, Übersetzen und Lauf im Simulator der Plattform. Finden Sie eine Abweichung, schreiben Sie uns. Wir beheben sie und bringen die Plattform zu den geprüften.",
     "safety_title": "Sicherheitsprogramm",
-    "safety_lead": "Entsteht aus zertifizierten Bausteinen des Herstellers, erst nach Freigabe der Sicherheitsfunktionen. Wie beim Standardprogramm: beta, bis wir es durch Übersetzen geprüft haben.",
+    "safety_lead": "Entsteht aus zertifizierten Bausteinen des Herstellers, erst nach Freigabe der Sicherheitsfunktionen. Das Sicherheitsprogramm haben wir in der IDE des Herstellers noch nicht geprüft, deshalb ist es auf allen Plattformen beta.",
     "safety_rows": [
       {
         "name": "Siemens",
@@ -825,7 +863,7 @@
         "body": [
           "Die Anwendung entwirft die Maschinensteuerung: Geräte, E/A, Schaltpläne, Prozesslogik und SPS-Programm, Sicherheitsfunktionen einschließlich PLr, Architektur, Komponenten und eines Programms für die Sicherheits-SPS, einen Inbetriebnahmeplan und die Dokumentation. Alle Ergebnisse sind ein Entwurf zur Prüfung.",
           "Es gelten nur Positionen, die eine verantwortliche Person des Nutzers freigegeben hat (Name, Datum, Bemerkung). Die Freigabe ist eine Handlung des Nutzers, nicht des Betreibers. Nicht freigegebene Ergebnisse tragen die Kennzeichnung NICHT FREIGEGEBEN und dürfen nicht als Grundlage für Fertigung, Verdrahtung oder Inbetriebnahme der Maschine verwendet werden.",
-          "Die Simulation in der Anwendung prüft den Entwurf, nicht das in der Entwicklungsumgebung des SPS-Herstellers übersetzte Programm. Die Ausgaben für die einzelnen Plattformen sind nicht durch Übersetzen in deren Entwicklungsumgebung geprüft (auf der Website als beta gekennzeichnet).",
+          "Die Simulation in der Anwendung prüft den Entwurf, nicht das in der Entwicklungsumgebung des SPS-Herstellers übersetzte Programm. Die Ausgaben für die einzelnen Plattformen sind nicht durch Übersetzen in der Entwicklungsumgebung des Herstellers geprüft, mit Ausnahme der auf der Seite Plattformen genannten.",
           "Ergebnisse der KI-Funktionen (Gerätevorschlag, Auslesen von Schaltplänen und Fotos) können fehlerhaft oder unvollständig sein; die Anwendung legt sie immer als Entwurf zur Prüfung vor."
         ]
       },
