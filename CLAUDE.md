@@ -278,9 +278,18 @@ python scripts/build_verification.py        # data/verification.json → verific
 
 ## Příklady a ověření simulací
 
-- `samples/*.plcstudio.json` — 13 příkladových strojů od pásu se 6 zařízeními po výrobní halu se 125 (11 = pohony fáze 2a)
-  zařízeními a 120 kroky (formát = uložený projekt desktopu / export webu). Každý musí projít
-  `check_samples.mjs`: validace, kód pro všech 8 platforem (párování IF/CASE/FB, ASCII u Unitronics
+- `samples/*.plcstudio.json` — 18 příkladových strojů od pásu se 6 zařízeními po výrobní halu se 125
+  zařízeními a 120 kroky (formát = uložený projekt desktopu / export webu). Vzory s pohony:
+  11 PS-11 (pás na měniči, osa se záznamy, lisovací tlak VPPM), 12 PM-12 (servoosa, fáze 2b),
+  13 TD-13 třídicí linka (3 měniče rozjezd / plíživá / stop, reverzní příčný pás výhybky, pneumatická
+  výhybka a doraz, světelná závora), 14 HL-14 hydraulický lis (čerpadlo na měniči, proporcionální
+  tlak i průtok se zpětnou vazbou, rychloposuv → pracovní posuv → lisování na tlak → dotlak →
+  odlehčení → zpětný chod, poloha beranu s mezí, dvouruční ovládání), 15 NV-15 nanášecí / navíjecí
+  stanice (odvíječ a navíječ na měničích, tanečník, dávkovací čerpadlo, proporcionální ventil průtoku,
+  polohovací pohon nože se záznamy), 16 PC-16 paletizační buňka (3 polohovací pohony se záznamy
+  a referováním, vakuový úchop, dopravník na měniči). 13–16 bez servoosy = všechny platformy
+  (desktop `--smoke` je prochází). Každý musí projít
+  `check_samples.mjs`: validace, kód pro všechny platformy (párování IF/CASE/FB, ASCII u Unitronics
   a DXF, deklarované identifikátory), dokumentace, ověření bez nálezu `error` a matice bez ✖.
 - `verifyProject()`: běžný cyklus, poruchové scénáře, **kontrola konceptu** (vstupy, které program
   nečte, výstupy, které neovládá, měření bez mezí, pohony mimo cyklus, blokování bez NC) a **matice

@@ -1,0 +1,460 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Hydraulický lis HL-14 s proporcionální regulací tlaku a rychlosti",
+   "desc": "Čtyřsloupový hydraulický lis 630 kN pro lisování a kalibraci dílů. Čerpadlo agregátu pohání asynchronní motor na frekvenčním měniči (50 Hz pro pohyb, 30 Hz při lisování, 15 Hz během dotlaku; po cyklu se čerpadlo zastaví). Proporcionální tlakový ventil (zpětná vazba snímačem tlaku v pístové komoře) nastavuje systémový a lisovací tlak s rampou, proporcionální škrticí ventil (zpětná vazba průtokoměrem) rychlost beranu. Cyklus: beran v horní poloze, obsluha spustí zdvih dvouručním ovládáním; rychloposuv dolů přes otevřený plnicí ventil (70 l/min), na vačkovém spínači přepnutí plnicí ventil zavře a beran jde pracovním posuvem (12 l/min) do dolní polohy; čerpadlo zpomalí, lisování na tlak 180 bar s rampou, dotlak 3 s, řízené odlehčení na 40 bar (dekomprese) a zpětný chod nahoru rychloposuvem do horní polohy. Hlídání: odchylka tlaku a průtoku od žádané hodnoty, porucha a nepřipravenost měniče, poloha šoupátek rozváděčů, poloha beranu lineárním snímačem (přejetí pod pracovní zdvih), teplota oleje (studený / přehřátý), nedojetí do koncových poloh (hlídací časy kroků). Ochrany: nouzové zastavení, světelná závora pracovního prostoru a minimální hladina oleje v blokování; dvouruční ovládání, bezpečnostní ventily se sledováním šoupátka a světelnou závoru vyhodnocuje bezpečnostní technika. Maják: zelená chod, žlutá připraveno, červená porucha.",
+   "takt": 35
+  },
+  "platforms": [
+   "siemens",
+   "rockwell",
+   "beckhoff",
+   "codesys",
+   "mitsubishi",
+   "schneider",
+   "omron",
+   "unitronics",
+   "wago",
+   "delta"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "cc9a83d2-355a-4b52-b81c-b5eca4fe1e07"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Světelná závora pracovního prostoru volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "8936c020-90d2-4bcc-bfcb-49d87d29c5dc"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Hladina oleje v nádrži nad minimem (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "5aadb528-b5b1-4c6a-8fc4-72ffc81d73fc"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Dvouruční ovládání — zdvih uvolněn (výstup bezpečnostního modulu)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "e78d9171-39cf-4783-afbd-33145bfe1644"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Beran v horní poloze (horní koncový spínač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "8cb9036c-1876-412a-8bd8-de69c4923159"
+   },
+   {
+    "id": 6,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Bod přepnutí rychloposuv / pracovní posuv (vačkový spínač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "2f1bb6dc-3e6e-40e0-8309-ab5d68be2029"
+   },
+   {
+    "id": 7,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "Beran v dolní poloze (dolní koncový spínač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "7250472e-614c-492d-a4fd-74411841df59"
+   },
+   {
+    "id": 8,
+    "name": "M1",
+    "cls": "Vfd",
+    "desc": "Čerpadlo hydraulického agregátu — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 50,
+    "rampS": 2,
+    "guid": "953c371e-700a-4d15-932e-5cdfb9f449c6"
+   },
+   {
+    "id": 9,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Rozváděč beranu — pohyb dolů (sledování šoupátka)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "117f6ea6-3a4a-4d7b-9775-2a85bcbdbd67"
+   },
+   {
+    "id": 10,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Rozváděč beranu — pohyb nahoru (sledování šoupátka)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "997867f5-ada1-41a7-aa18-9a1d0afe0957"
+   },
+   {
+    "id": 11,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Plnicí ventil rychloposuvu otevřít",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "20bd8519-2dbf-4fe8-9bd0-4a6e577edd68"
+   },
+   {
+    "id": 12,
+    "name": "Y4",
+    "cls": "PropValve",
+    "desc": "Proporcionální tlakový ventil (snímač tlaku v pístové komoře)",
+    "opt": {
+     "fbk": true
+    },
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 250,
+    "setpoint": 180,
+    "rampS": 2.5,
+    "tol": 8,
+    "tolTimeS": 0.3,
+    "guid": "b95614a3-4245-4e9e-87ef-acec67499cdf"
+   },
+   {
+    "id": 13,
+    "name": "Y5",
+    "cls": "PropValve",
+    "desc": "Proporcionální škrticí ventil — rychlost beranu (průtokoměr)",
+    "opt": {
+     "fbk": true
+    },
+    "unit": "l/min",
+    "rmin": 0,
+    "rmax": 80,
+    "setpoint": 12,
+    "rampS": 1,
+    "tol": 3,
+    "tolTimeS": 0.3,
+    "guid": "756f8202-e18a-4265-82f0-99649f9f012c"
+   },
+   {
+    "id": 14,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Poloha beranu (lineární snímač, 0 = horní poloha)",
+    "opt": {},
+    "unit": "mm",
+    "rmin": 0,
+    "rmax": 400,
+    "limHi": 380,
+    "guid": "ab5a0225-83fd-4163-abaf-1a7c521cd679"
+   },
+   {
+    "id": 15,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Teplota hydraulického oleje",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 100,
+    "limHi": 60,
+    "limLo": 15,
+    "guid": "f84e8752-8ef7-40a9-8e3f-572c8df5eb7e"
+   },
+   {
+    "id": 16,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "7309588e-a110-462f-bdca-46f00dce8e8d"
+   },
+   {
+    "id": 17,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "5e25362f-9fde-4a7b-b1dc-f48e2e9b0668"
+   },
+   {
+    "id": 18,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "23f4c56d-9777-43e1-8e19-cfd9ab5585b0"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2,
+    3
+   ],
+   "seq": [
+    {
+     "dev": 8,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 50
+    },
+    {
+     "dev": 12,
+     "act": "setPressure",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 60
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 13,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 70
+    },
+    {
+     "dev": 11,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 9,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 5,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 11,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 12
+    },
+    {
+     "dev": 7,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 8,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 30
+    },
+    {
+     "dev": 12,
+     "act": "setPressure",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 180
+    },
+    {
+     "dev": 8,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 15
+    },
+    {
+     "dev": "",
+     "act": "wait",
+     "cond": "time",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "setPressure",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 40
+    },
+    {
+     "dev": 9,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 50
+    },
+    {
+     "dev": 13,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 70
+    },
+    {
+     "dev": 11,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 10,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 0
+    },
+    {
+     "dev": 12,
+     "act": "setPressure",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 0
+    },
+    {
+     "dev": 8,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    }
+   ]
+  },
+  "nextId": 19,
+  "concept": null,
+  "guid": "8737c093-a031-470d-93de-06bc910da886",
+  "moduleGuids": {
+   "S0.2": "cc69c18d-c8d8-460a-b7b3-6d3c38278005",
+   "S0.3": "aa02fd04-9bca-4fe3-abe8-ec89e54c85fb",
+   "S0.4": "6dfe21ef-7ae9-4ab1-851e-991019102dca",
+   "S0.5": "632d1fef-a74e-4455-90b8-a4ac9cd4f130"
+  }
+ }
+}

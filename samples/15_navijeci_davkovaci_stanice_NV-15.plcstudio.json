@@ -1,0 +1,479 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Nanášecí a navíjecí stanice NV-15 (odvíječ, navíječ, dávkování lepidla, příčný řez)",
+   "desc": "Stanice nanáší lepidlo na pás netkané textilie šíře 1 300 mm a navíjí ho na dutinku. Odvíječ a navíječ pohánějí motory na frekvenčních měničích (zavádění 10 / 11 Hz, pracovní rychlost 40 / 42 Hz s rampou 4 s); tah pásu hlídá tanečník (analogová poloha, meze = přetržení nebo přetažení pásu). Lepidlo dávkuje zubové čerpadlo na měniči a proporcionální ventil průtoku (zpětná vazba průtokoměrem) nastavuje průtok úměrně rychlosti pásu (0,6 l/min při zavádění, 2,4 l/min v provozu). Cyklus = jeden návin: suport nože (elektrický polohovací pohon se záznamy přes I/O) se referuje a zajede do parkovací polohy, obsluha upne dutinku a zavede pás; linka se rozjede na zaváděcí a pak na pracovní rychlost, na předvolbě čítače délky zpomalí a na požadované délce zastaví dávkovací čerpadlo, po poklesu tlaku v trysce uzavře ventil lepidla a zastaví pás. Přítlačná lišta upne pás, kotoučový nůž sjede do řezné polohy a suport ho převeze přes šíři pásu (záznam 2 → 3), nůž se zvedne, suport se vrátí do parkovací polohy a lišta uvolní; obsluha sejme hotový návin. Hlídání: porucha a nepřipravenost měničů a pohonu, odchylka průtoku lepidla, tlak lepidla (mez max), tanečník, polohy válců, hlídací časy kroků. Ochrany: nouzové zastavení, kryt navíječe a světelná závora u navíječe v blokování (STO měničů řeší bezpečnostní technika).",
+   "takt": 90
+  },
+  "platforms": [
+   "siemens",
+   "rockwell",
+   "beckhoff",
+   "codesys",
+   "mitsubishi",
+   "schneider",
+   "omron",
+   "unitronics",
+   "wago",
+   "delta"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "9ef343d5-9b8f-496f-9921-13c6919b49e9"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Kryt navíječe zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "55ce5ae6-9224-4d85-9f72-99d5a85a55db"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Světelná závora přístupu k navíječi volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "fd98eaf4-ac3f-4d32-a3b0-7d507973f897"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Dutinka navíječe upnuta (snímač upínací hlavy)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "5e13557c-93b2-45b6-94ba-867279d931b7"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Čítač délky — předvolba zpomalení",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "0df8f5e6-e51b-4ac2-b605-e13a731a1f3a"
+   },
+   {
+    "id": 6,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Čítač délky — požadovaná délka návinu dosažena",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "4938143d-b466-4011-b156-69ea578e6ebb"
+   },
+   {
+    "id": 7,
+    "name": "M1",
+    "cls": "Vfd",
+    "desc": "Odvíječ pásu — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true,
+     "act": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 40,
+    "rampS": 4,
+    "guid": "709fe719-715f-4cb3-b1d5-0036fcfaf639"
+   },
+   {
+    "id": 8,
+    "name": "M2",
+    "cls": "Vfd",
+    "desc": "Navíječ pásu — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true,
+     "act": true,
+     "rst": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 42,
+    "rampS": 4,
+    "guid": "5da107fc-4217-4bbc-98fb-621b991e8f1c"
+   },
+   {
+    "id": 9,
+    "name": "M3",
+    "cls": "Vfd",
+    "desc": "Zubové dávkovací čerpadlo lepidla — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 30,
+    "rampS": 1,
+    "guid": "9f496f0e-aa9e-4282-bbe5-f1b641c1df96"
+   },
+   {
+    "id": 10,
+    "name": "Y1",
+    "cls": "PropValve",
+    "desc": "Proporcionální ventil průtoku lepidla k nanášecí trysce (průtokoměr)",
+    "opt": {
+     "fbk": true
+    },
+    "unit": "l/min",
+    "rmin": 0,
+    "rmax": 5,
+    "setpoint": 2.4,
+    "rampS": 1,
+    "tol": 0.15,
+    "tolTimeS": 1,
+    "guid": "9bf10ccc-429f-47f0-8b4a-c1e4d1d4c183"
+   },
+   {
+    "id": 11,
+    "name": "M4",
+    "cls": "PosDrive",
+    "desc": "Suport příčného nože (elektrický polohovací pohon se záznamy)",
+    "opt": {
+     "ready": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 0,
+    "selBits": 2,
+    "travelS": 2,
+    "records": [
+     {
+      "no": 1,
+      "name": "parkovací poloha",
+      "pos": 0
+     },
+     {
+      "no": 2,
+      "name": "začátek řezu",
+      "pos": 20
+     },
+     {
+      "no": 3,
+      "name": "konec řezu (přes šíři pásu)",
+      "pos": 1340
+     }
+    ],
+    "guid": "b485af2e-148c-4244-9177-0f03de06c98a"
+   },
+   {
+    "id": 12,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Kotoučový nůž do řezné polohy (dolů)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "bd8a595e-abd2-40fc-9949-2b4ed2f04442"
+   },
+   {
+    "id": 13,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Přítlačná lišta pásu upnout",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "89ecce17-61fe-4e8e-a9b2-2405d0f5a1c2"
+   },
+   {
+    "id": 14,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Tanečník — poloha (tah pásu)",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "limHi": 90,
+    "limLo": 10,
+    "guid": "b673e549-d0ae-44ac-b210-64617722ea61"
+   },
+   {
+    "id": 15,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Tlak lepidla za dávkovacím čerpadlem",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limHi": 6,
+    "guid": "778a36d6-fa50-4f72-8bb3-1e8786693007"
+   },
+   {
+    "id": 16,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "4b6b795d-9724-4bb6-b44d-35996e13220a"
+   },
+   {
+    "id": 17,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "7edcacf9-204e-4baf-bb7c-36ee6d7c4635"
+   },
+   {
+    "id": 18,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "128dcff3-4b90-4a02-839c-e6139f27f62c"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2,
+    3
+   ],
+   "seq": [
+    {
+     "dev": 11,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 11,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 5,
+     "rec": 1
+    },
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 7,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 6,
+     "sp": 10
+    },
+    {
+     "dev": 8,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 6,
+     "sp": 11
+    },
+    {
+     "dev": 9,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 30
+    },
+    {
+     "dev": 10,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 0.6
+    },
+    {
+     "dev": 7,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 8,
+     "sp": 40
+    },
+    {
+     "dev": 8,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 8,
+     "sp": 42
+    },
+    {
+     "dev": 10,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 2.4
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 600
+    },
+    {
+     "dev": 7,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 8,
+     "sp": 10
+    },
+    {
+     "dev": 8,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 8,
+     "sp": 11
+    },
+    {
+     "dev": 10,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 0.6
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 120
+    },
+    {
+     "dev": 9,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 2
+    },
+    {
+     "dev": 10,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 0
+    },
+    {
+     "dev": 7,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 8,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 13,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 5,
+     "rec": 2
+    },
+    {
+     "dev": 12,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 5,
+     "rec": 3
+    },
+    {
+     "dev": 12,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 5,
+     "rec": 1
+    },
+    {
+     "dev": 13,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 4,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 120
+    }
+   ]
+  },
+  "nextId": 19,
+  "concept": null,
+  "guid": "20dac048-060a-4344-94ca-39e0b06e03a1",
+  "moduleGuids": {
+   "S0.2": "cb2c441f-4955-44d5-bbdf-382a3d9d0b7e",
+   "S0.3": "bdfeece3-8c31-4ec0-b558-873755e51d77",
+   "S0.4": "2d59b9ac-ae55-4ab8-86a1-7683aa65d248",
+   "S0.5": "becf600f-e169-4357-9d04-23786fb99640"
+  }
+ }
+}

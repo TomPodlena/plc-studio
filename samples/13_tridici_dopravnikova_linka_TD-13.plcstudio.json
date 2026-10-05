@@ -1,0 +1,455 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Třídicí dopravníková linka TD-13 (tři měniče, zdvihová výhybka)",
+   "desc": "Linka rozděluje krabice z výroby střídavě do dvou balicích větví. Přívodní pás na frekvenčním měniči veze krabici rychle (45 Hz); u snímače zpomalení přejde na plíživou rychlost 12 Hz a krabice dojede k pneumatickému dorazu nad zdvihovou výhybkou (pop-up modul s příčným pásem). Přívodní pás zastaví, výhybka se zdvihne, doraz se zasune a příčný pás na reverzním měniči vysune krabici vpřed na odváděcí pás větve A (první kus cyklu) nebo vzad na skluz větve B (druhý kus cyklu). Po předání se příčný pás zastaví, výhybka spustí a doraz vysune pro další kus. Odváděcí pás větve A běží po dobu cyklu na 40 Hz. Hlídání: porucha a nepřipravenost měničů, nedosažení otáček, polohy válců výhybky a dorazu, nedojetí krabice (hlídací časy kroků), tlak vzduchu (mez min). Ochrany: nouzové zastavení, kryt výhybky a světelná závora přístupu do třídicí zóny v blokování (STO měničů a odvětrání řeší bezpečnostní technika). Maják: zelená chod, žlutá připraveno ke startu, červená porucha.",
+   "takt": 35
+  },
+  "platforms": [
+   "siemens",
+   "rockwell",
+   "beckhoff",
+   "codesys",
+   "mitsubishi",
+   "schneider",
+   "omron",
+   "unitronics",
+   "wago",
+   "delta"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "dad6c575-2672-444c-8a6c-8e30da3252d8"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Kryt výhybky zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "cd33acc1-843c-4464-81c9-4799980cb28c"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Světelná závora přístupu do třídicí zóny volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "bcb79a69-8c14-4907-ae7e-01aac20fd8e2"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Krabice na vstupu přívodního pásu (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "9b29236f-ae17-466b-aaf2-9df31b6c8aa9"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Krabice před výhybkou — zpomalit (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "03882a39-2f71-4e80-8bb7-36346ab19636"
+   },
+   {
+    "id": 6,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Krabice na výhybce u dorazu (reflexní snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "642f8cf5-5dd0-4eab-8cb5-681a67c92dd1"
+   },
+   {
+    "id": 7,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "Krabice předána na větev A (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "ada5770e-cc0b-4676-b3e4-8aa39eae829c"
+   },
+   {
+    "id": 8,
+    "name": "S8",
+    "cls": "DI",
+    "desc": "Krabice předána do skluzu větve B (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "085f333d-581d-40cb-97c3-ce34f0b72ea5"
+   },
+   {
+    "id": 9,
+    "name": "M1",
+    "cls": "Vfd",
+    "desc": "Přívodní pásový dopravník — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true,
+     "act": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 45,
+    "rampS": 2,
+    "guid": "d5a827e7-93c2-44ed-ac6b-fd2fed1ecea8"
+   },
+   {
+    "id": 10,
+    "name": "M2",
+    "cls": "Vfd",
+    "desc": "Příčný pás zdvihové výhybky — reverzní frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true,
+     "rev": true,
+     "rst": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 30,
+    "rampS": 1,
+    "guid": "f7f0b9b8-1c63-4a42-b583-0f3253db8209"
+   },
+   {
+    "id": 11,
+    "name": "M3",
+    "cls": "Vfd",
+    "desc": "Odváděcí pás větve A — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 40,
+    "rampS": 2,
+    "guid": "1b92460d-dd4e-45f8-b495-8837df03c496"
+   },
+   {
+    "id": 12,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Zdvih výhybky nahoru (pneumatický válec)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "5c8c2bd2-6ae6-4349-acc8-52130db81819"
+   },
+   {
+    "id": 13,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Doraz krabice na výhybce vysunout",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "7dbd8d56-d188-4aec-acbf-2773d4ce362b"
+   },
+   {
+    "id": 14,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Tlak vzduchu v rozvodu",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 4.5,
+    "guid": "6d8b0fd4-39c5-4101-ae17-44b160db4cdb"
+   },
+   {
+    "id": 15,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "84f886a3-942b-4c53-860a-eefaf19772cf"
+   },
+   {
+    "id": 16,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "8ee8e4c3-139e-4bdb-af6a-5314b7ea9fbd"
+   },
+   {
+    "id": 17,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "be48729b-8bfe-4192-ad5b-d9749ad10173"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2,
+    3
+   ],
+   "seq": [
+    {
+     "dev": 11,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 6,
+     "sp": 40
+    },
+    {
+     "dev": 13,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 9,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 6,
+     "sp": 45
+    },
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 20
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 15
+    },
+    {
+     "dev": 9,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 12
+    },
+    {
+     "dev": 5,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 6
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 9,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 12,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 30
+    },
+    {
+     "dev": 7,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 6,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 10,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 12,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 9,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 6,
+     "sp": 45
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 15
+    },
+    {
+     "dev": 9,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 12
+    },
+    {
+     "dev": 5,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 6
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 9,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 12,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 30,
+     "rev": true
+    },
+    {
+     "dev": 8,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 6,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 10,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 12,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    }
+   ]
+  },
+  "nextId": 18,
+  "concept": null,
+  "guid": "620c85ef-6ae5-4597-abf6-4482e0eda634",
+  "moduleGuids": {
+   "S0.2": "4e3ced54-fc53-4a0c-ab13-2a8ebc89135b",
+   "S0.3": "3e63e486-2932-49d3-9191-bea62b99ada7",
+   "S0.4": "2037f6f6-46db-4600-8ab1-9fd1a6d071c0",
+   "S0.5": "e8707293-b20f-480f-9990-b36098cbf3ac"
+  }
+ }
+}
