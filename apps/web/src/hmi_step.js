@@ -7,6 +7,7 @@ import {
   hmiSiemensWorkbook, hmiWebHtml, hmiPlcPath, alarmClassLabel, stepTitle, HMI_DOC_FILE,
 } from "../../../packages/core/dist/index.js";
 import { card, downloadFile, downloadFiles } from "./util.js";
+import { licenseFilter } from "./license.js";
 import { trn } from "./plural.js";
 
 /** Skupiny tagů HMI (HmiGroup) → popisek. */
@@ -149,6 +150,7 @@ export function makeHmiTab(ctx) {
 
 /** Binární soubor (Uint8Array) ke stažení. */
 export function downloadBytes(name, bytes, mime) {
+  if (licenseFilter(name, bytes) == null) return;      // licence: nad limitem Free se nestahuje
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([bytes], { type: mime }));
   a.download = name;

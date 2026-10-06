@@ -29,6 +29,7 @@ STEPS = [N_("Projekt"), N_("AI návrh"), N_("Platformy"), N_("Zařízení"), N_(
          N_("Schéma"), N_("Program"), N_("Generovat"), N_("Dokumentace"), N_("Kusovník"),
          N_("Bezpečnost"), N_("Schválení"), N_("Oživení")]
 STEP_SAFETY, STEP_APPROVAL, STEP_COMMISSION = 10, 11, 12
+STEP_GEN, STEP_DOCS, STEP_BOM = 7, 8, 9
 # zkrácení popisků neaktivních kroků, když se lišta nevejde (None = celé, 0 = jen číslo)
 NAV_LEVELS = (None, *range(24, 2, -1), 0)
 PROJECT_EXT = ".plcstudio.json"
@@ -82,6 +83,10 @@ class App:
         self.bridge.wanted = self._job_wanted
         self._load_core(self.settings.get("lang") or "cs")
         self.bridge.start_worker()               # druhý proces startuje na pozadí hned
+
+        # licence (license.py): ověření uloženého licenčního souboru jádrem — síť až na pozadí
+        from .license import License
+        self.lic = License(self)
 
         self.prj: dict = self.core("blankProject")
         self.ai: dict = new_ai()
@@ -281,6 +286,7 @@ class App:
         if lang == self.lang or lang not in self.LANGS:
             return
         self._load_core(lang)
+        self.lic.recompute()                  # texty stavu licence v novém jazyce
         self.settings["lang"] = self.lang
         self.save_settings()
         for child in self.root.winfo_children():
@@ -410,6 +416,10 @@ class App:
         self._var_topmost = tk.BooleanVar(value=bool(self.settings.get("topmost")))
         ttk.Checkbutton(head, text=_("nad okny"), variable=self._var_topmost,
                         command=self._toggle_topmost).pack(side="right", padx=(8, 0))
+        # tarif licence → okno Licence (license.py)
+        self._lic_btn = ttk.Button(head, text="", command=self.open_license)
+        self._lic_btn.pack(side="right", padx=(8, 0))
+        self.update_license_badge()
         ttk.Button(head, text=_("Uložit projekt…"), command=self.save_project_dialog
                    ).pack(side="right", padx=(6, 0))
         ttk.Button(head, text=_("Otevřít projekt…"), command=self.open_project_dialog
@@ -458,6 +468,25 @@ class App:
 
         self.view = ttk.Frame(frm)
         self.view.pack(fill="both", expand=True, pady=(12, 0))
+
+    def open_license(self, **kw):
+        from .license import LicenseDialog
+        return LicenseDialog.open(self, **kw)
+
+    def update_license_badge(self) -> None:
+        from .license import badge_text
+        btn = getattr(self, "_lic_btn", None)
+        if btn is not None and btn.winfo_exists():
+            btn.configure(text=badge_text(self))
+
+    def _license_banner(self) -> None:
+        """Pás licence nad kroky s výstupy (Generovat, Dokumentace, Kusovník)."""
+        if self.step in (STEP_GEN, STEP_DOCS, STEP_BOM) and self.prj.get("devices"):
+            from .license import banner
+            try:
+                banner(self, self.view)
+            except BridgeError:
+                pass
 
     def _toggle_topmost(self) -> None:
         on = self._var_topmost.get()
@@ -698,6 +727,7 @@ class App:
         for child in self.view.winfo_children():
             child.destroy()
         renderer = render_help if self.step == "help" else RENDERERS[self.step]
+        self._license_banner()
         try:
             renderer(self, self.view)
         except Pending as p:
@@ -705,6 +735,7 @@ class App:
             # po výsledku se krok vykreslí znovu (z cache) — jen pokud je pořád vidět
             for child in self.view.winfo_children():
                 child.destroy()
+            self._license_banner()
             self.pending_box(self.view, p.job, self.render)
         except BridgeError as exc:
             self._report(_("Jádro hlásí chybu: {exc}", exc=exc), traceback.format_exc())

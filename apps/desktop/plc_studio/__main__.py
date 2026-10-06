@@ -182,6 +182,8 @@ def main(argv: list[str] | None = None) -> int:
         app.open_project(args.project)
     # kontrola aktualizací na pozadí (nejvýš jednou denně, bez sítě tiše nic) — ne v --smoke
     root.after(2000, lambda: updates.start_check(app))
+    # licence: kontrola stavu na pozadí (nejvýš jednou denně, bez sítě beze změny) — ne v --smoke
+    root.after(3000, lambda: app.lic.background_check())
     root.mainloop()
     return 0
 

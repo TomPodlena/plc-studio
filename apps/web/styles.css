@@ -230,3 +230,13 @@ tr.ap-rej td:first-child{box-shadow:inset 3px 0 var(--err)}
 #sfDetail tfoot td{border-bottom:none}
 #sfSheet svg{max-width:100%;height:auto;background:#fff}
 @media (max-width:760px){#sfDetail .grid.g3,#sfDetail .grid.g2{grid-template-columns:1fr}}
+
+/* licence (license.js): odznak tarifu v hlavičce, pás nad kroky s výstupy, okno Licence */
+button.licbadge{border:1px solid var(--line);color:var(--muted);cursor:pointer;line-height:1.4}
+button.licbadge.lic-paid{border-color:var(--ok);color:var(--ok);font-weight:600}
+button.licbadge.lic-warn{border-color:var(--warn);color:var(--warn)}
+.notice.licbanner{margin:0 0 12px}
+.modal .licdialog{width:min(680px,100%)}
+.lictab{border-collapse:collapse;font-size:.84rem;margin:6px 0}
+.lictab th{text-align:left;color:var(--muted);font-weight:500;padding:2px 14px 2px 0}
+.lictab td{font-family:var(--font-mono);font-size:.78rem;overflow-wrap:anywhere}

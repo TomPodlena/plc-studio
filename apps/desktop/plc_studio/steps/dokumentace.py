@@ -16,7 +16,7 @@ def render(app, parent) -> None:
         return
     # sada obsahuje protokol ověření simulací — u velké linky se poprvé počítá desítky
     # sekund: počítá ji pracovní proces, okno zatím ukáže zástupný stav (app.PENDING_TEXT)
-    data = app.fetch("files", prj=app.prj)
+    data = app.fetch("files", prj=app.prj, lic=app.lic.gen_opts())   # knihovna bloků jen ve Firmě
     app.prj = data["prj"]
     files: list[dict] = data["files"]
 

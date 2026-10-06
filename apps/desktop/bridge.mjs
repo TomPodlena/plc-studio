@@ -301,18 +301,31 @@ const OPS = {
     return { prj, result: typeof result === "string" ? result : null };
   },
 
-  gen({ prj }) {
+  /* `lic` = brána licence ({ library }): bez tarifu Firma se vlastní šablony knihovny nepoužijí
+     a README to řekne (core license.ts licensedGen); bez `lic` výstup jádra beze změny. */
+  gen({ prj, lic = null }) {
     core.syncIO(prj);
     const out = {};
-    for (const pl of prj.platforms) out[pl] = core.genFor(prj, pl);
+    for (const pl of prj.platforms) out[pl] = lic ? core.licensedGen(prj, pl, lic) : core.genFor(prj, pl);
     return { prj, out };
   },
 
-  files({ prj }) {
+  files({ prj, lic = null }) {
     emuGate(prj);       // dokument 15 jen pro projekt, pro který emulace proběhla
     core.syncIO(prj);
-    return { prj, files: core.allProjectFiles(prj) };
+    return { prj, files: lic ? core.licensedProjectFiles(prj, lic) : core.allProjectFiles(prj) };
   },
+
+  /* Licence (core license.ts; síť a úložiště řeší desktop — plc_studio/license.py).
+     verify: podpis licenčního souboru zabudovaným veřejným klíčem (asynchronní WebCrypto).
+     state: stav licence + brána projektu z výsledku ověření a poslední odpovědi serveru.
+     file: soubor k uložení podle brány (patička Free / zamčeno). */
+  "license.verify"({ text }) { return core.verifyLicense(String(text || "")); },
+  "license.state"({ check = null, remote = null, ioLimit = core.FREE_IO_LIMIT, prj = null, now = null }) {
+    const state = core.licenseState(check, now ?? Date.now(), remote, ioLimit);
+    return { state, gate: prj ? core.projectGate(prj, state.ent, state.projects) : null };
+  },
+  "license.file"({ name, body, gate = null }) { return core.applyLicenseToFile(String(name || ""), String(body ?? ""), gate); },
 
   /* Import: analýza + rekonstrukce zařízení v jednom kroku (jen náhled). */
   import({ text }) {
@@ -373,7 +386,15 @@ rl.on("line", (line) => {
   try {
     const op = OPS[req.op];
     if (!op) throw new Error(core.tr("Neznámá operace: {op}", { op: req.op }));
-    send({ id: req.id, ok: true, result: op(req) });
+    const result = op(req);
+    /* asynchronní operace (ověření podpisu licence): odpověď až po dokončení — klient posílá
+       požadavky po jednom (zámek v bridge.py), pořadí odpovědí se tím nemění */
+    if (result && typeof result.then === "function") {
+      result.then(r => send({ id: req.id, ok: true, result: r }),
+        e => send({ id: req.id, ok: false, error: String((e && e.message) || e), code: (e && e.code) || "" }));
+      return;
+    }
+    send({ id: req.id, ok: true, result });
   } catch (e) {
     send({ id: req.id, ok: false, error: String((e && e.message) || e), code: (e && e.code) || "" });
   }

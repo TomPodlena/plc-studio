@@ -2,7 +2,7 @@
    Texty pro uživatele jdou přes tr() (český text = klíč překladu); struktura HTML zůstává mimo klíče. */
 import {
   PLAT, CLS, esc, blankProject, devById, nextName, syncIO, autoAddr, modules, wireNo,
-  validateProject, sanitizeTag, genFor, allProjectFiles,
+  validateProject, sanitizeTag, genFor, allProjectFiles, licensedGen, licensedProjectFiles,
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
   sampleSmall, sampleComplex, tr, N_, getLang, DO_ROLES, stepTitle,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
@@ -10,6 +10,7 @@ import {
   hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
 } from "../../../packages/core/dist/index.js";
 import { $, card, copyText, downloadFile, downloadFiles, normProject, normAi } from "./util.js";
+import { gateFor } from "./license.js";
 import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, SAMPLE_DESC, AI_EXAMPLE } from "./ai.js";
 
 /** Šířka číselného pole konfigurace osy podle délky textu (číslice + rezerva na šipky pole). */
@@ -751,7 +752,7 @@ export function makeSteps(ctx) {
     if (!p.devices.length) { card(el, "08", tr("Generování"), "<p class='hint'>" + tr("Nejdřív přidej zařízení (krok 4), nech si je navrhnout v kroku AI návrh, nebo použij volbu Import.") + "</p>"); return; }
     if (!p.platforms.length) { card(el, "08", tr("Generování"), "<p class='hint'>" + tr("Vyber aspoň jednu platformu (krok 3).") + "</p>"); return; }
     const cache = {};
-    for (const pl of p.platforms) cache[pl] = genFor(p, pl);
+    for (const pl of p.platforms) cache[pl] = licensedGen(p, pl, gateFor(p));   // knihovna bloků jen v tarifu Firma (license.js)
     const plats = p.platforms;
     if (outerTab >= plats.length) outerTab = 0;
     const files = Object.keys(cache[plats[outerTab]]);
@@ -781,7 +782,7 @@ export function makeSteps(ctx) {
     const p = prj();
     syncIO(p);
     if (!p.devices.length) { card(el, "09", tr("Dokumentace"), "<p class='hint'>" + tr("Nejdřív navrhni zařízení (kroky 2–4).") + "</p>"); return; }
-    const files = allProjectFiles(p);
+    const files = licensedProjectFiles(p, gateFor(p));
     if (docSel >= files.length) docSel = 0;
     const groups = [...new Set(files.map(f => f.group))];
     let listHtml = "";

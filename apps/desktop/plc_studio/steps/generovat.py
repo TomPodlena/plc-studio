@@ -68,7 +68,7 @@ def render_code(app, body) -> None:
     if not app.prj["platforms"]:
         wrap_label(body, _("Vyber aspoň jednu platformu (krok 3)."))
         return
-    data = app.fetch("gen", prj=app.prj)
+    data = app.fetch("gen", prj=app.prj, lic=app.lic.gen_opts())     # knihovna bloků jen ve Firmě
     app.prj = data["prj"]
     out: dict = data["out"]
     plats = list(out)

@@ -12,6 +12,7 @@ import { $, normProject, normAi } from "./util.js";
 import { makeGenTabs } from "./gen_tabs.js";
 import { emuGate } from "./emu_step.js";
 import { trn } from "./plural.js";
+import { initLicense, renderLicenseBadge, licenseBanner, openLicenseDialog } from "./license.js";
 
 /* Bezpečnostní modul: položky ke schválení (nebezpečí, funkce, návrh, program), kroky validace
    v oživení, dokumenty 13/14, bezpečnostní program a položky kusovníku. */
@@ -129,6 +130,7 @@ function scheduleBadge() {
   }, 400);
 }
 $("badgeApproval").addEventListener("click", () => { S.step = STEP_APPROVAL; save(); render(); });
+$("badgeLicense").addEventListener("click", () => openLicenseDialog());
 
 /* Statické texty hlavičky a patičky (v index.html jsou česky jako výchozí). */
 function renderStatic() {
@@ -137,6 +139,7 @@ function renderStatic() {
   $("badgePlat").textContent = trn(S.prj.platforms.length, N_("{n} platforma|{n} platformy|{n} platforem"));
   $("stepper").setAttribute("aria-label", tr("Kroky návrhu"));
   $("lang").setAttribute("aria-label", tr("Jazyk rozhraní"));
+  $("badgeLicense").setAttribute("aria-label", tr("Licence a tarif"));
   $("lang").value = getLang();
   $("btnPrev").textContent = "← " + tr("Zpět");
   $("btnNext").textContent = tr("Pokračovat") + " →";
@@ -165,6 +168,9 @@ function render() {
     n.textContent = S.notice.text;
     $("view").appendChild(n);
   }
+  /* licence: pás nad kroky s výstupy (Generovat, Dokumentace, Kusovník) — nad limitem Free výrazně */
+  if ([7, 8, 9].includes(S.step)) licenseBanner($("view"), S.prj);
+  renderLicenseBadge($("badgeLicense"));
   r($("view"));
   wizard.render();
   showBadge();
@@ -188,6 +194,8 @@ $("lang").addEventListener("change", e => {
 });
 
 applyLang(loadLang());
+/* licence (license.js): ověří uloženou licenci před prvním vykreslením, kontrola na pozadí nejvýš 1× denně */
+await initLicense({ project: () => S.prj, onChange: () => render() });
 if (!load()) {   // první návštěva: předvyplněná ukázka
   S.prj = sampleComplex();
   S.ai = seedFromProject(S.prj, tr(SAMPLE_DESC.complex), tr("Ukázkový návrh složité linky — předvyplněno jako příklad práce AI návrháře."));

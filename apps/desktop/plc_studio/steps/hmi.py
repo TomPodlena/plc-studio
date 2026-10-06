@@ -34,7 +34,10 @@ def trigger_text(tg: dict | None) -> str:
 
 
 def save_bytes(app, name: str, data: bytes) -> bool:
-    """Dialog „Uložit jako“ pro binární soubor (sešit .xlsx)."""
+    """Dialog „Uložit jako“ pro binární soubor (sešit .xlsx); nad limitem Free zamčeno (licence)."""
+    from ..widgets import license_filter
+    if license_filter(app, name, data) is None:
+        return False
     ext = name.rsplit(".", 1)[-1]
     path = filedialog.asksaveasfilename(
         parent=app.root, title=_("Uložit soubor"), initialfile=name,

@@ -467,6 +467,32 @@ python scripts/build_verification.py        # data/verification.json → verific
   CODESYS / Machine Expert Visu; TwinCAT HMI; GT Designer3; Sysmac NA; Unitronics bez exportu) se stavem `unverified` / `reference` / `stub` a zdroji (`hmiExportSpec`).
   Dokument `16_hmi.md` a soubory se přidají po `registerHmiModule()` (opt-in, klienti ve fázi 3).
 
+## Licence v aplikaci (`license.ts`, web `license.js`, desktop `license.py`)
+
+- **Server** = Worker `apps/site/worker` (`/api/license/activate`, `/check`, `/api/config`); licenční soubor
+  `<base64url(JSON)>.<base64url(Ed25519)>` (`signLicense`), jádro ho ověří offline (`verifyLicense`, WebCrypto
+  Ed25519) klíči v `LICENSE_PUBLIC_KEYS` (raw 32 B base64 z `apps/site/tools/keygen.js`). **Produkční veřejný
+  klíč je TODO** — bez něj žádná licence neprojde (stav `invalid`, aplikace běží jako Free).
+- **Tarify** (`entitlements`, přesně podle ceníku webu): Free = projekt do 64 I/O (`/api/config`
+  free_io_limit; `projectIoCount` = `devSignals`), dokumenty .md / .html a README s patičkou
+  (`addLicenseFooter`), bez DXF, bez firemní knihovny v generátoru; Pro (i `trial`) = bez limitu, bez
+  patičky, DXF; Firma = + knihovna (vlastní šablony bloků a firemní hlavička, `licensedProject`).
+  `free-unlock` (správa zákazníků) = Free bez limitu I/O. Platí do `exp`, pak 30 dní tolerance
+  (`GRACE_DAYS`), pak Free; `canceled` z `/check` = Free hned; `past_due` nic nezamyká.
+- **Brána projektu** `projectGate` → nad limitem bez odemčení náhled ano, stažení / uložení výstupů ne
+  (`applyLicenseToFile`; projekt `.plcstudio.json` a knihovna `.plcdesk-library.json` vždy). **Kód PLC se
+  licencí nemění**; výchozí výstup jádra beze změny (golden) — licenci uplatňují jen klienti
+  (`licensedGen` / `licensedProjectFiles` s poznámkou do README, patička při stažení / uložení).
+- **Klienti:** web `localStorage` `plcstudio.license` + ID instalace `plcstudio.deviceId`, brána v
+  `util.downloadFile(s)` a HMI xlsx, pás nad kroky 8–10, odznak tarifu v hlavičce; API Workeru nemá CORS →
+  aktivace klíčem z webu na jiném originu selže a aplikace nabídne vložení licenčního souboru (offline).
+  Desktop `license.json` ve složce stavu, otisk = SHA-256 z MachineGuid, síť jen ve vlákně (urllib), brány
+  v `widgets.save_file` / `save_many` a `hmi.save_bytes`, operace mostu `license.verify` (async) /
+  `license.state` / `license.file`, `gen` / `files` s `lic`. Kontrola na pozadí nejvýš 1× denně.
+- **Odemčení prvního projektu:** `/api/unlock` vyžaduje Turnstile a web formulář nemá → aplikace otevře
+  stránku Kontakt a text žádosti s ID projektu (`prj.guid`) dá do schránky; odemčení přijde jako licence
+  `free-unlock`. Testy: `license.test.ts`, `apps/desktop/tests/test_license.py`.
+
 ## Revize a změnové řízení (`revision.ts`)
 
 - `createRevision(prj, kdo, poznámka)` → `prj.revisions` (označení A, B… nebo 01, 02…; zmrazený obsah bez

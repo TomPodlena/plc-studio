@@ -568,8 +568,25 @@ def write_text(path: str | Path, body: str) -> None:
         fh.write(body)
 
 
+def license_filter(app, name: str, body):
+    """Obsah souboru podle licence (patička Free) — None, když je uložení zamčené (pak vysvětlí)."""
+    lic = getattr(app, "lic", None)
+    if lic is None:
+        return body
+    out, why = lic.filter_file(name, body)
+    if out is None:
+        lic.blocked(why)
+    return out
+
+
 def save_file(app, name: str, body: str) -> bool:
-    """Dialog „Uložit jako" pro jeden soubor; vrací, zda se uložilo."""
+    """Dialog „Uložit jako" pro jeden soubor; vrací, zda se uložilo.
+
+    Licence: nad limitem Free a DXF ve Free se neuloží (okno Licence s důvodem), dokumenty a README
+    dostanou ve Free patičku PLCdesk; projekt a firemní knihovna se ukládají vždy."""
+    body = license_filter(app, name, body)
+    if body is None:
+        return False
     ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
     # popis typu se překládá až tady (tabulka vzniká při importu, kdy jazyk ještě není znám)
     types = [(_(_FILETYPES[ext][0]), _FILETYPES[ext][1])] if ext in _FILETYPES else []
@@ -593,7 +610,23 @@ def save_file(app, name: str, body: str) -> bool:
 def save_many(app, files: list[tuple[str, str]], what: str | None = None) -> bool:
     """Uloží víc souborů do zvolené složky; na přepis existujících se zeptá.
 
-    ``what`` (4. pád, např. „výkresy") předává volající už přeložené."""
+    ``what`` (4. pád, např. „výkresy") předává volající už přeložené. Licence jako ``save_file``:
+    zamčené soubory (DXF ve Free) se přeskočí a důvod se ukáže jednou; nad limitem nic."""
+    lic = getattr(app, "lic", None)
+    if lic is not None:
+        kept, why = [], ""
+        for name, body in files:
+            out, reason = lic.filter_file(name, body)
+            if out is None:
+                why = why or reason
+            else:
+                kept.append((name, out))
+        if why and not kept:
+            lic.blocked(why)
+            return False
+        files = kept
+    else:
+        why = ""
     folder = filedialog.askdirectory(
         parent=app.root, title=_("Složka pro {what}", what=what or _("soubory")), mustexist=True,
         initialdir=app.settings.get("last_dir") or None)
@@ -615,6 +648,8 @@ def save_many(app, files: list[tuple[str, str]], what: str | None = None) -> boo
         return False
     app.settings["last_dir"] = str(target)
     app.set_status(_("Uloženo {n} souborů do {target}", n=len(files), target=target))
+    if why:
+        lic.blocked(why)
     return True
 
 

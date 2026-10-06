@@ -399,6 +399,26 @@ class SvgTest(unittest.TestCase):
                         self.assertNotEqual(v, "currentColor")
 
 
+class pro_license:
+    """Tarif Pro po dobu bloku (ověření podpisu nahrazené — produkční klíč v repu není; stav a bránu
+    počítá skutečné jádro). Free je výchozí stav testů: DXF se neukládá, dokumenty mají patičku."""
+
+    def __init__(self, app):
+        self.app = app
+
+    def __enter__(self):
+        lic = self.app.lic
+        self.saved = lic.check
+        lic.check = {"ok": True, "claims": {"v": 1, "key": "PLCD-ABCD-EFGH-JKLM-NPQR", "email": "t@t.cz",
+                                            "plan": "pro", "seats": 1, "exp": "2099-01-01T00:00:00.000Z"}}
+        lic.recompute()
+        return lic
+
+    def __exit__(self, *exc):
+        self.app.lic.check = self.saved
+        self.app.lic.recompute()
+
+
 def walk(widget):
     for w in widget.winfo_children():
         yield w
@@ -891,8 +911,13 @@ class GuiTest(unittest.TestCase):
         sheet_combo.set(sheet_combo.cget("values")[-1])
         self.root.update()
         self.assertNotEqual(len(views[2].canvas.find_all()), before)
+        free = tempfile.mkdtemp()                    # Free: výkresy SVG ano, DXF ne (licence)
+        with mock.patch("tkinter.filedialog.askdirectory", return_value=free):
+            self.click("Uložit všechny výkresy do složky…")
+        self.assertFalse(any(n.endswith(".dxf") for n in os.listdir(free)))
+        self.assertIn("00_blokove_schema.svg", os.listdir(free))
         out = tempfile.mkdtemp()
-        with mock.patch("tkinter.filedialog.askdirectory", return_value=out):
+        with pro_license(self.app), mock.patch("tkinter.filedialog.askdirectory", return_value=out):
             self.click("Uložit všechny výkresy do složky…")
         names = sorted(os.listdir(out))
         self.assertIn("00_blokove_schema.svg", names)
@@ -1703,7 +1728,13 @@ class GuiTest(unittest.TestCase):
             self.click("Uložit vše do složky…")
         saved = os.listdir(out2)
         self.assertIn("01_funkcni_specifikace_FDS.md", saved)
-        self.assertTrue(any(n.endswith(".dxf") for n in saved))
+        self.assertFalse(any(n.endswith(".dxf") for n in saved), "Free: bez DXF")
+        self.assertIn("PLCdesk Free", Path(out2, "01_funkcni_specifikace_FDS.md").read_text(encoding="utf-8"))
+        out3 = tempfile.mkdtemp()
+        with pro_license(self.app), mock.patch("tkinter.filedialog.askdirectory", return_value=out3):
+            self.click("Uložit vše do složky…")
+        self.assertTrue(any(n.endswith(".dxf") for n in os.listdir(out3)), "Pro: DXF")
+        self.assertNotIn("PLCdesk Free", Path(out3, "01_funkcni_specifikace_FDS.md").read_text(encoding="utf-8"))
         self.assertTrue(any(n.startswith("beckhoff_") for n in saved))
         with mock.patch("tkinter.filedialog.askdirectory", return_value=out2), \
                 mock.patch("tkinter.messagebox.askyesno", return_value=False) as ask:
