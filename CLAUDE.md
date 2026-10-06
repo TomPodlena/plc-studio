@@ -353,6 +353,11 @@ python scripts/build_verification.py        # data/verification.json → verific
   „Stav k“ = nejnovější datum, stav každého řádku tabulky; texty řádků zůstávají v `content/<jazyk>.json`
   s `key` nebo `members` — sloučený řádek profilů CODESYS, dlaždice se rozvinou po platformách; nesoulad
   platforem / stavů nebo natvrdo psaný počet platforem = varování buildu → deploy se zastaví).
+- **Balík k ověření pro beta testery** (`verify_pack.ts`: `verifyPackFiles` / `verifyPackZip`, vzory sampleSmall,
+  11, sampleComplex, 12 — data 11 a 12 v `verify_pack_samples.ts`, shodu se `samples/` hlídá test): výstupy `genFor`,
+  `NAVOD.md` (odkazuje na README, nic neopisuje), `PROTOKOL.md` (šablona bez osobních údajů), `MANIFEST.json`
+  (verze `PLCDESK_VERSION` = package.json = desktop `__version__`, commit, SHA-256 souborů). Tlačítko u platforem
+  se stavem `beta` v kroku Platformy (web i desktop, mimo licenční bránu). Protokol testera → postup níže.
 - **Pravidlo: po každém ověření naostro** (import / překlad v IDE nebo překladači výrobce) zapsat záznam do
   `data/verification.json` + protokol bez osobních údajů do `docs/verification/<ide>-<verze>.md`, pak
   `build_verification.py`, build jádra, `i18n.py missing/merge`, golden **jen README** (vědomá změna, výběrové

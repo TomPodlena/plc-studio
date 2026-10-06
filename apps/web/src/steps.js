@@ -8,8 +8,9 @@ import {
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
   buildBom, bomOptions, bomPlatform, bomCsv, catKey, suppliersFor, SUPPLIERS, CATALOG_DATE, PLATFORM_REFS,
   hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
+  verifyPackArchive, licenseSiteUrl,
 } from "../../../packages/core/dist/index.js";
-import { $, card, copyText, downloadFile, downloadFiles, normProject, normAi } from "./util.js";
+import { $, card, copyText, downloadFile, downloadFiles, saveBytesUngated, normProject, normAi } from "./util.js";
 import { gateFor } from "./license.js";
 import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, SAMPLE_DESC, AI_EXAMPLE } from "./ai.js";
 
@@ -325,6 +326,25 @@ export function makeSteps(ctx) {
       <p class="hint">${tr("OOP: rozhraní I_Device, abstraktní základ FB_DeviceBase, třídy zařízení s metodami a vlastnostmi, sekvence ve FB_Sequence. Chování je stejné jako u klasického stylu (ověřuje emulátor), mění se jen zápis. Platí pro: {list}; ostatní platformy dostanou klasický kód.", { list: oopPlats.map(k => PLAT[k].name).join(", ") })}</p>
     </fieldset>`;
   }
+  /** Balík k ověření pro beta testery (verify_pack.ts): tlačítko + výzva s odkazem na Kontakt webu. */
+  function verifyPackHtml(k, pf) {
+    return `<span class="vpack"><button class="small" type="button" data-vpack="${k}">${esc(tr("Balík k ověření"))}</button>
+      <span class="hint">${esc(tr("Máte {ide}? Ověřte import a pošlete nám protokol — licenci Pro dostanete zdarma.", { ide: pf.ide }))}
+      <a href="${esc(licenseSiteUrl("kontakt"))}" target="_blank" rel="noopener">${esc(tr("Kontakt"))}</a></span></span>`;
+  }
+  /** Stáhne ZIP balíku k ověření. Není to export projektu uživatele (pevné vzory) → licenční brána
+   *  ho neblokuje (ani ve Free, ani nad limitem I/O). */
+  async function downloadVerifyPack(k, btn) {
+    btn.disabled = true;
+    const old = btn.textContent;
+    btn.textContent = tr("Připravuji balík…");
+    try {
+      const a = await verifyPackArchive(k);
+      saveBytesUngated(a.name, a.bytes, "application/zip");
+    } catch (e) {
+      alert(tr("Balík se nepodařilo připravit: {err}", { err: (e && e.message) || String(e) }));
+    } finally { btn.disabled = false; btn.textContent = old; }
+  }
   function rPlat(el) {
     const p = prj();
     const c = card(el, "03", tr("Cílové platformy"), `
@@ -334,6 +354,7 @@ export function makeSteps(ctx) {
       <div class="plat ${p.platforms.includes(k) ? "on" : ""}" data-k="${k}" role="button" tabindex="0" aria-pressed="${p.platforms.includes(k)}">
         <span class="plat-head"><b>${pf.name}</b><span class="verif verif-${v.state}" title="${esc(v.tip)}">${esc(v.label)}</span></span><span>${pf.ide} · ${pf.cpu}</span><span class="lng">${tr(pf.lang)} · ${tr(pf.imp)}</span>
         ${hasAxis(p) && !axisSupport(p, k).ok ? "<span class='lng' style='color:var(--warn)' title='" + esc(axisSupport(p, k).why) + "'>" + tr("servoosu nepodporuje") + "</span>" : ""}
+        ${v.state === "beta" ? verifyPackHtml(k, pf) : ""}
       </div>`; }).join("")}
     </div>`).join("")}
     <p class="hint" style="margin-top:10px">${tr("Štítek u platformy říká, jak je výstup ověřený: ověřeno v IDE (import a překlad ve skutečném vývojovém prostředí), jazyk ověřen (překladačem, ne v IDE výrobce), beta (jen emulátor PLCdesk). Co ověřené není, ukáže bublina nad štítkem.")}</p>
@@ -343,6 +364,9 @@ export function makeSteps(ctx) {
       if (r.value === "oop") p.codeStyle = "oop"; else delete p.codeStyle;
       save(); render();
     }));
+    /* balík k ověření: klik na tlačítko / odkaz nesmí přepnout výběr platformy */
+    c.querySelectorAll("[data-vpack]").forEach(b => b.addEventListener("click", () => downloadVerifyPack(b.dataset.vpack, b)));
+    c.querySelectorAll(".vpack").forEach(x => ["click", "keydown"].forEach(t => x.addEventListener(t, e => e.stopPropagation())));
     c.querySelectorAll(".plat").forEach(d => {
       const toggle = () => {
         const k = d.dataset.k;

@@ -160,6 +160,17 @@ export function downloadFile(name, body, quiet = false) {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   return true;
 }
+/** Binární soubor ke stažení BEZ licenční brány — jen pro obsah, který není výstupem projektu
+ *  uživatele (balík k ověření s pevnými vzory). Výstupy projektu jdou přes downloadFile / downloadBytes. */
+export function saveBytesUngated(name, bytes, mime) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([bytes], { type: mime || "application/octet-stream" }));
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
 /** Víc souborů po sobě: prohlížeč zahazuje stahování spuštěná v jednom okamžiku (ověřeno: z 28 jich došlo 9). */
 export async function downloadFiles(list, btn) {
   if (btn) btn.disabled = true;

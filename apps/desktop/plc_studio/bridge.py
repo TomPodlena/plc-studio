@@ -34,7 +34,7 @@ SLOW_OPS = frozenset({"files", "verify", "commission", "approval", "scenarios", 
 WORKER_OPS = frozenset({"files", "verify", "commission", "approval", "approval.badge",
                         "approval.many", "approval.tune", "safety", "exports", "bom", "gen",
                         "quote.files", "revision.affected", "revision.view", "revision.md",
-                        "revision.create", "emu.platform", "emu.finish"})
+                        "revision.create", "emu.platform", "emu.finish", "verifypack"})
 # funkce jádra (operace ``call``), které počítají položky schválení / plán oživení (ověření)
 WORKER_FNS = frozenset({"approve", "reject", "resetApproval", "setCommissionResult",
                         "clearCommissionResult", "docVerifyMd"})

@@ -134,6 +134,13 @@ const OPS = {
       suppliers: [...sups.values()], date: core.CATALOG_DATE, csv: core.bomCsv(prj) };
   },
 
+  /* Balík k ověření pro beta testery (verify_pack.ts): ZIP v base64 + název souboru. Není to export
+     projektu uživatele (pevné vzory) — licenční brána se na něj nevztahuje. Asynchronní (SHA-256). */
+  async verifypack({ plat, version = null, commit = null }) {
+    const a = await core.verifyPackArchive(plat, { version: version || undefined, commit });
+    return { name: a.name, zip: Buffer.from(a.bytes).toString("base64"), files: a.files };
+  },
+
   /* Odkazy na dokumentaci platforem pro nápovědu (názvy přeložené). */
   refs() {
     return Object.fromEntries(Object.entries(core.PLATFORM_REFS)
