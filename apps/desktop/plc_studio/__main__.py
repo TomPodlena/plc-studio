@@ -98,6 +98,7 @@ def _smoke(app: App, shots: Path | None) -> int:
                 app.ui.update(ui)
                 app.goto(step)
                 root.update()
+                app.wait_jobs()               # drahé výpočty běží v pracovním procesu
                 if shots:
                     root.after(250)
                     root.update()

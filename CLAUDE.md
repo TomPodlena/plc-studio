@@ -29,6 +29,11 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
   jako web. **Logiku nekopíruje** — volá `packages/core/dist` a `apps/web/src/ai.js` přes trvalý
   proces Node (`bridge.mjs`, JSON po řádcích); výkresy z jádra kreslí na `tk.Canvas`.
   Změna v jádře se v desktopu projeví sama, nový krok/prvek UI je potřeba doplnit ve webu i tady.
+  **Drahé výpočty běží ve druhém procesu Node** (`bridge.py` `DualBridge`: hlavní proces = rychlé operace
+  synchronně, pracovní proces z vlákna = `WORKER_OPS` / `WORKER_FNS` — dokumentace, ověření, oživení,
+  schvalování, kusovník, emulace; cache operace × jazyk × parametry). Kroky čtou přes `app.fetch` / `app.deferred`
+  (výjimka `Pending` → zástupný stav s průběhem a Zrušit, výsledek se dokreslí přes `_pump`); nový drahý krok
+  = totéž, jinak okno zamrzne. Tk jen z hlavního vlákna; testy a `--smoke` čekají přes `app.wait_jobs()`.
   Desktop má navíc proti webu: klikací schémata s panelem zařízení a odkazy mezi kroky, funkční
   diagram cyklu, živou simulaci (grafické schéma systému s vodiči a animací funkce, tlačítka
   AUTO / START / E-STOP / kvitace, ruční povely) a přehrávač

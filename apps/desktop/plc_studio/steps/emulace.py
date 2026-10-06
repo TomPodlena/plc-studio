@@ -43,6 +43,23 @@ def run_emulation(app, plats: list[str], progress=None) -> dict:
     run = app.ui["emu_run"] = {"stop": False, "i": 0, "n": len(plats), "plat": plats[0] if plats else ""}
     out = {"key": key, "plats": [], "res": {}, "ms": 0, "doc": False, "stopped": False, "error": ""}
     t0 = time.monotonic()
+
+    def call(op: str, **payload):
+        """Emulace běží v pracovním procesu (tam žije i přihlášený dokument 15). S průběhem
+        okno mezi tím zpracovává události — dá se přepnout krok, zavřít okno, Zastavit."""
+        if progress is None:
+            return app.bridge.request(op, **payload)
+        job = app.bridge.submit(op, payload, preemptible=False)
+        while not job.finished:
+            try:
+                app.root.update()
+            except tk.TclError:                  # okno se zavřelo
+                app.bridge.cancel(job, "closed")
+                break
+            job.event.wait(0.03)
+        job.event.wait()
+        return job.result()                      # zrušeno / chyba → BridgeError
+
     try:
         if not app.ui.get("emu_rules"):
             app.ui["emu_rules"] = app.bridge.request("emu.rules")
@@ -53,10 +70,10 @@ def run_emulation(app, plats: list[str], progress=None) -> dict:
             if run["stop"]:
                 out["stopped"] = True
                 break
-            out["res"][pl] = app.bridge.request("emu.platform", prj=app.prj, plat=pl)
+            out["res"][pl] = call("emu.platform", prj=app.prj, plat=pl)
             out["plats"].append(pl)
-        fin = app.bridge.request("emu.finish", prj=app.prj, plats=out["plats"]) if not out["stopped"] \
-            else app.bridge.request("emu.finish", prj=app.prj, plats=[])
+        fin = call("emu.finish", prj=app.prj, plats=out["plats"]) if not out["stopped"] \
+            else call("emu.finish", prj=app.prj, plats=[])
         out["doc"], out["file"] = fin["doc"], fin["file"]
     except BridgeError as exc:
         out["error"] = str(exc)

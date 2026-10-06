@@ -15,13 +15,8 @@ def render(app, parent) -> None:
         wrap_label(body, _("Nejdřív navrhni zařízení (kroky 2–4)."))
         return
     # sada obsahuje protokol ověření simulací — u velké linky se poprvé počítá desítky
-    # sekund; bez zprávy by okno vypadalo zamrzle se starým obsahem
-    wait = ttk.Label(body, text=_("Připravuji dokumentaci — u velkého stroje trvá první "
-                                  "ověření simulací i desítky sekund…"), style="Dim.TLabel")
-    wait.pack(anchor="w")
-    app.root.update_idletasks()
-    data = app.bridge.request("files", prj=app.prj)
-    wait.destroy()
+    # sekund: počítá ji pracovní proces, okno zatím ukáže zástupný stav (app.PENDING_TEXT)
+    data = app.fetch("files", prj=app.prj)
     app.prj = data["prj"]
     files: list[dict] = data["files"]
 

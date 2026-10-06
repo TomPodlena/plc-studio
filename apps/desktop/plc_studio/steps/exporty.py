@@ -86,7 +86,7 @@ def _steps(parent, lines: list[str]) -> None:
 
 
 def render(app, parent) -> None:
-    data = app.bridge.request("exports", prj=app.prj)
+    data = app.fetch("exports", prj=app.prj)
     app.prj = data["prj"]
     sx, ep = data["sistema"], data["eplan"]
     unverified = _("neověřeno importem")

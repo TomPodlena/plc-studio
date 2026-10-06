@@ -33,7 +33,7 @@ PANEL_W = 500
 
 def safety_data(app, target: str | None = None) -> dict:
     """Pohled kroku (funkce, položky ke schválení, program, výkres); projekt z mostu převezme I/O."""
-    data = app.bridge.request("safety", prj=app.prj, target=target)
+    data = app.fetch("safety", prj=app.prj, target=target)
     app.prj = data["prj"]
     return data["view"]
 

@@ -417,6 +417,7 @@ class GuiTest(unittest.TestCase):
         cls.app.close()
 
     def setUp(self):
+        self.app.wait_jobs(300)        # výpočty pracovního procesu z minulého testu doběhnou
         self.app.errors.clear()
         self.app.ui.clear()
 
@@ -428,6 +429,7 @@ class GuiTest(unittest.TestCase):
     def goto(self, step):
         self.app.goto(step)
         self.root.update()
+        self.assertTrue(self.app.wait_jobs(300), "výpočet v pracovním procesu nedoběhl")
 
     def find(self, cls, parent=None):
         # Combobox dědí z Entry — vstupní pole se proto hledají přesným typem

@@ -8,13 +8,13 @@ diagramu, stavy zařízení, časový diagram a protokol nálezů z ověření.
 from __future__ import annotations
 
 import bisect
-import json
 
 import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import ttk
 
 from .. import theme
+from ..bridge import Pending
 from ..i18n import N_, _
 from ..project import parse_num
 from ..svgview import SvgView
@@ -223,6 +223,9 @@ def build(app, parent) -> None:
     summary = ttk.Label(vbar, text=_("Spustí běžný cyklus a všechny poruchové scénáře."),
                         style="Dim.TLabel")
     summary.pack(side="left", padx=12)
+    ver_wait = ttk.Frame(t_ver)                   # zástupný stav, když se ověření počítá
+    ver_wait.pack(fill="x")
+    t_ver.wait_box = ver_wait                     # testy
     note_box(t_ver, _(
         "Simulace ověřuje návrh proti modelu generovaných bloků (stavové automaty "
         "a timeouty shodné s Gen_Library) a zjednodušenému modelu stroje. Neověřuje kód "
@@ -338,16 +341,27 @@ def build(app, parent) -> None:
                 play_scenario(cell["scenario"]["id"])
 
     def verify(manual: bool = False) -> None:
-        key = json.dumps(app.prj, sort_keys=True)
-        cached = ui.get("verify")
-        if manual and cached and cached[0] == key:
+        """Ověření počítá pracovní proces (u velké linky desítky sekund); okno mezitím reaguje,
+        výsledek se dokreslí do záložky, pokud je pořád otevřená. Cache = otisk projektu + jazyk."""
+        job = getattr(ver_wait, "job", None)
+        if job is not None and not job.finished:
+            return                                   # už se počítá
+        for w in ver_wait.winfo_children():          # hláška o zrušení / chybě minulého běhu
+            w.destroy()
+        if manual and app.bridge.is_cached("verify", prj=app.prj):
             # tlačítko jinak nedá žádnou odezvu (výsledek se nezměnil)
             app.set_status(_("Ověření je aktuální — návrh se od posledního ověření nezměnil."))
-        if not cached or cached[0] != key:
+        try:
+            res = app.fetch("verify", prj=app.prj)
+        except Pending as p:
             summary.configure(text=_("Ověřuji…"), style="Dim.TLabel")
-            parent.update_idletasks()
-            cached = ui["verify"] = (key, app.bridge.request("verify", prj=app.prj))
-        fill_checks(cached[1])
+            ver_wait.job = p.job
+            box = app.pending_box(ver_wait, p.job, verify, expand=False)
+            box.configure(padding=(0, 8))
+            app.on_job(p.job, lambda j: j.state == "done" or not summary.winfo_exists()
+                       or summary.configure(text="", style="Dim.TLabel"), owner=box)
+            return
+        fill_checks(res)
 
     def add_scenario(sc: dict) -> None:
         """Doplní scénář (např. z matice stavů) do nabídky přehrávače."""

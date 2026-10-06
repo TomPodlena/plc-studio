@@ -53,7 +53,8 @@ def render(app, parent) -> None:
         app.ui["gen_tab"] = i
         if i not in done:
             done.add(i)
-            renderers[i](app, frames[i])
+            # záložka čekající na výpočet ukáže zástupný stav a dokreslí se sama
+            app.deferred(frames[i], lambda: renderers[i](app, frames[i]))
 
     sel = app.ui.get("gen_tab", TAB_CODE)
     nb.select(sel if isinstance(sel, int) and 0 <= sel < len(TABS) else TAB_CODE)
@@ -67,7 +68,7 @@ def render_code(app, body) -> None:
     if not app.prj["platforms"]:
         wrap_label(body, _("Vyber aspoň jednu platformu (krok 3)."))
         return
-    data = app.bridge.request("gen", prj=app.prj)
+    data = app.fetch("gen", prj=app.prj)
     app.prj = data["prj"]
     out: dict = data["out"]
     plats = list(out)

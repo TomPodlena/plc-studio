@@ -60,7 +60,7 @@ def name_bar(parent, app, label: str, on_change=None) -> ttk.Entry:
 
 def approval_data(app) -> dict:
     """Položky ke schválení se stavy (projekt z mostu převezme srovnané I/O)."""
-    data = app.bridge.request("approval", prj=app.prj)
+    data = app.fetch("approval", prj=app.prj)
     app.prj = data["prj"]
     return data
 
