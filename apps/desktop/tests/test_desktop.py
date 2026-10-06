@@ -629,6 +629,72 @@ class GuiTest(unittest.TestCase):
                 self.goto(step)
                 self.assertTrue(self.app.view.winfo_children())
 
+    def test_device_name_must_be_unique_identifier(self):
+        """Formulář Zařízení odmítne duplicitní označení (i jinou velikostí písmen) a označení,
+        které není identifikátor — dřív prošlo a rozbilo Dokumentaci, Schválení i Oživení."""
+        self.app.reset_project()
+        self.goto(3)
+
+        def add(name):
+            ent = self.find(ttk.Entry)[0]
+            ent.delete(0, "end")
+            ent.insert(0, name)
+            self.click("Přidat zařízení")
+            return [d["name"] for d in self.app.prj["devices"]]
+
+        self.assertEqual(add("M1"), ["M1"])
+        for bad in ("M1", "m1", "Čerpadlo1", "M 2", "1M", "_M3", "M__4", "M5_", "M" * 33):
+            self.assertEqual(add(bad), ["M1"], f"{bad!r} se nemělo přidat")
+            self.assertTrue(str(self.app._status.cget("text")).startswith("⚠"), bad)
+        add("m1")
+        self.assertIn("M1", str(self.app._status.cget("text")))      # hláška jmenuje kolizi
+        self.assertEqual(add("M2_A"), ["M1", "M2_A"])
+        self.assertEqual(add("P1"), ["M1", "M2_A", "P1"])
+        from plc_studio.steps.zarizeni import name_problem
+        prj = self.app.prj
+        self.assertIsNone(name_problem(prj, "M1", skip_id=prj["devices"][0]["id"]))  # sám sebe
+        self.assertIsNotNone(name_problem(prj, "p1"))
+        # Dokumentace se po přidání vykreslí (dřív: duplicate step id io:M1.fbkRunning)
+        self.goto(8)
+        self.assertNotIn("⚠", " ".join(str(w.cget("text")) for w in self.find(ttk.Label)))
+
+    def test_apply_unchanged_proposal_keeps_project(self):
+        """Převzetí návrhu, který AI vrátila beze změny (seed vzoru 16 i po aiNorm), projekt
+        nezmění: zařízení se všemi poli (travelS, libType, records, selBits, osa…) i I/O
+        s ručními adresami, komentáři, NC a GUID."""
+        from plc_studio.steps.ai_navrh import apply_proposal
+        path = Path(__file__).resolve().parents[3] / "samples" / "16_paletizacni_bunka_osy_PC-16.plcstudio.json"
+        self.assertTrue(self.app.open_project(path))
+        prj = self.app.prj
+        # ruční úpravy z kroku I/O a pole mimo běžný formulář
+        prj["io"][0].update(addr="%I7.7", cmt="ručně upravený komentář", nc=True)
+        pd = next(d for d in prj["devices"] if d["cls"] == "PosDrive")
+        pd["travelS"] = 2.5
+        pd["libType"] = "firemni_typ"
+        self.app.sync()
+        before = json.loads(json.dumps({k: self.app.prj[k] for k in ("devices", "io", "program")}))
+        seed = self.app.bridge.ai("seedFromProject", self.app.prj, "vzor 16", "")
+        for last in (seed["last"], self.app.bridge.ai("aiNorm", seed["last"])):
+            self.app.ai = {"turns": seed["turns"], "last": last, "draft": ""}
+            apply_proposal(self.app)
+            self.root.update()
+            after = {k: self.app.prj[k] for k in ("devices", "io", "program")}
+            self.assertEqual(after["devices"], before["devices"])
+            self.assertEqual(after["io"], before["io"])
+            self.assertEqual(after["program"], before["program"])
+
+    def test_delete_unused_device_without_dialog(self):
+        """Zařízení, které program nepoužívá, se smaže bez dotazu."""
+        self.app.reset_project()
+        self.goto(3)
+        self.click("Přidat zařízení")
+        d = self.app.prj["devices"][0]
+        self.table().select(d["id"])
+        with mock.patch("tkinter.messagebox.askyesno", return_value=False) as ask:
+            self.click("Odstranit vybrané")
+        ask.assert_not_called()
+        self.assertEqual(self.app.prj["devices"], [])
+
     def test_devices_add_edit_delete(self):
         self.app.reset_project()
         self.goto(3)
@@ -664,7 +730,17 @@ class GuiTest(unittest.TestCase):
         self.app.prj["program"]["estop"] = d["id"]
         self.app.prj["program"]["seq"] = [{"dev": d["id"], "act": "start", "cond": "fbk", "timeS": 3}]
         tbl.select(d["id"])
-        self.click("Odstranit vybrané")
+        # zařízení je v programu (krok, E-stop) → smaže se jen po potvrzení
+        with mock.patch("tkinter.messagebox.askyesno", return_value=False) as ask:
+            self.click("Odstranit vybrané")
+        ask.assert_called_once()
+        self.assertIn("1 krok sekvence", ask.call_args[0][1])
+        self.assertIn("vstup E-stop", ask.call_args[0][1])
+        self.assertEqual(len(self.app.prj["devices"]), 2)
+        self.assertEqual(len(self.app.prj["program"]["seq"]), 1)
+        self.table().select(d["id"])
+        with mock.patch("tkinter.messagebox.askyesno", return_value=True):
+            self.click("Odstranit vybrané")
         self.assertEqual([x["name"] for x in self.app.prj["devices"]], ["B1"])
         self.assertEqual(self.app.prj["program"],
                          {"modes": True, "estop": "", "seq": [], "interlocks": []})

@@ -33,8 +33,28 @@ const S = {
   step: 0,
 };
 
+/* Nepovedené uložení (plné úložiště — QuotaExceeded —, zakázané úložiště) se nezahazuje tiše:
+   trvalé varování pod lištou kroků, dokud se uložení znovu nepodaří. */
+let saveFailed = false;
 function save() {
-  try { localStorage.setItem(LS_KEY, JSON.stringify({ prj: S.prj, ai: S.ai, step: S.step })); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({ prj: S.prj, ai: S.ai, step: S.step }));
+    if (saveFailed) { saveFailed = false; showSaveWarn(); }
+  } catch (e) {
+    if (!saveFailed) console.warn("save:", e);
+    saveFailed = true; showSaveWarn();
+  }
+}
+function showSaveWarn() {
+  let w = document.getElementById("saveWarn");
+  if (!saveFailed) { if (w) w.hidden = true; return; }
+  if (!w) {
+    w = document.createElement("div");
+    w.id = "saveWarn"; w.className = "notice err savewarn"; w.setAttribute("role", "alert");
+    $("stepper").after(w);
+  }
+  w.hidden = false;
+  w.innerHTML = "<b>" + tr("Projekt se neukládá!") + "</b> " + tr("Úložiště prohlížeče je plné nebo zakázané, takže změny po zavření či obnovení stránky ztratíš. Ulož si návrh hned tlačítkem Export návrhu (JSON) v kroku Projekt. Místo uvolníš zmenšením projektu — nejvíc zabírají staré revize (odeber je z exportovaného JSON a načti ho znovu) — nebo smazáním dat této stránky v prohlížeči až po exportu.");
 }
 /** Načte uložený stav; vrací true, pokud nějaký byl (i prázdný projekt — ten se ukázkou nepřepisuje). */
 function load() {
@@ -125,6 +145,7 @@ function renderStatic() {
 function render() {
   emuGate(S.prj);   // dokument 15 jen pro projekt, pro který emulace proběhla
   renderStatic();
+  showSaveWarn();   // text varování v aktuálním jazyce
   const nav = $("stepper");
   nav.innerHTML = STEPS.map((s, i) => "<button class='" + (i === S.step ? "on" : (stepDone(i) ? "done" : "")) + "' data-i='" + i + "'>" + (i + 1) + " · " + tr(s) + "</button>").join("")
     + "<button class='helpbtn" + (S.step === "help" ? " on" : "") + "' data-help>?&nbsp;" + tr("Nápověda") + "</button>";

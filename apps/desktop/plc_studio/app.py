@@ -81,9 +81,33 @@ class App:
         root.report_callback_exception = self._on_callback_error
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._build_chrome()
+        self._busy_depth = 0
+        self.bridge.on_busy = self._on_busy        # drahé výpočty jádra: kurzor „watch“ + „Počítám…“
         self.render()
 
     # --- jádro -----------------------------------------------------------------
+
+    def _on_busy(self, on: bool) -> None:
+        """Most čeká na drahý výpočet jádra (dokumentace, ověření…) — okno mezitím
+        nereaguje, tak aspoň ukáže kurzor čekání a stav „Počítám…“."""
+        try:
+            if on:
+                self._busy_depth += 1
+                if self._busy_depth == 1:
+                    self.root.configure(cursor="watch")
+                    if not str(self._status.cget("text")):
+                        self._status.configure(text=_("Počítám…"))
+                    self.root.update_idletasks()
+            else:
+                self._busy_depth = max(0, self._busy_depth - 1)
+                if self._busy_depth == 0:
+                    self.root.configure(cursor="")
+                    if str(self._status.cget("text")) == _("Počítám…"):
+                        self._status.configure(text="")
+        except (tk.TclError, AttributeError):      # okno se zavírá / ještě není postavené
+            pass
+
+    # --- jádro (konstanty) -----------------------------------------------------
 
     def _load_core(self, lang: str) -> None:
         """Nastaví jazyk jádra i okna a načte konstanty jádra v tomto jazyce."""
@@ -461,6 +485,18 @@ class App:
 
     def render(self) -> None:
         """Překreslí lištu kroků a obsah aktuálního kroku."""
+        if getattr(self, "_rendering", False):
+            # vnořené překreslení (odložený callback zpracovaný během čekání na jádro —
+            # _on_busy volá update_idletasks) by zrušilo rozestavěný krok: odložit
+            self.root.after(10, self.render)
+            return
+        self._rendering = True
+        try:
+            self._render()
+        finally:
+            self._rendering = False
+
+    def _render(self) -> None:
         self._refresh_nav()
         self.update_title()
         num = isinstance(self.step, int)

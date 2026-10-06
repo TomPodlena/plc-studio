@@ -16,7 +16,7 @@ from tkinter import ttk
 from .. import ai_client, theme
 from ..bridge import BridgeError
 from ..i18n import N_, _
-from ..widgets import Table, card, scrolled_text, wrap_label
+from ..widgets import Table, card, scrolled_text, set_text, wrap_label
 from .program import ACT_LABEL
 from .zarizeni import _opts_text
 
@@ -48,29 +48,51 @@ def apply_proposal(app) -> None:
     if not pr or not pr["devices"]:
         return
     p = app.prj
-    # zařízení se stejným označením a třídou si nechá GUID (identita pro opakovaný export do EPLAN)
-    old_guid = {(d["name"], d["cls"]): d["guid"] for d in p["devices"] if d.get("guid")}
+    # zařízení, které v návrhu zůstalo (stejné označení a třída), si nechá identitu (GUID — opakovaný
+    # export do EPLAN), všechna pole, která AI neposlala (travelS, libType, records, selBits, drive
+    # osy…), i svá I/O s adresou, komentářem, NC a GUID (úpravy z kroku I/O)
+    old_dev = {(d["name"], d["cls"]): d for d in p["devices"]}
+    old_by_id = {d["id"]: d for d in p["devices"]}
+    old_io = p.get("io") or []
     p["devices"], p["io"], p["nextId"] = [], [], 1
     by_name = {}
     for d in pr["devices"]:
         name = d["name"] or app.core("nextName", p, d["cls"])
-        nd = {"id": p["nextId"], "name": name, "cls": d["cls"], "desc": d["desc"],
-              "opt": d["opt"], "unit": d["unit"], "rmin": d["rmin"], "rmax": d["rmax"]}
-        if (name, d["cls"]) in old_guid:
-            nd["guid"] = old_guid[(name, d["cls"])]
+        od = old_dev.get((name, d["cls"]))
+        nd = {k: v for k, v in json.loads(json.dumps(od)).items() if k != "id"} if od else {}
+        nd.update({"id": p["nextId"], "name": name, "cls": d["cls"], "desc": d["desc"],
+                   "opt": d["opt"], "unit": d["unit"], "rmin": d["rmin"], "rmax": d["rmax"]})
         # meze měření, žádaná hodnota a role výstupu (aiNorm je pustí jen u správné třídy)
         for key in EXTRA.get(d["cls"], ()):
             if _is_num(d.get(key)):
                 nd[key] = d[key]
         if d["cls"] == "DO" and d.get("role") in DO_ROLES:
             nd["role"] = d["role"]
-        if d["cls"] == "PosDrive" and isinstance(d.get("records"), list):
-            nd["records"] = d["records"]
+        if d["cls"] == "PosDrive":
+            if isinstance(d.get("records"), list):
+                nd["records"] = d["records"]
+            if _is_num(d.get("travelS")):
+                nd["travelS"] = d["travelS"]
+        if isinstance(d.get("libType"), str) and d["libType"]:
+            nd["libType"] = d["libType"]          # vlastní typ firemní knihovny
         if d["cls"] == "Axis" and isinstance(d.get("axis"), dict):   # konfigurace osy (aiNorm ji pročistil)
-            nd["axis"] = d["axis"]
+            # pole, která AI neposlala (pohon, ryv…), zůstanou z původní konfigurace
+            nd["axis"] = {**(nd.get("axis") or {}), **d["axis"]}
         p["nextId"] += 1
         p["devices"].append(nd)
         by_name[name] = nd
+    # I/O zařízení, které zůstalo: převzít (jen nové id a klíč); změněný popis se propíše do komentáře
+    for e in old_io:
+        od = old_by_id.get(e.get("devId"))
+        nd = by_name.get(od["name"]) if od else None
+        if nd is None or nd["cls"] != od["cls"]:
+            continue
+        ne = dict(e, devId=nd["id"], key=f"{nd['id']}:{e['sig']}")
+        cmt = ne.get("cmt")
+        if od.get("desc") and nd.get("desc") and nd["desc"] != od["desc"] and isinstance(cmt, str) \
+                and cmt.startswith(od["desc"]):
+            ne["cmt"] = nd["desc"] + cmt[len(od["desc"]):]
+        p["io"].append(ne)
     app.sync()
     p = app.prj
     p["program"]["estop"] = by_name.get(pr["estop"], {}).get("id", "")
@@ -225,7 +247,17 @@ def render(app, parent) -> None:
     var_model.trace_add("write", show_label)
     cfg._vars = (var_key, var_model)  # StringVar nesmí zaniknout s funkcí (prázdné pole)
 
-    # --- návrh (dole, ať ho vstup nevytlačí) ---
+    # --- tlačítka a vstup (úplně dole) — balí se PŘED návrhem: pack dává místo v pořadí
+    # balení, takže velký návrh (stovky kroků) v nízkém okně zmenší sebe, ne vstup a Odeslat ---
+    btns = ttk.Frame(body)
+    btns.pack(side="bottom", fill="x", pady=(6, 0))
+    in_frm, txt_in = scrolled_text(body, height=3)
+    in_frm.pack(side="bottom", fill="x", pady=(8, 0))
+    txt_in.insert("1.0", ai.get("draft") or "")
+    body.bind("<Configure>", lambda e: txt_in.configure(height=3 if e.height >= 600 else 2),
+              add="+")                    # nízké okno: víc místa pro konverzaci
+
+    # --- návrh (nad vstupem) ---
     pr = ai.get("last")
     if pr and pr["devices"]:
         prop = ttk.Frame(body)
@@ -254,22 +286,19 @@ def render(app, parent) -> None:
                 return f"{s['dev']} {act}"
 
             steps = " → ".join(f"{i + 1}. " + step_txt(s) for i, s in enumerate(pr["seq"]))
-            wrap_label(prop, _("Sekvence: {steps}", steps=steps), pady=(4, 0))
+            seq_text = _("Sekvence: {steps}", steps=steps)
+            if len(pr["seq"]) <= 12:
+                wrap_label(prop, seq_text, pady=(4, 0))
+            else:                         # dlouhá sekvence (hala: 120 kroků) = posuvné pole 2 řádky
+                seq_frm, seq_txt = scrolled_text(prop, readonly=True, height=2)
+                seq_frm.pack(fill="x", pady=(4, 0))
+                set_text(seq_txt, seq_text)
         row = ttk.Frame(prop)
         row.pack(fill="x", pady=(6, 0))
         ttk.Button(row, text=_("Převzít návrh (nahradí zařízení)"), style="Accent.TButton",
                    command=lambda: apply_proposal(app)).pack(side="left")
         ttk.Label(row, text=_("Nesedí? Napiš upřesnění a odešli znovu."),
                   style="Dim.TLabel").pack(side="left", padx=10)
-
-    # --- tlačítka a vstup (nad návrhem) ---
-    btns = ttk.Frame(body)
-    btns.pack(side="bottom", fill="x", pady=(6, 0))
-    in_frm, txt_in = scrolled_text(body, height=3)
-    in_frm.pack(side="bottom", fill="x", pady=(8, 0))
-    txt_in.insert("1.0", ai.get("draft") or "")
-    body.bind("<Configure>", lambda e: txt_in.configure(height=3 if e.height >= 600 else 2),
-              add="+")                    # nízké okno: víc místa pro konverzaci
 
     def on_draft(_e=None):
         ai["draft"] = txt_in.get("1.0", "end-1c")

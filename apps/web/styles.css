@@ -46,6 +46,8 @@ nav.stepper button.helpbtn.on{background:var(--accent);color:var(--accent-fg);bo
 .card h3{font-size:.95rem;margin:18px 0 8px}
 textarea,input[type=text],input[type=number],input[type=password],select{font-family:var(--font-mono);font-size:.8rem;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
 input[type=text],input[type=password],select{font-family:var(--font-body);font-size:.85rem}
+select{max-width:100%}   /* dlouhé volby (zařízení, filtr) nesmí na úzkém displeji roztáhnout stránku */
+.row > label.f{max-width:100%} label.f > select{min-width:0}
 textarea{width:100%;min-height:150px;line-height:1.55;resize:vertical}
 textarea:focus,input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:.78rem;color:var(--muted);min-width:0}
@@ -181,6 +183,9 @@ ul.warnlist li::marker{color:var(--warn)}
 .confirm{border-left-color:var(--err)}
 .notice{border-radius:9px;padding:10px 14px;font-size:.86rem;border:1px solid var(--line);border-left:4px solid var(--ok);background:var(--surface)}
 .notice.warn{border-left-color:var(--warn)} .notice.err{border-left-color:var(--err)}
+.notice.savewarn{margin:10px 0}
+.notice.generr{margin-bottom:12px}
+.notice.generr code{font-family:var(--font-mono);font-size:.76rem;overflow-wrap:anywhere}
 
 /* schválení (krok 12), bezpečnost (11), oživení (13) a odznak v hlavičce */
 button.apprbadge{border:1px solid var(--warn);color:var(--warn);background:var(--surface);font-weight:600;cursor:pointer;line-height:1.4}

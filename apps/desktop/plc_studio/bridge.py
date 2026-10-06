@@ -16,6 +16,11 @@ from pathlib import Path
 from .i18n import _
 
 BRIDGE_JS = Path(__file__).resolve().parent.parent / "bridge.mjs"
+# operace, které u velkého stroje počítají sekundy až desítky sekund (ověření simulací,
+# dokumentace, kusovník…) — během nich okno ukazuje kurzor čekání (CoreBridge.on_busy)
+SLOW_OPS = frozenset({"files", "verify", "commission", "approval", "scenarios", "simulate",
+                      "safety", "exports", "bom", "gen", "hmi", "hmi.files", "quote.files",
+                      "revision.affected", "emu.platform", "emu.finish"})
 
 
 class BridgeError(RuntimeError):
@@ -57,6 +62,9 @@ class CoreBridge:
         self._log_file = log_file
         self._log = None
         self.lang = "cs"        # jazyk jádra; po restartu procesu se nastaví znovu
+        # ``on_busy(True/False)`` kolem operací, které můžou trvat sekundy (okno pak ukáže
+        # kurzor čekání); volá se v hlavním vlákně, most je synchronní
+        self.on_busy = None
 
     # --- životní cyklus ------------------------------------------------------
 
@@ -98,6 +106,16 @@ class CoreBridge:
 
     def request(self, op: str, **payload):
         """Pošle operaci mostu a vrátí její ``result``."""
+        busy = self.on_busy if op in SLOW_OPS else None
+        if busy is None:
+            return self._request(op, payload)
+        busy(True)
+        try:
+            return self._request(op, payload)
+        finally:
+            busy(False)
+
+    def _request(self, op: str, payload: dict):
         with self._lock:
             if self._proc is None or self._proc.poll() is not None:
                 self._stop()

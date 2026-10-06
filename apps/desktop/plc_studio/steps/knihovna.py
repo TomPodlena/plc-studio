@@ -254,8 +254,14 @@ def add_controls(app, parent) -> None:
 
     def add() -> None:
         t = types[max(cb.current(), 0)]
+        from .zarizeni import name_problem          # stejná pravidla jako ruční přidání
+        name = var_name.get().strip()
+        problem = name_problem(app.prj, name) if name else None
+        if problem:
+            app.set_status("⚠ " + problem, keep=True)
+            return
         try:
-            r = app.bridge.request("library.add", prj=app.prj, typeId=t["id"], name=var_name.get().strip())
+            r = app.bridge.request("library.add", prj=app.prj, typeId=t["id"], name=name)
         except BridgeError as exc:
             app.set_status(str(exc))
             return

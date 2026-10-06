@@ -145,7 +145,9 @@ export function makeBizSteps(ctx) {
     c.querySelector("#revIssue").addEventListener("click", () => {
       const by = c.querySelector("#revBy").value.trim(), note = c.querySelector("#revNote").value.trim();
       if (!by) { err(tr("Zadej jméno osoby, která revizi vydává.")); c.querySelector("#revBy").focus(); return; }
-      if (v.revisions.length && !v.modified && !window.confirm(tr("Obsah se od revize {rev} nezměnil. Vydat přesto novou revizi?", { rev: v.last }))) return;
+      /* stav až při kliku — pole kroku Projekt (název, popis…) se ukládají bez překreslení karty */
+      const now = v.revisions.length ? revisionBadge(p) : null;
+      if (now && !now.modified && !window.confirm(tr("Obsah se od revize {rev} nezměnil. Vydat přesto novou revizi?", { rev: now.id }))) return;
       try {
         const r = issueRevision(p, by, note);
         rv.err = ""; rv.from = ""; rv.to = "";

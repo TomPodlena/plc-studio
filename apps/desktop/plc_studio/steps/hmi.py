@@ -18,7 +18,7 @@ from .. import theme
 from ..detail import DevicePanel
 from ..i18n import N_, _, _n
 from ..svgview import SvgView
-from ..widgets import Table, note_box, save_file, save_many, scrolled_text, set_text, wrap_label
+from ..widgets import FlowFrame, Table, note_box, save_file, save_many, scrolled_text, set_text, wrap_label
 
 SUB_SCREENS, SUB_TAGS, SUB_ALARMS, SUB_EXPORT = range(4)
 GROUPS = {"ctrl": N_("řízení stroje"), "dev": N_("blok zařízení"), "seq": N_("sekvence"),
@@ -120,12 +120,12 @@ def _screens(app, parent, screens: list, ui: dict) -> None:
         ui["screen"] = 0
     var = tk.IntVar(value=ui.get("screen", 0))
     parent._var = var
-    tabs = ttk.Frame(parent)
+    tabs = FlowFrame(parent)                        # velký stroj = hodně obrazovek: zalamovat
     tabs.pack(fill="x", pady=(0, 6))
     for i, s in enumerate(screens):
         title = s["title"] + (f" {s['page']}/{s['pages']}" if s["pages"] > 1 else "")
-        ttk.Radiobutton(tabs, text=title, value=i, variable=var, style="Tab.Toolbutton"
-                        ).pack(side="left", padx=(0, 4))
+        ttk.Radiobutton(tabs, text=title, value=i, variable=var, style="Tab.Toolbutton")
+    tabs.schedule()
     bar = ttk.Frame(parent)
     bar.pack(side="bottom", fill="x", pady=(8, 0))
     ttk.Button(bar, text=_("Uložit SVG…"),

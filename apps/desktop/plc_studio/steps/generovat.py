@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from ..i18n import N_, _
-from ..widgets import card, note_box, save_file, save_many, scrolled_text, set_text, wrap_label
+from ..widgets import FlowFrame, card, note_box, save_file, save_many, scrolled_text, set_text, wrap_label
 
 
 def _tsv_tabs(widget, text: str) -> tuple:
@@ -76,12 +76,15 @@ def render_code(app, body) -> None:
                             else plats[0])
     var_file = tk.StringVar()
 
-    tabs_p = ttk.Frame(body)
+    # řady přepínačů se zalamují podle šířky okna — u 20 platforem / 12 souborů OOP by
+    # řada v jednom řádku skončila za okrajem a zbytek by nešel vybrat
+    tabs_p = FlowFrame(body)
     tabs_p.pack(fill="x")
     for pl in plats:
         ttk.Radiobutton(tabs_p, text=app.PLAT[pl]["name"], value=pl, variable=var_plat,
-                        style="Tab.Toolbutton").pack(side="left", padx=(0, 4))
-    tabs_f = ttk.Frame(body)
+                        style="Tab.Toolbutton")
+    tabs_p.schedule()
+    tabs_f = FlowFrame(body)
     tabs_f.pack(fill="x", pady=(8, 6))
 
     # zdola: poznámka a tlačítka
@@ -113,7 +116,8 @@ def render_code(app, body) -> None:
         files = list(out[var_plat.get()])
         for name in files:
             ttk.Radiobutton(tabs_f, text=name, value=name, variable=var_file,
-                            style="Tab.Toolbutton").pack(side="left", padx=(0, 4))
+                            style="Tab.Toolbutton")
+        tabs_f.schedule()
         var_file.set(app.ui.get("gen_file") if app.ui.get("gen_file") in files else files[0])
 
     var_file.trace_add("write", show_file)

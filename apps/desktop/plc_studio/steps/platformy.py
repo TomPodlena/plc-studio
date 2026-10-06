@@ -7,7 +7,7 @@ from tkinter import ttk
 
 from .. import theme
 from ..i18n import _
-from ..widgets import card, tooltip, wrap_label
+from ..widgets import card, scroll_area, tooltip, wrap_label
 
 COLS = 3
 # barva štítku ověření podle stavu (jako web: ověřeno = OK, jazyk = akcent, beta = varování)
@@ -15,7 +15,11 @@ VERIF_FG = {"verified": theme.OK, "lang": theme.ACCENT, "beta": theme.WARN, "uns
 
 
 def render(app, parent) -> None:
-    body = card(parent, "03", _("Cílové platformy"))
+    # 20 platforem se do nízkého okna nevejde: celý krok je posuvný (jinak by mřížka karet
+    # vytlačila z okna souhrn a přepínač stylu kódu Klasický / OOP)
+    area, inner = scroll_area(parent)
+    area.pack(fill="both", expand=True)
+    body = card(inner, "03", _("Cílové platformy"))
     wrap_label(body, _(
         "Vyber jednu nebo víc platforem — program se vygeneruje pro každou zvlášť. "
         "Logika je stejná (IEC 61131-3 ST), liší se dialekt, soubor s tagy a postup importu."))
@@ -26,6 +30,7 @@ def render(app, parent) -> None:
         grid.columnconfigure(c, weight=1, uniform="plat")
 
     def toggle(key: str) -> None:
+        app.ui["plat_y"] = area.canvas.canvasy(0)      # po překreslení zůstat na stejném místě
         plats = app.prj["platforms"]
         if key in plats:
             plats.remove(key)
@@ -89,10 +94,12 @@ def render(app, parent) -> None:
               text=_("Vybráno platforem: {n}", n=n) if n else
               _("Není vybraná žádná platforma — bez ní se nevygeneruje žádný kód.")
               ).pack(anchor="w", pady=(10, 0))
-    code_style(app, body)
+    code_style(app, body, area.canvas)
+    area.bind_wheel()
+    area.restore_y = app.ui.get("plat_y") or None
 
 
-def code_style(app, body) -> None:
+def code_style(app, body, canvas=None) -> None:
     """Styl kódu Klasický / OOP — jen když je vybraná platforma, která OOP umí (rodina CODESYS)."""
     oop_plats = [k for k in app.prj["platforms"] if (app.PLAT.get(k) or {}).get("oop")]
     if not oop_plats:
@@ -103,6 +110,8 @@ def code_style(app, body) -> None:
     app._code_style_var = var = tk.StringVar(value="oop" if app.prj.get("codeStyle") == "oop" else "classic")
 
     def changed() -> None:
+        if canvas is not None:                     # posuvný krok: zůstat dole u přepínače
+            app.ui["plat_y"] = canvas.canvasy(0)
         if var.get() == "oop":
             app.prj["codeStyle"] = "oop"
         else:

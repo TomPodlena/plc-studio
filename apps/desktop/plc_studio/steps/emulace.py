@@ -19,7 +19,7 @@ from tkinter import ttk
 from .. import theme
 from ..bridge import BridgeError
 from ..i18n import N_, _, _n
-from ..widgets import Table, note_box, scrolled_text, set_text, wrap_label
+from ..widgets import FlowFrame, Table, note_box, scrolled_text, set_text, wrap_label
 
 WARNING = N_("Kód se kontroluje parserem IEC 61131-3 a pravidly dialektů podle manuálů výrobců "
              "(zdroje u pravidel). Chování se ověřuje během přeloženého kódu proti modelu stroje "
@@ -85,7 +85,7 @@ def render(app, parent) -> None:
 
     sel = ui.setdefault("sel", list(app.prj["platforms"]))
     sel[:] = [p for p in sel if p in app.prj["platforms"]] or list(app.prj["platforms"])
-    row = ttk.Frame(parent)
+    row = FlowFrame(parent, padx=12)               # 20 platforem: zalamovat, ne uříznout
     row.pack(fill="x", pady=(10, 0))
     vars_ = {}
     for pl in app.prj["platforms"]:
@@ -93,8 +93,8 @@ def render(app, parent) -> None:
         vars_[pl] = v
         ttk.Checkbutton(row, text=app.PLAT[pl]["name"], variable=v,
                         command=lambda: (sel.clear(), sel.extend(p for p, x in vars_.items() if x.get()),
-                                         btn_run.state(["!disabled"] if sel else ["disabled"]))
-                        ).pack(side="left", padx=(0, 12))
+                                         btn_run.state(["!disabled"] if sel else ["disabled"])))
+    row.schedule()
     parent._vars = vars_
     ctl = ttk.Frame(parent)
     ctl.pack(fill="x", pady=(8, 0))
