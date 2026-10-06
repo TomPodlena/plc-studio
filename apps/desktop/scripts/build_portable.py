@@ -150,10 +150,11 @@ def build_app(dst: Path) -> None:
     shutil.copy2(core / "package.json", dst / "packages" / "core" / "package.json")
     copy_tree(core / "dist", dst / "packages" / "core" / "dist",
               skip_file=lambda p: p.name.endswith((".d.ts", ".map")) or ".test." in p.name)
-    # z apps/web jen to, co most opravdu importuje
+    # z apps/web a dalších modulů mostu (bridge_biz.mjs, bridge_out.mjs…) jen to, co most opravdu importuje;
+    # packages/core je celé výše
     for f in js_closure(DESKTOP / "bridge.mjs"):
         rel = f.relative_to(REPO)
-        if rel.parts[:2] == ("apps", "web"):
+        if rel.parts[:2] in (("apps", "web"), ("apps", "desktop")):
             (dst / rel).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(f, dst / rel)
     copy_tree(REPO / "samples", dst / "samples")
@@ -279,6 +280,27 @@ def sha256(p: Path) -> str:
     return h.hexdigest()
 
 
+def check_bridge(root: Path) -> None:
+    """Přibalený Node + most z balíku musí odpovědět na ``init`` — jinak se aplikace u uživatele nespustí
+    (0.2.0 tak poprvé vyšla bez bridge_biz.mjs). Chybějící modul = konec sestavení."""
+    import subprocess
+    desk = root / "app" / "apps" / "desktop"
+    try:
+        r = subprocess.run([str(root / "runtime" / "node" / "node.exe"), "bridge.mjs"], cwd=desk,
+                           input=json.dumps({"id": 1, "op": "init", "lang": "cs"}) + "\n",
+                           capture_output=True, text=True, encoding="utf-8", timeout=120)
+    except subprocess.TimeoutExpired:
+        raise SystemExit("kontrola mostu: bez odpovědi do 120 s")
+    first = (r.stdout or "").splitlines()[:1]
+    try:
+        ok = bool(first) and json.loads(first[0]).get("ok") is True
+    except ValueError:
+        ok = False
+    if not ok:
+        raise SystemExit("kontrola mostu selhala:\n" + (r.stderr or r.stdout or "")[-1500:])
+    print("most ... ok")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
@@ -312,6 +334,7 @@ def main() -> int:
     print("app ...")
     build_app(root / "app")
     write_launchers(root, ver, nodever)
+    check_bridge(root)
 
     zpath = out / f"{name}-portable.zip"
     if zpath.exists():
