@@ -289,6 +289,17 @@ await check("druhe odemceni odmitnuto s odkazem na cenik", async () => {
   if (!(await r.json()).upgrade) throw new Error("chybi odkaz na cenik");
 });
 
+await check("io_count jen cele cislo: text do mailu ani DB neprojde", async () => {
+  const r = await call("POST", "/api/unlock", { email: "spam@integrator.cz", project_id: "p-3", io_count: "64) Navstivte http://zly.example (", turnstile: "human" });
+  eq(r.status, 200, "status");
+  if (/zly\.example/.test(sentMail.at(-1).text)) throw new Error("text z io_count v mailu");
+  eq(count("SELECT COUNT(*) AS n FROM project_unlocks WHERE email = 'spam@integrator.cz' AND io_count IS NULL"), 1, "io_count null");
+});
+await check("verejne API nese bezpecnostni hlavicky (nosniff, DENY, CSP, HSTS)", async () => {
+  const r = await call("GET", "/api/config");
+  for (const h of ["x-content-type-options", "x-frame-options", "content-security-policy", "strict-transport-security"]) if (!r.headers.get(h)) throw new Error("chybi " + h);
+});
+
 console.log("\nStripe");
 function signed(event, secret = "whsec_test", ts = Math.floor(Date.now() / 1000)) {
   const payload = JSON.stringify(event);
@@ -520,6 +531,13 @@ await check("5 neuspechu z jedne IP -> 429 s Retry-After, i spravny token; jina 
   if (!(ra > 0 && ra <= 900)) throw new Error("Retry-After " + ra);
   eq(cookieOf(r), null, "cookie");
   eq((await adm("POST", "/api/admin/login", { token: "test-admin" }, { "CF-Connecting-IP": "203.0.113.10" })).status, 200, "jina IP");
+});
+await check("souběžná dávka 12 pokusů z jedné IP: nejvýš 5 se ověří (401), zbytek 429", async () => {
+  const ip = { "CF-Connecting-IP": "203.0.113.77" };
+  const st = (await Promise.all(Array.from({ length: 12 }, (_, i) => adm("POST", "/api/admin/login", { token: "par" + i }, ip)))).map(r => r.status);
+  const n401 = st.filter(s => s === 401).length;
+  if (n401 > 5 || n401 + st.filter(s => s === 429).length !== 12) throw new Error("stavy " + st.join(","));
+  eq((await adm("POST", "/api/admin/login", { token: "test-admin" }, ip)).status, 429, "pak i spravny token");
 });
 await check("po 15 minutach se IP odblokuje", async () => {
   db.prepare("UPDATE admin_attempts SET at = ? WHERE ip = '203.0.113.9'").run(new Date(Date.now() - 16 * 60e3).toISOString());
@@ -1144,6 +1162,18 @@ await check("wrangler.toml: run_worker_first obsahuje /api/* i /sprava", async (
   if (m[1] === "true") return;
   const list = JSON.parse(m[1]);
   for (const p of ["/api/*", "/sprava", "/sprava/*"]) if (!list.includes(p)) throw new Error("chybi " + p);
+});
+// /admin/ (CMS) běží na stejném originu jako /sprava: cizí skript jen v pevné verzi s SRI
+await check("admin/index.html: skript CMS s pevnou verzí a integrity", async () => {
+  const html = readFileSync(new URL("../admin/index.html", import.meta.url), "utf8");
+  for (const m of html.matchAll(/<script\b[^>]*\bsrc="(https?:[^"]+)"[^>]*>/g)) {
+    if (!/@\d+\.\d+\.\d+\//.test(m[1])) throw new Error("bez verze: " + m[1]);
+    if (!/\bintegrity="sha(256|384|512)-/.test(m[0]) || !/crossorigin=/.test(m[0])) throw new Error("bez SRI: " + m[1]);
+  }
+});
+await check("build.js zapisuje _headers s nosniff a frame-ancestors", async () => {
+  const js = readFileSync(new URL("../scripts/build.js", import.meta.url), "utf8");
+  if (!/"_headers"/.test(js) || !/nosniff/.test(js) || !/frame-ancestors 'none'/.test(js)) throw new Error("_headers chybi");
 });
 
 console.log(`\n${pass} proslo, ${fail} selhalo`);

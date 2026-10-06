@@ -408,6 +408,20 @@ fs.writeFileSync(
 );
 fs.writeFileSync(path.join(DIST, "robots.txt"), `User-agent: *\nAllow: /\nDisallow: /admin/\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
 
+// Bezpecnostni hlavicky statickeho webu (Workers Static Assets cte dist/_headers; /api/* a /sprava
+// si je nastavuje Worker sam). CSP jen bez omezeni skriptu - stranky maji inline skripty, Turnstile
+// a platebni bránu; frame-ancestors brani vlozeni formulare do ciziho ramu.
+fs.writeFileSync(path.join(DIST, "_headers"), [
+  "/*",
+  "  X-Content-Type-Options: nosniff",
+  "  X-Frame-Options: DENY",
+  "  Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+  "  Referrer-Policy: strict-origin-when-cross-origin",
+  "  Strict-Transport-Security: max-age=31536000",
+  "  Permissions-Policy: camera=(), microphone=(), geolocation=()",
+  "",
+].join("\n"));
+
 // sprava/ = sprava zakazniku (/sprava): staticka stranka mimo sitemap a bez odkazu z webu,
 // noindex v hlavicce i v X-Robots-Tag (prida Worker spolu s CSP)
 for (const dir of ["assets", "admin", "ukazka", "sprava"]) {

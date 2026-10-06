@@ -7,6 +7,8 @@
 <title>PLCdesk — administrace textů</title>
 </head>
 <body>
-<script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+<!-- Pevná verze + SRI: podvržený balíček na CDN se nespustí (CMS běží na stejném originu jako /sprava).
+     Aktualizace: nová verze → sha384 souboru dist/sveltia-cms.js (shodný z unpkg i jsDelivr). -->
+<script src="https://unpkg.com/@sveltia/cms@0.229.0/dist/sveltia-cms.js" integrity="sha384-7UzSMzLyz+OPQAMgiUyOhH0RD60gmdQfgu6s7daTg868WnElfvyBsIUHOS1YWF22" crossorigin="anonymous"></script>
 </body>
 </html>

@@ -290,6 +290,12 @@ async function failures(env, ip) {
   const retry = row?.first ? Math.max(1, Math.ceil((Date.parse(row.first) + ATTEMPT_WINDOW_MS - Date.now()) / 1000)) : 0;
   return { n, retry };
 }
+// Pokus se zapise PRED overenim tokenu a teprve pak se pocita: soubezne pokusy z jedne IP se navzajem
+// vidi (cteni -> overeni -> zapis pustilo paralelni davku pres limit). Uspech pokusy IP smaze.
+async function reserveAttempt(env, ip) {
+  await env.DB.prepare("INSERT INTO admin_attempts (ip, ok, at) VALUES (?, 0, ?)").bind(ip, nowIso()).run();
+  return failures(env, ip);
+}
 const tooMany = (f) => out({ error: "too many attempts", retry_after: f.retry }, 429, { "Retry-After": String(f.retry) });
 
 // Uchovani (ochrana osobnich udaju, content/*.json soukromi): pokusy o prihlaseni a jejich zaznamy
@@ -304,7 +310,6 @@ async function cleanup(env) {
 
 async function recordFailure(env, req, ip, n, how) {
   await cleanup(env);
-  await env.DB.prepare("INSERT INTO admin_attempts (ip, ok, at) VALUES (?, 0, ?)").bind(ip, nowIso()).run();
   console.warn(`Sprava: neuspesne prihlaseni (${how}) z ${ip}, pokus ${n + 1}/${MAX_FAILS}`);
   await audit(env, { actor: "-", via: "-", action: "login_failed", target: how, detail: clip(req.headers.get("User-Agent"), 120), ip });
 }
@@ -314,15 +319,15 @@ async function recordFailure(env, req, ip, n, how) {
 async function handleLogin(req, env, ctx) {
   if (!env.ADMIN_TOKEN) return out({ error: "token login not configured" }, 503);
   if (!sameOrigin(req, env)) return out({ error: "forbidden" }, 403);
-  const f = await failures(env, ctx.ip);
-  if (f.n >= MAX_FAILS) {
-    console.warn(`Sprava: prihlaseni z ${ctx.ip} blokovane (${f.n} neuspechu za 15 min)`);
+  const f = await reserveAttempt(env, ctx.ip);
+  if (f.n > MAX_FAILS) {
+    console.warn(`Sprava: prihlaseni z ${ctx.ip} blokovane (${f.n - 1} neuspechu za 15 min)`);
     return tooMany(f);
   }
   const p = await readJson(req);
   if (p.res) return p.res;
   if (!(await tokenMatches(p.body.token, env.ADMIN_TOKEN))) {
-    await recordFailure(env, req, ctx.ip, f.n, "form");
+    await recordFailure(env, req, ctx.ip, f.n - 1, "form");
     return out({ error: "unauthorized" }, 401);
   }
   const s = await newSession(env, ctx.ip);
@@ -597,12 +602,13 @@ function headerToken(req) {
 
 async function handleLegacyLicense(req, env, ctx, token) {
   if (!env.ADMIN_TOKEN) return out({ error: "not configured" }, 503);
-  const f = await failures(env, ctx.ip);
-  if (f.n >= MAX_FAILS) return tooMany(f);
+  const f = await reserveAttempt(env, ctx.ip);
+  if (f.n > MAX_FAILS) return tooMany(f);
   if (!(await tokenMatches(token, env.ADMIN_TOKEN))) {
-    await recordFailure(env, req, ctx.ip, f.n, "api");
+    await recordFailure(env, req, ctx.ip, f.n - 1, "api");
     return out({ error: "unauthorized" }, 401);
   }
+  await env.DB.prepare("DELETE FROM admin_attempts WHERE ip = ?").bind(ctx.ip).run();
   return handleLicense(req, env, { ...ctx, actor: "token-api", via: "token-api", legacy: true });
 }
 
