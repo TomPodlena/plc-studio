@@ -114,3 +114,17 @@ CREATE TABLE IF NOT EXISTS crm_suppressed (
   email  TEXT PRIMARY KEY,
   at     TEXT NOT NULL
 );
+
+-- Interní dokumenty provozovatele (/sprava #/dokumenty, /api/admin/doc*). Obsah žije JEN v D1,
+-- nikdy v repozitáři ani ve veřejných souborech webu (repo je veřejné). Čtení i zápis jen po přihlášení
+-- do správy. slug = ^[a-z0-9-]{1,64}$, body = Markdown (nejvýš 256 kB UTF-8), version = optimistický
+-- zámek (uložení se starší verzí -> 409), updated_by = kdo naposledy uložil (e-mail z Access, nebo token).
+CREATE TABLE IF NOT EXISTS admin_docs (
+  slug        TEXT PRIMARY KEY,
+  title       TEXT NOT NULL,
+  body        TEXT NOT NULL DEFAULT '',
+  updated_at  TEXT NOT NULL,
+  updated_by  TEXT NOT NULL,
+  version     INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_admin_docs_updated ON admin_docs(updated_at);

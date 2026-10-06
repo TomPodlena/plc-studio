@@ -19,7 +19,8 @@
 //   POST /api/stripe/webhook    platby Stripe   (jen pri PAYMENT_PROVIDER="stripe")
 //   POST /api/paddle/webhook    platby Paddle   (jen pri PAYMENT_PROVIDER="paddle")
 //   /api/admin/*                sprava zakazniku (admin.js): prihlaseni, prehled, zakaznici,
-//                               licence, pocitace, poznamky, export CSV, audit; stranka /sprava
+//                               licence, pocitace, poznamky, export CSV, audit, leady (crm.js),
+//                               interni dokumenty (docs.js, obsah jen v D1); stranka /sprava
 //   POST /api/admin/license     i skriptem s X-Admin-Token / Bearer (beta, skoly)
 
 import { signLicense, newToken, newId } from "./license.js";

@@ -110,6 +110,21 @@
       too_many: "Příliš mnoho řádků.", too_large: "Požadavek je příliš velký.",
       a_crm_sync: "leady z formuláře", a_crm_view: "zobrazení leadu", a_crm_lead_create: "nový lead", a_crm_lead_update: "úprava leadu",
       a_crm_move: "přesun leadu", a_crm_note: "poznámka k leadu", a_crm_delete: "smazání leadu", a_crm_import: "import leadů",
+      // interni dokumenty (obsah jen v D1)
+      nav_docs: "Dokumenty", dc_h: "Dokumenty", dc_total: "{n} dokument|{n} dokumenty|{n} dokumentů", dc_none: "Zatím žádný dokument.",
+      dc_hint: "Interní dokumenty provozovatele. Obsah je uložený jen v databázi správy (ne v repozitáři ani na veřejném webu) a čte ho jen přihlášený provozovatel.",
+      dc_new_h: "Nový dokument", dc_slug: "Označení v adrese (a–z, 0–9, pomlčka)", dc_title: "Název", dc_create: "Založit",
+      dc_exists: "Dokument s tímto označením už existuje.", dc_open: "Otevřít", col_title: "Název", col_updated: "Změněno", col_by: "Kdo",
+      col_size: "Velikost", dc_back: "← Dokumenty", dc_edit: "Upravit", dc_save: "Uložit", dc_cancel: "Zrušit", dc_saved: "Uloženo (verze {v}).",
+      dc_unchanged: "Beze změny.", dc_meta: "Verze {v} · změněno {t} · {w}", dc_empty: "Dokument je prázdný — doplňte ho tlačítkem Upravit.",
+      dc_conflict: "Dokument mezitím změnil někdo jiný (verze {v}, {w}). Vaše úpravy nejsou uložené — zkopírujte si je, načtěte aktuální verzi a změny zapracujte znovu.",
+      dc_reload: "Načíst aktuální verzi", dc_task_conflict: "Dokument mezitím změnil někdo jiný — načetla se aktuální verze, zkuste to znovu.",
+      dc_discard_h: "Zahodit úpravy?", dc_discard_p: "Neuložené změny dokumentu se ztratí.", dc_discard_ok: "Zahodit",
+      dc_md_help: "Markdown: # nadpis, **tučně**, *kurzíva*, `kód`, [odkaz](https://…), - odrážka, 1. seznam, - [ ] úkol, | tabulka |, ``` kód, > citace, --- čára.",
+      dc_size: "{k} kB z 256 kB", dc_task_label: "Úkol hotový", dc_link: "odkaz",
+      bad_slug: "Označení jen malá písmena bez diakritiky, číslice a pomlčka (max. 64 znaků).", bad_title: "Vyplňte název (max. 200 znaků).",
+      bad_index: "Úkol v dokumentu nenalezen — načtěte dokument znovu.", bad_version: "Neplatná verze dokumentu.",
+      a_doc_save: "uložení dokumentu", a_doc_task: "úkol v dokumentu",
     },
     en: {
       title: "Customer admin — PLCdesk", tag: "Admin", lang_label: "Language", nav_label: "Admin", logout: "Sign out",
@@ -213,6 +228,20 @@
       too_many: "Too many rows.", too_large: "The request is too large.",
       a_crm_sync: "leads from form", a_crm_view: "lead viewed", a_crm_lead_create: "new lead", a_crm_lead_update: "lead edited",
       a_crm_move: "lead moved", a_crm_note: "lead note", a_crm_delete: "lead deleted", a_crm_import: "leads imported",
+      nav_docs: "Documents", dc_h: "Documents", dc_total: "{n} document|{n} documents", dc_none: "No documents yet.",
+      dc_hint: "Internal operator documents. The content is stored only in the admin database (not in the repository or on the public website) and only the signed-in operator can read it.",
+      dc_new_h: "New document", dc_slug: "Address name (a–z, 0–9, hyphen)", dc_title: "Title", dc_create: "Create",
+      dc_exists: "A document with this name already exists.", dc_open: "Open", col_title: "Title", col_updated: "Changed", col_by: "By",
+      col_size: "Size", dc_back: "← Documents", dc_edit: "Edit", dc_save: "Save", dc_cancel: "Cancel", dc_saved: "Saved (version {v}).",
+      dc_unchanged: "No changes.", dc_meta: "Version {v} · changed {t} · {w}", dc_empty: "The document is empty — fill it in with Edit.",
+      dc_conflict: "Someone else changed the document in the meantime (version {v}, {w}). Your edits are not saved — copy them, load the current version and apply your changes again.",
+      dc_reload: "Load current version", dc_task_conflict: "Someone else changed the document in the meantime — the current version was loaded, please try again.",
+      dc_discard_h: "Discard edits?", dc_discard_p: "Unsaved changes to the document will be lost.", dc_discard_ok: "Discard",
+      dc_md_help: "Markdown: # heading, **bold**, *italic*, `code`, [link](https://…), - bullet, 1. list, - [ ] task, | table |, ``` code, > quote, --- rule.",
+      dc_size: "{k} kB of 256 kB", dc_task_label: "Task done", dc_link: "link",
+      bad_slug: "Name may contain lowercase letters without accents, digits and hyphens only (max. 64 characters).", bad_title: "Enter a title (max. 200 characters).",
+      bad_index: "Task not found in the document — reload the document.", bad_version: "Invalid document version.",
+      a_doc_save: "document saved", a_doc_task: "document task",
     },
   };
   const STATES = ["active", "past_due", "expired", "canceled", "downloaded", "lead"];
@@ -409,12 +438,17 @@
 
   let seq = 0;
   async function route() {
+    // rozepsany dokument (docs): odchod jinam nebo prepnuti jazyka jen po potvrzeni
+    if (docDirty && !(await leaveDirtyOk())) {
+      if (location.hash !== docDirty) history.replaceState(null, "", docDirty);
+      return;
+    }
     const r = parseHash();
-    const navName = r.name === "zakaznik" ? "zakaznici" : r.name === "lead" ? "leady" : r.name;
+    const navName = r.name === "zakaznik" ? "zakaznici" : r.name === "lead" ? "leady" : r.name === "dokument" ? "dokumenty" : r.name;
     document.querySelectorAll("#nav a").forEach((a) => (a.dataset.view === navName ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
     const my = ++seq;
     view.replaceChildren(msg(t("loading")));
-    const render = { prehled: vOverview, zakaznici: vCustomers, zakaznik: vCustomer, nova: vNew, audit: vAudit, leady: vLeads, lead: vLead }[r.name] || vOverview;
+    const render = { prehled: vOverview, zakaznici: vCustomers, zakaznik: vCustomer, nova: vNew, audit: vAudit, leady: vLeads, lead: vLead, dokumenty: vDocs, dokument: vDoc }[r.name] || vOverview;
     const node = await render(r);
     if (my === seq && node) { view.replaceChildren(node); window.scrollTo(0, 0); }
   }
@@ -1063,6 +1097,332 @@
       h("div", { class: "crm-lead-grid" },
         h("section", { class: "adm-panel" }, form),
         h("div", {}, histPanel, infoPanel)));
+  }
+
+  // ------------------------------------------------------------ interni dokumenty (#/dokumenty, #/dokument/<slug>)
+  // Obsah dokumentu je jen v D1 (API /api/admin/doc*), tady jen zobrazeni a editor.
+  // Markdown se vykresluje vlastnim parserem do DOM pres h() - zadne vkladani HTML, odkazy jen http(s).
+  const SLUG_RE = /^[a-z0-9-]{1,64}$/;
+  const DOC_MAX = 256 * 1024;
+  // Radky ukolu - STEJNE jako worker/docs.js (taskLines): "- [ ]" / "* [x]" / "+ [X]", mimo bloky ```
+  const TASK_RE = /^(\s*[-*+]\s+\[)([ xX])(\](?:\s|$))/;
+  const FENCE_RE = /^\s*```/;
+  function taskLines(lines) {
+    const idx = [];
+    let fence = false;
+    for (let i = 0; i < lines.length; i++) {
+      if (FENCE_RE.test(lines[i])) { fence = !fence; continue; }
+      if (!fence && TASK_RE.test(lines[i])) idx.push(i);
+    }
+    return idx;
+  }
+  function toggleTaskLocal(body, n, done) {
+    const lines = body.split("\n");
+    const at = taskLines(lines)[n];
+    if (at === undefined) return body;
+    lines[at] = lines[at].replace(TASK_RE, (m, a, b, c) => a + (done ? "x" : " ") + c);
+    return lines.join("\n");
+  }
+
+  // --- inline: `kod`, **tucne**, *kurziva* / _kurziva_, [text](url), <url> a hole http(s) adresy, \escape
+  const INLINE_RE = /(`+)([\s\S]*?[^`])\1(?!`)|\*\*(?=\S)([\s\S]*?\S)\*\*|\[([^\]\n]+)\]\(\s*([^)\s]+)(?:\s+"[^"\n]*")?\s*\)|<(https?:\/\/[^\s<>]+)>|(https?:\/\/[^\s<>()]*[^\s<>().,;:!?'"*_])|(?<![\w*])\*(?=\S)([^*\n]*?\S)\*(?![\w*])|(?<!\w)_(?=\S)([^_\n]*?\S)_(?!\w)|\\([\\`*_[\]()#|>!-])/g;
+  function mdInline(text, noLinks) {
+    const res = [];
+    let last = 0;
+    for (const m of text.matchAll(INLINE_RE)) {
+      if (m.index > last) res.push(text.slice(last, m.index));
+      last = m.index + m[0].length;
+      if (m[1]) res.push(h("code", { text: m[2].replace(/^ (.*) $/, "$1") }));
+      else if (m[3] != null) res.push(h("strong", {}, mdInline(m[3], noLinks)));
+      else if (m[4] != null) {
+        const href = noLinks ? null : safeHref(m[5]);
+        res.push(href ? h("a", { href, target: "_blank", rel: "noopener noreferrer" }, mdInline(m[4], true)) : h("span", {}, mdInline(m[4], true), ` (${m[5]})`));
+      } else if (m[6] || m[7]) {
+        const u = m[6] || m[7];
+        const href = noLinks ? null : safeHref(u);
+        res.push(href ? h("a", { href, target: "_blank", rel: "noopener noreferrer", text: u }) : u);
+      } else if (m[8] != null || m[9] != null) res.push(h("em", {}, mdInline(m[8] ?? m[9], noLinks)));
+      else if (m[10]) res.push(m[10]);
+    }
+    if (last < text.length) res.push(text.slice(last));
+    return res;
+  }
+
+  // --- bloky
+  const RE_HEAD = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
+  const RE_HR = /^\s{0,3}([-*_])(\s*\1){2,}\s*$/;
+  const RE_LIST = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/;
+  const RE_QUOTE = /^\s{0,3}>\s?(.*)$/;
+  const RE_TSEP = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+  const isTableRow = (l) => /\|/.test(l) && l.trim() !== "";
+  const isTableStart = (l, next) => isTableRow(l) && next != null && RE_TSEP.test(next) && /\|/.test(next);
+  function splitRow(l) {
+    let s = l.trim();
+    if (s.startsWith("|")) s = s.slice(1);
+    if (s.endsWith("|") && !s.endsWith("\\|")) s = s.slice(0, -1);
+    const cells = [];
+    let cur = "";
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === "\\" && s[i + 1] === "|") { cur += "|"; i++; } else if (s[i] === "|") { cells.push(cur.trim()); cur = ""; } else cur += s[i];
+    }
+    cells.push(cur.trim());
+    return cells;
+  }
+  const blockStart = (l, next) => RE_HEAD.test(l) || RE_HR.test(l) || FENCE_RE.test(l) || RE_QUOTE.test(l) || RE_LIST.test(l) || isTableStart(l, next);
+
+  // lines = radky, base = cislo radku prvniho z nich v dokumentu (null = ukoly jen ke cteni, napr. v citaci),
+  // ctx = { tasks: Map(cislo radku -> index ukolu), onTask(index, done, input) }
+  function mdBlocks(lines, base, ctx) {
+    const res = [];
+    let i = 0;
+    while (i < lines.length) {
+      const l = lines[i];
+      if (!l.trim()) { i++; continue; }
+      if (FENCE_RE.test(l)) {
+        const lang = l.trim().slice(3).trim();
+        const buf = [];
+        i++;
+        while (i < lines.length && !FENCE_RE.test(lines[i])) buf.push(lines[i++]);
+        i++;
+        res.push(h("pre", { class: "md-pre" }, h("code", { "data-lang": lang || null, text: buf.join("\n") })));
+        continue;
+      }
+      const hm = RE_HEAD.exec(l);
+      if (hm) {
+        res.push(h("h" + Math.min(hm[1].length + 1, 4), { class: "md-h" }, mdInline(hm[2]))); // # dokumentu = h2 (h1 je nazev)
+        i++;
+        continue;
+      }
+      if (RE_HR.test(l)) { res.push(h("hr", { class: "md-hr" })); i++; continue; }
+      if (RE_QUOTE.test(l)) {
+        const buf = [];
+        while (i < lines.length && lines[i].trim() && RE_QUOTE.test(lines[i])) buf.push(RE_QUOTE.exec(lines[i++])[1]);
+        res.push(h("blockquote", { class: "md-quote" }, mdBlocks(buf, null, ctx)));
+        continue;
+      }
+      if (isTableStart(l, lines[i + 1])) {
+        const head = splitRow(l);
+        const align = splitRow(lines[i + 1]).map((c) => (/^:-+:$/.test(c) ? "center" : /-:$/.test(c) ? "right" : null));
+        i += 2;
+        const rows = [];
+        while (i < lines.length && isTableRow(lines[i])) rows.push(splitRow(lines[i++]));
+        const cell = (tag, txt, k) => h(tag, { class: align[k] ? "md-" + align[k] : null, scope: tag === "th" ? "col" : null }, mdInline(txt));
+        res.push(h("div", { class: "md-table-wrap" }, h("table", { class: "md-table" },
+          h("thead", {}, h("tr", {}, head.map((c, k) => cell("th", c, k)))),
+          h("tbody", {}, rows.map((r) => h("tr", {}, head.map((_, k) => cell("td", r[k] ?? "", k))))))));
+        continue;
+      }
+      if (RE_LIST.test(l)) {
+        // polozky s odsazenim -> vnorene seznamy, pokracovaci radky se pripoji k posledni polozce
+        const roots = [];
+        const stack = []; // {indent, ordered, el, li}
+        while (i < lines.length) {
+          const cur = lines[i];
+          if (!cur.trim()) {
+            let j = i + 1;
+            while (j < lines.length && !lines[j].trim()) j++;
+            if (j < lines.length && RE_LIST.test(lines[j])) { i = j; continue; }
+            break;
+          }
+          const lm = RE_LIST.exec(cur);
+          if (!lm) {
+            if (stack.length && !blockStart(cur, lines[i + 1])) { stack.at(-1).li.querySelector(".md-li-text").append(" ", ...mdInline(cur.trim())); i++; continue; }
+            break;
+          }
+          const indent = lm[1].replace(/\t/g, "    ").length;
+          const ordered = /\d/.test(lm[2]);
+          while (stack.length && stack.at(-1).indent > indent) stack.pop();
+          let top = stack.at(-1);
+          if (!top || indent > top.indent || top.ordered !== ordered) {
+            if (top && indent <= top.indent) stack.pop();
+            const parent = stack.at(-1);
+            const n0 = parseInt(lm[2], 10);
+            const el = h(ordered ? "ol" : "ul", { class: "md-list", start: ordered && n0 !== 1 ? n0 : null });
+            if (parent) parent.li.append(el); else roots.push(el);
+            top = { indent, ordered, el, li: null };
+            stack.push(top);
+          }
+          const li = h("li", {});
+          const tm = ordered ? null : /^\[([ xX])\](?:\s+|$)(.*)$/.exec(lm[3]);
+          if (tm) {
+            const no = base == null ? null : base + i;
+            const idx = no != null && ctx.tasks.has(no) ? ctx.tasks.get(no) : null;
+            const cb = h("input", { type: "checkbox", checked: tm[1] !== " ", disabled: idx == null, "aria-label": t("dc_task_label") });
+            if (idx != null) cb.addEventListener("change", () => ctx.onTask(idx, cb.checked, cb));
+            li.className = tm[1] !== " " ? "md-task done" : "md-task";
+            li.append(h("label", {}, cb, h("span", { class: "md-li-text" }, mdInline(tm[2]))));
+          } else li.append(h("span", { class: "md-li-text" }, mdInline(lm[3])));
+          top.el.append(li);
+          top.li = li;
+          i++;
+        }
+        res.push(...roots);
+        continue;
+      }
+      // odstavec (radky spojene mezerou, dve mezery nebo \ na konci = zalomeni)
+      const raw = [l];
+      i++;
+      while (i < lines.length && lines[i].trim() && !blockStart(lines[i], lines[i + 1])) raw.push(lines[i++]);
+      const p = h("p", {});
+      raw.forEach((ln, k) => {
+        if (k) p.append(/ {2,}$|\\$/.test(raw[k - 1]) ? h("br") : " ");
+        p.append(...mdInline(ln.trim().replace(/\\$/, "")));
+      });
+      res.push(p);
+    }
+    return res;
+  }
+  function renderMd(body, onTask) {
+    const lines = body.split("\n");
+    const tasks = new Map(taskLines(lines).map((ln, k) => [ln, k]));
+    return h("div", { class: "md" }, mdBlocks(lines, 0, { tasks, onTask }));
+  }
+
+  // --- neulozene upravy: odchod z editoru (jiny pohled, zavreni okna) se potvrzuje
+  let docDirty = null; // hash editovaneho dokumentu, kdyz ma neulozene zmeny
+  window.addEventListener("beforeunload", (e) => { if (docDirty) { e.preventDefault(); e.returnValue = ""; } });
+  async function leaveDirtyOk() {
+    if (!docDirty) return true;
+    const ok = await ask({ title: t("dc_discard_h"), text: t("dc_discard_p"), ok: t("dc_discard_ok"), danger: true });
+    if (ok) docDirty = null;
+    return !!ok;
+  }
+
+  async function vDocs() {
+    const res = await api("GET", "/api/admin/docs");
+    const slugIn = h("input", { type: "text", name: "slug", maxlength: 64, required: true, pattern: "[a-z0-9\\-]{1,64}", autocomplete: "off", spellcheck: "false", autocapitalize: "none" });
+    const titleIn = h("input", { type: "text", name: "title", maxlength: 200, required: true, autocomplete: "off" });
+    const say = msg("");
+    // nazev -> navrh oznaceni (bez diakritiky, mala pismena, pomlcky), dokud oznaceni nikdo neprepsal
+    let slugTouched = false;
+    slugIn.addEventListener("input", () => { slugTouched = true; });
+    titleIn.addEventListener("input", () => {
+      if (slugTouched) return;
+      slugIn.value = titleIn.value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
+    });
+    const form = h("form", { class: "adm-form-grid", novalidate: true, onsubmit: async (e) => {
+      e.preventDefault();
+      const slug = slugIn.value.trim(), title = titleIn.value.trim();
+      say.className = "adm-msg err";
+      if (!title) { say.textContent = t("bad_title"); return; }
+      if (!SLUG_RE.test(slug)) { say.textContent = t("bad_slug"); return; }
+      const btn = e.submitter;
+      if (btn) btn.disabled = true;
+      const r = await api("POST", "/api/admin/doc", { slug, title, body: `# ${title}\n`, version: 0 });
+      if (btn) btn.disabled = false;
+      if (r.ok) { go(`#/dokument/${encodeURIComponent(slug)}?edit=1`); return; }
+      if (r.status === 409) say.replaceChildren(t("dc_exists") + " ", h("a", { href: `#/dokument/${encodeURIComponent(slug)}`, text: t("dc_open") }));
+      else say.textContent = errText(r);
+    } },
+      h("label", { class: "adm-field" }, h("span", { text: t("dc_title") }), titleIn),
+      h("label", { class: "adm-field" }, h("span", { text: t("dc_slug") }), slugIn),
+      h("div", { class: "adm-actions wide" }, h("button", { class: "btn btn-sm", type: "submit", text: t("dc_create") }), say));
+    const kb = (n) => (n == null ? "—" : `${(n / 1024).toLocaleString(fmtLocale(), { maximumFractionDigits: 1 })} kB`);
+    return h("div", {},
+      h("div", { class: "adm-title" }, h("h1", { text: t("dc_h") }), res.ok ? h("span", { class: "adm-count", text: tn("dc_total", res.data.docs.length) }) : null),
+      h("p", { class: "adm-hint", text: t("dc_hint") }),
+      res.ok
+        ? table(
+          [{ label: t("col_title") }, { label: t("col_updated") }, { label: t("col_by") }, { label: t("col_size"), cls: "num" }],
+          res.data.docs,
+          (d) => [h("span", {}, h("a", { href: `#/dokument/${encodeURIComponent(d.slug)}`, text: d.title }), " ", h("span", { class: "adm-mono adm-muted", text: d.slug })), fmtDT(d.updated_at), d.updated_by, kb(d.size)],
+          { empty: t("dc_none"), onRow: (d) => go(`#/dokument/${encodeURIComponent(d.slug)}`) })
+        : msg(errText(res), "err"),
+      panel(t("dc_new_h"), form));
+  }
+
+  async function vDoc(r) {
+    const slug = r.arg;
+    const back = h("p", { class: "adm-back" }, h("a", { href: "#/dokumenty", text: t("dc_back") }));
+    if (!SLUG_RE.test(slug)) return h("div", {}, back, msg(t("bad_slug"), "err"));
+    const res = await api("GET", `/api/admin/doc?${new URLSearchParams({ slug })}`);
+    if (!res.ok) return h("div", {}, back, msg(errText(res), "err"));
+    const doc = res.data.doc;
+    const hash = `#/dokument/${encodeURIComponent(slug)}`;
+    const root = h("div", { class: "doc" });
+    const meta = () => t("dc_meta", { v: doc.version, t: fmtDT(doc.updated_at), w: doc.updated_by });
+    const reloadWith = async (note) => {
+      await route();
+      const f = $(".doc-flash");
+      if (f && note) f.replaceChildren(msg(note, "err"));
+    };
+
+    function showRead(note, cls) {
+      docDirty = null;
+      const flash = h("div", { class: "doc-flash" }, note ? msg(note, cls) : null);
+      const metaEl = h("span", { class: "adm-count", text: meta() });
+      const onTask = async (index, done, cb) => {
+        cb.disabled = true;
+        const r2 = await api("POST", "/api/admin/doc/task", { slug, index, done, version: doc.version });
+        cb.disabled = false;
+        if (r2.ok) {
+          Object.assign(doc, { version: r2.data.version, updated_at: r2.data.updated_at, updated_by: r2.data.updated_by, body: toggleTaskLocal(doc.body, index, done) });
+          cb.closest("li").classList.toggle("done", done);
+          metaEl.textContent = meta();
+          flash.replaceChildren();
+          return;
+        }
+        cb.checked = !done;
+        if (r2.status === 409 || r2.data?.error === "bad index") { reloadWith(t("dc_task_conflict")); return; }
+        flash.replaceChildren(msg(errText(r2), "err"));
+      };
+      root.replaceChildren(
+        back,
+        h("div", { class: "adm-title" }, h("h1", { text: doc.title }),
+          h("div", { class: "adm-actions" }, metaEl, h("button", { class: "btn btn-sm", type: "button", onclick: () => showEdit(), text: t("dc_edit") }))),
+        flash,
+        h("article", { class: "adm-panel doc-body" }, doc.body.trim() ? renderMd(doc.body, onTask) : h("p", { class: "adm-empty", text: t("dc_empty") })));
+    }
+
+    function showEdit() {
+      const titleIn = h("input", { type: "text", maxlength: 200, value: doc.title });
+      const ta = h("textarea", { class: "doc-src", rows: 24, spellcheck: "true", "aria-label": doc.title });
+      ta.value = doc.body;
+      const size = h("span", { class: "adm-count" });
+      const flash = h("div", { class: "doc-flash" });
+      const upd = () => {
+        const n = new TextEncoder().encode(ta.value).length;
+        size.textContent = t("dc_size", { k: (n / 1024).toLocaleString(fmtLocale(), { maximumFractionDigits: 1 }) });
+        size.classList.toggle("over", n > DOC_MAX);
+        docDirty = ta.value !== doc.body || titleIn.value.trim() !== doc.title ? hash : null;
+      };
+      ta.addEventListener("input", upd);
+      titleIn.addEventListener("input", upd);
+      const saveBtn = h("button", { class: "btn btn-sm", type: "submit", text: t("dc_save") });
+      const form = h("form", { class: "doc-edit", onsubmit: async (e) => {
+        e.preventDefault();
+        const title = titleIn.value.trim();
+        if (!title) { flash.replaceChildren(msg(t("bad_title"), "err")); return; }
+        if (new TextEncoder().encode(ta.value).length > DOC_MAX) { flash.replaceChildren(msg(t("too_large"), "err")); return; }
+        saveBtn.disabled = true;
+        const r2 = await api("POST", "/api/admin/doc", { slug, title, body: ta.value, version: doc.version });
+        saveBtn.disabled = false;
+        if (r2.ok) {
+          Object.assign(doc, { title, body: ta.value.replace(/\r\n?/g, "\n"), version: r2.data.version, updated_at: r2.data.updated_at, updated_by: r2.data.updated_by });
+          showRead(r2.data.unchanged ? t("dc_unchanged") : t("dc_saved", { v: doc.version }), "ok");
+          return;
+        }
+        if (r2.status === 409) {
+          flash.replaceChildren(h("div", { class: "doc-conflict" },
+            msg(t("dc_conflict", { v: r2.data.version ?? "?", w: r2.data.updated_by || "?" }), "err"),
+            h("button", { class: "btn btn-ghost btn-sm", type: "button", text: t("dc_reload"), onclick: async () => { if (await leaveDirtyOk()) route(); } })));
+          return;
+        }
+        flash.replaceChildren(msg(errText(r2), "err"));
+      } },
+        h("label", { class: "adm-field" }, h("span", { text: t("dc_title") }), titleIn),
+        h("p", { class: "adm-hint", text: t("dc_md_help") }),
+        ta,
+        h("div", { class: "adm-actions" }, saveBtn,
+          h("button", { class: "btn btn-ghost btn-sm", type: "button", text: t("dc_cancel"), onclick: async () => { if (await leaveDirtyOk()) showRead(); } }),
+          size));
+      root.replaceChildren(back, h("div", { class: "adm-title" }, h("h1", { text: doc.title }), h("span", { class: "adm-count", text: meta() })), flash, h("section", { class: "adm-panel" }, form));
+      upd();
+      ta.focus();
+    }
+
+    if (r.params.get("edit") === "1") { history.replaceState(null, "", hash); showEdit(); } else showRead();
+    return root;
   }
 
   applyStatic();

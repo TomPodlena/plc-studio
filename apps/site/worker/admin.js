@@ -23,6 +23,7 @@ import { signLicense, newLicenseKey, newId, b64url } from "./license.js";
 import { sendLicense } from "./email.js";
 import { out, enc, nowIso, isoAgo, clip, num, readJson, audit, likePattern, toCsv, csvResponse } from "./admin_util.js";
 import { CRM_ROUTES } from "./crm.js";
+import { DOC_ROUTES } from "./docs.js";
 export { csvCell, toCsv } from "./admin_util.js";
 
 export const ADMIN_COOKIE = "__Host-plcdesk_admin";
@@ -718,6 +719,8 @@ const ROUTES = {
   "GET /api/admin/audit": { fn: handleAudit },
   // obchodni kanban leadu (crm.js) - stejne prihlaseni, CSRF i audit jako zbytek spravy
   ...CRM_ROUTES,
+  // interni dokumenty provozovatele (docs.js) - obsah jen v D1, stejne prihlaseni, CSRF i audit
+  ...DOC_ROUTES,
 };
 export const ADMIN_PATHS = [...new Set(Object.keys(ROUTES).map((r) => r.split(" ")[1]))];
 
