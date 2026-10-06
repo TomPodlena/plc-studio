@@ -189,6 +189,17 @@ test("emu mutace: konstrukce, které platforma nemá (Logix T#/RETURN/WORD, UniL
   assert.ok(has(mutate("unitronics", f => { f["Machine.st"] = "FUNCTION_BLOCK X\nEND_FUNCTION_BLOCK\n" + f["Machine.st"]; }), "unitronics-fb"));
 });
 
+test("emu mutace: UniLogic 1.43 (ověřeno překladačem) — INT ↔ UINT chyba, END_IF bez ; a vnořený komentář přijme", () => {
+  const ins = (stmt: string) => (f: Record<string, string>) => { f["Machine.st"] = f["Machine.st"].replace("    enable := ", "    " + stmt + "\n    enable := "); };
+  assert.ok(has(mutate("unitronics", ins("instM1_status := seqStep;")), "type-conv"), "INT → UINT");
+  assert.ok(has(mutate("unitronics", ins("faultStep := instM1_status;")), "type-conv"), "UINT → INT");
+  const semi = mutate("unitronics", f => { f["Machine.st"] = f["Machine.st"].replace("END_IF;", "END_IF"); });
+  assert.ok(!semi.some(x => x.level === "error" || x.level === "warn" && x.rule === "end-semicolon"), "END_IF bez ;");
+  const nested = mutate("unitronics", ins("(* a (* b *) c *)"));
+  assert.ok(!nested.some(x => x.level === "error"), "vnořený komentář");
+  assert.ok(has(mutate("codesys", f => { f["MAIN.st"] = f["MAIN.st"].replace("END_IF;", "END_IF"); }), "syntax") === false, "CODESYS beze změny");
+});
+
 test("emu mutace: adresy (FX5 osmičkově, CODESYS typ × adresa, Beckhoff pevná adresa)", () => {
   assert.ok(has(mutate("mitsubishi", f => { f["GlobalLabels.csv"] = f["GlobalLabels.csv"].replace(/"X0"/, '"X8"'); }), "address"));
   assert.ok(has(mutate("codesys", f => { f["GVL_IO.st"] = f["GVL_IO.st"].replace(/AT %IX(\d+\.\d+) : BOOL/, "AT %IW$1 : BOOL"); }), "address"));

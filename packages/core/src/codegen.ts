@@ -1768,7 +1768,7 @@ GVL_IO přiřaď kanálům v Edit IO Mapping.`) + "\n",
   (PLC → Import/Export), doplň ji podle Tags.csv a naimportuj zpět. I/O tagy pak přiřaď
   vstupům a výstupům v konfiguraci hardwaru (sloupec „I/O address hint" je jen vodítko).`,
         { prog: trx("Program"), block: trx("Blok"), timer: trx("Program – časovač") }),
-      tr(`Machine.st: pravý klik na modul → Add Structured Text Function, vlož obsah a funkci
+      tr(`Machine.st: pravý klik na modul → Add ST Function, vlož obsah a funkci
   volej každý scan z hlavní ladder rutiny.`),
       tr("Globální tagy vidí ST funkce jen přes seznam Used Globals (vlastnosti funkce) — přidej do něj všechny tagy z Tags.csv."),
       tr(`Časovače: kód používá IEC bloky TON s literály T#…S — v ST editoru UniLogic jsou až od

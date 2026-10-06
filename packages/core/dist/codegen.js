@@ -1634,7 +1634,7 @@ GVL_IO přiřaď kanálům v Edit IO Mapping.`) + "\n", tr("NEJRYCHLEJI: PLCopen
   {prog} a {block} = stav logiky, {timer} = instance TON). UniLogic importuje jen
   soubor, který sám exportoval: buď tagy založ ručně, nebo vyexportuj prázdnou šablonu
   (PLC → Import/Export), doplň ji podle Tags.csv a naimportuj zpět. I/O tagy pak přiřaď
-  vstupům a výstupům v konfiguraci hardwaru (sloupec „I/O address hint" je jen vodítko).`, { prog: trx("Program"), block: trx("Blok"), timer: trx("Program – časovač") }), tr(`Machine.st: pravý klik na modul → Add Structured Text Function, vlož obsah a funkci
+  vstupům a výstupům v konfiguraci hardwaru (sloupec „I/O address hint" je jen vodítko).`, { prog: trx("Program"), block: trx("Blok"), timer: trx("Program – časovač") }), tr(`Machine.st: pravý klik na modul → Add ST Function, vlož obsah a funkci
   volej každý scan z hlavní ladder rutiny.`), tr("Globální tagy vidí ST funkce jen přes seznam Used Globals (vlastnosti funkce) — přidej do něj všechny tagy z Tags.csv."), tr(`Časovače: kód používá IEC bloky TON s literály T#…S — v ST editoru UniLogic jsou až od
   verze z května 2026. Ve starší verzi je nahraď ladder časovači (bit „hotovo" místo .Q).`), tr("Stavová slova jsou desítkově: 32769 = 16#8001 blokováno, 32770 = 16#8002 porucha."), tr(`Vision / Samba (VisiLogic) Structured Text nemá — tam Machine.st slouží jako předloha
   pro přepis do Ladderu a Tags.csv jako seznam operandů.`), tr("Test: nejdřív na PLC s odpojenými akčními členy.")),

@@ -1805,7 +1805,7 @@ const d = {
     "MTTFd výstupu [roky]": "输出 MTTFd [年]",
     "MZT8-03VPS-KP0 — T-drážka, PNP NO, kabel 0,3 m s M8 3pin": "MZT8-03VPS-KP0 — T 型槽，PNP NO，电缆 0.3 m 带 M8 3pin",
     "Machine.st - logika stroje pro Unitronics UniLogic (UniStream), jazyk ST.\n   Generováno PLCdesk. Obsah vlož do JEDNÉ ST funkce volané každý scan.\n   ST funkce v UniLogic nemá vlastní paměť: všechny tagy z Tags.csv založ jako\n   GLOBÁLNÍ. Bloky zařízení jsou proto rozepsané přímo zde (předpona instX_).": "Machine.st - Unitronics UniLogic (UniStream) 的机器逻辑，ST 语言。\n   由 PLCdesk 生成。将内容粘贴到每个扫描周期调用的同一个 ST 函数中。\n   UniLogic 的 ST 函数没有自己的存储区：Tags.csv 中的所有变量都须创建为\n   全局变量。因此设备功能块直接展开写在此处（前缀 instX_）。",
-    "Machine.st: pravý klik na modul → Add Structured Text Function, vlož obsah a funkci\n  volej každý scan z hlavní ladder rutiny.": "Machine.st：右键单击模块 → Add Structured Text Function，粘贴内容，\n  并在主梯形图例程中每个扫描周期调用该函数。",
+    "Machine.st: pravý klik na modul → Add ST Function, vlož obsah a funkci\n  volej každý scan z hlavní ladder rutiny.": "Machine.st：右键单击模块 → Add ST Function，粘贴内容，\n  并在主梯形图例程中每个扫描周期调用该函数。",
     "MainRoutine - logika stroje pro Rockwell Logix 5000 (ST), generováno PLCdesk.": "MainRoutine——Rockwell Logix 5000 (ST) 机器逻辑，由 PLCdesk 生成。",
     "MainRoutine.st se liší od rutiny v L5X": "MainRoutine.st 与 L5X 中的例程不同",
     "MainRoutine.st: totéž tělo rutiny jako v L5X, bez deklarací — pro ruční vložení do ST rutiny.": "MainRoutine.st：与 L5X 中相同的例程主体，不含声明——用于手动粘贴到 ST 例程。",

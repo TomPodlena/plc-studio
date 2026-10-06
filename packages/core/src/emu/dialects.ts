@@ -197,6 +197,15 @@ function convBy(narrow: Lvl, cross: Lvl, realToInt: Lvl, boolNum: Lvl, widen: Lv
   };
 }
 
+/** Celé číslo → celé číslo bez rozšíření = chyba, ostatní podle `inner`. */
+function intStrict(inner: ReturnType<typeof convBy>): ReturnType<typeof convBy> {
+  return (f, t) => {
+    const isInt = (c: string) => c === "sint" || c === "uint";
+    if (f.name !== t.name && isInt(f.cat) && isInt(t.cat) && !isWidening(f.name, t.name)) return "error";
+    return inner(f, t);
+  };
+}
+
 const base = (o: Partial<Dialect> & Pick<Dialect, "plat" | "label" | "src">): Dialect => ({
   nestedComments: false, scl: false, statementsOnly: false, endSemi: "error", ascii: "ok",
   maxIdent: 127, noDoubleUnderscore: "error", noTrailingUnderscore: "ok", noLeadingUnderscore: "ok",
@@ -269,8 +278,10 @@ export const DIALECTS: Record<PlatformKey, Dialect> = {
     src: { syntax: SRC.pm007, ident: SRC.pm004, conv: SRC.pm007, semi: SRC.pm007, reserved: SRC.pm007, addr: SRC.rm014, ascii: SRC.pm007 },
   }),
   unitronics: base({
-    plat: "unitronics", label: "Unitronics UniLogic (UniStream), ST", statementsOnly: true, ascii: "error", endSemi: "warn",
-    conv: convBy("warn", "warn", "error", "error"), truncReal: true,
+    /* Ověřeno překladačem UniLogic 1.43 (docs/verification/unilogic-1.43.md): END_IF bez „;“ i vnořené komentáře
+       přijme, implicitní převod celých čísel bez rozšíření (INT ↔ UINT, DINT → INT…) odmítne „Cannot convert“. */
+    plat: "unitronics", label: "Unitronics UniLogic (UniStream), ST", statementsOnly: true, ascii: "error", endSemi: "info",
+    nestedComments: true, conv: intStrict(convBy("warn", "warn", "error", "error")), truncReal: true,
     stdFbs: new Set(["TON", "TOF", "TP"]),
     fns: new Set([...IEC_FNS, "TO_REAL", "TO_INT", "TO_DINT", "TO_UINT", "TO_UDINT", "TO_BOOL"]),
     src: { syntax: SRC.ulRef, ident: SRC.ulDt, conv: SRC.ulRef, semi: SRC.ulRef, reserved: SRC.ulRef, ascii: SRC.ulSt },

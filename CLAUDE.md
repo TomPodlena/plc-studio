@@ -598,8 +598,9 @@ python scripts/build_verification.py        # data/verification.json → verific
   takže změna šablony se propíše sama. Výstup je čisté ASCII. **ST ověřen překladačem UniLogic 1.43.369**
   (2026-10-05, vzory 00b / 03 / 11 / sampleSmall 0 chyb, harness nad `Unitronics.Compiler.Ladder2C`,
   `docs/verification/unilogic-1.43.md`, stav `lang`); import tagů a ST v GUI, build (C / GCC), volání
-  z Ladderu a TON jako globální tag neověřeny — po prvním překladu v GUI doplnit nálezy (i odchylky
-  emulátoru z protokolu: převody INT↔UINT / zúžení = chyba, END_IF bez `;` přijat, vnořené komentáře).
+  z Ladderu a TON jako globální tag neověřeny — po prvním překladu v GUI doplnit nálezy. Emulátor
+  `unitronics` je srovnaný s překladačem (2026-10-06): převody INT↔UINT / zúžení = chyba, END_IF bez `;`
+  přijat (info), vnořené komentáře povoleny — test `emu mutace: UniLogic 1.43`.
 - **Simulace = zrcadlo generátoru.** `sim.ts` (třída `Simulator`, jeden `scan()` = jeden scan
   programu; nad ní dávková `simulate()` i živá simulace v desktopu) provádí logiku, kterou generuje
   `codegen.ts` (FB_Motor/FB_Ventil, timeouty, CASE sekvence, pořadí enable → sekvence → TON →

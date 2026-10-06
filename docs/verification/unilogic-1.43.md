@@ -12,7 +12,7 @@
   které mají být (nedeklarovaný tag, chybí END_IF, REAL→BOOL, INT↔UINT, DINT→INT, duplicitní návěští CASE,
   špatný parametr TON…).
 - Emulátor PLCdesk (`emulateCompile`) hlásí u všech 4 projektů 0 chyb + 1 varování `tag-table` (TON jako
-  globální tag) = shoda. Na mutacích 3 rozdíly dialektu (návrh oprav emulátoru níže; generátor opravu nepotřebuje).
+  globální tag) = shoda. Na mutacích byly 3 rozdíly dialektu — v emulátoru opraveny 2026-10-06 (níže; generátor opravu nepotřeboval).
 
 ## Prostředí a postup
 
@@ -55,25 +55,25 @@ nezůstaly běžet.
 | m02 chybí END_IF | Expected 'END_IF' | syntax | ano |
 | m03 REAL→BOOL, m14 INT→BOOL, m20 BOOL→INT | Cannot convert | type-conv error | ano |
 | m04 REAL→INT | Cannot convert REAL to INT | type-conv error | ano |
-| **m05 `END_IF` bez `;`** | **přijato** | warn „vyžaduje END_IF;“ | **ne** (text nepravdivý) |
+| **m05 `END_IF` bez `;`** | **přijato** | warn „vyžaduje END_IF;“ → od 2026-10-06 info | ano (opraveno) |
 | m06 `16#8001`, m07 MOD, m08 XOR, m09 ABS, m10 SEL, m15 RETURN, m16 `T#5s`, m25 WHILE | přijato | 0 / warn RETURN | ano |
-| **m11 vnořený komentář `(* a (* b *) c *)`** | **přijato** | error syntax | **ne** |
+| **m11 vnořený komentář `(* a (* b *) c *)`** | **přijato** | error syntax → od 2026-10-06 přijato | ano (opraveno) |
 | m12 TON bez parametru, m13 `PT := 5000` | chyba | fb-param / type-conv | ano |
 | m17 INT→REAL, m28 UINT→REAL | přijato | 0 | ano |
-| **m18 INT→UINT, m19 UINT→INT** | **Cannot convert** | warn | **ne** (přísnější je UniLogic) |
-| **m26 DINT→INT, m27 UDINT→UINT** | **Cannot convert** | warn | **ne** |
+| **m18 INT→UINT, m19 UINT→INT** | **Cannot convert** | warn → od 2026-10-06 type-conv error | ano (opraveno) |
+| **m26 DINT→INT, m27 UDINT→UINT** | **Cannot convert** | warn → od 2026-10-06 type-conv error | ano (opraveno) |
 | m21 70000 → INT, m29 −1 → UINT | chyba | literal-range | ano |
 | m22 duplicitní návěští CASE | Duplicate label | case-label | ano |
 | m23 `IF <INT>` | Cannot convert INT to BOOL | condition | ano |
 | m24 zápis `tonSeq10.Q` | (atrapa UDT neumí read-only) | 0 | neověřeno |
 
-## Návrhy oprav (v tomto kroku neopraveno)
+## Opravy emulátoru (body 1–3 provedeny 2026-10-06, test `emu mutace: UniLogic 1.43`)
 
 Emulátor (`packages/core/src/emu/dialects.ts`, profil `unitronics`):
 1. Převody: UniLogic 1.43 odmítá implicitní zúžení i INT↔UINT (m18, m19, m26, m27) → chyba místo varování.
 2. `END_IF` bez středníku UniLogic přijme (m05) → nehlásit varování (generátor `;` píše dál).
 3. Vnořené komentáře pro unitronics povolit (m11).
-4. ABS / SEL / MOD / XOR / RETURN / 16# UniLogic 1.43 přijímá (omezení v šablonách je kvůli Logixu).
+4. ABS / SEL / MOD / XOR / RETURN / 16# UniLogic 1.43 přijímá (omezení v šablonách je kvůli Logixu) — beze změny.
 
 Generátor / README Unitronics:
 - V 1.43 se položka jmenuje **Add ST Function** (nápověda ST_Editor).
