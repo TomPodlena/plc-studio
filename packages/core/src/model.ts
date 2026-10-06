@@ -15,6 +15,7 @@ import { hwLayout, hwAssign, hwGroups, hwNative, hwIssues, type HwModule } from 
 import { axisCfgOf, type AxisCfg } from "./axis.js";
 import { axisSupport, axisDialect } from "./axis_gen.js";
 import { CDS_PROFILE_PLAT, cdsProfile, type CdsProfileKey } from "./codesys_profiles.js";
+import { coarsestRaw } from "./raw_max.js";
 
 export type PlatformKey =
   | "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics"
@@ -680,11 +681,53 @@ export function validateProject(prj: Project): ValidationIssue[] {
       out.push({ level: "error", where: d.name, msg: tr("Rampa musí být 0 (bez rampy) nebo kladný čas v sekundách.") });
     if (d.cls === "PropValve" && d.opt?.fbk !== false && d.tol !== undefined && !(Number(d.tol) > 0))
       out.push({ level: "error", where: d.name, msg: tr("Povolená odchylka proporcionálního ventilu musí být kladná.") });
+    /* odchylka pod rozlišením analogu: AO i AI se kvantují (každá platforma jinak) a rozhodnutí „v toleranci“
+       by se mezi platformami i proti simulaci lišilo — požadujeme aspoň 4 kroky nejhrubšího modulu */
+    else if (d.cls === "PropValve" && d.opt?.fbk !== false && d.rmin < d.rmax) {
+      const raw = coarsestRaw(prj.platforms || []), lsb = (d.rmax - d.rmin) / raw;
+      if (tolOf(d) < 4 * lsb)
+        out.push({ level: "error", where: d.name, msg: tr("Povolená odchylka {tol}{unit} je menší než 4 kroky analogového modulu ({min}{unit} při rozsahu 0–{raw}) — zvětši ji, jinak by kód na platformách projektu rozhodoval jinak než návrh.", { tol: tolOf(d), unit: d.unit ? " " + d.unit : "", min: Number((4 * lsb).toPrecision(3)), raw }) });
+    }
+    /* doba odchylky jde do INT v taktech 0,1 s (tolTicks) */
+    if (d.cls === "PropValve" && d.tolTimeS !== undefined && !(Number(d.tolTimeS) > 0 && Number(d.tolTimeS) * 10 <= 32767))
+      out.push({ level: "error", where: d.name, msg: tr("Doba odchylky proporcionálního ventilu musí být kladná a nejvýš 3 276,7 s (počítá se v taktech 0,1 s v proměnné INT).") });
     if (d.cls === "AnalogIn" && Number.isFinite(d.limLo) && Number.isFinite(d.limHi) && (d.limLo as number) >= (d.limHi as number))
       out.push({ level: "error", where: d.name, msg: tr("Mez min musí být menší než mez max — jinak je měření stále v poruše.") });
     if (d.cls === "AnalogOut" && Number.isFinite(d.setpoint) && Number.isFinite(d.rmin) && Number.isFinite(d.rmax) && d.rmin < d.rmax
       && ((d.setpoint as number) < d.rmin || (d.setpoint as number) > d.rmax))
       out.push({ level: "warn", where: d.name, msg: tr("Žádaná hodnota leží mimo rozsah výstupu.") });
+  }
+  /* referenční označení odvozená z čísla v označení (kusovník, výkresy, EPLAN): motor -Q<n> / -K<n>,
+     měnič -Q<n> a -TA<n>, polohovací pohon a servoosa -TA<n> — M1 a P1 by dostaly totéž */
+  {
+    const refs = new Map<string, string>();
+    for (const d of prj.devices) {
+      const n = d.name.replace(/^\D+/, "");
+      if (!n) continue;
+      const own = d.cls === "Motor" ? ["Q", "K"] : d.cls === "Vfd" ? ["Q", "TA"] : d.cls === "PosDrive" || d.cls === "Axis" ? ["TA"] : [];
+      for (const r of own) {
+        const other = refs.get(r + n);
+        /* -TA je i ve výkresech a EPLAN (devRef) = chyba; -Q / -K jen v kusovníku, ten druhý výskyt rozliší
+           příponou (.2) — běžné u importu (M1 a Pump1), proto jen varování */
+        if (other && other !== d.name && r === "TA")
+          out.push({ level: "error", where: d.name, msg: tr("Zařízení {a} a {b} dostanou stejné označení -{ref} (kusovník, výkresy, EPLAN) — změň číslo v označení jednoho z nich.", { a: other, b: d.name, ref: r + n }) });
+        else if (other && other !== d.name)
+          out.push({ level: "warn", where: d.name, msg: tr("Zařízení {a} a {b} dostanou v kusovníku stejné označení -{ref} — druhé se odliší příponou (-{ref}.2); doporučeno změnit číslo v označení.", { a: other, b: d.name, ref: r + n }) });
+        else refs.set(r + n, d.name);
+      }
+    }
+  }
+  /* časy kroků (výdrž / hlídací čas): záporný čas kód zapíše jako T#0S; nad 24 h je to chyba zadání
+     a ověření simulací by běželo desítky minut (simuluje se po scanech až do vypršení) */
+  for (const [i, s] of prj.program.seq.entries()) {
+    if (s.timeS === undefined || s.timeS === null) continue;
+    const where = tr("krok {n}", { n: i + 1 }), t = Number(s.timeS);
+    if (!Number.isFinite(t) || t < 0)
+      out.push({ level: "error", where, msg: tr("Čas kroku musí být nula nebo kladné číslo sekund.") });
+    else if (t > 86400)
+      out.push({ level: "error", where, msg: tr("Čas kroku {t} s je delší než 24 h — rozděl krok nebo zkontroluj jednotky.", { t }) });
+    else if (t > 3600)
+      out.push({ level: "warn", where, msg: tr("Čas kroku {t} s je delší než hodina — ověření simulací bude trvat déle.", { t }) });
   }
   /* kroky pohonů a proporcionálních prvků: akce musí patřit třídě, záznam a žádaná hodnota v rozsahu */
   for (const [i, s] of prj.program.seq.entries()) {
@@ -706,8 +749,11 @@ export function validateProject(prj: Project): ValidationIssue[] {
     for (const [i, s] of prj.program.seq.entries()) {
       if (!Number.isFinite(s.timeS) || Math.round(s.timeS * 1000) <= 32767) continue;
       const where = tr("krok {n}", { n: i + 1 });
+      /* předvolba INT: delší čas se nepřeloží; čas mimo krok 100 ms by kód zaokrouhlil nahoru a rozešel se s návrhem */
       if (Math.ceil(Math.round(s.timeS * 1000) / 100) > 32767)
-        out.push({ level: "warn", where, msg: tr("Mitsubishi FX5: krok s {t} s je delší i než rozsah časovače TIMER_100_FB_M (3 276,7 s) — rozděl ho na víc kroků.", { t: s.timeS }) });
+        out.push({ level: "error", where, msg: tr("Mitsubishi FX5: krok s {t} s je delší i než rozsah časovače TIMER_100_FB_M (3 276,7 s) — rozděl ho na víc kroků.", { t: s.timeS }) });
+      else if (Math.round(s.timeS * 1000) % 100 !== 0)
+        out.push({ level: "error", where, msg: tr("Mitsubishi FX5: čas kroku nad 32,767 s musí být násobkem 0,1 s (časovač TIMER_100_FB_M má rozlišení 100 ms) — zadej {t} s.", { t: Math.round(s.timeS * 10) / 10 }) });
       else
         out.push({ level: "info", where, msg: tr("Mitsubishi FX5: krok s {t} s je delší než rozsah TON (32,767 s) — kód pro FX5 použije časovač TIMER_100_FB_M s rozlišením 100 ms.", { t: s.timeS }) });
     }
@@ -724,6 +770,8 @@ export function validateProject(prj: Project): ValidationIssue[] {
     }
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(e.tag) || /__/.test(e.tag)) {
       out.push({ level: "error", where: e.tag, msg: tr("Tag není platný identifikátor IEC 61131-3 (písmena bez diakritiky, číslice, jedno _) — žádná platforma ho nepřijme. Doporučeno: {tag}", { tag: sanitizeTag(e.tag) }) });
+    } else if (e.tag.length > 32 && e.tag.slice(0, 32) === sanitizeTag(e.tag)) {
+      out.push({ level: "warn", where: e.tag, msg: tr("Tag je delší než 32 znaků — GX Works3 a Sysmac povolují kratší jména. Doporučeno: {tag}", { tag: sanitizeTag(e.tag) }) });
     } else if (e.tag !== sanitizeTag(e.tag)) {
       out.push({ level: "warn", where: e.tag, msg: tr("Tag obsahuje diakritiku/mezery — Rockwell, GX Works3 a Sysmac ho odmítnou. Doporučeno: {tag}", { tag: sanitizeTag(e.tag) }) });
     }

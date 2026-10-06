@@ -591,8 +591,12 @@ python scripts/build_verification.py        # data/verification.json → verific
   `TIMER_100_FB_M` (kap. 32.4: `Coil`, `Preset` INT × 100 ms nahoru, `ValueIn := 0`, hotovo = `.Status`;
   do 3 276,7 s — `fx5Timer100` / `fx5Preset100` v codegen.ts, jen MAIN pro mitsubishi); emulátor blok zná
   (`TIMER_1/10/100_FB_M` v `STD_FB`, horizont v run.ts), importér ho čte zpět jako TON, `validateProject`
-  hlásí `info` (nad 3 276,7 s `warn`). Omron: vstup `reset` → `resetIn` (Reset je instrukce Sysmac), Variables.txt
-  ve sloupcích Global Variables. `rawMax` analogů dle platformy (`RAW_MAX`). Rockwell: L5X
+  hlásí `info`; **error** nad 3 276,7 s a nad 32,767 s mimo násobek 0,1 s (kód by zaokrouhlil nahoru ≠ návrh).
+  Omron: vstup `reset` → `resetIn` (Reset je instrukce Sysmac), Variables.txt
+  ve sloupcích Global Variables. `rawMax` analogů dle platformy (`RAW_MAX` v `raw_max.ts`, sdílí ho validace:
+  odchylka PropValve ≥ 4 kroky nejhrubšího modulu projektu, `coarsestRaw`). Validace dál hlídá meze, které
+  by jinak pustily nepřeložitelný kód (`tolTimeS` ≤ 3 276,7 s = INT taktů, čas kroku ≥ 0 a ≤ 24 h) — regrese
+  z forenzního fuzzu v `forenz.test.ts`. Rockwell: L5X
   (`logix.ts`) — Logix ST není IEC (TONR/FBD_TIMER, AOI, bez deklarací v textu).
 - **Unitronics (UniLogic / UniStream):** ST funkce nemá paměť a FB v ST nejsou → generuje se
   plochý ST (`Machine.st`) a seznam tagů (`Tags.csv`). Logika bloků se **neopisuje** — vzniká

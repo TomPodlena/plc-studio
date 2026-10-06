@@ -11,6 +11,7 @@ import { PLAT, usedClasses, dtFor, addrFor, xmlEsc, stripDia, isCodesysFamily, c
 /* codegen_oop.ts a codegen.ts se importují navzájem: OOP renderer se volá až uvnitř genFor */
 import { genForOop } from "./codegen_oop.js";
 import { CDS_PROFILES, CDS_PROFILE_KEYS } from "./codesys_profiles.js";
+import { RAW_MAX } from "./raw_max.js";
 import { buildIR, irText, cmdIr, irBlocks, irPortTypes, irMember, IR_CTRL, IR_CLASS_ORDER, } from "./ir.js";
 /* pomocné funkce sekvence a řízení žijí v ir.ts; odsud se dál exportují (veřejné API jádra) */
 export { limitedAnalogs, waitedDis, actuators, seqVarOf, manVarOf, seqVars, seqCond, seqTimedSteps, motionSeqVars, seqMotionDevs, motionStepSets, } from "./ir.js";
@@ -1084,15 +1085,8 @@ export function renderSeq(ir, c) {
 export function seqBody(prj, plat) {
     return renderSeq(buildIR(prj), stCtx(plat));
 }
-/* Surový rozsah analogu dle platformy (typický modul; TODO ověřit podle skutečného modulu).
-   Předává se vždy — FX5 nezná počáteční hodnoty a výchozí 27648 je rozsah Siemens. */
-const RAW_MAX = { beckhoff: 32767, codesys: 32767, mitsubishi: 16000, schneider: 10000, omron: 32000,
-    /* WAGO 750-455 (4–20 mA): 0…32767; Delta AS04AD-A: ±32000 — obojí TODO podle modulu */
-    wago: 32767, delta: 32000,
-    /* profily CODESYS dalších výrobců: rozsah analogového modulu z katalogu (codesys_profiles.ts, README) */
-    ...Object.fromEntries(CDS_PROFILE_KEYS.map(k => [k, CDS_PROFILES[k].rawMax])) };
-/** Surový rozsah analogu platformy (bez = Siemens 27648 z výchozí hodnoty šablony). */
-export function rawMaxFor(plat) { return RAW_MAX[plat]; }
+/* Surový rozsah analogu dle platformy — raw_max.ts (sdílí ho validace v model.ts) */
+export { rawMaxFor } from "./raw_max.js";
 function rawMaxArg(plat) {
     const v = RAW_MAX[plat];
     return v ? ", rawMax := " + v + " (* TODO: " + stripDia(trx("rozsah dle modulu")) + " *)" : "";
@@ -1721,7 +1715,7 @@ function uniAscii(s) {
 }
 /** Dialekt UniLogic: středníky za END_IF, desítkové konstanty, převodní funkce TO_*. */
 function uniDialect(st) {
-    return st.replace(/END_IF(?!;)/g, "END_IF;")
+    return st.replace(/\bEND_IF\b(?!;)/g, "END_IF;")
         .replace(/16#8001/g, "32769").replace(/16#8002/g, "32770").replace(/16#0000/g, "0")
         .replace(/INT_TO_REAL\(/g, "TO_REAL(").replace(/REAL_TO_INT\(/g, "TO_INT(");
 }

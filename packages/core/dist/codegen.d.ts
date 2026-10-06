@@ -126,8 +126,7 @@ export declare function irStepTitle(s: IrStep): string;
 /** Sekvence (CASE) a časovače kroků z IR. */
 export declare function renderSeq(ir: IrProgram, c: StCtx): string;
 export declare function seqBody(prj: Project, plat: PlatformKey): string;
-/** Surový rozsah analogu platformy (bez = Siemens 27648 z výchozí hodnoty šablony). */
-export declare function rawMaxFor(plat: PlatformKey): number | undefined;
+export { rawMaxFor } from "./raw_max.js";
 /** Text do komentáře (* … *): bez diakritiky a pomlček, bez konce řádku; „(*“ a „*)“ z textu
     uživatele rozdělí mezerou (CODESYS/TwinCAT komentáře vnořují — jinak by rozbily zbytek souboru). */
 export declare function cmtSafe(t: string): string;

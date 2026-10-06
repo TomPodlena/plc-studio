@@ -1002,7 +1002,10 @@ function gvlVars(f, t, block, offset, plat, sink, gvlName, onlyAt = false) {
             continue; // merker / paměť, ne I/O
         if (!ATOMIC.test(d.dt) && d.dt !== "WORD")
             continue;
-        const p = plat ?? (/%[IQ]X|%[IQ]\*/.test(t) ? "codesys" : undefined);
+        /* VAR_GLOBAL s AT je zápis rodiny IEC (CODESYS, TwinCAT, Schneider) — Siemens AT v globálních
+           proměnných nemá; dřív se dialekt poznal jen podle digitálních adres a GVL jen s analogy se
+           četla jako bajty Siemens (konflikt s PLCopen XML téhož projektu) */
+        const p = plat ?? "codesys";
         const addr = canonAddr(d.at, p);
         const dir = d.at.startsWith("%I*") ? (ANALOG_DT.test(d.dt) ? "AI" : "DI") : d.at.startsWith("%Q*") ? (ANALOG_DT.test(d.dt) ? "AO" : "DO") : dirOf(addr, d.dt, d.name);
         addSig(sink, { tag: d.name, dt: d.dt, addr, cmt: d.cmt, dir, src: { file: f.name, line: d.line, quote: quoteOf(d.raw) } });
@@ -2007,7 +2010,10 @@ export function inferProject(ex, base) {
     const refsSig = (u) => { for (const m of u.code.matchAll(/\b[A-Za-z_]\w*\b/g))
         if (sigTags.has(up(m[0])))
             return true; return false; };
-    const units = allUnits.filter(u => !(u.pou.kind === "functionBlock" && (OUR_FB[up(u.pou.name)] || (fbTypes.has(up(u.pou.name)) && !refsSig(u)))) && !OUR_FB[up(u.pou.name)]);
+    /* FB_Sequence (styl OOP) je program stroje i bez globálních signálů (sekvence jen z časových kroků
+       nebo nad výstupy instancí) — nevyřazovat */
+    const isSeqFb = (u) => up(u.pou.name) === "FB_SEQUENCE";
+    const units = allUnits.filter(u => isSeqFb(u) || !(u.pou.kind === "functionBlock" && (OUR_FB[up(u.pou.name)] || (fbTypes.has(up(u.pou.name)) && !refsSig(u)))) && !OUR_FB[up(u.pou.name)]);
     const insts = findInstances(units, types, sigTags);
     const sigDir = (e) => sigOf(e)?.dir;
     const devs = [];

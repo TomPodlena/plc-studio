@@ -348,8 +348,17 @@ export function commissioningPlan(prj: Project, opts: ApprovalOptions = {}): Com
   }
   const all = [...out, ...extra];
   const seen = new Set<string>();
+  /* duplicitní označení zařízení hlásí validateProject jako chybu — krok oživení pak dostane příponu,
+     aby krok Oživení / Dokumentace nespadl; u projektu bez duplicit je to porušení invariantu */
+  const names = prj.devices.map(d => d.name.toUpperCase());
+  const dupNames = new Set(names).size !== names.length;
   for (const s of all) {
-    if (seen.has(s.id)) throw new Error("commissioning: duplicate step id " + s.id);
+    if (seen.has(s.id)) {
+      if (!dupNames) throw new Error("commissioning: duplicate step id " + s.id);
+      let k = 2;
+      while (seen.has(s.id + "#" + k)) k++;
+      s.id = s.id + "#" + k;
+    }
     seen.add(s.id);
   }
   /* stabilní řazení podle fáze (vestavěné kroky před kroky ze zdrojů téže fáze) */

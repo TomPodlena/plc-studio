@@ -137,7 +137,7 @@ export function lxDialect(st: string): string {
       t + ".PRE := " + litMs(lit) + "; " + t + ".TimerEnable := " + cond + "; TONR(" + t + ");")
     .replace(/\b(ton\w*)\.Q\b/g, "$1.DN")
     .replace(/\b(INT_TO_REAL|REAL_TO_INT)\(/g, "(")
-    .replace(/END_IF(?!;)/g, "END_IF;")
+    .replace(/\bEND_IF\b(?!;)/g, "END_IF;")
     .replace(/\bIF TRUE THEN ([^\n]*?) END_IF;/g, "$1")
     .replace(/\bTRUE\b/g, "1").replace(/\bFALSE\b/g, "0"));
 }
@@ -529,7 +529,7 @@ function lxRoutineFindings(st: string, scope: (id: string) => string | undefined
   const code = st.replace(/\(\*[\s\S]*?\*\)/g, " ").replace(/\/\/.*$/gm, " ");
   const bad: Array<[RegExp, string]> = [[/\b(END_)?VAR\b|\bVAR_(INPUT|OUTPUT)\b/, "VAR"], [/\b(END_)?PROGRAM\b/, "PROGRAM"],
     [/\b(END_)?FUNCTION_BLOCK\b/, "FUNCTION_BLOCK"], [/T#/, "T#"], [/=>/, "=>"], [/\bWORD\b/, "WORD"], [/\bRETURN\b/, "RETURN"],
-    [/\b(INT_TO_REAL|REAL_TO_INT)\b/, "INT_TO_REAL"], [/END_IF(?!;)/, "END_IF bez ;"], [/END_CASE(?!;)/, "END_CASE bez ;"],
+    [/\b(INT_TO_REAL|REAL_TO_INT)\b/, "INT_TO_REAL"], [/\bEND_IF\b(?!;)/, "END_IF bez ;"], [/\bEND_CASE\b(?!;)/, "END_CASE bez ;"],
     [/\bTON\s*\(/, "TON("], [/\.Q\b/, ".Q"], [/\bTRUE\b|\bFALSE\b/, "TRUE/FALSE"]];
   for (const [re, what] of bad) if (re.test(code)) F("construct", what, "obsahuje " + what);
   const cnt = (re: RegExp) => (code.match(re) || []).length;

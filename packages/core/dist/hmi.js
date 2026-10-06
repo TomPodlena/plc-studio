@@ -241,8 +241,13 @@ export function hmiAlarms(prj, tags = hmiTags(prj)) {
                         break;
                 }
         }
-        if (!trigger || !byName.has(trigger.tag))
+        if (!trigger || !byName.has(trigger.tag)) {
+            /* neplatné označení zařízení (mezera, diakritika…) hlásí validateProject jako chybu — HMI alarm
+               vynechá, aby dokumentace nespadla; u platného projektu je to porušení invariantu */
+            if (r.dev && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(r.dev))
+                continue;
             throw new Error("HMI: alarm " + r.code + " nemá spouštěcí tag");
+        }
         const g = groups.get(key);
         if (g)
             g.rows.push(r);
