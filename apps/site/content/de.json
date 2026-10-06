@@ -484,7 +484,7 @@
     "description": "Siemens, Rockwell, Beckhoff, CODESYS, Schneider, WAGO, Delta, Mitsubishi, OMRON, Unitronics und zehn weitere Systeme auf CODESYS-Basis. Was durch Import in der IDE geprüft ist, was durch den Compiler und was durch den Emulator.",
     "eyebrow": "Plattformen",
     "h1": "{{site.platform_count}} Plattformen. Wir sagen, was geprüft ist.",
-    "lead": "CODESYS haben wir durch echten Import und Übersetzen in CODESYS V3.5 SP21 Patch 6 geprüft: Beispiele im klassischen und im OOP-Stil, Antriebe und Servoachse ohne Fehler und ohne Warnung. Schneider, WAGO, Delta AX und zehn weitere Systeme auf CODESYS-Basis nutzen dieselbe Sprache; dort haben wir Sprache und Import geprüft, nicht Bibliotheken, Geräte und Adressen. Unitronics hat den ST-Compiler aus UniLogic bestanden. Die übrigen Plattformen prüft unser Emulator. Den Import in der Entwicklungsumgebung des Herstellers haben wir dort noch nicht ausprobiert, deshalb tragen sie das Etikett beta.",
+    "lead": "CODESYS haben wir durch echten Import und Übersetzen in CODESYS V3.5 SP21 Patch 6 geprüft: Beispiele im klassischen und im OOP-Stil, Antriebe und Servoachse ohne Fehler und ohne Warnung. Schneider, WAGO, Delta AX und zehn weitere Systeme auf CODESYS-Basis nutzen dieselbe Sprache; dort haben wir Sprache und Import geprüft, nicht Bibliotheken, Geräte und Adressen. Beckhoff TwinCAT 3 basiert auf CODESYS V3; seine Ausgabe hat denselben Compiler bestanden. Unitronics hat den ST-Compiler aus UniLogic bestanden. Die übrigen Plattformen prüft unser Emulator. Den Import in der Entwicklungsumgebung des Herstellers haben wir dort noch nicht ausprobiert, deshalb tragen sie das Etikett beta.",
     "checked": "Stand vom",
     "h_platform": "Plattform",
     "h_ide": "Entwicklungs­umgebung",
@@ -513,8 +513,8 @@
         "name": "Beckhoff",
         "ide": "TwinCAT 3",
         "output": "PLCopen XML, ST-Bausteine, GVL",
-        "check": "Emulator: ST-Parser für TwinCAT, Lauf gegen das Maschinenmodell; Schema PLCopen TC6",
-        "state": "beta"
+        "check": "Sprache und PLCopen-Import: Compiler CODESYS 3.5.21.60 (TwinCAT 3 basiert auf CODESYS V3), 6. 10. 2026: klassisch und OOP fehlerfrei; Import in TwinCAT XAE, E/A-Verknüpfung und Servoachse Tc2_MC2 nicht verifiziert",
+        "state": "lang"
       },
       {
         "key": "codesys",

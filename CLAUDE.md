@@ -333,8 +333,10 @@ python scripts/build_verification.py        # data/verification.json → verific
   `unsupported`), `ide` (IDE / překladač a verze, technický text; `null` jen u beta), `date`, `scope`
   (classic / oop / motion / axis / plcopen / iec61131-10), `summary` a `notVerified` (české klíče
   překladu), `evidence` (protokoly v `docs/verification/`), `formats` (výstupy: ide / compiler / xsd /
-  structure / emulator + poznámka). Stav 2026-10-05: CODESYS `verified`; Schneider, WAGO, Delta,
-  10 profilů a Unitronics `lang`; Siemens, Rockwell, Beckhoff, Mitsubishi, OMRON `beta`.
+  structure / emulator + poznámka). Stav 2026-10-06: CODESYS `verified`; Schneider, WAGO, Delta,
+  10 profilů, Unitronics a Beckhoff `lang` (výstup Beckhoffu přeložen v CODESYS — TwinCAT 3 PLC stojí na
+  CODESYS V3; Generate code hlásí jen C128 u `AT %I*` — protokol `beckhoff-codesys.md`); Siemens, Rockwell,
+  Mitsubishi, OMRON `beta` (skutečné IDE vyžadují instalaci s právy správce).
 - `python scripts/build_verification.py` (`--check`) → `packages/core/src/verification_data.ts` (texty jako
   `N_()`); `verification.ts`: `VERIFICATION`, `verificationInfo(plat)` (štítek, bublina `tip`),
   `verificationReadme(plat)`, `verificationLatest()`. Test `verification.test.ts`: každá platforma má
@@ -643,7 +645,8 @@ Pravidla struktury (zjištěná importem, tvar podle exportu téhož IDE; hlíd�
   project (knihovna Standard kvůli TON).
 - VAR_IN_OUT → `<inOutVars>` (jako localVars: C37 „'Axis' is no input of 'FB_AXIS'“ + C540).
 - OOP viz „Styl kódu OOP“ (umístění InterfaceAsPlainText, atributy rozhraní).
-TwinCAT (TcPOU i PLCopen) importem neověřen — formát addData je 3S, předpoklad stejný.
+TwinCAT (TcPOU i PLCopen) importem v XAE neověřen — formát addData je 3S, předpoklad stejný; PLCopen_Import.xml
+Beckhoffu se v CODESYS 3.5.21.60 importuje a přeloží bez chyb (2026-10-06, `docs/verification/beckhoff-codesys.md`).
 Pipeline ověření (mimo repo, jobs tmp `codesys/`): `gen2.mjs` → `build2.py` (`run_cds.ps1`) → `VYSLEDEK_v2.md`.
 Úkoly v app (z handoffu main): proklikat krok Generovat (PLCopen_Import.xml se zobrazí a stáhne
 sám — Generovat i Dokumentace iterují přes soubory), volitelně badge „doporučeno".

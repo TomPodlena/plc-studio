@@ -484,7 +484,7 @@
     "description": "Siemens, Rockwell, Beckhoff, CODESYS, Schneider, WAGO, Delta, Mitsubishi, OMRON, Unitronics a deset dalších systémů na CODESYS. Co je ověřené importem v IDE, co překladačem a co emulátorem.",
     "eyebrow": "Platformy",
     "h1": "{{site.platform_count}} platforem. Píšeme, co je ověřené.",
-    "lead": "CODESYS jsme ověřili skutečným importem a překladem v CODESYS V3.5 SP21 Patch 6: příklady v klasickém stylu i OOP, pohony a servoosa bez chyby a bez varování. Schneider, WAGO, Delta AX a deset dalších systémů na CODESYS stojí na stejném jazyce, u nich jsme ověřili jazyk a import, ne knihovny, zařízení a adresy. Unitronics prošel překladačem ST z UniLogicu. Ostatní platformy ověřuje náš emulátor. Import ve vývojovém prostředí výrobce jsme u nich zatím nezkoušeli, proto nesou štítek beta.",
+    "lead": "CODESYS jsme ověřili skutečným importem a překladem v CODESYS V3.5 SP21 Patch 6: příklady v klasickém stylu i OOP, pohony a servoosa bez chyby a bez varování. Schneider, WAGO, Delta AX a deset dalších systémů na CODESYS stojí na stejném jazyce, u nich jsme ověřili jazyk a import, ne knihovny, zařízení a adresy. Beckhoff TwinCAT 3 stojí na CODESYS V3, jeho výstup prošel stejným překladačem. Unitronics prošel překladačem ST z UniLogicu. Ostatní platformy ověřuje náš emulátor. Import ve vývojovém prostředí výrobce jsme u nich zatím nezkoušeli, proto nesou štítek beta.",
     "checked": "Stav k",
     "h_platform": "Platforma",
     "h_ide": "Vývojové prostředí",
@@ -513,8 +513,8 @@
         "name": "Beckhoff",
         "ide": "TwinCAT 3",
         "output": "PLCopen XML, ST bloky, GVL",
-        "check": "emulátor: parser ST pro TwinCAT, běh proti modelu stroje; schéma PLCopen TC6",
-        "state": "beta"
+        "check": "jazyk a import PLCopen: překladač CODESYS 3.5.21.60 (TwinCAT 3 stojí na CODESYS V3), 6. 10. 2026: klasika i OOP bez chyb; import v TwinCAT XAE, linkování I/O a servoosa Tc2_MC2 neověřeny",
+        "state": "lang"
       },
       {
         "key": "codesys",
