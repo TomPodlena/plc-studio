@@ -235,6 +235,131 @@ class EditTest(unittest.TestCase):
         self.assertTrue(any("K1_chod" in s["svg"] for s in data["sheets"]))
         self.assertIn('data-io="1:outRun"', data["sheets"][0]["svg"] + "".join(s["svg"] for s in data["sheets"]))
 
+    def schema_tab(self):
+        nb = self.find(ttk.Notebook)[0]
+        return nb.index(nb.select())
+
+    def test_schema_terminals_table_edits_tag_addr_cmt(self):
+        """Svorkovnice: dvojklik do Tag / Adresa / Komentář = úprava přes jádro, výběr řádku zůstane."""
+        self.app.load_sample("small")
+        self.app.ui["schema_tab"] = 3
+        self.goto(5)
+        key = "1:outRun"
+
+        def table():
+            return next(t for t in self.find(Table) if "wire" in t._keys)
+
+        def dblclick(col):
+            tbl = table()
+            tbl.select(key)
+            self.root.update()
+            x, y, w, h = tbl.tv.bbox(key, col)
+            # Tk pozná dvojklik ze dvou stisků; na svorce druhý stisk rovnou otevře list zapojení
+            for seq in ("<ButtonPress-1>", "<ButtonRelease-1>", "<ButtonPress-1>", "<ButtonRelease-1>"):
+                if not tbl.tv.winfo_exists():
+                    break
+                tbl.tv.event_generate(seq, x=x + w // 2, y=y + h // 2)
+            self.root.update()
+            return tbl
+
+        tbl = dblclick("tag")
+        self.assertEqual(tbl._editor.get(), "M1_outRun")
+        self.type_in(tbl._editor, "K1_chod")
+        self.assertEqual(self.io(key)["tag"], "K1_chod")
+        self.assertIn("K1_chod", self.status())
+        self.assertEqual(self.schema_tab(), 3)                      # překresleno, záložka i řádek zůstaly
+        self.assertEqual(table().selected(), key)
+        self.assertEqual(table().tv.set(key, "tag"), "K1_chod")
+        # adresa: editor nese uloženou adresu (Siemens), neplatná se neuloží
+        tbl = dblclick("addr")
+        self.assertEqual(tbl._editor.get(), self.io(key)["addr"])
+        before = self.io(key)["addr"]
+        self.type_in(tbl._editor, "%I0.0")
+        self.assertTrue(self.status().startswith("⚠"))
+        self.assertEqual(self.io(key)["addr"], before)
+        self.type_in(dblclick("addr")._editor, "%Q7.7")
+        self.assertEqual(self.io(key)["addr"], "%Q7.7")
+        self.assertEqual(table().tv.set(key, "addr"), "%Q7.7")
+        # komentář má vlastní sloupec (zařízení zvlášť), prázdný = výchozí
+        tbl = dblclick("cmt")
+        self.assertEqual(tbl._editor.get(), "Čerpadlo hydrauliky – povel chod")
+        self.type_in(tbl._editor, "Chod čerpadla")
+        self.assertEqual(self.io(key)["cmt"], "Chod čerpadla")
+        self.assertEqual((table().tv.set(key, "dev"), table().tv.set(key, "cmt")), ("M1", "Chod čerpadla"))
+        self.type_in(dblclick("cmt")._editor, "")
+        self.assertEqual(self.io(key)["cmt"], "Čerpadlo hydrauliky – povel chod")
+        # dvojklik na svorku = list zapojení s tímto signálem
+        dblclick("svorka")
+        self.assertEqual((self.schema_tab(), self.app.ui["wire_sel"]), (2, key))
+
+    def test_schema_wiring_sheet_signal_editor(self):
+        """Elektrické zapojení: klik na kanál = editor signálu pod listem, uložení zůstane na kanálu."""
+        self.app.load_sample("small")
+        key = "1:outRun"
+        self.app.ui.update(schema_tab=2, wire_sel=key)
+        self.goto(5)
+        self.assertNotIn("✎ Upravit signál", [str(w.cget("text")) for w in walk(self.app.view)
+                                              if isinstance(w, tk.Label)])
+        tag = self.entry("M1_outRun")
+        self.type_in(tag, "K1_chod")                                # Enter uloží
+        self.assertEqual(self.io(key)["tag"], "K1_chod")
+        self.assertEqual((self.schema_tab(), self.app.ui["wire_sel"]), (2, key))
+        self.entry("K1_chod")                                        # editor zůstal na kanálu
+        data = self.app.bridge.request("schema", prj=self.app.prj)
+        self.assertTrue(any("K1_chod" in s["svg"] for s in data["sheets"]))
+        # neplatná adresa: hláška, nic se neuloží; komentář a Uložit tlačítkem
+        before = self.io(key)["addr"]
+        self.type_in(self.entry(before), "%I0.0")
+        self.assertTrue(self.status().startswith("⚠"))
+        self.assertEqual(self.io(key)["addr"], before)
+        self.app.render()
+        self.root.update()
+        cmt = self.entry("Čerpadlo hydrauliky – povel chod")
+        cmt.delete(0, "end")
+        cmt.insert(0, "Chod čerpadla")
+        self.click("Uložit")
+        self.assertEqual(self.io(key)["cmt"], "Chod čerpadla")
+        self.assertEqual(self.schema_tab(), 2)
+        # Esc vrátí rozepsané hodnoty
+        tag = self.entry("K1_chod")
+        tag.insert("end", "_x")
+        tag.focus_force()
+        self.root.update()
+        tag.event_generate("<Escape>")
+        self.root.update()
+        self.assertEqual(tag.get(), "K1_chod")
+
+    def test_schema_panel_editor_scrolls_into_view_enter_esc(self):
+        """Panel u blokového schématu: po ✎ je editor signálu vidět i v malém okně, Enter uloží, Esc zavře."""
+        self.assertTrue(self.app.open_project(SAMPLES / "11_podavaci_lisovaci_stanice_PS-11.plcstudio.json"))
+        dev = max(self.app.prj["devices"],
+                  key=lambda d: sum(e["devId"] == d["id"] for e in self.app.prj["io"]))
+        key = [e["key"] for e in self.app.prj["io"] if e["devId"] == dev["id"]][-1]   # poslední signál
+        for size in ("1240x820", "1100x680"):
+            self.root.geometry(size)
+            self.app.ui.update(schema_tab=0, block_sel=dev["id"], panel_io=key)
+            self.goto(5)
+            self.root.update()
+            panel = self.find(DevicePanel)[0]
+            self.assertEqual(panel.io_key, key)
+            save = [w for w in self.find(ttk.Button, panel._editor) if str(w.cget("text")) == "Uložit"][0]
+            c = panel._canvas
+            top, bottom = c.winfo_rooty(), c.winfo_rooty() + c.winfo_height()
+            self.assertTrue(top <= save.winfo_rooty() and save.winfo_rooty() + save.winfo_height() <= bottom,
+                            f"{size}: Uložit mimo výřez panelu")
+            self.assertTrue(top <= panel._editor.first_entry.winfo_rooty(), size)
+        tag = self.io(key)["tag"]
+        self.type_in(panel._editor.first_entry, tag + "X")
+        self.assertEqual(self.io(key)["tag"], tag + "X")
+        panel = self.find(DevicePanel)[0]
+        self.assertEqual(panel.io_key, key)                        # po překreslení editor zůstal
+        panel._editor.first_entry.focus_force()
+        self.root.update()
+        panel._editor.first_entry.event_generate("<Escape>")
+        self.root.update()
+        self.assertIsNone(panel.io_key)
+        self.assertEqual(self.io(key)["tag"], tag + "X")
+
     # --- krok 7 Program ---------------------------------------------------------------
 
     def test_program_edit_insert_duplicate_cancel(self):

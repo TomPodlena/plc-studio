@@ -46,7 +46,7 @@ export function makeSteps(ctx) {
   const roleOptions = sel => "<option value=''>" + tr("— bez vazby —") + "</option>" +
     Object.keys(DO_ROLES).map(r => "<option value='" + r + "'" + (sel === r ? " selected" : "") + ">" + esc(tr(DO_ROLES[r])) + "</option>").join("");
   /** Hláška poslední úpravy v kroku Zařízení / I/O (ukáže se při dalším vykreslení kroku). */
-  let devMsg = null, ioMsg = null;
+  let devMsg = null, ioMsg = null, schMsg = null;
   /** Odkaz ze schématu: zvýrazní řádek tabulky, posune na něj a dá fokus do pole k úpravě. */
   function goToRow(root, sel, focusSel) {
     const row = sel && root.querySelector(sel);
@@ -729,31 +729,127 @@ export function makeSteps(ctx) {
     let rowsHtml = "";
     mods.forEach((m, mi) => m.ch.forEach((e, i) => {
       const d = devById(p, e.devId) || {};
-      rowsHtml += "<tr data-io='" + esc(e.key) + "' class='navlink' title='" + esc(tr("Upravit v kroku I/O")) + "'><td class='mono'><b>X" + (mi + 1) + ":" + (i + 1) + "</b></td><td class='mono'>" + esc((m.hw ? m.hw.dt + " " : "") + m.dir + m.idx) + "</td><td class='mono'>" + (m.chNo ? m.chNo[i] : i) + "</td><td class='mono'>" + esc(hwAddrText(p, e)) + "</td><td class='mono'>" + esc(e.tag) + "</td><td class='mono'>" + wireNo(mi + 1, i) + "</td><td style='color:var(--muted);font-size:.78rem'>" + esc((d.name ? d.name + " · " : "") + (e.cmt || "")) + "</td></tr>";
+      const nat = hwAddrText(p, e);
+      rowsHtml += "<tr data-row='" + esc(e.key) + "'><td class='mono'><a href='#' class='navlink' data-io='" + esc(e.key) + "' title='" + esc(tr("Upravit v kroku I/O")) + "'><b>X" + (mi + 1) + ":" + (i + 1) + "</b></a></td><td class='mono'>" + esc((m.hw ? m.hw.dt + " " : "") + m.dir + m.idx) + "</td><td class='mono'>" + (m.chNo ? m.chNo[i] : i) + "</td>" +
+        "<td><input type='text' data-k='" + esc(e.key) + "' data-f='addr' value='" + esc(e.addr) + "' aria-label='" + esc(tr("Adresa")) + "' style='min-width:70px;width:9ch'>" + (nat && nat !== e.addr ? "<div class='mono' style='color:var(--muted);font-size:.72rem'>" + esc(nat) + "</div>" : "") + "</td>" +
+        "<td><input type='text' data-k='" + esc(e.key) + "' data-f='tag' value='" + esc(e.tag) + "' aria-label='" + esc(tr("Tag")) + "'></td><td class='mono'>" + wireNo(mi + 1, i) + "</td>" +
+        "<td class='mono'>" + esc(d.name || "") + "</td><td><input type='text' data-k='" + esc(e.key) + "' data-f='cmt' value='" + esc(e.cmt || "") + "' aria-label='" + esc(tr("Komentář")) + "' style='min-width:160px'></td></tr>";
     }));
     const c3 = card(el, "·", tr("Svorkovnice"),
-      "<div class='tablewrap'><table><thead><tr><th>" + tr("Svorka") + "</th><th>" + tr("Modul") + "</th><th>" + tr("Kanál") + "</th><th>" + tr("Adresa") + "</th><th>" + tr("Tag") + "</th><th>" + tr("Vodič") + "</th><th>" + tr("Zařízení / komentář") + "</th></tr></thead><tbody>" + rowsHtml + "</tbody></table></div>" +
-      "<div class='row'><button class='small' id='bCsv'>" + tr("Stáhnout svorkovnici (CSV)") + "</button><span class='hint' style='margin:0'>" + tr("Podklad pro projektanta elektro.") + "</span></div>");
+      (schMsg && !S.schEd ? "<p class='errtxt' role='alert'>" + esc(schMsg) + "</p>" : "") +
+      "<div class='tablewrap'><table><thead><tr><th>" + tr("Svorka") + "</th><th>" + tr("Modul") + "</th><th>" + tr("Kanál") + "</th><th>" + tr("Adresa") + "</th><th>" + tr("Tag") + "</th><th>" + tr("Vodič") + "</th><th>" + tr("Zařízení") + "</th><th>" + tr("Komentář") + "</th></tr></thead><tbody>" + rowsHtml + "</tbody></table></div>" +
+      "<div class='row'><button class='small' id='bCsv'>" + tr("Stáhnout svorkovnici (CSV)") + "</button><span class='hint' style='margin:0'>" + tr("Podklad pro projektanta elektro.") + " " + tr("Prázdný tag nebo komentář = výchozí, prázdná adresa = přidělit automaticky; adresu zapiš v Siemens notaci (%I0.0, %QW64) nebo v notaci platformy hardwaru.") + "</span></div>");
     c3.querySelector("#bCsv").addEventListener("click", () => downloadFile("03_svorkovnice.csv", svorkyCSV(p)));
-    /* odkazy ze schémat a svorkovnice na úpravy: signál (data-io) → řádek v kroku I/O,
-       zařízení (data-dev) → řádek v kroku Zařízení; SVG nese odkazy z jádra (drawing.ts) */
-    const nav = ev => {
-      const io = ev.target.closest("[data-io]"), dv = ev.target.closest("[data-dev]");
-      if (io && p.io.some(x => x.key === io.getAttribute("data-io"))) { S.ioSel = io.getAttribute("data-io"); S.step = 4; }
-      else if (dv && devById(p, +dv.getAttribute("data-dev"))) { S.devSel = +dv.getAttribute("data-dev"); S.step = 3; }
-      else return;
+    /* svorkovnice: tag / adresa / komentář přímo v tabulce (jádro edit.ts jako krok I/O) */
+    const ioFns = { tag: setIoTag, addr: setIoAddr, cmt: setIoCmt };
+    c3.querySelectorAll("input[data-k]").forEach(inp => inp.addEventListener("change", () => {
+      const r = ioFns[inp.dataset.f](p, inp.dataset.k, inp.value);
+      schMsg = r.ok ? null : r.error;
+      S.schTerm = inp.dataset.k;
       save(); render();
-      window.scrollTo(0, 0);
+    }));
+    if (S.schTerm) {
+      const row = c3.querySelector("tr[data-row='" + CSS.escape(S.schTerm) + "']");
+      if (row) { row.classList.add("hl"); row.scrollIntoView({ block: "nearest" }); }
+      S.schTerm = null;
+      if (!S.schEd) schMsg = null;
+    }
+
+    /* Editor přímo pod schématem: klik na zařízení = popis a jeho signály, klik na signál = popis
+       a ten signál (tag, adresa, komentář). Uložení přes jádro (edit.ts), pak schéma znovu. */
+    function closeEditor(box) { S.schEd = null; schMsg = null; box.remove(); }
+    function showEditor(scroll) {
+      el.querySelectorAll(".schEditor").forEach(x => x.remove());
+      const ed = S.schEd;
+      const d = ed && devById(p, ed.dev);
+      if (!d) { S.schEd = null; return; }
+      const sigs = p.io.filter(e => e.devId === d.id && (!ed.io || e.key === ed.io));
+      const box = document.createElement("div");
+      box.className = "schEditor";
+      box.style.cssText = "margin:10px 0;padding:10px 12px;border:2px solid var(--accent, #008639);border-radius:6px";
+      box.innerHTML =
+        "<div class='row' style='margin:0 0 6px;align-items:baseline'><b class='mono'>" + esc(d.name) + "</b><span class='hint' style='margin:0'>" + esc(tr(CLS[d.cls].label)) + "</span>" +
+        "<span style='flex:1'></span><a href='#' class='navlink' data-go='dev'>" + tr("Upravit v kroku Zařízení") + " ↗</a>" +
+        (ed.io ? "<a href='#' class='navlink' data-go='io' style='margin-left:12px'>" + tr("Upravit v kroku I/O") + " ↗</a>" : "") + "</div>" +
+        (schMsg ? "<p class='errtxt' role='alert' style='margin:0 0 6px'>" + esc(schMsg) + "</p>" : "") +
+        "<label class='f'>" + tr("Popis") + "<input type='text' data-ed='desc' value='" + esc(d.desc || "") + "'></label>" +
+        (sigs.length ? "<div class='tablewrap'><table><thead><tr><th>" + tr("Směr") + "</th><th>" + tr("Tag") + "</th><th>" + tr("Adresa") + "</th><th>" + tr("Komentář") + "</th></tr></thead><tbody>" +
+          sigs.map(e => "<tr data-row='" + esc(e.key) + "'><td class='mono dir" + e.dir + "'>" + e.dir + "</td>" +
+            "<td><input type='text' data-k='" + esc(e.key) + "' data-f='tag' value='" + esc(e.tag) + "' aria-label='" + esc(tr("Tag")) + "'></td>" +
+            "<td><input type='text' data-k='" + esc(e.key) + "' data-f='addr' value='" + esc(e.addr) + "' aria-label='" + esc(tr("Adresa")) + "' style='min-width:70px;width:9ch'></td>" +
+            "<td><input type='text' data-k='" + esc(e.key) + "' data-f='cmt' value='" + esc(e.cmt || "") + "' aria-label='" + esc(tr("Komentář")) + "' style='min-width:160px'></td></tr>").join("") +
+          "</tbody></table></div>" : "") +
+        "<div class='row' style='margin:6px 0 0'><button class='small' data-ed='save'>" + tr("Uložit") + "</button><button class='small' data-ed='close'>" + tr("Zavřít") + "</button>" +
+        "<span class='hint' style='margin:0'>" + tr("Prázdný tag nebo komentář = výchozí, prázdná adresa = přidělit automaticky; adresu zapiš v Siemens notaci (%I0.0, %QW64) nebo v notaci platformy hardwaru.") + "</span></div>";
+      // pod obrázek, na který se kliklo (blokové schéma nebo list zapojení)
+      const figs = c2.querySelectorAll("figure");
+      const anchor = (ed.sheet >= 0 && figs[ed.sheet]) || c1.querySelector("figure");
+      (anchor.closest(".tablewrap") || anchor).after(box);
+      const saveEd = () => {
+        const cur = devById(p, d.id);
+        if (!cur) return;
+        const desc = box.querySelector("[data-ed=desc]").value;
+        if (desc.trim() !== (cur.desc || "")) setDeviceDesc(p, cur.id, desc);
+        let err = null;
+        for (const inp of box.querySelectorAll("input[data-k]")) {
+          const e = p.io.find(x => x.key === inp.dataset.k);
+          // jen pole, která uživatel změnil (výchozí komentáře mohl právě přepsat nový popis zařízení)
+          if (!e || inp.value.trim() === inp.defaultValue.trim()) continue;
+          const r = ioFns[inp.dataset.f](p, e.key, inp.value);
+          if (!r.ok) { err = r.error; break; }
+        }
+        schMsg = err;
+        save(); render();
+      };
+      box.querySelector("[data-ed=save]").addEventListener("click", saveEd);
+      box.querySelector("[data-ed=close]").addEventListener("click", () => closeEditor(box));
+      box.querySelectorAll("input").forEach(i => i.addEventListener("keydown", ev => {
+        if (ev.key === "Enter") { ev.preventDefault(); saveEd(); }
+        else if (ev.key === "Escape") closeEditor(box);
+      }));
+      box.querySelectorAll("[data-go]").forEach(a => a.addEventListener("click", ev => {
+        ev.preventDefault();
+        if (a.dataset.go === "io") { S.ioSel = ed.io; S.step = 4; } else { S.devSel = d.id; S.step = 3; }
+        S.schEd = null;
+        save(); render();
+        window.scrollTo(0, 0);
+      }));
+      if (scroll) {
+        box.scrollIntoView({ block: "nearest" });
+        const first = box.querySelector(ed.io ? "input[data-f=tag]" : "[data-ed=desc]");
+        if (first) first.focus({ preventScroll: true });
+      }
+    }
+    const pick = ev => {
+      const io = ev.target.closest("[data-io]"), dv = ev.target.closest("[data-dev]");
+      const fig = ev.target.closest("figure");
+      const sheet = fig && c2.contains(fig) ? [...c2.querySelectorAll("figure")].indexOf(fig) : -1;
+      const key = io && io.getAttribute("data-io");
+      const e = key && p.io.find(x => x.key === key);
+      let ed = null;
+      if (e) ed = { dev: e.devId, io: e.key, sheet };
+      else if (dv && devById(p, +dv.getAttribute("data-dev"))) ed = { dev: +dv.getAttribute("data-dev"), io: null, sheet };
+      if (!ed) return;
+      S.schEd = ed;
+      schMsg = null;
+      showEditor(true);
     };
     for (const box of [c1, c2]) {
       box.querySelectorAll("svg [data-io], svg [data-dev]").forEach(n => n.classList.add("navlink"));
-      box.addEventListener("click", nav);
+      box.querySelectorAll("figure").forEach(f => f.addEventListener("click", pick));
     }
-    c3.querySelectorAll("tr[data-io]").forEach(r => r.addEventListener("click", nav));
+    /* svorka v tabulce = vedlejší odkaz na řádek v kroku I/O */
+    c3.querySelectorAll("a[data-io]").forEach(a => a.addEventListener("click", ev => {
+      ev.preventDefault();
+      S.ioSel = a.dataset.io; S.step = 4;
+      save(); render();
+      window.scrollTo(0, 0);
+    }));
     const hint = document.createElement("p");
     hint.className = "hint";
-    hint.textContent = tr("Klik na zařízení ve schématu otevře jeho řádek v kroku Zařízení (označení, popis, volby, parametry), klik na signál nebo řádek svorkovnice řádek v kroku I/O (tag, adresa, komentář).");
+    hint.textContent = tr("Klik na zařízení nebo signál ve schématu otevře pod ním úpravu (popis zařízení, tag, adresa a komentář signálu); svorkovnice se upravuje přímo v tabulce.");
     c1.querySelector("figure").after(hint);
+    if (S.schEd) showEditor(true);
   }
 
   /* ---------------------------------------------------------- 7 Program */

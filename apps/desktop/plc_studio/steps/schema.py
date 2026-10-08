@@ -35,6 +35,24 @@ def render(app, parent) -> None:
         ui["panel_io"] = panel.io_key
         app.render()
 
+    def save_signal(key: str, values: dict, start: dict) -> bool:
+        """Tag / adresa / komentář signálu přes jádro (edit.ts). Mění jen pole, která se liší od
+        ``start``; chyba = hláška ve stavovém řádku a další pole se neukládají (vrací False)."""
+        cur = next((x for x in app.prj["io"] if x["key"] == key), None)
+        if cur is None:
+            return False
+        fns = {"tag": "setIoTag", "addr": "setIoAddr", "cmt": "setIoCmt"}
+        for f, fn in fns.items():
+            if f not in values or values[f].strip() == (start.get(f) or "").strip():
+                continue
+            res = app.edit(fn, key, values[f])
+            if not res.get("ok"):
+                app.set_status("⚠ " + (res.get("error") or ""), keep=True)
+                return False
+        cur = next(x for x in app.prj["io"] if x["key"] == key)
+        app.set_status(_("Signál {tag} uložen.", tag=cur["tag"]))
+        return True
+
     # ------------------------------------------------------------ blokové schéma
     t1 = ttk.Frame(nb, padding=10)
     nb.add(t1, text=_("Blokové schéma systému"))
@@ -154,38 +172,67 @@ def render(app, parent) -> None:
 
     ttk.Button(top, text=_("Uložit všechny výkresy do složky…"), command=save_all
                ).pack(side="left", padx=(6, 0))
-    info = ttk.Frame(t3)
-    info.pack(fill="x", pady=(0, 6))
     note_box(t3, _(
         "Pozor: NC/NO kontakty dle sloupce NC v kroku I/O; čísla vodičů podle "
         "svorkovnice (X1 → -W101…, X2 → -W201…). Jištění, průřezy, relé na výstupech "
         "s větší zátěží a stínění analogů doplní projektant elektro — toto je podklad, ne výrobní dokumentace. "
         "DXF otevře EPLAN / AutoCAD / LibreCAD."), warn=True, side="bottom")
+    # řádek pod listem: vybraný kanál, odkazy a přímo editor signálu
+    info = ttk.Frame(t3)
+    info.pack(side="bottom", fill="x", pady=(6, 0))
+    wire_vars: list = []                    # Tk proměnné editoru naživu (GC)
 
     def show_info() -> None:
-        """Řádek s odkazy pro vybraný signál na listu."""
+        """Pod listem: vybraný signál, odkazy a editor tagu, adresy a komentáře."""
         for w in info.winfo_children():
             w.destroy()
+        wire_vars.clear()
         r = terms.get(ui.get("wire_sel"))
         if r is None:
-            ttk.Label(info, text=_("Klik na kanál = odkazy na zařízení a řádek v I/O."),
+            ttk.Label(info, text=_("Klik na kanál = úprava signálu (tag, adresa, komentář) "
+                                   "a odkazy na zařízení a řádek v I/O."),
                       style="Dim.TLabel").pack(side="left")
             return
-        ttk.Label(info, text=f"{r['svorka']} · {r['tag']} · {r['addr']} — {r['cmt']}",
+        head = ttk.Frame(info)
+        head.pack(fill="x")
+        ttk.Label(head, text=" · ".join(x for x in (r["svorka"], r["dev"], r["tag"], r["addr"]) if x),
                   style="Section.TLabel").pack(side="left")
-        link(info, _("Zařízení ↗"), lambda: app.open_device(r["devId"])
+        link(head, _("Zařízení ↗"), lambda: app.open_device(r["devId"])
              ).pack(side="left", padx=(14, 0))
-        link(info, _("I/O ↗"), lambda: app.open_io(r["key"])).pack(side="left", padx=(12, 0))
-        link(info, _("Blokové schéma ↗"), lambda: app.open_block(r["devId"])
+        link(head, _("I/O ↗"), lambda: app.open_io(r["key"])).pack(side="left", padx=(12, 0))
+        link(head, _("Blokové schéma ↗"), lambda: app.open_block(r["devId"])
              ).pack(side="left", padx=(12, 0))
+        form = ttk.Frame(info)
+        form.pack(fill="x", pady=(4, 0))
+        start = {"tag": r["tag"], "addr": r["rawAddr"], "cmt": r["ioCmt"]}
+        entries = {}
+        col = 0
+        for f, label, width in (("tag", _("Tag"), 22), ("addr", _("Adresa"), 12), ("cmt", _("Komentář"), 30)):
+            var = tk.StringVar(value=start[f])
+            wire_vars.append(var)
+            ttk.Label(form, text=label).grid(row=0, column=col, sticky="w", padx=(10 if col else 0, 4))
+            ent = ttk.Entry(form, textvariable=var, width=width)
+            ent.grid(row=0, column=col + 1, sticky="we")
+            entries[f] = (ent, var)
+            col += 2
+        form.columnconfigure(5, weight=1)
 
-        def edit_signal() -> None:          # úprava signálu v panelu blokového schématu
-            ui.update(block_sel=r["devId"], panel_io=r["key"])
-            panel_block.show(r["devId"], io_key=r["key"])
-            view_block.refresh()
-            nb.select(TAB_BLOCK)
+        def save(_e=None) -> None:
+            if save_signal(r["key"], {f: v.get() for f, (_ent, v) in entries.items()}, start):
+                ui["wire_sel"] = r["key"]
+                app.render()                # list z jádra znovu, zůstane na tomtéž kanálu
 
-        link(info, "✎ " + _("Upravit signál"), edit_signal).pack(side="left", padx=(12, 0))
+        def reset(_e=None) -> None:
+            for f, (_ent, v) in entries.items():
+                v.set(start[f])
+
+        ttk.Button(form, text=_("Uložit"), command=save).grid(row=0, column=6, padx=(10, 0))
+        for ent, _v in entries.values():
+            ent.bind("<Return>", save)
+            ent.bind("<Escape>", reset)
+        wrap_label(info, _("Prázdný tag nebo komentář = výchozí, prázdná adresa = přidělit automaticky; adresu "
+                           "zapiš v Siemens notaci (%I0.0, %QW64) nebo v notaci platformy hardwaru."),
+                   style="Dim.TLabel", pady=(2, 0))
 
     def click_wire(meta: dict) -> None:
         if "io" in meta:
@@ -218,15 +265,34 @@ def render(app, parent) -> None:
     row4.pack(side="bottom", fill="x", pady=(8, 0))
     ttk.Button(row4, text=_("Uložit svorkovnici (CSV)…"),
                command=lambda: save_file(app, "03_svorkovnice.csv", data["csv"])).pack(side="left")
+    wrap_label(t4, _("Dvojklik do sloupce Tag, Adresa nebo Komentář = úprava (Enter uloží, Esc zruší); "
+                     "dvojklik na svorku = list zapojení."), side="bottom", pady=(4, 0))
+
+    def term_edit(iid: str, col: str, value: str) -> None:
+        """Dvojklik do Tag / Adresa / Komentář: úprava přes jádro, pak výkresy znovu (řádek zůstane)."""
+        r = terms.get(iid)
+        if r is None:
+            return
+        start = {"tag": r["tag"], "addr": r["rawAddr"], "cmt": r["ioCmt"]}
+        ui["term_sel"] = iid
+        if save_signal(iid, {col: value}, start):
+            app.render()
+        else:                                   # chyba: buňka zůstane s původní hodnotou
+            tbl.select(iid)
+
     tbl = Table(t4, [("svorka", _("Svorka"), 80, False), ("modul", _("Modul"), 70, False),
                      ("kanal", _("Kanál"), 60, False), ("addr", _("Adresa"), 90, False),
-                     ("tag", _("Tag"), 220, True), ("wire", _("Vodič"), 70, False),
-                     ("cmt", _("Zařízení / komentář"), 420, True)],
-                height=12)
+                     ("tag", _("Tag"), 200, True), ("wire", _("Vodič"), 70, False),
+                     ("dev", _("Zařízení"), 70, False), ("cmt", _("Komentář"), 360, True)],
+                height=12, editable=("tag", "addr", "cmt"), on_edit=term_edit,
+                edit_value=lambda iid, key: terms[iid]["rawAddr"] if key == "addr" and iid in terms else None)
     tbl.pack(fill="both", expand=True)
     for r in rows:
         tbl.add(r["key"], (r["svorka"], r["modul"], r["kanal"], r["addr"], r["tag"], r["wire"],
-                           r["cmt"]))
+                           r["dev"], r["ioCmt"]))
+    if ui.get("term_sel") in terms:
+        tbl.select(ui["term_sel"])
+    tbl.tv.bind("<<TreeviewSelect>>", lambda _e: ui.__setitem__("term_sel", tbl.selected()), add="+")
 
     def with_row(action) -> None:
         r = terms.get(tbl.selected())
@@ -235,6 +301,12 @@ def render(app, parent) -> None:
         else:
             action(r)
 
+    def open_sheet(event) -> None:
+        """Dvojklik mimo upravitelné sloupce (svorka, modul, kanál, vodič) = list zapojení."""
+        iid, key = tbl._cell(event)
+        if iid and key in ("svorka", "modul", "kanal", "wire", "dev"):
+            with_row(lambda r: app.open_wiring(r["key"]))
+
     ttk.Label(row4, text=_("Vybraná svorka:"), style="Dim.TLabel").pack(side="left", padx=(16, 0))
     link(row4, _("Zapojení ↗"), lambda: with_row(lambda r: app.open_wiring(r["key"]))
          ).pack(side="left", padx=(8, 0))
@@ -242,7 +314,7 @@ def render(app, parent) -> None:
          ).pack(side="left", padx=(12, 0))
     link(row4, _("Zařízení ↗"), lambda: with_row(lambda r: app.open_device(r["devId"]))
          ).pack(side="left", padx=(12, 0))
-    tbl.tv.bind("<Double-1>", lambda _e: with_row(lambda r: app.open_wiring(r["key"])))
+    tbl.tv.bind("<Double-1>", open_sheet, add="+")
 
     # zapamatuj si otevřenou záložku mezi překresleními
     nb.select(min(ui.get("schema_tab", 0), TAB_TERMS))

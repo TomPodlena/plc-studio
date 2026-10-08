@@ -247,12 +247,15 @@ class Table(ttk.Frame):
     ``columns`` = seznam ``(klíč, nadpis, šířka, roztáhnout)``. ``editable`` =
     klíče sloupců, které jdou upravit; změnu hlásí ``on_edit(iid, klíč, hodnota)``.
     ``on_click(iid, klíč)`` hlásí jednoduchý klik (např. přepnutí zaškrtnutí).
+    ``edit_value(iid, klíč)`` = text do editoru buňky, když se liší od zobrazeného (např. uložená
+    adresa místo adresy v notaci platformy).
     ``ellipsis=True``: text, který se do sloupce nevejde, se zkrátí s „…“ (Treeview sám řeže
     uprostřed slova) a celý se ukáže v bublině po najetí myší; celou hodnotu vrací ``full()``.
     """
 
     def __init__(self, parent, columns, *, height: int = 8, editable=(),
-                 on_edit=None, on_click=None, tree: bool = False, ellipsis: bool = False):
+                 on_edit=None, on_click=None, tree: bool = False, ellipsis: bool = False,
+                 edit_value=None):
         super().__init__(parent)
         self._ellipsis = ellipsis
         self._full: dict[str, dict[str, str]] = {}    # iid → {sloupec / "#0": celý text}
@@ -266,6 +269,7 @@ class Table(ttk.Frame):
         self._editable = set(editable)
         self._on_edit = on_edit
         self._on_click = on_click
+        self._edit_value = edit_value
         self._editor: tk.Entry | None = None
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
@@ -527,7 +531,10 @@ class Table(ttk.Frame):
         ed = tk.Entry(self.tv, bg="#FFFFFF", fg=theme.FG, relief="flat", font=theme.FONT_UI,
                       highlightthickness=1, highlightbackground=theme.ACCENT,
                       highlightcolor=theme.ACCENT, insertbackground=theme.FG)
-        ed.insert(0, self.full(iid, key))           # celý text, ne zkrácený s „…“
+        start = self._edit_value(iid, key) if self._edit_value else None
+        if start is None:
+            start = self.full(iid, key)               # celý text, ne zkrácený s „…“
+        ed.insert(0, start)
         ed.select_range(0, "end")
         ed.place(x=x, y=y, width=w, height=h)
         ed.focus_set()
@@ -538,7 +545,7 @@ class Table(ttk.Frame):
                 return
             value = ed.get()
             self._cancel_edit()
-            if value != self.full(iid, key) and self._on_edit:
+            if value != start and self._on_edit:
                 self._on_edit(iid, key, value)
 
         ed.bind("<Return>", commit)

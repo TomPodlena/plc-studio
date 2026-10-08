@@ -101,6 +101,7 @@ class DevicePanel(ttk.Frame):
     def show(self, dev_id: int | None, *, io_key: str | None = None,
              step: int | None = None) -> None:
         """Zobrazí zařízení (a případně krok sekvence, ze kterého se přišlo)."""
+        self._editor = None             # rámeček editoru signálu (✎), ke kterému se panel posune
         self._fill(dev_id, io_key, step)
 
         def bind_wheel(w) -> None:          # kolečko má posouvat i nad texty a odkazy
@@ -109,6 +110,33 @@ class DevicePanel(ttk.Frame):
                 bind_wheel(child)
 
         bind_wheel(self.body)
+        if self._editor is not None:
+            self.after_idle(self.see_editor)
+
+    def see_editor(self) -> None:
+        """Posune obsah panelu tak, aby byl editor signálu celý vidět (i Uložit), a dá kurzor do Tagu."""
+        box = self._editor
+        if box is None or not box.winfo_exists():
+            return
+        self.update_idletasks()
+        self._layout()
+        y0, w = 0, box
+        while w is not None and w is not self.body:      # poloha editoru v obsahu panelu
+            y0 += w.winfo_y()
+            w = w.master
+        y1 = y0 + box.winfo_height()
+        need, h = self.body.winfo_reqheight(), self._canvas.winfo_height()
+        if h > 1 and need > h:
+            top = self._canvas.canvasy(0)
+            if y1 + 8 > top + h:
+                top = min(y1 + 8 - h, need - h)
+            if y0 - 30 < top:                              # i se řádkem signálu nad editorem
+                top = max(0, y0 - 30)
+            self._canvas.yview_moveto(top / need)
+        first = getattr(box, "first_entry", None)
+        if first is not None:
+            first.focus_set()
+            first.icursor("end")
 
     def _fill(self, dev_id: int | None, io_key: str | None, step: int | None) -> None:
         app = self.app
@@ -277,7 +305,7 @@ class DevicePanel(ttk.Frame):
             cb.grid(row=1, column=1, sticky="w", padx=(6, 0), pady=(2, 0))
             vars_["role"] = (cb, role_keys)
 
-        def save() -> None:
+        def save(_e=None) -> None:
             try:
                 params = read_params(vars_)
             except ValueError as exc:
@@ -297,6 +325,9 @@ class DevicePanel(ttk.Frame):
 
         ttk.Button(box, text=_("Uložit"), command=save).grid(row=len(keys) + 2, column=0, columnspan=2,
                                                               sticky="w", pady=(4, 0))
+        for w in box.winfo_children():          # Enter v poli uloží
+            if isinstance(w, ttk.Entry):
+                w.bind("<Return>", save)
 
     def _signal_editor(self, parent, e: dict, bg: str) -> None:
         """Tag, adresa a komentář vybraného signálu — Entry + Uložit (jádro edit.ts)."""
@@ -307,14 +338,19 @@ class DevicePanel(ttk.Frame):
         fields = (("tag", _("Tag"), "setIoTag"), ("addr", _("Adresa"), "setIoAddr"),
                   ("cmt", _("Komentář"), "setIoCmt"))
         vars_ = {}
+        entries = []
         for r, (f, label, _fn) in enumerate(fields):
             var = tk.StringVar(value=e.get(f) or "")
             self._vars.append(var)
             vars_[f] = var
             tk.Label(box, text=label, bg=bg, fg=theme.FG, font=theme.FONT_DIM).grid(row=r, column=0, sticky="w")
-            ttk.Entry(box, textvariable=var).grid(row=r, column=1, sticky="we", padx=(6, 0), pady=1)
+            ent = ttk.Entry(box, textvariable=var)
+            ent.grid(row=r, column=1, sticky="we", padx=(6, 0), pady=1)
+            entries.append(ent)
+        self._editor = box
+        box.first_entry = entries[0]
 
-        def save() -> None:
+        def save(_e=None) -> None:
             cur = next((x for x in app.prj["io"] if x["key"] == key), None)
             if cur is None:
                 return
@@ -328,5 +364,13 @@ class DevicePanel(ttk.Frame):
                 cur = next(x for x in app.prj["io"] if x["key"] == key)
             self._saved(_("Signál {tag} uložen.", tag=cur["tag"]))
 
-        ttk.Button(box, text=_("Uložit"), command=save).grid(row=len(fields), column=0, columnspan=2,
-                                                              sticky="w", pady=(2, 0))
+        def cancel(_e=None) -> None:            # Esc = zavřít editor beze změny
+            self.show(self.dev_id, io_key=None)
+
+        btns = tk.Frame(box, bg=bg)
+        btns.grid(row=len(fields), column=0, columnspan=2, sticky="w", pady=(2, 0))
+        ttk.Button(btns, text=_("Uložit"), command=save).pack(side="left")
+        ttk.Button(btns, text=_("Zrušit"), command=cancel).pack(side="left", padx=(6, 0))
+        for ent in entries:
+            ent.bind("<Return>", save)
+            ent.bind("<Escape>", cancel)

@@ -169,6 +169,8 @@ const OPS = {
         key: e.key, devId: e.devId, sheet: mi,
         svorka: "X" + (mi + 1) + ":" + (i + 1), modul: (m.hw ? m.hw.dt + " " : "") + m.dir + m.idx, kanal: m.chNo ? m.chNo[i] : i,
         addr: core.hwAddrText(prj, e), tag: e.tag, wire: core.wireNo(mi + 1, i), cmt: (d.name ? d.name + " · " : "") + (e.cmt || ""),
+        // úpravy ve svorkovnici / pod listem zapojení: zařízení, komentář a uložená adresa zvlášť
+        dev: d.name || "", ioCmt: e.cmt || "", rawAddr: e.addr || "",
       });
     }));
     return {
