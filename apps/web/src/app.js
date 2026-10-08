@@ -1,6 +1,5 @@
 /* PLCdesk — aplikační shell: stav, navigace, render, jazyk. */
-import { blankProject, sampleComplex, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule } from "../../../packages/core/dist/index.js";
-import { seedFromProject, SAMPLE_DESC } from "./ai.js";
+import { blankProject, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule } from "../../../packages/core/dist/index.js";
 import { makeSteps } from "./steps.js";
 import { makeImportWizard } from "./import_wizard.js";
 import { makeSafetyStep } from "./safety_step.js";
@@ -8,7 +7,7 @@ import { makeApprovalStep, approvalBadge, setApproverSource } from "./approval_s
 import { makeBizSteps } from "./biz_steps.js";
 import { approverNames } from "./biz_view.js";
 import { makeCommissionStep } from "./commission_step.js";
-import { $, normProject, normAi, setProjectHeader } from "./util.js";
+import { $, normProject, normAi, setProjectHeader, rememberNumber, suggestNumber } from "./util.js";
 import { makeGenTabs } from "./gen_tabs.js";
 import { emuGate } from "./emu_step.js";
 import { trn } from "./plural.js";
@@ -40,6 +39,7 @@ let saveFailed = false;
 function save() {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({ prj: S.prj, ai: S.ai, step: S.step }));
+    rememberNumber(S.prj.meta && S.prj.meta.number);      // historie čísel pro návrh dalšího (util.js)
     if (saveFailed) { saveFailed = false; showSaveWarn(); }
   } catch (e) {
     if (!saveFailed) console.warn("save:", e);
@@ -195,8 +195,9 @@ $("lang").addEventListener("change", e => {
 applyLang(loadLang());
 /* licence (license.js): ověří uloženou licenci před prvním vykreslením, kontrola na pozadí nejvýš 1× denně */
 await initLicense({ project: () => S.prj, onChange: () => render() });
-if (!load()) {   // první návštěva: předvyplněná ukázka
-  S.prj = sampleComplex();
-  S.ai = seedFromProject(S.prj, tr(SAMPLE_DESC.complex), tr("Ukázkový návrh složité linky — předvyplněno jako příklad práce AI návrháře."));
+if (!load()) {   // první návštěva: prázdný projekt (žádná ukázka) s navrženým číslem projektu
+  S.prj = blankProject();
+  const num = suggestNumber();
+  if (num) S.prj.meta.number = num;
 }
 render();

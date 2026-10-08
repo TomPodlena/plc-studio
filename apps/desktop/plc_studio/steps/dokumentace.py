@@ -9,6 +9,13 @@ from ..svgview import SvgView
 from ..widgets import Table, card, note_box, save_file, save_many, scrolled_text, set_text, wrap_label
 
 
+def _own_name(f: dict) -> str:
+    """Jméno pro „Uložit soubor…“ jako v projektové složce: kód platformy, EPLAN a SISTEMA mají
+    ve své podsložce původní jméno (README na ně odkazuje), ostatní jméno sady (``save``)."""
+    d = f.get("dir") or ""
+    return f["name"] if d.startswith("kod/") or d in ("eplan", "bezpecnost") else f["save"]
+
+
 def render(app, parent) -> None:
     body = card(parent, "09", _("Dokumentace projektu"))
     if not app.prj["devices"]:
@@ -81,7 +88,7 @@ def render(app, parent) -> None:
             show()
 
     ttk.Button(bar, text=_("Uložit soubor…"), style="Accent.TButton",
-               command=lambda: save_file(app, cur()["save"], cur()["body"], cur().get("dir") or "exporty")).pack(side="left")
+               command=lambda: save_file(app, _own_name(cur()), cur()["body"], cur().get("dir") or "")).pack(side="left")
     ttk.Button(bar, text=_("Uložit vše do složky…"),
                command=lambda: save_many(app, [(f["save"], f["body"]) for f in files],
                                          _("dokumentaci projektu"), "dokumentace")).pack(side="left", padx=(6, 0))

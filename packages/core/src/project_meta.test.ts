@@ -3,7 +3,7 @@
  * - číslo projektu, zákazník a datum zahájení v popisovém poli výkresů (SVG + DXF ASCII), v hlavičce dokumentů a README,
  *   NE v kódu PLC; prázdná pole = výstup beze změny,
  * - víceřádkový popis projektu: kód všech platforem + emulace překladu, dokumentace, výkresy, EPLAN / SISTEMA,
- * - revize (kosmetická změna, složka dat není obsah), názvy souborů, složka dat projektu.
+ * - revize (kosmetická změna, složka dat není obsah), názvy souborů (projektová složka: project_folder.test.ts).
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -21,7 +21,6 @@ import { sistemaExport } from "./sistema.js";
 import { eplanFiles, eplanAml } from "./eplan.js";
 import { diffProjects, createRevision, modifiedSinceRevision } from "./revision.js";
 import { projectFilePrefix, projectFileName, withFilePrefix, projectTitle, mdMultiline, firstLine, oneLine, projectMetaMd, isIsoDate, formatIsoDate, projectRef, parseUserDate, calendarLabels } from "./project_meta.js";
-import { projectFolderFiles, PROJECT_DIRS } from "./project_folder.js";
 import { xmlProblem } from "./exp_util.test.js";
 
 const NUM = "2610705", CUST = "Strojírny Šťastný a syn, s.r.o.", START = "2026-10-05";
@@ -161,23 +160,6 @@ test("revize: číslo a zákazník = kosmetická změna, složka dat není obsah
   assert.equal(meta.length, 3);
   for (const c of meta) assert.equal(c.cls, "cosmetic");
   assert.equal(modifiedSinceRevision(q), true);
-});
-
-test("složka dat projektu: podsložky, původní jména, nic navíc", () => {
-  const offH = registerHmiModule();
-  try {
-    const p = withRef(sampleSmall()); syncIO(p);
-    const ff = projectFolderFiles(p);
-    const paths = ff.map(f => f.path);
-    assert.equal(new Set(paths).size, paths.length, "bez duplicit");
-    for (const pl of p.platforms) for (const n of Object.keys(genFor(p, pl))) assert.ok(paths.includes(PROJECT_DIRS.code + "/" + pl + "/" + n), pl + "/" + n);
-    assert.ok(paths.includes("dokumentace/01_FDS.md") || paths.some(x => /^dokumentace\/01_/.test(x)));
-    assert.ok(paths.some(x => /^kusovnik\/09_kusovnik\.csv$/.test(x)));
-    assert.ok(paths.some(x => /^vykresy\/.*\.dxf$/.test(x)) && paths.some(x => /^vykresy\/00_blokove_schema\.svg$/.test(x)));
-    assert.ok(paths.some(x => /^hmi\//.test(x)));
-    assert.ok(paths.every(x => /^(kod\/[a-z]+|dokumentace|vykresy|kusovnik|hmi|exporty)\/[^/]+$/.test(x)), paths.find(x => !/^(kod\/[a-z]+|dokumentace|vykresy|kusovnik|hmi|exporty)\/[^/]+$/.test(x)));
-    assert.equal(ff.length, allProjectFiles(p).length);
-  } finally { offH(); }
 });
 
 test("datum zahájení: zápis podle jazyka → ISO, popisky kalendáře", () => {

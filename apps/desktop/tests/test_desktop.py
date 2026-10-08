@@ -1711,9 +1711,12 @@ class GuiTest(unittest.TestCase):
         out = tempfile.mkdtemp()
         with mock.patch("tkinter.filedialog.askdirectory", return_value=out):
             self.click("Uložit všechny soubory platformy…")
+        # jména jako v projektové složce 03_Program_PLC/<Platforma>/ (README na ně odkazuje); bez čísla
+        # projektu bez předpony
         names = os.listdir(out)
-        self.assertTrue(names and all(n.startswith("siemens_") for n in names))
-        self.assertIn("FUNCTION_BLOCK", Path(out, "siemens_Gen_Main.scl").read_text(encoding="utf-8"))
+        self.assertIn("Gen_Main.scl", names)
+        self.assertIn("README.txt", names)
+        self.assertIn("FUNCTION_BLOCK", Path(out, "Gen_Main.scl").read_text(encoding="utf-8"))
 
         radios = self.find(ttk.Radiobutton)
         radios[1].invoke()                                   # druhá platforma
@@ -1721,7 +1724,19 @@ class GuiTest(unittest.TestCase):
         one = str(Path(tempfile.mkdtemp(), "x.txt"))
         with mock.patch("tkinter.filedialog.asksaveasfilename", return_value=one) as dlg:
             self.click("Uložit zobrazený soubor…")
-        self.assertTrue(dlg.call_args.kwargs["initialfile"].startswith("beckhoff_"))
+        self.assertFalse(dlg.call_args.kwargs["initialfile"].startswith("beckhoff_"))
+        # s číslem projektu: předpona u jména, kód beze změny
+        self.app.prj["meta"]["number"] = "260705"
+        with mock.patch("tkinter.filedialog.asksaveasfilename", return_value=one) as dlg:
+            self.click("Uložit zobrazený soubor…")
+        self.assertTrue(dlg.call_args.kwargs["initialfile"].startswith("260705_"))
+        out4 = tempfile.mkdtemp()
+        with mock.patch("tkinter.filedialog.askdirectory", return_value=out4):
+            self.click("Uložit všechny soubory platformy…")
+        n4 = os.listdir(out4)
+        self.assertIn("260705_README.txt", n4)
+        self.assertIn("260705_MAIN.st", Path(out4, "260705_README.txt").read_text(encoding="utf-8"))
+        del self.app.prj["meta"]["number"]
         self.assertEqual(Path(one).read_text(encoding="utf-8"), code.get("1.0", "end-1c"))
 
         self.goto(8)

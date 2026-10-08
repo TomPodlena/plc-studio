@@ -114,9 +114,9 @@ export function hmiProjectFiles(prj: Project, m: HmiModel = buildHmi(prj)): Proj
   for (const s of m.screens) out.push({ group: gWeb, name: "hmi_" + s.id + ".svg", save: "hmi_" + s.id + ".svg", body: hmiScreenSVG(s), kind: "svg" });
   for (const p of prj.platforms as PlatformKey[]) {
     const g = tr("HMI — {name}", { name: PLAT[p].name });
-    for (const [n, b] of Object.entries(hmiFiles(prj, p, m))) out.push({ group: g, name: n, save: "hmi_" + p + "_" + n, body: b, kind: "text" });
+    for (const [n, b] of Object.entries(hmiFiles(prj, p, m))) out.push({ group: g, name: n, save: "hmi_" + p + "_" + n, body: b, kind: "text", dir: "hmi/" + p });
   }
-  for (const f of out) f.dir = "hmi";
+  for (const f of out) f.dir = f.dir || "hmi";
   return out;
 }
 

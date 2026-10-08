@@ -85,25 +85,28 @@ export const OUT_OPS = {
     return { doc: core.emuModuleRegistered(), file: core.EMU_DOC_FILE };
   },
 
-  /* „Uložit vše do složky projektu“ (plc_studio/datadir.py): celá sada projektu roztříděná do podsložek
-     (core projectFolderFiles = licensedProjectFiles) + sešit HMI Siemens (.xlsx, base64). Licence se
-     uplatní tady na každý soubor (patička Free / zamčené DXF / nad limitem) — Python jen zapisuje.
-     `lic` = volby generátoru (knihovna bloků), `gate` = brána projektu (license.state). */
-  datadir({ prj, lic = null, gate = null }) {
+  /* „Uložit vše do složky projektu“ (plc_studio/datadir.py): celá projektová složka z jádra
+     (core projectBundle: roztřídění do 01_Dokumentace … 99_Interni, licence — patička Free / zamčené
+     DXF / nad limitem — PŘED předponou čísla projektu, předpona, sešit HMI Siemens .xlsx). Python jen
+     zapisuje. `gate` = brána projektu (license.state; knihovnu bloků bere z ní); soubor projektu
+     přidává Python (`project` = jeho jméno ve složce). */
+  datadir({ prj, gate = null }) {
     emuGate(prj);
     core.syncIO(prj);
-    const apply = (name, body) => gate ? core.applyLicenseToFile(name, body, gate) : { body };
-    const files = core.projectFolderFiles(prj, lic).map(f => {
-      const r = apply(f.path.split("/").pop(), f.body);
-      return r.blocked ? { path: f.path, blocked: r.blocked } : { path: f.path, body: r.body };
-    });
-    const bins = [];
-    if (prj.platforms.includes("siemens") && core.hmiModuleRegistered()) {
-      const path = core.PROJECT_DIRS.hmi + "/hmi_siemens.xlsx";
-      if (gate && gate.over) bins.push({ path, blocked: gate.reason });
-      else bins.push({ path, b64: b64(core.hmiSiemensWorkbook(prj, core.buildHmi(prj))) });
+    const b = core.projectBundle(prj, { gate });
+    const files = [], bins = [];
+    for (const f of b.files) {
+      if (f.blocked) (f.path.endsWith(".xlsx") ? bins : files).push({ path: f.path, blocked: f.blocked });
+      else if (f.data) bins.push({ path: f.path, b64: b64(f.data) });
+      else files.push({ path: f.path, body: f.body });
     }
-    return { prj, files, bins, project: core.projectFileName(prj), dirs: core.PROJECT_DIRS };
+    return { prj, files, bins, folder: b.folder, project: b.projectFile, dirs: core.PROJECT_DIRS };
+  },
+
+  /* Podsložka projektové složky a výchozí jméno pro jednotlivé „Uložit…“ (widgets.save_file):
+     `hint` = druh souboru (kod/<platforma>, vykresy, dokumentace…), jméno s předponou čísla. */
+  "folder.place"({ prj, name, hint = "" }) {
+    return { dir: core.projectFileFolder(name, hint), name: core.withFilePrefix(prj, name), folder: core.projectFolderName(prj) };
   },
 
   /* Exporty SISTEMA a EPLAN: soubory, stav ověření, kontrola AML, údaje pro postup. */

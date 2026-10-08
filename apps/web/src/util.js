@@ -1,9 +1,12 @@
 /* Drobné UI utility. */
-import { tr, blankProject, CLS, PLAT, isGuid, ensureGuids, projectTitle, isIsoDate } from "../../../packages/core/dist/index.js";
+import {
+  tr, blankProject, CLS, PLAT, isGuid, ensureGuids, projectTitle, isIsoDate,
+  withFilePrefix, prefixProjectFiles, projectBundle, projectZip, nextProjectNumber, PREFIX_EXEMPT,
+} from "../../../packages/core/dist/index.js";
 import { aiNorm } from "./ai.js";
 import { normSafety } from "./safety_view.js";
 import { normBiz } from "./biz_view.js";
-import { licenseFilter } from "./license.js";
+import { licenseFilter, currentProject, gateFor, openLicenseDialog } from "./license.js";
 
 const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
 /**
@@ -160,10 +163,17 @@ const MIME = {
   svg: "image/svg+xml", dxf: "application/dxf", csv: "text/csv;charset=utf-8",
   md: "text/markdown;charset=utf-8", xml: "application/xml", json: "application/json",
 };
-/** Stažení souboru přes bránu licence (license.js): ve Free s patičkou, zamčené = okno s vysvětlením a false. */
+/** Jméno staženého souboru s předponou čísla projektu „<číslo>_“ (core withFilePrefix; bez čísla beze změny). */
+export function prefixedName(name) {
+  const prj = currentProject();
+  return prj && !PREFIX_EXEMPT.test(name) ? withFilePrefix(prj, name) : name;   // objekty TwinCAT bez předpony
+}
+/** Stažení souboru přes bránu licence (license.js): ve Free s patičkou, zamčené = okno s vysvětlením a false.
+ *  Jméno dostane předponu čísla projektu (stejně jako v projektové složce). */
 export function downloadFile(name, body, quiet = false) {
   body = licenseFilter(name, body, quiet);
   if (body == null) return false;
+  name = prefixedName(name);
   const ext = (name.split(".").pop() || "").toLowerCase();
   const blob = new Blob([body], { type: MIME[ext] || "text/plain;charset=utf-8" });
   const a = document.createElement("a");
@@ -186,10 +196,14 @@ export function saveBytesUngated(name, bytes, mime) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
-/** Víc souborů po sobě: prohlížeč zahazuje stahování spuštěná v jednom okamžiku (ověřeno: z 28 jich došlo 9). */
+/** Víc souborů po sobě: prohlížeč zahazuje stahování spuštěná v jednom okamžiku (ověřeno: z 28 jich došlo 9).
+ *  Předpona čísla projektu jako v projektové složce (core prefixProjectFiles: odkazy v README a dokumentech
+ *  přepsané na nová jména, kód PLC beze změny, objekty TwinCAT bez předpony). */
 export async function downloadFiles(list, btn) {
   if (btn) btn.disabled = true;
   try {
+    const num = (currentProject()?.meta?.number || "").trim();
+    if (num) list = prefixProjectFiles(list.map(([path, body]) => ({ path, body })), num).map(f => [f.path, f.body]);
     /* licence: zamčené soubory (DXF ve Free, vše nad limitem) se přeskočí a okno s důvodem ukáže jednou */
     const ok = list.filter(([name, body]) => licenseFilter(name, body, true) != null);
     if (ok.length < list.length) {
@@ -202,4 +216,53 @@ export async function downloadFiles(list, btn) {
       downloadFile(name, body, true);
     }
   } finally { if (btn) btn.disabled = false; }
+}
+
+/**
+ * „Stáhnout projekt (ZIP)“: celá projektová složka ze jádra (core projectBundle — struktura
+ * 01_Dokumentace … 99_Interni, předpona čísla projektu, licence před přejmenováním, sešit HMI Siemens,
+ * soubor projektu `projectText`) jako jeden ZIP „<číslo>_<Název>.zip“. Zamčené soubory (DXF ve Free,
+ * vše nad limitem kromě projektu) v archivu nejsou a okno licence s důvodem se ukáže jednou.
+ */
+export async function downloadProjectZip(prj, projectText, btn) {
+  const label = btn ? btn.textContent : "";
+  if (btn) { btn.disabled = true; btn.textContent = tr("Připravuji ZIP…"); }
+  await new Promise(r => setTimeout(r, 30));          // ať se stav tlačítka vykreslí (výpočet je synchronní)
+  try {
+    const b = projectBundle(prj, { gate: gateFor(prj), projectText });
+    const bytes = projectZip(b);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
+    a.download = b.folder + ".zip";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    const blocked = b.files.find(f => f.blocked);
+    if (blocked) openLicenseDialog(blocked.blocked);
+    return b;
+  } finally { if (btn) { btn.disabled = false; btn.textContent = label; } }
+}
+
+/* ---------------------------------------------------------------- číslo projektu */
+const NUMBERS_KEY = "plcstudio.numbers";
+/** Čísla projektů použitá v tomto prohlížeči (pro návrh dalšího čísla; web nemá složku projektů). */
+function usedNumbers() {
+  try { const a = JSON.parse(localStorage.getItem(NUMBERS_KEY) || "[]"); return Array.isArray(a) ? a.map(String) : []; } catch { return []; }
+}
+/** Zapamatuje číslo projektu (při uložení stavu); jen tvar RRNNNN, nejvýš 500 posledních. */
+export function rememberNumber(n) {
+  const v = String(n || "").trim();
+  if (!/^\d{6}$/.test(v)) return;
+  const list = usedNumbers().filter(x => x !== v);
+  list.push(v);
+  try { localStorage.setItem(NUMBERS_KEY, JSON.stringify(list.slice(-500))); } catch { /* bez úložiště */ }
+}
+/**
+ * Návrh čísla nového projektu: další volné letošní řady podle čísel, která už tento prohlížeč použil
+ * (core nextProjectNumber, přetoková řada RR+50); bez historie RR0001. Web nevidí složky na disku
+ * ani projekty kolegů — návrh se jen předvyplní a uživatel ho přepíše.
+ */
+export function suggestNumber(extra = []) {
+  return nextProjectNumber([...usedNumbers(), ...extra]);
 }

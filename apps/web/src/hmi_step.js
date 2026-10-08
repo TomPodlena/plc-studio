@@ -4,9 +4,9 @@
    hmiWebHtml → samostatné webové HMI. Desktop má totéž v steps/hmi.py (operace mostu hmi*). */
 import {
   PLAT, CLS, esc, tr, N_, syncIO, buildHmi, hmiScreenSVG, hmiFiles, hmiExportSpec, hmiStatusLabel,
-  hmiSiemensWorkbook, hmiWebHtml, hmiPlcPath, alarmClassLabel, stepTitle, HMI_DOC_FILE, withFilePrefix,
+  hmiSiemensWorkbook, hmiWebHtml, hmiPlcPath, alarmClassLabel, stepTitle, HMI_DOC_FILE,
 } from "../../../packages/core/dist/index.js";
-import { card, downloadFile, downloadFiles } from "./util.js";
+import { card, downloadFile, downloadFiles, prefixedName } from "./util.js";
 import { licenseFilter } from "./license.js";
 import { trn } from "./plural.js";
 
@@ -138,7 +138,7 @@ export function makeHmiTab(ctx) {
         if (xl) xl.addEventListener("click", () => downloadBytes(SIEMENS_XLSX, hmiSiemensWorkbook(p, m), XLSX_MIME));
         body.querySelector("#hmiDlAll").addEventListener("click", async () => {
           const btn = body.querySelector("#hmiDlAll");
-          await downloadFiles(names.map(n => [withFilePrefix(p, "hmi_" + pl + "_" + n), files[n]]), btn);
+          await downloadFiles(names.map(n => ["hmi_" + pl + "_" + n, files[n]]), btn);
           if (pl === "siemens") { await new Promise(r => setTimeout(r, 250)); downloadBytes(SIEMENS_XLSX, hmiSiemensWorkbook(p, m), XLSX_MIME); }
         });
       }
@@ -153,7 +153,7 @@ export function downloadBytes(name, bytes, mime) {
   if (licenseFilter(name, bytes) == null) return;      // licence: nad limitem Free se nestahuje
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([bytes], { type: mime }));
-  a.download = name;
+  a.download = prefixedName(name);              // předpona čísla projektu
   document.body.appendChild(a);
   a.click();
   a.remove();

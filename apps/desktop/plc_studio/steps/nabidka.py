@@ -78,9 +78,9 @@ def _fill(app, tab: ttk.Frame) -> None:
         return app.bridge.request("quote.files", prj=app.prj)
 
     ttk.Button(exp, text=_("Uložit CSV…"), style="Accent.TButton",
-               command=lambda: (lambda f: save_file(app, f["csvName"], f["csv"], "dokumentace"))(files())).pack(side="left")
+               command=lambda: (lambda f: save_file(app, f["csvName"], f["csv"], "interni"))(files())).pack(side="left")
     ttk.Button(exp, text=_("Uložit {file}…", file=v["file"]),
-               command=lambda: (lambda f: save_file(app, f["mdName"], f["md"], "dokumentace"))(files())).pack(side="left", padx=(6, 0))
+               command=lambda: (lambda f: save_file(app, f["mdName"], f["md"], "interni"))(files())).pack(side="left", padx=(6, 0))
     var_docs = tk.BooleanVar(value=v["inDocs"])
     ttk.Checkbutton(exp, text=_("přidat {file} do dokumentace", file=v["file"]), variable=var_docs,
                     command=lambda: set_q("inDocs", var_docs.get())).pack(side="left", padx=(12, 0))

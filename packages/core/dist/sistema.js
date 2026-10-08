@@ -427,8 +427,8 @@ function files(prj) {
     const g = "SISTEMA";
     const ssm = sistemaFileName(prj);
     return [
-        { group: g, name: ssm, save: "sistema_" + ssm, body: sistemaSsm(prj, m), kind: "text" },
-        { group: g, name: "sistema_predpis.csv", save: "sistema_predpis.csv", body: sistemaCsv(prj, m), kind: "text" },
+        { group: g, name: ssm, save: "sistema_" + ssm, body: sistemaSsm(prj, m), kind: "text", dir: "bezpecnost" },
+        { group: g, name: "sistema_predpis.csv", save: "sistema_predpis.csv", body: sistemaCsv(prj, m), kind: "text", dir: "bezpecnost" },
     ];
 }
 /** Přihlásí export do sady projektu (dokument 19 + soubory) — samostatně, bez celého modulu. */

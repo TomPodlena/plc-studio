@@ -64,7 +64,7 @@ def render(app, parent) -> None:
     var_takt = tk.StringVar(value=f"{takt:g}" if takt else "")
     field(grid, _("Název projektu / stroje (např. Temperační stanice TS-02)"),
           lambda b: ttk.Entry(b, textvariable=var_name), col=0)
-    field(grid, _("Číslo projektu (např. zakázka 2610705)"),
+    field(grid, _("Číslo projektu (RRNNNN: rok a pořadí, např. 260705)"),
           lambda b: ttk.Entry(b, textvariable=var_number), col=1)
     field(grid, _("Požadovaný takt [s] (ověří simulace)"),
           lambda b: ttk.Entry(b, textvariable=var_takt), col=2)
@@ -73,6 +73,27 @@ def render(app, parent) -> None:
     _date_field(app, date_box)
     # proměnné drží pole naživu (bez reference je uklidí GC a pole zbělá)
     grid._vars = (var_name, var_number, var_customer, var_takt)
+    # tvar čísla RRNNNN (core projectNumberProblem): jiný tvar jen varuje, číslo se použije, jak je
+    num_warn = ttk.Label(body, text="", style="Err.TLabel", wraplength=900, justify="left")
+
+    def check_number() -> None:
+        try:
+            msg = app.core("projectNumberProblem", var_number.get())
+        except Exception:                              # noqa: BLE001 — bez mostu
+            msg = ""
+        num_warn.configure(text=("⚠ " + msg) if msg else "")
+        if msg:
+            num_warn.pack(anchor="w", pady=(0, 6), after=grid)
+        else:
+            num_warn.pack_forget()
+        app.ui.setdefault("projekt", {})["number_warning"] = msg      # testy
+
+    check_number()
+
+    def refresh_folder() -> None:
+        f = app.ui.get("projekt", {}).get("refresh_folder")
+        if f:
+            f()
 
     # popis: víc řádků a odstavců (do dokumentace jdou jako odstavce Markdownu)
     dbox = ttk.Frame(body)
@@ -119,6 +140,7 @@ def render(app, parent) -> None:
         app.prj["meta"]["name"] = var_name.get()
         app.save()
         app.update_title()
+        refresh_folder()
 
     def on_ref(key: str, var: tk.StringVar):
         def cb(*_a):
@@ -129,6 +151,9 @@ def render(app, parent) -> None:
                 app.prj["meta"].pop(key, None)       # prázdné pole se neukládá (výstup beze změny)
             app.save()
             app.update_title()
+            if key == "number":
+                check_number()
+                refresh_folder()
         return cb
 
     var_name.trace_add("write", on_name)
@@ -343,45 +368,87 @@ def open_calendar(app, anchor, iso: str, on_pick) -> tk.Toplevel:
 # --- složka dat projektu -------------------------------------------------------------------
 
 def _data_dir_row(app, body) -> None:
-    """Kořenová složka dat projektu (jen desktop) + „Uložit vše do složky projektu“.
+    """Kořenový adresář projektů (nastavení aplikace), volitelný vlastní kořen projektu a projektová
+    složka ``<kořen>\\<číslo>_<Název>`` + „Uložit vše do složky projektu“ (jen desktop, datadir.py).
 
     Tlačítko je tady (ne v kroku Generovat / Dokumentace): ukládá výstupy všech kroků — kód všech
     platforem, dokumentaci, výkresy, kusovník, HMI, exporty i projekt — a patří k nastavení složky.
     Stejné tlačítko má i krok Dokumentace (tam, kde je celá sada vidět)."""
     box = ttk.Frame(body)
     box.pack(fill="x", pady=(10, 0))
-    ttk.Label(box, text=_("Složka dat projektu:")).pack(side="left")
-    raw = datadir.raw_root(app)
-    var = tk.StringVar(value=raw)
-    ent = ttk.Entry(box, textvariable=var, width=48)
-    ent.pack(side="left", padx=(8, 4), fill="x", expand=True)
-    ent._var = var
+    box.columnconfigure(1, weight=1)
 
-    def commit(_e=None) -> None:
-        v = var.get().strip()
-        if v != datadir.raw_root(app):
+    def path_row(row: int, label: str, value: str, on_commit, on_choose) -> None:
+        ttk.Label(box, text=label).grid(row=row, column=0, sticky="w", pady=2)
+        var = tk.StringVar(value=value)
+        ent = ttk.Entry(box, textvariable=var)
+        ent.grid(row=row, column=1, sticky="ew", padx=(8, 4), pady=2)
+        ent._var = var                         # držet proměnnou naživu (GC)
+
+        def commit(_e=None) -> None:
+            on_commit(var.get().strip())
+
+        ent.bind("<FocusOut>", commit)
+        ent.bind("<Return>", commit)
+        ttk.Button(box, text=_("Vybrat…"), command=on_choose).grid(row=row, column=2, sticky="w", pady=2)
+
+    def set_root(v: str) -> None:
+        if v != datadir.settings_root(app):
             datadir.set_root(app, v)
             app.render()
 
-    ent.bind("<FocusOut>", commit)
-    ent.bind("<Return>", commit)
-
-    def choose() -> None:
-        if datadir.choose(app):
+    def set_own(v: str) -> None:
+        if v != datadir.own_root(app):
+            datadir.set_own_root(app, v)
             app.render()
 
-    ttk.Button(box, text=_("Vybrat…"), command=choose).pack(side="left")
-    ttk.Button(box, text=_("Uložit vše do složky projektu"), style="Accent.TButton",
-               command=lambda: datadir.save_all(app)).pack(side="left", padx=(6, 0))
-    if raw and datadir.existing_root(app) is None:
+    def choose(own: bool = False) -> None:
+        if datadir.choose(app, own=own):
+            app.render()
+
+    path_row(0, _("Kořenový adresář projektů:"), datadir.settings_root(app), set_root, lambda: choose())
+    path_row(1, _("Vlastní kořen tohoto projektu (přepíše):"), datadir.own_root(app), set_own,
+             lambda: choose(own=True))
+
+    raw = datadir.raw_root(app)
+    root = datadir.existing_root(app)
+    prow = ttk.Frame(body)
+    prow.pack(fill="x", pady=(6, 0))
+    ttk.Label(prow, text=_("Projektová složka:")).pack(side="left")
+    def folder_text() -> str:
+        return str(root / datadir.folder_name(app)) if root else (
+            (raw.rstrip("\\/") + "\\" if raw else "…\\") + datadir.folder_name(app))
+
+    shown = folder_text()
+    lbl = ttk.Label(prow, text=shown, style="Section.TLabel")
+    lbl.pack(side="left", padx=(8, 8))
+
+    def refresh() -> None:
+        """Po změně čísla / názvu: cesta projektové složky (bez překreslení kroku — fokus zůstane)."""
+        if lbl.winfo_exists():
+            t = folder_text()
+            lbl.configure(text=t)
+            app.ui.setdefault("projekt", {})["folder_label"] = t
+
+    app.ui.setdefault("projekt", {})["refresh_folder"] = refresh
+    ttk.Button(prow, text=_("Uložit vše do složky projektu"), style="Accent.TButton",
+               command=lambda: datadir.save_all(app)).pack(side="left")
+    pdir = datadir.project_dir(app)
+    if pdir is not None and pdir.is_dir():
+        ttk.Button(prow, text=_("Otevřít složku"), command=lambda: datadir.open_folder(pdir)
+                   ).pack(side="left", padx=(6, 0))
+    app.ui.setdefault("projekt", {})["folder_label"] = shown          # testy
+    if raw and root is None:
         warn = ttk.Frame(body)
         warn.pack(fill="x", pady=(4, 0))
-        ttk.Label(warn, text="⚠ " + _("Složka {path} na tomto počítači neexistuje — dialogy začnou "
-                                      "v naposledy použité složce. Vyber jinou, nebo ji vytvoří "
+        ttk.Label(warn, text="⚠ " + _("Kořenový adresář {path} na tomto počítači neexistuje — dialogy "
+                                      "začnou v naposledy použité složce. Vyber jiný, nebo ho vytvoří "
                                       "„Uložit vše do složky projektu“ (po potvrzení).", path=raw),
                   style="Err.TLabel", wraplength=900, justify="left").pack(side="left")
-        ttk.Button(warn, text=_("Vybrat jinou…"), command=choose).pack(side="left", padx=(8, 0))
+        ttk.Button(warn, text=_("Vybrat jiný…"), command=lambda: choose(own=bool(datadir.own_root(app)))
+                   ).pack(side="left", padx=(8, 0))
     elif not raw:
-        ttk.Label(body, text=_("Výstupy pak půjdou do podsložek kod/<platforma>, dokumentace, vykresy, "
-                               "kusovnik, hmi a exporty; dialogy Uložit v nich začínají."),
-                  style="Dim.TLabel").pack(anchor="w", pady=(2, 0))
+        ttk.Label(body, text=_("Výstupy pak půjdou do projektové složky <číslo>_<Název> s podsložkami "
+                               "01_Dokumentace, 02_Vykresy, 03_Program_PLC … 99_Interni a s číslem "
+                               "projektu na začátku názvu každého souboru; dialogy Uložit v nich začínají."),
+                  style="Dim.TLabel", wraplength=900, justify="left").pack(anchor="w", pady=(2, 0))

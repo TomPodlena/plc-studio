@@ -371,6 +371,8 @@ export interface ValidationIssue {
 /** Tag bezpečný pro všechny platformy: ASCII, bez mezer, nezačíná číslicí. */
 export declare function sanitizeTag(tag: string): string;
 export declare function validateProject(prj: Project): ValidationIssue[];
+/** Číslo projektu „RRNNNN“: 6 číslic (rok a pořadí v roce; jiné řady zadává uživatel ručně). */
+export declare const PROJECT_NUMBER_RE: RegExp;
 /**
  * Validace servoos (fáze 2b): podpora platforem projektu, konfigurace osy a kroky s pohybem.
  * Nepodporovaná platforma = chyba (kód se pro ni negeneruje, README vysvětlí proč).

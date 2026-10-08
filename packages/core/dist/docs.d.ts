@@ -55,7 +55,9 @@ export interface ProjectFile {
     body: string;
     kind: "text" | "svg" | "dxf";
     prev?: string;
-    /** Podsložka ve složce dat projektu (`PROJECT_DIRS`, project_folder.ts); bez ní „exporty“. */
+    /** Druh souboru pro projektovou složku (`projectFileFolder`, project_folder.ts): „kod/<platforma>“,
+     *  „kod/safety“, „vykresy“, „hmi“, „hmi/<platforma>“, „bezpecnost“, „eplan“, „kusovnik“,
+     *  „dokumentace“ (dokumenty se pak třídí podle jména); bez něj podle jména, jinak 01_Dokumentace. */
     dir?: string;
 }
 /** Úplná sada souborů projektu: dokumenty + schémata (SVG/DXF) + zdroje platforem. */

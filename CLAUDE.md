@@ -501,6 +501,25 @@ python scripts/build_verification.py        # data/verification.json → verific
   stránku Kontakt a text žádosti s ID projektu (`prj.guid`) dá do schránky; odemčení přijde jako licence
   `free-unlock`. Testy: `license.test.ts`, `apps/desktop/tests/test_license.py`.
 
+## Údaje projektu a projektová složka (`project_meta.ts`, `project_folder.ts`)
+
+- `meta.number` = šestimístné `RRNNNN` (rok + pořadí, 260705); po RR9999 přetoková řada RR+50 (269999 → 760001)
+  — `nextProjectNumber` (desktop z názvů složek `RRNNNN_*` v kořeni, web z `plcstudio.numbers` v localStorage);
+  jiný tvar = jen `warn`. `meta.customer`, `meta.startDate` (ISO), víceřádkový `meta.desc` (`mdMultiline`).
+  Číslo / zákazník / datum → pruh nad popisovým polem výkresů (`titleBlock`), hlavičky dokumentů, README;
+  **prázdné = výstup beze změny (golden)**; do kódu PLC nikdy. Revize: kosmetická změna; `dataDir` mimo obsah revize.
+- **Projektová složka** `<kořen>\<číslo>_<Název>` (kořen = nastavení desktopu `projects_root`, projekt ho může
+  přepsat `meta.dataDir`; kořen se nikdy nevytváří bez potvrzení). Struktura `PROJECT_DIRS`: 01_Dokumentace,
+  02_Vykresy\SVG|DXF, 03_Program_PLC\<Platforma>|Bezpecnostni_program, 04_HMI, 05_Bezpecnost, 06_Kusovnik,
+  07_Oziveni_a_FAT, 08_Schvaleni_a_revize, 09_Exporty\EPLAN, 99_Interni (nabídka — nepředávat). Třídění souborů
+  jen v jádře (`projectFileFolder` / `projectFolderFiles`, test: nic nezařazeného).
+- **Předpona čísla u každého souboru** (`prefixProjectFiles`): přejmenuje klíče a v .md / .html / README /
+  NAVOD / PROTOKOL přepíše celé názvy souborů; kód PLC bajt po bajtu beze změny; výjimka `PREFIX_EXEMPT` =
+  objekty TwinCAT (.TcPOU / .TcGVL / .TcIO / .TcDUT / .TcTTO — jméno souboru = jméno objektu). Uplatňují
+  klienti při ukládání (desktop „Uložit vše do složky projektu“ = `projectBundle`, okna Uložit začínají v podsložce;
+  web každé stažení + „Stáhnout projekt (ZIP)“ = `projectZip`). Licence (`applyLicenseToFile`) před přejmenováním.
+  Aplikace začíná prázdná (návrh čísla), vzory jen v „Příklady strojů“.
+
 ## Revize a změnové řízení (`revision.ts`)
 
 - `createRevision(prj, kdo, poznámka)` → `prj.revisions` (označení A, B… nebo 01, 02…; zmrazený obsah bez

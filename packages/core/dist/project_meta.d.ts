@@ -57,3 +57,29 @@ export declare function withFilePrefix(prj: Project, name: string): string;
  * Windows v názvu souboru nedovolí (diakritika zůstává); bez názvu „plc-projekt“.
  */
 export declare function projectFileName(prj: Project, ext?: string): string;
+/**
+ * Číslo projektu ve tvaru „RRNNNN“ (6 číslic: RR = rok, NNNN = pořadí v roce, např. 260705 = 2026,
+ * projekt 705)? Prázdné = false. Jiné řady (např. 76NNNN) zadává uživatel ručně — platné jsou,
+ * pokud mají 6 číslic.
+ */
+export declare function isProjectNumber(s: unknown): boolean;
+/** Upozornění ke tvaru čísla (prázdné nebo 6 číslic = ""). Jen varuje — číslo se použije, jak je. */
+export declare function projectNumberProblem(s: unknown): string;
+/**
+ * Návrh dalšího volného čísla projektu letošní řady. `existing` = dřív použitá čísla nebo názvy
+ * projektových složek („260705_Lis…“ — bere se úvodních 6 číslic před „_“ nebo koncem).
+ *
+ * Řada roku RR = RR0001…RR9999; po vyčerpání (RR9999) pokračuje přetoková řada RR+50
+ * (2026: 260001 … 269999 → 760001 …; 2027: 27xxxx → 77xxxx). Jakmile v přetokové řadě něco je,
+ * navrhne se její další číslo. Bez čísel letošní řady RR0001. Vyčerpaná i přetoková řada
+ * (nebo rok s RR ≥ 50, kdy RR+50 nemá dvě číslice) → "" (bez návrhu, uživatel zadá ručně).
+ */
+export declare function nextProjectNumber(existing: Iterable<unknown>, year?: number): string;
+/** Část názvu složky / souboru: bez diakritiky, mezery a ostatní znaky → „_“, jen [A-Za-z0-9_-]. */
+export declare function folderSafe(s: unknown, max?: number): string;
+/**
+ * Název projektové složky „<číslo>_<Název>“ (název bez diakritiky, mezery → _, jen [A-Za-z0-9_-],
+ * nejvýš 60 znaků); bez čísla jen „<Název>“, bez názvu jen číslo, bez obojího „plc-projekt“.
+ * Soubor projektu ve složce se jmenuje stejně (+ `.plcstudio.json`).
+ */
+export declare function projectFolderName(prj: Project): string;

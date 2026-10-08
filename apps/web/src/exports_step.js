@@ -4,7 +4,7 @@
    jsou i v kroku Dokumentace (skupiny SISTEMA a EPLAN). Desktop: steps/exporty.py (operace exports). */
 import {
   esc, tr, N_, syncIO, sistemaExport, sistemaFileName, SISTEMA_FILE, eplanFiles, eplanAmlName, eplanConverterId, validateEplan,
-  EPLAN_SCRIPT_NAME, EPLAN_VERIFIED, withFilePrefix,
+  EPLAN_SCRIPT_NAME, EPLAN_VERIFIED,
 } from "../../../packages/core/dist/index.js";
 import { card, downloadFile, downloadFiles } from "./util.js";
 import { trn } from "./plural.js";
@@ -87,9 +87,9 @@ export function makeExportsTab(ctx) {
     c.querySelectorAll("[data-xdl]").forEach(b => b.addEventListener("click", () => downloadFile(saveName(b.dataset.xdl), all[b.dataset.xdl].body)));
     c.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(+b.dataset.go)));
     const sAll = c.querySelector("#sxAll");
-    if (sAll) sAll.addEventListener("click", () => downloadFiles(Object.keys(all).filter(k => k.startsWith("s:")).map(k => [withFilePrefix(p, saveName(k)), all[k].body]), sAll));
+    if (sAll) sAll.addEventListener("click", () => downloadFiles(Object.keys(all).filter(k => k.startsWith("s:")).map(k => [saveName(k), all[k].body]), sAll));
     const eAll = c.querySelector("#epAll");
-    if (eAll) eAll.addEventListener("click", () => downloadFiles(Object.keys(all).filter(k => k.startsWith("e:")).map(k => [withFilePrefix(p, saveName(k)), all[k].body]), eAll));
+    if (eAll) eAll.addEventListener("click", () => downloadFiles(Object.keys(all).filter(k => k.startsWith("e:")).map(k => [saveName(k), all[k].body]), eAll));
   }
   return { render: render_ };
 }

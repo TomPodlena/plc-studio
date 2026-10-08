@@ -4,7 +4,7 @@ import {
   PLAT, CLS, esc, blankProject, devById, nextName, syncIO, autoAddr, modules, wireNo,
   validateProject, sanitizeTag, genFor, allProjectFiles, licensedGen, licensedProjectFiles,
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
-  tr, N_, getLang, DO_ROLES, stepTitle, projectFileName, withFilePrefix,
+  tr, N_, getLang, DO_ROLES, stepTitle, projectFileName, projectFolderName, projectNumberProblem,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
   buildBom, bomOptions, bomPlatform, bomCsv, catKey, suppliersFor, SUPPLIERS, CATALOG_DATE, PLATFORM_REFS,
   hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
@@ -12,7 +12,7 @@ import {
   renameDevice, setDeviceDesc, setDeviceOpts, setDeviceRange, deviceOpts, deviceNameProblem,
   updateStep, insertStep, duplicateStep, setIoTag, setIoAddr, setIoCmt,
 } from "../../../packages/core/dist/index.js";
-import { $, card, copyText, downloadFile, downloadFiles, saveBytesUngated, normProject, normAi, setProjectHeader } from "./util.js";
+import { $, card, copyText, downloadFile, downloadFiles, downloadProjectZip, suggestNumber, saveBytesUngated, normProject, normAi, setProjectHeader } from "./util.js";
 import { gateFor } from "./license.js";
 import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, AI_EXAMPLE } from "./ai.js";
 
@@ -66,7 +66,8 @@ export function makeSteps(ctx) {
         <input type="text" id="pName" value="${esc(p.meta.name)}" placeholder="${esc(tr("např. Temperační stanice TS-02"))}">
       </label>
       <label class="f">${tr("Číslo projektu")}
-        <input type="text" id="pNumber" value="${esc(p.meta.number || "")}" placeholder="${esc(tr("např. zakázka 2610705"))}">
+        <input type="text" id="pNumber" value="${esc(p.meta.number || "")}" placeholder="${esc(tr("RRNNNN, např. 260705"))}" aria-describedby="pNumberWarn">
+        <span class="hint errtxt" id="pNumberWarn" hidden></span>
       </label>
       <label class="f">${tr("Zákazník")}
         <input type="text" id="pCustomer" value="${esc(p.meta.customer || "")}" placeholder="${esc(tr("jméno nebo firma zákazníka"))}">
@@ -83,6 +84,10 @@ export function makeSteps(ctx) {
     </label>
     <p class="hint">${tr("Číslo projektu, zákazník a datum zahájení se propíšou do popisového pole výkresů, hlaviček dokumentů a README platforem, číslo i do názvů stahovaných souborů — do kódu PLC ne.")}</p>
     <div class="row">
+      <button class="small primary" id="bZip">${tr("Stáhnout projekt (ZIP)")}</button>
+      <span class="hint" id="zipInfo">${tr("celá projektová složka {folder}: dokumentace, výkresy, program PLC, HMI, bezpečnost, kusovník, oživení, schválení, exporty a projekt — s číslem projektu na začátku názvu každého souboru", { folder: "<code>" + esc(projectFolderName(p)) + "</code>" })}</span>
+    </div>
+    <div class="row">
       <button class="small" id="bExport">${tr("Export návrhu (JSON)")}</button>
       <button class="small" id="bImportJson">${tr("Načíst návrh (JSON)")}</button>
       <button class="small" id="bImportExisting">${tr("Načíst stávající zařízení…")}</button>
@@ -95,12 +100,21 @@ export function makeSteps(ctx) {
       <button class="small primary" id="bJsonLoad">${tr("Načíst z textu")}</button>
     </div>
     <p class="note">${tr("Projdi kroky zleva doprava — návrh se průběžně ukládá v prohlížeči a mezi kroky se můžeš kdykoli vracet a vstupy upřesňovat; výstupy se vždy přepočítají. Nejrychlejší start: popiš stroj v kroku <b>AI návrh</b>. Existující projekt převezmeš vedlejší volbou <b>Import</b> dole v kroku Zařízení. Pokud s PLC začínáš, otevři <b>Nápovědu</b> (tlačítko vpravo v liště kroků).")}</p>`);
-    c.querySelector("#pName").addEventListener("input", e => { p.meta.name = e.target.value; save(); setProjectHeader(p); });
+    c.querySelector("#pName").addEventListener("input", e => { p.meta.name = e.target.value; save(); setProjectHeader(p); numWarn(); });
     /* číslo a zákazník: prázdné pole se v projektu neukládá (výstup pak přesně jako bez nich) */
+    /* tvar čísla RRNNNN (core projectNumberProblem): jiný tvar jen varuje, číslo se použije, jak je */
+    const numWarn = () => {
+      const w = c.querySelector("#pNumberWarn"), msg = projectNumberProblem(p.meta.number || "");
+      w.textContent = msg ? "⚠ " + msg : ""; w.hidden = !msg;
+      const zi = c.querySelector("#zipInfo code");
+      if (zi) zi.textContent = projectFolderName(p);
+    };
     for (const [id, f] of [["#pNumber", "number"], ["#pCustomer", "customer"]]) c.querySelector(id).addEventListener("input", e => {
       if (e.target.value.trim()) p.meta[f] = e.target.value; else delete p.meta[f];
-      save(); setProjectHeader(p);
+      save(); setProjectHeader(p); numWarn();
     });
+    numWarn();
+    c.querySelector("#bZip").addEventListener("click", e => downloadProjectZip(p, JSON.stringify({ prj: S.prj, ai: S.ai }, null, 1), e.currentTarget));
     /* datum zahájení: prohlížeč dává ISO YYYY-MM-DD (zobrazení podle jazyka), prázdné = bez data */
     c.querySelector("#pStart").addEventListener("change", e => {
       if (e.target.value) p.meta.startDate = e.target.value; else delete p.meta.startDate;
@@ -123,13 +137,13 @@ export function makeSteps(ctx) {
         { name: S.prj.meta.name || tr("bez názvu"), n: S.prj.devices.length }));
     };
     c.querySelector("#bImportExisting").addEventListener("click", () => ctx.openImport && ctx.openImport());
-    c.querySelector("#bReset").addEventListener("click", () => { if (!replaceOk()) return; S.prj = blankProject(); S.ai = { turns: [], last: null, draft: "" }; save(); render(); });
+    c.querySelector("#bReset").addEventListener("click", () => { if (!replaceOk()) return; S.prj = blankProject(); const n = suggestNumber([p.meta.number]); if (n) S.prj.meta.number = n; S.ai = { turns: [], last: null, draft: "" }; save(); render(); });
     const jb = c.querySelector("#jsonBox"), jr = c.querySelector("#jsonRow");
     const payload = () => JSON.stringify({ prj: S.prj, ai: S.ai }, null, 1);
     c.querySelector("#bExport").addEventListener("click", () => { jb.hidden = false; jr.hidden = false; jb.value = payload(); });
     c.querySelector("#bImportJson").addEventListener("click", () => { jb.hidden = false; jr.hidden = false; jb.value = ""; jb.placeholder = tr("Vlož dříve exportovaný JSON návrhu…"); jb.focus(); });
     c.querySelector("#bJsonCopy").addEventListener("click", () => copyText(jb.value || payload(), c.querySelector("#bJsonCopy")));
-    c.querySelector("#bJsonDl").addEventListener("click", () => downloadFile(projectFileName(p), jb.value || payload()));
+    c.querySelector("#bJsonDl").addEventListener("click", () => downloadFile(projectFolderName(p) + ".plcstudio.json", jb.value || payload()));
     c.querySelector("#bJsonLoad").addEventListener("click", () => {
       try {
         const d = JSON.parse(jb.value);
@@ -1046,7 +1060,7 @@ export function makeSteps(ctx) {
     c.querySelector("#bDlGen").addEventListener("click", () => downloadFile(plats[outerTab] + "_" + cur().name, cur().body));
     c.querySelector("#bDlAllGen").addEventListener("click", () => {
       const pl = plats[outerTab];
-      downloadFiles(Object.entries(cache[pl]).map(([n, b]) => [withFilePrefix(p, pl + "_" + n), b]), c.querySelector("#bDlAllGen"));
+      downloadFiles(Object.entries(cache[pl]).map(([n, b]) => [pl + "_" + n, b]), c.querySelector("#bDlAllGen"));
     });
   }
 
@@ -1072,13 +1086,14 @@ export function makeSteps(ctx) {
         <div class="row" style="margin:0 0 10px">
           <button class="primary" id="bDocSave">${tr("Stáhnout soubor")}</button>
           <button class="small" id="bDocAll">${tr("Stáhnout vše (po souborech)")}</button>
+          <button class="small" id="bDocZip">${tr("Stáhnout projekt (ZIP)")}</button>
           <button class="small" id="bDocCopy">${tr("Kopírovat")}</button>
           <span class="hint" style="margin:0;font-family:var(--font-mono);font-size:.72rem" id="docName"></span>
         </div>
         <div id="docPane"></div>
       </div>
     </div>
-    <p class="note">${tr(`Soubory platforem se ukládají s předponou platformy (např. <code>siemens_Gen_Main.scl</code>), ať se v jednom adresáři nepletou. „Stáhnout vše" uloží každý soubor zvlášť — prohlížeč se může zeptat na povolení více stahování.`)}</p>`);
+    <p class="note">${tr(`Soubory platforem se ukládají s předponou platformy (např. <code>siemens_Gen_Main.scl</code>), ať se v jednom adresáři nepletou. „Stáhnout vše" uloží každý soubor zvlášť — prohlížeč se může zeptat na povolení více stahování.`)} ${tr("Celou projektovou složku — podsložky 01_Dokumentace … 99_Interni a číslo projektu na začátku názvu každého souboru — stáhneš najednou tlačítkem Stáhnout projekt (ZIP).")}</p>`);
     const pane = c.querySelector("#docPane"), nameEl = c.querySelector("#docName");
     const show = () => {
       const f = files[docSel];
@@ -1092,7 +1107,8 @@ export function makeSteps(ctx) {
     c.querySelectorAll("[data-d]").forEach(b => b.addEventListener("click", () => { docSel = +b.dataset.d; show(); }));
     c.querySelector("#bDocCopy").addEventListener("click", () => copyText(files[docSel].body, c.querySelector("#bDocCopy")));
     c.querySelector("#bDocSave").addEventListener("click", () => downloadFile(files[docSel].save, files[docSel].body));
-    c.querySelector("#bDocAll").addEventListener("click", () => downloadFiles(files.map(f => [withFilePrefix(p, f.save), f.body]), c.querySelector("#bDocAll")));
+    c.querySelector("#bDocAll").addEventListener("click", () => downloadFiles(files.map(f => [f.save, f.body]), c.querySelector("#bDocAll")));
+    c.querySelector("#bDocZip").addEventListener("click", e => downloadProjectZip(S.prj, JSON.stringify({ prj: S.prj, ai: S.ai }, null, 1), e.currentTarget));
   }
 
   /* ---------------------------------------------------------- 10 Kusovník

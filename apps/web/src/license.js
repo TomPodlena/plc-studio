@@ -61,6 +61,8 @@ export async function initLicense(opts = {}) {
 export const licState = () => fresh();
 /** Brána projektu (core projectGate) podle platné licence a odemčených projektů z licence. */
 export function gateFor(prj) { fresh(); return prj ? projectGate(prj, state.ent, state.projects) : null; }
+/** Aktuální projekt (předpona čísla projektu u stahovaných souborů — util.js). */
+export function currentProject() { return getProject(); }
 
 /* ---------------------------------------------------------------- síť */
 

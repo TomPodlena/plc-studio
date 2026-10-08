@@ -521,7 +521,9 @@ class GuiOutputsTest(unittest.TestCase):
         with mock.patch("tkinter.filedialog.askdirectory", return_value=folder):
             next(b for b in walk(right) if isinstance(b, ttk.Button)
                  and str(b.cget("text")) == "Uložit soubory pro EPLAN…").invoke()
-        self.assertIn("eplan_README_EPLAN.txt", os.listdir(folder))
+        # původní jména jako v projektové složce 09_Exporty/EPLAN (README_EPLAN na ně odkazuje)
+        self.assertIn("README_EPLAN.txt", os.listdir(folder))
+        self.assertIn("PLCdesk_ImportAML.cs", os.listdir(folder))
 
     def test_import_wizard_plural_message(self):
         from plc_studio import importer

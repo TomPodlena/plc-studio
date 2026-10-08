@@ -1,4 +1,4 @@
-import { stripDia } from "./model.js";
+import { stripDia, PROJECT_NUMBER_RE } from "./model.js";
 import { tr, formatDate, dateLocale } from "./i18n.js";
 /** Jeden řádek: řídicí znaky a zalomení → mezera, ořez. */
 const CTRL = new RegExp("[" + String.fromCharCode(0) + "-" + String.fromCharCode(31) + String.fromCharCode(127, 0x2028, 0x2029) + "]+", "g");
@@ -136,4 +136,67 @@ export function withFilePrefix(prj, name) {
 export function projectFileName(prj, ext = ".plcstudio.json") {
     const base = oneLine(prj.meta?.name).replace(/[<>:"/\\|?*]/g, "_").replace(/^[\s.]+|[\s.]+$/g, "").slice(0, 80);
     return withFilePrefix(prj, (base || "plc-projekt") + ext);
+}
+/* ================================================================ číslo projektu a projektová složka */
+/**
+ * Číslo projektu ve tvaru „RRNNNN“ (6 číslic: RR = rok, NNNN = pořadí v roce, např. 260705 = 2026,
+ * projekt 705)? Prázdné = false. Jiné řady (např. 76NNNN) zadává uživatel ručně — platné jsou,
+ * pokud mají 6 číslic.
+ */
+export function isProjectNumber(s) {
+    return PROJECT_NUMBER_RE.test(oneLine(s));
+}
+/** Upozornění ke tvaru čísla (prázdné nebo 6 číslic = ""). Jen varuje — číslo se použije, jak je. */
+export function projectNumberProblem(s) {
+    const v = oneLine(s);
+    return !v || PROJECT_NUMBER_RE.test(v) ? "" : tr("Číslo projektu nemá tvar RRNNNN (6 číslic: rok a pořadí, např. 260705) — použije se tak, jak je zapsané.");
+}
+/**
+ * Návrh dalšího volného čísla projektu letošní řady. `existing` = dřív použitá čísla nebo názvy
+ * projektových složek („260705_Lis…“ — bere se úvodních 6 číslic před „_“ nebo koncem).
+ *
+ * Řada roku RR = RR0001…RR9999; po vyčerpání (RR9999) pokračuje přetoková řada RR+50
+ * (2026: 260001 … 269999 → 760001 …; 2027: 27xxxx → 77xxxx). Jakmile v přetokové řadě něco je,
+ * navrhne se její další číslo. Bez čísel letošní řady RR0001. Vyčerpaná i přetoková řada
+ * (nebo rok s RR ≥ 50, kdy RR+50 nemá dvě číslice) → "" (bez návrhu, uživatel zadá ručně).
+ */
+export function nextProjectNumber(existing, year = new Date().getFullYear()) {
+    const rr = ((Math.trunc(year) % 100) + 100) % 100;
+    const ov = rr < 50 ? rr + 50 : -1;
+    let base = 0, over = 0;
+    for (const x of existing) {
+        const m = /^(\d{2})(\d{4})(?:_|$)/.exec(oneLine(x));
+        if (!m)
+            continue;
+        const s = Number(m[1]), n = Number(m[2]);
+        if (s === rr)
+            base = Math.max(base, n);
+        else if (s === ov)
+            over = Math.max(over, n);
+    }
+    const fmt = (s, n) => String(s).padStart(2, "0") + String(n).padStart(4, "0");
+    if (over > 0)
+        return over < 9999 ? fmt(ov, over + 1) : "";
+    if (base < 9999)
+        return fmt(rr, base + 1);
+    return ov >= 0 ? fmt(ov, 1) : "";
+}
+/** Část názvu složky / souboru: bez diakritiky, mezery a ostatní znaky → „_“, jen [A-Za-z0-9_-]. */
+export function folderSafe(s, max = 60) {
+    return stripDia(oneLine(s)).replace(/[^A-Za-z0-9_-]+/g, "_").replace(/_{2,}/g, "_")
+        .replace(/^[_-]+|[_-]+$/g, "").slice(0, max).replace(/[_-]+$/g, "");
+}
+/**
+ * Název projektové složky „<číslo>_<Název>“ (název bez diakritiky, mezery → _, jen [A-Za-z0-9_-],
+ * nejvýš 60 znaků); bez čísla jen „<Název>“, bez názvu jen číslo, bez obojího „plc-projekt“.
+ * Soubor projektu ve složce se jmenuje stejně (+ `.plcstudio.json`).
+ */
+export function projectFolderName(prj) {
+    const num = projectFilePrefix(prj).replace(/_$/, "");
+    let name = folderSafe(prj.meta?.name, 400);
+    if (name.length > 60) { // zkrátit na celé slovo, je-li rozumně dlouhé
+        const cut = name.slice(0, 61), at = cut.lastIndexOf("_");
+        name = (at >= 30 ? cut.slice(0, at) : name.slice(0, 60)).replace(/[_-]+$/g, "");
+    }
+    return [num, name].filter(Boolean).join("_") || "plc-projekt";
 }

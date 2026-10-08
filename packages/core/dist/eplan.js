@@ -306,7 +306,7 @@ export function eplanFiles(prj) {
 function files(prj) {
     if (!prj.io.length)
         return [];
-    return eplanFiles(prj).map(f => ({ group: "EPLAN", name: f.name, save: f.name.startsWith("eplan_") ? f.name : "eplan_" + f.name, body: f.body, kind: "text" }));
+    return eplanFiles(prj).map(f => ({ group: "EPLAN", name: f.name, save: f.name.startsWith("eplan_") ? f.name : "eplan_" + f.name, body: f.body, kind: "text", dir: "eplan" }));
 }
 /** Přihlásí soubory pro EPLAN do sady projektu (skupina „EPLAN“). Vrací odhlášení. */
 export function registerEplanExport() { return registerDocProvider("eplan", { files }); }

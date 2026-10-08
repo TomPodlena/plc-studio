@@ -608,8 +608,14 @@ export function validateProject(prj) {
             out.push({ level: "error", where: a, msg: tr("Duplicitní adresa.") });
     /* sestava hardwaru: projekt se do platformy nevejde, cizí adresy, nepasující volby modulů */
     out.push(...hwIssues(prj));
+    /* číslo projektu RRNNNN (project_meta.ts): jiný tvar jen upozorní — použije se, jak je zapsané */
+    const num = String(prj.meta?.number ?? "").trim();
+    if (num && !PROJECT_NUMBER_RE.test(num))
+        out.push({ level: "warn", where: num, msg: tr("Číslo projektu nemá tvar RRNNNN (6 číslic: rok a pořadí, např. 260705) — použije se tak, jak je zapsané.") });
     return out;
 }
+/** Číslo projektu „RRNNNN“: 6 číslic (rok a pořadí v roce; jiné řady zadává uživatel ručně). */
+export const PROJECT_NUMBER_RE = /^\d{6}$/;
 /**
  * Validace servoos (fáze 2b): podpora platforem projektu, konfigurace osy a kroky s pohybem.
  * Nepodporovaná platforma = chyba (kód se pro ni negeneruje, README vysvětlí proč).

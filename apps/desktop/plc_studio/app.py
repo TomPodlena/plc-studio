@@ -91,8 +91,10 @@ class App:
         self.ai: dict = new_ai()
         self.step: int | str = 0
         self._load_state()
+        # první spuštění / prázdný projekt: žádná ukázka, jen návrh čísla projektu (příklady strojů
+        # jsou v kroku Projekt; load_sample zůstává pro testy a --smoke)
         if not self.prj["devices"] and not self.prj["meta"]["name"]:
-            self.load_sample("complex", render=False)   # první spuštění = ukázka
+            self._suggest_number()
 
         theme.setup_window(root, "PLCdesk", topmost=bool(self.settings.get("topmost")))
         root.geometry(self.settings.get("geometry") or "1240x820")
@@ -817,17 +819,29 @@ class App:
     def reset_project(self) -> None:
         self.prj = self.core("blankProject")
         self.ai = new_ai()
+        self._suggest_number()
         self.save()
         self.render()
+
+    def _suggest_number(self) -> None:
+        """Prázdný projekt bez čísla: předvyplnit další volné číslo letošní řady (podle projektových
+        složek v kořenovém adresáři — datadir.suggest_number). Uživatel ho přepíše."""
+        meta = self.prj.setdefault("meta", {})
+        if str(meta.get("number") or "").strip():
+            return
+        from .datadir import suggest_number
+        num = suggest_number(self)
+        if num:
+            meta["number"] = num
 
     def project_payload(self) -> str:
         """Stejný formát jako „Export návrhu (JSON)" ve webové aplikaci."""
         return json.dumps({"prj": self.prj, "ai": self.ai}, ensure_ascii=False, indent=1)
 
     def save_project_dialog(self) -> None:
-        # „<číslo>_<název>.plcstudio.json“ bez znaků, které Windows v názvu nedovolí
-        # („Linka A/B“, „TS: 02“) — core projectFileName, stejně jako web
-        name = self.core("projectFileName", {"meta": self.prj["meta"]}, PROJECT_EXT)
+        # „<číslo>_<Název>.plcstudio.json“ = jméno projektové složky (core projectFolderName:
+        # bez diakritiky a znaků, které Windows nedovolí); dialog začne v projektové složce
+        name = self.core("projectFolderName", {"meta": self.prj["meta"]}) + PROJECT_EXT
         from .datadir import initial_dir
         path = filedialog.asksaveasfilename(
             parent=self.root, title=_("Uložit projekt"), initialfile=name,
