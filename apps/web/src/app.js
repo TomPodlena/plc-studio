@@ -7,7 +7,8 @@ import { makeApprovalStep, approvalBadge, setApproverSource } from "./approval_s
 import { makeBizSteps } from "./biz_steps.js";
 import { approverNames } from "./biz_view.js";
 import { makeCommissionStep } from "./commission_step.js";
-import { $, normProject, normAi, setProjectHeader, rememberNumber, suggestNumber } from "./util.js";
+import { $, normProject, normAi, setProjectHeader, rememberNumber } from "./util.js";
+import { initProjectDir, suggestNumberAsync } from "./project_dir.js";
 import { makeGenTabs } from "./gen_tabs.js";
 import { emuGate } from "./emu_step.js";
 import { trn } from "./plural.js";
@@ -68,7 +69,13 @@ function load() {
     S.ai = normAi(d.ai);
     S.step = d.step === "help" || (Number.isInteger(d.step) && d.step >= 0 && d.step < STEPS.length) ? d.step : 0;
     if (S.prj.guidsAdded) save();   // migrace: doplněné GUID (core guid.ts) hned uložit — projekt změněn
-  } catch { /* poškozený stav: začni znovu */ }
+  } catch (e) {
+    /* poškozený stav: začni znovu, ale původní text neztrať — první uložení by ho přepsalo.
+       Záloha pod vlastním klíčem (jen jedna, nejnovější); bez místa aspoň do konzole. */
+    console.warn("load: poškozený uložený stav, záloha v " + LS_KEY + ".corrupt", e);
+    S.prj = blankProject(); S.ai = { turns: [], last: null, draft: "" }; S.step = 0;
+    try { localStorage.setItem(LS_KEY + ".corrupt", s); } catch { console.warn("load: zálohu nelze uložit", s.slice(0, 2000)); }
+  }
   return true;
 }
 
@@ -170,7 +177,14 @@ function render() {
   /* licence: pás nad kroky s výstupy (Generovat, Dokumentace, Kusovník) — nad limitem Free výrazně */
   if ([7, 8, 9].includes(S.step)) licenseBanner($("view"), S.prj);
   renderLicenseBadge($("badgeLicense"));
-  r($("view"));
+  /* chyba vykreslení kroku (neočekávaná data projektu) nesmí shodit zbytek aplikace — hláška místo prázdné stránky */
+  try { r($("view")); } catch (e) {
+    console.error("render:", e);
+    const n = document.createElement("div");
+    n.className = "notice err"; n.setAttribute("role", "alert");
+    n.textContent = tr("Krok se nepodařilo zobrazit: {err}. Projekt zůstává uložený; zkontroluj data v předchozích krocích nebo si ho ulož tlačítkem Export návrhu (JSON) v kroku Projekt.", { err: e && e.message || String(e) });
+    $("view").appendChild(n);
+  }
   wizard.render();
   showBadge();
   biz.updateBadge();   // označení revize v hlavičce („B*“ = změněno od revize)
@@ -194,10 +208,21 @@ $("lang").addEventListener("change", e => {
 
 applyLang(loadLang());
 /* licence (license.js): ověří uloženou licenci před prvním vykreslením, kontrola na pozadí nejvýš 1× denně */
-await initLicense({ project: () => S.prj, onChange: () => render() });
+/* Start nesmí uváznout ani spadnout na poškozeném úložišti (licence, IndexedDB) — každá část
+   s časovým limitem a vlastním zachycením chyby; aplikace se vykreslí vždy. */
+const guard = (label, p, ms = 4000) => {
+  let timer = 0;
+  return Promise.race([
+    Promise.resolve().then(() => p()),
+    new Promise(res => { timer = setTimeout(() => { console.warn(label + ": časový limit"); res(null); }, ms); }),
+  ]).catch(e => { console.warn(label + ":", e); return null; }).finally(() => clearTimeout(timer));
+};
+await guard("license", () => initLicense({ project: () => S.prj, onChange: () => render() }));
+/* kořenový adresář projektů (project_dir.js): handle z IndexedDB a stav oprávnění — bez dotazu */
+await guard("projectDir", () => initProjectDir());
 if (!load()) {   // první návštěva: prázdný projekt (žádná ukázka) s navrženým číslem projektu
   S.prj = blankProject();
-  const num = suggestNumber();
+  const num = await guard("number", () => suggestNumberAsync());     // ze složek kořene, bez přístupu z historie prohlížeče
   if (num) S.prj.meta.number = num;
 }
 render();

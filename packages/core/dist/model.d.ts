@@ -305,8 +305,11 @@ export declare const DO_ROLES: Record<DoRole, string>;
 /** Čeká krok na digitální vstup? */
 export declare function isDiWait(s: SeqStep): boolean;
 export declare function stripDia(s: string): string;
+/** Text a atributy v UVOZOVKÁCH (SVG, XML exporty jádra) — výstupy pro import do IDE se nesmí měnit (golden). */
 export declare function esc(s: unknown): string;
 export declare const xmlEsc: typeof esc;
+/** HTML klientů: escapuje i apostrof — web vkládá hodnoty i do atributů v apostrofech (value='…'); test odolnosti 2026-10-08. */
+export declare function escHtml(s: unknown): string;
 export declare function blankProject(): Project;
 export declare function devById(prj: Project, id: number | ""): Device | undefined;
 export declare function nextName(prj: Project, cls: DeviceClass): string;

@@ -66,7 +66,7 @@ export function svgMachine(prj: Project): string {
           (prj.program.estop === d.id ? "\n" + tr("Centrální uvolnění (E-stop) → enable všech bloků") : "") +
           (lock ? "\n" + tr("Blokovací vstup → enable: FALSE zastaví stroj") : "") +
           (steps.length ? "\n" + tr("Kroky sekvence: {list}", { list: steps.join(", ") }) : "");
-        s += '<g data-dev="' + d.id + '"><title>' + esc(tip) + "</title>" +
+        s += '<g data-dev="' + esc(d.id) + '"><title>' + esc(tip) + "</title>" +
           '<rect x="' + x + '" y="' + y + '" width="' + cw + '" height="' + h + '" rx="6" fill="none" stroke="' + (estop ? "var(--accent, #2457C5)" : "var(--line, #999)") + '"' + (estop ? ' stroke-width="1.5"' : "") + "/>" +
           sT(x + 10, y + 17, d.name, TXT + ";font-weight:600") +
           sT(x + cw - 10, y + 17, lock ? tr("blokování → enable") : estop ? tr("E-stop → enable") : steps.length ? tr("kroky {list}", { list: steps.join(", ").slice(0, 22) }) : "", MUT, "end") +
@@ -116,7 +116,7 @@ export function svgFlow(prj: Project, run?: SimResult | null): string {
     const d: Device | undefined = devById(prj, st.dev);
     const cond = condOf(st);
     const sub = st.act === "wait" ? tr("časová prodleva") : (d ? (d.desc || tr(CLS[d.cls].label)) : tr("zařízení neexistuje"));
-    const attrs = ' data-step="' + i + '"' + (d ? ' data-dev="' + d.id + '"' : "");
+    const attrs = ' data-step="' + i + '"' + (d ? ' data-dev="' + esc(d.id) + '"' : "");
     const title = tr("Krok {n}: {title}", { n: i + 1, title: stepTitle(prj, st) }) + "\n" + tr("Přechod: {cond}", { cond }) +
       (d ? "\n" + tr("Zařízení: {dev}", { dev: d.name + " — " + (d.desc || tr(CLS[d.cls].label)) }) : "");
     s += stepBox(i + 1, tr("Krok {n} · {title}", { n: i + 1, title: stepTitle(prj, st) }), sub, attrs, title, false);
@@ -162,7 +162,7 @@ export function svgTiming(prj: Project, run: SimResult): string {
   s += sT(20, top + 14, tr("Krok sekvence"), TXT + ";font-weight:600");
   run.steps.forEach((r, n) => {
     const a = px(r.tStart), b = px(r.tEnd ?? tEnd);
-    s += '<g data-step="' + r.i + '"' + (seq[r.i]?.dev ? ' data-dev="' + seq[r.i].dev + '"' : "") + "><title>" + esc(tr("Krok {n}: {title}", { n: r.i + 1, title: stepTitle(prj, seq[r.i]) }) + "\n" + r.tStart + " s – " + (r.tEnd ?? tr("nedokončen")) + (r.tEnd !== null ? " s" : "")) + "</title>" +
+    s += '<g data-step="' + r.i + '"' + (seq[r.i]?.dev ? ' data-dev="' + esc(seq[r.i].dev) + '"' : "") + "><title>" + esc(tr("Krok {n}: {title}", { n: r.i + 1, title: stepTitle(prj, seq[r.i]) }) + "\n" + r.tStart + " s – " + (r.tEnd ?? tr("nedokončen")) + (r.tEnd !== null ? " s" : "")) + "</title>" +
       '<rect x="' + a + '" y="' + (top + 2) + '" width="' + Math.max(1, r2(b - a)) + '" height="' + (rh - 4) + '" fill="' + (r.tEnd === null ? "var(--err, #b3261e)" : n % 2 ? "none" : "var(--chip, #eee)") + '" stroke="var(--line, #999)"/>' +
       (b - a >= 14 ? sT(r2((a + b) / 2), top + 15, String(r.i + 1), MUT, "middle") : "") + "</g>";
   });
@@ -170,7 +170,7 @@ export function svgTiming(prj: Project, run: SimResult): string {
   /* signály */
   rows.forEach(({ e, d }, i) => {
     const y = yRow(i);
-    const ref = ' data-io="' + esc(e.key) + '" data-dev="' + d.id + '"';
+    const ref = ' data-io="' + esc(e.key) + '" data-dev="' + esc(d.id) + '"';
     s += "<g" + ref + "><title>" + esc(e.tag + "  " + hwAddrText(prj, e) + "\n" + d.name + " — " + (e.cmt || d.desc)) + "</title>" +
       sT(20, y + 14, e.tag.slice(0, 22), TXT) + "</g>" + ln(x0, y + rh - 3, x1, y + rh - 3, "var(--line, #999)", 0.6);
     let on: number | null = null;
@@ -189,7 +189,7 @@ export function svgTiming(prj: Project, run: SimResult): string {
     const i = rows.findIndex(r => r.d.id === er.dev);
     if (i < 0) continue;
     const d = rows[i].d;
-    s += '<g data-dev="' + d.id + '"><title>' + esc(tr("{dev}: porucha bloku v čase {t} s", { dev: d.name, t: er.t })) + "</title>" +
+    s += '<g data-dev="' + esc(d.id) + '"><title>' + esc(tr("{dev}: porucha bloku v čase {t} s", { dev: d.name, t: er.t })) + "</title>" +
       ln(px(er.t), yRow(i) + 1, px(er.t), yRow(i) + rh - 2, "var(--err, #b3261e)", 2.5) + sT(px(er.t) + 5, yRow(i) + 14, tr("porucha"), MUT + ";fill:var(--err, #b3261e)") + "</g>";
   }
   /* data-plot = x začátku a konce časové osy a její délka [s] (pro kurzor přehrávání) */

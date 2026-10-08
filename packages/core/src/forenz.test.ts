@@ -165,3 +165,44 @@ test("forenz: měnič a polohovací pohon se stejným číslem → stejné -TA (
   syncIO(p);
   assert.ok(errors(p).some(x => /stejné označení -TA/.test(x)));
 });
+
+/* ---- test odolnosti webu (2026-10-08): XSS přes apostrof / neescapované atributy, obří rampa, duplicitní jména */
+
+test("odolnost: escHtml escapuje apostrof (atributy v apostrofech webu), esc / xmlEsc beze změny (exporty)", async () => {
+  const { esc, xmlEsc, escHtml } = await import("./model.js");
+  assert.equal(escHtml(`a' onfocus='x"<>&`), "a&#39; onfocus=&#39;x&quot;&lt;&gt;&amp;");
+  assert.equal(esc("a'b"), "a'b");
+  assert.equal(xmlEsc("a'b"), "a'b");
+});
+
+test("odolnost: časový diagram — dev čekacího kroku escapovaný, schémata bez surového HTML z dat", async () => {
+  setLang("cs");
+  const p = sampleSmall();
+  p.program.seq.push({ dev: '"><img src=x onerror=alert(1)>' as unknown as number, act: "wait", cond: "time", timeS: 1 } as Project["program"]["seq"][number]);
+  const files = docFiles(p);
+  for (const [n, body] of Object.entries(files)) if (typeof body === "string" && /\.(svg|html)$/.test(n)) assert.doesNotMatch(body, /<img src=x/, n);
+});
+
+test("odolnost: rampa nad 3600 s = chyba validace (simulace by zamrzla)", () => {
+  setLang("cs");
+  const p = load11();
+  const v = p.devices.find(d => d.cls === "Vfd")!;
+  v.rampS = 1e9;
+  assert.ok(errors(p).some(x => /3600 s/.test(x)));
+  v.rampS = 3600;
+  assert.ok(!errors(p).some(x => /3600 s/.test(x)));
+});
+
+test("odolnost: dvě nečinná zařízení se stejným označením — schválení a dokumentace nespadnou", async () => {
+  setLang("cs");
+  const { approvalItems } = await import("./approval.js");
+  const p = sampleSmall();
+  const di = p.devices.find(d => d.cls === "DI")!;
+  const id = Math.max(...p.devices.map(d => d.id));
+  p.devices.push({ ...structuredClone(di), id: id + 1, name: "S9", guid: undefined }, { ...structuredClone(di), id: id + 2, name: "S9", guid: undefined });
+  syncIO(p);
+  assert.ok(errors(p).some(x => /Duplicitní označení/.test(x)));
+  const keys = approvalItems(p).map(i => i.key);
+  assert.equal(new Set(keys).size, keys.length);
+  docFiles(p);                                            // výjimka = pád testu
+});

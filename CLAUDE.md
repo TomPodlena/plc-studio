@@ -504,7 +504,7 @@ python scripts/build_verification.py        # data/verification.json → verific
 ## Údaje projektu a projektová složka (`project_meta.ts`, `project_folder.ts`)
 
 - `meta.number` = šestimístné `RRNNNN` (rok + pořadí, 260705); po RR9999 přetoková řada RR+50 (269999 → 760001)
-  — `nextProjectNumber` (desktop z názvů složek `RRNNNN_*` v kořeni, web z `plcstudio.numbers` v localStorage);
+  — `nextProjectNumber` (desktop i web z názvů složek `RRNNNN_*` v kořeni; web bez kořene z `plcstudio.numbers` v localStorage);
   jiný tvar = jen `warn`. `meta.customer`, `meta.startDate` (ISO), víceřádkový `meta.desc` (`mdMultiline`).
   Číslo / zákazník / datum → pruh nad popisovým polem výkresů (`titleBlock`), hlavičky dokumentů, README;
   **prázdné = výstup beze změny (golden)**; do kódu PLC nikdy. Revize: kosmetická změna; `dataDir` mimo obsah revize.
@@ -519,6 +519,13 @@ python scripts/build_verification.py        # data/verification.json → verific
   klienti při ukládání (desktop „Uložit vše do složky projektu“ = `projectBundle`, okna Uložit začínají v podsložce;
   web každé stažení + „Stáhnout projekt (ZIP)“ = `projectZip`). Licence (`applyLicenseToFile`) před přejmenováním.
   Aplikace začíná prázdná (návrh čísla), vzory jen v „Příklady strojů“.
+- **Web — projektová složka přes File System Access** (`apps/web/src/project_dir.js`, Edge / Chrome v secure contextu):
+  kořen `showDirectoryPicker` → handle v IndexedDB (`idb.js`, sdílí ho průvodce importu), po načtení stránky
+  `queryPermission`, jinak tlačítko „Obnovit přístup ke složce“ (`requestPermission` jen na gesto). „Uložit vše
+  do složky projektu“ (kroky Projekt a Dokumentace) = tentýž `projectBundle` jako ZIP a desktop, zápis po dávkách
+  s průběhem / Zrušit, jeden dotaz na přepis, přehled po podsložkách; „Otevřít projekt…“ (startIn = kořen, bez API
+  `<input type=file>`). Bez API (Firefox, Safari, politika, http mimo localhost) jen nápověda + ZIP. Na API sahá jen
+  `fsLayer` — test v headless Edge ho podvrhne kořenem OPFS (`navigator.storage.getDirectory()`) nebo `supported = () => false`.
 
 ## Revize a změnové řízení (`revision.ts`)
 

@@ -3,7 +3,7 @@
    Návrh i výpočty dělá jádro (safety.ts, safety_prog.ts, safety_docs.ts); pohled skládá
    safety_view.js (stejný pro desktop). Úpravy se ukládají do prj.safety, rozhodnutí do prj.approvals
    (approval.ts). Pravidlo: navrhovat vše, platí jen schválené — nic se neschvaluje samo. */
-import { esc, tr, approve, reject, resetApproval, approveMany } from "../../../packages/core/dist/index.js";
+import { escHtml as esc, tr, approve, reject, resetApproval, approveMany } from "../../../packages/core/dist/index.js";
 import { card, downloadFile } from "./util.js";
 import { fmtAt, statusChip, nameFieldHtml, wireNameField, approverName } from "./approval_step.js";
 import { safetyView, setFnCfg, resetFnCfg, setSafetyParam, addSafetyFn, removeSafetyFn, PLS, CATS, DEFAULT_CCF } from "./safety_view.js";
@@ -17,7 +17,7 @@ function plChip(pl, plr) {
   const ok = PLS.indexOf(pl) >= PLS.indexOf(plr);
   return "<span class='st st-" + (ok ? "ok" : "rej") + "' data-pl='" + (ok ? "ok" : "low") + "'>PL " + esc(pl) + "</span>";
 }
-const plrChip = plr => plr ? "<span class='st sf-plr' data-plr='" + plr + "'>PLr " + esc(plr) + "</span>" : "<span class='st st-wait'>—</span>";
+const plrChip = plr => plr ? "<span class='st sf-plr' data-plr='" + esc(plr) + "'>PLr " + esc(plr) + "</span>" : "<span class='st st-wait'>—</span>";
 const num = v => v === undefined || v === null ? "" : String(v);
 const opt = (v, label, cur) => "<option value='" + esc(String(v)) + "'" + (String(cur) === String(v) ? " selected" : "") + ">" + esc(label) + "</option>";
 
@@ -104,13 +104,13 @@ export function makeSafetyStep(ctx) {
       inp("b10dOut", L.b10dOut, c.b10dOut) + inp("mttfdOut", L.mttfdOut, c.mttfdOut) + "</div>" +
       "<p class='hint'>" + tr("B10d / MTTFd z datasheetu přebíjí typické hodnoty; prázdné = návrh aplikace.") + "</p>";
     h += "<details class='help'><summary>" + tr("Opatření proti CCF: {p} bodů (min. {min})", { p: d.ccf.points, min: v.options.ccfMin }) + " " + (d.ccf.ok ? "<span class='st st-ok'>✓</span>" : "<span class='st st-rej'>✗</span>") + "</summary><div class='body'>" +
-      v.options.ccf.map(m => "<label style='display:flex;gap:6px;align-items:baseline;font-size:.82rem;margin:3px 0'><input type='checkbox' data-ccf='" + m.id + "'" + (ccf.includes(m.id) ? " checked" : "") + "> " + esc(m.label) + " <span class='hint' style='margin:0'>(" + m.points + ")</span></label>").join("") + "</div></details>";
+      v.options.ccf.map(m => "<label style='display:flex;gap:6px;align-items:baseline;font-size:.82rem;margin:3px 0'><input type='checkbox' data-ccf='" + esc(m.id) + "'" + (ccf.includes(m.id) ? " checked" : "") + "> " + esc(m.label) + " <span class='hint' style='margin:0'>(" + esc(m.points) + ")</span></label>").join("") + "</div></details>";
     h += "<div class='tablewrap'><table><thead><tr><th>" + tr("Subsystém") + "</th><th>" + tr("Komponenta") + "</th><th>" + tr("Kat.") + "</th><th>" + tr("Kanály") + "</th><th>nop</th><th>MTTFd</th><th>DC</th><th>PL</th></tr></thead><tbody>" +
-      d.subs.map(s => "<tr><td><b>" + s.role + "</b> " + esc(s.label) + (s.notes.length ? "<div class='apsum'>" + s.notes.map(esc).join("<br>") + "</div>" : "") + "</td>" +
+      d.subs.map(s => "<tr><td><b>" + esc(s.role) + "</b> " + esc(s.label) + (s.notes.length ? "<div class='apsum'>" + s.notes.map(esc).join("<br>") + "</div>" : "") + "</td>" +
         "<td style='font-size:.78rem'>" + esc(s.comp ? [s.comp.brand, s.comp.series].filter(Boolean).join(" ") || s.comp.label : "—") + "</td>" +
-        "<td class='mono'>" + esc(s.cat || "—") + "</td><td class='mono'>" + s.channels + "</td><td class='mono'>" + esc(s.nop ?? "—") + "</td><td class='mono'>" + esc(s.mttfd ?? "—") + "</td><td class='mono'>" + s.dc + " %</td>" +
+        "<td class='mono'>" + esc(s.cat || "—") + "</td><td class='mono'>" + esc(s.channels) + "</td><td class='mono'>" + esc(s.nop ?? "—") + "</td><td class='mono'>" + esc(s.mttfd ?? "—") + "</td><td class='mono'>" + esc(s.dc) + " %</td>" +
         "<td>" + plChip(s.pl, f.risk.plr) + "</td></tr>").join("") +
-      "</tbody><tfoot><tr><td colspan='7'><b>" + tr("Dosažené PL funkce") + "</b> " + tr("(kategorie {cat}, {ch} kanál(y), EDM {edm})", { cat: esc(d.cat || "—"), ch: d.channels, edm: d.edm ? tr("ano") : tr("ne") }) + "</td><td>" + plChip(d.pl, f.risk.plr) + "</td></tr></tfoot></table></div>";
+      "</tbody><tfoot><tr><td colspan='7'><b>" + tr("Dosažené PL funkce") + "</b> " + tr("(kategorie {cat}, {ch} kanál(y), EDM {edm})", { cat: esc(d.cat || "—"), ch: esc(d.channels), edm: d.edm ? tr("ano") : tr("ne") }) + "</td><td>" + plChip(d.pl, f.risk.plr) + "</td></tr></tfoot></table></div>";
     if (!f.plOk && f.risk.plr) h += "<p class='errtxt' id='sfLow'>" + (d.pl ? tr("Dosažené PL {pl} < PLr {plr} — omezuje: {subs}", { pl: esc(d.pl), plr: esc(f.risk.plr), subs: esc(f.limiting.join("; ") || "—") }) : tr("Dosažené PL nelze určit — omezuje: {subs}", { subs: esc(f.limiting.join("; ") || "—") })) + "</p>";
     if (d.problems.length) h += "<ul class='plain warnlist'>" + d.problems.map(p => "<li>" + esc(p) + "</li>").join("") + "</ul>";
     if (d.wiring.length) h += "<details class='help'><summary>" + tr("Zapojení a signály ({n})", { n: d.signals.length }) + "</summary><div class='body' style='max-width:none'><ul>" + d.wiring.map(w => "<li>" + esc(w) + "</li>").join("") + "</ul>" +
@@ -123,7 +123,7 @@ export function makeSafetyStep(ctx) {
       h += "<h3>" + tr("Bezpečná vzdálenost (ISO 13855:{ed})", { ed: v.params.edition }) + "</h3><div class='grid g3'>" +
         f.distFields.map(k => inp(k, L[k], c[k])).join("") + "</div>";
       if (ds) {
-        h += "<div class='stats'><span class='stat' id='sfDist'>" + (ds.S !== null ? tr("S = <b>{s} mm</b>", { s: ds.S }) : tr("S = <b>—</b>")) + "</span><span class='stat'>" + esc(ds.formula) + "</span>" + (ds.T !== null ? "<span class='stat'>T = " + ds.T + " s</span>" : "") + "</div>";
+        h += "<div class='stats'><span class='stat' id='sfDist'>" + (ds.S !== null ? tr("S = <b>{s} mm</b>", { s: esc(ds.S) }) : tr("S = <b>—</b>")) + "</span><span class='stat'>" + esc(ds.formula) + "</span>" + (ds.T !== null ? "<span class='stat'>T = " + esc(ds.T) + " s</span>" : "") + "</div>";
         if (ds.steps.length) h += "<ul class='plain'>" + ds.steps.map(s => "<li>" + esc(s) + "</li>").join("") + "</ul>";
         if (ds.missing.length) h += "<p class='errtxt'>" + tr("Chybí: {what}", { what: esc(ds.missing.join(", ")) }) + "</p>";
         if (ds.warnings.length) h += "<ul class='plain warnlist'>" + ds.warnings.map(w => "<li>" + esc(w) + "</li>").join("") + "</ul>";

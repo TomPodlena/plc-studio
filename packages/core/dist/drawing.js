@@ -379,15 +379,15 @@ export function svgBlock(prj, mods) {
         const st = m.hw && m.hw.station > 0 ? HL.stations.find(x => x.no === m.hw.station) : undefined;
         s += box(352, yy(i + 2), 276, lbl, trx("{n} kanálů · svorkovnice X{x}", { n: m.ch.length, x: i + 1 }) + (st ? " · " + st.head.dt : ""), false, ' data-mod="' + i + '"', lbl + "\n" + m.ch.map((e, c) => "X" + (i + 1) + ":" + (c + 1) + "  " + e.tag + "  " + hwAddrText(prj, e)).join("\n"));
     });
-    L.forEach((d, i) => { s += box(20, yy(i), 250, d.name, d.desc, false, ' data-dev="' + d.id + '" data-side="in"', devTitle(d)); });
-    R.forEach((d, i) => { s += box(710, yy(i), 250, d.name, d.desc, false, ' data-dev="' + d.id + '" data-side="out"', devTitle(d)); });
+    L.forEach((d, i) => { s += box(20, yy(i), 250, d.name, d.desc, false, ' data-dev="' + esc(d.id) + '" data-side="in"', devTitle(d)); });
+    R.forEach((d, i) => { s += box(710, yy(i), 250, d.name, d.desc, false, ' data-dev="' + esc(d.id) + '" data-side="out"', devTitle(d)); });
     AXS.forEach((d, k) => {
         const i = R.length + k, y = yy(i), net = HL.drives.find(x => x.dev === d.name)?.net || "";
         const ref = "-" + devRef(d);
-        s += box(710, y, 250, d.name + "  " + ref, trx("servoosa · {net}", { net }), false, ' data-dev="' + d.id + '" data-side="out"', d.name + " — " + (d.desc || trx(CLS[d.cls].label)) + "\n" + trx(CLS[d.cls].label) + "\n" + ref + " " + trx("servoměnič, uzel sítě {net}", { net }));
+        s += box(710, y, 250, d.name + "  " + ref, trx("servoosa · {net}", { net }), false, ' data-dev="' + esc(d.id) + '" data-side="out"', d.name + " — " + (d.desc || trx(CLS[d.cls].label)) + "\n" + trx(CLS[d.cls].label) + "\n" + ref + " " + trx("servoměnič, uzel sítě {net}", { net }));
         /* značka servomotoru (IEC 60617: kruh s M) */
         s += '<circle cx="940" cy="' + (y + bh / 2) + '" r="11" fill="none" stroke="var(--line, #999)"/>' + sT(940, y + bh / 2 + 4, "M", TXT, "middle");
-        s += '<line data-dev="' + d.id + '" x1="628" y1="' + (yy(1) + bh / 2) + '" x2="710" y2="' + (y + bh / 2) + '" stroke="var(--accent, #2457C5)" stroke-width="1" stroke-dasharray="5 3"/>';
+        s += '<line data-dev="' + esc(d.id) + '" x1="628" y1="' + (yy(1) + bh / 2) + '" x2="710" y2="' + (y + bh / 2) + '" stroke="var(--accent, #2457C5)" stroke-width="1" stroke-dasharray="5 3"/>';
     });
     for (const e of prj.io) {
         const mi = mods.findIndex(m => m.ch.includes(e));
@@ -397,7 +397,7 @@ export function svgBlock(prj, mods) {
         const d = devById(prj, e.devId);
         if (!d)
             continue;
-        const ref = ' data-io="' + esc(e.key) + '" data-dev="' + d.id + '" data-mod="' + mi + '"';
+        const ref = ' data-io="' + esc(e.key) + '" data-dev="' + esc(d.id) + '" data-mod="' + esc(mi) + '"';
         if (e.dir === "DI" || e.dir === "AI") {
             const li = L.indexOf(d);
             if (li >= 0)

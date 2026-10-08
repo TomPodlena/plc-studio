@@ -7,7 +7,13 @@ import { CLS, DO_ROLES, devById, tr, N_, getLang, LANGS } from "../../../package
 const LS_KEY = "plcstudio.ai";
 
 export function aiSettings() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; }
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; }
+  /* poškozené / cizí úložiště: jen objekt, klíč a model jako text */
+  if (!s || typeof s !== "object" || Array.isArray(s)) return {};
+  for (const k of ["key", "model"]) if (s[k] !== undefined && typeof s[k] !== "string") delete s[k];
+  if (s.models !== undefined) { if (Array.isArray(s.models)) s.models = s.models.filter(m => typeof m === "string"); else delete s.models; }
+  return s;
 }
 export function saveAiSettings(s) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
@@ -69,7 +75,7 @@ export function aiNorm(r) {
   if (!r || typeof r !== "object") return out;
   out.questions = Array.isArray(r.questions) ? r.questions.map(String).slice(0, 3) : [];
   const names = new Set();
-  out.devices = (Array.isArray(r.devices) ? r.devices : []).filter(d => d && CLS[d.cls]).filter(d => {
+  out.devices = (Array.isArray(r.devices) ? r.devices : []).filter(d => d && typeof d.cls === "string" && Object.prototype.hasOwnProperty.call(CLS, d.cls)).filter(d => {
     // duplicitní označení: platí první výskyt (druhý by dal duplicitní tagy)
     const n = String(d.name || "").trim();
     if (n && names.has(n)) return false;
@@ -78,7 +84,7 @@ export function aiNorm(r) {
     const nd = {
       name: String(d.name || "").trim(), cls: d.cls, desc: String(d.desc || "").trim(),
       // jen volby, které třída zná (jako boolean) — neznámé klíče by UI i generátor jen mátly
-      opt: (d.opt && typeof d.opt === "object") ? Object.fromEntries(Object.entries(d.opt).filter(([k]) => k in CLS[d.cls].opts).map(([k, v]) => [k, !!v])) : {},
+      opt: (d.opt && typeof d.opt === "object") ? Object.fromEntries(Object.entries(d.opt).filter(([k]) => Object.prototype.hasOwnProperty.call(CLS[d.cls].opts, k)).map(([k, v]) => [k, !!v])) : {},
       unit: String(d.unit || ""), rmin: Number(d.rmin) || 0,
       rmax: Number.isFinite(Number(d.rmax)) ? Number(d.rmax) : 100,
     };

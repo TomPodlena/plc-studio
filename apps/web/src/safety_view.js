@@ -271,7 +271,7 @@ export function normSafety(raw) {
     if (Object.keys(fn).length) s.fn = fn;
   }
   if (Array.isArray(raw.add)) {
-    const add = raw.add.filter(a => isObj(a) && typeof a.ref === "string" && a.ref && SAFETY_KINDS[a.kind]).map(a => ({
+    const add = raw.add.filter(a => isObj(a) && typeof a.ref === "string" && a.ref && typeof a.kind === "string" && Object.prototype.hasOwnProperty.call(SAFETY_KINDS, a.kind)).map(a => ({
       ref: a.ref, kind: a.kind, ...(typeof a.title === "string" && a.title ? { title: a.title } : {}),
       ...(Array.isArray(a.inputs) ? { inputs: a.inputs.filter(x => typeof x === "string") } : {}),
       ...(Array.isArray(a.acts) ? { acts: a.acts.filter(x => typeof x === "string") } : {}),

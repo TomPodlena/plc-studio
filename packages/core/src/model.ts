@@ -417,11 +417,16 @@ export function isDiWait(s: SeqStep): boolean { return s.act === "waitOn" || s.a
 export function stripDia(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss").replace(/[¿¡]/g, "");
 }
+/** Text a atributy v UVOZOVKÁCH (SVG, XML exporty jádra) — výstupy pro import do IDE se nesmí měnit (golden). */
 export function esc(s: unknown): string {
   return String(s ?? "")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 export const xmlEsc = esc;
+/** HTML klientů: escapuje i apostrof — web vkládá hodnoty i do atributů v apostrofech (value='…'); test odolnosti 2026-10-08. */
+export function escHtml(s: unknown): string {
+  return esc(s).replace(/'/g, "&#39;");
+}
 
 export function blankProject(): Project {
   return {
@@ -686,6 +691,9 @@ export function validateProject(prj: Project): ValidationIssue[] {
       out.push({ level: "error", where: d.name, msg: tr("Počet bitů výběru záznamu musí být 1 až 6.") });
     if ((d.cls === "Vfd" || d.cls === "PropValve") && d.rampS !== undefined && !(Number(d.rampS) >= 0))
       out.push({ level: "error", where: d.name, msg: tr("Rampa musí být 0 (bez rampy) nebo kladný čas v sekundách.") });
+    /* rampa se simuluje po taktech 0,1 s do dojetí — obří hodnota by ověření zamrazila (test odolnosti) */
+    else if ((d.cls === "Vfd" || d.cls === "PropValve") && Number(d.rampS) > 3600)
+      out.push({ level: "error", where: d.name, msg: tr("Rampa {dev} je delší než hodina — zadej nejvýš 3600 s.", { dev: d.name }) });
     if (d.cls === "PropValve" && d.opt?.fbk !== false && d.tol !== undefined && !(Number(d.tol) > 0))
       out.push({ level: "error", where: d.name, msg: tr("Povolená odchylka proporcionálního ventilu musí být kladná.") });
     /* odchylka pod rozlišením analogu: AO i AI se kvantují (každá platforma jinak) a rozhodnutí „v toleranci“

@@ -9,7 +9,7 @@
    dokumentace tak emulaci nikdy nespustí a dokument 15 bere výsledek z cache jádra
    (stejné volby jako emuDocMd: platformy projektu, rozsah full / quick podle počtu kroků). */
 import {
-  PLAT, esc, tr, N_, syncIO, genFor, emulateCompile, emulateRunMany, EMU_RULES, EMU_DIALECTS, EMU_DOC_FILE,
+  PLAT, escHtml as esc, tr, N_, syncIO, genFor, emulateCompile, emulateRunMany, EMU_RULES, EMU_DIALECTS, EMU_DOC_FILE,
   registerEmuModule, unregisterEmuModule, emuModuleRegistered,
 } from "../../../packages/core/dist/index.js";
 import { card } from "./util.js";
@@ -102,7 +102,7 @@ export function makeEmuTab(ctx) {
     else {
       h += "<p class='hint' style='margin-top:0'>" + tr("{n} scénářů, {scans} scanů kódu ({skip} scanů klidu přeskočeno), {d} rozdílů.", { n: r.scenarios.length, scans: r.scans, skip: r.skippedScans || 0, d: r.diffs.length }) + "</p>";
       if (r.diffs.length) h += "<div class='tablewrap scrolly'><table class='hmitable'><thead><tr><th>" + tr("Scénář") + "</th><th>" + tr("Čas [s]") + "</th><th>" + tr("Signál") + "</th><th>" + tr("Návrh (simulace)") + "</th><th>" + tr("Kód") + "</th></tr></thead><tbody>" +
-        r.diffs.slice(0, 200).map(d => "<tr><td>" + esc(d.label) + "</td><td class='mono'>" + d.t + "</td><td class='mono'>" + esc(d.signal) + "</td><td class='mono'>" + d.design + "</td><td class='mono'>" + d.code + "</td></tr>").join("") + "</tbody></table></div>";
+        r.diffs.slice(0, 200).map(d => "<tr><td>" + esc(d.label) + "</td><td class='mono'>" + esc(d.t) + "</td><td class='mono'>" + esc(d.signal) + "</td><td class='mono'>" + esc(d.design) + "</td><td class='mono'>" + esc(d.code) + "</td></tr>").join("") + "</tbody></table></div>";
       else h += "<p class='oktxt'>" + tr("Kód se ve všech scénářích chová stejně jako návrh.") + "</p>";
       for (const f of r.runtime || []) h += "<p class='errtxt'>✖ " + esc(f.msg) + "</p>";
     }

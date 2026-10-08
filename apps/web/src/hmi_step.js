@@ -3,7 +3,7 @@
    tagy a alarmy; hmiFiles / hmiSiemensWorkbook → exporty výrobců se stavem ověření (hmiExportSpec);
    hmiWebHtml → samostatné webové HMI. Desktop má totéž v steps/hmi.py (operace mostu hmi*). */
 import {
-  PLAT, CLS, esc, tr, N_, syncIO, buildHmi, hmiScreenSVG, hmiFiles, hmiExportSpec, hmiStatusLabel,
+  PLAT, CLS, escHtml as esc, tr, N_, syncIO, buildHmi, hmiScreenSVG, hmiFiles, hmiExportSpec, hmiStatusLabel,
   hmiSiemensWorkbook, hmiWebHtml, hmiPlcPath, alarmClassLabel, stepTitle, HMI_DOC_FILE,
 } from "../../../packages/core/dist/index.js";
 import { card, downloadFile, downloadFiles, prefixedName } from "./util.js";
@@ -30,7 +30,7 @@ export function devicePanelHtml(p, d) {
   return "<h3 style='margin-top:0'>" + esc(d.name) + "</h3>" +
     "<p class='hint' style='margin:0'>" + esc(tr(CLS[d.cls]?.label || d.cls)) + (d.desc ? " · " + esc(d.desc) : "") + "</p>" +
     "<h4>" + tr("Signály") + "</h4>" +
-    (io.length ? "<ul class='plain'>" + io.map(e => "<li><span class='dir" + e.dir + "'>" + e.dir + "</span> <code>" + esc(e.tag) + "</code> <span class='hint' style='margin:0'>" + esc(e.addr) + "</span></li>").join("") + "</ul>" : "<p class='hint' style='margin:0'>—</p>") +
+    (io.length ? "<ul class='plain'>" + io.map(e => "<li><span class='dir" + esc(e.dir) + "'>" + esc(e.dir) + "</span> <code>" + esc(e.tag) + "</code> <span class='hint' style='margin:0'>" + esc(e.addr) + "</span></li>").join("") + "</ul>" : "<p class='hint' style='margin:0'>—</p>") +
     "<h4>" + tr("Kroky programu") + "</h4>" +
     (steps.length ? "<ul class='plain'>" + steps.map(x => "<li>" + tr("Krok {n}", { n: x.i + 1 }) + ": " + esc(stepTitle(p, x.s)) + "</li>").join("") + "</ul>" : "<p class='hint' style='margin:0'>" + tr("V sekvenci se nepoužívá.") + "</p>") +
     "<div class='row' style='margin-top:10px'><button class='small' data-go='3'>" + tr("Zařízení") + " ↗</button><button class='small' data-go='4'>" + tr("I/O") + " ↗</button><button class='small' data-go='5'>" + tr("Schéma") + " ↗</button></div>";
@@ -99,12 +99,12 @@ export function makeHmiTab(ctx) {
       body.innerHTML = "<div class='row' style='margin-top:0'><label class='f' style='flex-direction:row;align-items:center;gap:8px'>" + tr("Cesta v PLC pro platformu") +
         " <select id='hmiTagPlat'>" + plats.map(k => "<option value='" + k + "'" + (k === pl ? " selected" : "") + ">" + esc(PLAT[k].name) + "</option>").join("") + "</select></label></div>" +
         "<div class='tablewrap scrolly'><table class='hmitable'><thead><tr><th>" + tr("Tag") + "</th><th>" + tr("Typ") + "</th><th>" + tr("Přístup") + "</th><th>" + tr("Skupina") + "</th><th>" + tr("Zařízení") + "</th><th>" + tr("Popis") + "</th><th>" + tr("Cesta v PLC") + "</th></tr></thead><tbody>" +
-        m.tags.map(t => "<tr><td class='mono'>" + esc(t.name) + "</td><td class='mono'>" + t.type + "</td><td class='mono'>" + t.access + (t.cmd ? " · " + (t.cmd === "momentary" ? tr("tlačítko") : tr("přepínač")) : "") + "</td><td>" + esc(tr(HMI_GROUPS[t.group] || t.group)) + "</td><td class='mono'>" + esc(t.dev || "") + "</td><td>" + esc(t.desc) + (t.unit ? " [" + esc(t.unit) + "]" : "") + "</td><td class='mono'>" + esc(hmiPlcPath(pl, t, p)) + "</td></tr>").join("") +
+        m.tags.map(t => "<tr><td class='mono'>" + esc(t.name) + "</td><td class='mono'>" + esc(t.type) + "</td><td class='mono'>" + esc(t.access) + (t.cmd ? " · " + (t.cmd === "momentary" ? tr("tlačítko") : tr("přepínač")) : "") + "</td><td>" + esc(tr(HMI_GROUPS[t.group] || t.group)) + "</td><td class='mono'>" + esc(t.dev || "") + "</td><td>" + esc(t.desc) + (t.unit ? " [" + esc(t.unit) + "]" : "") + "</td><td class='mono'>" + esc(hmiPlcPath(pl, t, p)) + "</td></tr>").join("") +
         "</tbody></table></div>";
       body.querySelector("#hmiTagPlat").addEventListener("change", e => { view.plat = e.target.value; render(); });
     } else if (view.sub === "alarms") {
       body.innerHTML = "<div class='tablewrap scrolly'><table class='hmitable'><thead><tr><th>#</th><th>" + tr("Alarm") + "</th><th>" + tr("Zařízení") + "</th><th>" + tr("Text") + "</th><th>" + tr("Třída") + "</th><th>" + tr("Spouští") + "</th><th>" + tr("Kvitace") + "</th></tr></thead><tbody>" +
-        m.alarms.map(a => "<tr><td class='mono'>" + a.id + "</td><td class='mono'>" + esc(a.name) + (a.codes.length > 1 ? "<div class='hint' style='margin:0'>" + esc(a.codes.join(", ")) + "</div>" : "") + "</td><td class='mono'>" + esc(a.dev) + "</td><td>" + esc(a.text) + (a.cause ? "<div class='hint' style='margin:0'>" + esc(a.cause) + "</div>" : "") + "</td><td><span class='st " + (a.cls === "fault" ? "st-rej" : a.cls === "stop" ? "st-stale" : "st-wait") + "'>" + esc(alarmClassLabel(a.cls)) + "</span></td><td class='mono'>" + esc(triggerText(a.trigger)) + "</td><td>" + esc(a.ack) + "</td></tr>").join("") +
+        m.alarms.map(a => "<tr><td class='mono'>" + esc(a.id) + "</td><td class='mono'>" + esc(a.name) + (a.codes.length > 1 ? "<div class='hint' style='margin:0'>" + esc(a.codes.join(", ")) + "</div>" : "") + "</td><td class='mono'>" + esc(a.dev) + "</td><td>" + esc(a.text) + (a.cause ? "<div class='hint' style='margin:0'>" + esc(a.cause) + "</div>" : "") + "</td><td><span class='st " + (a.cls === "fault" ? "st-rej" : a.cls === "stop" ? "st-stale" : "st-wait") + "'>" + esc(alarmClassLabel(a.cls)) + "</span></td><td class='mono'>" + esc(triggerText(a.trigger)) + "</td><td>" + esc(a.ack) + "</td></tr>").join("") +
         "</tbody></table></div>";
     } else {
       const pl = view.plat;

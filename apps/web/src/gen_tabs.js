@@ -1,6 +1,6 @@
 /* PLCdesk — krok 8 Generovat se záložkami: Kód (steps.js rGen beze změny), HMI, Emulace kódu,
    SISTEMA a EPLAN. Zvolená záložka se drží mezi překresleními (a v sessionStorage). */
-import { tr, N_, esc, validateProject, syncIO } from "../../../packages/core/dist/index.js";
+import { tr, N_, escHtml as esc, validateProject, syncIO } from "../../../packages/core/dist/index.js";
 import { makeHmiTab } from "./hmi_step.js";
 import { makeEmuTab } from "./emu_step.js";
 import { makeExportsTab } from "./exports_step.js";

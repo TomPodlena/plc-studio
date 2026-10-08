@@ -334,10 +334,20 @@ export function approvalItems(prj, opts = {}) {
     for (const t of (opts.cheap && !isVerified(prj) ? [] : tuningProposals(prj))) {
         out.push({ key: t.approvalKey, group: "tuning", required: false, title: t.title, summary: t.why, hash: t.hash });
     }
+    /* duplicitní označení zařízení (import / AI) hlásí validateProject jako chybu — položka pak dostane
+       příponu, aby kroky Dokumentace / Schválení / Oživení nespadly; bez duplicit = porušení invariantu */
+    const names = prj.devices.map(d => d.name.toUpperCase());
+    const dupNames = new Set(names).size !== names.length;
     const seen = new Set();
     for (const i of out) {
-        if (seen.has(i.key))
-            throw new Error("approval: duplicate item key " + i.key);
+        if (seen.has(i.key)) {
+            if (!dupNames)
+                throw new Error("approval: duplicate item key " + i.key);
+            let k = 2;
+            while (seen.has(i.key + "#" + k))
+                k++;
+            i.key = i.key + "#" + k;
+        }
         seen.add(i.key);
     }
     return out;
