@@ -3,6 +3,7 @@ import { tr, blankProject, CLS, PLAT, isGuid, ensureGuids } from "../../../packa
 import { aiNorm } from "./ai.js";
 import { normSafety } from "./safety_view.js";
 import { normBiz } from "./biz_view.js";
+import { licenseFilter } from "./license.js";
 
 const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
 /**
@@ -144,11 +145,26 @@ const MIME = {
   svg: "image/svg+xml", dxf: "application/dxf", csv: "text/csv;charset=utf-8",
   md: "text/markdown;charset=utf-8", xml: "application/xml", json: "application/json",
 };
-export function downloadFile(name, body) {
+/** Stažení souboru přes bránu licence (license.js): ve Free s patičkou, zamčené = okno s vysvětlením a false. */
+export function downloadFile(name, body, quiet = false) {
+  body = licenseFilter(name, body, quiet);
+  if (body == null) return false;
   const ext = (name.split(".").pop() || "").toLowerCase();
   const blob = new Blob([body], { type: MIME[ext] || "text/plain;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  return true;
+}
+/** Binární soubor ke stažení BEZ licenční brány — jen pro obsah, který není výstupem projektu
+ *  uživatele (balík k ověření s pevnými vzory). Výstupy projektu jdou přes downloadFile / downloadBytes. */
+export function saveBytesUngated(name, bytes, mime) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([bytes], { type: mime || "application/octet-stream" }));
   a.download = name;
   document.body.appendChild(a);
   a.click();
@@ -159,9 +175,16 @@ export function downloadFile(name, body) {
 export async function downloadFiles(list, btn) {
   if (btn) btn.disabled = true;
   try {
-    for (const [i, [name, body]] of list.entries()) {
+    /* licence: zamčené soubory (DXF ve Free, vše nad limitem) se přeskočí a okno s důvodem ukáže jednou */
+    const ok = list.filter(([name, body]) => licenseFilter(name, body, true) != null);
+    if (ok.length < list.length) {
+      const [bn, bb] = list.find(f => !ok.includes(f));
+      licenseFilter(bn, bb);            // otevře okno s důvodem
+      if (!ok.length) return;
+    }
+    for (const [i, [name, body]] of ok.entries()) {
       if (i) await new Promise(r => setTimeout(r, 250));
-      downloadFile(name, body);
+      downloadFile(name, body, true);
     }
   } finally { if (btn) btn.disabled = false; }
 }

@@ -29,6 +29,11 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
   jako web. **Logiku nekopíruje** — volá `packages/core/dist` a `apps/web/src/ai.js` přes trvalý
   proces Node (`bridge.mjs`, JSON po řádcích); výkresy z jádra kreslí na `tk.Canvas`.
   Změna v jádře se v desktopu projeví sama, nový krok/prvek UI je potřeba doplnit ve webu i tady.
+  **Drahé výpočty běží ve druhém procesu Node** (`bridge.py` `DualBridge`: hlavní proces = rychlé operace
+  synchronně, pracovní proces z vlákna = `WORKER_OPS` / `WORKER_FNS` — dokumentace, ověření, oživení,
+  schvalování, kusovník, emulace; cache operace × jazyk × parametry). Kroky čtou přes `app.fetch` / `app.deferred`
+  (výjimka `Pending` → zástupný stav s průběhem a Zrušit, výsledek se dokreslí přes `_pump`); nový drahý krok
+  = totéž, jinak okno zamrzne. Tk jen z hlavního vlákna; testy a `--smoke` čekají přes `app.wait_jobs()`.
   Desktop má navíc proti webu: klikací schémata s panelem zařízení a odkazy mezi kroky, funkční
   diagram cyklu, živou simulaci (grafické schéma systému s vodiči a animací funkce, tlačítka
   AUTO / START / E-STOP / kvitace, ruční povely) a přehrávač
@@ -333,8 +338,10 @@ python scripts/build_verification.py        # data/verification.json → verific
   `unsupported`), `ide` (IDE / překladač a verze, technický text; `null` jen u beta), `date`, `scope`
   (classic / oop / motion / axis / plcopen / iec61131-10), `summary` a `notVerified` (české klíče
   překladu), `evidence` (protokoly v `docs/verification/`), `formats` (výstupy: ide / compiler / xsd /
-  structure / emulator + poznámka). Stav 2026-10-05: CODESYS `verified`; Schneider, WAGO, Delta,
-  10 profilů a Unitronics `lang`; Siemens, Rockwell, Beckhoff, Mitsubishi, OMRON `beta`.
+  structure / emulator + poznámka). Stav 2026-10-06: CODESYS `verified`; Schneider, WAGO, Delta,
+  10 profilů, Unitronics a Beckhoff `lang` (výstup Beckhoffu přeložen v CODESYS — TwinCAT 3 PLC stojí na
+  CODESYS V3; Generate code hlásí jen C128 u `AT %I*` — protokol `beckhoff-codesys.md`); Siemens, Rockwell,
+  Mitsubishi, OMRON `beta` (skutečné IDE vyžadují instalaci s právy správce).
 - `python scripts/build_verification.py` (`--check`) → `packages/core/src/verification_data.ts` (texty jako
   `N_()`); `verification.ts`: `VERIFICATION`, `verificationInfo(plat)` (štítek, bublina `tip`),
   `verificationReadme(plat)`, `verificationLatest()`. Test `verification.test.ts`: každá platforma má
@@ -346,6 +353,11 @@ python scripts/build_verification.py        # data/verification.json → verific
   „Stav k“ = nejnovější datum, stav každého řádku tabulky; texty řádků zůstávají v `content/<jazyk>.json`
   s `key` nebo `members` — sloučený řádek profilů CODESYS, dlaždice se rozvinou po platformách; nesoulad
   platforem / stavů nebo natvrdo psaný počet platforem = varování buildu → deploy se zastaví).
+- **Balík k ověření pro beta testery** (`verify_pack.ts`: `verifyPackFiles` / `verifyPackZip`, vzory sampleSmall,
+  11, sampleComplex, 12 — data 11 a 12 v `verify_pack_samples.ts`, shodu se `samples/` hlídá test): výstupy `genFor`,
+  `NAVOD.md` (odkazuje na README, nic neopisuje), `PROTOKOL.md` (šablona bez osobních údajů), `MANIFEST.json`
+  (verze `PLCDESK_VERSION` = package.json = desktop `__version__`, commit, SHA-256 souborů). Tlačítko u platforem
+  se stavem `beta` v kroku Platformy (web i desktop, mimo licenční bránu). Protokol testera → postup níže.
 - **Pravidlo: po každém ověření naostro** (import / překlad v IDE nebo překladači výrobce) zapsat záznam do
   `data/verification.json` + protokol bez osobních údajů do `docs/verification/<ide>-<verze>.md`, pak
   `build_verification.py`, build jádra, `i18n.py missing/merge`, golden **jen README** (vědomá změna, výběrové
@@ -459,6 +471,33 @@ python scripts/build_verification.py        # data/verification.json → verific
   (WinCC: Openness XML + listy Excel přes vlastní zápis .xlsx `hmi_xlsx.ts`; FactoryTalk View CSV/XML;
   CODESYS / Machine Expert Visu; TwinCAT HMI; GT Designer3; Sysmac NA; Unitronics bez exportu) se stavem `unverified` / `reference` / `stub` a zdroji (`hmiExportSpec`).
   Dokument `16_hmi.md` a soubory se přidají po `registerHmiModule()` (opt-in, klienti ve fázi 3).
+
+## Licence v aplikaci (`license.ts`, web `license.js`, desktop `license.py`)
+
+- **Server** = Worker `apps/site/worker` (`/api/license/activate`, `/check`, `/api/config`); licenční soubor
+  `<base64url(JSON)>.<base64url(Ed25519)>` (`signLicense`), jádro ho ověří offline (`verifyLicense`, WebCrypto
+  Ed25519) klíči v `LICENSE_PUBLIC_KEYS` (raw 32 B base64 z `apps/site/tools/keygen.js`). Produkční veřejný
+  klíč je doplněný (pár k `LICENSE_PRIVATE_KEY` Workeru ověřen 2026-10-06: licence podepsaná `signLicense`
+  projde, podvržená ne); výměna klíče = přidat nový do pole, starý nechat, dokud platí vydané licence.
+- **Tarify** (`entitlements`, přesně podle ceníku webu): Free = projekt do 64 I/O (`/api/config`
+  free_io_limit; `projectIoCount` = `devSignals`), dokumenty .md / .html a README s patičkou
+  (`addLicenseFooter`), bez DXF, bez firemní knihovny v generátoru; Pro (i `trial`) = bez limitu, bez
+  patičky, DXF; Firma = + knihovna (vlastní šablony bloků a firemní hlavička, `licensedProject`).
+  `free-unlock` (správa zákazníků) = Free bez limitu I/O. Platí do `exp`, pak 30 dní tolerance
+  (`GRACE_DAYS`), pak Free; `canceled` z `/check` = Free hned; `past_due` nic nezamyká.
+- **Brána projektu** `projectGate` → nad limitem bez odemčení náhled ano, stažení / uložení výstupů ne
+  (`applyLicenseToFile`; projekt `.plcstudio.json` a knihovna `.plcdesk-library.json` vždy). **Kód PLC se
+  licencí nemění**; výchozí výstup jádra beze změny (golden) — licenci uplatňují jen klienti
+  (`licensedGen` / `licensedProjectFiles` s poznámkou do README, patička při stažení / uložení).
+- **Klienti:** web `localStorage` `plcstudio.license` + ID instalace `plcstudio.deviceId`, brána v
+  `util.downloadFile(s)` a HMI xlsx, pás nad kroky 8–10, odznak tarifu v hlavičce; API Workeru nemá CORS →
+  aktivace klíčem z webu na jiném originu selže a aplikace nabídne vložení licenčního souboru (offline).
+  Desktop `license.json` ve složce stavu, otisk = SHA-256 z MachineGuid, síť jen ve vlákně (urllib), brány
+  v `widgets.save_file` / `save_many` a `hmi.save_bytes`, operace mostu `license.verify` (async) /
+  `license.state` / `license.file`, `gen` / `files` s `lic`. Kontrola na pozadí nejvýš 1× denně.
+- **Odemčení prvního projektu:** `/api/unlock` vyžaduje Turnstile a web formulář nemá → aplikace otevře
+  stránku Kontakt a text žádosti s ID projektu (`prj.guid`) dá do schránky; odemčení přijde jako licence
+  `free-unlock`. Testy: `license.test.ts`, `apps/desktop/tests/test_license.py`.
 
 ## Revize a změnové řízení (`revision.ts`)
 
@@ -589,8 +628,12 @@ python scripts/build_verification.py        # data/verification.json → verific
   `TIMER_100_FB_M` (kap. 32.4: `Coil`, `Preset` INT × 100 ms nahoru, `ValueIn := 0`, hotovo = `.Status`;
   do 3 276,7 s — `fx5Timer100` / `fx5Preset100` v codegen.ts, jen MAIN pro mitsubishi); emulátor blok zná
   (`TIMER_1/10/100_FB_M` v `STD_FB`, horizont v run.ts), importér ho čte zpět jako TON, `validateProject`
-  hlásí `info` (nad 3 276,7 s `warn`). Omron: vstup `reset` → `resetIn` (Reset je instrukce Sysmac), Variables.txt
-  ve sloupcích Global Variables. `rawMax` analogů dle platformy (`RAW_MAX`). Rockwell: L5X
+  hlásí `info`; **error** nad 3 276,7 s a nad 32,767 s mimo násobek 0,1 s (kód by zaokrouhlil nahoru ≠ návrh).
+  Omron: vstup `reset` → `resetIn` (Reset je instrukce Sysmac), Variables.txt
+  ve sloupcích Global Variables. `rawMax` analogů dle platformy (`RAW_MAX` v `raw_max.ts`, sdílí ho validace:
+  odchylka PropValve ≥ 4 kroky nejhrubšího modulu projektu, `coarsestRaw`). Validace dál hlídá meze, které
+  by jinak pustily nepřeložitelný kód (`tolTimeS` ≤ 3 276,7 s = INT taktů, čas kroku ≥ 0 a ≤ 24 h) — regrese
+  z forenzního fuzzu v `forenz.test.ts`. Rockwell: L5X
   (`logix.ts`) — Logix ST není IEC (TONR/FBD_TIMER, AOI, bez deklarací v textu).
 - **Unitronics (UniLogic / UniStream):** ST funkce nemá paměť a FB v ST nejsou → generuje se
   plochý ST (`Machine.st`) a seznam tagů (`Tags.csv`). Logika bloků se **neopisuje** — vzniká
@@ -598,8 +641,9 @@ python scripts/build_verification.py        # data/verification.json → verific
   takže změna šablony se propíše sama. Výstup je čisté ASCII. **ST ověřen překladačem UniLogic 1.43.369**
   (2026-10-05, vzory 00b / 03 / 11 / sampleSmall 0 chyb, harness nad `Unitronics.Compiler.Ladder2C`,
   `docs/verification/unilogic-1.43.md`, stav `lang`); import tagů a ST v GUI, build (C / GCC), volání
-  z Ladderu a TON jako globální tag neověřeny — po prvním překladu v GUI doplnit nálezy (i odchylky
-  emulátoru z protokolu: převody INT↔UINT / zúžení = chyba, END_IF bez `;` přijat, vnořené komentáře).
+  z Ladderu a TON jako globální tag neověřeny — po prvním překladu v GUI doplnit nálezy. Emulátor
+  `unitronics` je srovnaný s překladačem (2026-10-06): převody INT↔UINT / zúžení = chyba, END_IF bez `;`
+  přijat (info), vnořené komentáře povoleny — test `emu mutace: UniLogic 1.43`.
 - **Simulace = zrcadlo generátoru.** `sim.ts` (třída `Simulator`, jeden `scan()` = jeden scan
   programu; nad ní dávková `simulate()` i živá simulace v desktopu) provádí logiku, kterou generuje
   `codegen.ts` (FB_Motor/FB_Ventil, timeouty, CASE sekvence, pořadí enable → sekvence → TON →
@@ -642,7 +686,8 @@ Pravidla struktury (zjištěná importem, tvar podle exportu téhož IDE; hlíd�
   project (knihovna Standard kvůli TON).
 - VAR_IN_OUT → `<inOutVars>` (jako localVars: C37 „'Axis' is no input of 'FB_AXIS'“ + C540).
 - OOP viz „Styl kódu OOP“ (umístění InterfaceAsPlainText, atributy rozhraní).
-TwinCAT (TcPOU i PLCopen) importem neověřen — formát addData je 3S, předpoklad stejný.
+TwinCAT (TcPOU i PLCopen) importem v XAE neověřen — formát addData je 3S, předpoklad stejný; PLCopen_Import.xml
+Beckhoffu se v CODESYS 3.5.21.60 importuje a přeloží bez chyb (2026-10-06, `docs/verification/beckhoff-codesys.md`).
 Pipeline ověření (mimo repo, jobs tmp `codesys/`): `gen2.mjs` → `build2.py` (`run_cds.ps1`) → `VYSLEDEK_v2.md`.
 Úkoly v app (z handoffu main): proklikat krok Generovat (PLCopen_Import.xml se zobrazí a stáhne
 sám — Generovat i Dokumentace iterují přes soubory), volitelně badge „doporučeno".

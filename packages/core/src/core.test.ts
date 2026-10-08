@@ -405,7 +405,7 @@ test("Unitronics: plochý ST pro UniLogic — bez FB, stav v globálních tazíc
     assert.deepEqual(unknown, [], "nedeklarované tagy");
     assert.equal(tags.size, files["Tags.csv"].split("\n").length - 1, "tagy jsou unikátní");
     assert.ok(!/[^\x00-\x7F]/.test(files["Tags.csv"]), "seznam tagů je čisté ASCII");
-    assert.ok(files["README.txt"].includes("STAV OVĚŘENÍ: JAZYK OVĚŘEN") && files["README.txt"].includes("Add Structured Text Function"));
+    assert.ok(files["README.txt"].includes("STAV OVĚŘENÍ: JAZYK OVĚŘEN") && files["README.txt"].includes("Add ST Function"));
   }
   const p = sampleSmall();
   p.platforms = ["unitronics"];

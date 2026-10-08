@@ -123,7 +123,8 @@ def _logic(app, body) -> None:
     for i, d in enumerate(candidates):
         var = tk.BooleanVar(value=d["id"] in (prog.get("interlocks") or []))
         locks._vars.append(var)
-        ttk.Checkbutton(locks, text=_dev_label(d), variable=var,
+        # Wrap.TCheckbutton: dlouhý popis vstupu (de) se zalomí ve sloupci, nevyčnívá z okna
+        ttk.Checkbutton(locks, text=_dev_label(d), variable=var, style="Wrap.TCheckbutton",
                         command=lambda i=d["id"], v=var: on_lock(i, v.get())
                         ).grid(row=i // 3, column=i % 3, sticky="w", padx=(0, 18))
     if not candidates:
@@ -173,7 +174,9 @@ def _logic(app, body) -> None:
     var_act = tk.StringVar()
     var_cond = tk.StringVar(value=_(COND_LABEL["fbk"]))
     var_time = tk.StringVar(value="3")
-    ttk.Combobox(add, textvariable=var_dev, values=[*devs, wait], state="readonly", width=36
+    # užší výběr zařízení (celý popis je v rozbalovacím seznamu): s parametry pohonu se řádek
+    # v němčině při 1100 px jinak nevešel a tlačítko Přidat krok se uřízlo
+    ttk.Combobox(add, textvariable=var_dev, values=[*devs, wait], state="readonly", width=28
                  ).pack(side="left")
     cb_act = ttk.Combobox(add, textvariable=var_act, state="readonly",
                           width=max(10, *(len(_(v)) + 1 for v in ACT_LABEL.values())))
@@ -260,7 +263,9 @@ def _logic(app, body) -> None:
         d = devs.get(var_dev.get())
         acts[:] = (["wait"] if d is None else ["waitOn", "waitOff"] if d["cls"] == "DI"
                    else list(app.ACTS_FOR.get(d["cls"]) or (["start", "stop"] if d["cls"] == "Motor" else ["open", "close"])))
-        cb_act.configure(values=[_(ACT_LABEL[k]) for k in acts])
+        labels = [_(ACT_LABEL[k]) for k in acts]
+        # šířka podle akcí TOHOTO zařízení (přeložené popisky) — místo pro parametry pohonu
+        cb_act.configure(values=labels, width=max(8, *(len(t) + 2 for t in labels)))
         var_act.set(_(ACT_LABEL[acts[0]]))
         var_par.set("")
         refresh_par()
@@ -348,8 +353,9 @@ def _logic(app, body) -> None:
         app.save()
         app.render()
 
+    # tlačítko vpravo a zabalené jako první — v úzkém okně se zúží pole, ne tlačítko
     ttk.Button(add, text=_("Přidat krok"), style="Accent.TButton", command=add_step
-               ).pack(side="left", padx=(10, 0))
+               ).pack(side="right", padx=(10, 0), before=add.winfo_children()[0])
 
     # --- seznam kroků ---
     mid = ttk.Frame(body)

@@ -258,3 +258,43 @@ body.adm { font-size: 15px; line-height: 1.5; min-height: 100vh; }
   .adm .crm-move-sel { display: block; }
   .crm-card { cursor: default; }
 }
+
+/* ---------- interni dokumenty (Markdown vykresleny pres DOM, bez innerHTML) ---------- */
+.doc-body { padding: clamp(16px, 3vw, 28px); }
+.md { max-width: 52rem; font-size: .96rem; line-height: 1.6; overflow-wrap: anywhere; min-width: 0; }
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md p, .md ul, .md ol, .md blockquote, .md pre, .md .md-table-wrap { margin: 0 0 .9em; }
+.md .md-h { line-height: 1.25; margin: 1.4em 0 .5em; letter-spacing: -0.01em; }
+.md h2.md-h { font-size: 1.35rem; }
+.md h3.md-h { font-size: 1.12rem; }
+.md h4.md-h { font-size: 1rem; }
+.md a { color: var(--accent); }
+.md code { font: 400 .86em/1.4 var(--mono); background: var(--tint); border: 1px solid var(--line-soft); border-radius: 4px; padding: 1px 4px; }
+.md .md-pre { background: var(--tint); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; overflow-x: auto; max-width: 100%; }
+.md .md-pre code { background: none; border: 0; padding: 0; font-size: .82rem; white-space: pre; overflow-wrap: normal; }
+.md .md-list { padding-left: 1.5em; }
+.md .md-list .md-list { margin: .2em 0 .3em; }
+.md li + li { margin-top: .2em; }
+.md li.md-task { list-style: none; margin-left: -1.3em; }
+.md li.md-task > .md-list { padding-left: 2.8em; }
+.md li.md-task > label { display: inline-flex; gap: 8px; align-items: flex-start; font-weight: 400; font-size: inherit; cursor: pointer; }
+.md li.md-task > label input { margin-top: .32em; flex: none; width: 1rem; height: 1rem; accent-color: var(--accent); }
+.md li.md-task > label input:disabled { cursor: default; }
+.md li.md-task.done > label > .md-li-text { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.md .md-quote { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 8px 14px; border-radius: 0 var(--radius) var(--radius) 0; color: var(--ink); }
+.md .md-quote > :last-child { margin-bottom: 0; }
+.md .md-hr { border: 0; border-top: 1px solid var(--line); margin: 1.6em 0; }
+.md .md-table-wrap { overflow-x: auto; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); }
+.md .md-table { border-collapse: collapse; font-size: .88rem; width: max-content; min-width: 100%; }
+.md .md-table th, .md .md-table td { padding: 7px 10px; border-bottom: 1px solid var(--line-soft); text-align: left; vertical-align: top; overflow-wrap: normal; }
+.md .md-table th { font-weight: 600; background: var(--tint); white-space: nowrap; }
+.md .md-table td { min-width: 5rem; max-width: 20rem; }
+.md .md-table tbody tr:last-child td { border-bottom: 0; }
+.md .md-table .md-right { text-align: right; }
+.md .md-table .md-center { text-align: center; }
+.doc-edit { display: grid; gap: 10px; }
+.adm textarea.doc-src { min-height: 60vh; font: 400 .86rem/1.5 var(--mono); tab-size: 2; }
+.doc-flash:not(:empty) { margin-bottom: 12px; }
+.doc-conflict { display: grid; gap: 8px; justify-items: start; border: 1px solid color-mix(in srgb, var(--stale) 50%, var(--line)); background: var(--stale-soft); border-radius: var(--radius); padding: 12px 14px; }
+.adm-count.over { color: var(--stale); }

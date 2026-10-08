@@ -69,9 +69,12 @@ def build(app, parent) -> None:
     """Obsah záložky „Revize a změny“ (``parent`` = rámec záložky)."""
     ui = app.ui.setdefault("rev", {})
     from .schvaleni import approver
+    args = {"from": ui.get("from", ""), "to": ui.get("to", ""), "exact": bool(ui.get("exact"))}
     try:
-        data = app.bridge.request("revision.view", prj=app.prj, **{
-            "from": ui.get("from", ""), "to": ui.get("to", ""), "exact": bool(ui.get("exact"))})
+        # přesné porovnání ověřuje simulací → pracovní proces (zástupný stav); levné běží hned
+        # v hlavním procesu, ať návštěva kroku Projekt neruší rozpočítanou dokumentaci
+        data = app.fetch("revision.view", prj=app.prj, **args) if args["exact"] \
+            else app.bridge.request("revision.view", prj=app.prj, **args)
     except BridgeError as exc:
         ttk.Label(parent, text="⚠ " + str(exc), style="Err.TLabel").pack(anchor="w")
         return
@@ -295,6 +298,6 @@ def affected(app) -> dict:
     if not app.prj.get("revisions"):
         return {"rev": "", "invalid": [], "added": []}
     try:
-        return app.bridge.request("revision.affected", prj=app.prj)
+        return app.fetch("revision.affected", prj=app.prj)
     except BridgeError:
         return {"rev": "", "invalid": [], "added": []}

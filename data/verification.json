@@ -33,16 +33,16 @@
       ]
     },
     "beckhoff": {
-      "state": "beta",
-      "ide": null,
-      "date": "2026-10-04",
-      "scope": ["classic", "oop", "motion", "axis"],
-      "summary": "emulátor PLCdesk: vlastní parser a pravidla dialektu podle příruček výrobce, běh programu scan po scanu proti modelu stroje — všechny příklady bez rozdílu proti návrhu",
-      "notVerified": "import PLCopen XML a TcPOU v TwinCAT 3 (formát PLCopen ověřen jen v CODESYS), linkování I/O, běh na runtime",
-      "evidence": ["docs/verification/emulator.md"],
+      "state": "lang",
+      "ide": "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)",
+      "date": "2026-10-06",
+      "scope": ["classic", "oop", "motion", "plcopen"],
+      "summary": "jazyk a import PLCopen_Import.xml ověřeny překladačem CODESYS (TwinCAT 3 PLC je postaven na CODESYS V3): Build bez chyb a varování (klasika i OOP), Generate code jen s očekávaným hlášením neúplných adres %I* / %Q*",
+      "notVerified": "import PLCopen XML a TcPOU v TwinCAT 3 XAE, knihovny Tc2 (servoosa Tc2_MC2), linkování I/O na svorky, běh na runtime",
+      "evidence": ["docs/verification/beckhoff-codesys.md", "docs/verification/emulator.md"],
       "formats": [
-        { "file": "PLCopen_Import.xml", "state": "xsd" },
-        { "file": "GVL_IO.st, Gen_Library.st, MAIN.st", "state": "emulator" },
+        { "file": "PLCopen_Import.xml", "state": "compiler" },
+        { "file": "GVL_IO.st, Gen_Library.st, MAIN.st", "state": "compiler" },
         { "file": "*.TcPOU, I_Device.TcIO (OOP)", "state": "structure" }
       ]
     },

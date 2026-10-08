@@ -77,8 +77,8 @@
    "size": 63556
   },
   "code-oop/beckhoff/README.txt": {
-   "sha256": "b76903a109d219eee2fbc7fc067d0bcca0353ba1cd68ac54dbbb3dfc25e2db22",
-   "size": 6588
+   "sha256": "b190adc6b45441f540f2d03c935fdd1b3413dc962c84b484918e69603af5f481",
+   "size": 6731
   },
   "code-oop/berghof/FB_Sequence.st": {
    "sha256": "bba2732cc6871f88a5d1e08bfdad4fcd325c0e30a120775a1092b8bba9bb5b18",
@@ -405,8 +405,8 @@
    "size": 43146
   },
   "code/beckhoff/README.txt": {
-   "sha256": "bb9c8591e3bb53b190410558a111ea77c9b0210c7f2a9612d03713059a10195b",
-   "size": 4057
+   "sha256": "afabb393f9da96bbc891fcc4860ad7cb73f9cb1ee2b51d78c25a1a5527417ae9",
+   "size": 4200
   },
   "code/berghof/GVL_IO.st": {
    "sha256": "31c88d17b97af3dde84d25ecaec9fc3924dcd911dd8d91db9943f2c1dd2bc44e",
@@ -705,8 +705,8 @@
    "size": 29872
   },
   "code/unitronics/README.txt": {
-   "sha256": "250331126587eb21f1ef4d9cf327637cf82d6678e6296821b348c33e39d2ac32",
-   "size": 5170
+   "sha256": "734d35da97ee77aded51af7bb1f286197875a03111d1fb2d06a9df0353c4b7fb",
+   "size": 5157
   },
   "code/unitronics/Tags.csv": {
    "sha256": "38becb942f5ea26dce815167ac5d5f02b08198af93f5feb15307e0dfec64f30c",
@@ -887,8 +887,8 @@
    "size": 63670
   },
   "code-oop/beckhoff/README.txt": {
-   "sha256": "e52a82b34f238c3474e44d3dfe897ba5dc2286b0e846b891e4b62e8df040bc32",
-   "size": 6775
+   "sha256": "eb3e7642265aba56f21b41f9ac1fa4a28dafd51022f37c697e16bda92eef94f5",
+   "size": 6940
   },
   "code-oop/berghof/FB_Sequence.st": {
    "sha256": "e505cea2a01171f0daade98d00248d74cf30064e2e6616cc5a7d69cfc916adcf",
@@ -1215,8 +1215,8 @@
    "size": 43052
   },
   "code/beckhoff/README.txt": {
-   "sha256": "f255b7f7355015b9a705ca660b00ed3a93d433fed8f6ce0f463d2644c8abad6e",
-   "size": 4136
+   "sha256": "1629abd41238d882eefdae2a999ed636b5ba59d495d69bfab7e5ff869f262b9f",
+   "size": 4301
   },
   "code/berghof/GVL_IO.st": {
    "sha256": "e7b0cdfebd352fd2360836de617054693f43f203540615c8990a5a923abfe4c2",
@@ -1515,8 +1515,8 @@
    "size": 29857
   },
   "code/unitronics/README.txt": {
-   "sha256": "869f7bcf51cc6afd89f9bbdddce8f5700c5ae6bc8ad5a3f845eef4a62b17b7b4",
-   "size": 5306
+   "sha256": "0a12bf65f35bcf018dfcac3e09589028c493a1410b478acce69a94cdb7e1d941",
+   "size": 5293
   },
   "code/unitronics/Tags.csv": {
    "sha256": "3e4b9f0edc63c70e47943e34dda49c0a66ec42ea5f3456923842fdd09a38118e",
@@ -1697,8 +1697,8 @@
    "size": 64276
   },
   "code-oop/beckhoff/README.txt": {
-   "sha256": "785286fa28169201b5afc36fab5b3afb4d85a39b0a4f76c2d0b7bf2caa29452c",
-   "size": 7296
+   "sha256": "8798df1a4e5d67c590efbde1b823dac1c78e22bd2eec749e0da551c43ca0869a",
+   "size": 7485
   },
   "code-oop/berghof/FB_Sequence.st": {
    "sha256": "10bc4206567690b6d224d5f5a1344e465fa3daed95c1a55470f07d53c4d74124",
@@ -2025,8 +2025,8 @@
    "size": 43491
   },
   "code/beckhoff/README.txt": {
-   "sha256": "d93c20ea71002973b7ed96fae9b9cefff472aeb42bf2b75ca21aba51c59a7047",
-   "size": 4442
+   "sha256": "7543d1d39073ed3ce5c36088aa28dbd2ce9e1c62e40645bc88a1603ac0d7d3cb",
+   "size": 4631
   },
   "code/berghof/GVL_IO.st": {
    "sha256": "7d05e5da195694bdade31deb7086a97ddadf37674c66ff4d73f30f698afe09da",
@@ -2325,8 +2325,8 @@
    "size": 30264
   },
   "code/unitronics/README.txt": {
-   "sha256": "2cc51f2cfd6f8b08921279794e386925308c0d6dc456106161e2ec94ff4d7fb9",
-   "size": 5733
+   "sha256": "d79437f8ddd3a4a5c1c0be0c013556cd96a318885db07fd79f708b077d301646",
+   "size": 5720
   },
   "code/unitronics/Tags.csv": {
    "sha256": "8a51f0b2a3c66ad12de6f6505f87f577394633fe57c24037230c089fc7db11ef",
@@ -2507,8 +2507,8 @@
    "size": 64505
   },
   "code-oop/beckhoff/README.txt": {
-   "sha256": "f4ebb26386e6e4717d090129b08ef2319379de23f75030ebcd4316acc58bd94c",
-   "size": 7509
+   "sha256": "4c5a4cb0de042c395054e895333e8325d55aa7b2480453c403e9d745333789fb",
+   "size": 7654
   },
   "code-oop/berghof/FB_Sequence.st": {
    "sha256": "3e4d74fc426e1c314eeee1682152bffc0569a5a98b2332cd71b79e6e568cd45a",
@@ -2835,8 +2835,8 @@
    "size": 43494
   },
   "code/beckhoff/README.txt": {
-   "sha256": "975299b5659673c6a39d9ef9975511ac932ed327aecb583265c549e19a790ff9",
-   "size": 4638
+   "sha256": "e7fcfda39ffdd9674390f05baae1c61a6cdd49e26a73900e3c5a1efa91845a8a",
+   "size": 4783
   },
   "code/berghof/GVL_IO.st": {
    "sha256": "cea06d53a2fcb5347252e54ecdda1701c7ed375a658ce1b3abf30487477bc969",
@@ -3135,8 +3135,8 @@
    "size": 30233
   },
   "code/unitronics/README.txt": {
-   "sha256": "686b0fa979675137025e65d47bd42f3e74990364668c2eaade35da94a68ea9d2",
-   "size": 5948
+   "sha256": "dccb7435d4820bec157a21bb8a0b5730177ee4d8d45443a915a395e4b4902bea",
+   "size": 5935
   },
   "code/unitronics/Tags.csv": {
    "sha256": "3627fc8923511d617ef50afda82e149061122ce8620c83ee707a53dbd2f23bb4",
@@ -3317,8 +3317,8 @@
    "size": 63729
   },
   "code-oop/beckhoff/README.txt": {
-   "sha256": "e2c07cfc344b0eb99c58d1cce8f7177177d6e4b211289c1429154da72d4fb49e",
-   "size": 6535
+   "sha256": "03fd268828b1bbe1102be76b9cae64200a7d644612c12cbefb4ae87324836e76",
+   "size": 6693
   },
   "code-oop/berghof/FB_Sequence.st": {
    "sha256": "e505cea2a01171f0daade98d00248d74cf30064e2e6616cc5a7d69cfc916adcf",
@@ -3645,8 +3645,8 @@
    "size": 43111
   },
   "code/beckhoff/README.txt": {
-   "sha256": "dec406b56c11bfde3b0766fcc60f5783ce40c6b6cbca20645660af259ca92cfd",
-   "size": 4026
+   "sha256": "9f7b130818ca7c92c962a86681df7e599d4ddb89755b3cb288ed6cbd504914ee",
+   "size": 4184
   },
   "code/berghof/GVL_IO.st": {
    "sha256": "d207bd932f36f4ce6ef71ec4296cb524f3b2c4fe0b52a70f2edd546858cc02ca",
@@ -3945,8 +3945,8 @@
    "size": 29857
   },
   "code/unitronics/README.txt": {
-   "sha256": "3e332b6349e59871fa699015dd46bfa10ecfb5abfefaa9ef0d1fe64a446e4f82",
-   "size": 5116
+   "sha256": "6fd2eb5068ef65c230e3630910133a2c54f140cbce79ea83ff9a91bcbe931107",
+   "size": 5103
   },
   "code/unitronics/Tags.csv": {
    "sha256": "67b0978ed635e9a04d41b00697cc84b8ded36d89e01191ad84e9942da35cccbe",

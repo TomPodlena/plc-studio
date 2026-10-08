@@ -52,7 +52,7 @@ def render(app, parent) -> None:
     if not app.prj["devices"]:
         wrap_label(body, _("Nejdřív navrhni zařízení (kroky 2–4)."))
         return
-    data = app.bridge.request("bom", prj=app.prj)
+    data = app.fetch("bom", prj=app.prj)
     lines: list[dict] = data["lines"]
     options: dict = data["options"]
     ui = app.ui.setdefault("bom", {})

@@ -19,7 +19,8 @@
 //   POST /api/stripe/webhook    platby Stripe   (jen pri PAYMENT_PROVIDER="stripe")
 //   POST /api/paddle/webhook    platby Paddle   (jen pri PAYMENT_PROVIDER="paddle")
 //   /api/admin/*                sprava zakazniku (admin.js): prihlaseni, prehled, zakaznici,
-//                               licence, pocitace, poznamky, export CSV, audit; stranka /sprava
+//                               licence, pocitace, poznamky, export CSV, audit, leady (crm.js),
+//                               interni dokumenty (docs.js, obsah jen v D1); stranka /sprava
 //   POST /api/admin/license     i skriptem s X-Admin-Token / Bearer (beta, skoly)
 
 import { signLicense, newToken, newId } from "./license.js";
@@ -90,7 +91,12 @@ const t = (l, k, v = {}) => MSG[loc(l)][k].replace(/\{(\w+)\}/g, (m, x) => v[x] 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...extra },
+    headers: {
+      "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+      "Referrer-Policy": "no-referrer", "Strict-Transport-Security": "max-age=31536000",
+      ...extra,
+    },
   });
 }
 
@@ -273,6 +279,9 @@ async function handleUnlock(req, env) {
   const email = String(body.email ?? "").trim().toLowerCase();
   const projectId = String(body.project_id ?? "").trim();
   if (!validEmail(email) || !projectId) return json({ error: t(locale, "unlock_missing") }, 400);
+  // pocet I/O jde do databaze i do textu e-mailu: jen cele cislo v rozumnem rozsahu, jinak nic
+  const io = Number(body.io_count);
+  const ioCount = Number.isInteger(io) && io > 0 && io <= 100000 ? io : null;
 
   const ts = await turnstile(env, body.turnstile, req.headers.get("CF-Connecting-IP"));
   if (ts === "closed") return json({ error: t(locale, "closed") }, 503);
@@ -287,10 +296,10 @@ async function handleUnlock(req, env) {
     `INSERT INTO project_unlocks (id, email, project_id, io_count, granted_at, granted_by)
      VALUES (?, ?, ?, ?, ?, 'self-serve')`
   )
-    .bind(newId(), email, clip(projectId, 100), Number(body.io_count) || null, now())
+    .bind(newId(), email, clip(projectId, 100), ioCount, now())
     .run();
 
-  await sendUnlockConfirmation(env, { to: email, ioCount: body.io_count, locale });
+  await sendUnlockConfirmation(env, { to: email, ioCount, locale });
   return json({ ok: true, unlocked: projectId });
 }
 

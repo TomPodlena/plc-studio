@@ -484,7 +484,7 @@
     "description": "Siemens, Rockwell, Beckhoff, CODESYS, Schneider, WAGO, Delta, Mitsubishi, OMRON, Unitronics and ten more CODESYS-based systems. What is verified by import in the IDE, what by the compiler and what by the emulator.",
     "eyebrow": "Platforms",
     "h1": "{{site.platform_count}} platforms. We say what is verified.",
-    "lead": "We verified CODESYS by real import and compilation in CODESYS V3.5 SP21 Patch 6: examples in classic and OOP style, drives and the servo axis without a single error or warning. Schneider, WAGO, Delta AX and ten more CODESYS-based systems use the same language; for them we verified the language and the import, not the libraries, devices and addresses. Unitronics passed the ST compiler from UniLogic. The other platforms are checked by our emulator. We have not yet tried the import in the manufacturer's development environment, so they carry a beta label.",
+    "lead": "We verified CODESYS by real import and compilation in CODESYS V3.5 SP21 Patch 6: examples in classic and OOP style, drives and the servo axis without a single error or warning. Schneider, WAGO, Delta AX and ten more CODESYS-based systems use the same language; for them we verified the language and the import, not the libraries, devices and addresses. Beckhoff TwinCAT 3 is built on CODESYS V3; its output passed the same compiler. Unitronics passed the ST compiler from UniLogic. The other platforms are checked by our emulator. We have not yet tried the import in the manufacturer's development environment, so they carry a beta label.",
     "checked": "Status as of",
     "h_platform": "Platform",
     "h_ide": "Development environment",
@@ -513,8 +513,8 @@
         "name": "Beckhoff",
         "ide": "TwinCAT 3",
         "output": "PLCopen XML, ST blocks, GVL",
-        "check": "emulator: ST parser for TwinCAT, run against the machine model; PLCopen TC6 schema",
-        "state": "beta"
+        "check": "language and PLCopen import: CODESYS 3.5.21.60 compiler (TwinCAT 3 is built on CODESYS V3), 6 Oct 2026: classic and OOP without errors; import in TwinCAT XAE, I/O linking and the Tc2_MC2 servo axis not verified",
+        "state": "lang"
       },
       {
         "key": "codesys",

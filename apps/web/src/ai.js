@@ -60,7 +60,7 @@ const ACT_CLS = { start: ["Motor", "Vfd"], stop: ["Motor", "Vfd"], open: ["Venti
   home: ["PosDrive", "Axis"], posRecord: ["PosDrive"], setPressure: ["PropValve"], setFlow: ["PropValve"],
   moveAbs: ["Axis"], moveRel: ["Axis"], velocity: ["Axis"], halt: ["Axis"], waitInPos: ["Axis"] };
 /** Číselná pole konfigurace servoosy, která návrh smí vrátit. */
-const AXIS_KEYS = ["vMax", "aMax", "dMax", "vDef", "limNeg", "limPos", "homePos", "posTol", "followMax", "jogVel", "startPos"];
+const AXIS_KEYS = ["vMax", "aMax", "dMax", "jerk", "vDef", "limNeg", "limPos", "homePos", "posTol", "followMax", "jogVel", "startPos"];
 /** Číslo z odpovědi, nebo undefined (null / "" / nesmysl = nezadáno). */
 const optNum = v => (v === null || v === undefined || v === "" || typeof v === "boolean" || !Number.isFinite(Number(v))) ? undefined : Number(v);
 
@@ -93,16 +93,22 @@ export function aiNorm(r) {
     if ((d.cls === "Vfd" || d.cls === "PropValve") && optNum(d.rampS) !== undefined && optNum(d.rampS) >= 0) nd.rampS = optNum(d.rampS);
     if (d.cls === "PropValve") { if (optNum(d.tol) > 0) nd.tol = optNum(d.tol); if (optNum(d.tolTimeS) > 0) nd.tolTimeS = optNum(d.tolTimeS); }
     if (d.cls === "PosDrive") {
-      const b = Math.round(optNum(d.selBits) ?? 3);
-      nd.selBits = Math.min(6, Math.max(1, b));
-      nd.records = (Array.isArray(d.records) ? d.records : []).filter(r => r && Number.isInteger(Number(r.no)) && Number(r.no) >= 1)
-        .map(r => ({ no: Number(r.no), name: String(r.name || ""), ...(optNum(r.pos) !== undefined ? { pos: optNum(r.pos) } : {}) }));
+      /* jen zadané hodnoty — chybějící doplní jádro (selBitsOf, travelOf); výchozí sem nepsat,
+         jinak by převzetí návrhu bez úprav změnilo projekt */
+      if (optNum(d.selBits) !== undefined) nd.selBits = Math.min(6, Math.max(1, Math.round(optNum(d.selBits))));
+      if (optNum(d.travelS) > 0) nd.travelS = optNum(d.travelS);
+      if (Array.isArray(d.records)) nd.records = d.records.filter(r => r && Number.isInteger(Number(r.no)) && Number(r.no) >= 1)
+        .map(r => ({ ...r, no: Number(r.no), name: String(r.name || ""), ...(optNum(r.pos) !== undefined ? { pos: optNum(r.pos) } : {}) }));
     }
     if (d.cls === "DO" && Object.prototype.hasOwnProperty.call(DO_ROLES, d.role)) nd.role = d.role;
+    if (typeof d.libType === "string" && d.libType) nd.libType = d.libType;   // typ z firemní knihovny
     /* servoosa: jen známá číselná pole a pojmenované polohy (název + číslo); chybějící doplní axisCfgOf */
     if (d.cls === "Axis") {
       const a = d.axis && typeof d.axis === "object" ? d.axis : {};
-      nd.axis = Object.fromEntries(AXIS_KEYS.filter(k => optNum(a[k]) !== undefined).map(k => [k, optNum(a[k])]));
+      /* neznámá jednoduchá pole (drive, budoucí klíče) se přenesou beze změny; číselná se jen ověří */
+      nd.axis = Object.fromEntries(Object.entries(a).filter(([k, v]) => k !== "positions" && !AXIS_KEYS.includes(k)
+        && (typeof v === "string" || typeof v === "number" || typeof v === "boolean")));
+      for (const k of AXIS_KEYS) if (optNum(a[k]) !== undefined) nd.axis[k] = optNum(a[k]);
       nd.axis.positions = (Array.isArray(a.positions) ? a.positions : []).filter(x => x && String(x.name || "").trim() && optNum(x.pos) !== undefined)
         .map(x => ({ name: String(x.name).trim(), pos: optNum(x.pos) }));
       if (!nd.unit) nd.unit = "mm";
@@ -208,11 +214,9 @@ export function seedFromProject(prj, popis, note) {
   const prop = {
     questions: [],
     devices: prj.devices.map(d => {
-      const nd = { name: d.name, cls: d.cls, desc: d.desc, opt: d.opt || {}, unit: d.unit || "", rmin: d.rmin ?? 0, rmax: d.rmax ?? 100 };
-      for (const k of ["limHi", "limLo", "setpoint"]) if (Number.isFinite(d[k])) nd[k] = d[k];
-      if (d.role) nd.role = d.role;
-      if (d.axis) nd.axis = d.axis;
-      return nd;
+      /* všechna pole zařízení kromě identity (id, GUID) — převzetí návrhu bez úprav nesmí nic ztratit */
+      const { id, guid, ...rest } = d;
+      return JSON.parse(JSON.stringify({ ...rest, desc: d.desc || "", opt: d.opt || {}, unit: d.unit || "", rmin: d.rmin ?? 0, rmax: d.rmax ?? 100 }));
     }),
     estop: (devById(prj, prj.program.estop) || { name: "" }).name,
     interlocks: (prj.program.interlocks || []).map(id => (devById(prj, id) || { name: "" }).name).filter(Boolean),

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import re
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 from .. import theme
 from ..detail import DevicePanel
-from ..i18n import N_, _
+from ..i18n import N_, _, _n
 from ..project import parse_num
 from ..widgets import Table, card, field, note_box, wrap_label
 
@@ -192,6 +193,34 @@ def apply_params(d: dict, params: dict) -> None:
             d[key] = v
 
 
+NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
+
+
+def name_problem(prj: dict, name: str, skip_id: int | None = None) -> str | None:
+    """Proč označení zařízení nejde použít (``None`` = v pořádku). Stejná pravidla jako
+    ``validateProject`` v jádře: identifikátor IEC, nejvýš 32 znaků, bez „__“ a „_“ na konci,
+    jedinečné bez ohledu na velikost písmen (CODESYS ji nerozlišuje)."""
+    if not NAME_RE.fullmatch(name):
+        return _("Označení zařízení musí být identifikátor — písmena bez diakritiky, číslice a _, "
+                 "na začátku písmeno (např. M1, Y2_A). Používá se v názvech instancí v kódu.")
+    if len(name) > 32 or "__" in name or name.endswith("_"):
+        return _("Označení zařízení může mít nejvýš 32 znaků, bez „__“ a bez „_“ na konci — vznikají "
+                 "z něj jména jako seqOpen_<označení> a Rockwell Logix povoluje 40 znaků.")
+    for d in prj["devices"]:
+        if d["id"] != skip_id and d["name"].upper() == name.upper():
+            return _("Označení {name} už má zařízení {other} — označení musí být jedinečné "
+                     "(velká a malá písmena se nerozlišují).", name=name, other=d["name"])
+    return None
+
+
+def used_by(prj: dict, dev_id: int) -> dict:
+    """Kde program zařízení používá: počet kroků sekvence, E-stop, blokování."""
+    prog = prj.get("program") or {}
+    return {"steps": sum(1 for s in prog.get("seq") or [] if s.get("act") != "wait" and s.get("dev") == dev_id),
+            "estop": prog.get("estop") == dev_id,
+            "lock": dev_id in (prog.get("interlocks") or [])}
+
+
 def _num(value: str, default: float) -> float:
     v = parse_num(value)
     return default if v is None else v
@@ -263,6 +292,12 @@ def render(app, parent) -> None:
         analog = key in RANGE_CLS
         rmin = _num(var_min.get(), 0) if analog else 0
         rmax = _num(var_max.get(), 100) if analog else 100
+        name = var_name.get().strip() or app.core("nextName", prj, key)
+        # duplicitní / neplatné označení dřív prošlo a rozbilo dokumentaci, schválení i oživení
+        problem = name_problem(prj, name)
+        if problem:
+            app.set_status("⚠ " + problem, keep=True)
+            return
         try:
             if analog and (parse_num(var_min.get()) is None or parse_num(var_max.get()) is None):
                 raise ValueError(_("Neplatné číslo v poli „{field}“.", field=_("rozsah")))
@@ -274,7 +309,7 @@ def render(app, parent) -> None:
             return
         prj["devices"].append({
             "id": prj["nextId"],
-            "name": var_name.get().strip() or app.core("nextName", prj, key),
+            "name": name,
             "cls": key, "desc": var_desc.get().strip(),
             "opt": {k: v.get() for k, v in opt_vars.items()},
             "unit": var_unit.get().strip() if analog else "",
@@ -332,6 +367,23 @@ def render(app, parent) -> None:
             app.set_status(_("Nejdřív vyber zařízení v tabulce."))
             return
         prj = app.prj
+        dev = app.dev_by_id(int(iid))
+        use = used_by(prj, int(iid))
+        if dev is not None and (use["steps"] or use["estop"] or use["lock"]):
+            # zařízení v programu: smazání zahodí i jeho kroky sekvence — jen po potvrzení
+            parts = []
+            if use["steps"]:
+                parts.append(_n(use["steps"], N_("{n} krok sekvence|{n} kroky sekvence|{n} kroků sekvence")))
+            if use["estop"]:
+                parts.append(_("vstup E-stop"))
+            if use["lock"]:
+                parts.append(_("blokovací vstup"))
+            if not messagebox.askyesno(
+                    _("Odstranit zařízení?"),
+                    _("Zařízení {name} používá program: {what}. Odstraněním se z programu odebere "
+                      "i toto. Pokračovat?", name=dev["name"], what=", ".join(parts)),
+                    icon="warning", parent=app.root):
+                return
         prj["devices"] = [d for d in prj["devices"] if d["id"] != int(iid)]
         ids = {d["id"] for d in prj["devices"]}
         prog = prj["program"]

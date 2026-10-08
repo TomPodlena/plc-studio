@@ -172,7 +172,7 @@ def render(app, parent) -> None:
     t_lib = ttk.Frame(nb, padding=(0, 6, 0, 0))
     nb.add(t_rev, text=_("Revize a změny"))
     nb.add(t_lib, text=_("Firemní knihovna"))
-    revize.build(app, t_rev)
+    app.deferred(t_rev, lambda: revize.build(app, t_rev))
     knihovna.build(app, t_lib)
     if pui.get("tab") in (0, 1):
         nb.select(pui["tab"])

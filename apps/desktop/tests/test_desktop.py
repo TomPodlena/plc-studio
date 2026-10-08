@@ -399,6 +399,26 @@ class SvgTest(unittest.TestCase):
                         self.assertNotEqual(v, "currentColor")
 
 
+class pro_license:
+    """Tarif Pro po dobu bloku (ověření podpisu nahrazené — produkční klíč v repu není; stav a bránu
+    počítá skutečné jádro). Free je výchozí stav testů: DXF se neukládá, dokumenty mají patičku."""
+
+    def __init__(self, app):
+        self.app = app
+
+    def __enter__(self):
+        lic = self.app.lic
+        self.saved = lic.check
+        lic.check = {"ok": True, "claims": {"v": 1, "key": "PLCD-ABCD-EFGH-JKLM-NPQR", "email": "t@t.cz",
+                                            "plan": "pro", "seats": 1, "exp": "2099-01-01T00:00:00.000Z"}}
+        lic.recompute()
+        return lic
+
+    def __exit__(self, *exc):
+        self.app.lic.check = self.saved
+        self.app.lic.recompute()
+
+
 def walk(widget):
     for w in widget.winfo_children():
         yield w
@@ -417,6 +437,7 @@ class GuiTest(unittest.TestCase):
         cls.app.close()
 
     def setUp(self):
+        self.app.wait_jobs(300)        # výpočty pracovního procesu z minulého testu doběhnou
         self.app.errors.clear()
         self.app.ui.clear()
 
@@ -428,6 +449,7 @@ class GuiTest(unittest.TestCase):
     def goto(self, step):
         self.app.goto(step)
         self.root.update()
+        self.assertTrue(self.app.wait_jobs(300), "výpočet v pracovním procesu nedoběhl")
 
     def find(self, cls, parent=None):
         # Combobox dědí z Entry — vstupní pole se proto hledají přesným typem
@@ -629,6 +651,72 @@ class GuiTest(unittest.TestCase):
                 self.goto(step)
                 self.assertTrue(self.app.view.winfo_children())
 
+    def test_device_name_must_be_unique_identifier(self):
+        """Formulář Zařízení odmítne duplicitní označení (i jinou velikostí písmen) a označení,
+        které není identifikátor — dřív prošlo a rozbilo Dokumentaci, Schválení i Oživení."""
+        self.app.reset_project()
+        self.goto(3)
+
+        def add(name):
+            ent = self.find(ttk.Entry)[0]
+            ent.delete(0, "end")
+            ent.insert(0, name)
+            self.click("Přidat zařízení")
+            return [d["name"] for d in self.app.prj["devices"]]
+
+        self.assertEqual(add("M1"), ["M1"])
+        for bad in ("M1", "m1", "Čerpadlo1", "M 2", "1M", "_M3", "M__4", "M5_", "M" * 33):
+            self.assertEqual(add(bad), ["M1"], f"{bad!r} se nemělo přidat")
+            self.assertTrue(str(self.app._status.cget("text")).startswith("⚠"), bad)
+        add("m1")
+        self.assertIn("M1", str(self.app._status.cget("text")))      # hláška jmenuje kolizi
+        self.assertEqual(add("M2_A"), ["M1", "M2_A"])
+        self.assertEqual(add("P1"), ["M1", "M2_A", "P1"])
+        from plc_studio.steps.zarizeni import name_problem
+        prj = self.app.prj
+        self.assertIsNone(name_problem(prj, "M1", skip_id=prj["devices"][0]["id"]))  # sám sebe
+        self.assertIsNotNone(name_problem(prj, "p1"))
+        # Dokumentace se po přidání vykreslí (dřív: duplicate step id io:M1.fbkRunning)
+        self.goto(8)
+        self.assertNotIn("⚠", " ".join(str(w.cget("text")) for w in self.find(ttk.Label)))
+
+    def test_apply_unchanged_proposal_keeps_project(self):
+        """Převzetí návrhu, který AI vrátila beze změny (seed vzoru 16 i po aiNorm), projekt
+        nezmění: zařízení se všemi poli (travelS, libType, records, selBits, osa…) i I/O
+        s ručními adresami, komentáři, NC a GUID."""
+        from plc_studio.steps.ai_navrh import apply_proposal
+        path = Path(__file__).resolve().parents[3] / "samples" / "16_paletizacni_bunka_osy_PC-16.plcstudio.json"
+        self.assertTrue(self.app.open_project(path))
+        prj = self.app.prj
+        # ruční úpravy z kroku I/O a pole mimo běžný formulář
+        prj["io"][0].update(addr="%I7.7", cmt="ručně upravený komentář", nc=True)
+        pd = next(d for d in prj["devices"] if d["cls"] == "PosDrive")
+        pd["travelS"] = 2.5
+        pd["libType"] = "firemni_typ"
+        self.app.sync()
+        before = json.loads(json.dumps({k: self.app.prj[k] for k in ("devices", "io", "program")}))
+        seed = self.app.bridge.ai("seedFromProject", self.app.prj, "vzor 16", "")
+        for last in (seed["last"], self.app.bridge.ai("aiNorm", seed["last"])):
+            self.app.ai = {"turns": seed["turns"], "last": last, "draft": ""}
+            apply_proposal(self.app)
+            self.root.update()
+            after = {k: self.app.prj[k] for k in ("devices", "io", "program")}
+            self.assertEqual(after["devices"], before["devices"])
+            self.assertEqual(after["io"], before["io"])
+            self.assertEqual(after["program"], before["program"])
+
+    def test_delete_unused_device_without_dialog(self):
+        """Zařízení, které program nepoužívá, se smaže bez dotazu."""
+        self.app.reset_project()
+        self.goto(3)
+        self.click("Přidat zařízení")
+        d = self.app.prj["devices"][0]
+        self.table().select(d["id"])
+        with mock.patch("tkinter.messagebox.askyesno", return_value=False) as ask:
+            self.click("Odstranit vybrané")
+        ask.assert_not_called()
+        self.assertEqual(self.app.prj["devices"], [])
+
     def test_devices_add_edit_delete(self):
         self.app.reset_project()
         self.goto(3)
@@ -664,7 +752,17 @@ class GuiTest(unittest.TestCase):
         self.app.prj["program"]["estop"] = d["id"]
         self.app.prj["program"]["seq"] = [{"dev": d["id"], "act": "start", "cond": "fbk", "timeS": 3}]
         tbl.select(d["id"])
-        self.click("Odstranit vybrané")
+        # zařízení je v programu (krok, E-stop) → smaže se jen po potvrzení
+        with mock.patch("tkinter.messagebox.askyesno", return_value=False) as ask:
+            self.click("Odstranit vybrané")
+        ask.assert_called_once()
+        self.assertIn("1 krok sekvence", ask.call_args[0][1])
+        self.assertIn("vstup E-stop", ask.call_args[0][1])
+        self.assertEqual(len(self.app.prj["devices"]), 2)
+        self.assertEqual(len(self.app.prj["program"]["seq"]), 1)
+        self.table().select(d["id"])
+        with mock.patch("tkinter.messagebox.askyesno", return_value=True):
+            self.click("Odstranit vybrané")
         self.assertEqual([x["name"] for x in self.app.prj["devices"]], ["B1"])
         self.assertEqual(self.app.prj["program"],
                          {"modes": True, "estop": "", "seq": [], "interlocks": []})
@@ -813,8 +911,13 @@ class GuiTest(unittest.TestCase):
         sheet_combo.set(sheet_combo.cget("values")[-1])
         self.root.update()
         self.assertNotEqual(len(views[2].canvas.find_all()), before)
+        free = tempfile.mkdtemp()                    # Free: výkresy SVG ano, DXF ne (licence)
+        with mock.patch("tkinter.filedialog.askdirectory", return_value=free):
+            self.click("Uložit všechny výkresy do složky…")
+        self.assertFalse(any(n.endswith(".dxf") for n in os.listdir(free)))
+        self.assertIn("00_blokove_schema.svg", os.listdir(free))
         out = tempfile.mkdtemp()
-        with mock.patch("tkinter.filedialog.askdirectory", return_value=out):
+        with pro_license(self.app), mock.patch("tkinter.filedialog.askdirectory", return_value=out):
             self.click("Uložit všechny výkresy do složky…")
         names = sorted(os.listdir(out))
         self.assertIn("00_blokove_schema.svg", names)
@@ -1625,7 +1728,13 @@ class GuiTest(unittest.TestCase):
             self.click("Uložit vše do složky…")
         saved = os.listdir(out2)
         self.assertIn("01_funkcni_specifikace_FDS.md", saved)
-        self.assertTrue(any(n.endswith(".dxf") for n in saved))
+        self.assertFalse(any(n.endswith(".dxf") for n in saved), "Free: bez DXF")
+        self.assertIn("PLCdesk Free", Path(out2, "01_funkcni_specifikace_FDS.md").read_text(encoding="utf-8"))
+        out3 = tempfile.mkdtemp()
+        with pro_license(self.app), mock.patch("tkinter.filedialog.askdirectory", return_value=out3):
+            self.click("Uložit vše do složky…")
+        self.assertTrue(any(n.endswith(".dxf") for n in os.listdir(out3)), "Pro: DXF")
+        self.assertNotIn("PLCdesk Free", Path(out3, "01_funkcni_specifikace_FDS.md").read_text(encoding="utf-8"))
         self.assertTrue(any(n.startswith("beckhoff_") for n in saved))
         with mock.patch("tkinter.filedialog.askdirectory", return_value=out2), \
                 mock.patch("tkinter.messagebox.askyesno", return_value=False) as ask:

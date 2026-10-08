@@ -203,6 +203,7 @@ class BizGuiTest(unittest.TestCase):
     def goto(self, step):
         self.app.goto(step)
         self.root.update()
+        self.app.wait_jobs(300)            # drahé výpočty běží v pracovním procesu
 
     def buttons(self, prefix):
         return [w for w in walk(self.app.view) if isinstance(w, ttk.Button) and str(w.cget("text")).startswith(prefix)]
@@ -239,6 +240,7 @@ class BizGuiTest(unittest.TestCase):
         # proklik do Schválení: položka vybraná a podbarvená
         self.buttons("Otevřít krok Schválení")[0].invoke()
         self.root.update()
+        self.app.wait_jobs()                   # položky schválení počítá pracovní proces
         self.assertEqual(self.app.step, 11)
         tv = next(w.tv for w in walk(self.app.view) if isinstance(w, Table) and w.tv.exists("seq"))
         self.assertIn("revchg", tv.item("seq", "tags"))

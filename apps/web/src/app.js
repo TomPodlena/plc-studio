@@ -12,6 +12,7 @@ import { $, normProject, normAi } from "./util.js";
 import { makeGenTabs } from "./gen_tabs.js";
 import { emuGate } from "./emu_step.js";
 import { trn } from "./plural.js";
+import { initLicense, renderLicenseBadge, licenseBanner, openLicenseDialog } from "./license.js";
 
 /* Bezpečnostní modul: položky ke schválení (nebezpečí, funkce, návrh, program), kroky validace
    v oživení, dokumenty 13/14, bezpečnostní program a položky kusovníku. */
@@ -33,8 +34,28 @@ const S = {
   step: 0,
 };
 
+/* Nepovedené uložení (plné úložiště — QuotaExceeded —, zakázané úložiště) se nezahazuje tiše:
+   trvalé varování pod lištou kroků, dokud se uložení znovu nepodaří. */
+let saveFailed = false;
 function save() {
-  try { localStorage.setItem(LS_KEY, JSON.stringify({ prj: S.prj, ai: S.ai, step: S.step })); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({ prj: S.prj, ai: S.ai, step: S.step }));
+    if (saveFailed) { saveFailed = false; showSaveWarn(); }
+  } catch (e) {
+    if (!saveFailed) console.warn("save:", e);
+    saveFailed = true; showSaveWarn();
+  }
+}
+function showSaveWarn() {
+  let w = document.getElementById("saveWarn");
+  if (!saveFailed) { if (w) w.hidden = true; return; }
+  if (!w) {
+    w = document.createElement("div");
+    w.id = "saveWarn"; w.className = "notice err savewarn"; w.setAttribute("role", "alert");
+    $("stepper").after(w);
+  }
+  w.hidden = false;
+  w.innerHTML = "<b>" + tr("Projekt se neukládá!") + "</b> " + tr("Úložiště prohlížeče je plné nebo zakázané, takže změny po zavření či obnovení stránky ztratíš. Ulož si návrh hned tlačítkem Export návrhu (JSON) v kroku Projekt. Místo uvolníš zmenšením projektu — nejvíc zabírají staré revize (odeber je z exportovaného JSON a načti ho znovu) — nebo smazáním dat této stránky v prohlížeči až po exportu.");
 }
 /** Načte uložený stav; vrací true, pokud nějaký byl (i prázdný projekt — ten se ukázkou nepřepisuje). */
 function load() {
@@ -109,6 +130,7 @@ function scheduleBadge() {
   }, 400);
 }
 $("badgeApproval").addEventListener("click", () => { S.step = STEP_APPROVAL; save(); render(); });
+$("badgeLicense").addEventListener("click", () => openLicenseDialog());
 
 /* Statické texty hlavičky a patičky (v index.html jsou česky jako výchozí). */
 function renderStatic() {
@@ -117,6 +139,7 @@ function renderStatic() {
   $("badgePlat").textContent = trn(S.prj.platforms.length, N_("{n} platforma|{n} platformy|{n} platforem"));
   $("stepper").setAttribute("aria-label", tr("Kroky návrhu"));
   $("lang").setAttribute("aria-label", tr("Jazyk rozhraní"));
+  $("badgeLicense").setAttribute("aria-label", tr("Licence a tarif"));
   $("lang").value = getLang();
   $("btnPrev").textContent = "← " + tr("Zpět");
   $("btnNext").textContent = tr("Pokračovat") + " →";
@@ -125,6 +148,7 @@ function renderStatic() {
 function render() {
   emuGate(S.prj);   // dokument 15 jen pro projekt, pro který emulace proběhla
   renderStatic();
+  showSaveWarn();   // text varování v aktuálním jazyce
   const nav = $("stepper");
   nav.innerHTML = STEPS.map((s, i) => "<button class='" + (i === S.step ? "on" : (stepDone(i) ? "done" : "")) + "' data-i='" + i + "'>" + (i + 1) + " · " + tr(s) + "</button>").join("")
     + "<button class='helpbtn" + (S.step === "help" ? " on" : "") + "' data-help>?&nbsp;" + tr("Nápověda") + "</button>";
@@ -144,6 +168,9 @@ function render() {
     n.textContent = S.notice.text;
     $("view").appendChild(n);
   }
+  /* licence: pás nad kroky s výstupy (Generovat, Dokumentace, Kusovník) — nad limitem Free výrazně */
+  if ([7, 8, 9].includes(S.step)) licenseBanner($("view"), S.prj);
+  renderLicenseBadge($("badgeLicense"));
   r($("view"));
   wizard.render();
   showBadge();
@@ -167,6 +194,8 @@ $("lang").addEventListener("change", e => {
 });
 
 applyLang(loadLang());
+/* licence (license.js): ověří uloženou licenci před prvním vykreslením, kontrola na pozadí nejvýš 1× denně */
+await initLicense({ project: () => S.prj, onChange: () => render() });
 if (!load()) {   // první návštěva: předvyplněná ukázka
   S.prj = sampleComplex();
   S.ai = seedFromProject(S.prj, tr(SAMPLE_DESC.complex), tr("Ukázkový návrh složité linky — předvyplněno jako příklad práce AI návrháře."));

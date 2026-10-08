@@ -15,6 +15,7 @@ import {
 /* codegen_oop.ts a codegen.ts se importují navzájem: OOP renderer se volá až uvnitř genFor */
 import { genForOop } from "./codegen_oop.js";
 import { CDS_PROFILES, CDS_PROFILE_KEYS, type CdsProfileKey } from "./codesys_profiles.js";
+import { RAW_MAX } from "./raw_max.js";
 import {
   buildIR, irText, cmdIr, irBlocks, irPortTypes, irMember, IR_CTRL, IR_CLASS_ORDER, type IrProgram, type IrFb, type IrDeviceItem, type IrDecl, type IrNames,
   type IrType, type IrFbClass, type IrExpr, type IrSet, type IrStep, type IrPort,
@@ -1143,15 +1144,8 @@ export function seqBody(prj: Project, plat: PlatformKey): string {
   return renderSeq(buildIR(prj), stCtx(plat));
 }
 
-/* Surový rozsah analogu dle platformy (typický modul; TODO ověřit podle skutečného modulu).
-   Předává se vždy — FX5 nezná počáteční hodnoty a výchozí 27648 je rozsah Siemens. */
-const RAW_MAX: Partial<Record<PlatformKey, number>> = { beckhoff: 32767, codesys: 32767, mitsubishi: 16000, schneider: 10000, omron: 32000,
-  /* WAGO 750-455 (4–20 mA): 0…32767; Delta AS04AD-A: ±32000 — obojí TODO podle modulu */
-  wago: 32767, delta: 32000,
-  /* profily CODESYS dalších výrobců: rozsah analogového modulu z katalogu (codesys_profiles.ts, README) */
-  ...Object.fromEntries(CDS_PROFILE_KEYS.map(k => [k, CDS_PROFILES[k].rawMax])) };
-/** Surový rozsah analogu platformy (bez = Siemens 27648 z výchozí hodnoty šablony). */
-export function rawMaxFor(plat: PlatformKey): number | undefined { return RAW_MAX[plat]; }
+/* Surový rozsah analogu dle platformy — raw_max.ts (sdílí ho validace v model.ts) */
+export { rawMaxFor } from "./raw_max.js";
 function rawMaxArg(plat: PlatformKey): string {
   const v = RAW_MAX[plat];
   return v ? ", rawMax := " + v + " (* TODO: " + stripDia(trx("rozsah dle modulu")) + " *)" : "";
@@ -1768,7 +1762,7 @@ GVL_IO přiřaď kanálům v Edit IO Mapping.`) + "\n",
   (PLC → Import/Export), doplň ji podle Tags.csv a naimportuj zpět. I/O tagy pak přiřaď
   vstupům a výstupům v konfiguraci hardwaru (sloupec „I/O address hint" je jen vodítko).`,
         { prog: trx("Program"), block: trx("Blok"), timer: trx("Program – časovač") }),
-      tr(`Machine.st: pravý klik na modul → Add Structured Text Function, vlož obsah a funkci
+      tr(`Machine.st: pravý klik na modul → Add ST Function, vlož obsah a funkci
   volej každý scan z hlavní ladder rutiny.`),
       tr("Globální tagy vidí ST funkce jen přes seznam Used Globals (vlastnosti funkce) — přidej do něj všechny tagy z Tags.csv."),
       tr(`Časovače: kód používá IEC bloky TON s literály T#…S — v ST editoru UniLogic jsou až od
@@ -1865,7 +1859,7 @@ function uniAscii(s: string): string {
 
 /** Dialekt UniLogic: středníky za END_IF, desítkové konstanty, převodní funkce TO_*. */
 function uniDialect(st: string): string {
-  return st.replace(/END_IF(?!;)/g, "END_IF;")
+  return st.replace(/\bEND_IF\b(?!;)/g, "END_IF;")
     .replace(/16#8001/g, "32769").replace(/16#8002/g, "32770").replace(/16#0000/g, "0")
     .replace(/INT_TO_REAL\(/g, "TO_REAL(").replace(/REAL_TO_INT\(/g, "TO_INT(");
 }

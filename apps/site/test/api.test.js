@@ -289,6 +289,17 @@ await check("druhe odemceni odmitnuto s odkazem na cenik", async () => {
   if (!(await r.json()).upgrade) throw new Error("chybi odkaz na cenik");
 });
 
+await check("io_count jen cele cislo: text do mailu ani DB neprojde", async () => {
+  const r = await call("POST", "/api/unlock", { email: "spam@integrator.cz", project_id: "p-3", io_count: "64) Navstivte http://zly.example (", turnstile: "human" });
+  eq(r.status, 200, "status");
+  if (/zly\.example/.test(sentMail.at(-1).text)) throw new Error("text z io_count v mailu");
+  eq(count("SELECT COUNT(*) AS n FROM project_unlocks WHERE email = 'spam@integrator.cz' AND io_count IS NULL"), 1, "io_count null");
+});
+await check("verejne API nese bezpecnostni hlavicky (nosniff, DENY, CSP, HSTS)", async () => {
+  const r = await call("GET", "/api/config");
+  for (const h of ["x-content-type-options", "x-frame-options", "content-security-policy", "strict-transport-security"]) if (!r.headers.get(h)) throw new Error("chybi " + h);
+});
+
 console.log("\nStripe");
 function signed(event, secret = "whsec_test", ts = Math.floor(Date.now() / 1000)) {
   const payload = JSON.stringify(event);
@@ -521,6 +532,13 @@ await check("5 neuspechu z jedne IP -> 429 s Retry-After, i spravny token; jina 
   eq(cookieOf(r), null, "cookie");
   eq((await adm("POST", "/api/admin/login", { token: "test-admin" }, { "CF-Connecting-IP": "203.0.113.10" })).status, 200, "jina IP");
 });
+await check("souběžná dávka 12 pokusů z jedné IP: nejvýš 5 se ověří (401), zbytek 429", async () => {
+  const ip = { "CF-Connecting-IP": "203.0.113.77" };
+  const st = (await Promise.all(Array.from({ length: 12 }, (_, i) => adm("POST", "/api/admin/login", { token: "par" + i }, ip)))).map(r => r.status);
+  const n401 = st.filter(s => s === 401).length;
+  if (n401 > 5 || n401 + st.filter(s => s === 429).length !== 12) throw new Error("stavy " + st.join(","));
+  eq((await adm("POST", "/api/admin/login", { token: "test-admin" }, ip)).status, 429, "pak i spravny token");
+});
 await check("po 15 minutach se IP odblokuje", async () => {
   db.prepare("UPDATE admin_attempts SET at = ? WHERE ip = '203.0.113.9'").run(new Date(Date.now() - 16 * 60e3).toISOString());
   eq((await adm("POST", "/api/admin/login", { token: "test-admin" }, { "CF-Connecting-IP": "203.0.113.9" })).status, 200, "status");
@@ -654,7 +672,8 @@ await check("vsechny /api/admin/* bez prihlaseni -> 401 (no-store, DENY)", async
   const routes = [["GET", "/api/admin/me"], ["GET", "/api/admin/summary"], ["GET", "/api/admin/customers"], ["GET", "/api/admin/customer?email=beta@firma.cz"],
     ["POST", "/api/admin/license"], ["POST", "/api/admin/activation/release"], ["POST", "/api/admin/note"], ["GET", "/api/admin/export.csv?type=customers"], ["GET", "/api/admin/audit"],
     ["GET", "/api/admin/crm"], ["GET", "/api/admin/crm/lead?id=x"], ["POST", "/api/admin/crm/lead"], ["POST", "/api/admin/crm/move"],
-    ["POST", "/api/admin/crm/note"], ["POST", "/api/admin/crm/delete"], ["POST", "/api/admin/crm/import"], ["GET", "/api/admin/crm/export.csv"]];
+    ["POST", "/api/admin/crm/note"], ["POST", "/api/admin/crm/delete"], ["POST", "/api/admin/crm/import"], ["GET", "/api/admin/crm/export.csv"],
+    ["GET", "/api/admin/docs"], ["GET", "/api/admin/doc?slug=plan"], ["POST", "/api/admin/doc"], ["POST", "/api/admin/doc/task"]];
   const covered = new Set(routes.map(([, p]) => p.split("?")[0]));
   for (const p of ADMIN_PATHS) if (!covered.has(p) && !/login|logout/.test(p)) throw new Error("netestovana cesta " + p);
   for (const [m, p] of routes) {
@@ -1135,6 +1154,126 @@ await check("audit CRM: bez kontaktnich udaju a obsahu poznamek, 401 bez relace 
   eq((await adm("POST", "/api/admin/crm/import", { leads: research })).status, 401, "bez cookie");
 });
 
+// =====================================================================================
+console.log("\nsprava: interni dokumenty (obsah jen v D1)");
+const D = withCookie(cookieOf(await adm("POST", "/api/admin/login", { token: "test-admin" })));
+const docRow = (slug) => db.prepare("SELECT * FROM admin_docs WHERE slug = ?").get(slug);
+const DOC_MD = [
+  "# Plan",
+  "- [ ] prvni ukol",
+  "- [x] druhy ukol",
+  "```",
+  "- [ ] v bloku kodu se nepocita",
+  "```",
+  "  * [ ] vnoreny ukol",
+  "> - [ ] v citaci se nepocita",
+  "1. [ ] cislovany se nepocita",
+  "+ [X] posledni",
+].join("\n");
+await check("dokumenty bez prihlaseni -> 401 (seznam, cteni, ulozeni, ukol)", async () => {
+  eq((await adm("GET", "/api/admin/docs")).status, 401, "seznam");
+  eq((await adm("GET", "/api/admin/doc?slug=plan")).status, 401, "cteni");
+  eq((await adm("POST", "/api/admin/doc", { slug: "plan", title: "x", body: "x", version: 0 })).status, 401, "ulozeni");
+  eq((await adm("POST", "/api/admin/doc/task", { slug: "plan", index: 0, done: true, version: 1 })).status, 401, "ukol");
+  eq(count("SELECT COUNT(*) AS n FROM admin_docs"), 0, "nic");
+});
+await check("zalozeni, cteni, seznam (bez tela), CRLF -> LF", async () => {
+  const r = await adm("POST", "/api/admin/doc", { slug: "plan", title: "Plan kampane", body: DOC_MD.replace(/\n/g, "\r\n"), version: 0 }, D);
+  eq(r.status, 200, "status");
+  const d = await r.json();
+  eq([d.created, d.version, d.updated_by], [true, 1, "token"], "zalozeno");
+  const g = await (await adm("GET", "/api/admin/doc?slug=plan", undefined, D)).json();
+  eq([g.doc.title, g.doc.body, g.doc.version], ["Plan kampane", DOC_MD, 1], "dokument");
+  const l = await (await adm("GET", "/api/admin/docs", undefined, D)).json();
+  eq(l.docs.map((x) => [x.slug, x.title, x.updated_by, x.size]), [["plan", "Plan kampane", "token", Buffer.byteLength(DOC_MD)]], "seznam");
+  if ("body" in l.docs[0]) throw new Error("seznam nese telo");
+  eq((await adm("GET", "/api/admin/doc?slug=neni", undefined, D)).status, 404, "neexistuje");
+  const again = await adm("POST", "/api/admin/doc", { slug: "plan", title: "Jiny", body: "prepis", version: 0 }, D);
+  eq([again.status, (await again.json()).error], [409, "exists"], "zalozeni existujiciho");
+  eq(docRow("plan").body, DOC_MD, "neprepsano");
+});
+await check("ulozeni se spravnou verzi -> verze +1, se starou -> 409 s aktualni verzi, nic se neprepise", async () => {
+  const body2 = DOC_MD + "\nDalsi odstavec.";
+  const r = await (await adm("POST", "/api/admin/doc", { slug: "plan", title: "Plan kampane", body: body2, version: 1 }, D)).json();
+  eq([r.ok, r.version], [true, 2], "ulozeno");
+  const stale = await adm("POST", "/api/admin/doc", { slug: "plan", title: "Plan kampane", body: "stara verze", version: 1 }, D);
+  eq(stale.status, 409, "konflikt");
+  const c = await stale.json();
+  eq([c.error, c.version, c.updated_by], ["conflict", 2, "token"], "aktualni verze");
+  eq([docRow("plan").body, docRow("plan").version], [body2, 2], "beze zmeny");
+  const same = await (await adm("POST", "/api/admin/doc", { slug: "plan", title: "Plan kampane", body: body2, version: 2 }, D)).json();
+  eq([same.unchanged, same.version], [true, 2], "beze zmeny verze nestoupa");
+  eq((await adm("POST", "/api/admin/doc", { slug: "neni", title: "x", body: "x", version: 3 }, D)).status, 404, "uprava neexistujiciho");
+});
+await check("ukol: prepne jen n-ty radek ukolu (mimo kod, citaci a cislovany seznam), stara verze 409", async () => {
+  const before = docRow("plan");
+  const lines = before.body.split("\n");
+  // ukoly: 0 = "- [ ] prvni", 1 = "- [x] druhy", 2 = "  * [ ] vnoreny", 3 = "+ [X] posledni"
+  let r = await (await adm("POST", "/api/admin/doc/task", { slug: "plan", index: 2, done: true, version: before.version }, D)).json();
+  eq([r.ok, r.version], [true, before.version + 1], "ok");
+  let after = docRow("plan").body.split("\n");
+  eq(after.filter((l, i) => l !== lines[i]), ["  * [x] vnoreny ukol"], "zmeneny jen radek ukolu 2");
+  r = await (await adm("POST", "/api/admin/doc/task", { slug: "plan", index: 3, done: false, version: before.version + 1 }, D)).json();
+  eq(docRow("plan").body.split("\n").find((l) => l.includes("posledni")), "+ [ ] posledni", "odskrtnuti");
+  const v = docRow("plan").version;
+  const already = await (await adm("POST", "/api/admin/doc/task", { slug: "plan", index: 0, done: false, version: v }, D)).json();
+  eq([already.already, already.version], [true, v], "uz v tom stavu");
+  const stale = await adm("POST", "/api/admin/doc/task", { slug: "plan", index: 0, done: true, version: v - 1 }, D);
+  eq([stale.status, (await stale.json()).version], [409, v], "stara verze");
+  eq((await adm("POST", "/api/admin/doc/task", { slug: "plan", index: 4, done: true, version: v }, D)).status, 400, "index mimo ukoly");
+  eq((await adm("POST", "/api/admin/doc/task", { slug: "plan", index: -1, done: true, version: v }, D)).status, 400, "zaporny index");
+  eq((await adm("POST", "/api/admin/doc/task", { slug: "plan", index: 0, done: "ano", version: v }, D)).status, 400, "done neni boolean");
+  if (!docRow("plan").body.includes("- [ ] v bloku kodu se nepocita") || !docRow("plan").body.includes("1. [ ] cislovany")) throw new Error("zmenen radek mimo ukoly");
+  eq(docRow("plan").version, v, "verze beze zmeny");
+});
+await check("limit 256 kB tela (413), neplatny slug / nazev / verze (400)", async () => {
+  const big = "a".repeat(256 * 1024 + 1);
+  const r = await adm("POST", "/api/admin/doc", { slug: "velky", title: "Velky", body: big, version: 0 }, D);
+  eq(r.status, 413, "velke telo");
+  eq((await adm("POST", "/api/admin/doc", { slug: "akorat", title: "Akorat", body: "a".repeat(256 * 1024), version: 0 }, D)).status, 200, "presne 256 kB projde");
+  const multi = "č".repeat(128 * 1024 + 1); // 2 bajty na znak -> pres limit v UTF-8
+  eq((await adm("POST", "/api/admin/doc", { slug: "utf", title: "Utf", body: multi, version: 0 }, D)).status, 413, "limit v bajtech UTF-8");
+  eq((await adm("POST", "/api/admin/doc", { slug: "x".repeat(2000), title: "Velky", body: "x".repeat(900 * 1024), version: 0 }, D)).status, 413, "cely pozadavek");
+  for (const slug of ["Plan", "plan kampane", "../etc", "", "a".repeat(65), "plán", 5, null])
+    eq((await adm("POST", "/api/admin/doc", { slug, title: "x", body: "x", version: 0 }, D)).status, 400, "slug " + slug);
+  eq((await adm("GET", "/api/admin/doc?slug=..%2Fplan", undefined, D)).status, 400, "slug v dotazu");
+  eq((await adm("GET", "/api/admin/doc", undefined, D)).status, 400, "bez slugu");
+  eq((await adm("POST", "/api/admin/doc", { slug: "ok", title: "  ", body: "x", version: 0 }, D)).status, 400, "prazdny nazev");
+  eq((await adm("POST", "/api/admin/doc", { slug: "ok", title: "x".repeat(201), body: "x", version: 0 }, D)).status, 400, "dlouhy nazev");
+  eq((await adm("POST", "/api/admin/doc", { slug: "ok", title: "x", body: 5, version: 0 }, D)).status, 400, "telo neni text");
+  eq((await adm("POST", "/api/admin/doc", { slug: "ok", title: "x", body: "x", version: "1" }, D)).status, 400, "verze neni cislo");
+  eq((await adm("POST", "/api/admin/doc", { slug: "ok", title: "x", body: "x" }, D)).status, 400, "bez verze");
+  eq(count("SELECT COUNT(*) AS n FROM admin_docs WHERE slug IN ('velky', 'utf', 'ok')"), 0, "nic nezalozeno");
+});
+await check("CSRF: cizi Origin / bez X-Requested-With / cross-site / formular -> 403 / 415, nic se nezmeni", async () => {
+  const v = docRow("plan").version;
+  eq((await adm("POST", "/api/admin/doc", { slug: "plan", title: "x", body: "CSRF", version: v }, { ...D, Origin: "https://utocnik.example" })).status, 403, "cizi Origin");
+  eq((await call("POST", "/api/admin/doc", { slug: "plan", title: "x", body: "CSRF", version: v }, { ...D, Origin: SITE })).status, 403, "bez XRW");
+  eq((await adm("POST", "/api/admin/doc/task", { slug: "plan", index: 0, done: true, version: v }, { ...D, Origin: "https://utocnik.example" })).status, 403, "ukol cizi Origin");
+  eq((await adm("GET", "/api/admin/doc?slug=plan", undefined, { ...D, "Sec-Fetch-Site": "cross-site" })).status, 403, "cteni cross-site");
+  eq((await adm("POST", "/api/admin/doc", "slug=plan", { ...D, "Content-Type": "text/plain" })).status, 415, "formular");
+  eq(docRow("plan").version, v, "beze zmeny");
+});
+await check("audit doc_save / doc_task: slug, delka a index - bez obsahu dokumentu", async () => {
+  const saves = auditRows("doc_save"), tasks = auditRows("doc_task");
+  eq(saves.length, 3, "doc_save (plan zalozeni + uprava, akorat)");
+  eq(tasks.length, 2, "doc_task");
+  eq(saves[0].target, "plan", "cil");
+  if (!/^zalozeno, \d+ B$/.test(saves[0].detail) || !/^v2, \d+ B$/.test(saves[1].detail)) throw new Error("detail ulozeni: " + saves.map((x) => x.detail));
+  eq(tasks.map((x) => x.detail), ["ukol 2 -> hotovo", "ukol 3 -> otevreno"], "detail ukolu");
+  const all = JSON.stringify(db.prepare("SELECT * FROM admin_audit WHERE action LIKE 'doc_%'").all());
+  for (const s of ["Plan kampane", "prvni ukol", "Dalsi odstavec", "vnoreny"]) if (all.includes(s)) throw new Error("v auditu: " + s);
+});
+await check("klient: sprava.js taskLines = worker/docs.js taskLines (stejne regularni vyrazy)", async () => {
+  const js = readFileSync(new URL("../sprava/sprava.js", import.meta.url), "utf8");
+  const wk = readFileSync(new URL("../worker/docs.js", import.meta.url), "utf8");
+  for (const name of ["TASK_RE", "FENCE_RE"]) {
+    const re = new RegExp(`const ${name} = (.*);`);
+    eq(re.exec(js)?.[1], re.exec(wk)?.[1], name);
+  }
+  if (/innerHTML|insertAdjacentHTML|outerHTML|document\.write/.test(js)) throw new Error("sprava.js nesmi vkladat HTML");
+});
+
 // Cloudflare: s run_worker_first jako seznamem dostane Worker JEN uvedené cesty — bez "/api/*"
 // skončí celé API stránkou 404 z assets (lokální serve.js to neodhalí, výpadek 2026-10-04).
 await check("wrangler.toml: run_worker_first obsahuje /api/* i /sprava", async () => {
@@ -1144,6 +1283,18 @@ await check("wrangler.toml: run_worker_first obsahuje /api/* i /sprava", async (
   if (m[1] === "true") return;
   const list = JSON.parse(m[1]);
   for (const p of ["/api/*", "/sprava", "/sprava/*"]) if (!list.includes(p)) throw new Error("chybi " + p);
+});
+// /admin/ (CMS) běží na stejném originu jako /sprava: cizí skript jen v pevné verzi s SRI
+await check("admin/index.html: skript CMS s pevnou verzí a integrity", async () => {
+  const html = readFileSync(new URL("../admin/index.html", import.meta.url), "utf8");
+  for (const m of html.matchAll(/<script\b[^>]*\bsrc="(https?:[^"]+)"[^>]*>/g)) {
+    if (!/@\d+\.\d+\.\d+\//.test(m[1])) throw new Error("bez verze: " + m[1]);
+    if (!/\bintegrity="sha(256|384|512)-/.test(m[0]) || !/crossorigin=/.test(m[0])) throw new Error("bez SRI: " + m[1]);
+  }
+});
+await check("build.js zapisuje _headers s nosniff a frame-ancestors", async () => {
+  const js = readFileSync(new URL("../scripts/build.js", import.meta.url), "utf8");
+  if (!/"_headers"/.test(js) || !/nosniff/.test(js) || !/frame-ancestors 'none'/.test(js)) throw new Error("_headers chybi");
 });
 
 console.log(`\n${pass} proslo, ${fail} selhalo`);

@@ -41,3 +41,5 @@ export * from "./axis_gen.js";
 export * from "./emu/index.js";
 export * from "./codesys_profiles.js";
 export * from "./verification.js";
+export * from "./license.js";
+export * from "./verify_pack.js";

@@ -3,6 +3,7 @@ s úpravou buněk, textové pole s posuvníky a ukládání souborů."""
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import tkinter as tk
@@ -24,6 +25,104 @@ def card(parent, num: str, title: str, *, expand: bool = True) -> ttk.Frame:
     body = ttk.Frame(outer)
     body.pack(fill="both", expand=True)
     return body
+
+
+def scroll_area(parent) -> tuple[ttk.Frame, ttk.Frame]:
+    """Svisle posuvná oblast celé šířky: vrací ``(obal, vnitřek)``. Obal si umísti sám,
+    obsah dej do vnitřku. Posuvník se ukáže, jen když se obsah do výšky nevejde;
+    kolečko myši posouvá nad kterýmkoli prvkem oblasti (po naplnění zavolej
+    ``obal.bind_wheel()``, ať dostanou vazbu i nově vytvořené prvky)."""
+    outer = ttk.Frame(parent)
+    canvas = tk.Canvas(outer, bg=theme.BG, highlightthickness=0, borderwidth=0)
+    bar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+    canvas.configure(yscrollcommand=bar.set)
+    bar.pack(side="right", fill="y")
+    canvas.pack(side="left", fill="both", expand=True)
+    inner = ttk.Frame(canvas)
+    win = canvas.create_window(0, 0, window=inner, anchor="nw")
+
+    def layout(_e=None) -> None:
+        if not canvas.winfo_exists():
+            return
+        # výška okna v plátně = přirozená výška obsahu (jinak by se změna reqheight
+        # — zalomení popisků po změně šířky — neprojevila událostí <Configure>)
+        need = inner.winfo_reqheight()
+        have = canvas.winfo_height()
+        canvas.itemconfigure(win, width=canvas.winfo_width())
+        canvas.configure(scrollregion=(0, 0, canvas.winfo_width(), max(need, have)))
+        if need <= have:
+            canvas.yview_moveto(0)
+        elif outer.restore_y is not None:
+            # obnovit polohu (v pixelech) po překreslení; obsah se ještě dorovnává
+            # (zalomení), proto se poloha nastavuje při každém přepočtu krátce po vzniku
+            canvas.yview_moveto(outer.restore_y / max(need, 1))
+            if time.monotonic() - born > 1.5:
+                outer.restore_y = None
+
+    def wheel(e) -> str | None:
+        if inner.winfo_reqheight() > canvas.winfo_height() > 1:
+            canvas.yview_scroll(-1 if e.delta > 0 else 1, "units")
+            return "break"
+        return None
+
+    def bind_wheel() -> None:
+        stack = [canvas, inner]
+        while stack:
+            w = stack.pop()
+            # pole a tabulky rolují samy
+            if not isinstance(w, (tk.Text, ttk.Treeview, ttk.Combobox, tk.Listbox)):
+                w.bind("<MouseWheel>", wheel, add="+")
+            stack += w.winfo_children()
+
+    born = time.monotonic()
+    outer.restore_y = None           # horní okraj výřezu v pixelech k obnovení po překreslení
+    inner.bind("<Configure>", layout, add="+")
+    canvas.bind("<Configure>", layout, add="+")
+    outer.bind_wheel = bind_wheel
+    outer.canvas = canvas            # testy (posun výřezu)
+    return outer, inner
+
+
+class FlowFrame(ttk.Frame):
+    """Rámec, který řadí potomky zleva doprava a zalamuje je do dalších řádků podle
+    šířky (řada přepínačů platforem / souborů se nikdy neuřízne za oknem).
+    Potomky jen vytvoř s rodičem ``self`` — rozmístí se sami (``place``)."""
+
+    def __init__(self, parent, *, padx: int = 4, pady: int = 4, **kw) -> None:
+        super().__init__(parent, **kw)
+        self._padx, self._pady = padx, pady
+        self._job = None
+        self.bind("<Configure>", lambda _e: self.relayout(), add="+")
+        self.bind("<Map>", lambda _e: self.relayout(), add="+")
+
+    def schedule(self) -> None:
+        """Přepočítat po dokončení změn (např. po vytvoření nových potomků)."""
+        if self._job is None:
+            self._job = self.after_idle(self.relayout)
+
+    def relayout(self) -> None:
+        if self._job is not None:
+            try:
+                self.after_cancel(self._job)
+            except tk.TclError:
+                pass
+            self._job = None
+        if not self.winfo_exists():
+            return
+        width = self.winfo_width()
+        if width <= 1:                     # ještě nezobrazeno: šířka rodiče
+            width = max(self.master.winfo_width(), 200)
+        x = y = row_h = 0
+        for w in self.winfo_children():
+            rw, rh = w.winfo_reqwidth(), w.winfo_reqheight()
+            if x > 0 and x + rw > width:
+                x, y, row_h = 0, y + row_h + self._pady, 0
+            w.place(x=x, y=y)
+            x += rw + self._padx
+            row_h = max(row_h, rh)
+        total = y + row_h
+        if int(str(self.cget("height")) or 0) != total:
+            self.configure(height=max(total, 1))
 
 
 def wrap_label(parent, text: str, style: str = "Dim.TLabel", **pack) -> ttk.Label:
@@ -469,8 +568,25 @@ def write_text(path: str | Path, body: str) -> None:
         fh.write(body)
 
 
+def license_filter(app, name: str, body):
+    """Obsah souboru podle licence (patička Free) — None, když je uložení zamčené (pak vysvětlí)."""
+    lic = getattr(app, "lic", None)
+    if lic is None:
+        return body
+    out, why = lic.filter_file(name, body)
+    if out is None:
+        lic.blocked(why)
+    return out
+
+
 def save_file(app, name: str, body: str) -> bool:
-    """Dialog „Uložit jako" pro jeden soubor; vrací, zda se uložilo."""
+    """Dialog „Uložit jako" pro jeden soubor; vrací, zda se uložilo.
+
+    Licence: nad limitem Free a DXF ve Free se neuloží (okno Licence s důvodem), dokumenty a README
+    dostanou ve Free patičku PLCdesk; projekt a firemní knihovna se ukládají vždy."""
+    body = license_filter(app, name, body)
+    if body is None:
+        return False
     ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
     # popis typu se překládá až tady (tabulka vzniká při importu, kdy jazyk ještě není znám)
     types = [(_(_FILETYPES[ext][0]), _FILETYPES[ext][1])] if ext in _FILETYPES else []
@@ -494,7 +610,23 @@ def save_file(app, name: str, body: str) -> bool:
 def save_many(app, files: list[tuple[str, str]], what: str | None = None) -> bool:
     """Uloží víc souborů do zvolené složky; na přepis existujících se zeptá.
 
-    ``what`` (4. pád, např. „výkresy") předává volající už přeložené."""
+    ``what`` (4. pád, např. „výkresy") předává volající už přeložené. Licence jako ``save_file``:
+    zamčené soubory (DXF ve Free) se přeskočí a důvod se ukáže jednou; nad limitem nic."""
+    lic = getattr(app, "lic", None)
+    if lic is not None:
+        kept, why = [], ""
+        for name, body in files:
+            out, reason = lic.filter_file(name, body)
+            if out is None:
+                why = why or reason
+            else:
+                kept.append((name, out))
+        if why and not kept:
+            lic.blocked(why)
+            return False
+        files = kept
+    else:
+        why = ""
     folder = filedialog.askdirectory(
         parent=app.root, title=_("Složka pro {what}", what=what or _("soubory")), mustexist=True,
         initialdir=app.settings.get("last_dir") or None)
@@ -516,6 +648,8 @@ def save_many(app, files: list[tuple[str, str]], what: str | None = None) -> boo
         return False
     app.settings["last_dir"] = str(target)
     app.set_status(_("Uloženo {n} souborů do {target}", n=len(files), target=target))
+    if why:
+        lic.blocked(why)
     return True
 
 

@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
+import time
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -19,7 +21,7 @@ from tkinter import filedialog, messagebox, ttk
 from tkinter import font as tkfont
 
 from . import i18n, project, theme
-from .bridge import BridgeError, CoreBridge
+from .bridge import BridgeError, DualBridge, Job, Pending
 from .i18n import N_, _, _n
 from .steps import RENDERERS, render_help
 
@@ -27,6 +29,7 @@ STEPS = [N_("Projekt"), N_("AI návrh"), N_("Platformy"), N_("Zařízení"), N_(
          N_("Schéma"), N_("Program"), N_("Generovat"), N_("Dokumentace"), N_("Kusovník"),
          N_("Bezpečnost"), N_("Schválení"), N_("Oživení")]
 STEP_SAFETY, STEP_APPROVAL, STEP_COMMISSION = 10, 11, 12
+STEP_GEN, STEP_DOCS, STEP_BOM = 7, 8, 9
 # zkrácení popisků neaktivních kroků, když se lišta nevejde (None = celé, 0 = jen číslo)
 NAV_LEVELS = (None, *range(24, 2, -1), 0)
 PROJECT_EXT = ".plcstudio.json"
@@ -34,6 +37,15 @@ SAMPLE_NOTE = {
     "small": N_("Ukázkový návrh malé stanice — předvyplněno jako příklad práce AI návrháře."),
     "complex": N_("Ukázkový návrh složité linky — předvyplněno jako příklad práce AI návrháře."),
 }
+# zástupný stav kroku, který čeká na výpočet v pracovním procesu (App.pending_box)
+PENDING_TEXT = {
+    "files": N_("Připravuji dokumentaci — u velkého stroje trvá první ověření simulací i "
+                "desítky sekund…"),
+    "verify": N_("Ověřuji program simulací — běžný cyklus, poruchové scénáře a matice stavů…"),
+    "approval": N_("Počítám položky ke schválení — u velkého stroje včetně ověření simulací…"),
+    "commission": N_("Připravuji plán oživení — u velkého stroje včetně ověření simulací…"),
+}
+PUMP_MS = 50                     # jak často si okno vyzvedává hotové výpočty
 
 
 def state_dir() -> Path:
@@ -64,8 +76,17 @@ class App:
         self.ui: dict = {}               # stav UI kroků, který má přežít překreslení
 
         self.settings = self._read_json("settings.json", {})
-        self.bridge = CoreBridge(log_file=self.home / "bridge.log")
+        self.bridge = DualBridge(log_file=self.home / "bridge.log")
+        self._listeners: dict[int, list] = {}   # požadavek pracovního procesu → kdo čeká
+        self._pump_job = None
+        self._closing = False
+        self.bridge.wanted = self._job_wanted
         self._load_core(self.settings.get("lang") or "cs")
+        self.bridge.start_worker()               # druhý proces startuje na pozadí hned
+
+        # licence (license.py): ověření uloženého licenčního souboru jádrem — síť až na pozadí
+        from .license import License
+        self.lic = License(self)
 
         self.prj: dict = self.core("blankProject")
         self.ai: dict = new_ai()
@@ -81,9 +102,169 @@ class App:
         root.report_callback_exception = self._on_callback_error
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._build_chrome()
+        self._busy_depth = 0
+        self.bridge.on_busy = self._on_busy        # drahé výpočty jádra: kurzor „watch“ + „Počítám…“
         self.render()
 
     # --- jádro -----------------------------------------------------------------
+
+    def _on_busy(self, on: bool) -> None:
+        """Most čeká na drahý výpočet jádra (dokumentace, ověření…) — okno mezitím
+        nereaguje, tak aspoň ukáže kurzor čekání a stav „Počítám…“."""
+        try:
+            if on:
+                self._busy_depth += 1
+                if self._busy_depth == 1:
+                    self.root.configure(cursor="watch")
+                    if not str(self._status.cget("text")):
+                        self._status.configure(text=_("Počítám…"))
+                    self.root.update_idletasks()
+            else:
+                self._busy_depth = max(0, self._busy_depth - 1)
+                if self._busy_depth == 0:
+                    self.root.configure(cursor="")
+                    if str(self._status.cget("text")) == _("Počítám…"):
+                        self._status.configure(text="")
+        except (tk.TclError, AttributeError):      # okno se zavírá / ještě není postavené
+            pass
+
+    # --- drahé výpočty v pracovním procesu ----------------------------------------
+    # Krok zavolá ``fetch``; když výsledek není v cache a do chvilky nedoběhne, vyhodí se
+    # ``Pending``. ``render`` / ``deferred`` místo obsahu ukážou zástupný stav s průběhem
+    # a tlačítkem Zrušit a po výsledku krok vykreslí znovu (pak už z cache). Odejde-li
+    # uživatel z kroku, zástupný stav zanikne a výsledek se jen uloží do cache.
+
+    def fetch(self, op: str, **payload):
+        """Výsledek drahé operace mostu (``DualBridge.fetch``); může vyhodit ``Pending``."""
+        return self.bridge.fetch(op, **payload)
+
+    def deferred(self, frame, fn, *, text: str | None = None):
+        """Spustí ``fn()`` (vykreslení části okna do ``frame``). Čeká-li na výpočet, ukáže
+        ve ``frame`` zástupný stav a ``fn`` zopakuje, až výsledek dorazí."""
+        try:
+            return fn()
+        except Pending as p:
+            for child in frame.winfo_children():
+                child.destroy()
+            self.pending_box(frame, p.job, lambda: self.deferred(frame, fn, text=text), text=text)
+            return None
+
+    def pending_box(self, frame, job: Job, retry, *, text: str | None = None,
+                    expand: bool = True) -> ttk.Frame:
+        """Zástupný stav „Počítám…“ s ukazatelem průběhu, časem a tlačítkem Zrušit.
+
+        Po dokončení: výsledek → zástupný stav zmizí a zavolá se ``retry``; chyba → hláška
+        s „Zkusit znovu“; zrušení → „Výpočet zrušen“ s „Spočítat znovu“."""
+        box = ttk.Frame(frame, padding=(0, 24))
+        box.pack(fill="both", expand=expand) if expand else box.pack(fill="x")
+        msg = text or (_(PENDING_TEXT[job.op]) if job.op in PENDING_TEXT else _("Počítám…"))
+        lbl = ttk.Label(box, text=msg, style="Section.TLabel", wraplength=640, justify="left")
+        lbl.pack(anchor="w")
+        row = ttk.Frame(box)
+        row.pack(anchor="w", pady=(10, 0))
+        bar = ttk.Progressbar(row, mode="indeterminate", length=260)
+        bar.pack(side="left")
+        bar.start(15)
+        clock = ttk.Label(row, text="", style="Dim.TLabel", width=8)
+        clock.pack(side="left", padx=(10, 0))
+        btn = ttk.Button(row, text=_("Zrušit"), command=lambda: self.bridge.cancel(job))
+        btn.pack(side="left", padx=(6, 0))
+        hint = ttk.Label(box, text=_("Okno mezitím můžeš dál používat — výsledek se dokreslí, "
+                                     "až dorazí."), style="Dim.TLabel")
+        hint.pack(anchor="w", pady=(8, 0))
+        box.job, box.cancel_button = job, btn          # testy
+
+        def tick() -> None:
+            if box.winfo_exists() and not job.finished:
+                clock.configure(text=f"{job.elapsed():.0f} s")
+                box.after(500, tick)
+
+        def again() -> None:
+            box.destroy()
+            self.root.after_idle(retry)
+
+        def done(j: Job) -> None:
+            if not box.winfo_exists():
+                return                                 # krok už není vidět — výsledek je v cache
+            if j.state == "done" or (j.state == "cancelled" and j.reason == "preempted"):
+                box.destroy()
+                retry()
+                return
+            bar.stop()
+            bar.destroy()
+            clock.destroy()
+            btn.destroy()
+            hint.destroy()
+            if j.state == "error":
+                lbl.configure(text="⚠ " + _("Výpočet se nepodařil: {exc}", exc=j.error),
+                              style="Err.TLabel")
+                ttk.Button(row, text=_("Zkusit znovu"), command=again).pack(side="left")
+            else:
+                lbl.configure(text=_("Výpočet zrušen."), style="Dim.TLabel")
+                ttk.Button(row, text=_("Spočítat znovu"), style="Accent.TButton",
+                           command=again).pack(side="left")
+
+        tick()
+        self.on_job(job, done, owner=box)
+        return box
+
+    def on_job(self, job: Job, fn, *, owner=None) -> None:
+        """Zavolá ``fn(job)`` v hlavním vlákně, až požadavek skončí. ``owner`` = widget, bez
+        kterého výsledek nikoho nezajímá (rozhoduje, jestli smí novější požadavek běh zrušit)."""
+        if job.finished:              # skončil dřív, než se kdo přihlásil (zrušení ve frontě…)
+            self.root.after_idle(lambda: fn(job))
+            return
+        self._listeners.setdefault(job.id, []).append((fn, owner))
+        self._ensure_pump()
+
+    def _job_wanted(self, job: Job) -> bool:
+        for _fn, owner in self._listeners.get(job.id, []):
+            try:
+                if owner is None or owner.winfo_exists():
+                    return True
+            except tk.TclError:
+                pass
+        return False
+
+    def _ensure_pump(self) -> None:
+        if self._pump_job is None and not self._closing:
+            self._pump_job = self.root.after(PUMP_MS, self._pump)
+
+    def _pump(self) -> None:
+        """Vyzvedne hotové výpočty pracovního procesu a předá je těm, kdo na ně čekají."""
+        if self._pump_job is not None:
+            try:
+                self.root.after_cancel(self._pump_job)
+            except tk.TclError:
+                pass
+            self._pump_job = None
+        if self._closing:
+            return
+        for job in self.bridge.take_finished():
+            for fn, _owner in self._listeners.pop(job.id, []):
+                try:
+                    fn(job)
+                except Exception:                      # noqa: BLE001 — jako callback okna
+                    self._on_callback_error(*sys.exc_info())
+        # bez posluchačů zůstávají jen zrušené / zahozené požadavky
+        self._listeners = {k: v for k, v in self._listeners.items() if v}
+        if self.bridge.active() or self._listeners:
+            self._ensure_pump()
+
+    def wait_jobs(self, timeout: float = 600.0) -> bool:
+        """Počká (se zpracováním událostí okna), až pracovní proces doběhne a výsledky se
+        dokreslí. Pro testy a ``--smoke``; vrací False po vypršení ``timeout``."""
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            self.root.update()
+            self._pump()
+            self.root.update()
+            if not self.bridge.active() and not self._listeners:
+                return True
+            time.sleep(0.02)
+        return False
+
+    # --- jádro (konstanty) -----------------------------------------------------
 
     def _load_core(self, lang: str) -> None:
         """Nastaví jazyk jádra i okna a načte konstanty jádra v tomto jazyce."""
@@ -105,10 +286,13 @@ class App:
         if lang == self.lang or lang not in self.LANGS:
             return
         self._load_core(lang)
+        self.lic.recompute()                  # texty stavu licence v novém jazyce
         self.settings["lang"] = self.lang
         self.save_settings()
         for child in self.root.winfo_children():
             child.destroy()
+        if self._status_job is not None:      # starý časovač by smazal stav nového okna
+            self.root.after_cancel(self._status_job)
         self._status_job = None
         self._build_chrome()
         self.render()
@@ -232,6 +416,10 @@ class App:
         self._var_topmost = tk.BooleanVar(value=bool(self.settings.get("topmost")))
         ttk.Checkbutton(head, text=_("nad okny"), variable=self._var_topmost,
                         command=self._toggle_topmost).pack(side="right", padx=(8, 0))
+        # tarif licence → okno Licence (license.py)
+        self._lic_btn = ttk.Button(head, text="", command=self.open_license)
+        self._lic_btn.pack(side="right", padx=(8, 0))
+        self.update_license_badge()
         ttk.Button(head, text=_("Uložit projekt…"), command=self.save_project_dialog
                    ).pack(side="right", padx=(6, 0))
         ttk.Button(head, text=_("Otevřít projekt…"), command=self.open_project_dialog
@@ -280,6 +468,25 @@ class App:
 
         self.view = ttk.Frame(frm)
         self.view.pack(fill="both", expand=True, pady=(12, 0))
+
+    def open_license(self, **kw):
+        from .license import LicenseDialog
+        return LicenseDialog.open(self, **kw)
+
+    def update_license_badge(self) -> None:
+        from .license import badge_text
+        btn = getattr(self, "_lic_btn", None)
+        if btn is not None and btn.winfo_exists():
+            btn.configure(text=badge_text(self))
+
+    def _license_banner(self) -> None:
+        """Pás licence nad kroky s výstupy (Generovat, Dokumentace, Kusovník)."""
+        if self.step in (STEP_GEN, STEP_DOCS, STEP_BOM) and self.prj.get("devices"):
+            from .license import banner
+            try:
+                banner(self, self.view)
+            except BridgeError:
+                pass
 
     def _toggle_topmost(self) -> None:
         on = self._var_topmost.get()
@@ -396,9 +603,19 @@ class App:
             self._nav_extra = diffs[len(diffs) // 2] + 3
         extra = self._nav_extra
         level = NAV_LEVELS[-1]
+        # šířky popisků se pamatují — měření stovek variant při každém překreslení / obnovení
+        # odznaku stálo až 0,2 s (okno pak nereagovalo ani během výpočtu na pozadí)
+        widths = self.__dict__.setdefault("_nav_widths", {})
+
+        def width_of(i: int, lv) -> int:
+            text = self._step_text(i, lv)
+            k = (i == self.step, text)
+            if k not in widths:
+                widths[k] = fonts[k[0]].measure(text)
+            return widths[k]
+
         for lv in NAV_LEVELS:
-            need = sum(fonts[i == self.step].measure(self._step_text(i, lv)) + extra
-                       for i in range(len(STEPS)))
+            need = sum(width_of(i, lv) + extra for i in range(len(STEPS)))
             if need <= room:
                 level = lv
                 break
@@ -431,14 +648,42 @@ class App:
         self._badge_job = self.root.after(delay, self.update_badge)
 
     def update_badge(self) -> None:
+        """Odznak schválení. Počítá pracovní proces (sdílí cache ověření s kroky); když výsledek
+        nedorazí hned, odznak se obnoví, až dorazí — okno na něj nečeká."""
         self._badge_job = None
         key = self._prj_key()
-        if key != self._badge_key:
+        # částečný odznak (velký stroj, ověření simulací ještě nebylo) zkusit znovu — mezitím ho
+        # mohl spočítat krok v pracovním procesu (dokumentace, schválení…)
+        if key != self._badge_key or (self._badge or {}).get("partial"):
+            if not self.prj["devices"]:
+                self._badge, self._badge_key = None, key
+            else:
+                # odznak se necachuje (levný; částečný / přesný podle stavu procesu)
+                job = self.bridge.submit("approval.badge", {"prj": self.prj}, background=True)
+                if self.bridge.running() in (None, job):   # pracovní proces počítá něco jiného:
+                    job.event.wait(self.bridge.grace)      # nečekat, odznak se obnoví sám
+                if not job.finished:
+                    self.on_job(job, lambda j: self._badge_done(j, key))
+                    return
+                self._badge_done(job, key, show=False)
+        self._show_badge()
+
+    def _badge_done(self, job: Job, key: str, *, show: bool = True) -> None:
+        """Výsledek odznaku z pracovního procesu (``key`` = projekt, ke kterému patří)."""
+        try:
+            if job.state == "cancelled":
+                return                    # zahozený (novější požadavek / konec aplikace)
+            self._badge = job.result()
+        except BridgeError:
+            self._badge = None
+        self._badge_key = key
+        if show and key == self._prj_key():
             try:
-                self._badge = self.bridge.request("approval.badge", prj=self.prj)                     if self.prj["devices"] else None
-            except BridgeError:
-                self._badge = None
-            self._badge_key = key
+                self._show_badge()
+            except tk.TclError:
+                pass
+
+    def _show_badge(self) -> None:
         b = self._badge
         if not self._badge_lbl.winfo_exists():
             return
@@ -461,6 +706,18 @@ class App:
 
     def render(self) -> None:
         """Překreslí lištu kroků a obsah aktuálního kroku."""
+        if getattr(self, "_rendering", False):
+            # vnořené překreslení (odložený callback zpracovaný během čekání na jádro —
+            # _on_busy volá update_idletasks) by zrušilo rozestavěný krok: odložit
+            self.root.after(10, self.render)
+            return
+        self._rendering = True
+        try:
+            self._render()
+        finally:
+            self._rendering = False
+
+    def _render(self) -> None:
         self._refresh_nav()
         self.update_title()
         num = isinstance(self.step, int)
@@ -470,8 +727,16 @@ class App:
         for child in self.view.winfo_children():
             child.destroy()
         renderer = render_help if self.step == "help" else RENDERERS[self.step]
+        self._license_banner()
         try:
             renderer(self, self.view)
+        except Pending as p:
+            # drahý výpočet běží v pracovním procesu: místo rozestavěného kroku zástupný stav,
+            # po výsledku se krok vykreslí znovu (z cache) — jen pokud je pořád vidět
+            for child in self.view.winfo_children():
+                child.destroy()
+            self._license_banner()
+            self.pending_box(self.view, p.job, self.render)
         except BridgeError as exc:
             self._report(_("Jádro hlásí chybu: {exc}", exc=exc), traceback.format_exc())
             ttk.Label(self.view, text="⚠ " + _("Krok se nepodařilo vykreslit: {exc}", exc=exc),
@@ -604,16 +869,19 @@ class App:
     # --- konec ---------------------------------------------------------------------------
 
     def close(self) -> None:
+        self._closing = True              # pracovní proces ruší výpočty, okno už nic nedokreslí
         try:
             self.settings["geometry"] = self.root.geometry()
             self._flush()
             self._write_json("settings.json", self.settings)
         finally:
-            self.bridge.close()
+            self._listeners.clear()
+            self.bridge.close()           # oba procesy + pracovní vlákno (nic nezůstane viset)
             # naplánované úlohy (odznak, stavový řádek…) by po zničení okna volaly neexistující příkazy
+            # (přímo přes Tcl: after_cancel neumí úlohy Tk samotného — animace ukazatele průběhu)
             try:
                 for job in self.root.tk.splitlist(self.root.tk.call("after", "info")):
-                    self.root.after_cancel(job)
+                    self.root.tk.call("after", "cancel", job)
             except tk.TclError:
                 pass
             self.root.destroy()

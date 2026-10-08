@@ -19,7 +19,7 @@ from tkinter import ttk
 from .. import theme
 from ..bridge import BridgeError
 from ..i18n import N_, _, _n
-from ..widgets import Table, note_box, scrolled_text, set_text, wrap_label
+from ..widgets import FlowFrame, Table, note_box, scrolled_text, set_text, wrap_label
 
 WARNING = N_("Kód se kontroluje parserem IEC 61131-3 a pravidly dialektů podle manuálů výrobců "
              "(zdroje u pravidel). Chování se ověřuje během přeloženého kódu proti modelu stroje "
@@ -43,6 +43,23 @@ def run_emulation(app, plats: list[str], progress=None) -> dict:
     run = app.ui["emu_run"] = {"stop": False, "i": 0, "n": len(plats), "plat": plats[0] if plats else ""}
     out = {"key": key, "plats": [], "res": {}, "ms": 0, "doc": False, "stopped": False, "error": ""}
     t0 = time.monotonic()
+
+    def call(op: str, **payload):
+        """Emulace běží v pracovním procesu (tam žije i přihlášený dokument 15). S průběhem
+        okno mezi tím zpracovává události — dá se přepnout krok, zavřít okno, Zastavit."""
+        if progress is None:
+            return app.bridge.request(op, **payload)
+        job = app.bridge.submit(op, payload, preemptible=False)
+        while not job.finished:
+            try:
+                app.root.update()
+            except tk.TclError:                  # okno se zavřelo
+                app.bridge.cancel(job, "closed")
+                break
+            job.event.wait(0.03)
+        job.event.wait()
+        return job.result()                      # zrušeno / chyba → BridgeError
+
     try:
         if not app.ui.get("emu_rules"):
             app.ui["emu_rules"] = app.bridge.request("emu.rules")
@@ -53,10 +70,10 @@ def run_emulation(app, plats: list[str], progress=None) -> dict:
             if run["stop"]:
                 out["stopped"] = True
                 break
-            out["res"][pl] = app.bridge.request("emu.platform", prj=app.prj, plat=pl)
+            out["res"][pl] = call("emu.platform", prj=app.prj, plat=pl)
             out["plats"].append(pl)
-        fin = app.bridge.request("emu.finish", prj=app.prj, plats=out["plats"]) if not out["stopped"] \
-            else app.bridge.request("emu.finish", prj=app.prj, plats=[])
+        fin = call("emu.finish", prj=app.prj, plats=out["plats"]) if not out["stopped"] \
+            else call("emu.finish", prj=app.prj, plats=[])
         out["doc"], out["file"] = fin["doc"], fin["file"]
     except BridgeError as exc:
         out["error"] = str(exc)
@@ -85,7 +102,7 @@ def render(app, parent) -> None:
 
     sel = ui.setdefault("sel", list(app.prj["platforms"]))
     sel[:] = [p for p in sel if p in app.prj["platforms"]] or list(app.prj["platforms"])
-    row = ttk.Frame(parent)
+    row = FlowFrame(parent, padx=12)               # 20 platforem: zalamovat, ne uříznout
     row.pack(fill="x", pady=(10, 0))
     vars_ = {}
     for pl in app.prj["platforms"]:
@@ -93,8 +110,8 @@ def render(app, parent) -> None:
         vars_[pl] = v
         ttk.Checkbutton(row, text=app.PLAT[pl]["name"], variable=v,
                         command=lambda: (sel.clear(), sel.extend(p for p, x in vars_.items() if x.get()),
-                                         btn_run.state(["!disabled"] if sel else ["disabled"]))
-                        ).pack(side="left", padx=(0, 12))
+                                         btn_run.state(["!disabled"] if sel else ["disabled"])))
+    row.schedule()
     parent._vars = vars_
     ctl = ttk.Frame(parent)
     ctl.pack(fill="x", pady=(8, 0))

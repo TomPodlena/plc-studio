@@ -33,7 +33,7 @@ PANEL_W = 500
 
 def safety_data(app, target: str | None = None) -> dict:
     """Pohled kroku (funkce, položky ke schválení, program, výkres); projekt z mostu převezme I/O."""
-    data = app.bridge.request("safety", prj=app.prj, target=target)
+    data = app.fetch("safety", prj=app.prj, target=target)
     app.prj = data["prj"]
     return data["view"]
 
@@ -219,13 +219,27 @@ def render(app, parent) -> None:
     bar.pack(fill="x", pady=(8, 4))
     nm = ttk.Frame(bar)
     nm.pack(side="left")
+    acts = ttk.Frame(bar)                          # tlačítka vpravo; v úzkém okně pod jméno
+    acts.pack(side="right")
     c = v["counts"]
-    b_all = ttk.Button(bar, text=_("Schválit vše připravené ({n})", n=c["ready"]), width=-6)
-    ttk.Button(bar, text=_("Plán oživení (validace)") + " →", width=-6,
+    b_all = ttk.Button(acts, text=_("Schválit vše připravené ({n})", n=c["ready"]), width=-6)
+    ttk.Button(acts, text=_("Plán oživení (validace)") + " →", width=-6,
                command=lambda: app.goto(12)).pack(side="right")
-    ttk.Button(bar, text=_("Krok Schválení") + " →", width=-6,
+    ttk.Button(acts, text=_("Krok Schválení") + " →", width=-6,
                command=lambda: app.goto(11)).pack(side="right", padx=(0, 6))
     b_all.pack(side="right", padx=(0, 6))
+
+    def fit_bar(e) -> None:
+        # německé popisky jsou dlouhé: nevejde-li se jméno + tlačítka do řádku, tlačítka
+        # jdou na vlastní řádek (dřív se oříznul text „Alles Bereite freigeben“)
+        stacked = e.width < nm.winfo_reqwidth() + acts.winfo_reqwidth() + 12
+        if stacked != getattr(bar, "_stacked", False):
+            bar._stacked = stacked
+            acts.pack_forget()
+            acts.pack(**({"side": "top", "anchor": "e", "pady": (6, 0)} if stacked else {"side": "right"}))
+            nm.pack_configure(**({"side": "top", "anchor": "w"} if stacked else {"side": "left"}))
+
+    bar.bind("<Configure>", fit_bar, add="+")
 
     def sync() -> None:
         _sync_buttons(app, buttons)
@@ -274,8 +288,11 @@ def render(app, parent) -> None:
     for text, color in chips:
         tk.Label(sumrow, text=text, bg=theme.FIELD, fg=color, font=theme.FONT_ACCENT,
                  padx=8, pady=2).pack(side="left", padx=(0, 6))
-    tk.Label(sumrow, text=_("logika: {l}", l=v["logic"]["label"]), bg=theme.BG, fg=theme.DIM,
-             font=theme.FONT_DIM).pack(side="left", padx=(8, 0))
+    logic = tk.Label(sumrow, text=_("logika: {l}", l=v["logic"]["label"]), bg=theme.BG, fg=theme.DIM,
+                     font=theme.FONT_DIM, justify="left", anchor="w")
+    logic.pack(side="left", padx=(8, 0), fill="x", expand=True)
+    # dlouhý název bezpečnostní logiky (es, úzké okno) se zalomí místo uříznutí
+    logic.bind("<Configure>", lambda e: logic.configure(wraplength=max(150, e.width - 4)))
 
     nb = ttk.Notebook(body)
     nb.pack(fill="both", expand=True)

@@ -287,31 +287,31 @@ export function docAlarmCsv(prj) {
     for (const d of prj.devices) {
         if (d.cls === "Motor") {
             row("A_" + d.name + "_START", d.name, tr("Timeout rozběhu"), tr("Nepřišlo zpětné hlášení běhu do 3 s"), tr("Stop zařízení, porucha stroje (stop sekvence)"), tr("Kvitace (cmdAck) po odstranění příčiny"));
-            if (d.opt.fault)
+            if (d.opt?.fault)
                 row("A_" + d.name + "_FAULT", d.name, tr("Externí porucha"), tr("Jistič/měnič hlásí poruchu"), tr("Stop zařízení, porucha stroje (stop sekvence)"), tr("Kvitace (cmdAck) po odeznění poruchy"));
-            if (d.opt.fbk !== false)
+            if (d.opt?.fbk !== false)
                 row("A_" + d.name + "_RUN", d.name, tr("Ztráta hlášení běhu"), tr("Výpadek za chodu"), tr("Stop zařízení, porucha stroje (stop sekvence)"), tr("Kvitace (cmdAck)"));
         }
         else if (d.cls === "Ventil") {
             row("A_" + d.name + "_TRAVEL", d.name, tr("Timeout přestavení"), tr("Koncová poloha nedosažena do 5 s"), tr("Výstup vypnut, porucha stroje (stop sekvence)"), tr("Kvitace (cmdAck)"));
-            if (d.opt.fbkOpen !== false)
+            if (d.opt?.fbkOpen !== false)
                 row("A_" + d.name + "_POS", d.name, tr("Ztráta polohy otevřeno"), tr("Koncák „otevřeno“ odpadl v držené poloze"), tr("Výstup vypnut, porucha stroje (stop sekvence)"), tr("Kvitace (cmdAck) po odstranění příčiny"));
         }
         else if (d.cls === "Vfd") {
             const stop = tr("Stop měniče, porucha stroje (stop sekvence)");
-            if (d.opt.fault !== false)
+            if (d.opt?.fault !== false)
                 row("A_" + d.name + "_FAULT", d.name, tr("Porucha měniče"), tr("Měnič hlásí poruchu (vstup poruchy)"), stop, tr("Kvitace (cmdAck) po odeznění poruchy"));
-            if (d.opt.ready !== false)
+            if (d.opt?.ready !== false)
                 row("A_" + d.name + "_READY", d.name, tr("Měnič nepřipraven"), tr("Hlášení „připraven“ chybí při povelu chod"), stop, tr("Kvitace (cmdAck) po odstranění příčiny"));
-            if (d.opt.fbk !== false)
+            if (d.opt?.fbk !== false)
                 row("A_" + d.name + "_SPEED", d.name, tr("Ztráta otáček"), tr("Hlášení „otáčky dosaženy“ odpadlo za chodu"), stop, tr("Kvitace (cmdAck)"));
             row("A_" + d.name + "_TIMEOUT", d.name, tr("Otáčky nedosaženy"), tr("Hlášení „otáčky dosaženy“ nepřišlo do {t} s po doběhu rampy", { t: T_VFD_SPEED }), stop, tr("Kvitace (cmdAck)"));
         }
         else if (d.cls === "PosDrive") {
             const stop = tr("Zastavení pohonu (HALT), porucha stroje (stop sekvence)");
-            if (d.opt.fault !== false)
+            if (d.opt?.fault !== false)
                 row("A_" + d.name + "_FAULT", d.name, tr("Porucha pohonu"), tr("Řadič pohonu hlásí poruchu (vstup poruchy)"), stop, tr("Kvitace (cmdAck) po odeznění poruchy"));
-            if (d.opt.ready !== false)
+            if (d.opt?.ready !== false)
                 row("A_" + d.name + "_READY", d.name, tr("Pohon nepřipraven"), tr("Hlášení „připraven“ chybí během jízdy"), stop, tr("Kvitace (cmdAck) po odstranění příčiny"));
             row("A_" + d.name + "_NOTHOMED", d.name, tr("Bez referování"), tr("Povel jízdy na záznam bez referenční jízdy"), stop, tr("Kvitace (cmdAck), pak referenční jízda"));
             row("A_" + d.name + "_POS", d.name, tr("Ztráta polohy"), tr("Hlášení „v poloze“ odpadlo v dosažené poloze"), stop, tr("Kvitace (cmdAck) po odstranění příčiny"));
@@ -376,7 +376,7 @@ export function docFATMd(prj) {
                 chk(tr("Start → běží, hlášení běhu do 3 s")) +
                 chk(tr("Stop → zastaví")) +
                 chk(tr("Simulace ztráty hlášení za chodu → porucha, výstup vypnut")) +
-                (d.opt.fault ? chk(tr("Simulace externí poruchy → porucha")) : "") +
+                (d.opt?.fault ? chk(tr("Simulace externí poruchy → porucha")) : "") +
                 chk(tr("Kvitace poruchy")) + "\n";
         else if (d.cls === "Ventil")
             s += head + "\n" +

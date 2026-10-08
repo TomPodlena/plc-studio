@@ -98,6 +98,7 @@ def _smoke(app: App, shots: Path | None) -> int:
                 app.ui.update(ui)
                 app.goto(step)
                 root.update()
+                app.wait_jobs()               # drahé výpočty běží v pracovním procesu
                 if shots:
                     root.after(250)
                     root.update()
@@ -181,6 +182,8 @@ def main(argv: list[str] | None = None) -> int:
         app.open_project(args.project)
     # kontrola aktualizací na pozadí (nejvýš jednou denně, bez sítě tiše nic) — ne v --smoke
     root.after(2000, lambda: updates.start_check(app))
+    # licence: kontrola stavu na pozadí (nejvýš jednou denně, bez sítě beze změny) — ne v --smoke
+    root.after(3000, lambda: app.lic.background_check())
     root.mainloop()
     return 0
 

@@ -40,7 +40,7 @@ def render(app, parent) -> None:
     if not app.prj["devices"]:
         wrap_label(body, _("Nejdřív navrhni zařízení (kroky 2–4)."))
         return
-    data = app.bridge.request("commission", prj=app.prj)
+    data = app.fetch("commission", prj=app.prj)
     app.prj = data["prj"]
     plan: list[dict] = data["plan"]
     by_id = {s["id"]: s for s in plan}

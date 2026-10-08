@@ -164,7 +164,11 @@ export function buildBom(prj: Project): Bom {
   const raw: Raw[] = [];
   const add = (tag: string, cat: string, qty: number, desc: string, extra: Partial<Raw> = {}) => {
     if (qty <= 0) return;
-    raw.push({ id: tag + ":" + cat, tag, cat, qty, unit: tr("ks"), desc, note: "", ...extra });
+    /* kolize označení (např. M1 a P1 → oba -Q1; validateProject ji hlásí jako chybu): ID řádku musí zůstat
+       jedinečné, jinak kusovník v UI spadne — druhý výskyt dostane příponu .2, .3 … */
+    let tg = tag;
+    for (let k = 2; raw.some(x => x.id === tg + ":" + cat); k++) tg = tag + "." + k;
+    raw.push({ id: tg + ":" + cat, tag: tg, cat, qty, unit: tr("ks"), desc, note: "", ...extra });
   };
   const safetyNote = tr("Volba a zapojení podle posouzení rizik (EN ISO 13849) — návrh k revizi.");
 

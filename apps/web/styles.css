@@ -46,6 +46,8 @@ nav.stepper button.helpbtn.on{background:var(--accent);color:var(--accent-fg);bo
 .card h3{font-size:.95rem;margin:18px 0 8px}
 textarea,input[type=text],input[type=number],input[type=password],select{font-family:var(--font-mono);font-size:.8rem;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
 input[type=text],input[type=password],select{font-family:var(--font-body);font-size:.85rem}
+select{max-width:100%}   /* dlouhé volby (zařízení, filtr) nesmí na úzkém displeji roztáhnout stránku */
+.row > label.f{max-width:100%} label.f > select{min-width:0}
 textarea{width:100%;min-height:150px;line-height:1.55;resize:vertical}
 textarea:focus,input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:.78rem;color:var(--muted);min-width:0}
@@ -94,6 +96,10 @@ td input.dup{border-color:var(--err);outline:1px solid var(--err)}
 .plat .verif-lang{color:var(--accent)}
 .plat .verif-beta{color:var(--warn)}
 .plat .verif-unsupported{color:var(--err)}
+/* balík k ověření (beta platformy): tlačítko + výzva, klik nepřepíná výběr platformy */
+.plat .vpack{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-top:6px;cursor:default}
+.plat .vpack .hint{margin:0;font-size:.72rem;color:var(--muted)}
+.plat .vpack a{color:var(--accent)}
 .tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line)}
 .tabs button{border:none;background:none;border-radius:8px 8px 0 0;padding:8px 13px;font-weight:500;color:var(--muted);font-family:var(--font-mono);font-size:.76rem}
 .tabs button[aria-selected="true"]{color:var(--accent);background:var(--code-bg);font-weight:600}
@@ -181,6 +187,9 @@ ul.warnlist li::marker{color:var(--warn)}
 .confirm{border-left-color:var(--err)}
 .notice{border-radius:9px;padding:10px 14px;font-size:.86rem;border:1px solid var(--line);border-left:4px solid var(--ok);background:var(--surface)}
 .notice.warn{border-left-color:var(--warn)} .notice.err{border-left-color:var(--err)}
+.notice.savewarn{margin:10px 0}
+.notice.generr{margin-bottom:12px}
+.notice.generr code{font-family:var(--font-mono);font-size:.76rem;overflow-wrap:anywhere}
 
 /* schválení (krok 12), bezpečnost (11), oživení (13) a odznak v hlavičce */
 button.apprbadge{border:1px solid var(--warn);color:var(--warn);background:var(--surface);font-weight:600;cursor:pointer;line-height:1.4}
@@ -225,3 +234,13 @@ tr.ap-rej td:first-child{box-shadow:inset 3px 0 var(--err)}
 #sfDetail tfoot td{border-bottom:none}
 #sfSheet svg{max-width:100%;height:auto;background:#fff}
 @media (max-width:760px){#sfDetail .grid.g3,#sfDetail .grid.g2{grid-template-columns:1fr}}
+
+/* licence (license.js): odznak tarifu v hlavičce, pás nad kroky s výstupy, okno Licence */
+button.licbadge{border:1px solid var(--line);color:var(--muted);cursor:pointer;line-height:1.4}
+button.licbadge.lic-paid{border-color:var(--ok);color:var(--ok);font-weight:600}
+button.licbadge.lic-warn{border-color:var(--warn);color:var(--warn)}
+.notice.licbanner{margin:0 0 12px}
+.modal .licdialog{width:min(680px,100%)}
+.lictab{border-collapse:collapse;font-size:.84rem;margin:6px 0}
+.lictab th{text-align:left;color:var(--muted);font-weight:500;padding:2px 14px 2px 0}
+.lictab td{font-family:var(--font-mono);font-size:.78rem;overflow-wrap:anywhere}
