@@ -34,7 +34,10 @@ def render(app, parent) -> None:
 
     # nápověda pod nástroji na vlastním řádku — vedle odkazů se v užším okně nevejde
     wrap_label(body, _("Úprava dvojklikem do buňky, NC kliknutím. Adresy přiděluje sestava hardwaru "
-                       "(ruční adresa kanál připne). Duplicity červeně."), side="bottom", pady=(4, 0))
+                       "(ruční adresa kanál připne). Duplicity červeně.") + " " + _(
+                   "Prázdný tag nebo komentář = výchozí, prázdná adresa = přidělit automaticky; adresu "
+                   "zapiš v Siemens notaci (%I0.0, %QW64) nebo v notaci platformy hardwaru."),
+               side="bottom", pady=(4, 0))
     tools = ttk.Frame(body)
     tools.pack(side="bottom", fill="x", pady=(6, 0))
 
@@ -42,11 +45,15 @@ def render(app, parent) -> None:
         return next((e for e in app.prj["io"] if e["key"] == key), None)
 
     def edit(iid: str, col: str, value: str) -> None:
-        e = by_key(iid)
-        if e is not None:
-            e[col] = value.strip()
-            app.save()
-            refresh(keep=iid)
+        """Úprava buňky přes jádro (edit.ts): prázdný tag / komentář = výchozí, neplatná nebo
+        obsazená adresa se neuloží (hláška ve stavovém řádku, buňka se vrátí)."""
+        if by_key(iid) is None:
+            return
+        fn = {"tag": "setIoTag", "addr": "setIoAddr", "cmt": "setIoCmt"}[col]
+        res = app.edit(fn, iid, value)
+        if not res.get("ok"):
+            app.set_status("⚠ " + (res.get("error") or ""), keep=True)
+        refresh(keep=iid)
 
     def click(iid: str, col: str) -> None:
         e = by_key(iid)

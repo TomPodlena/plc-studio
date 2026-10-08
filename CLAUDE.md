@@ -20,7 +20,9 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
   funkce a program (`safety*.ts`), PLCopen XML (`plcopen.ts`), L5X (`logix.ts`), koncepty (`concept.ts`),
   emulace překladu a běhu (`emu/`), HMI (`hmi*.ts`), revize (`revision.ts`), nabídka (`quote.ts`),
   firemní knihovna (`library.ts`), exporty SISTEMA (`sistema.ts`) a EPLAN (`eplan.ts`), styl kódu OOP
-  (`codegen_oop.ts`, profily CODESYS WAGO / Delta AX).
+  (`codegen_oop.ts`, profily CODESYS WAGO / Delta AX), ruční úpravy projektu (`edit.ts`: přejmenování zařízení
+  s výchozími tagy, volby / rozsah / popis se `syncIO`, úprava / vložení / duplikace kroku, tag / komentář /
+  adresa signálu s kontrolou — klienti web i desktop jen volají tyto funkce, logiku úprav nekopírují).
   Jádro musí běžet v prohlížeči i Node — žádné závislosti nepřidávat.
 - `apps/web` — aplikace: statické HTML + ES moduly nad `packages/core/dist` (bez bundleru,
   záměrně — budoucí přechod na Vite/React je OK, ale core zůstává oddělené).

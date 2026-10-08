@@ -43,3 +43,4 @@ export * from "./codesys_profiles.js";
 export * from "./verification.js";
 export * from "./license.js";
 export * from "./verify_pack.js";
+export * from "./edit.js";

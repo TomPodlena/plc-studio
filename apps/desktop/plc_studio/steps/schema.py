@@ -30,6 +30,11 @@ def render(app, parent) -> None:
     nb = ttk.Notebook(body)
     nb.pack(fill="both", expand=True)
 
+    def changed(panel: DevicePanel) -> None:
+        """Úprava v panelu (popis, parametry, signál) uložena → výkresy z jádra znovu, panel zůstane."""
+        ui["panel_io"] = panel.io_key
+        app.render()
+
     # ------------------------------------------------------------ blokové schéma
     t1 = ttk.Frame(nb, padding=10)
     nb.add(t1, text=_("Blokové schéma systému"))
@@ -45,7 +50,7 @@ def render(app, parent) -> None:
     wrap_label(row, _("Zdroje signálů → moduly PLC → akční členy. Klik na zařízení = popis "
                       "a odkazy vpravo, klik na modul = jeho list zapojení."),
                side="left", padx=10, expand=True)
-    panel_block = DevicePanel(t1, app, terms, here="blok")
+    panel_block = DevicePanel(t1, app, terms, here="blok", on_change=lambda: changed(panel_block))
     panel_block.pack(side="right", fill="y", padx=(12, 0))
 
     def mark_block(meta: dict) -> str | None:
@@ -73,7 +78,7 @@ def render(app, parent) -> None:
     view_block.pack(fill="both", expand=True)
     view_block.show(data["block"])
     if app.dev_by_id(ui.get("block_sel")) is not None:
-        panel_block.show(ui["block_sel"])
+        panel_block.show(ui["block_sel"], io_key=ui.get("panel_io"))
         view_block.after_idle(lambda: view_block.see(lambda m: m.get("dev") == ui.get("block_sel")))
     else:
         ui["block_sel"] = None
@@ -93,7 +98,8 @@ def render(app, parent) -> None:
                side="left", padx=10, expand=True)
     panel_flow = DevicePanel(t2, app, terms, here="flow",
                              empty=_("Klikni na krok v diagramu — zobrazí se zařízení, které "
-                                     "krok ovládá, s odkazy na jeho signály a na program."))
+                                     "krok ovládá, s odkazy na jeho signály a na program."),
+                             on_change=lambda: changed(panel_flow))
     panel_flow.pack(side="right", fill="y", padx=(12, 0))
 
     def click_flow(meta: dict) -> None:
@@ -111,7 +117,7 @@ def render(app, parent) -> None:
     if isinstance(ui.get("flow_sel"), int) and ui["flow_sel"] < len(seq):
         i = ui["flow_sel"]
         dev = seq[i]["dev"] if i >= 0 and seq[i]["act"] != "wait" else None
-        panel_flow.show(dev or None, step=i)
+        panel_flow.show(dev or None, step=i, io_key=ui.get("panel_io"))
         view_flow.after_idle(lambda: view_flow.see(lambda m: m.get("step") == i))
     else:
         ui["flow_sel"] = None
@@ -172,6 +178,14 @@ def render(app, parent) -> None:
         link(info, _("I/O ↗"), lambda: app.open_io(r["key"])).pack(side="left", padx=(12, 0))
         link(info, _("Blokové schéma ↗"), lambda: app.open_block(r["devId"])
              ).pack(side="left", padx=(12, 0))
+
+        def edit_signal() -> None:          # úprava signálu v panelu blokového schématu
+            ui.update(block_sel=r["devId"], panel_io=r["key"])
+            panel_block.show(r["devId"], io_key=r["key"])
+            view_block.refresh()
+            nb.select(TAB_BLOCK)
+
+        link(info, "✎ " + _("Upravit signál"), edit_signal).pack(side="left", padx=(12, 0))
 
     def click_wire(meta: dict) -> None:
         if "io" in meta:

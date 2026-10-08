@@ -84,6 +84,10 @@ function liveState() {
 /* ---------------------------------------------------------------- operace */
 const sheetName =(m, i) => String(i + 1).padStart(2, "0") + "_" + m.dir + m.idx + "_X" + (i + 1);
 
+/** Funkce ruční úpravy návrhu (edit.ts), které most pustí přes operaci `edit`. */
+const EDIT_FNS = new Set(["renameDevice", "setDeviceDesc", "setDeviceOpts", "setDeviceRange", "updateStep",
+  "insertStep", "duplicateStep", "setIoTag", "setIoAddr", "setIoCmt"]);
+
 /** Do kolika zařízení se ověření simulací pro odznak spočítá hned (zlomek sekundy). */
 const BADGE_LIVE_DEVICES = 30;
 
@@ -306,6 +310,15 @@ const OPS = {
     if (!["setFnCfg", "resetFnCfg", "setSafetyParam", "addSafetyFn", "removeSafetyFn"].includes(fn)) throw new Error(core.tr("Neznámá úprava bezpečnosti: {fn}", { fn }));
     const result = safety[fn](prj, ...args);
     return { prj, result: typeof result === "string" ? result : null };
+  },
+
+  /* Ruční úpravy kroků 4–7 (core edit.ts): přejmenování / volby / rozsah / popis zařízení, kroky
+     sekvence, tag / adresa / komentář signálu. Rychlé — hlavní proces. Vrací výsledek jádra
+     ({ok, error?, keptTags?…}) a projekt (při ok: false beze změny). */
+  edit({ prj, fn, args = [] }) {
+    if (!EDIT_FNS.has(fn)) throw new Error(core.tr("Neznámá úprava návrhu: {fn}", { fn }));
+    const result = core[fn](prj, ...args);
+    return { prj, result };
   },
 
   /* `lic` = brána licence ({ library }): bez tarifu Firma se vlastní šablony knihovny nepoužijí

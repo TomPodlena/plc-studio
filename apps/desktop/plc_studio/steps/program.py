@@ -186,7 +186,8 @@ def _logic(app, body) -> None:
                            width=max(24, *(len(_(v)) + 1 for v in COND_LABEL.values())))
     cb_cond._var = var_cond              # držet proměnnou naživu (jinak ji GC uklidí a pole zbělá)
     cb_cond.pack(side="left", padx=(6, 0))
-    ttk.Spinbox(add, textvariable=var_time, from_=1, to=3600, width=6).pack(side="left", padx=(6, 2))
+    spin = ttk.Spinbox(add, textvariable=var_time, from_=1, to=3600, width=6)
+    spin.pack(side="left", padx=(6, 2))
     ttk.Label(add, text=_("s (čas / hlídací čas)")).pack(side="left")
     # parametr kroku pohonu: otáčky měniče (+ směr), číslo záznamu pohonu, žádaná ventilu
     par = ttk.Frame(add)
@@ -303,17 +304,16 @@ def _logic(app, body) -> None:
         var.trace_add("write", remember)
     add._vars = (var_dev, var_act, var_time)      # proměnné naživu (GC)
 
-    def add_step() -> None:
+    def read_step() -> dict | None:
+        """Krok z formuláře (nový i upravovaný); neplatné pole = hláška a ``None``."""
         d = devs.get(var_dev.get())
         time_s = parse_num(var_time.get())
         if time_s is None or not 0 < time_s <= 3600:
             # dřív se neplatný čas tiše nahradil 1 s (a „inf“ rozbil projekt)
-            app.set_status(_("Čas kroku zadej v sekundách: 1 až 3600."))
-            return
-        time_s = max(1.0, time_s)
+            app.set_status(_("Čas kroku zadej v sekundách: víc než 0, nejvýš 3600."))
+            return None
         act_key = acts[max(cb_act.current(), 0)]
         cond = conds[max(cb_cond.current(), 0)]
-        seq = app.prj["program"]["seq"]
         step = {"dev": d["id"] if d else 0, "act": act_key if d else "wait",
                 "cond": cond if d else "time",
                 "timeS": int(time_s) if time_s.is_integer() else time_s}
@@ -338,24 +338,105 @@ def _logic(app, body) -> None:
                 v = parse_num(txt)
                 if v is None:
                     app.set_status(_("Neplatné číslo v poli „{field}“.", field=key))
-                    return
+                    return None
                 vals[key] = int(v) if float(v).is_integer() else v
             if act_key in ("moveAbs", "moveRel") and "posRef" not in step:
                 if "pos" not in vals:
                     app.set_status(_("Zadej cílovou polohu / dráhu osy."))
-                    return
+                    return None
                 step["pos"] = vals["pos"]
             for key in ("vel", "acc", "dec"):
                 if key in vals:
                     step[key] = vals[key]
-        seq.append(step)
-        app.ui["seq_sel"] = len(seq) - 1
-        app.save()
+        return step
+
+    def store(fn: str, *args, edit_new: bool = True) -> None:
+        """Úprava sekvence v jádře (edit.ts: kontrola kroku jako při přidání), výběr nového kroku.
+        ``edit_new`` = formulář dál upravuje tento krok (jinak zůstane na novém kroku)."""
+        res = app.edit(fn, *args)
+        if not res.get("ok"):
+            app.set_status("⚠ " + (res.get("error") or ""), keep=True)
+            return
+        n = res.get("index", 0)
+        app.ui["seq_sel"] = n
+        app.ui["seq_edit"] = n if edit_new else None
+        app.set_status({"updateStep": _("Krok {n} uložen.", n=n + 1),
+                        "duplicateStep": _("Krok zkopírován jako krok {n}.", n=n + 1)
+                        }.get(fn, _("Krok {n} přidán.", n=n + 1)))
         app.render()
+
+    def add_step() -> None:
+        step = read_step()
+        if step is not None:                                                  # na konec
+            store("insertStep", len(app.prj["program"]["seq"]) - 1, step, edit_new=False)
+
+    def need(i: int | None) -> int | None:
+        if i is None:
+            app.set_status(_("Nejdřív vyber krok v tabulce."))
+        return i
+
+    def save_step() -> None:
+        """Uloží formulář do upravovaného kroku (načteného výběrem / dvojklikem)."""
+        i = app.ui.get("seq_edit")
+        if i is None or not 0 <= i < len(app.prj["program"]["seq"]):
+            app.set_status(_("Vyber krok v tabulce — načte se do formuláře, pak ho ulož."))
+            return
+        step = read_step()
+        if step is not None:
+            store("updateStep", i, step)
+
+    def insert_after() -> None:
+        i = need(sel())
+        step = read_step() if i is not None else None
+        if step is not None:
+            store("insertStep", i, step)
+
+    def duplicate() -> None:
+        i = need(sel())
+        if i is not None:
+            store("duplicateStep", i)
+
+    def clear_sel() -> None:
+        """Zrušit výběr: formulář zpět na nový krok (výchozí hodnoty)."""
+        for k in ("seq_sel", "seq_add", "seq_edit"):
+            app.ui.pop(k, None)
+        app.render()
+
+    def load_step(i: int) -> None:
+        """Hodnoty kroku ``i`` do formuláře (zařízení, akce, přechod, čas, parametry pohonu / osy)."""
+        steps = app.prj["program"]["seq"]
+        if not 0 <= i < len(steps):
+            return
+        s = steps[i]
+        d = app.dev_by_id(s.get("dev")) if s.get("act") != "wait" else None
+        label = next((lbl for lbl, x in devs.items() if d is not None and x["id"] == d["id"]), wait)
+        var_dev.set(label)                       # → refresh_acts (akce, přechod, parametry)
+        if s["act"] in acts:
+            cb_act.current(acts.index(s["act"]))
+        if s.get("cond") in conds and "disabled" not in cb_cond.state():
+            cb_cond.current(conds.index(s["cond"]))
+        var_time.set(f"{s['timeS']:g}")
+        var_rev.set(bool(s.get("rev")))
+        if d is not None and d["cls"] == "PosDrive" and s.get("rec") is not None:
+            name = next((r.get("name") for r in d.get("records") or [] if r.get("no") == s["rec"]), "")
+            var_par.set(f"{s['rec']} – {name}" if name else str(s["rec"]))
+        elif s.get("sp") is not None:
+            var_par.set(f"{s['sp']:g}")
+        for key in ("pos", "vel", "acc", "dec"):
+            ax_vars[key].set("" if s.get(key) is None else f"{s[key]:g}")
+        if d is not None and d["cls"] == "Axis":
+            pos = next((x for x in app.core("axisCfgOf", d)["positions"] if x["name"] == s.get("posRef")), None)
+            ax_vars["ref"].set(f"{pos['name']} ({pos['pos']:g})" if pos else _(BY_NUMBER))
+        refresh_par()
+        app.ui["seq_edit"] = i
+        edit_lbl.configure(text=_("Upravuješ krok {n} — změň hodnoty a ulož tlačítkem Uložit změny kroku "
+                                  "(Přidat krok přidá nový na konec).", n=i + 1))
 
     # tlačítko vpravo a zabalené jako první — v úzkém okně se zúží pole, ne tlačítko
     ttk.Button(add, text=_("Přidat krok"), style="Accent.TButton", command=add_step
                ).pack(side="right", padx=(10, 0), before=add.winfo_children()[0])
+    edit_lbl = ttk.Label(body, text="", style="Dim.TLabel")
+    edit_lbl.pack(side="bottom", anchor="w", pady=(4, 0))
 
     # --- seznam kroků ---
     mid = ttk.Frame(body)
@@ -386,6 +467,9 @@ def _logic(app, body) -> None:
             return
         steps[i], steps[i + delta] = steps[i + delta], steps[i]
         app.ui["seq_sel"] = i + delta
+        ed = app.ui.get("seq_edit")                 # upravovaný krok se stěhuje s sebou
+        if ed in (i, i + delta):
+            app.ui["seq_edit"] = i + delta if ed == i else i
         app.save()
         app.render()
 
@@ -396,6 +480,9 @@ def _logic(app, body) -> None:
             return
         del app.prj["program"]["seq"][i]
         app.ui["seq_sel"] = min(i, len(app.prj["program"]["seq"]) - 1)
+        ed = app.ui.get("seq_edit")
+        if ed is not None:
+            app.ui["seq_edit"] = None if ed == i else ed - 1 if ed > i else ed
         app.save()
         app.render()
 
@@ -416,8 +503,36 @@ def _logic(app, body) -> None:
                ).grid(row=0, column=1, sticky="ew", padx=(2, 0))
     ttk.Button(side, text=_("× Odstranit"), style="Danger.TButton", command=remove
                ).pack(fill="x", pady=(8, 0))
+    # úprava vybraného kroku: výběr řádku načte krok do formuláře dole
+    ttk.Button(side, text=_("Uložit změny kroku"), style="Accent.TButton", command=save_step
+               ).pack(fill="x", pady=(8, 0))
+    ttk.Button(side, text=_("Vložit za vybraný"), command=insert_after).pack(fill="x", pady=(4, 0))
+    ttk.Button(side, text=_("Duplikovat"), command=duplicate).pack(fill="x", pady=(4, 0))
+    ttk.Button(side, text=_("Zrušit výběr"), command=clear_sel).pack(fill="x", pady=(4, 0))
     ttk.Label(side, text=_("Vybraný krok:"), style="Dim.TLabel").pack(anchor="w", pady=(10, 2))
     link(side, _("Zařízení ↗"), to_device).pack(anchor="w")
     link(side, _("Funkční diagram ↗"), lambda: app.open_flow(sel())).pack(anchor="w", pady=(2, 0))
     tbl.tv.bind("<Delete>", lambda _e: remove())
-    tbl.tv.bind("<<TreeviewSelect>>", lambda _e: app.ui.__setitem__("seq_sel", sel()))
+
+    def on_select(_e=None) -> None:
+        """Výběr jiného kroku uživatelem ho načte do formuláře (obnovení výběru po překreslení ne)."""
+        i = sel()
+        changed = i != app.ui.get("seq_sel")
+        app.ui["seq_sel"] = i
+        if i is not None and changed:
+            load_step(i)
+
+    def on_double(_e=None) -> None:
+        i = sel()
+        if i is not None:
+            load_step(i)
+            spin.focus_set()
+            app.set_status(_("Krok {n}: uprav hodnoty ve formuláři a ulož tlačítkem Uložit změny kroku.", n=i + 1))
+
+    tbl.tv.bind("<<TreeviewSelect>>", on_select)
+    tbl.tv.bind("<Double-1>", on_double)
+    ed = app.ui.get("seq_edit")
+    if isinstance(ed, int) and 0 <= ed < len(seq):
+        load_step(ed)                    # rozpracovaná úprava kroku přežije překreslení
+    else:
+        app.ui["seq_edit"] = None

@@ -305,6 +305,17 @@ class App:
         """``syncIO`` — srovná tabulku I/O se zařízeními (edity zachová)."""
         self.prj = self.bridge.mutate("syncIO", self.prj)
 
+    def edit(self, fn: str, *args) -> dict:
+        """Ruční úprava návrhu v jádře (edit.ts, operace mostu ``edit``): při ``ok`` převezme
+        změněný projekt a naplánuje uložení. Vrací výsledek jádra (``ok``, ``error``, ``keptTags``…).
+        Pozor: ``self.prj`` je pak nový objekt — slovníky zařízení z dřívějška už neplatí."""
+        data = self.bridge.request("edit", fn=fn, prj=self.prj, args=list(args))
+        res = data["result"] or {}
+        if res.get("ok"):
+            self.prj = data["prj"]
+            self.save()
+        return res
+
     def dev_by_id(self, dev_id) -> dict | None:
         return next((d for d in self.prj["devices"] if d["id"] == dev_id), None)
 
@@ -548,7 +559,7 @@ class App:
         self.goto(5)
 
     def open_program(self, step: int | None = None) -> None:
-        self.ui.update(prog_tab=0, seq_sel=step)
+        self.ui.update(prog_tab=0, seq_sel=step, seq_edit=step)   # krok rovnou do formuláře úprav
         self.goto(6)
 
     def open_live(self, dev_id: int | None = None) -> None:

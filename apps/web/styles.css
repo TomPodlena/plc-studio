@@ -68,6 +68,12 @@ button:disabled{opacity:.5;cursor:default}
 .warnbox{font-size:.82rem;border-left:3px solid var(--warn);padding:6px 0 6px 12px;margin-top:14px}
 .errtxt{color:var(--err);font-size:.82rem;margin-top:8px}
 .oktxt{color:var(--ok);font-size:.82rem;margin-top:8px}
+/* ruční úpravy: odkazy ze schématu na řádek úprav, zvýrazněný řádek, upravovaný krok sekvence */
+.navlink{cursor:pointer}
+svg .navlink:hover{opacity:.7}
+tr.navlink:hover td{background:var(--chip)}
+tr.hl td{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.seqrow.editing{outline:2px solid var(--accent);outline-offset:-2px;border-radius:6px}
 .stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .stat{font-family:var(--font-mono);font-size:.74rem;background:var(--chip);border-radius:6px;padding:4px 10px;font-variant-numeric:tabular-nums}
 .stat b{color:var(--accent)}
