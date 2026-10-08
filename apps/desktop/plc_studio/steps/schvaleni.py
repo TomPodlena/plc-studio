@@ -130,7 +130,7 @@ def render(app, parent) -> None:
     row = summary_row(body, s)
     row.pack(fill="x", pady=(8, 6))
     ttk.Button(row, text=_("Uložit {file}…", file=data["file"]),
-               command=lambda: save_file(app, _file_name(app, data["file"]), data["md"])
+               command=lambda: save_file(app, _file_name(app, data["file"]), data["md"], "dokumentace")
                ).pack(side="right")
 
     nb = ttk.Notebook(body)

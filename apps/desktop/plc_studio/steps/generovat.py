@@ -128,10 +128,10 @@ def render_code(app, body) -> None:
     def save_all() -> None:
         pl = var_plat.get()
         save_many(app, [(f"{pl}_{n}", b) for n, b in out[pl].items()],
-                  _("soubory platformy {name}", name=app.PLAT[pl]["name"]))
+                  _("soubory platformy {name}", name=app.PLAT[pl]["name"]), f"kod/{pl}")
 
     ttk.Button(btns, text=_("Uložit zobrazený soubor…"), style="Accent.TButton",
-               command=lambda: save_file(app, f"{var_plat.get()}_{cur()[0]}", cur()[1])
+               command=lambda: save_file(app, f"{var_plat.get()}_{cur()[0]}", cur()[1], f"kod/{var_plat.get()}")
                ).pack(side="left")
     ttk.Button(btns, text=_("Uložit všechny soubory platformy…"), command=save_all
                ).pack(side="left", padx=(6, 0))

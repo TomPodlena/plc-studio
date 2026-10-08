@@ -4,7 +4,7 @@
    hmiWebHtml → samostatné webové HMI. Desktop má totéž v steps/hmi.py (operace mostu hmi*). */
 import {
   PLAT, CLS, esc, tr, N_, syncIO, buildHmi, hmiScreenSVG, hmiFiles, hmiExportSpec, hmiStatusLabel,
-  hmiSiemensWorkbook, hmiWebHtml, hmiPlcPath, alarmClassLabel, stepTitle, HMI_DOC_FILE,
+  hmiSiemensWorkbook, hmiWebHtml, hmiPlcPath, alarmClassLabel, stepTitle, HMI_DOC_FILE, withFilePrefix,
 } from "../../../packages/core/dist/index.js";
 import { card, downloadFile, downloadFiles } from "./util.js";
 import { licenseFilter } from "./license.js";
@@ -138,7 +138,7 @@ export function makeHmiTab(ctx) {
         if (xl) xl.addEventListener("click", () => downloadBytes(SIEMENS_XLSX, hmiSiemensWorkbook(p, m), XLSX_MIME));
         body.querySelector("#hmiDlAll").addEventListener("click", async () => {
           const btn = body.querySelector("#hmiDlAll");
-          await downloadFiles(names.map(n => ["hmi_" + pl + "_" + n, files[n]]), btn);
+          await downloadFiles(names.map(n => [withFilePrefix(p, "hmi_" + pl + "_" + n), files[n]]), btn);
           if (pl === "siemens") { await new Promise(r => setTimeout(r, 250)); downloadBytes(SIEMENS_XLSX, hmiSiemensWorkbook(p, m), XLSX_MIME); }
         });
       }

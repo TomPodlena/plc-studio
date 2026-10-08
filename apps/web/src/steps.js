@@ -4,7 +4,7 @@ import {
   PLAT, CLS, esc, blankProject, devById, nextName, syncIO, autoAddr, modules, wireNo,
   validateProject, sanitizeTag, genFor, allProjectFiles, licensedGen, licensedProjectFiles,
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
-  sampleSmall, sampleComplex, tr, N_, getLang, DO_ROLES, stepTitle,
+  tr, N_, getLang, DO_ROLES, stepTitle, projectFileName, withFilePrefix,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
   buildBom, bomOptions, bomPlatform, bomCsv, catKey, suppliersFor, SUPPLIERS, CATALOG_DATE, PLATFORM_REFS,
   hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
@@ -12,9 +12,9 @@ import {
   renameDevice, setDeviceDesc, setDeviceOpts, setDeviceRange, deviceOpts, deviceNameProblem,
   updateStep, insertStep, duplicateStep, setIoTag, setIoAddr, setIoCmt,
 } from "../../../packages/core/dist/index.js";
-import { $, card, copyText, downloadFile, downloadFiles, saveBytesUngated, normProject, normAi } from "./util.js";
+import { $, card, copyText, downloadFile, downloadFiles, saveBytesUngated, normProject, normAi, setProjectHeader } from "./util.js";
 import { gateFor } from "./license.js";
-import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, SAMPLE_DESC, AI_EXAMPLE } from "./ai.js";
+import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, AI_EXAMPLE } from "./ai.js";
 
 /** Šířka číselného pole konfigurace osy podle délky textu (číslice + rezerva na šipky pole). */
 const axWidth = t => "calc(" + Math.max(5, String(t).length + 1) + "ch + 34px)";
@@ -65,16 +65,24 @@ export function makeSteps(ctx) {
       <label class="f">${tr("Název projektu / stroje")}
         <input type="text" id="pName" value="${esc(p.meta.name)}" placeholder="${esc(tr("např. Temperační stanice TS-02"))}">
       </label>
-      <label class="f">${tr("Popis")}
-        <input type="text" id="pDesc" value="${esc(p.meta.desc)}" placeholder="${esc(tr("co stroj dělá, pro koho"))}">
+      <label class="f">${tr("Číslo projektu")}
+        <input type="text" id="pNumber" value="${esc(p.meta.number || "")}" placeholder="${esc(tr("např. zakázka 2610705"))}">
+      </label>
+      <label class="f">${tr("Zákazník")}
+        <input type="text" id="pCustomer" value="${esc(p.meta.customer || "")}" placeholder="${esc(tr("jméno nebo firma zákazníka"))}">
+      </label>
+      <label class="f">${tr("Datum zahájení projektu")}
+        <input type="date" id="pStart" value="${esc(p.meta.startDate || "")}" lang="${esc(getLang())}">
       </label>
       <label class="f">${tr("Požadovaný takt [s] (ověří simulace)")}
         <input type="number" id="pTakt" min="0" step="any" value="${Number.isFinite(p.meta.takt) ? p.meta.takt : ""}">
       </label>
     </div>
+    <label class="f">${tr("Popis")}
+      <textarea id="pDesc" rows="3" style="min-height:0;overflow:hidden" placeholder="${esc(tr("co stroj dělá, pro koho — víc řádků a odstavců jde do dokumentace (FDS, návod)"))}">${esc(p.meta.desc)}</textarea>
+    </label>
+    <p class="hint">${tr("Číslo projektu, zákazník a datum zahájení se propíšou do popisového pole výkresů, hlaviček dokumentů a README platforem, číslo i do názvů stahovaných souborů — do kódu PLC ne.")}</p>
     <div class="row">
-      <button class="small" id="bSample">${tr("Ukázka: malá stanice")}</button>
-      <button class="small" id="bSample2">${tr("Ukázka: složitá linka")}</button>
       <button class="small" id="bExport">${tr("Export návrhu (JSON)")}</button>
       <button class="small" id="bImportJson">${tr("Načíst návrh (JSON)")}</button>
       <button class="small" id="bImportExisting">${tr("Načíst stávající zařízení…")}</button>
@@ -87,8 +95,22 @@ export function makeSteps(ctx) {
       <button class="small primary" id="bJsonLoad">${tr("Načíst z textu")}</button>
     </div>
     <p class="note">${tr("Projdi kroky zleva doprava — návrh se průběžně ukládá v prohlížeči a mezi kroky se můžeš kdykoli vracet a vstupy upřesňovat; výstupy se vždy přepočítají. Nejrychlejší start: popiš stroj v kroku <b>AI návrh</b>. Existující projekt převezmeš vedlejší volbou <b>Import</b> dole v kroku Zařízení. Pokud s PLC začínáš, otevři <b>Nápovědu</b> (tlačítko vpravo v liště kroků).")}</p>`);
-    c.querySelector("#pName").addEventListener("input", e => { p.meta.name = e.target.value; save(); $("projName").textContent = p.meta.name ? "— " + p.meta.name : ""; });
-    c.querySelector("#pDesc").addEventListener("input", e => { p.meta.desc = e.target.value; save(); });
+    c.querySelector("#pName").addEventListener("input", e => { p.meta.name = e.target.value; save(); setProjectHeader(p); });
+    /* číslo a zákazník: prázdné pole se v projektu neukládá (výstup pak přesně jako bez nich) */
+    for (const [id, f] of [["#pNumber", "number"], ["#pCustomer", "customer"]]) c.querySelector(id).addEventListener("input", e => {
+      if (e.target.value.trim()) p.meta[f] = e.target.value; else delete p.meta[f];
+      save(); setProjectHeader(p);
+    });
+    /* datum zahájení: prohlížeč dává ISO YYYY-MM-DD (zobrazení podle jazyka), prázdné = bez data */
+    c.querySelector("#pStart").addEventListener("change", e => {
+      if (e.target.value) p.meta.startDate = e.target.value; else delete p.meta.startDate;
+      save();
+    });
+    /* víceřádkový popis: výška podle obsahu */
+    const ta = c.querySelector("#pDesc");
+    const fit = () => { ta.style.height = "auto"; ta.style.height = (ta.scrollHeight + 2) + "px"; };
+    ta.addEventListener("input", e => { p.meta.desc = e.target.value; save(); fit(); });
+    requestAnimationFrame(fit);
     c.querySelector("#pTakt").addEventListener("change", e => {
       const v = parseFloat(e.target.value);   // prázdné / nesmysl / ≤ 0 = takt nezadán
       if (Number.isFinite(v) && v > 0) p.meta.takt = v; else delete p.meta.takt;
@@ -100,18 +122,6 @@ export function makeSteps(ctx) {
       return empty || window.confirm(tr("Tím se nahradí aktuální návrh ({name}, zařízení: {n}) včetně konverzace v kroku AI návrh. Uložit si ho můžeš tlačítkem Export návrhu (JSON). Pokračovat?",
         { name: S.prj.meta.name || tr("bez názvu"), n: S.prj.devices.length }));
     };
-    c.querySelector("#bSample").addEventListener("click", () => {
-      if (!replaceOk()) return;
-      S.prj = sampleSmall();
-      S.ai = seedFromProject(S.prj, tr(SAMPLE_DESC.small), tr("Ukázkový návrh malé stanice — předvyplněno jako příklad práce AI návrháře."));
-      S.step = 0; save(); render();
-    });
-    c.querySelector("#bSample2").addEventListener("click", () => {
-      if (!replaceOk()) return;
-      S.prj = sampleComplex();
-      S.ai = seedFromProject(S.prj, tr(SAMPLE_DESC.complex), tr("Ukázkový návrh složité linky — předvyplněno jako příklad práce AI návrháře."));
-      S.step = 0; save(); render();
-    });
     c.querySelector("#bImportExisting").addEventListener("click", () => ctx.openImport && ctx.openImport());
     c.querySelector("#bReset").addEventListener("click", () => { if (!replaceOk()) return; S.prj = blankProject(); S.ai = { turns: [], last: null, draft: "" }; save(); render(); });
     const jb = c.querySelector("#jsonBox"), jr = c.querySelector("#jsonRow");
@@ -119,7 +129,7 @@ export function makeSteps(ctx) {
     c.querySelector("#bExport").addEventListener("click", () => { jb.hidden = false; jr.hidden = false; jb.value = payload(); });
     c.querySelector("#bImportJson").addEventListener("click", () => { jb.hidden = false; jr.hidden = false; jb.value = ""; jb.placeholder = tr("Vlož dříve exportovaný JSON návrhu…"); jb.focus(); });
     c.querySelector("#bJsonCopy").addEventListener("click", () => copyText(jb.value || payload(), c.querySelector("#bJsonCopy")));
-    c.querySelector("#bJsonDl").addEventListener("click", () => downloadFile((p.meta.name || "plc-projekt") + ".plcstudio.json", jb.value || payload()));
+    c.querySelector("#bJsonDl").addEventListener("click", () => downloadFile(projectFileName(p), jb.value || payload()));
     c.querySelector("#bJsonLoad").addEventListener("click", () => {
       try {
         const d = JSON.parse(jb.value);
@@ -1036,7 +1046,7 @@ export function makeSteps(ctx) {
     c.querySelector("#bDlGen").addEventListener("click", () => downloadFile(plats[outerTab] + "_" + cur().name, cur().body));
     c.querySelector("#bDlAllGen").addEventListener("click", () => {
       const pl = plats[outerTab];
-      downloadFiles(Object.entries(cache[pl]).map(([n, b]) => [pl + "_" + n, b]), c.querySelector("#bDlAllGen"));
+      downloadFiles(Object.entries(cache[pl]).map(([n, b]) => [withFilePrefix(p, pl + "_" + n), b]), c.querySelector("#bDlAllGen"));
     });
   }
 
@@ -1082,7 +1092,7 @@ export function makeSteps(ctx) {
     c.querySelectorAll("[data-d]").forEach(b => b.addEventListener("click", () => { docSel = +b.dataset.d; show(); }));
     c.querySelector("#bDocCopy").addEventListener("click", () => copyText(files[docSel].body, c.querySelector("#bDocCopy")));
     c.querySelector("#bDocSave").addEventListener("click", () => downloadFile(files[docSel].save, files[docSel].body));
-    c.querySelector("#bDocAll").addEventListener("click", () => downloadFiles(files.map(f => [f.save, f.body]), c.querySelector("#bDocAll")));
+    c.querySelector("#bDocAll").addEventListener("click", () => downloadFiles(files.map(f => [withFilePrefix(p, f.save), f.body]), c.querySelector("#bDocAll")));
   }
 
   /* ---------------------------------------------------------- 10 Kusovník
@@ -1285,7 +1295,7 @@ export function makeSteps(ctx) {
       const inp = c.querySelector("input[data-bf=" + (t === "b" ? "brandTxt" : "supplierTxt") + "][data-id='" + CSS.escape(id) + "']");
       if (inp) inp.focus();
     }
-    c.querySelector("#bBomCsv").addEventListener("click", () => downloadFile((p.meta.name || "plc-projekt") + "_kusovnik.csv", bomCsv(p)));
+    c.querySelector("#bBomCsv").addEventListener("click", () => downloadFile(projectFileName(p, "_kusovnik.csv"), bomCsv(p)));
     c.querySelector("#bBomTsv").addEventListener("click", () => {
       const cell = v => String(v ?? "").replace(/[\t\r\n]+/g, " ");
       const head = ["#", tr("Označení"), tr("Položka"), tr("Popis"), tr("Množství"), tr("Jednotka"), tr("Výrobce"), tr("Typ"), tr("Objednací kód"), tr("Dodavatel"), tr("Poznámka")];

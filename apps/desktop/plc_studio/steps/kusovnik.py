@@ -7,7 +7,6 @@ vlastní typ, kód, dodavatel, množství, poznámka). Navazuje na něj stavba v
 
 from __future__ import annotations
 
-import re
 import tkinter as tk
 import webbrowser
 from tkinter import ttk
@@ -94,9 +93,10 @@ def render(app, parent) -> None:
         return "\n".join("\t".join(c.replace("\t", " ").replace("\n", " ") for c in r)
                          for r in [cols, *rows])
 
-    name = re.sub(r'[<>:"/\\|?*]+', "_", app.prj["meta"]["name"] or "plc-projekt").strip() or "plc-projekt"
+    # „<číslo>_<název>_kusovnik.csv“ (core projectFileName — stejně jako web)
+    fname = app.core("projectFileName", {"meta": app.prj["meta"]}, "_kusovnik.csv")
     ttk.Button(bar, text=_("Uložit CSV…"), style="Accent.TButton",
-               command=lambda: save_file(app, name + "_kusovnik.csv", data["csv"])).pack(side="left")
+               command=lambda: save_file(app, fname, data["csv"], "kusovnik")).pack(side="left")
     ttk.Button(bar, text=_("Kopírovat jako tabulku"), command=lambda: app.copy(tsv())
                ).pack(side="left", padx=(6, 0))
 

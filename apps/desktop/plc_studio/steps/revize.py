@@ -171,7 +171,7 @@ def build(app, parent) -> None:
     def save_md() -> None:
         r = app.bridge.request("revision.md", prj=app.prj, exact=bool(ui.get("exact")),
                                **{"from": v["from"], "to": v["to"]})
-        save_file(app, _file_name(app, r["file"]), r["md"])
+        save_file(app, _file_name(app, r["file"]), r["md"], "dokumentace")
 
     ttk.Button(cmp_row, text=_("Uložit {file}…", file=v["file"]), command=save_md).pack(side="right")
     if d["empty"]:

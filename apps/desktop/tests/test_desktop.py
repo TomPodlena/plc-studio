@@ -571,7 +571,9 @@ class GuiTest(unittest.TestCase):
         """Meze měření, žádaná hodnota, role výstupu, krok čekání na vstup a takt."""
         self.app.load_sample("small")
         self.goto(0)
-        takt = next(e for e in self.find(ttk.Entry) if e.get() == "")
+        # pole taktu podle popisku (v kroku jsou i číslo projektu, zákazník a datum zahájení)
+        takt = next(e for e in self.find(ttk.Entry) if any(
+            "takt" in str(w.cget("text")) for w in e.master.winfo_children() if isinstance(w, ttk.Label)))
         takt.insert(0, "12")
         self.assertEqual(self.app.prj["meta"]["takt"], 12)
 
@@ -2270,7 +2272,9 @@ class GuiTest(unittest.TestCase):
         a žádný krok nešel vykreslit) a neplatná mez se tiše nesmaže."""
         self.app.load_sample("small")
         self.goto(0)
-        takt = next(e for e in self.find(ttk.Entry) if e.get() == "")
+        # pole taktu podle popisku (v kroku jsou i číslo projektu, zákazník a datum zahájení)
+        takt = next(e for e in self.find(ttk.Entry) if any(
+            "takt" in str(w.cget("text")) for w in e.master.winfo_children() if isinstance(w, ttk.Label)))
         for text in ("inf", "1e999", "nan"):
             takt.delete(0, "end")
             takt.insert(0, text)
@@ -2442,7 +2446,7 @@ class GuiTest(unittest.TestCase):
         # CSV pro Excel se stejným počtem řádků
         saved = {}
         with mock.patch("plc_studio.steps.kusovnik.save_file",
-                        side_effect=lambda app, name, body: saved.update(name=name, body=body)):
+                        side_effect=lambda app, name, body, *_a: saved.update(name=name, body=body)):
             self.click("Uložit CSV…")
         self.assertTrue(saved["name"].endswith("_kusovnik.csv"))
         self.assertEqual(len(saved["body"].strip().splitlines()), len(rows) + 1)
@@ -2692,7 +2696,7 @@ class GuiTest(unittest.TestCase):
         self.assertNotIn("dev:H1", self.app.prj.get("approvals") or {})
         with mock.patch("plc_studio.steps.schvaleni.save_file") as sf:
             self.click("Uložit 11_schvaleni.md…")
-        name, body = sf.call_args[0][1:]
+        name, body = sf.call_args[0][1:3]
         self.assertTrue(name.endswith("11_schvaleni.md"))
         self.assertIn("# Schválení projektu", body)
 
@@ -2749,7 +2753,7 @@ class GuiTest(unittest.TestCase):
         with mock.patch("plc_studio.steps.ozivovani.save_file") as sf:
             self.click("Uložit protokol…")
             self.click("Uložit CSV…")
-        (n1, md), (n2, csv) = [c[0][1:] for c in sf.call_args_list]
+        (n1, md), (n2, csv) = [c[0][1:3] for c in sf.call_args_list]
         self.assertTrue(n1.endswith("12_protokol_ozivovani.md"))
         self.assertTrue(n2.endswith("12_protokol_ozivovani.csv"))
         self.assertIn("# Protokol oživení", md)
@@ -2906,7 +2910,7 @@ class GuiTest(unittest.TestCase):
         self.root.update()
         with mock.patch("plc_studio.steps.bezpecnost.save_file") as sf:
             self.click("Uložit soubor…")
-        name, body = sf.call_args[0][1:]
+        name, body = sf.call_args[0][1:3]
         self.assertTrue(name.endswith("safety_Konfigurace_relay.md"))
         self.assertIn("SCHVÁLENO", body)
         # výkres okruhu je na plátně

@@ -59,7 +59,7 @@ def render(app, parent) -> None:
     row = ttk.Frame(t1)
     row.pack(side="bottom", fill="x", pady=(8, 0))
     ttk.Button(row, text=_("Uložit SVG…"),
-               command=lambda: save_file(app, "00_blokove_schema.svg", data["block"])
+               command=lambda: save_file(app, "00_blokove_schema.svg", data["block"], "vykresy")
                ).pack(side="left")
     ttk.Button(row, text=_("Kopírovat SVG"), command=lambda: app.copy(data["block"])
                ).pack(side="left", padx=(6, 0))
@@ -107,7 +107,7 @@ def render(app, parent) -> None:
     row2 = ttk.Frame(t2)
     row2.pack(side="bottom", fill="x", pady=(8, 0))
     ttk.Button(row2, text=_("Uložit SVG…"),
-               command=lambda: save_file(app, "00_funkcni_diagram.svg", data["flow"])
+               command=lambda: save_file(app, "00_funkcni_diagram.svg", data["flow"], "vykresy")
                ).pack(side="left")
     ttk.Button(row2, text=_("Simulace a ověření ↗"), command=app.open_sim
                ).pack(side="left", padx=(6, 0))
@@ -156,10 +156,10 @@ def render(app, parent) -> None:
                  ).pack(side="left", padx=(6, 12))
     cur = lambda: sheets[titles.index(var_sheet.get())]  # noqa: E731
     ttk.Button(top, text=_("Uložit SVG…"),
-               command=lambda: save_file(app, cur()["base"] + ".svg", cur()["svg"])
+               command=lambda: save_file(app, cur()["base"] + ".svg", cur()["svg"], "vykresy")
                ).pack(side="left")
     ttk.Button(top, text=_("Uložit DXF…"),
-               command=lambda: save_file(app, cur()["base"] + ".dxf", cur()["dxf"])
+               command=lambda: save_file(app, cur()["base"] + ".dxf", cur()["dxf"], "vykresy")
                ).pack(side="left", padx=(6, 0))
 
     def save_all() -> None:
@@ -168,7 +168,7 @@ def render(app, parent) -> None:
             files.append(("00_funkcni_diagram.svg", data["flow"]))
         for s in sheets:
             files += [(s["base"] + ".svg", s["svg"]), (s["base"] + ".dxf", s["dxf"])]
-        save_many(app, files, _("výkresy"))
+        save_many(app, files, _("výkresy"), "vykresy")
 
     ttk.Button(top, text=_("Uložit všechny výkresy do složky…"), command=save_all
                ).pack(side="left", padx=(6, 0))
@@ -264,7 +264,7 @@ def render(app, parent) -> None:
     row4 = ttk.Frame(t4)
     row4.pack(side="bottom", fill="x", pady=(8, 0))
     ttk.Button(row4, text=_("Uložit svorkovnici (CSV)…"),
-               command=lambda: save_file(app, "03_svorkovnice.csv", data["csv"])).pack(side="left")
+               command=lambda: save_file(app, "03_svorkovnice.csv", data["csv"], "dokumentace")).pack(side="left")
     wrap_label(t4, _("Dvojklik do sloupce Tag, Adresa nebo Komentář = úprava (Enter uloží, Esc zruší); "
                      "dvojklik na svorku = list zapojení."), side="bottom", pady=(4, 0))
 

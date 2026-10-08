@@ -1,5 +1,5 @@
 /* Drobné UI utility. */
-import { tr, blankProject, CLS, PLAT, isGuid, ensureGuids } from "../../../packages/core/dist/index.js";
+import { tr, blankProject, CLS, PLAT, isGuid, ensureGuids, projectTitle, isIsoDate } from "../../../packages/core/dist/index.js";
 import { aiNorm } from "./ai.js";
 import { normSafety } from "./safety_view.js";
 import { normBiz } from "./biz_view.js";
@@ -16,6 +16,13 @@ export function normProject(raw) {
   if (isObj(raw.meta)) {
     p.meta = { ...raw.meta, name: String(raw.meta.name ?? ""), desc: String(raw.meta.desc ?? "") };
     if (!(Number.isFinite(raw.meta.takt) && raw.meta.takt > 0)) delete p.meta.takt;
+    /* číslo projektu, zákazník a složka dat (desktop) — jen text; prázdné se neukládá. Složka dat se
+       ve webu nezobrazuje, ale zůstává (projekt putuje mezi webem a desktopem). */
+    for (const f of ["number", "customer", "dataDir"]) {
+      if (typeof raw.meta[f] === "string" && raw.meta[f].trim()) p.meta[f] = raw.meta[f]; else delete p.meta[f];
+    }
+    /* datum zahájení projektu: jen platné ISO YYYY-MM-DD */
+    if (isIsoDate(raw.meta.startDate)) p.meta.startDate = raw.meta.startDate; else delete p.meta.startDate;
   }
   if (Array.isArray(raw.platforms)) p.platforms = raw.platforms.filter(k => k in PLAT);
   /* styl kódu: jen "oop" se ukládá (výchozí klasický = bez pole) */
@@ -115,6 +122,14 @@ export function normProject(raw) {
 }
 
 export const $ = (id) => document.getElementById(id);
+
+/** Záhlaví stránky a titulek karty prohlížeče: „číslo · název · zákazník“ (jen vyplněné části). */
+export function setProjectHeader(prj) {
+  const t = projectTitle(prj);
+  const el = $("projName");
+  if (el) { el.textContent = t ? "— " + t : ""; el.title = t; }
+  document.title = t ? "PLCdesk — " + t : "PLCdesk";
+}
 
 /** AI konverzace z úložiště / importu v bezpečném tvaru. */
 export function normAi(a) {

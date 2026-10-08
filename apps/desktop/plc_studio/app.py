@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 import time
 import traceback
@@ -571,8 +570,18 @@ class App:
         self.ui.update(prog_tab=2, sim_scenario=scenario)
         self.goto(6)
 
+    def project_title(self) -> str:
+        """„číslo · název · zákazník“ (jen vyplněné části; core projectTitle)."""
+        meta = self.prj["meta"]
+        if not any(str(meta.get(k) or "").strip() for k in ("number", "customer")):
+            return meta.get("name") or ""             # bez čísla a zákazníka beze změny (bez volání jádra)
+        try:
+            return self.core("projectTitle", {"meta": meta})
+        except BridgeError:
+            return meta.get("name") or ""
+
     def update_title(self) -> None:
-        name = self.prj["meta"]["name"]
+        name = self.project_title()
         text = f"— {name}" if name else ""
         # název se zkrátí na místo, které hlavičce zbude (celý je v titulku okna)
         room = self._titles.winfo_width() - self._proj_lbl.winfo_x() - 8
@@ -816,12 +825,13 @@ class App:
         return json.dumps({"prj": self.prj, "ai": self.ai}, ensure_ascii=False, indent=1)
 
     def save_project_dialog(self) -> None:
-        # znaky, které Windows v názvu souboru nedovolí („Linka A/B“, „TS: 02“)
-        base = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", self.prj["meta"]["name"]).strip(" .")
-        name = (base or "plc-projekt") + PROJECT_EXT
+        # „<číslo>_<název>.plcstudio.json“ bez znaků, které Windows v názvu nedovolí
+        # („Linka A/B“, „TS: 02“) — core projectFileName, stejně jako web
+        name = self.core("projectFileName", {"meta": self.prj["meta"]}, PROJECT_EXT)
+        from .datadir import initial_dir
         path = filedialog.asksaveasfilename(
             parent=self.root, title=_("Uložit projekt"), initialfile=name,
-            initialdir=self.settings.get("last_dir") or None, defaultextension=".json",
+            initialdir=initial_dir(self), defaultextension=".json",
             filetypes=[(_("Projekt PLCdesk"), "*" + PROJECT_EXT), ("JSON", "*.json")])
         if not path:
             return
@@ -875,6 +885,9 @@ class App:
         self.save()
         self.render()
         self.set_status(_("Projekt načten: {path}", path=path))
+        # složka dat projektu z jiného počítače: hláška a nabídka vybrat jinou (nic se nevytváří)
+        from .datadir import check_missing
+        check_missing(self)
         return True
 
     # --- konec ---------------------------------------------------------------------------

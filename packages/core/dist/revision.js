@@ -44,6 +44,11 @@ export function revisionContent(prj) {
         o.devices = o.devices.map(noGuid);
     if (Array.isArray(o.io))
         o.io = o.io.map(noGuid);
+    /* složka dat projektu (desktop) je místo na disku konkrétního PC, ne obsah: změna není změna projektu */
+    if (o.meta && typeof o.meta === "object" && "dataDir" in o.meta) {
+        const { dataDir: _d, ...rest } = o.meta;
+        o.meta = rest;
+    }
     return JSON.parse(canonicalJson(o));
 }
 const contentKey = (prj) => canonicalJson(revisionContent(prj));
@@ -295,7 +300,8 @@ function rawDiff(x, y) {
     const ioOfDev = (p, id) => p.io.filter(e => e.devId === id);
     /* projekt */
     const mx = x.meta || { name: "", desc: "" }, my = y.meta || { name: "", desc: "" };
-    for (const f of ["name", "desc"])
+    /* název, popis, číslo projektu, zákazník a datum zahájení = metadata → kosmetická změna (nic dalšího neovlivní) */
+    for (const f of ["name", "desc", "number", "customer", "startDate"])
         if ((mx[f] || "") !== (my[f] || ""))
             push({ area: "project", op: "change", field: "meta." + f, before: mx[f] || "", after: my[f] || "", a: { ref: "meta." + f }, b: { ref: "meta." + f }, floor: "cosmetic", cand: [], devs: [], tags: [] });
     if (fin(mx.takt) !== fin(my.takt))
@@ -578,6 +584,7 @@ const FIELD = {
     cond: N_("přechod"), timeS: N_("čas [s]"), axis: N_("konfigurace osy"), axisMove: N_("cíl / rychlost / zrychlení / zpomalení osy"),
     modes: N_("režimy AUTO / ručně"), estop: N_("E-stop"),
     "meta.name": N_("název projektu"), "meta.desc": N_("popis projektu"), takt: N_("takt [s]"),
+    "meta.number": N_("číslo projektu"), "meta.customer": N_("zákazník"), "meta.startDate": N_("datum zahájení projektu"),
     motorDelay: N_("doba rozběhu motoru [s]"), valveTravel: N_("doba přestavení ventilu [s]"),
     sfp: N_("parametry rizika S/F/P"), stopCat: N_("kategorie zastavení"), cat: N_("kategorie"), channels: N_("počet kanálů"),
     pl: N_("dosažené PL"), distS: N_("bezpečná vzdálenost S [mm]"), off: N_("vyřazeno z návrhu"), inputs: N_("vstupní zařízení"), acts: N_("výstupy"),

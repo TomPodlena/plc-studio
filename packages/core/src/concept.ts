@@ -10,6 +10,7 @@
  */
 import { Project, PLAT, PlatformKey } from "./model.js";
 import { tr, getLang, LANGS } from "./i18n.js";
+import { mdMultiline } from "./project_meta.js";
 
 export interface ConceptIO { di: number; do: number; ai: number; ao: number; }
 
@@ -105,7 +106,7 @@ export function conceptMd(prj: Project): string {
     "",
     tr("**Projekt:** {name} · návrh konceptu vygenerován AI v PLCdesk, **podléhá revizi**.", { name: prj.meta.name || "—" }),
     "",
-    "## " + tr("Zadání"), c.zadani || prj.meta.desc || tr("(doplnit)"), "",
+    "## " + tr("Zadání"), mdMultiline(c.zadani || prj.meta.desc || "") || tr("(doplnit)"), "",
     "## " + tr("Princip řešení"), c.shrnuti, "",
     "## " + tr("Architektura řízení"), c.architektura, "",
     "## " + tr("Pohony a akční členy"), c.pohony, "",

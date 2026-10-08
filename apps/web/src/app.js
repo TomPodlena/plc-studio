@@ -8,7 +8,7 @@ import { makeApprovalStep, approvalBadge, setApproverSource } from "./approval_s
 import { makeBizSteps } from "./biz_steps.js";
 import { approverNames } from "./biz_view.js";
 import { makeCommissionStep } from "./commission_step.js";
-import { $, normProject, normAi } from "./util.js";
+import { $, normProject, normAi, setProjectHeader } from "./util.js";
 import { makeGenTabs } from "./gen_tabs.js";
 import { emuGate } from "./emu_step.js";
 import { trn } from "./plural.js";
@@ -153,8 +153,7 @@ function render() {
   nav.innerHTML = STEPS.map((s, i) => "<button class='" + (i === S.step ? "on" : (stepDone(i) ? "done" : "")) + "' data-i='" + i + "'>" + (i + 1) + " · " + tr(s) + "</button>").join("")
     + "<button class='helpbtn" + (S.step === "help" ? " on" : "") + "' data-help>?&nbsp;" + tr("Nápověda") + "</button>";
   nav.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { S.step = b.hasAttribute("data-help") ? "help" : +b.dataset.i; save(); render(); }));
-  $("projName").textContent = S.prj.meta.name ? "— " + S.prj.meta.name : "";
-  $("projName").title = S.prj.meta.name || "";
+  setProjectHeader(S.prj);
   const num = typeof S.step === "number";
   $("btnPrev").style.visibility = (num && S.step > 0) ? "visible" : "hidden";
   $("btnNext").style.visibility = (num && S.step < STEPS.length - 1) ? "visible" : "hidden";

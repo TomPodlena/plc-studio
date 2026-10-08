@@ -144,8 +144,15 @@ export interface ProgramCfg {
 }
 
 export interface Project {
-  /** `takt` = požadovaná doba cyklu [s]; ověření ji porovná se simulovaným cyklem. */
-  meta: { name: string; desc: string; takt?: number };
+  /**
+   * `takt` = požadovaná doba cyklu [s]; ověření ji porovná se simulovaným cyklem.
+   * `number` = číslo projektu / zakázky, `customer` = zákazník (volný text, nepřekládá se; do výkresů,
+   * hlaviček dokumentů, README a názvů souborů — ne do kódu PLC; viz project_meta.ts).
+   * `startDate` = datum zahájení projektu (ISO YYYY-MM-DD; dokumenty, README, výkresy).
+   * `dataDir` = kořenová složka dat projektu na disku (jen desktop; web ji jen zachová).
+   * `desc` smí být víceřádkový. Prázdná / chybějící pole = výstup jako dřív.
+   */
+  meta: { name: string; desc: string; takt?: number; number?: string; customer?: string; startDate?: string; dataDir?: string };
   platforms: PlatformKey[];
   devices: Device[];
   io: IoEntry[];

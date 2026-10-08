@@ -12,6 +12,7 @@
  */
 import { PLAT } from "./model.js";
 import { tr, trx, today } from "./i18n.js";
+import { projectRef } from "./project_meta.js";
 import { approvalStamp, APPROVAL_FILE } from "./approval.js";
 import { registerDocProvider } from "./docs.js";
 import { registerBomProvider } from "./bom.js";
@@ -187,6 +188,8 @@ export function safetyCircuitSheet(prj, p = proposeSafety(prj)) {
     const fns = programFunctions(p).filter(f => f.role === "input" && f.kind !== "restart");
     return {
         title: trx("Bezpečnostní okruh (návrh)"), projectName: prj.meta.name || "",
+        /* číslo projektu, zákazník a datum zahájení do popisového pole — jen vyplněné (jinak objekt beze změny) */
+        ...Object.fromEntries(Object.entries(projectRef(prj)).filter(([, v]) => v)),
         logic: "-K0 " + (p.logic.series || p.logic.label || ""),
         note: trx("NÁVRH K REVIZI — platí jen po schválení bezpečnostních funkcí; svorky podle návodu zvolené logiky."),
         inputs: fns.map(f => {
@@ -256,12 +259,12 @@ function files(prj) {
     const sh = safetyCircuitSheet(prj, p);
     const gSch = tr("Schémata");
     const svg = circuitSheetSVG(sh);
-    out.push({ group: gSch, name: "bezpecnostni_okruh.svg", save: "00_bezpecnostni_okruh.svg", body: svg, kind: "svg" });
-    out.push({ group: gSch, name: "bezpecnostni_okruh.dxf", save: "00_bezpecnostni_okruh.dxf", body: circuitSheetDXF(sh), kind: "dxf", prev: svg });
+    out.push({ group: gSch, name: "bezpecnostni_okruh.svg", save: "00_bezpecnostni_okruh.svg", body: svg, kind: "svg", dir: "vykresy" });
+    out.push({ group: gSch, name: "bezpecnostni_okruh.dxf", save: "00_bezpecnostni_okruh.dxf", body: circuitSheetDXF(sh), kind: "dxf", prev: svg, dir: "vykresy" });
     const prog = safetyProgramFiles(prj);
     const g = tr("Bezpečnostní program — {target}", { target: targetLabel(prog.target) });
     for (const [n, b] of Object.entries(prog.files))
-        out.push({ group: g, name: n, save: "safety_" + n, body: b, kind: "text" });
+        out.push({ group: g, name: n, save: "safety_" + n, body: b, kind: "text", dir: "kod/safety" });
     return out;
 }
 /* Přihlášení zapíná klient voláním `registerSafetyModule()` (až bude hotové UI kroku Bezpečnost);

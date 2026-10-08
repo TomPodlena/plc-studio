@@ -586,8 +586,29 @@ def license_filter(app, name: str, body):
     return out
 
 
-def save_file(app, name: str, body: str) -> bool:
+def _initial_dir(app, sub: str | None) -> str | None:
+    """Výchozí složka dialogu: podsložka ``sub`` složky dat projektu (datadir.py), jinak poslední."""
+    if getattr(app, "prj", None) is None:
+        return app.settings.get("last_dir") or None
+    from .datadir import initial_dir
+    return initial_dir(app, sub)
+
+
+def file_prefix(app) -> str:
+    """Prefix „<číslo projektu>_“ názvů souborů hromadného ukládání (core projectFilePrefix)."""
+    meta = (getattr(app, "prj", None) or {}).get("meta") or {}
+    if not str(meta.get("number") or "").strip():
+        return ""
+    try:
+        return app.core("projectFilePrefix", {"meta": meta}) or ""
+    except Exception:                                  # noqa: BLE001 — bez mostu (testy) bez prefixu
+        return ""
+
+
+def save_file(app, name: str, body: str, sub: str | None = None) -> bool:
     """Dialog „Uložit jako" pro jeden soubor; vrací, zda se uložilo.
+
+    ``sub`` = podsložka složky dat projektu, ve které dialog začne (``kod/siemens``, ``vykresy``…).
 
     Licence: nad limitem Free a DXF ve Free se neuloží (okno Licence s důvodem), dokumenty a README
     dostanou ve Free patičku PLCdesk; projekt a firemní knihovna se ukládají vždy."""
@@ -599,7 +620,7 @@ def save_file(app, name: str, body: str) -> bool:
     types = [(_(_FILETYPES[ext][0]), _FILETYPES[ext][1])] if ext in _FILETYPES else []
     path = filedialog.asksaveasfilename(
         parent=app.root, title=_("Uložit soubor"), initialfile=name,
-        initialdir=app.settings.get("last_dir") or None,
+        initialdir=_initial_dir(app, sub),
         defaultextension="." + ext if ext else "",
         filetypes=types + [(_("Všechny soubory"), "*.*")])
     if not path:
@@ -614,8 +635,11 @@ def save_file(app, name: str, body: str) -> bool:
     return True
 
 
-def save_many(app, files: list[tuple[str, str]], what: str | None = None) -> bool:
+def save_many(app, files: list[tuple[str, str]], what: str | None = None,
+              sub: str | None = None) -> bool:
     """Uloží víc souborů do zvolené složky; na přepis existujících se zeptá.
+
+    Názvy dostanou prefix čísla projektu (``file_prefix``); ``sub`` jako u ``save_file``.
 
     ``what`` (4. pád, např. „výkresy") předává volající už přeložené. Licence jako ``save_file``:
     zamčené soubory (DXF ve Free) se přeskočí a důvod se ukáže jednou; nad limitem nic."""
@@ -636,9 +660,12 @@ def save_many(app, files: list[tuple[str, str]], what: str | None = None) -> boo
         why = ""
     folder = filedialog.askdirectory(
         parent=app.root, title=_("Složka pro {what}", what=what or _("soubory")), mustexist=True,
-        initialdir=app.settings.get("last_dir") or None)
+        initialdir=_initial_dir(app, sub))
     if not folder:
         return False
+    pre = file_prefix(app)
+    if pre:
+        files = [(n if n.startswith(pre) else pre + n, b) for n, b in files]
     target = Path(folder)
     existing = [n for n, _body in files if (target / n).exists()]
     if existing and not messagebox.askyesno(

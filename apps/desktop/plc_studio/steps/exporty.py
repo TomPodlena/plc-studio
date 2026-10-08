@@ -152,10 +152,10 @@ def render(app, parent) -> None:
             return sx["files"][int(i)] if i is not None else None
 
         ttk.Button(b, text=_("Uložit vybraný soubor…"),
-                   command=lambda: s_cur() and save_file(app, s_cur()["save"], s_cur()["body"])).pack(side="left")
+                   command=lambda: s_cur() and save_file(app, s_cur()["save"], s_cur()["body"], "exporty")).pack(side="left")
         ttk.Button(b, text=_("Uložit soubory pro SISTEMA…"), style="Accent.TButton",
                    command=lambda: save_many(app, [(f["save"], f["body"]) for f in sx["files"]],
-                                             _("soubory pro SISTEMA"))).pack(side="left", padx=(6, 0))
+                                             _("soubory pro SISTEMA"), "exporty")).pack(side="left", padx=(6, 0))
         ttk.Button(left, text=_("Celý postup a předpis ({file})", file=sx["doc"]["name"]),
                    command=lambda: s_show(sx["doc"])).pack(anchor="w", pady=(4, 0))
         st.tv.bind("<<TreeviewSelect>>", lambda _e: s_show(s_cur()))
@@ -198,10 +198,10 @@ def render(app, parent) -> None:
 
         readme = next((f for f in ep["files"] if f["name"] == "README_EPLAN.txt"), None)
         ttk.Button(b, text=_("Uložit vybraný soubor…"),
-                   command=lambda: e_cur() and save_file(app, e_cur()["save"], e_cur()["body"])).pack(side="left")
+                   command=lambda: e_cur() and save_file(app, e_cur()["save"], e_cur()["body"], "exporty")).pack(side="left")
         ttk.Button(b, text=_("Uložit soubory pro EPLAN…"), style="Accent.TButton",
                    command=lambda: save_many(app, [(f["save"], f["body"]) for f in ep["files"]],
-                                             _("soubory pro EPLAN"))).pack(side="left", padx=(6, 0))
+                                             _("soubory pro EPLAN"), "exporty")).pack(side="left", padx=(6, 0))
         if readme:
             ttk.Button(right, text=_("Zobrazit README_EPLAN.txt"), command=lambda: e_show(readme)
                        ).pack(anchor="w", pady=(4, 0))

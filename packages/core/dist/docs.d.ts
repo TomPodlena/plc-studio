@@ -55,6 +55,8 @@ export interface ProjectFile {
     body: string;
     kind: "text" | "svg" | "dxf";
     prev?: string;
+    /** Podsložka ve složce dat projektu (`PROJECT_DIRS`, project_folder.ts); bez ní „exporty“. */
+    dir?: string;
 }
 /** Úplná sada souborů projektu: dokumenty + schémata (SVG/DXF) + zdroje platforem. */
 export declare function allProjectFiles(prj: Project): ProjectFile[];

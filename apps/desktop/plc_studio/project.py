@@ -41,6 +41,17 @@ def _str(v, default: str = "") -> str:
     return v if isinstance(v, str) else default
 
 
+def _iso_date(v) -> bool:
+    """Platné datum ISO „YYYY-MM-DD“ (stejné pravidlo jako core isIsoDate)."""
+    import datetime as dt
+    if not isinstance(v, str) or len(v) != 10:
+        return False
+    try:
+        return dt.date.fromisoformat(v).isoformat() == v
+    except ValueError:
+        return False
+
+
 def normalize(prj, blank: dict, classes, platforms) -> dict:
     """Vrátí úplný projekt; ``ValueError`` s popisem, když se soubor použít nedá."""
     if not isinstance(prj, dict):
@@ -53,6 +64,13 @@ def normalize(prj, blank: dict, classes, platforms) -> dict:
     meta["name"], meta["desc"] = _str(meta.get("name")), _str(meta.get("desc"))
     if not (finite(meta.get("takt")) and meta["takt"] > 0):
         meta.pop("takt", None)
+    # číslo projektu, zákazník, složka dat: jen neprázdný text (jinak pole v projektu není)
+    for k in ("number", "customer", "dataDir"):
+        if not (isinstance(meta.get(k), str) and meta[k].strip()):
+            meta.pop(k, None)
+    # datum zahájení projektu: jen platné ISO YYYY-MM-DD
+    if not _iso_date(meta.get("startDate")):
+        meta.pop("startDate", None)
     out["meta"] = meta
 
     plats = prj.get("platforms", blank["platforms"])

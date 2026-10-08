@@ -18,7 +18,8 @@ from .. import theme
 from ..detail import DevicePanel
 from ..i18n import N_, _, _n
 from ..svgview import SvgView
-from ..widgets import FlowFrame, Table, note_box, save_file, save_many, scrolled_text, set_text, wrap_label
+from ..widgets import (FlowFrame, Table, file_prefix, note_box, save_file, save_many, scrolled_text,
+                       set_text, wrap_label)
 
 SUB_SCREENS, SUB_TAGS, SUB_ALARMS, SUB_EXPORT = range(4)
 GROUPS = {"ctrl": N_("řízení stroje"), "dev": N_("blok zařízení"), "seq": N_("sekvence"),
@@ -35,13 +36,13 @@ def trigger_text(tg: dict | None) -> str:
 
 def save_bytes(app, name: str, data: bytes) -> bool:
     """Dialog „Uložit jako“ pro binární soubor (sešit .xlsx); nad limitem Free zamčeno (licence)."""
-    from ..widgets import license_filter
+    from ..widgets import _initial_dir, license_filter
     if license_filter(app, name, data) is None:
         return False
     ext = name.rsplit(".", 1)[-1]
     path = filedialog.asksaveasfilename(
         parent=app.root, title=_("Uložit soubor"), initialfile=name,
-        initialdir=app.settings.get("last_dir") or None, defaultextension="." + ext,
+        initialdir=_initial_dir(app, "hmi"), defaultextension="." + ext,
         filetypes=[("Excel", "*.xlsx"), (_("Všechny soubory"), "*.*")])
     if not path:
         return False
@@ -94,7 +95,7 @@ def render(app, parent) -> None:
                command=lambda: open_web_hmi(app)).pack(side="left", padx=(10, 0))
     ttk.Button(row, text=_("Uložit webové HMI…"),
                command=lambda: save_file(app, "hmi_web.html",
-                                         app.bridge.request("hmi.web", prj=app.prj)["html"])
+                                         app.bridge.request("hmi.web", prj=app.prj)["html"], "hmi")
                ).pack(side="left", padx=(6, 0))
 
     note_box(parent, _("Dokument {file} a soubory HMI jsou i v kroku Dokumentace. Webové HMI "
@@ -133,7 +134,7 @@ def _screens(app, parent, screens: list, ui: dict) -> None:
     bar.pack(side="bottom", fill="x", pady=(8, 0))
     ttk.Button(bar, text=_("Uložit SVG…"),
                command=lambda: save_file(app, f"hmi_{screens[var.get()]['id']}.svg",
-                                         screens[var.get()]["raw"])).pack(side="left")
+                                         screens[var.get()]["raw"], "hmi")).pack(side="left")
     wrap_label(bar, _("Klik na motor, ventil, měření nebo řádek ručního režimu = zařízení vpravo."),
                side="left", padx=10, expand=True)
     terms = app.terminals()
@@ -279,12 +280,13 @@ def _export(app, parent, data: dict, ui: dict) -> None:
             if n == state.get("xlsx_name") and state["xlsx"]:
                 save_bytes(app, n, base64.b64decode(state["xlsx"]))
             else:
-                save_file(app, f"hmi_{plat}_{n}", files[n])
+                save_file(app, f"hmi_{plat}_{n}", files[n], "hmi")
 
         def save_all() -> None:
             if save_many(app, [(f"hmi_{plat}_{n}", b) for n, b in files.items()],
-                         _("soubory exportu HMI")) and state["xlsx"]:
-                (Path(app.settings["last_dir"]) / state["xlsx_name"]).write_bytes(base64.b64decode(state["xlsx"]))
+                         _("soubory exportu HMI"), "hmi") and state["xlsx"]:
+                (Path(app.settings["last_dir"]) / (file_prefix(app) + state["xlsx_name"])).write_bytes(
+                    base64.b64decode(state["xlsx"]))
 
         def open_src() -> None:
             n = cur()

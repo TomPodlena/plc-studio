@@ -44,3 +44,5 @@ export * from "./verification.js";
 export * from "./license.js";
 export * from "./verify_pack.js";
 export * from "./edit.js";
+export * from "./project_meta.js";
+export * from "./project_folder.js";

@@ -14,6 +14,7 @@ import {
 } from "./model.js";
 /* codegen_oop.ts a codegen.ts se importují navzájem: OOP renderer se volá až uvnitř genFor */
 import { genForOop } from "./codegen_oop.js";
+import { projectMetaText } from "./project_meta.js";
 import { CDS_PROFILES, CDS_PROFILE_KEYS, type CdsProfileKey } from "./codesys_profiles.js";
 import { RAW_MAX } from "./raw_max.js";
 import {
@@ -1610,7 +1611,7 @@ export function genReadme(prj: Project, plat: PlatformKey): string {
     tr("Otestuj v simulátoru platformy před nasazením na stroj."),
   ];
   const common = tr("PROJEKT: {name} · {tags} tagů · {devs} zařízení · generováno PLCdesk",
-    { name: prj.meta.name || tr("(bez názvu)"), tags: prj.io.length, devs: prj.devices.length }) + "\n\n" +
+    { name: prj.meta.name || tr("(bez názvu)"), tags: prj.io.length, devs: prj.devices.length }) + metaLine(prj) + "\n\n" +
     tr("SPOLEČNÉ KROKY") + "\n" + steps.map((s, i) => (i + 1) + ". " + s).join("\n") + "\n";
   /* nadpis (název produktu se nepřekládá) + odrážky */
   const list = (title: string, ...items: string[]) => title + "\n" + items.map(s => "- " + s).join("\n");
@@ -1809,6 +1810,12 @@ export function motionReadme(prj: Project, plat: PlatformKey): string {
   }
   L.push("- " + tr("Kód chyby bloku errCode: 1 porucha pohonu, 2 nepřipraven, 3 bez referování, 4 ztráta hlášení, 5 timeout, 6 odchylka skutečné hodnoty."));
   return L.join("\n");
+}
+
+/** Řádek README s číslem projektu a zákazníkem pod řádkem PROJEKT (bez údajů ""; do kódu PLC se nepíše). */
+function metaLine(prj: Project): string {
+  const t = projectMetaText(prj);
+  return t ? "\n" + t : "";
 }
 
 /** Firemní hlavička na začátku README (bez knihovny ""). */
@@ -2016,7 +2023,7 @@ export function genFor(prj: Project, plat: PlatformKey): Record<string, string> 
 /** README platformy, která servoosu nepodporuje: proč se kód negeneruje a čím osu nahradit. */
 export function axisBlockedReadme(prj: Project, plat: PlatformKey): string {
   const why = axisSupport(prj, plat).why;
-  return tr("PROJEKT: {name} · generováno PLCdesk", { name: prj.meta.name || tr("(bez názvu)") }) + "\n\n" +
+  return tr("PROJEKT: {name} · generováno PLCdesk", { name: prj.meta.name || tr("(bez názvu)") }) + metaLine(prj) + "\n\n" +
     tr("KÓD PRO {plat} SE NEGENERUJE: projekt obsahuje servoosu a platforma ji nepodporuje — {why}", { plat: PLAT[plat].name, why }) + "\n\n" +
     tr("Možnosti: zvol platformu se servoosou (Siemens S7-1200 / S7-1500, Beckhoff TwinCAT, CODESYS SoftMotion, Delta AX, WAGO SoftMotion Light, Omron NJ/NX, Rockwell Logix), nebo osu nahraď polohovacím pohonem se záznamy přes I/O (třída „Polohovací pohon se záznamy“), který podporují všechny platformy.") + "\n" +
     axisReadme(prj, plat) + "\n";

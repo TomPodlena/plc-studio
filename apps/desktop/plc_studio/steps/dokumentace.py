@@ -81,10 +81,14 @@ def render(app, parent) -> None:
             show()
 
     ttk.Button(bar, text=_("Uložit soubor…"), style="Accent.TButton",
-               command=lambda: save_file(app, cur()["save"], cur()["body"])).pack(side="left")
+               command=lambda: save_file(app, cur()["save"], cur()["body"], cur().get("dir") or "exporty")).pack(side="left")
     ttk.Button(bar, text=_("Uložit vše do složky…"),
                command=lambda: save_many(app, [(f["save"], f["body"]) for f in files],
-                                         _("dokumentaci projektu"))).pack(side="left", padx=(6, 0))
+                                         _("dokumentaci projektu"), "dokumentace")).pack(side="left", padx=(6, 0))
+    # celá sada roztříděná do podsložek složky dat projektu (datadir.py; nastavení v kroku Projekt)
+    from .. import datadir
+    ttk.Button(bar, text=_("Uložit vše do složky projektu"),
+               command=lambda: datadir.save_all(app)).pack(side="left", padx=(6, 0))
     ttk.Button(bar, text=_("Kopírovat"), command=lambda: app.copy(cur()["body"])
                ).pack(side="left", padx=(6, 0))
     name_lbl.pack(side="left", padx=10)

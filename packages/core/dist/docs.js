@@ -13,6 +13,7 @@ import { hwAddrText, hwTypeText, hwSummary, hwPlatform } from "./hardware.js";
 import { tr, N_, today } from "./i18n.js";
 import { genFor, codeLibrary } from "./codegen.js";
 import { libraryDocHeader } from "./library.js";
+import { projectMetaMd, mdMultiline } from "./project_meta.js";
 import { oopInProject, oopProgram, oopClassSvg, OOP_CLASS_SVG } from "./codegen_oop.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
 import { conceptMd } from "./concept.js";
@@ -226,7 +227,7 @@ export function docFDSMd(prj) {
         "| **" + tr("Revize") + "** | " + tr("0.1 — návrh (PLCdesk)") + " |",
         "",
         "## " + tr("1. Popis stroje a účel"),
-        prj.meta.desc || tr("(doplnit)"),
+        mdMultiline(prj.meta.desc || "") || tr("(doplnit)"),
         "",
         ...(prj.concept ? ["### " + tr("Zvolený koncept řešení: {name}", { name: prj.concept.nazev }), prj.concept.shrnuti,
             tr("Podrobně viz {file}.", { file: "`" + CONCEPT_FILE + "`" }), ""] : []),
@@ -447,7 +448,7 @@ export function docManualMd(prj) {
         tr("Revize 0.1 ({date}) — kostra k doplnění; před předáním doplnit fotografie, ovládací panel a kontakty.", { date: dnes() }),
         "",
         "## " + tr("1. Popis stroje"),
-        prj.meta.desc || tr("(doplnit)"),
+        mdMultiline(prj.meta.desc || "") || tr("(doplnit)"),
         "",
         "## " + tr("2. Ovládací prvky"),
         tr("(doplnit: hlavní vypínač, panel HMI, tlačítka, signalizace — {list})", { list: prj.devices.filter(d => d.cls === "DO").map(d => d.name + " " + d.desc).join(", ") || "—" }),
@@ -564,8 +565,9 @@ export function docFiles(prj, items = approvalItems(prj)) {
     for (const p of docProviders)
         if (p.docs)
             out.push(...p.docs(prj, items));
-    /* hlavička pod nadpisem dokumentů Markdown: firemní hlavička knihovny a řádek revize (bez nich beze změny) */
-    const head = [libraryDocHeader(prj).trim(), ...docProviders.map(p => (p.header ? p.header(prj) : "").trim())].filter(Boolean).join("\n\n");
+    /* hlavička pod nadpisem dokumentů Markdown: firemní hlavička knihovny, číslo projektu a zákazník
+       (project_meta.ts) a řádek revize (bez nich beze změny) */
+    const head = [libraryDocHeader(prj).trim(), projectMetaMd(prj), ...docProviders.map(p => (p.header ? p.header(prj) : "").trim())].filter(Boolean).join("\n\n");
     if (head)
         for (const f of out)
             if (f.path.endsWith(".md"))
@@ -591,7 +593,7 @@ export function allProjectFiles(prj) {
     const gDocs = tr("Dokumentace"), gSch = tr("Schémata");
     const items = approvalItems(prj);
     for (const f of docFiles(prj, items))
-        out.push({ group: gDocs, name: f.path, save: f.path, body: f.body, kind: "text" });
+        out.push({ group: gDocs, name: f.path, save: f.path, body: f.body, kind: "text", dir: /^09_kusovnik\./.test(f.path) ? "kusovnik" : "dokumentace" });
     const mods = modules(prj);
     out.push({ group: gSch, name: "blokove_schema.svg", save: "00_blokove_schema.svg", body: svgBlock(prj, mods), kind: "svg" });
     out.push({ group: gSch, name: "schema_stroje.svg", save: "00_schema_stroje.svg", body: svgMachine(prj), kind: "svg" });
@@ -609,6 +611,9 @@ export function allProjectFiles(prj) {
         out.push({ group: gSch, name: base + ".svg", save: pre + base + ".svg", body: sheetSVG(prj, m, i + 1, i + 1, mods.length), kind: "svg" });
         out.push({ group: gSch, name: base + ".dxf", save: pre + base + ".dxf", body: sheetDXF(prj, m, i + 1, i + 1, mods.length), kind: "dxf", prev: sheetSVG(prj, m, i + 1, i + 1, mods.length) });
     });
+    for (const f of out)
+        if (f.group === gSch)
+            f.dir = "vykresy";
     for (const p of docProviders)
         if (p.files)
             out.push(...p.files(prj, items));
@@ -617,7 +622,7 @@ export function allProjectFiles(prj) {
         /* README platformy nese razítko stavu programu (zdrojové soubory se nemění) */
         const stamp = approvalStamp(prj, ["design", "program", "verify"], items).text;
         for (const [n, b] of Object.entries(files))
-            out.push({ group: tr("PLC — {name}", { name: PLAT[p].name }), name: n, save: p + "_" + n, body: n === "README.txt" && stamp ? stamp + "\n\n" + b : b, kind: "text" });
+            out.push({ group: tr("PLC — {name}", { name: PLAT[p].name }), name: n, save: p + "_" + n, body: n === "README.txt" && stamp ? stamp + "\n\n" + b : b, kind: "text", dir: "kod/" + p });
     }
     return out;
 }
