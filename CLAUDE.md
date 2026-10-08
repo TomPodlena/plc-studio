@@ -476,8 +476,9 @@ python scripts/build_verification.py        # data/verification.json → verific
 
 - **Server** = Worker `apps/site/worker` (`/api/license/activate`, `/check`, `/api/config`); licenční soubor
   `<base64url(JSON)>.<base64url(Ed25519)>` (`signLicense`), jádro ho ověří offline (`verifyLicense`, WebCrypto
-  Ed25519) klíči v `LICENSE_PUBLIC_KEYS` (raw 32 B base64 z `apps/site/tools/keygen.js`). **Produkční veřejný
-  klíč je TODO** — bez něj žádná licence neprojde (stav `invalid`, aplikace běží jako Free).
+  Ed25519) klíči v `LICENSE_PUBLIC_KEYS` (raw 32 B base64 z `apps/site/tools/keygen.js`). Produkční veřejný
+  klíč je doplněný (pár k `LICENSE_PRIVATE_KEY` Workeru ověřen 2026-10-06: licence podepsaná `signLicense`
+  projde, podvržená ne); výměna klíče = přidat nový do pole, starý nechat, dokud platí vydané licence.
 - **Tarify** (`entitlements`, přesně podle ceníku webu): Free = projekt do 64 I/O (`/api/config`
   free_io_limit; `projectIoCount` = `devSignals`), dokumenty .md / .html a README s patičkou
   (`addLicenseFooter`), bez DXF, bez firemní knihovny v generátoru; Pro (i `trial`) = bez limitu, bez
