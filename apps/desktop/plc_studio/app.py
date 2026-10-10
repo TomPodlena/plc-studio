@@ -95,6 +95,9 @@ class App:
         self._nav_extra: int | None = None
         self._badge_cur: dict | None = None
         self.ui: dict = {}               # stav UI kroků, který má přežít překreslení
+        self._save_error: str | None = None      # poslední nepovedený zápis state.json (varování)
+        self._project_file: tuple | None = None  # (GUID projektu, cesta) — kam ukládá Ctrl+S bez dialogu
+        self._last_step = 0              # poslední číselný krok (Alt+← z Nápovědy)
 
         self.settings = self._load_settings()
         self.quiet = bool(os.environ.get("PLCSTUDIO_QUIET")) or "unittest" in sys.modules
@@ -132,6 +135,7 @@ class App:
         root.report_callback_exception = self._on_callback_error
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._build_chrome()
+        self._bind_shortcuts()
         self._busy_depth = 0
         self.bridge.on_busy = self._on_busy        # drahé výpočty jádra: kurzor „watch“ + „Počítám…“
         self.render()
@@ -387,13 +391,15 @@ class App:
             pass
         return None
 
-    def _write_json(self, name: str, data) -> None:
+    def _write_json(self, name: str, data) -> str | None:
+        """Zapíše soubor stavu; vrací ``None`` (zapsáno) nebo text chyby. Chyba aplikaci neshodí."""
         try:
             tmp = self.home / (name + ".tmp")
             tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
             tmp.replace(self.home / name)
-        except OSError:
-            pass  # stav je pohodlí, ne důvod aplikaci shodit
+            return None
+        except (OSError, ValueError) as exc:    # plný disk, práva, zamčený soubor; ValueError = neplatná data
+            return str(exc) or type(exc).__name__
 
     def _load_state(self) -> None:
         path = self.home / "state.json"
@@ -457,7 +463,28 @@ class App:
         if self._save_job is not None:
             self.root.after_cancel(self._save_job)
             self._save_job = None
-        self._write_json("state.json", {"prj": self.prj, "ai": self.ai, "step": self.step})
+        err = self._write_json("state.json", {"prj": self.prj, "ai": self.ai, "step": self.step})
+        if err != self._save_error:
+            if err:
+                self._log(f"state.json: {err}")
+            self._save_error = err
+            self._show_save_warn()
+
+    def _show_save_warn(self) -> None:
+        """Nepovedené uložení stavu se nezahazuje tiše (jako web): trvalé varování pod lištou kroků,
+        dokud se uložení znovu nepodaří."""
+        w = getattr(self, "_save_warn", None)
+        if w is None or not w.winfo_exists():
+            return
+        if not self._save_error:
+            w.pack_forget()
+            return
+        w.configure(text="⚠ " + _("Projekt se neukládá!") + " " + _(
+            "Stav aplikace nejde zapsat do {path} ({err}) — změny po zavření aplikace ztratíš. Ulož si "
+            "návrh hned tlačítkem Uložit projekt… (Ctrl+S); varování zmizí, až se uložení znovu podaří.",
+            path=self.home / "state.json", err=self._save_error))
+        if not w.winfo_ismapped():
+            w.pack(fill="x", pady=(8, 0), before=self.view)
 
     def save_settings(self) -> None:
         self._write_json("settings.json", self.settings)
@@ -550,6 +577,12 @@ class App:
 
         self.view = ttk.Frame(frm)
         self.view.pack(fill="both", expand=True, pady=(12, 0))
+        # varování „Projekt se neukládá!“ (balí se nad obsah kroku, jen když uložení stavu selže)
+        self._save_warn = tk.Label(frm, text="", bg=theme.DANGER_BG, fg=theme.ERR, font=theme.FONT_ACCENT,
+                                   justify="left", anchor="w", padx=10, pady=6, highlightthickness=1,
+                                   highlightbackground=theme.ERR)
+        self._save_warn.bind("<Configure>", lambda e: e.widget.configure(wraplength=max(300, e.width - 24)))
+        self._show_save_warn()
 
     def open_license(self, **kw):
         from .license import LicenseDialog
@@ -596,9 +629,62 @@ class App:
     def goto(self, step) -> None:
         if isinstance(step, int) and not 0 <= step < len(STEPS):
             return
+        if isinstance(self.step, int):
+            self._last_step = self.step
         self.step = step
         self.save()
         self.render()
+
+    # --- klávesové zkratky ------------------------------------------------------------
+    # Ctrl+S uložit projekt, Ctrl+O otevřít projekt, Alt+← / Alt+→ předchozí / další krok, F1 Nápověda
+    # (web totéž v app.js). Rozepsané pole se před akcí uloží (FocusOut jako při opuštění pole);
+    # v dialogových oknech (import, licence…) zkratky nepracují.
+
+    def _bind_shortcuts(self) -> None:
+        r = self.root
+        for seq, fn in (("<Control-s>", self._key_save), ("<Control-S>", self._key_save),
+                        ("<Control-o>", self._key_open), ("<Control-O>", self._key_open),
+                        ("<Alt-Left>", lambda e: self._key_step(e, -1)),
+                        ("<Alt-Right>", lambda e: self._key_step(e, 1)), ("<F1>", self._key_help)):
+            r.bind_all(seq, fn)
+        # Text má vlastní vazbu Ctrl+O (vloží nový řádek) — přebít, ať zkratka v poli nic nepřidá
+        r.bind_class("Text", "<Control-o>", self._key_open)
+
+    def _key_ok(self, event) -> bool:
+        """Zkratka platí jen v hlavním okně (ne v dialozích) a ne během zavírání."""
+        if self._closing:
+            return False
+        try:
+            return event.widget.winfo_toplevel() is self.root
+        except (AttributeError, KeyError, tk.TclError):
+            return False
+
+    def _key_save(self, event=None):
+        if event is None or self._key_ok(event):
+            self._commit_focused()
+            self.save_project_quick()
+        return "break"
+
+    def _key_open(self, event=None):
+        if event is None or self._key_ok(event):
+            self._commit_focused()
+            self.open_project_dialog()
+        return "break"
+
+    def _key_step(self, event, delta: int):
+        if self._key_ok(event):
+            self._commit_focused()
+            if isinstance(self.step, int):
+                self.goto(self.step + delta)        # mimo rozsah goto nic neudělá
+            elif delta < 0:
+                self.goto(self._last_step)          # z Nápovědy zpět do kroku
+        return "break"
+
+    def _key_help(self, event=None):
+        if (event is None or self._key_ok(event)) and self.step != "help":
+            self._commit_focused()
+            self.goto("help")
+        return "break"
 
     # --- odkazy mezi kroky -----------------------------------------------------------
     # Krok si cíl vyzvedne z ``self.ui`` při vykreslení (výběr řádku, záložka…).
@@ -900,14 +986,31 @@ class App:
 
     # --- projekt: ukázky, otevření, uložení -------------------------------------------------
 
+    def project_is_empty(self) -> bool:
+        """Návrh bez obsahu: jádro ``projectIsEmpty`` (zařízení, název, popis) + konverzace a rozepsaný
+        text kroku AI návrh (stejné pravidlo jako web)."""
+        try:
+            empty = self.core("projectIsEmpty", self.prj)
+        except BridgeError:
+            empty = not self.prj["devices"]
+        return bool(empty) and not self.ai.get("turns") and not (self.ai.get("draft") or "").strip()
+
     def confirm_replace(self, what: str) -> bool:
-        """Před zahozením rozpracovaného návrhu se zeptá."""
-        if not self.prj["devices"]:
+        """Před zahozením rozpracovaného návrhu (nový projekt, otevření souboru, příklad) se zeptá —
+        jen když návrh není prázdný. Během odpovědi AI ne: odpověď by se zapsala do nového projektu."""
+        if (self.ui.get("ai") or {}).get("busy"):
+            messagebox.showwarning(_("Nahradit návrh?"), _(
+                "AI návrhář právě odpovídá — počkej na odpověď nebo ji zastav tlačítkem Stop v kroku AI návrh."),
+                parent=self.root)
+            return False
+        if self.project_is_empty():
             return True
         return messagebox.askyesno(
             _("Nahradit návrh?"),
-            _("{what} nahradí aktuální návrh ({n} zařízení). Pokračovat?", what=what,
-              n=len(self.prj["devices"])), parent=self.root)
+            _("{what} nahradí aktuální návrh ({name}, zařízení: {n}) včetně konverzace v kroku AI návrh. "
+              "Uložit si ho můžeš tlačítkem Uložit projekt… (Ctrl+S). Pokračovat?", what=what,
+              name=self.prj["meta"].get("name") or _("bez názvu"), n=len(self.prj["devices"])),
+            icon="warning", parent=self.root)
 
     def load_sample(self, kind: str, *, render: bool = True) -> None:
         self.prj = self.core("sampleSmall" if kind == "small" else "sampleComplex")
@@ -949,15 +1052,28 @@ class App:
             parent=self.root, title=_("Uložit projekt"), initialfile=name,
             initialdir=initial_dir(self), defaultextension=".json",
             filetypes=[(_("Projekt PLCdesk"), "*" + PROJECT_EXT), ("JSON", "*.json")])
-        if not path:
-            return
+        if path:
+            self._write_project_file(path)
+
+    def _write_project_file(self, path: str | Path) -> bool:
         try:
             Path(path).write_text(self.project_payload(), encoding="utf-8")
         except OSError as exc:
             messagebox.showerror(_("Uložení se nezdařilo"), str(exc), parent=self.root)
-            return
+            return False
         self.settings["last_dir"] = str(Path(path).parent)
+        self._project_file = (self.prj.get("guid"), str(path))
         self.set_status(_("Projekt uložen: {path}", path=path))
+        return True
+
+    def save_project_quick(self) -> None:
+        """Ctrl+S: projekt otevřený nebo uložený v tomto běhu (týž GUID) se uloží do svého souboru
+        bez dialogu, jinak dialog Uložit projekt."""
+        pf = self._project_file
+        if pf and pf[0] == self.prj.get("guid") and Path(pf[1]).parent.is_dir():
+            self._write_project_file(pf[1])
+        else:
+            self.save_project_dialog()
 
     def seed_ai(self) -> dict:
         """AI konverzace předvyplněná z projektu: popis stroje = zadání, sestava = návrh."""
@@ -970,13 +1086,16 @@ class App:
         return ai
 
     def open_project_dialog(self) -> None:
+        # neprázdný návrh se nejdřív zeptá (jako web) — až pak výběr souboru
+        if not self.confirm_replace(_("Otevřený projekt")):
+            return
         path = filedialog.askopenfilename(
             parent=self.root, title=_("Otevřít projekt"),
             initialdir=self.settings.get("last_dir") or None,
             filetypes=[(_("Projekt PLCdesk"), "*" + PROJECT_EXT), ("JSON", "*.json"),
                        (_("Všechny soubory"), "*.*")])
-        if path:
-            self.open_project(path)
+        if path and self.open_project(path):
+            self._project_file = (self.prj.get("guid"), str(path))   # Ctrl+S pak ukládá sem
 
     def open_project(self, path: str | Path) -> bool:
         try:

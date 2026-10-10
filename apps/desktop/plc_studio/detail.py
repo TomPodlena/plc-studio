@@ -277,7 +277,7 @@ class DevicePanel(ttk.Frame):
 
     def _device_editor(self, d: dict) -> None:
         """Popis a parametry zařízení (meze, žádaná, rampa…) — Entry + Uložit."""
-        from .steps.zarizeni import PARAM_LABEL, apply_params, read_params   # líně: kroky importují panel
+        from .steps.zarizeni import PARAM_LABEL, read_params   # líně: kroky importují panel
         app, dev_id = self.app, d["id"]
         box = ttk.Frame(self.body)
         box.pack(fill="x", pady=(8, 0))
@@ -309,18 +309,19 @@ class DevicePanel(ttk.Frame):
             try:
                 params = read_params(vars_)
             except ValueError as exc:
-                app.set_status(str(exc))
+                app.set_status("⚠ " + str(exc), keep=True)
+                return
+            if app.dev_by_id(dev_id) is None:
+                return
+            # parametry přes jádro (edit.ts setDeviceParams — kontrola mezí, bity výběru záznamu = signály)
+            res = app.edit("setDeviceParams", dev_id, params)
+            if not res.get("ok"):
+                app.set_status("⚠ " + (res.get("error") or ""), keep=True)
                 return
             cur = app.dev_by_id(dev_id)
-            if cur is None:
-                return
-            bits = cur.get("selBits")
-            apply_params(cur, params)
-            if cur.get("selBits") != bits:          # jiný počet bitů výběru záznamu = jiné signály
-                app.sync()
             if var_desc.get().strip() != cur["desc"]:
                 app.edit("setDeviceDesc", dev_id, var_desc.get())   # výchozí komentáře signálů s popisem
-            app.save()
+                cur = app.dev_by_id(dev_id)
             self._saved(_("Zařízení {dev} uloženo.", dev=cur["name"]))
 
         ttk.Button(box, text=_("Uložit"), command=save).grid(row=len(keys) + 2, column=0, columnspan=2,

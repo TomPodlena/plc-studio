@@ -86,7 +86,8 @@ const sheetName =(m, i) => String(i + 1).padStart(2, "0") + "_" + m.dir + m.idx 
 
 /** Funkce ruční úpravy návrhu (edit.ts), které most pustí přes operaci `edit`. */
 const EDIT_FNS = new Set(["renameDevice", "setDeviceDesc", "setDeviceOpts", "setDeviceRange", "updateStep",
-  "insertStep", "duplicateStep", "setIoTag", "setIoAddr", "setIoCmt"]);
+  "insertStep", "duplicateStep", "setIoTag", "setIoAddr", "setIoCmt",
+  "addDevice", "setDeviceParams", "deleteDevice", "renumberIo", "fixIoTags", "applyAiProposal"]);
 
 /** Do kolika zařízení se ověření simulací pro odznak spočítá hned (zlomek sekundy). */
 const BADGE_LIVE_DEVICES = 30;

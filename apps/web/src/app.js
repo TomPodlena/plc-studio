@@ -162,6 +162,7 @@ function render() {
   nav.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { S.step = b.hasAttribute("data-help") ? "help" : +b.dataset.i; save(); render(); }));
   setProjectHeader(S.prj);
   const num = typeof S.step === "number";
+  if (num) lastNumStep = S.step;
   $("btnPrev").style.visibility = (num && S.step > 0) ? "visible" : "hidden";
   $("btnNext").style.visibility = (num && S.step < STEPS.length - 1) ? "visible" : "hidden";
   const r = (S.step === "help") ? steps.rHelp : (RENDERERS[S.step] || steps.rProjekt);
@@ -194,6 +195,53 @@ function render() {
 
 $("btnPrev").addEventListener("click", () => { if (typeof S.step === "number" && S.step > 0) { S.step--; save(); render(); } });
 $("btnNext").addEventListener("click", () => { if (typeof S.step === "number" && S.step < STEPS.length - 1) { S.step++; save(); render(); } });
+
+/* ---------------------------------------------------------------- klávesové zkratky
+   Ctrl+S uložit projekt, Ctrl+O otevřít projekt, Alt+← / Alt+→ předchozí / další krok, F1 Nápověda
+   (desktop totéž v app.py). Rozepsané pole se před akcí uloží (událost change, jako při opuštění pole);
+   nad modálním oknem (import, licence) zkratky nepracují. */
+let lastNumStep = 0;          // krok, ze kterého se otevřela Nápověda (Alt+← z ní vrací zpět)
+function toast(text, err = false) {
+  let t = document.getElementById("toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+  t.className = "notice toast" + (err ? " err" : "");
+  t.textContent = text;
+  t.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { t.hidden = true; }, 5000);
+}
+/** Pole s fokusem, jehož hodnota se liší od vykreslené: vyvolá change (uložení jako při opuštění pole). */
+function commitFocused() {
+  const el = document.activeElement;
+  if (!el || !/^(INPUT|TEXTAREA)$/.test(el.tagName) || /^(checkbox|radio|button|file)$/.test(el.type)) return;
+  if (el.value !== el.defaultValue) el.dispatchEvent(new Event("change", { bubbles: true }));
+}
+const modalOpen = () => [...document.querySelectorAll("[aria-modal='true']")].some(m => m.getClientRects().length > 0);
+function gotoStep(step) { commitFocused(); S.step = step; save(); render(); }
+document.addEventListener("keydown", async e => {
+  if (e.defaultPrevented || e.isComposing || e.repeat && e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const ctrl = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  const ours = (ctrl && (key === "s" || key === "o")) || (e.altKey && !e.ctrlKey && !e.metaKey && (key === "ArrowLeft" || key === "ArrowRight")) || (key === "F1" && !e.ctrlKey && !e.altKey);
+  if (!ours) return;
+  e.preventDefault();                 // prohlížeč: Uložit stránku, Otevřít soubor, Zpět / Vpřed, nápověda prohlížeče
+  if (modalOpen()) return;
+  if (key === "F1") { if (S.step !== "help") gotoStep("help"); return; }
+  if (key === "ArrowLeft" || key === "ArrowRight") {
+    const cur = typeof S.step === "number" ? S.step : null;
+    if (cur === null) { if (key === "ArrowLeft") gotoStep(lastNumStep); return; }
+    const to = cur + (key === "ArrowLeft" ? -1 : 1);
+    if (to >= 0 && to < STEPS.length) gotoStep(to);
+    return;
+  }
+  if (key === "s") {
+    commitFocused();
+    try { const r = await steps.saveProject(); if (r) toast(r.text); }
+    catch (er) { toast(tr("Uložení se nezdařilo") + ": " + (er && er.message || String(er)), true); }
+    return;
+  }
+  if (key === "o") { commitFocused(); await steps.openProject(msg => toast(msg, true)); }
+});
 
 /* Přepínač jazyka: názvy jazyků se nepřekládají; změna překreslí celou aplikaci. */
 $("lang").innerHTML = Object.entries(LANGS).map(([k, name]) => "<option value='" + k + "'>" + name + "</option>").join("");

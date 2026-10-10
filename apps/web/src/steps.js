@@ -9,13 +9,16 @@ import {
   buildBom, bomOptions, bomPlatform, bomCsv, catKey, suppliersFor, SUPPLIERS, CATALOG_DATE, PLATFORM_REFS,
   hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
   verifyPackArchive, licenseSiteUrl,
-  renameDevice, setDeviceDesc, setDeviceOpts, setDeviceRange, deviceOpts, deviceNameProblem,
+  renameDevice, setDeviceDesc, setDeviceOpts, setDeviceRange, deviceOpts,
   updateStep, insertStep, duplicateStep, setIoTag, setIoAddr, setIoCmt,
+  addDevice, setDeviceParams, deviceUsage, deleteDevice, parseRecordsForm, parseAxisPositionsForm,
+  renumberIo, fixIoTags, projectIsEmpty, applyAiProposal, DEVICE_PARAM_LABEL,
 } from "../../../packages/core/dist/index.js";
-import { $, card, copyText, downloadFile, downloadFiles, downloadProjectZip, saveBytesUngated, normProject, normAi, setProjectHeader } from "./util.js";
+import { $, card, copyText, downloadFile, downloadFiles, downloadProjectZip, saveBytesUngated, normProject, normAi, setProjectHeader, prefixedName } from "./util.js";
 import { gateFor } from "./license.js";
-import { mountFolderControls, pickProjectText, suggestNumberAsync } from "./project_dir.js";
+import { mountFolderControls, pickProjectText, suggestNumberAsync, saveProjectFile } from "./project_dir.js";
 import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, AI_EXAMPLE } from "./ai.js";
+import { trn } from "./plural.js";
 
 /** Šířka číselného pole konfigurace osy podle délky textu (číslice + rezerva na šipky pole). */
 const axWidth = t => "calc(" + Math.max(5, String(t).length + 1) + "ch + 34px)";
@@ -98,6 +101,10 @@ export function makeSteps(ctx) {
       <button class="small" id="bImportExisting">${tr("Načíst stávající zařízení…")}</button>
       <button class="small danger" id="bReset">${tr("Nový prázdný projekt")}</button>
     </div>
+    <div class="row" id="sampleRow" hidden style="align-items:center">
+      <label class="f" style="flex-direction:row;gap:8px;align-items:center;margin:0">${tr("Příklady strojů:")} <select id="sampleSel" style="max-width:min(520px,70vw)"></select></label>
+      <button class="small" id="bSample">${tr("Otevřít příklad")}</button>
+    </div>
     <textarea id="jsonBox" hidden style="margin-top:12px;min-height:120px" spellcheck="false" aria-label="${esc(tr("JSON návrhu"))}"></textarea>
     <div class="row" id="jsonRow" hidden>
       <button class="small" id="bJsonCopy">${tr("Kopírovat JSON")}</button>
@@ -142,12 +149,6 @@ export function makeSteps(ctx) {
       if (Number.isFinite(v) && v > 0) p.meta.takt = v; else delete p.meta.takt;
       save();
     });
-    /* nový projekt / ukázka přepíše rozpracovaný návrh — jen po potvrzení (prázdný projekt se nepta) */
-    const replaceOk = () => {
-      const empty = !S.prj.devices.length && !S.prj.meta.name && !(S.prj.meta.desc || "").trim() && !S.ai.turns.length;
-      return empty || window.confirm(tr("Tím se nahradí aktuální návrh ({name}, zařízení: {n}) včetně konverzace v kroku AI návrh. Uložit si ho můžeš tlačítkem Export návrhu (JSON). Pokračovat?",
-        { name: S.prj.meta.name || tr("bez názvu"), n: S.prj.devices.length }));
-    };
     c.querySelector("#bImportExisting").addEventListener("click", () => ctx.openImport && ctx.openImport());
     c.querySelector("#bReset").addEventListener("click", async () => {
       if (!replaceOk()) return;
@@ -155,40 +156,107 @@ export function makeSteps(ctx) {
       S.prj = blankProject(); if (n) S.prj.meta.number = n; S.ai = { turns: [], last: null, draft: "" }; save(); render();
     });
     /* Otevřít projekt…: soubor .plcstudio.json (z kořene projektů / odkudkoli; bez API <input type=file>) */
-    c.querySelector("#bOpen").addEventListener("click", async () => {
-      if (!replaceOk()) return;
-      let text;
-      try { text = await pickProjectText(); } catch { text = null; }
-      if (text != null) loadProjectText(text);
-    });
+    c.querySelector("#bOpen").addEventListener("click", () => openProject(msg => alertRow(c, msg)));
     const jb = c.querySelector("#jsonBox"), jr = c.querySelector("#jsonRow");
-    const payload = () => JSON.stringify({ prj: S.prj, ai: S.ai }, null, 1);
-    c.querySelector("#bExport").addEventListener("click", () => { jb.hidden = false; jr.hidden = false; jb.value = payload(); });
+    c.querySelector("#bExport").addEventListener("click", () => { jb.hidden = false; jr.hidden = false; jb.value = projectPayload(); });
     c.querySelector("#bImportJson").addEventListener("click", () => { jb.hidden = false; jr.hidden = false; jb.value = ""; jb.placeholder = tr("Vlož dříve exportovaný JSON návrhu…"); jb.focus(); });
-    c.querySelector("#bJsonCopy").addEventListener("click", () => copyText(jb.value || payload(), c.querySelector("#bJsonCopy")));
-    c.querySelector("#bJsonDl").addEventListener("click", () => downloadFile(projectFolderName(p) + ".plcstudio.json", jb.value || payload()));
-    c.querySelector("#bJsonLoad").addEventListener("click", () => { if (jb.value.trim() && replaceOk()) loadProjectText(jb.value); });
-    /** Projekt z textu (vložený JSON, soubor .plcstudio.json z webu i desktopu): { prj, ai } nebo samotný projekt. */
-    function loadProjectText(text) {
-      /* obří soubor (projekt PLCdesk má jednotky MB i u haly se 125 zařízeními) by zamrazil kartu a nevešel se do úložiště */
-      if (typeof text !== "string" || text.length > MAX_PROJECT_TEXT) {
-        alertRow(c, tr("Soubor je příliš velký ({mb} MB) — projekt PLCdesk mívá nejvýš jednotky MB. Jde opravdu o export návrhu?", { mb: Math.round((text || "").length / 1e6) }));
-        return;
-      }
-      try {
-        const d = JSON.parse(text);
-        let prjNew;
-        try { prjNew = normProject(d && d.prj ? d.prj : d); } catch { alertRow(c, tr("JSON neobsahuje návrh PLCdesk.")); return; }
-        S.prj = prjNew;
-        S.ai = normAi(d.ai);
-        /* projekt bez konverzace (příklad ze samples/, cizí soubor) → krok AI návrh předvyplnit */
-        if (!S.ai.turns.length && S.prj.devices.length) {
-          S.ai = seedFromProject(S.prj, S.prj.meta.desc || S.prj.meta.name || "",
-            tr("Návrh převzatý z otevřeného projektu — pokračuj úpravami: napiš, co změnit, a AI zná celou aktuální sestavu."));
-        }
-        S.step = 0; save(); render();
-      } catch { alertRow(c, tr("Neplatný JSON.")); }
+    c.querySelector("#bJsonCopy").addEventListener("click", () => copyText(jb.value || projectPayload(), c.querySelector("#bJsonCopy")));
+    c.querySelector("#bJsonDl").addEventListener("click", () => downloadFile(projectFolderName(p) + ".plcstudio.json", jb.value || projectPayload()));
+    c.querySelector("#bJsonLoad").addEventListener("click", () => {
+      if (!jb.value.trim() || !replaceOk()) return;
+      const err = loadProjectText(jb.value);
+      if (err) alertRow(c, err);
+    });
+    /* Příklady strojů (samples/ v kořeni repozitáře, seznam samples/index.json) — jako desktop */
+    const sRow = c.querySelector("#sampleRow"), sSel = c.querySelector("#sampleSel");
+    loadSamples().then(list => {
+      if (!list.length || !sSel.isConnected) return;
+      const cur = Number.isInteger(S.sampleSel) && S.sampleSel < list.length ? S.sampleSel
+        : Math.max(0, list.findIndex(s => s.name === p.meta.name && s.devices === p.devices.length && s.steps === p.program.seq.length));
+      sSel.innerHTML = list.map((s, i) => "<option value='" + i + "'" + (i === cur ? " selected" : "") + ">" +
+        esc(tr("{name} ({n} zařízení, {s} kroků)", { name: s.name, n: s.devices, s: s.steps })) + "</option>").join("");
+      sRow.hidden = false;
+      sSel.addEventListener("change", () => { S.sampleSel = +sSel.value; });
+      c.querySelector("#bSample").addEventListener("click", async e => {
+        const s = list[+sSel.value];
+        S.sampleSel = +sSel.value;
+        if (!s || !replaceOk()) return;
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+          const r = await fetch(new URL(encodeURIComponent(s.file), SAMPLES_URL));
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const err = loadProjectText(await r.text());
+          if (err) alertRow(c, err);
+        } catch (er) {
+          alertRow(c, tr("Příklad se nepodařilo načíst: {err}", { err: er && er.message || String(er) }));
+        } finally { btn.disabled = false; }
+      });
+    });
+  }
+  /* ---------------------------------------------------------- projekt: otevření, uložení, příklady
+     (tlačítka kroku Projekt i klávesové zkratky Ctrl+O / Ctrl+S v app.js) */
+  const SAMPLES_URL = new URL("../../../samples/", import.meta.url);
+  let samplesP = null;
+  /** Seznam příkladů strojů (samples/index.json — scripts/samples_index.mjs); bez něj prázdný. */
+  function loadSamples() {
+    if (!samplesP) samplesP = fetch(new URL("index.json", SAMPLES_URL))
+      .then(r => (r.ok ? r.json() : []))
+      .then(a => (Array.isArray(a) ? a.filter(s => s && typeof s.file === "string" && /\.plcstudio\.json$/.test(s.file)) : []))
+      .catch(() => []);
+    return samplesP;
+  }
+  const projectPayload = () => JSON.stringify({ prj: S.prj, ai: S.ai }, null, 1);
+  /**
+   * Smí se aktuální návrh nahradit (nový projekt, otevření souboru, příklad, vložený JSON)? Prázdný
+   * projekt (core projectIsEmpty) bez konverzace a rozepsaného textu AI ano bez dotazu, jinak po potvrzení.
+   * Během odpovědi AI ne — odpověď by se zapsala do nového projektu.
+   */
+  function replaceOk() {
+    if (aiBusy) { window.alert(tr("AI návrhář právě odpovídá — počkej na odpověď nebo ji zastav tlačítkem Stop v kroku AI návrh.")); return false; }
+    const empty = projectIsEmpty(S.prj) && !S.ai.turns.length && !(S.ai.draft || "").trim();
+    return empty || window.confirm(tr("Tím se nahradí aktuální návrh ({name}, zařízení: {n}) včetně konverzace v kroku AI návrh. Uložit si ho můžeš tlačítkem Export návrhu (JSON). Pokračovat?",
+      { name: S.prj.meta.name || tr("bez názvu"), n: S.prj.devices.length }));
+  }
+  /** Projekt z textu (vložený JSON, soubor .plcstudio.json z webu i desktopu, příklad): { prj, ai } nebo samotný projekt.
+   *  Vrací text chyby (projekt beze změny), nebo null (načteno, překresleno v kroku Projekt). */
+  function loadProjectText(text) {
+    /* obří soubor (projekt PLCdesk má jednotky MB i u haly se 125 zařízeními) by zamrazil kartu a nevešel se do úložiště */
+    if (typeof text !== "string" || text.length > MAX_PROJECT_TEXT)
+      return tr("Soubor je příliš velký ({mb} MB) — projekt PLCdesk mívá nejvýš jednotky MB. Jde opravdu o export návrhu?", { mb: Math.round((text || "").length / 1e6) });
+    let d;
+    try { d = JSON.parse(text); } catch { return tr("Neplatný JSON."); }
+    let prjNew;
+    try { prjNew = normProject(d && d.prj ? d.prj : d); } catch { return tr("JSON neobsahuje návrh PLCdesk."); }
+    S.prj = prjNew;
+    S.ai = normAi(d.ai);
+    /* projekt bez konverzace (příklad ze samples/, cizí soubor) → krok AI návrh předvyplnit */
+    if (!S.ai.turns.length && S.prj.devices.length) {
+      S.ai = seedFromProject(S.prj, S.prj.meta.desc || S.prj.meta.name || "",
+        tr("Návrh převzatý z otevřeného projektu — pokračuj úpravami: napiš, co změnit, a AI zná celou aktuální sestavu."));
     }
+    S.step = 0; save(); render();
+    return null;
+  }
+  /** „Otevřít projekt…“ / Ctrl+O: potvrzení nahrazení, výběr souboru, načtení. `onErr(text)` ukáže chybu. */
+  async function openProject(onErr) {
+    if (!replaceOk()) return;
+    let text;
+    try { text = await pickProjectText(); } catch { text = null; }
+    if (text == null) return;
+    const err = loadProjectText(text);
+    if (err) onErr(err);
+  }
+  /**
+   * Ctrl+S: uloží soubor projektu — s kořenovým adresářem projektů do projektové složky
+   * (<kořen>/<číslo>_<Název>/<číslo>_<Název>.plcstudio.json), jinak ho stáhne. Vrací hlášku.
+   */
+  async function saveProject() {
+    const text = projectPayload();
+    const path = await saveProjectFile(S.prj, text);
+    if (path) return { text: tr("Projekt uložen: {path}", { path }) };
+    const name = projectFolderName(S.prj) + ".plcstudio.json";
+    return downloadFile(name, text) ? { text: tr("Projekt stažen jako {name}.", { name: prefixedName(name) }) } : null;
   }
   function alertRow(c, msg) {
     let d = c.querySelector(".errtxt");
@@ -214,57 +282,12 @@ export function makeSteps(ctx) {
   function aiApply() {
     const pr = S.ai.last;
     if (!pr || !pr.devices.length) return;
-    const p = prj();
-    /* zařízení se stejným označením a třídou si nechá GUID (identita pro opakovaný export do EPLAN) */
-    const oldGuid = Object.fromEntries(p.devices.filter(d => d.guid).map(d => [d.name + "|" + d.cls, d.guid]));
-    const oldDev = Object.fromEntries(p.devices.map(d => [d.id, d])), oldIo = p.io;
-    p.devices = []; p.io = []; p.nextId = 1;
-    const byName = {};
-    for (const d of pr.devices) {
-      const name = d.name && !byName[d.name] ? d.name : nextName(p, d.cls);
-      const nd = { id: p.nextId++, name, cls: d.cls, desc: d.desc, opt: d.opt, unit: d.unit, rmin: d.rmin, rmax: d.rmax };
-      if (oldGuid[name + "|" + d.cls]) nd.guid = oldGuid[name + "|" + d.cls];
-      // meze měření, žádaná hodnota a role výstupu (aiNorm je už pustil jen u správné třídy)
-      if (d.cls === "AnalogIn") { if (Number.isFinite(d.limHi)) nd.limHi = d.limHi; if (Number.isFinite(d.limLo)) nd.limLo = d.limLo; }
-      if ((d.cls === "AnalogOut" || d.cls === "Vfd" || d.cls === "PropValve") && Number.isFinite(d.setpoint)) nd.setpoint = d.setpoint;
-      for (const f of ["rampS", "tol", "tolTimeS", "selBits", "travelS"]) if (Number.isFinite(d[f])) nd[f] = d[f];
-      if (typeof d.libType === "string" && d.libType) nd.libType = d.libType;
-      if (Array.isArray(d.records)) nd.records = d.records;
-      if (d.cls === "Axis" && d.axis) nd.axis = d.axis;
-      if (d.cls === "DO" && DO_ROLES[d.role]) nd.role = d.role;
-      p.devices.push(nd); byName[name] = nd;
-    }
-    /* I/O zařízení, které zůstalo (stejné označení a třída), se převezme i s adresou, komentářem a NC
-       (úpravy z kroku I/O); jen klíč dostane nové id. Změněný popis zařízení se propíše do komentáře. */
-    p.io = oldIo.flatMap(e => {
-      const od = oldDev[e.devId], nd = od && byName[od.name];
-      if (!nd || nd.cls !== od.cls) return [];
-      const ne = { ...e, devId: nd.id, key: nd.id + ":" + e.sig };
-      if (od.desc && nd.desc && nd.desc !== od.desc && typeof ne.cmt === "string" && ne.cmt.startsWith(od.desc)) ne.cmt = nd.desc + ne.cmt.slice(od.desc.length);
-      return [ne];
-    });
-    syncIO(p);
-    p.program.estop = (byName[pr.estop] || {}).id || "";
-    p.program.interlocks = (pr.interlocks || []).map(n => byName[n]).filter(d => d && d.cls === "DI").map(d => d.id);
-    p.program.seq = pr.seq
-      .map(s => {
-        const d = byName[s.dev];
-        const act = ["start", "stop", "open", "close", "wait", "waitOn", "waitOff", "home", "posRecord", "setPressure", "setFlow", "moveAbs", "moveRel", "velocity", "halt", "waitInPos"].includes(s.act) ? s.act : "wait";
-        const wait = act === "waitOn" || act === "waitOff";
-        // čekání jen na zařízení třídy DI — jinak se krok zahodí (dev 0)
-        const dev = act !== "wait" && d && (!wait || d.cls === "DI") ? d.id : 0;
-        const st = { dev, act, cond: wait ? "fbk" : s.cond, timeS: s.timeS };
-        /* parametry kroků pohonů fáze 2a (otáčky / žádaná, záznam, směr) */
-        if (Number.isFinite(s.sp)) st.sp = s.sp;
-        if (Number.isInteger(s.rec)) st.rec = s.rec;
-        if (s.rev === true) st.rev = true;
-        /* kroky servoosy: cíl, rychlost, zrychlení, zpomalení */
-        if (typeof s.posRef === "string") st.posRef = s.posRef;
-        for (const f of ["pos", "vel", "acc", "dec"]) if (Number.isFinite(s[f])) st[f] = s[f];
-        return st;
-      })
-      .filter(s => s.act === "wait" || s.dev);
-    if (Number.isFinite(pr.takt) && pr.takt > 0) p.meta.takt = pr.takt;
+    /* jádro (edit.ts applyAiProposal, stejně jako desktop): zachovaná zařízení si nechají všechna pole,
+       GUID a signály s adresou / komentářem; duplicitní označení od AI dostane další volné */
+    const r = applyAiProposal(prj(), pr);
+    if (!r.ok) { aiStatusMsg = r.error; render(); return; }
+    devMsg = { text: tr("Návrh převzat: {n} zařízení, {m} kroků sekvence.", { n: prj().devices.length, m: prj().program.seq.length }) +
+      (r.renamed.length ? " " + tr("Přejmenováno kvůli duplicitě nebo neplatnému označení: {list}.", { list: r.renamed.map(x => x.from + " → " + x.to).join(", ") }) : "") };
     S.step = 3; save(); render();
   }
   /* nabídka modelů: známé + načtené pro klíč; popisek vybraného (vlastní ID je dovoleno) */
@@ -501,37 +524,42 @@ export function makeSteps(ctx) {
       const k = clsSel.value;
       const opt = {};
       for (const ok of Object.keys(CLS[k].opts)) { const cb = c.querySelector("#opt_" + ok); if (cb) opt[ok] = cb.checked; }
-      const name = nameIn.value.trim() || nextName(p, k);
-      /* stejná pravidla jako přejmenování a kontrola návrhu (identifikátor, délka, jedinečnost bez ohledu na velikost) */
-      const nameErr = deviceNameProblem(p, name);
-      if (nameErr) { c.querySelector("#dErr").textContent = nameErr; nameIn.focus(); return; }
-      const rmin = numIn((c.querySelector("#dMin") || {}).value), rmax = numIn((c.querySelector("#dMax") || {}).value);
+      const err = msg => { c.querySelector("#dErr").textContent = msg; };
+      /* číslo z pole: prázdné = nezadáno; nesmysl = chyba (dřív se tiše zahodil) */
+      const raw = id => ((c.querySelector(id) || {}).value ?? "").trim();
+      const bad = [];
+      const val = (id, label) => { const s = raw(id); if (!s) return undefined; const n = Number(s); if (!Number.isFinite(n)) bad.push(label); return n; };
       const nd = {
-        id: p.nextId++, name, cls: k,
-        desc: c.querySelector("#dDesc").value.trim(), opt,
+        cls: k, name: nameIn.value.trim(), desc: c.querySelector("#dDesc").value, opt,
         unit: (c.querySelector("#dUnit") || {}).value || "",
-        rmin: rmin ?? 0,
-        rmax: rmax ?? 100,
+        rmin: val("#dMin", tr("rozsah")) ?? 0, rmax: val("#dMax", tr("rozsah")) ?? 100,
       };
       // nepovinná pole podle třídy: prázdné = nezadáno (klíč se vůbec nezaloží)
-      const val = id => numIn((c.querySelector(id) || {}).value);
-      const extra = { limLo: val("#dLimLo"), limHi: val("#dLimHi"), setpoint: val("#dSetp"),
-        rampS: val("#dRamp"), tol: val("#dTol"), tolTimeS: val("#dTolT"), selBits: val("#dBits"), travelS: val("#dTravel") };
-      for (const [f, v] of Object.entries(extra)) if (v !== undefined) nd[f] = f === "selBits" ? Math.min(6, Math.max(1, Math.round(v))) : v;   // bity 1–6 jako v tabulce
-      if (k === "PosDrive") nd.records = parseRecords((c.querySelector("#dRecs") || {}).value || "");
+      const extra = { limLo: "#dLimLo", limHi: "#dLimHi", setpoint: "#dSetp", rampS: "#dRamp", tol: "#dTol", tolTimeS: "#dTolT", selBits: "#dBits", travelS: "#dTravel" };
+      for (const [f, id] of Object.entries(extra)) { const v = val(id, tr(DEVICE_PARAM_LABEL[f])); if (v !== undefined) nd[f] = v; }
+      if (k === "PosDrive") {
+        const r = parseRecordsForm(raw("#dRecs"));
+        if (r.error) { err(r.error); return; }
+        nd.records = r.records;
+      }
       if (k === "Axis") {
         const ax = { ...(devDefaults("Axis").axis || {}) };
-        for (const f of AXIS_FIELDS) { const v = val("#dAx_" + f.key); if (v === undefined) delete ax[f.key]; else ax[f.key] = v; }
-        ax.positions = parseAxisPositions((c.querySelector("#dAxPos") || {}).value || "");
-        const drv = ((c.querySelector("#dAxDrive") || {}).value || "").trim();
+        for (const f of AXIS_FIELDS) { const v = val("#dAx_" + f.key, tr(f.label)); if (v === undefined) delete ax[f.key]; else ax[f.key] = v; }
+        const r = parseAxisPositionsForm(raw("#dAxPos"));
+        if (r.error) { err(r.error); return; }
+        ax.positions = r.positions;
+        const drv = raw("#dAxDrive");
         if (drv) ax.drive = drv;
-        nd.axis = ax; nd.rmin = 0; nd.rmax = 0;
-        if (!nd.unit) nd.unit = "mm";
+        nd.axis = ax;
       }
+      if (bad.length) { err(tr("Neplatné číslo v poli „{field}“.", { field: bad[0] })); return; }
       const role = (c.querySelector("#dRole") || {}).value;
       if (role && DO_ROLES[role]) nd.role = role;
-      p.devices.push(nd);
-      syncIO(p); save(); render();
+      /* jádro (edit.ts addDevice, stejně jako desktop): označení, rozsah a parametry se zkontrolují —
+         chybná hodnota se neuloží a hláška řekne proč */
+      const r = addDevice(p, nd);
+      if (!r.ok) { err(r.error); return; }
+      save(); render();
     });
     const list = c.querySelector("#dList");
     if (p.devices.length) {
@@ -614,49 +642,66 @@ export function makeSteps(ctx) {
         save(); refreshIssues();
       }));
       const NUM_F = "input[data-f=limLo],input[data-f=limHi],input[data-f=setpoint],input[data-f=rampS],input[data-f=tol],input[data-f=tolTimeS],input[data-f=selBits],input[data-f=travelS]";
+      /* parametry přes jádro (edit.ts setDeviceParams, stejně jako desktop): chybná hodnota (mez min ≥ max,
+         záporná rampa, bity mimo 1–6…) se neuloží — hláška a pole se vrátí na uloženou hodnotu */
+      const setParams = (id, params) => {
+        const d = devById(p, id);
+        if (!d) return;
+        const r = setDeviceParams(p, id, params);
+        if (!r.ok) { devMsg = { err: true, text: r.error }; S.devSel = id; render(); return; }
+        save();
+        /* počet bitů výběru záznamu mění signály pohonu → překreslit (počet signálů, kroky) */
+        if ((r.added || []).length || (r.removed || []).length) {
+          const parts = [];
+          if ((r.added || []).length) parts.push(tr("přidány signály: {tags}", { tags: r.added.join(", ") }));
+          if ((r.removed || []).length) parts.push(tr("odebrány signály: {tags}", { tags: r.removed.join(", ") }));
+          const more = parts.join("; ");
+          devMsg = { text: tr("Parametry {dev} uloženy.", { dev: d.name }) + " " + more[0].toUpperCase() + more.slice(1) + "." };
+          render(); return;
+        }
+        refreshIssues();
+      };
       list.querySelectorAll(NUM_F).forEach(i => i.addEventListener("change", e => {
-        const d = devById(p, +e.target.dataset.id), v = numIn(e.target.value), f = e.target.dataset.f;
-        if (!d) return;
-        if (v === undefined) delete d[f]; else d[f] = f === "selBits" ? Math.min(6, Math.max(1, Math.round(v))) : v;
-        /* počet bitů výběru záznamu mění signály pohonu */
-        if (f === "selBits") { syncIO(p); save(); render(); return; }
-        save();
+        const s = e.target.value.trim(), v = s === "" ? null : Number(s);
+        setParams(+e.target.dataset.id, { [e.target.dataset.f]: v });
       }));
+      const formErr = (id, text) => { devMsg = { err: true, text }; S.devSel = id; render(); };
       list.querySelectorAll("input[data-f=records]").forEach(i => i.addEventListener("change", e => {
-        const d = devById(p, +e.target.dataset.id);
-        if (!d) return;
-        d.records = parseRecords(e.target.value);
-        e.target.value = recordsText(d.records);
-        save();
+        const id = +e.target.dataset.id, r = parseRecordsForm(e.target.value);
+        if (r.error) { formErr(id, r.error); return; }
+        setParams(id, { records: r.records });
+        e.target.value = recordsText(r.records);
       }));
       /* servoosa: číselná pole konfigurace (prázdné = výchozí) a pojmenované polohy */
       list.querySelectorAll("input[data-ax]").forEach(i => i.addEventListener("input", () => { i.style.width = axWidth(i.value || i.placeholder); }));
       list.querySelectorAll("input[data-ax]").forEach(i => i.addEventListener("change", e => {
-        const d = devById(p, +e.target.dataset.id), v = numIn(e.target.value), f = e.target.dataset.ax;
-        if (!d) return;
-        d.axis = { ...(d.axis || {}) };
-        if (v === undefined) delete d.axis[f]; else d.axis[f] = v;
-        save(); refreshIssues();
+        const s = e.target.value.trim(), v = s === "" ? null : Number(s);
+        setParams(+e.target.dataset.id, { axis: { [e.target.dataset.ax]: v } });
       }));
       list.querySelectorAll("input[data-f=axpos]").forEach(i => i.addEventListener("change", e => {
-        const d = devById(p, +e.target.dataset.id);
-        if (!d) return;
-        d.axis = { ...(d.axis || {}), positions: parseAxisPositions(e.target.value) };
-        e.target.value = axisPositionsText(d.axis.positions);
-        save(); refreshIssues();
+        const id = +e.target.dataset.id, r = parseAxisPositionsForm(e.target.value);
+        if (r.error) { formErr(id, r.error); return; }
+        setParams(id, { axis: { positions: r.positions } });
+        e.target.value = axisPositionsText(r.positions);
       }));
       list.querySelectorAll("select[data-f=role]").forEach(s => s.addEventListener("change", e => {
-        const d = devById(p, +e.target.dataset.id);
-        if (!d) return;
-        if (DO_ROLES[e.target.value]) d.role = e.target.value; else delete d.role;
-        save();
+        setParams(+e.target.dataset.id, { role: DO_ROLES[e.target.value] ? e.target.value : null });
       }));
+      /* odebrání: zařízení použité v programu (kroky, E-stop, blokování) jen po potvrzení — jako desktop */
       list.querySelectorAll("button[data-del]").forEach(b => b.addEventListener("click", () => {
-        p.devices = p.devices.filter(d => d.id !== +b.dataset.del);
-        p.program.seq = p.program.seq.filter(s => s.act === "wait" || devById(p, s.dev));
-        if (p.program.estop && !devById(p, p.program.estop)) p.program.estop = "";
-        p.program.interlocks = (p.program.interlocks || []).filter(id => devById(p, id));
-        syncIO(p); save(); render();
+        const d = devById(p, +b.dataset.del);
+        if (!d) return;
+        const use = deviceUsage(p, d.id);
+        if (use.used) {
+          const parts = [];
+          if (use.steps) parts.push(trn(use.steps, N_("{n} krok sekvence|{n} kroky sekvence|{n} kroků sekvence")));
+          if (use.estop) parts.push(tr("vstup E-stop"));
+          if (use.lock) parts.push(tr("blokovací vstup"));
+          if (!window.confirm(tr("Zařízení {name} používá program: {what}. Odstraněním se z programu odebere i toto. Pokračovat?", { name: d.name, what: parts.join(", ") }))) return;
+        }
+        deleteDevice(p, d.id);
+        devMsg = { text: tr("Zařízení {name} odstraněno.", { name: d.name }) };
+        save(); render();
       }));
       // nálezy kontroly, které se týkají zařízení (duplicitní označení, meze, rozsah) — hned u tabulky
       const issuesBox = document.createElement("div");
@@ -668,10 +713,9 @@ export function makeSteps(ctx) {
           devIssues.map(i => "<li style='color:var(--" + (i.level === "error" ? "err" : i.level === "info" ? "muted" : "warn") + ")'><code>" + esc(i.where) + "</code> — " + esc(i.msg) + "</li>").join("") + "</ul></div>" : "";
       };
       refreshIssues();
-      list.querySelectorAll(NUM_F).forEach(i => i.addEventListener("change", refreshIssues));
       goToRow(list, S.devSel != null ? "tr[data-row='" + S.devSel + "']" : "", "input[data-f=name]");
       S.devSel = null;
-    } else list.innerHTML = "<p class='hint'>" + tr("Zatím žádná zařízení — přidej je výše, načti ukázku v kroku Projekt, nech si je navrhnout v kroku AI návrh, nebo použij Import níže.") + "</p>";
+    } else list.innerHTML = "<p class='hint'>" + tr("Zatím žádná zařízení — přidej je výše, otevři příklad stroje v kroku Projekt (Příklady strojů), nech si je navrhnout v kroku AI návrh, nebo použij Import níže.") + "</p>";
     importBlock(el);
   }
 
@@ -718,7 +762,7 @@ export function makeSteps(ctx) {
       <span class="stat">${tr("tagů <b>{n}</b>", { n: p.io.length })}</span>
       ${["DI", "DO", "AI", "AO"].map(d => "<span class='stat'>" + d + " <b>" + p.io.filter(e => e.dir === d).length + "</b></span>").join("")}
     </div>
-    ${ioMsg ? "<p class='errtxt' id='ioMsg' role='alert'>" + esc(ioMsg) + "</p>" : ""}
+    ${ioMsg ? (ioMsg.err ? "<p class='errtxt' id='ioMsg' role='alert'>" : "<p class='oktxt' id='ioMsg' role='status'>") + esc(ioMsg.text) + "</p>" : ""}
     <div class="tablewrap"><table><thead><tr><th>${tr("Zařízení")}</th><th>${tr("Směr")}</th><th>${tr("Tag")}</th><th>${tr("Adresa")}</th><th>NC</th><th>${tr("Komentář")}</th></tr></thead><tbody>${rows || "<tr><td colspan='6' class='hint'>" + tr("žádná zařízení") + "</td></tr>"}</tbody></table></div>
     <div class="row"><button class="small" id="bRenum">${tr("Přečíslovat adresy od nuly")}</button><span class="hint" style="margin:0">${tr("Adresy přiděluje sestava hardwaru (kanál modulu, zápis v Siemens notaci); ruční adresa kanál připne, adresa mimo sestavu zůstane s upozorněním. Pro ostatní platformy se převedou automaticky. NC = rozpínací kontakt (promítne se do schématu). Duplicity červeně.")}</span></div>
     ${issuesHtml}`);
@@ -732,21 +776,22 @@ export function makeSteps(ctx) {
            notace platformy hardwaru, směr, obsazenost) — neplatná se neuloží a pole se vrátí */
         const fn = { tag: setIoTag, addr: setIoAddr, cmt: setIoCmt }[e.target.dataset.f];
         const r = fn(p, en.key, e.target.value);
-        if (!r.ok) { ioMsg = r.error; S.ioSel = en.key; }
+        if (!r.ok) { ioMsg = { err: true, text: r.error }; S.ioSel = en.key; }
       }
       save(); render();
     }));
     goToRow(c, S.ioSel ? "tr[data-row='" + CSS.escape(S.ioSel) + "']" : "", "input[data-f=tag]");
     S.ioSel = null;
-    c.querySelector("#bRenum").addEventListener("click", () => { for (const e of p.io) e.addr = ""; autoAddr(p, true); save(); render(); });
+    /* přečíslování a oprava tagů v jádře (edit.ts) — krátká hláška s počtem jako desktop */
+    c.querySelector("#bRenum").addEventListener("click", () => {
+      const r = renumberIo(p);
+      ioMsg = { text: tr("Adresy přečíslovány od nuly ({n} signálů).", { n: r.count }) };
+      save(); render();
+    });
     const fix = c.querySelector("#bFixTags");
     if (fix) fix.addEventListener("click", () => {
-      const used = new Set();
-      for (const e of p.io) {
-        let t = sanitizeTag(e.tag), tt = t, n = 2;
-        while (used.has(tt)) tt = t + "_" + n++;
-        used.add(tt); e.tag = tt;
-      }
+      const r = fixIoTags(p);
+      ioMsg = { text: tr("Opraveno tagů: {n}", { n: r.count }) };
       save(); render();
     });
   }
@@ -1418,7 +1463,7 @@ export function makeSteps(ctx) {
       </ul>`)
       + H(tr("Jak pracovat s PLCdesk"), `
       <ol style='padding-left:20px'>
-        <li>${tr("<b>Projekt</b> — pojmenuj; nebo načti ukázku.")}</li>
+        <li>${tr("<b>Projekt</b> — pojmenuj; nebo otevři příklad stroje (Příklady strojů).")}</li>
         <li>${tr("<b>AI návrh</b> — popiš stroj, AI navrhne zařízení a sekvenci (API klíč v nastavení kroku).")}</li>
         <li>${tr("<b>Platformy</b> — vyber cílové systémy.")}</li>
         <li>${tr("<b>Zařízení</b> — dolaď sestavu; Import existujícího projektu je vedlejší volba dole.")}</li>
@@ -1432,6 +1477,13 @@ export function makeSteps(ctx) {
         <li>${tr("<b>Schválení</b> — odpovědná osoba schvaluje položky návrhu jménem, datem a poznámkou; návrhy ladění z ověření.")}</li>
         <li>${tr("<b>Oživení</b> — plán oživení po fázích, výsledky kroků OK / Nevyhovuje / N/A a protokol (MD, CSV).")}</li>
       </ol>`)
+      + H(tr("Klávesové zkratky"), `
+      <ul>
+        <li>${tr("<b>Ctrl+S</b> — uložit projekt: s vybraným kořenovým adresářem do projektové složky, jinak stažením souboru .plcstudio.json. Rozepsané pole se nejdřív uloží.")}</li>
+        <li>${tr("<b>Ctrl+O</b> — otevřít projekt ze souboru (neprázdný návrh se nejdřív zeptá).")}</li>
+        <li>${tr("<b>Alt+←</b> / <b>Alt+→</b> — předchozí / další krok.")}</li>
+        <li>${tr("<b>F1</b> — tato nápověda.")}</li>
+      </ul>`)
       + H(tr("Schvalování a oživení"), `
       <p>${tr("PLCdesk navrhuje, platí jen to, co odpovědná osoba schválí. Každá položka (zařízení, tabulka I/O, sekvence, E-stop a blokování, takt, výsledek ověření, bezpečnost, plán oživení) se schvaluje jménem, datem a poznámkou. Schválení platí pro obsah v okamžiku schválení — když se položka potom změní, ukáže se „změněno po schválení“ a je potřeba ji schválit znovu. Odznak v hlavičce ukazuje počet neschválených položek.")}</p>
       <p>${tr("Návrhy ladění (delší hlídací čas, meze měření, nesplněný takt…) se dají jedním klikem použít — tím se změní projekt, ale nic se neschválí. Oživení prochází stroj po fázích od rozvaděče po validaci bezpečnostních funkcí; ke každému kroku se zapíše výsledek, naměřená hodnota a kdo ho zapsal.")}</p>`);
@@ -1463,5 +1515,5 @@ export function makeSteps(ctx) {
     return h;
   }
 
-  return { rProjekt, rAI, rPlat, rDev, rIO, rSchema, rProg, rGen, rDocs, rBom, rHelp };
+  return { rProjekt, rAI, rPlat, rDev, rIO, rSchema, rProg, rGen, rDocs, rBom, rHelp, openProject, saveProject };
 }

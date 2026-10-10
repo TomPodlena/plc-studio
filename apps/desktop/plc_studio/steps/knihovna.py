@@ -254,9 +254,9 @@ def add_controls(app, parent) -> None:
 
     def add() -> None:
         t = types[max(cb.current(), 0)]
-        from .zarizeni import name_problem          # stejná pravidla jako ruční přidání
         name = var_name.get().strip()
-        problem = name_problem(app.prj, name) if name else None
+        # stejná pravidla jako ruční přidání (jádro edit.ts deviceNameProblem)
+        problem = app.core("deviceNameProblem", app.prj, name) if name else None
         if problem:
             app.set_status("⚠ " + problem, keep=True)
             return

@@ -223,10 +223,11 @@ class RuntimeTest(unittest.TestCase):
         self.assertIn("1", str(cm.exception))
         ok = zarizeni.read_params({"records": sv("1 = a @ 0; 2 = b"), "_app": self.app})
         self.assertEqual([r["no"] for r in ok["records"]], [1, 2])
-        for key, val in (("tol", "-1"), ("tolTimeS", "1e9"), ("selBits", "99"), ("travelS", "0"),
-                         ("rampS", "1e9"), ("setpoint", "1e39")):
-            with self.assertRaises(ValueError, msg=key):
-                zarizeni.read_params({key: sv(val), "_app": self.app})
+        # meze hodnot kontroluje jádro (deviceParamsProblem — formulář web i desktop)
+        for cls, key, val in (("PropValve", "tol", "-1"), ("PropValve", "tolTimeS", "1e9"), ("PosDrive", "selBits", "99"),
+                              ("PosDrive", "travelS", "0"), ("Vfd", "rampS", "1e9"), ("AnalogOut", "setpoint", "1e39")):
+            params = zarizeni.read_params({key: sv(val), "_app": self.app})
+            self.assertTrue(self.app.core("deviceParamsProblem", {"cls": cls}, params), key)
         self.assertEqual(zarizeni.read_params({"selBits": sv("3"), "_app": self.app})["selBits"], 3)
 
     def test_takt_invalid_is_reported(self):

@@ -26,16 +26,6 @@ ERRORS = {
     "rate_limited": N_("Příliš mnoho dotazů — zkus to za chvíli."),
     "invalid_json": N_("Odpověď se nepodařilo přečíst — zkus to znovu."),
 }
-ACTS = ("start", "stop", "open", "close", "wait", "waitOn", "waitOff",
-        "home", "posRecord", "setPressure", "setFlow",      # + pohony fáze 2a
-        "moveAbs", "moveRel", "velocity", "halt", "waitInPos")   # + servoosa (fáze 2b)
-WAIT_ACTS = ("waitOn", "waitOff")          # čekání na digitální vstup (TRUE / FALSE)
-DO_ROLES = ("run", "fault", "ready", "stopped", "lock", "auto")   # klíče DO_ROLES z jádra
-EXTRA = {"AnalogIn": ("limHi", "limLo"), "AnalogOut": ("setpoint",),
-         "Vfd": ("setpoint", "rampS"), "PropValve": ("setpoint", "rampS", "tol", "tolTimeS"),
-         "PosDrive": ("selBits",)}
-
-
 def _is_num(v) -> bool:
     """Konečné číslo (bool ani NaN se nepočítá)."""
     return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v \
@@ -43,86 +33,26 @@ def _is_num(v) -> bool:
 
 
 def apply_proposal(app) -> None:
-    """Převezme navrženou sestavu do projektu (nahradí zařízení i sekvenci)."""
+    """Převezme navrženou sestavu do projektu (nahradí zařízení i sekvenci) — jádro
+    ``applyAiProposal`` (edit.ts, stejně jako web): zařízení, které v návrhu zůstalo (stejné označení
+    a třída), si nechá všechna pole (GUID, travelS, libType, záznamy, pohon osy…) i svá I/O
+    s adresou, komentářem, NC a GUID; duplicitní / neplatné označení od AI dostane další volné."""
     pr = app.ai.get("last")
     if not pr or not pr["devices"]:
         return
+    res = app.edit("applyAiProposal", pr)
+    if not res.get("ok"):
+        app.set_status("⚠ " + (res.get("error") or ""), keep=True)
+        return
     p = app.prj
-    # zařízení, které v návrhu zůstalo (stejné označení a třída), si nechá identitu (GUID — opakovaný
-    # export do EPLAN), všechna pole, která AI neposlala (travelS, libType, records, selBits, drive
-    # osy…), i svá I/O s adresou, komentářem, NC a GUID (úpravy z kroku I/O)
-    old_dev = {(d["name"], d["cls"]): d for d in p["devices"]}
-    old_by_id = {d["id"]: d for d in p["devices"]}
-    old_io = p.get("io") or []
-    p["devices"], p["io"], p["nextId"] = [], [], 1
-    by_name = {}
-    for d in pr["devices"]:
-        name = d["name"] or app.core("nextName", p, d["cls"])
-        od = old_dev.get((name, d["cls"]))
-        nd = {k: v for k, v in json.loads(json.dumps(od)).items() if k != "id"} if od else {}
-        nd.update({"id": p["nextId"], "name": name, "cls": d["cls"], "desc": d["desc"],
-                   "opt": d["opt"], "unit": d["unit"], "rmin": d["rmin"], "rmax": d["rmax"]})
-        # meze měření, žádaná hodnota a role výstupu (aiNorm je pustí jen u správné třídy)
-        for key in EXTRA.get(d["cls"], ()):
-            if _is_num(d.get(key)):
-                nd[key] = d[key]
-        if d["cls"] == "DO" and d.get("role") in DO_ROLES:
-            nd["role"] = d["role"]
-        if d["cls"] == "PosDrive":
-            if isinstance(d.get("records"), list):
-                nd["records"] = d["records"]
-            if _is_num(d.get("travelS")):
-                nd["travelS"] = d["travelS"]
-        if isinstance(d.get("libType"), str) and d["libType"]:
-            nd["libType"] = d["libType"]          # vlastní typ firemní knihovny
-        if d["cls"] == "Axis" and isinstance(d.get("axis"), dict):   # konfigurace osy (aiNorm ji pročistil)
-            # pole, která AI neposlala (pohon, ryv…), zůstanou z původní konfigurace
-            nd["axis"] = {**(nd.get("axis") or {}), **d["axis"]}
-        p["nextId"] += 1
-        p["devices"].append(nd)
-        by_name[name] = nd
-    # I/O zařízení, které zůstalo: převzít (jen nové id a klíč); změněný popis se propíše do komentáře
-    for e in old_io:
-        od = old_by_id.get(e.get("devId"))
-        nd = by_name.get(od["name"]) if od else None
-        if nd is None or nd["cls"] != od["cls"]:
-            continue
-        ne = dict(e, devId=nd["id"], key=f"{nd['id']}:{e['sig']}")
-        cmt = ne.get("cmt")
-        if od.get("desc") and nd.get("desc") and nd["desc"] != od["desc"] and isinstance(cmt, str) \
-                and cmt.startswith(od["desc"]):
-            ne["cmt"] = nd["desc"] + cmt[len(od["desc"]):]
-        p["io"].append(ne)
-    app.sync()
-    p = app.prj
-    p["program"]["estop"] = by_name.get(pr["estop"], {}).get("id", "")
-    p["program"]["interlocks"] = [by_name[n]["id"] for n in pr.get("interlocks", [])
-                                  if n in by_name and by_name[n]["cls"] == "DI"]
-    seq = []
-    for s in pr["seq"]:
-        act = s["act"] if s["act"] in ACTS else "wait"
-        dev = by_name.get(s["dev"])
-        wait_di = act in WAIT_ACTS
-        # čekání jen na zařízení třídy DI; přechod je vždy zpětné hlášení (stav vstupu)
-        dev_id = dev["id"] if dev and act != "wait" and (not wait_di or dev["cls"] == "DI") else 0
-        step = {"dev": dev_id, "act": act,
-                "cond": "fbk" if wait_di else s["cond"], "timeS": s["timeS"]}
-        for key in ("sp", "rec", "pos", "vel", "acc", "dec"):   # parametry kroků pohonů a osy (aiNorm je pustí jen platné)
-            if _is_num(s.get(key)):
-                step[key] = s[key]
-        if isinstance(s.get("posRef"), str) and s["posRef"]:
-            step["posRef"] = s["posRef"]
-        if s.get("rev") is True:
-            step["rev"] = True
-        if step["act"] == "wait" or step["dev"]:
-            seq.append(step)
-    p["program"]["seq"] = seq
-    takt = pr.get("takt")
-    if _is_num(takt) and takt > 0:
-        p["meta"]["takt"] = takt
+    msg = _("Návrh převzat: {n} zařízení, {m} kroků sekvence.", n=len(p["devices"]), m=len(p["program"]["seq"]))
+    if res.get("renamed"):
+        msg += " " + _("Přejmenováno kvůli duplicitě nebo neplatnému označení: {list}.",
+                       list=", ".join(f"{r['from']} → {r['to']}" for r in res["renamed"]))
     app.step = 3
     app.save()
     app.render()
+    app.set_status(msg, keep=bool(res.get("renamed")))
 
 
 def _turn_lines(app, turn: dict) -> list[tuple[str, str]]:
@@ -293,6 +223,8 @@ def render(app, parent) -> None:
                 seq_frm, seq_txt = scrolled_text(prop, readonly=True, height=2)
                 seq_frm.pack(fill="x", pady=(4, 0))
                 set_text(seq_txt, seq_text)
+        if _is_num(pr.get("takt")):              # navržený takt (převzetím se zapíše do projektu)
+            wrap_label(prop, _("Takt: {t} s", t=f"{pr['takt']:g}"), pady=(4, 0))
         row = ttk.Frame(prop)
         row.pack(fill="x", pady=(6, 0))
         ttk.Button(row, text=_("Převzít návrh (nahradí zařízení)"), style="Accent.TButton",

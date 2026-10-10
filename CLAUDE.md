@@ -22,7 +22,10 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
   firemní knihovna (`library.ts`), exporty SISTEMA (`sistema.ts`) a EPLAN (`eplan.ts`), styl kódu OOP
   (`codegen_oop.ts`, profily CODESYS WAGO / Delta AX), ruční úpravy projektu (`edit.ts`: přejmenování zařízení
   s výchozími tagy, volby / rozsah / popis se `syncIO`, úprava / vložení / duplikace kroku, tag / komentář /
-  adresa signálu s kontrolou — klienti web i desktop jen volají tyto funkce, logiku úprav nekopírují).
+  adresa signálu s kontrolou; přidání / parametry / smazání zařízení s kontrolou hodnot `deviceParamsProblem`,
+  použití zařízení `deviceUsage`, převzetí návrhu AI `applyAiProposal`, `renumberIo` / `fixIoTags`, `projectIsEmpty`
+  pro potvrzení nahrazení — klienti web i desktop jen volají tyto funkce, logiku úprav nekopírují).
+  Zkratky obou klientů: Ctrl+S / Ctrl+O projekt, Alt+←/→ krok, F1 Nápověda.
   Jádro musí běžet v prohlížeči i Node — žádné závislosti nepřidávat.
 - `apps/web` — aplikace: statické HTML + ES moduly nad `packages/core/dist` (bez bundleru,
   záměrně — budoucí přechod na Vite/React je OK, ale core zůstává oddělené).
@@ -57,6 +60,7 @@ python -m plc_studio --smoke               # projde všechny kroky a skončí
 python scripts/i18n.py check               # texty v kódu × katalogy překladů (viz Vícejazyčnost)
 node scripts/check_samples.mjs [soubor -v]  # příklady samples/: generování 8 platforem + ověření simulací
 node --test scripts/samples.test.mjs        # totéž jako regresní test (~30 s)
+node scripts/samples_index.mjs [--check]    # samples/index.json pro výběr příkladů na webu (po přidání vzoru)
 node scripts/golden.mjs [--code] [--dump DIR]  # výstupy generátoru × referenční otisky (viz Mezivrstva)
 node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (nová platforma / styl kódu)
 python scripts/build_verification.py        # data/verification.json → verification_data.ts (viz Ověření platforem)
