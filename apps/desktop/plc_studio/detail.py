@@ -77,6 +77,12 @@ class DevicePanel(ttk.Frame):
     # --- pomůcky -------------------------------------------------------------------
 
     def _layout(self, _e=None) -> None:
+        # výška panelu se změnila (okno / posuvná stránka kroku dorovnala rozvržení) — editor signálu
+        # znovu do výřezu, ať tlačítko Uložit nezůstane pod okrajem
+        h = self._canvas.winfo_height()
+        if getattr(self, "_editor", None) is not None and getattr(self, "_seen_h", None) not in (None, h):
+            self._seen_h = None
+            self.after_idle(lambda: self.see_editor(focus=False))
         need = self.body.winfo_reqheight()
         self._canvas.configure(scrollregion=(0, 0, self._inner_w, need))
         if need > self._canvas.winfo_height() > 1:
@@ -113,13 +119,14 @@ class DevicePanel(ttk.Frame):
         if self._editor is not None:
             self.after_idle(self.see_editor)
 
-    def see_editor(self) -> None:
+    def see_editor(self, focus: bool = True) -> None:
         """Posune obsah panelu tak, aby byl editor signálu celý vidět (i Uložit), a dá kurzor do Tagu."""
         box = self._editor
         if box is None or not box.winfo_exists():
             return
         self.update_idletasks()
         self._layout()
+        self._seen_h = self._canvas.winfo_height()
         y0, w = 0, box
         while w is not None and w is not self.body:      # poloha editoru v obsahu panelu
             y0 += w.winfo_y()
@@ -134,7 +141,7 @@ class DevicePanel(ttk.Frame):
                 top = max(0, y0 - 30)
             self._canvas.yview_moveto(top / need)
         first = getattr(box, "first_entry", None)
-        if first is not None:
+        if first is not None and focus:
             first.focus_set()
             first.icursor("end")
 

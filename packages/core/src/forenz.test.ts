@@ -6,7 +6,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { blankProject, syncIO, validateProject, type Project, type PlatformKey } from "./model.js";
+import { blankProject, syncIO, validateProject, devDefaults, type Project, type PlatformKey, type SeqStep } from "./model.js";
+import { setIoTag, renameDevice, insertStep, updateStep, stepProblem, addDevice, applyAiProposal, deviceParamsProblem, setDeviceParams, setDeviceRange } from "./edit.js";
 import { genFor } from "./codegen.js";
 import { setLang } from "./i18n.js";
 import { sampleSmall } from "./samples.js";
@@ -463,4 +464,211 @@ test("odolnost desktop F: revize s poškozeným zmrazeným obsahem — dokumenta
   p.revisions = [{ id: "A", date: "x", by: "me", hash: "h", snapshot: "not json", approvalsAt: {}, note: "" } as never];
   docFiles(p);                                            // výjimka = pád testu
   allProjectFiles(p);
+});
+
+/* ======================================================================================
+ * forenz2: forenzní test jádra, kolo 2 (2026-10-10) — nálezy N1–N13 (apps/site/_shots/forenz2/core/ZPRAVA.md)
+ * ====================================================================================== */
+
+test("forenz2 N1: ověření s odhadem výpočtu nad limitem neběží (neověřeno), validace to řekne, E-stop čekání blokuje", async () => {
+  setLang("cs");
+  const { verifyProject, simBlockers, verifyCost, VERIFY_MAX_COST_S } = await import("./sim.js");
+  const { emulateRun } = await import("./emu/index.js");
+  const p = sampleSmall();
+  assert.ok(verifyCost(p).seconds < 5 && !simBlockers(p).length);
+  for (const s of p.program.seq) if (s.cond === "fbk") s.timeS = 80000;   // hlídací časy 22 h: zamrzlé hlášení čeká celý čas
+  assert.ok(verifyCost(p).seconds > VERIFY_MAX_COST_S);
+  assert.ok(simBlockers(p).some(b => /odhad výpočtu ověření/.test(b)));
+  assert.ok(validateProject(p).some(i => i.level === "warn" && /Ověření simulací by trvalo/.test(i.msg)));
+  const t0 = Date.now();
+  const v = verifyProject(p);
+  assert.equal(v.ok, false); assert.match(v.checks[0].title, /Neověřeno/);
+  assert.match(emulateRun(p, "codesys", { scope: "quick" }).skipped || "", /oprav chyby návrhu/);
+  assert.ok(Date.now() - t0 < 5000);
+  /* čekání na vstup E-stopu = událost za scan (OOM u dlouhých kroků) → neověřovat */
+  const q = sampleSmall();
+  q.program.seq.push({ dev: q.program.estop as number, act: "waitOn", cond: "fbk", timeS: 5 });
+  assert.ok(simBlockers(q).some(b => /E-stopu/.test(b)));
+});
+
+test("forenz2 N1: kontrolní body ověření sdílejí záznam se zdrojem (paměť) a navazují z dřívějšího bodu", async () => {
+  const { Checkpoints, simulate } = await import("./sim.js");
+  const p = sampleSmall();
+  const cps = new Checkpoints(p);
+  const late = cps.at(6), early = cps.at(2);            // zpět v čase: naváže z bodu ≤ 2 s (tady od začátku)
+  const again = cps.at(4);                              // dopředu z bodu 2 s
+  for (const [cp, t] of [[late, 6], [early, 2], [again, 4]] as const) {
+    const opts = { faults: [{ kind: "estop" as const, at: t, release: t + 1 }], maxTime: t + 2 };
+    const strip = (r: ReturnType<typeof simulate>) => JSON.stringify([r.frames.map(f => [f.t, f.step, f.io]), r.events, r.steps]);
+    assert.equal(strip(simulate(p, opts, cp)), strip(simulate(p, opts)), "t = " + t);
+  }
+});
+
+test("forenz2 N2: tag = klíčové slovo / standardní blok / operand / jméno generované proměnné = chyba, setIoTag odmítne", () => {
+  setLang("cs");
+  const base = sampleSmall();
+  base.platforms = ["siemens", "mitsubishi", "omron"];   // vyhrazená slova a operandy platforem jen pro platformy projektu
+  const key = base.io.find(e => e.dir === "DI")!.key;
+  for (const t of ["END_IF", "MOD", "TON", "R_TRIG", "reset", "seqStep", "SEQSTEP", "enable", "modeAuto", "cmdAck", "instM1", "instM1_outRun",
+    "MAIN", "GVL_IO", "FB_Motor", "seqRun_M1", "manRun_M1", "tonSeq10", "M1", "Y1", "D100", "P_First"]) {
+    const p = JSON.parse(JSON.stringify(base)) as Project;
+    const r = setIoTag(p, key, t);
+    assert.equal(r.ok, false, t);
+    p.io.find(e => e.key === key)!.tag = t;
+    assert.ok(validateProject(p).some(i => i.level === "error" && i.where === t), t);
+  }
+  /* běžná jména dál projdou */
+  for (const t of ["S1_start", "Q", "PT", "rawMax", "Status", "value"]) {
+    const p = JSON.parse(JSON.stringify(base)) as Project;
+    assert.equal(setIoTag(p, key, t).ok, true, t);
+    assert.ok(!validateProject(p).some(i => i.level === "error" && i.where === t), t);
+  }
+  /* „S1“, „B1“ (import TIA) jsou bez Mitsubishi v projektu v pořádku */
+  const sie = JSON.parse(JSON.stringify(base)) as Project; sie.platforms = ["siemens"];
+  assert.equal(setIoTag(sie, key, "S1").ok, true);
+  assert.equal(setIoTag(sie, key, "reset").ok, true);
+  assert.equal(setIoTag(sie, key, "END_CASE").ok, false);
+  /* kód s kolizí se nepřeloží — validace ji proto musí hlásit (Omron: generovaný seqStep i tag) */
+  const p = JSON.parse(JSON.stringify(base)) as Project;
+  p.io.find(e => e.key === key)!.tag = "seqStep";
+  assert.ok(findings(p, "omron").length > 0);
+  /* označení zařízení, z něhož by vzniklo jméno, které už má tag */
+  const q = JSON.parse(JSON.stringify(base)) as Project;
+  q.io.find(e => e.key === key)!.tag = "instX9";
+  const m1 = q.devices.find(d => d.name === "M1")!;
+  assert.equal(renameDevice(q, m1.id, "X9").ok, false);
+  assert.equal(renameDevice(q, m1.id, "X8").ok, true);
+});
+
+test("forenz2 N3: proporcionální ventil bez rampy (rampS = 0) — matice odchylku vyzkouší a poruchu najde", async () => {
+  setLang("cs");
+  const { verifyProject } = await import("./sim.js");
+  const p = blankProject(); p.platforms = ["codesys"];
+  const es = addDevice(p, { cls: "DI", desc: "E-stop" }).id!; p.program.estop = es;
+  const m = addDevice(p, { cls: "Motor" }).id!;
+  const y = addDevice(p, { cls: "PropValve", ...devDefaults("PropValve"), rampS: 0 }).id!;
+  insertStep(p, -1, { dev: m, act: "start", cond: "fbk", timeS: 5 });
+  insertStep(p, 0, { dev: y, act: "setPressure", cond: "fbk", timeS: 10, sp: 5 });
+  insertStep(p, 1, { dev: 0, act: "wait", cond: "time", timeS: 3 });
+  insertStep(p, 2, { dev: y, act: "setPressure", cond: "fbk", timeS: 10, sp: 0 });
+  insertStep(p, 3, { dev: m, act: "stop", cond: "fbk", timeS: 5 });
+  const v = verifyProject(p);
+  const dev = v.matrix.rows.map(r => r.cells.dev).filter(c => c && c.ok !== null);
+  assert.ok(dev.length >= 2, "odchylka se zkouší v krocích ventilu");
+  assert.ok(dev.every(c => c.ok === true), dev.map(c => c.detail).join(" | "));
+  assert.equal(v.ok, true);
+});
+
+test("forenz2 N4: krok nesmí čekat na vstup E-stopu (stepProblem, validace)", () => {
+  setLang("cs");
+  const p = sampleSmall();
+  const es = p.program.estop as number;
+  assert.match(stepProblem(p, { dev: es, act: "waitOn", cond: "fbk", timeS: 5 }) || "", /E-stopu/);
+  assert.equal(insertStep(p, 0, { dev: es, act: "waitOff", cond: "fbk", timeS: 5 }).ok, false);
+  p.program.seq.push({ dev: es, act: "waitOn", cond: "fbk", timeS: 5 });
+  assert.ok(errors(p).some(m => /čeká na vstup E-stopu/.test(m)));
+});
+
+test("forenz2 N5: E-stop / blokování na zařízení jiné třídy = chyba validace, generátor (i OOP) nespadne", () => {
+  setLang("cs");
+  const p = load11();
+  const pd = p.devices.find(d => d.cls === "PosDrive")!;
+  p.program.estop = pd.id;
+  assert.ok(errors(p).some(m => /musí být digitální vstup/.test(m)));
+  genFor(p, "codesys");
+  genFor({ ...p, codeStyle: "oop" }, "codesys");          // výjimka = pád testu (dřív TypeError v seqMembers)
+  const q = load11();
+  q.program.interlocks = [q.devices.find(d => d.cls === "Vfd")!.id];
+  assert.ok(errors(q).some(m => /Blokovací vstup .* musí být digitální vstup/.test(m)));
+});
+
+test("forenz2 N6: akce, která nepatří třídě — AI návrh ji vynechá s hlášením, validace = chyba", () => {
+  setLang("cs");
+  const p = blankProject();
+  const r = applyAiProposal(p, {
+    devices: [{ name: "M1", cls: "Motor" }, { name: "B1", cls: "AnalogIn" }, { name: "S1", cls: "DI" }],
+    estop: "S1",
+    seq: [{ dev: "M1", act: "start", timeS: 3 }, { dev: "B1", act: "start", timeS: 3 }, { dev: "M1", act: "open", timeS: 3 },
+      { dev: "S1", act: "waitOn", timeS: 3 }, { dev: "X7", act: "start", timeS: 3 }],
+  });
+  assert.equal(r.ok, true);
+  assert.deepEqual(p.program.seq.map(s => s.act), ["start"]);
+  assert.equal(r.dropped!.length, 4);
+  assert.ok(r.dropped!.some(m => /neplatí pro zařízení B1/.test(m)) && r.dropped!.some(m => /E-stopu S1/.test(m)) && r.dropped!.some(m => /X7/.test(m)));
+  p.program.seq.push({ dev: p.devices.find(d => d.name === "B1")!.id, act: "start", cond: "fbk", timeS: 3 });
+  assert.ok(errors(p).some(m => /Akce „start“ neplatí pro zařízení B1/.test(m)));
+});
+
+test("forenz2 N7: šablona knihovny se syntaktickou chybou — chyba a vestavěný blok na všech platformách", async () => {
+  setLang("cs");
+  const { blankLibrary, attachLibrary, builtinTemplate, validateFbTemplate } = await import("./library.js");
+  const st = builtinTemplate("Motor", "st");
+  for (const bad of [st.replace(/END_FUNCTION_BLOCK/, "(* neuzavreny komentar\nEND_FUNCTION_BLOCK"),
+    st.replace(/END_VAR\n/, "END_VAR\n    i : INT;\n")]) {
+    const t = { id: "Acme_bad", cls: "Motor" as const, dialect: "st" as const, source: bad };
+    assert.ok(validateFbTemplate(t).some(i => i.level === "error" && /Syntaktická chyba/.test(i.msg)));
+    const p = sampleSmall(); p.platforms = ["codesys", "beckhoff", "mitsubishi", "omron", "unitronics"];
+    const lib = blankLibrary("ACME"); lib.fbTemplates = [t];
+    attachLibrary(p, lib, false);
+    for (const plat of p.platforms) assert.deepEqual(findings(p, plat), [], plat);
+  }
+  assert.ok(!validateFbTemplate({ id: "ok", cls: "Motor", dialect: "st", source: st }).some(i => i.level === "error"));
+});
+
+test("forenz2 N8: meze analogu mimo měřicí rozsah = chyba (úprava parametrů, rozsahu i validace)", () => {
+  setLang("cs");
+  const p = sampleSmall();
+  const b1 = p.devices.find(d => d.name === "B1")!;        // 0–250 bar
+  assert.match(deviceParamsProblem(b1, { limLo: 300 }) || "", /měřicím rozsahu/);
+  assert.equal(setDeviceParams(p, b1.id, { limLo: 10, limHi: 200 }).ok, true);
+  assert.equal(setDeviceRange(p, b1.id, { rmin: 0, rmax: 5 }).ok, false);
+  b1.rmax = 5;
+  assert.ok(errors(p).some(m => /měřicím rozsahu/.test(m)));
+});
+
+test("forenz2 N9: jediný pohon proporcionální ventil / polohovací pohon — ruční režim × E-stop bez falešného ✖", async () => {
+  setLang("cs");
+  const { verifyProject } = await import("./sim.js");
+  for (const [cls, step] of [["PropValve", { act: "setPressure", sp: 50 }], ["PosDrive", { act: "home" }]] as const) {
+    const p = blankProject(); p.platforms = ["codesys"];
+    const es = addDevice(p, { cls: "DI", desc: "E-stop" }).id!; p.program.estop = es;
+    const id = addDevice(p, { cls }).id!;
+    assert.equal(insertStep(p, -1, { dev: id, cond: "fbk", timeS: 10, ...step } as Partial<SeqStep>).ok, true);
+    const row = verifyProject(p).matrix.rows.find(r => r.step === -2)!;
+    assert.equal(row.cells.estop.ok, true, cls + ": " + row.cells.estop.detail);
+  }
+});
+
+test("forenz2 N11: import dlouhého jména POU je lineární", () => {
+  const t0 = Date.now();
+  inferProject(extractFiles([{ name: "b.scl", text: "FUNCTION_BLOCK " + "A".repeat(100000) }]));
+  inferProject(extractFiles([{ name: "b.st", text: "PROGRAM " + "A".repeat(100000) }]));
+  assert.ok(Date.now() - t0 < 3000, "dřív 29 s");
+});
+
+test("forenz2 N12: osa na platformě, která ji negeneruje — export HMI se nevyrábí", async () => {
+  const { hmiFiles } = await import("./hmi_export.js");
+  const p = blankProject(); p.platforms = ["mitsubishi", "schneider", "codesys"];
+  const ax = addDevice(p, { cls: "Axis" }).id!;
+  insertStep(p, -1, { dev: ax, act: "home", cond: "fbk", timeS: 10 });
+  assert.deepEqual(hmiFiles(p, "mitsubishi"), {});
+  assert.deepEqual(hmiFiles(p, "schneider"), {});
+  assert.ok(Object.keys(hmiFiles(p, "codesys")).length > 0);
+});
+
+test("forenz2 N13: krok — jen pole, která akce používá; updateStep bez akce = částečná změna", () => {
+  setLang("cs");
+  const p = load11();
+  const vfd = p.devices.find(d => d.cls === "Vfd")!;
+  insertStep(p, -1, { dev: 0, act: "wait", cond: "time", timeS: 1, vel: NaN, sp: Infinity, rec: 3 } as Partial<SeqStep>);
+  assert.deepEqual(p.program.seq[0], { dev: 0, act: "wait", cond: "time", timeS: 1 });
+  insertStep(p, -1, { dev: vfd.id, act: "stop", cond: "fbk", timeS: 1, sp: 20, rev: true, pos: 3 } as Partial<SeqStep>);
+  assert.deepEqual(p.program.seq[0], { dev: vfd.id, act: "stop", cond: "fbk", timeS: 1 });
+  insertStep(p, -1, { dev: vfd.id, act: "start", cond: "fbk", timeS: 5, sp: 20, rec: 4 } as Partial<SeqStep>);
+  assert.deepEqual(p.program.seq[0], { dev: vfd.id, act: "start", cond: "fbk", timeS: 5, sp: 20 });
+  assert.equal(updateStep(p, 0, { timeS: 7 }).ok, true);                     // jen čas: akce a žádaná zůstanou
+  assert.deepEqual(p.program.seq[0], { dev: vfd.id, act: "start", cond: "fbk", timeS: 7, sp: 20 });
+  const pv0 = p.devices.find(d => d.cls === "PropValve")!;
+  const r = updateStep(p, 0, { dev: pv0.id });                                // start neplatí pro ventil — srozumitelná chyba
+  assert.equal(r.ok, false); assert.match(r.error || "", /neplatí/);
 });

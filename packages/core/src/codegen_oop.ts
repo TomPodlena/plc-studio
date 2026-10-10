@@ -242,11 +242,16 @@ export function oopProgram(prj: Project, plat: PlatformKey): OopProgram {
 
 /** Výstupy instancí, které čtou podmínky kroků (pohony fáze 2a), s typem portu — vstupy FB_Sequence. */
 export function seqMembers(ir: IrProgram): Array<{ inst: string; port: string; type: IrType }> {
-  const clsOf = new Map(ir.devices.flatMap(d => d.kind === "fb" ? [[d.inst, d.cls] as [string, IrFbClass]] : []));
+  /* E-stop / blokování na zařízení s blokem (validace = chyba) nesmí generátor shodit: blok je v `alt` */
+  const clsOf = new Map(ir.devices.flatMap(d => {
+    const fb = d.kind === "fb" ? d : d.kind === "enableInput" && d.alt.kind === "fb" ? d.alt : null;
+    return fb ? [[fb.inst, fb.cls] as [string, IrFbClass]] : [];
+  }));
   const out: Array<{ inst: string; port: string; type: IrType }> = [];
   const walk = (e: IrExpr): void => {
     if (e.k === "member") {
-      if (!out.some(m => m.inst === e.inst && m.port === e.port)) out.push({ inst: e.inst, port: e.port, type: irPortTypes(clsOf.get(e.inst)!)[e.port] });
+      const cls = clsOf.get(e.inst);
+      if (cls && !out.some(m => m.inst === e.inst && m.port === e.port)) out.push({ inst: e.inst, port: e.port, type: irPortTypes(cls)[e.port] });
     } else if (e.k === "not" || e.k === "paren") walk(e.e);
     else if (e.k === "and" || e.k === "or") e.args.forEach(walk);
     else if (e.k === "cmp") { walk(e.a); walk(e.b); }
@@ -284,7 +289,11 @@ function oopMain(prj: Project, plat: PlatformKey, ir: IrProgram, c: StCtx): OopP
   const { inst, calls, free } = renderWiring(ir, c, { call });
   const decl = renderDecls(ir, c, d => d.group !== "seqOut" && d.group !== "timer");
   const vars: OopVar[] = [{ name: C.enable, type: "BOOL" }];
-  const clsOf = new Map(ir.devices.flatMap(d => d.kind === "fb" ? [[d.inst, d.cls] as [string, IrFbClass]] : []));
+  /* E-stop / blokování na zařízení s blokem (validace = chyba) nesmí generátor shodit: blok je v `alt` */
+  const clsOf = new Map(ir.devices.flatMap(d => {
+    const fb = d.kind === "fb" ? d : d.kind === "enableInput" && d.alt.kind === "fb" ? d.alt : null;
+    return fb ? [[fb.inst, fb.cls] as [string, IrFbClass]] : [];
+  }));
   for (const i of inst) vars.push({ name: i.n, type: OOP_CLASSES[clsOf.get(i.n)!] });
   if (ir.seq) vars.push({ name: M.seq, type: OOP_SEQ });
   if (n) {

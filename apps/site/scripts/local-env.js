@@ -14,7 +14,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 export function sqliteD1(file = ":memory:") {
   const db = new DatabaseSync(file);
   // schema.sql + migrace spravy zakazniku (schema_admin.sql) a beta testeru (schema_beta.sql), stejne poradi jako pri nasazeni
-  for (const f of ["schema.sql", "schema_admin.sql", "schema_beta.sql"]) {
+  for (const f of ["schema.sql", "schema_admin.sql", "schema_beta.sql", "schema_ratelimit.sql"]) {
     const schema = fs.readFileSync(path.join(ROOT, f), "utf-8");
     for (const stmt of schema.split(";")) if (stmt.replace(/--.*$/gm, "").trim()) db.exec(stmt + ";");
   }

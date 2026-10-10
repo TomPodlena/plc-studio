@@ -169,6 +169,28 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["PLCSTUDIO_HOME"] = tempfile.mkdtemp(prefix="plcstudio_smoke_")
 
     theme.set_app_id()   # před tk.Tk(), jinak Windows okno seskupí s jinými pythonw
+    if not args.smoke:
+        # jedna instance na složku stavu (M5): druhé spuštění předá soubor první instanci
+        # a state.json nepřepíše
+        from . import instance
+        from .app import state_dir
+        home = state_dir()
+        if not instance.acquire(home):
+            if instance.hand_over(home, args.project):
+                return 0
+            instance.load_lang(home)
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showwarning(_("PLCdesk už běží"), _(
+                "PLCdesk už běží, ale nereaguje. Rozpracovaný návrh patří běžícímu oknu — zavři ho "
+                "(případně ukonči proces) a spusť aplikaci znovu."))
+            root.destroy()
+            return 3
+        try:
+            (home / instance.REQUEST).unlink(missing_ok=True)     # stará žádost z pádu
+        except OSError:
+            pass
+    theme.set_dpi_aware()  # před tk.Tk(): ostré písmo při škálování Windows (L8)
     root = tk.Tk()
     try:
         app = App(root)
@@ -178,8 +200,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if args.smoke:
         return _smoke(app, Path(args.shots) if args.shots else None)
+    from . import instance
+    instance.watch(app)
     if args.project:
-        app.open_project(args.project)
+        # až nad zobrazeným oknem; neprázdný návrh se nejdřív zeptá (M5)
+        root.after(200, lambda: app.open_external(args.project))
     # kontrola aktualizací na pozadí (nejvýš jednou denně, bez sítě tiše nic) — ne v --smoke
     root.after(2000, lambda: updates.start_check(app))
     # licence: kontrola stavu na pozadí (nejvýš jednou denně, bez sítě beze změny) — ne v --smoke

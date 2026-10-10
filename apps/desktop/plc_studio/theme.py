@@ -80,6 +80,31 @@ def set_app_id() -> None:
         pass
 
 
+def set_dpi_aware() -> None:
+    """Proces jako „DPI-aware“ — volat PŘED ``tk.Tk()`` (forenzní test L8). Bez toho Windows při
+    škálování (125 %, 4K se 150–200 %) okno bitmapově zvětšuje a písmo je rozmazané. Tk pak písmo
+    v bodech kreslí ostře ve skutečném rozlišení; rozměry okna v pixelech (výchozí a minimální
+    velikost) přepočítá ``scale`` (App). ``PLCSTUDIO_DPI=0`` = vypnout (staré chování)."""
+    if os.name != "nt" or os.environ.get("PLCSTUDIO_DPI") == "0":
+        return
+    try:
+        import ctypes
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)        # PROCESS_SYSTEM_DPI_AWARE
+        except (AttributeError, OSError):
+            ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:  # noqa: BLE001 — starší Windows: jako dřív
+        pass
+
+
+def scale(win) -> float:
+    """Poměr skutečného rozlišení k 96 dpi (1.0 bez DPI awareness / při 100 %)."""
+    try:
+        return max(1.0, float(win.winfo_fpixels("1i")) / 96.0)
+    except Exception:  # noqa: BLE001
+        return 1.0
+
+
 def setup_window(win, title: str | None = None, *, topmost: bool = False) -> None:
     """Titulek, ikona okna/taskbaru a „nad okny" — společné chrome."""
     if title:

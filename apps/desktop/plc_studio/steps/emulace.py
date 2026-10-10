@@ -278,7 +278,7 @@ def _detail(app, parent, res: dict, pl: str, ui: dict) -> None:
     btns.pack(fill="x", pady=(2, 0))
     src_btn = ttk.Button(btns, text=_("Zdroj pravidla ↗"))
     code_lbl = ttk.Label(t1, text="", style="Section.TLabel")
-    code_frm, code = scrolled_text(t1, mono=True, readonly=True, height=10)
+    code_frm, code = scrolled_text(t1, mono=True, readonly=True, height=6)
     if shown:                                   # náhled kódu jen když je co ukázat
         code_lbl.pack(anchor="w", pady=(6, 2))
         code_frm.pack(fill="both", expand=True)

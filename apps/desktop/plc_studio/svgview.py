@@ -177,7 +177,7 @@ class SvgView(ttk.Frame):
     značky z ``MARKS`` (nebo None); ``band=True`` podloží vybrané signály pruhem
     (listy zapojení); ``overlay(canvas, scale)`` dokreslí vlastní prvky."""
 
-    def __init__(self, parent, *, height: int = 320, on_click=None, marker=None,
+    def __init__(self, parent, *, height: int = 200, on_click=None, marker=None,
                  band: bool = False, overlay=None):
         super().__init__(parent)
         self._doc: dict | None = None

@@ -6,6 +6,12 @@ import * as biz from "../web/src/biz_view.js";
 import * as core from "../../packages/core/dist/index.js";
 
 export const BIZ_OPS = {
+  /* ---- normalizace načteného projektu: nabídka a kopie knihovny stejně jako web normBiz
+     (desktop project.normalize_biz; jádro normalizeProject je nepřenáší) */
+  "biz.norm"({ raw = {} }) {
+    const q = biz.normQuote(raw && raw.quote), l = biz.normLibrary(raw && raw.library);
+    return { quote: q === undefined ? null : q, library: l === undefined ? null : l };
+  },
   /* ---- revize */
   "revision.badge"({ prj }) { return biz.revisionBadge(prj); },
   "revision.view"({ prj, from = "", to = "", exact = false }) { return { prj, view: biz.revisionView(prj, { from, to, exact }) }; },

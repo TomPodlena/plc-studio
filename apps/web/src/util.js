@@ -1,12 +1,13 @@
 /* Drobné UI utility. */
 import {
-  tr, normalizeProject, projectTitle,
+  tr, N_, normalizeProject, projectTitle,
   withFilePrefix, prefixProjectFiles, projectBundle, projectZip, nextProjectNumber, PREFIX_EXEMPT,
 } from "../../../packages/core/dist/index.js";
 import { aiNorm } from "./ai.js";
 import { normSafety } from "./safety_view.js";
 import { normBiz } from "./biz_view.js";
-import { licenseFilter, currentProject, gateFor, openLicenseDialog } from "./license.js";
+import { licenseFilter, currentProject, gateFor, explainBulkBlocked, licenseReason } from "./license.js";
+import { trn } from "./plural.js";
 
 /** Vlastní klíč tabulky (ne „toString“ / „constructor“ z prototypu — cizí JSON by s ním prošel přes `in`). */
 export const ownKey = (o, k) => typeof k === "string" && Object.prototype.hasOwnProperty.call(o, k);
@@ -40,6 +41,35 @@ export function normAi(a) {
   return ok ? { turns: a.turns.filter(t => t && (t.role === "user" || t.role === "assistant") && typeof t.content === "string"), last: a.last && typeof a.last === "object" && Array.isArray(a.last.devices) ? aiNorm(a.last) : null, draft: String(a.draft || "") }
     : { turns: [], last: null, draft: "" };
 }
+
+/* ---------------------------------------------------------------- dlouhé seznamy
+   Velký projekt (stovky zařízení) má tisíce řádků svorkovnice, kusovníku a kroků oživení — vykreslit
+   je najednou blokuje hlavní vlákno přes sekundu (forenzní test 2026-10-10, N5). Vykreslí se prvních
+   PAGE řádků a zbytek na tlačítko; počet zobrazených drží `pageLimit` pro klíč seznamu (přežije překreslení). */
+export const PAGE = 100;
+const pageLimits = new Map();
+/** Kolik řádků seznamu `key` vykreslit; `need` = index řádku, který musí být vidět (odkaz, zvýraznění). */
+export function pageLimit(key, need = -1, page = PAGE) {
+  let n = pageLimits.get(key) || page;
+  if (need >= n) { n = Math.ceil((need + 1) / page) * page; pageLimits.set(key, n); }
+  return n;
+}
+/** Tlačítka pod zkráceným seznamem („Zobrazit dalších N“, „Zobrazit vše“) + počet; prázdné, když je vidět vše. */
+export function moreHtml(key, shown, total, page = PAGE) {
+  if (shown >= total) return "";
+  return "<div class='row'><button class='small' data-more-key='" + escAttr(key) + "' data-more-step='" + page + "'>" + tr("Zobrazit dalších {n}", { n: Math.min(page, total - shown) }) + "</button>"
+    + "<button class='small' data-more-key='" + escAttr(key) + "' data-more-step='all'>" + tr("Zobrazit vše ({n})", { n: total }) + "</button>"
+    + "<span class='hint' style='margin:0'>" + tr("zobrazeno {n} z {m}", { n: shown, m: total }) + "</span></div>";
+}
+/** Napojí tlačítka `moreHtml` v `root`; po kliknutí `rerender()` (vykreslí se s novým limitem). */
+export function wireMore(root, rerender, page = PAGE) {
+  root.querySelectorAll("[data-more-key]").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.moreKey;
+    pageLimits.set(k, b.dataset.moreStep === "all" ? Infinity : (pageLimits.get(k) || page) + page);
+    rerender();
+  }));
+}
+const escAttr = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 export function card(el, num, title, inner) {
   const c = document.createElement("section");
@@ -108,14 +138,24 @@ export async function downloadFiles(list, btn) {
     const ok = list.filter(([name, body]) => licenseFilter(name, body, true) != null);
     if (ok.length < list.length) {
       const [bn, bb] = list.find(f => !ok.includes(f));
-      licenseFilter(bn, bb);            // otevře okno s důvodem
-      if (!ok.length) return;
+      if (!ok.length) { licenseFilter(bn, bb); return; }     // nic nejde stáhnout → okno s důvodem vždy
+      bulkBlockedNote(btn, list.length - ok.length, licenseReason(bn, bb), N_("{n} soubor se nestáhl podle licence — podrobnosti v okně Licence v hlavičce.|{n} soubory se nestáhly podle licence — podrobnosti v okně Licence v hlavičce.|{n} souborů se nestáhlo podle licence — podrobnosti v okně Licence v hlavičce."));
     }
     for (const [i, [name, body]] of ok.entries()) {
       if (i) await new Promise(r => setTimeout(r, 250));
       downloadFile(name, body, true);
     }
   } finally { if (btn) btn.disabled = false; }
+}
+
+/** Hromadné stažení s vynechanými soubory podle licence: okno jen poprvé za relaci (license.js
+ *  explainBulkBlocked), vždy řádek u tlačítka s počtem vynechaných souborů. */
+function bulkBlockedNote(btn, n, reason, forms) {
+  explainBulkBlocked(reason);
+  if (!btn || !btn.parentElement) return;
+  let s = btn.parentElement.querySelector(".bulknote");
+  if (!s) { s = document.createElement("span"); s.className = "hint bulknote"; s.style.margin = "0"; btn.after(s); }
+  s.textContent = trn(n, forms);
 }
 
 /**
@@ -138,8 +178,8 @@ export async function downloadProjectZip(prj, projectText, btn) {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    const blocked = b.files.find(f => f.blocked);
-    if (blocked) openLicenseDialog(blocked.blocked);
+    const blocked = b.files.filter(f => f.blocked);
+    if (blocked.length) bulkBlockedNote(btn, blocked.length, blocked[0].blocked, N_("{n} soubor nešel do ZIP podle licence — podrobnosti v okně Licence v hlavičce.|{n} soubory nešly do ZIP podle licence — podrobnosti v okně Licence v hlavičce.|{n} souborů nešlo do ZIP podle licence — podrobnosti v okně Licence v hlavičce."));
     return b;
   } finally { if (btn) { btn.disabled = false; btn.textContent = label; } }
 }

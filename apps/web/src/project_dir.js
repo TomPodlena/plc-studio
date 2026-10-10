@@ -18,7 +18,7 @@
    kořen = OPFS `navigator.storage.getDirectory()` místo pickeru, nebo `supported = () => false`. */
 import { tr, N_, nextProjectNumber, projectBundle, projectFolderName } from "../../../packages/core/dist/index.js";
 import { idbStore } from "./idb.js";
-import { gateFor, openLicenseDialog } from "./license.js";
+import { gateFor, explainBulkBlocked } from "./license.js";
 import { suggestNumber } from "./util.js";
 import { trn } from "./plural.js";
 
@@ -272,7 +272,7 @@ export function mountFolderControls(host, opts) {
           tr("Ve složce už existuje {n} z {total} souborů (např. {name}).", { n, total, name }) + "\n" + tr("Přepsat je?")),
       });
       D.msg = s ? { html: summaryHtml(s) } : { html: esc(tr("Ukládání do složky projektu zrušeno.")) };
-      if (s && s.nblocked) openLicenseDialog(s.blocked[0]);
+      if (s && s.nblocked) explainBulkBlocked(s.blocked[0]);   // okno jen poprvé, dál řádek v souhrnu
     } catch (e) {
       if (e && e.name === "AbortError") D.msg = { html: esc(tr("Ukládání do složky projektu zrušeno.")) };
       else D.msg = { err: true, html: "<b>" + esc(tr("Uložení se nezdařilo")) + "</b> " + esc(e && e.message || String(e)) };

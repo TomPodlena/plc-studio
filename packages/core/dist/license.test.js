@@ -163,6 +163,13 @@ test("licence: soubory — patička jen v dokumentech a README (Free), DXF jen P
     const p = sampleSmall();
     const free = projectGate(p, entitlements("free")), pro = projectGate(p, entitlements("pro"));
     assert.equal(licenseFileKind("siemens_README.txt"), "readme");
+    /* dílčí README (EPLAN, HMI) i s předponou čísla projektu a cestou ve složce projektu */
+    for (const n of ["README_EPLAN.txt", "eplan_README_EPLAN.txt", "09_Exporty/EPLAN/261234_README_EPLAN.txt", "hmi_siemens_README_HMI.txt",
+        "04_HMI\\261234_hmi_rockwell_README_HMI.txt", "README.md", "readme"])
+        assert.equal(licenseFileKind(n), "readme", n);
+    for (const n of ["myreadme.txt", "README_EPLAN.csv", "readme_x.st"])
+        assert.notEqual(licenseFileKind(n), "readme", n);
+    assert.match(applyLicenseToFile("eplan_README_EPLAN.txt", "EPLAN – postup\n", free).body, /\n-----\nVytvořeno v PLCdesk Free/);
     assert.equal(licenseFileKind("01_funkcni_specifikace_FDS.md"), "doc");
     assert.equal(licenseFileKind("hmi_web.html"), "doc");
     assert.equal(licenseFileKind("01_DI1_X1.dxf"), "dxf");

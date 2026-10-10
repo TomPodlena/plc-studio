@@ -1679,9 +1679,10 @@ function mkUnit(p, sigTags, instNames) {
     const { code: c0, cmts } = stripComments(p.body);
     const timerM = new Set(); // časovače TIMER_x_FB_M převedené na tvar TON
     let code = c0
-        /* Rockwell: TONR nad FBD_TIMER → IEC tvar volání časovače */
-        .replace(/(\w+)\.PRE\s*:=\s*(\d+)\s*;\s*\1\.TimerEnable\s*:=\s*([^;]+?)\s*;\s*TONR\s*\(\s*\1\s*\)\s*;/g, (all, t, ms, cond) => t + "(IN := " + cond + ", PT := T#" + ms + "MS);" + "\n".repeat((all.match(/\n/g) || []).length))
-        .replace(/(\w+)\.TimerEnable\s*:=\s*([^;]+?)\s*;\s*\1\.PRE\s*:=\s*(\d+)\s*;\s*TONR\s*\(\s*\1\s*\)\s*;/g, (all, t, cond, ms) => t + "(IN := " + cond + ", PT := T#" + ms + "MS);" + "\n".repeat((all.match(/\n/g) || []).length))
+        /* Rockwell: TONR nad FBD_TIMER → IEC tvar volání časovače; \b = začátek slova (bez něj kvadratické
+           zpětné hledání na dlouhém identifikátoru — forenzní test 2026-10-10, N11) */
+        .replace(/\b(\w+)\.PRE\s*:=\s*(\d+)\s*;\s*\1\.TimerEnable\s*:=\s*([^;]+?)\s*;\s*TONR\s*\(\s*\1\s*\)\s*;/g, (all, t, ms, cond) => t + "(IN := " + cond + ", PT := T#" + ms + "MS);" + "\n".repeat((all.match(/\n/g) || []).length))
+        .replace(/\b(\w+)\.TimerEnable\s*:=\s*([^;]+?)\s*;\s*\1\.PRE\s*:=\s*(\d+)\s*;\s*TONR\s*\(\s*\1\s*\)\s*;/g, (all, t, cond, ms) => t + "(IN := " + cond + ", PT := T#" + ms + "MS);" + "\n".repeat((all.match(/\n/g) || []).length))
         .replace(/\.DN\b/g, ".Q")
         /* Mitsubishi TIMER_1/10/100_FB_M (FX5 kroky nad 32 767 ms) → IEC tvar; jednotka předvolby podle deklarace */
         .replace(/\b(\w+)\s*\(\s*Coil\s*:=\s*([^,]*?)\s*,\s*Preset\s*:=\s*(\d+)\s*,\s*ValueIn\s*:=\s*0\s*\)\s*;/g, (all, t, cond, pre) => {

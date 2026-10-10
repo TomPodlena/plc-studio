@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 from .. import theme
 from ..detail import step_text
 from ..i18n import N_, _
 from ..project import parse_num
+from ..widgets import trace
 from ..widgets import Table, card, link, note_box, wrap_label
 from . import simulace, ziva
 
@@ -49,11 +50,34 @@ def render(app, parent) -> None:
     nb.add(t_sim, text=_("Scénáře a ověření"))
     _logic(app, t_logic)
     ziva.build(app, t_live)
-    simulace.build(app, t_sim)
-    nb.select(min(app.ui.get("prog_tab", 0), 2))
-    nb.bind("<<NotebookTabChanged>>",
-            lambda e: app.ui.__setitem__("prog_tab", nb.index(nb.select()))
-            if e.widget is nb else None)
+    # záložka Scénáře a ověření se staví, až se otevře (simulace scénářů stojí u velkého stroje ~1 s
+    # při každém překreslení kroku — forenzní test M7)
+    sim_built = [False]
+
+    def ensure_sim() -> None:
+        if not sim_built[0] and t_sim.winfo_exists():
+            sim_built[0] = True
+            simulace.build(app, t_sim)
+
+    tab = min(app.ui.get("prog_tab", 0), 2)
+    if tab == 2:
+        ensure_sim()
+    else:
+        ttk.Label(t_sim, text=_("Počítám…"), style="Dim.TLabel").pack(anchor="w")
+    nb.select(tab)
+    t_sim.ensure = ensure_sim                    # testy
+
+    def on_tab(e) -> None:
+        if e.widget is not nb:
+            return
+        i = nb.index(nb.select())
+        app.ui["prog_tab"] = i
+        if i == 2 and not sim_built[0]:
+            for w in t_sim.winfo_children():
+                w.destroy()
+            ensure_sim()
+
+    nb.bind("<<NotebookTabChanged>>", on_tab)
 
 
 def _logic(app, body) -> None:
@@ -81,7 +105,7 @@ def _logic(app, body) -> None:
         app.save()
         app.root.after_idle(app.render)           # E-stop nemůže být zároveň blokováním
 
-    var_estop.trace_add("write", on_estop)
+    trace(var_estop, on_estop, top)
     note_box(body, _(
         "Signál se zapojí do enable všech bloků. Skutečnou bezpečnost řeší safety "
         "technika (bezpečnostní relé / safety PLC dle posouzení rizik), ne program — "
@@ -155,8 +179,11 @@ def _logic(app, body) -> None:
     add.pack(side="bottom", fill="x", pady=(8, 0))
 
     def fit_hints(e) -> None:
-        """Nízké okno: vysvětlující texty pryč, ať tabulka kroků a její tlačítka nezmizí."""
-        small = e.height < HINTS_MIN_H
+        """Nízké okno: vysvětlující texty pryč, ať tabulka kroků a její tlačítka nezmizí. Rozhoduje
+        viditelná výška stránky (obsah kroku se posouvá — PageArea), ne výška těla."""
+        page = getattr(app, "_page", None)
+        # tělo karty = stránka bez záhlaví karty (≈ 45 px)
+        small = (page.canvas.winfo_height() - 45 if page is not None else e.height) < HINTS_MIN_H
         for hint, before in ((lock_hint, lock_box if lock_cv is not None else locks),
                              (seq_hint, add)):
             if small and hint.winfo_manager():
@@ -277,8 +304,8 @@ def _logic(app, body) -> None:
             cb_cond.current(conds.index("time"))
         cb_cond.state(["disabled"] if d is None or d["cls"] == "DI" else ["!disabled"])
 
-    var_dev.trace_add("write", refresh_acts)
-    var_act.trace_add("write", refresh_par)
+    trace(var_dev, refresh_acts, cb_cond)
+    trace(var_act, refresh_par, cb_cond)
     refresh_acts()
 
     # rozpracovaný krok (zařízení, akce, přechod, čas) přežije překreslení — např. po
@@ -301,7 +328,7 @@ def _logic(app, body) -> None:
                              "cond": conds[max(cb_cond.current(), 0)], "time": var_time.get()}
 
     for var in (var_dev, var_act, var_cond, var_time):
-        var.trace_add("write", remember)
+        trace(var, remember, cb_cond)
     add._vars = (var_dev, var_act, var_time)      # proměnné naživu (GC)
 
     def read_step() -> dict | None:
@@ -477,6 +504,11 @@ def _logic(app, body) -> None:
         i = sel()
         if i is None:
             app.set_status(_("Nejdřív vyber krok v tabulce."))
+            return
+        # potvrzení s textem kroku (jako web) — klávesa Delete jinak krok smazala bez dotazu
+        if not messagebox.askyesno(_("Odstranit krok?"), _(
+                "Odstranit krok {n}: {title}? Odstranění nejde vrátit.", n=i + 1,
+                title=step_text(app, app.prj["program"]["seq"][i])), icon="warning", parent=app.root):
             return
         del app.prj["program"]["seq"][i]
         app.ui["seq_sel"] = min(i, len(app.prj["program"]["seq"]) - 1)

@@ -55,6 +55,8 @@ import {
 } from "./model.js";
 import { axisCfgOf, axisObjName } from "./axis.js";
 import { N_ } from "./i18n.js";
+import { IR_CTRL, FB_NAMES, SEQ_TIMER_PREFIX, MOTION_SEQ_PREFIX, seqVarOf, manVarOf, manVarsOf } from "./names.js";
+export { IR_CTRL, seqVarOf, manVarOf, manVarsOf };
 /* ir.ts a codegen.ts se importují navzájem: šablony se tu berou až uvnitř funkcí */
 import { fbTemplate, parseFbTemplate } from "./codegen.js";
 
@@ -133,11 +135,7 @@ export function irText(e: IrExpr, n: IrNames): string {
 
 /* ======================================================= řízení stroje */
 
-/** Proměnné řízení stroje (jména jsou rozhraním k HMI — neměnit). */
-export const IR_CTRL = {
-  enable: "enable", modeAuto: "modeAuto", cmdAutoStart: "cmdAutoStart", cmdAck: "cmdAck",
-  machineFault: "machineFault", faultStep: "faultStep", seqStep: "seqStep",
-} as const;
+/* IR_CTRL (proměnné řízení stroje) — names.ts */
 
 /** Pořadí vyhodnocení v jednom scanu (generátor = simulátor). */
 export const IR_EVAL_ORDER = ["enable", "seq", "seqTimers", "blocks", "fault"] as const;
@@ -162,16 +160,8 @@ export interface IrEnable { inputs: Array<{ dev: Device; tag: string; estop: boo
 export type IrFbClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "Vfd" | "PosDrive" | "PropValve" | "Axis";
 
 /** Třídy bloků: jméno FB; zdroj logiky = šablona třídy (`fbTemplate(cls, dialekt)` v codegen.ts). */
-export const IR_CLASSES: Record<IrFbClass, { fb: string }> = {
-  Motor: { fb: "FB_Motor" },
-  Ventil: { fb: "FB_Ventil" },
-  AnalogIn: { fb: "FB_AnalogIn" },
-  AnalogOut: { fb: "FB_AnalogOut" },
-  Vfd: { fb: "FB_Vfd" },
-  PosDrive: { fb: "FB_PosDrive" },
-  PropValve: { fb: "FB_PropValve" },
-  Axis: { fb: "FB_Axis" },
-};
+export const IR_CLASSES: Record<IrFbClass, { fb: string }> = Object.fromEntries(
+  Object.entries(FB_NAMES).map(([k, fb]) => [k, { fb }])) as Record<IrFbClass, { fb: string }>;
 /** Pořadí tříd v knihovně bloků (Gen_Library, AOI, OOP) — nové třídy za původními (golden). */
 export const IR_CLASS_ORDER: IrFbClass[] = ["Motor", "Ventil", "AnalogIn", "AnalogOut", "Vfd", "PosDrive", "PropValve", "Axis"];
 
@@ -306,25 +296,7 @@ export function waitedDis(prj: Project): Set<number> {
 export function actuators(prj: Project): Device[] {
   return prj.devices.filter(d => d.cls === "Motor" || d.cls === "Ventil" || isMotionClass(d.cls) || d.cls === "Axis");
 }
-/** Proměnná povelu ze sekvence (BOOL) / ručního povelu z HMI pro dané zařízení. */
-export function seqVarOf(d: Device): string {
-  if (d.cls === "Axis") return "seqCmd_" + d.name;
-  return (d.cls === "Motor" || d.cls === "Vfd" ? "seqRun_" : d.cls === "PosDrive" ? "seqMove_" : d.cls === "PropValve" ? "seqOn_" : "seqOpen_") + d.name;
-}
-/** Ruční povel z HMI: motor / měnič chod, ventil otevřít, polohovací pohon referování, proporcionální ventil zapnout. */
-export function manVarOf(d: Device): string {
-  if (d.cls === "Axis") return "manPower_" + d.name;
-  return (d.cls === "Motor" || d.cls === "Vfd" ? "manRun_" : d.cls === "PosDrive" ? "manHome_" : d.cls === "PropValve" ? "manOn_" : "manOpen_") + d.name;
-}
-
-/**
- * Ruční povely z HMI pro zařízení: u servoosy regulace (úroveň), referování (hrana) a ruční pojezd
- * +/− (držet; po E-stopu / poruše až po puštění tlačítka), jinak jeden povel `manVarOf`.
- */
-export function manVarsOf(d: Device): string[] {
-  if (d.cls === "Axis") return ["manPower_", "manHome_", "manJogP_", "manJogN_"].map(p => p + d.name);
-  return [manVarOf(d)];
-}
+/* jména povelů (seqVarOf, manVarOf, manVarsOf) a řízení (IR_CTRL) jsou v names.ts — sdílí je kontrola kolizí tagů */
 
 /** Povely sekvence motorů a ventilů (BOOL, pořadí prvního výskytu v sekvenci). */
 export function seqVars(prj: Project): string[] {
@@ -339,14 +311,25 @@ export function seqVars(prj: Project): string[] {
 /** Proměnné povelů sekvence pohonu fáze 2a (jméno → typ a hodnota po přerušení). */
 export function motionSeqVars(d: Device): IrSet[] {
   const n = d.name;
-  if (d.cls === "Vfd") return [{ var: "seqRun_" + n, type: "BOOL", value: irBool(false) }, { var: "seqSpd_" + n, type: "REAL", value: irReal(devSp(d)) },
-    ...(d.opt?.rev ? [{ var: "seqRev_" + n, type: "BOOL" as IrType, value: irBool(false) }] : [])];
-  if (d.cls === "PosDrive") return [{ var: "seqMove_" + n, type: "BOOL", value: irBool(false) }, { var: "seqHome_" + n, type: "BOOL", value: irBool(false) },
-    { var: "seqRec_" + n, type: "INT", value: irInt(0) }];
-  if (d.cls === "PropValve") return [{ var: "seqOn_" + n, type: "BOOL", value: irBool(false) }, { var: "seqSp_" + n, type: "REAL", value: irReal(devSp(d)) }];
-  if (d.cls === "Axis") return [{ var: "seqCmd_" + n, type: "INT", value: irInt(0) }, { var: "seqMode_" + n, type: "INT", value: irInt(0) },
-    { var: "seqTgt_" + n, type: "REAL", value: irReal(0) }, { var: "seqVel_" + n, type: "REAL", value: irReal(0) },
-    { var: "seqAcc_" + n, type: "REAL", value: irReal(0) }, { var: "seqDec_" + n, type: "REAL", value: irReal(0) }];
+  if (d.cls === "Vfd") {
+    const [run, spd, rev] = MOTION_SEQ_PREFIX.Vfd;
+    return [{ var: run + n, type: "BOOL", value: irBool(false) }, { var: spd + n, type: "REAL", value: irReal(devSp(d)) },
+      ...(d.opt?.rev ? [{ var: rev + n, type: "BOOL" as IrType, value: irBool(false) }] : [])];
+  }
+  if (d.cls === "PosDrive") {
+    const [move, home, rec] = MOTION_SEQ_PREFIX.PosDrive;
+    return [{ var: move + n, type: "BOOL", value: irBool(false) }, { var: home + n, type: "BOOL", value: irBool(false) }, { var: rec + n, type: "INT", value: irInt(0) }];
+  }
+  if (d.cls === "PropValve") {
+    const [on, sp] = MOTION_SEQ_PREFIX.PropValve;
+    return [{ var: on + n, type: "BOOL", value: irBool(false) }, { var: sp + n, type: "REAL", value: irReal(devSp(d)) }];
+  }
+  if (d.cls === "Axis") {
+    const [cmd, mode, tgt, vel, acc, dec] = MOTION_SEQ_PREFIX.Axis;
+    return [{ var: cmd + n, type: "INT", value: irInt(0) }, { var: mode + n, type: "INT", value: irInt(0) },
+      { var: tgt + n, type: "REAL", value: irReal(0) }, { var: vel + n, type: "REAL", value: irReal(0) },
+      { var: acc + n, type: "REAL", value: irReal(0) }, { var: dec + n, type: "REAL", value: irReal(0) }];
+  }
   return [];
 }
 /** Pohony fáze 2a a servoosy, které sekvence ovládá (pořadí prvního výskytu v sekvenci). */
@@ -612,7 +595,7 @@ export function buildIR(prj: Project): IrProgram {
     decls.push({ name: C.seqStep, type: "INT", group: "seq" });
     for (const v of svars) decls.push({ name: v, type: "BOOL", group: "seqOut" });
     for (const v of mvars) decls.push({ name: v.var, type: v.type, group: "seqOut" });
-    for (const n of seqTimedSteps(prj)) decls.push({ name: "tonSeq" + n, type: "TON", group: "timer" });
+    for (const n of seqTimedSteps(prj)) decls.push({ name: SEQ_TIMER_PREFIX + n, type: "TON", group: "timer" });
   }
 
   /* sekvence */
@@ -641,7 +624,7 @@ export function buildIR(prj: Project): IrProgram {
         }
         return {
           index: i, n, next, op, act: s.act, ...(d ? { dev: d } : {}), ...(set ? { set } : {}), ...(sets ? { sets } : {}), cond,
-          timeS: s.timeS || 1, ...(cond.kind !== "none" ? { timer: "tonSeq" + n } : {}),
+          timeS: s.timeS || 1, ...(cond.kind !== "none" ? { timer: SEQ_TIMER_PREFIX + n } : {}),
         };
       }),
     };

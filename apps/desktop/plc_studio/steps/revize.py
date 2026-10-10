@@ -14,6 +14,7 @@ from tkinter import messagebox, ttk
 from .. import theme
 from ..bridge import BridgeError
 from ..i18n import _
+from ..widgets import trace
 from ..widgets import Table, save_file, wrap_label
 
 TONE = {"ok": theme.OK, "warn": theme.WARN, "err": theme.ERR, "wait": theme.DIM, "info": theme.ACCENT}
@@ -105,8 +106,8 @@ def build(app, parent) -> None:
     e_note = ttk.Entry(form, textvariable=var_note, width=40)
     e_note._var = var_note
     e_note.pack(side="left", padx=(6, 12), fill="x", expand=True)
-    var_by.trace_add("write", lambda *_a: ui.update(by=var_by.get()))
-    var_note.trace_add("write", lambda *_a: ui.update(note=var_note.get()))
+    trace(var_by, lambda *_a: ui.update(by=var_by.get()), e_by)
+    trace(var_note, lambda *_a: ui.update(note=var_note.get()), e_note)
 
     def issue() -> None:
         by, note = var_by.get().strip(), var_note.get().strip()

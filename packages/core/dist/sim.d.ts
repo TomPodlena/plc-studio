@@ -267,6 +267,8 @@ export declare class Simulator {
         dev: number;
         t: number;
     }>;
+    /** Kontrolní bod sdílí záznam se zdrojem: délky [události, snímky, chyby] v okamžiku kopie (`clone(true)`). */
+    private sharedLen?;
     /** Počet dokončených cyklů a doba prvního / posledního z nich [s]. */
     cycles: number;
     firstCycleTime: number | null;
@@ -342,7 +344,7 @@ export declare class Simulator {
      * navazuje zásahy v okamžiku `t` místo simulace celého cyklu od začátku — výsledek je
      * shodný, protože scan je deterministický a kopie nese i stav časovačů a hran.
      */
-    clone(): Simulator;
+    clone(shared?: boolean): Simulator;
     /** Index aktuálního kroku sekvence; -1 = klid. */
     get seqIndex(): number;
     /** Centrální uvolnění: E-stop v pořádku AND všechny blokovací vstupy TRUE (jako `enableExpr`). */
@@ -412,6 +414,21 @@ export declare function lostFaultIo(prj: Project, d: Device): IoEntry | undefine
 export declare function seqEstimate(prj: Project, motorDelay: number, valveTravel: number): number;
 /** Nejdelší odhad cyklu [s], který ověření simulací ještě pustí (simuluje se po scanech 10 ms). */
 export declare const SIM_MAX_CYCLE_S: number;
+/** Nejvyšší odhad doby výpočtu ověření simulací [s] (verifyCost) — nad ním ověření neběží („neověřeno“). */
+export declare const VERIFY_MAX_COST_S = 75;
+/**
+ * Odhad nákladů ověření simulací (verifyProject / dokumentace / emulace běhu): simulovaný čas všech běhů
+ * a doba výpočtu na referenční stanici. Počítá běžný cyklus (simuluje se několikrát: scénáře, druhý cyklus,
+ * kvitace, zdroj kontrolních bodů), matici stavů (každý krok × zásahy obsluhy ve třech okamžicích, poruchy)
+ * a scénáře zamrzlého hlášení, které čekají celý hlídací čas kroku. Cena scanu roste s počtem zařízení,
+ * pohony a osy jsou dražší (měřeno 2026-10-10 na vzorech a lince 300 zařízení: ~1 µs + 0,06 µs na zařízení
+ * + 0,0004 µs × zařízení², pohon v chodu +2 µs, servoosa +4 µs). Konzervativní — skutečné ověření bývá rychlejší (forenzní test 2026-10-10, N1).
+ */
+export declare function verifyCost(prj: Project, dt?: number): {
+    simS: number;
+    scans: number;
+    seconds: number;
+};
 /**
  * Proč projekt NEJDE ověřit simulací (prázdné = jde): zadání, které je chybou návrhu (validace) a které by
  * simulaci nafouklo na hodiny až dny výpočtu — čas kroku mimo 0…24 h, rampa nad hodinu, doba jízdy / model

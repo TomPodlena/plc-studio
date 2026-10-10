@@ -14,10 +14,10 @@ import {
   addDevice, setDeviceParams, deviceUsage, deleteDevice, parseRecordsForm, parseAxisPositionsForm,
   renumberIo, fixIoTags, projectIsEmpty, applyAiProposal, DEVICE_PARAM_LABEL, setSimModel, SIM_MODEL_DEFAULT, SIM_MODEL_RANGE,
 } from "../../../packages/core/dist/index.js";
-import { $, card, copyText, downloadFile, downloadFiles, downloadProjectZip, saveBytesUngated, normProject, normAi, setProjectHeader, prefixedName } from "./util.js";
+import { $, card, copyText, downloadFile, downloadFiles, downloadProjectZip, saveBytesUngated, normProject, normAi, setProjectHeader, prefixedName, pageLimit, moreHtml, wireMore } from "./util.js";
 import { gateFor } from "./license.js";
 import { mountFolderControls, pickProjectText, suggestNumberAsync, saveProjectFile } from "./project_dir.js";
-import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, AI_EXAMPLE } from "./ai.js";
+import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, aiNotesText, seedFromProject, AI_EXAMPLE } from "./ai.js";
 import { trn } from "./plural.js";
 import { get as workerGet, pendingCard } from "./worker_client.js";
 
@@ -28,6 +28,8 @@ const MAX_PROJECT_TEXT = 20e6;
 
 export function makeSteps(ctx) {
   const { S, save, render } = ctx;
+  /** Hlavička (odznaky schválení a revize) po úpravě bez překreslení kroku (app.js). */
+  const refresh = ctx.refresh || (() => {});
   const prj = () => S.prj;
   /** Meze měření, žádaná hodnota a role výstupu jako text (sloupec Volby). */
   function devExtraTxt(d) {
@@ -190,7 +192,7 @@ export function makeSteps(ctx) {
       const cur = Number.isInteger(S.sampleSel) && S.sampleSel < list.length ? S.sampleSel
         : Math.max(0, list.findIndex(s => s.name === p.meta.name && s.devices === p.devices.length && s.steps === p.program.seq.length));
       sSel.innerHTML = list.map((s, i) => "<option value='" + i + "'" + (i === cur ? " selected" : "") + ">" +
-        esc(tr("{name} ({n} zařízení, {s} kroků)", { name: s.name, n: s.devices, s: s.steps })) + "</option>").join("");
+        esc(tr("{name} ({n} zařízení, {s} kroků)", { name: tr(s.name), n: s.devices, s: s.steps })) + "</option>").join("");   // název přes katalog (sample_names.js)
       sRow.hidden = false;
       sSel.addEventListener("change", () => { S.sampleSel = +sSel.value; });
       c.querySelector("#bSample").addEventListener("click", async e => {
@@ -254,12 +256,13 @@ export function makeSteps(ctx) {
     S.step = 0; save(); render();
     return null;
   }
-  /** „Otevřít projekt…“ / Ctrl+O: potvrzení nahrazení, výběr souboru, načtení. `onErr(text)` ukáže chybu. */
+  /** „Otevřít projekt…“ / Ctrl+O: výběr souboru, teprve pak potvrzení nahrazení (zrušený výběr se na nic
+   *  neptá), načtení. `onErr(text)` ukáže chybu. */
   async function openProject(onErr) {
-    if (!replaceOk()) return;
+    if (aiBusy) { replaceOk(); return; }      // hláška „AI právě odpovídá“ ještě před výběrem souboru
     let text;
     try { text = await pickProjectText(); } catch { text = null; }
-    if (text == null) return;
+    if (text == null || !replaceOk()) return;
     const err = loadProjectText(text);
     if (err) onErr(err);
   }
@@ -302,8 +305,12 @@ export function makeSteps(ctx) {
        GUID a signály s adresou / komentářem; duplicitní označení od AI dostane další volné */
     const r = applyAiProposal(prj(), pr);
     if (!r.ok) { aiStatusMsg = r.error; render(); return; }
+    /* souhrn převzetí: přejmenováno (jádro), nepřevzato / doplněno (aiNorm notes — bez duplicit, ty pokrývá renamed) */
+    const notes = aiNotesText((pr.notes || []).filter(x => x.kind !== "dup"));
     devMsg = { text: tr("Návrh převzat: {n} zařízení, {m} kroků sekvence.", { n: prj().devices.length, m: prj().program.seq.length }) +
-      (r.renamed.length ? " " + tr("Přejmenováno kvůli duplicitě nebo neplatnému označení: {list}.", { list: r.renamed.map(x => x.from + " → " + x.to).join(", ") }) : "") };
+      (r.renamed.length ? " " + tr("Přejmenováno kvůli duplicitě nebo neplatnému označení: {list}.", { list: r.renamed.map(x => x.from + " → " + x.to).join(", ") }) : "") +
+      (notes.length ? " " + tr("Upozornění: {list}", { list: notes.join(" ") }) : ""),
+      warn: notes.length > 0 };
     S.step = 3; save(); render();
   }
   /* nabídka modelů: známé + načtené pro klíč; popisek vybraného (vlastní ID je dovoleno) */
@@ -375,9 +382,13 @@ export function makeSteps(ctx) {
       const seqTxt = s => s.act === "wait" ? tr("výdrž {t} s", { t: s.timeS })
         : s.act === "waitOn" ? tr("čekat na {dev}", { dev: s.dev })
           : s.act === "waitOff" ? tr("čekat na {dev} = FALSE", { dev: s.dev }) : (s.dev + " " + (actTxt()[s.act] || s.act));
+      /* neplatný čas od AI dostal výchozí hodnotu — označený, aby ho uživatel zkontroloval */
+      const seqItem = s => seqTxt(s) + (s.timeBad ? " ⚠ " + tr("čas {t} s doplněn — zkontroluj", { t: s.timeS }) : "");
+      const notes = aiNotesText(pr.notes);
       c.querySelector("#aiProposal").innerHTML =
         "<h3>" + tr("Navržená sestava") + "</h3><div class='tablewrap'><table><thead><tr><th>" + tr("Označení") + "</th><th>" + tr("Třída") + "</th><th>" + tr("Popis") + "</th><th>" + tr("Volby") + "</th></tr></thead><tbody>" + rows + "</tbody></table></div>" +
-        (pr.seq.length ? "<p class='hint'>" + tr("Sekvence: {seq}", { seq: esc(pr.seq.map((s, i) => (i + 1) + ". " + seqTxt(s)).join(" → ")) }) + "</p>" : "") +
+        (pr.seq.length ? "<p class='hint'>" + tr("Sekvence: {seq}", { seq: esc(pr.seq.map((s, i) => (i + 1) + ". " + seqItem(s)).join(" → ")) }) + "</p>" : "") +
+        (notes.length ? "<div class='warnbox' id='aiNotes'><b>" + tr("Upozornění k návrhu AI — při převzetí:") + "</b><ul style='margin:4px 0 0;padding-left:18px'>" + notes.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" : "") +
         (Number.isFinite(pr.takt) ? "<p class='hint'>" + tr("Takt: {t} s", { t: pr.takt }) + "</p>" : "") +
         "<div class='row'><button class='primary' id='aiApplyBtn'>" + tr("Převzít návrh (nahradí zařízení)") + "</button><span class='hint' style='margin:0'>" + tr("Nesedí? Napiš upřesnění a odešli znovu.") + "</span></div>";
       c.querySelector("#aiApplyBtn").addEventListener("click", aiApply);
@@ -580,7 +591,7 @@ export function makeSteps(ctx) {
     const list = c.querySelector("#dList");
     if (p.devices.length) {
       /* hláška poslední úpravy (přejmenování, volby…) přežije překreslení kroku jednou */
-      let html = devMsg ? "<p class='" + (devMsg.err ? "errtxt" : "oktxt") + "' id='dMsg' role='status'>" + esc(devMsg.text) + "</p>" : "";
+      let html = devMsg ? "<p class='" + (devMsg.err ? "errtxt" : devMsg.warn ? "warnbox" : "oktxt") + "' id='dMsg' role='status'>" + esc(devMsg.text) + "</p>" : "";
       devMsg = null;
       html += "<div class='tablewrap'><table><thead><tr><th>" + tr("Označení") + "</th><th>" + tr("Třída") + "</th><th>" + tr("Popis") + "</th><th>" + tr("Volby") + "</th><th></th></tr></thead><tbody>";
       for (const d of p.devices) {
@@ -826,14 +837,17 @@ export function makeSteps(ctx) {
       "<div class='row'><button class='small' id='cpBd'>" + tr("Kopírovat SVG") + "</button><button class='small' id='dlBd'>" + tr("Stáhnout SVG") + "</button></div>");
     c1.querySelector("#cpBd").addEventListener("click", () => copyText(bd, c1.querySelector("#cpBd")));
     c1.querySelector("#dlBd").addEventListener("click", () => downloadFile("00_blokove_schema.svg", bd));
+    /* listy zapojení: u velkého projektu desítky → prvních SHEET_PAGE (list s otevřenou úpravou vždy) */
+    const SHEET_PAGE = 12, sheetLim = pageLimit("sch:sheets", S.schEd && S.schEd.sheet >= 0 ? S.schEd.sheet : -1, SHEET_PAGE);
     let inner = "";
-    mods.forEach((m, i) => {
+    mods.slice(0, sheetLim).forEach((m, i) => {
       const s = sheetSVG(p, m, i + 1, i + 1, mods.length);
       inner += "<h3>" + tr("{mod} — svorkovnice X{n}", { mod: m.dir + m.idx, n: i + 1 }) + "</h3>" +
-        "<div class='tablewrap'><figure style='margin:0'>" + s + "</figure></div>" +
+        /* sheetwrap: list mimo obrazovku se nerozvrhuje (content-visibility) — u velkého projektu desítky listů */
+        "<div class='tablewrap sheetwrap'><figure style='margin:0'>" + s + "</figure></div>" +
         "<div class='row'><button class='small' data-svg='" + i + "'>" + tr("Stáhnout SVG") + "</button><button class='small' data-dxf='" + i + "'>" + tr("Stáhnout DXF") + "</button></div>";
     });
-    const c2 = card(el, "·", tr("Elektrické zapojení I/O"), inner +
+    const c2 = card(el, "·", tr("Elektrické zapojení I/O"), inner + moreHtml("sch:sheets", Math.min(sheetLim, mods.length), mods.length, SHEET_PAGE) +
       "<p class='warnbox'>" + tr("<b>Pozor:</b> NC/NO kontakty dle sloupce NC v kroku I/O; čísla vodičů podle svorkovnice (X1 → -W101…, X2 → -W201…). Jištění, průřezy, relé na výstupech s větší zátěží a stínění analogů doplní projektant elektro — toto je podklad, ne výrobní dokumentace. DXF otevře EPLAN / AutoCAD / LibreCAD.") + "</p>");
     c2.querySelectorAll("[data-svg]").forEach(b => b.addEventListener("click", () => {
       const i = +b.dataset.svg;
@@ -843,20 +857,26 @@ export function makeSteps(ctx) {
       const i = +b.dataset.dxf;
       downloadFile(String(i + 1).padStart(2, "0") + "_" + mods[i].dir + mods[i].idx + "_X" + (i + 1) + ".dxf", sheetDXF(p, mods[i], i + 1, i + 1, mods.length));
     }));
+    /* svorkovnice: u velkého projektu tisíce řádků → prvních PAGE (util.js pageLimit), zvýrazněná svorka vždy vidět */
+    const terms = [];
+    mods.forEach((m, mi) => m.ch.forEach((e, i) => terms.push([m, mi, e, i])));
+    const TERM_PAGE = 50, termLim = pageLimit("sch:terms", S.schTerm ? terms.findIndex(x => x[2].key === S.schTerm) : -1, TERM_PAGE);
     let rowsHtml = "";
-    mods.forEach((m, mi) => m.ch.forEach((e, i) => {
+    terms.slice(0, termLim).forEach(([m, mi, e, i]) => {
       const d = devById(p, e.devId) || {};
       const nat = hwAddrText(p, e);
       rowsHtml += "<tr data-row='" + esc(e.key) + "'><td class='mono'><a href='#' class='navlink' data-io='" + esc(e.key) + "' title='" + esc(tr("Upravit v kroku I/O")) + "'><b>X" + (mi + 1) + ":" + (i + 1) + "</b></a></td><td class='mono'>" + esc((m.hw ? m.hw.dt + " " : "") + m.dir + m.idx) + "</td><td class='mono'>" + (m.chNo ? m.chNo[i] : i) + "</td>" +
         "<td><input type='text' data-k='" + esc(e.key) + "' data-f='addr' value='" + esc(e.addr) + "' aria-label='" + esc(tr("Adresa")) + "' style='min-width:70px;width:9ch'>" + (nat && nat !== e.addr ? "<div class='mono' style='color:var(--muted);font-size:.72rem'>" + esc(nat) + "</div>" : "") + "</td>" +
         "<td><input type='text' data-k='" + esc(e.key) + "' data-f='tag' value='" + esc(e.tag) + "' aria-label='" + esc(tr("Tag")) + "'></td><td class='mono'>" + wireNo(mi + 1, i) + "</td>" +
         "<td class='mono'>" + esc(d.name || "") + "</td><td><input type='text' data-k='" + esc(e.key) + "' data-f='cmt' value='" + esc(e.cmt || "") + "' aria-label='" + esc(tr("Komentář")) + "' style='min-width:160px'></td></tr>";
-    }));
+    });
     const c3 = card(el, "·", tr("Svorkovnice"),
       (schMsg && !S.schEd ? "<p class='errtxt' role='alert'>" + esc(schMsg) + "</p>" : "") +
       "<div class='tablewrap'><table><thead><tr><th>" + tr("Svorka") + "</th><th>" + tr("Modul") + "</th><th>" + tr("Kanál") + "</th><th>" + tr("Adresa") + "</th><th>" + tr("Tag") + "</th><th>" + tr("Vodič") + "</th><th>" + tr("Zařízení") + "</th><th>" + tr("Komentář") + "</th></tr></thead><tbody>" + rowsHtml + "</tbody></table></div>" +
+      moreHtml("sch:terms", Math.min(termLim, terms.length), terms.length, TERM_PAGE) +
       "<div class='row'><button class='small' id='bCsv'>" + tr("Stáhnout svorkovnici (CSV)") + "</button><span class='hint' style='margin:0'>" + tr("Podklad pro projektanta elektro.") + " " + tr("Prázdný tag nebo komentář = výchozí, prázdná adresa = přidělit automaticky; adresu zapiš v Siemens notaci (%I0.0, %QW64) nebo v notaci platformy hardwaru.") + "</span></div>");
     c3.querySelector("#bCsv").addEventListener("click", () => downloadFile("03_svorkovnice.csv", svorkyCSV(p)));
+    for (const [box, pg] of [[c2, SHEET_PAGE], [c3, TERM_PAGE]]) wireMore(box, () => { const y = window.scrollY; render(); window.scrollTo({ top: y }); }, pg);
     /* svorkovnice: tag / adresa / komentář přímo v tabulce (jádro edit.ts jako krok I/O) */
     const ioFns = { tag: setIoTag, addr: setIoAddr, cmt: setIoCmt };
     c3.querySelectorAll("input[data-k]").forEach(inp => inp.addEventListener("change", () => {
@@ -1140,6 +1160,10 @@ export function makeSteps(ctx) {
       list.querySelectorAll("[data-dn]").forEach(b => b.addEventListener("click", () => { const i = +b.dataset.dn; [p.program.seq[i + 1], p.program.seq[i]] = [p.program.seq[i], p.program.seq[i + 1]]; follow(i, i + 1); save(); render(); }));
       list.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => {
         const i = +b.dataset.rm;
+        /* smazání nejde vrátit (bez Zpět) → potvrzení s textem kroku */
+        const sp = b.closest(".seqrow")?.children[1];   // text kroku bez odkazu na zařízení
+        const what = sp ? [...sp.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join("").trim() : "";
+        if (!window.confirm(tr("Smazat krok {n} ({step})? Smazání nejde vrátit — krok by se musel přidat znovu.", { n: i + 1, step: what }))) return;
         p.program.seq.splice(i, 1);
         if (S.seqEdit === i) S.seqEdit = null; else if (S.seqEdit > i) S.seqEdit--;
         save(); render();
@@ -1253,7 +1277,7 @@ export function makeSteps(ctx) {
       tr("Katalog k datu {date}.", { date: esc(CATALOG_DATE) }) + "</p>";
     if (!p.devices.length) { card(el, "10", tr("Kusovník"), intro + "<p class='hint'>" + tr("Nejdřív navrhni zařízení (kroky 2–4).") + "</p>"); return; }
     const cfg = p.bom || (p.bom = {});
-    const { plat, lines } = buildBom(p);
+    let { plat, lines } = buildBom(p);
     const lineCfg = id => { cfg.lines = cfg.lines || {}; return (cfg.lines[id] = cfg.lines[id] || {}); };
     const tidy = () => {   // prázdné volby neukládat (projekt zůstane čistý)
       for (const [id, o] of Object.entries(cfg.lines || {})) if (!Object.keys(o).length) delete cfg.lines[id];
@@ -1277,14 +1301,8 @@ export function makeSteps(ctx) {
     const opt = (v, label, sel) => "<option value='" + esc(v) + "'" + (sel ? " selected" : "") + ">" + esc(label) + "</option>";
     /* popisek volby výrobce: hodnota zůstává ID katalogu (brandOptId), řada je klíč překladu (N_ v catalog_data.ts) */
     const brandLabel = o => o.brand.orderCode ? o.id : (o.brand.series || [])[0] ? o.brand.brand + " · " + tr(o.brand.series[0]) : o.brand.brand;
-    let rows = "";
     const bomVal = (l, k) => k === "pos" || k === "qty" ? l[k] : String(l[k] ?? "");
-    const view = lines.slice();
-    if (bomView.sort) {
-      const [k, desc] = bomView.sort, num = k === "pos" || k === "qty";
-      view.sort((a, b) => (num ? bomVal(a, k) - bomVal(b, k) : bomVal(a, k).localeCompare(bomVal(b, k), getLang())) * (desc ? -1 : 1));
-    }
-    for (const l of view) {
+    const rowHtml = l => {
       const pk = pickOf(l), ov = cfg.lines?.[l.id] || {};
       const customMode = pk.custom || bomCustomEdit.has("b:" + l.id);
       const brandSel = "<select data-bf='brand' data-id='" + esc(l.id) + "' aria-label='" + esc(tr("Výrobce")) + "'>" +
@@ -1302,7 +1320,7 @@ export function makeSteps(ctx) {
         ? " <a href='" + esc(pk.opt.brand.src) + "' target='_blank' rel='noopener' title='" + esc(tr("Zdroj údajů o typu")) + "'>↗</a>" : "";
       const autoNote = ov.note ? l.note.slice(0, Math.max(0, l.note.length - ov.note.length)).replace(/; $/, "") : l.note;
       const rowCls = [l.safety ? "safety" : "", l.excluded ? "excluded" : ""].filter(Boolean).join(" ");
-      rows += "<tr data-row='" + esc(l.id) + "'" + (rowCls ? " class='" + rowCls + "'" : "") + (l.excluded ? " title='" + esc(tr("Množství 0 — řádek je vyřazený z CSV a dokumentace.")) + "'" : "") + "><td class='mono'>" + esc(l.pos) + "</td>" +
+      return "<tr data-row='" + esc(l.id) + "'" + (rowCls ? " class='" + rowCls + "'" : "") + (l.excluded ? " title='" + esc(tr("Množství 0 — řádek je vyřazený z CSV a dokumentace.")) + "'" : "") + "><td class='mono'>" + esc(l.pos) + "</td>" +
         "<td class='mono'><b>" + esc(l.tag) + "</b></td>" +
         "<td>" + (l.safety ? "<span class='warnmark' title='" + esc(tr("Bezpečnostní prvek")) + "'>⚠</span> " : "") + esc(l.item) + "</td>" +
         "<td style='font-size:.78rem;min-width:140px'>" + esc(l.desc) + "</td>" +
@@ -1313,12 +1331,16 @@ export function makeSteps(ctx) {
         "<td style='min-width:150px'>" + supSel + "</td>" +
         "<td style='min-width:160px'>" + (autoNote ? "<div class='bomnote" + (l.safety ? " warn" : "") + "'>" + esc(autoNote) + "</div>" : "") +
         "<input type='text' data-bf='note' data-id='" + esc(l.id) + "' value='" + esc(ov.note || "") + "' placeholder='" + esc(tr("vlastní poznámka")) + "'></td></tr>";
-    }
+    };
+    const statsHtml = () => `<span class="stat">${tr("řádků <b>{n}</b>", { n: lines.length })}</span><span class="stat">${tr("kusů <b>{n}</b>", { n: lines.reduce((a, l) => a + l.qty, 0) })}</span>${lines.some(l => l.excluded) ? "<span class='stat'>" + tr("vyřazeno <b>{n}</b>", { n: lines.filter(l => l.excluded).length }) + "</span>" : ""}${lines.some(l => l.safety) ? "<span class='stat'>⚠ <b>" + lines.filter(l => l.safety).length + "</b></span>" : ""}`;
     /* přehled dodavatelů použitých v kusovníku (jádro bomSuppliers — stejně jako desktop) */
-    const used = bomSuppliers(p);
-    const supRows = used.map(s =>
-      "<tr><td><b>" + esc(s.name) + "</b></td><td>" + (s.url ? "<a href='" + esc(s.url) + "' target='_blank' rel='noopener'>" + esc(s.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")) + "</a>" : "—") + "</td><td>" +
-        esc(s.kind || (s.custom ? tr("vlastní") : "—")) + "</td><td style='font-size:.78rem'>" + esc(s.rows) + "</td></tr>").join("");
+    const supHtml = () => {
+      const used = bomSuppliers(p);
+      const supRows = used.map(s =>
+        "<tr><td><b>" + esc(s.name) + "</b></td><td>" + (s.url ? "<a href='" + esc(s.url) + "' target='_blank' rel='noopener'>" + esc(s.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")) + "</a>" : "—") + "</td><td>" +
+          esc(s.kind || (s.custom ? tr("vlastní") : "—")) + "</td><td style='font-size:.78rem'>" + esc(s.rows) + "</td></tr>").join("");
+      return used.length ? "<div class='tablewrap'><table><thead><tr><th>" + tr("Dodavatel") + "</th><th>" + tr("Web") + "</th><th>" + tr("Druh") + "</th><th>" + tr("Řádků") + "</th></tr></thead><tbody>" + supRows + "</tbody></table></div>" : "<p class='hint'>" + tr("Žádný dodavatel není vybrán.") + "</p>";
+    };
     const msg = bomMsg; bomMsg = null;
     const c = card(el, "10", tr("Kusovník"), intro + (msg ? "<p class='warnbox' role='alert'>" + esc(msg) + "</p>" : "") + `
     <div class="row" style="margin-top:4px">
@@ -1327,12 +1349,13 @@ export function makeSteps(ctx) {
       </label>
       <span class="hint" style="margin:0">${tr("★ = platforma zvolená v projektu. Podle platformy se vybere CPU a I/O moduly.")}</span>
     </div>
-    <div class="stats"><span class="stat">${tr("řádků <b>{n}</b>", { n: lines.length })}</span><span class="stat">${tr("kusů <b>{n}</b>", { n: lines.reduce((a, l) => a + l.qty, 0) })}</span>${lines.some(l => l.excluded) ? "<span class='stat'>" + tr("vyřazeno <b>{n}</b>", { n: lines.filter(l => l.excluded).length }) + "</span>" : ""}${lines.some(l => l.safety) ? "<span class='stat'>⚠ <b>" + lines.filter(l => l.safety).length + "</b></span>" : ""}</div>
+    <div class="stats" id="bomStats">${statsHtml()}</div>
     <div class="row" style="margin:6px 0 2px"><span class="hint" style="margin:0" id="bomShown"></span>
       <button class="small" id="bBomFltClear" ${Object.keys(bomView.filters).length ? "" : "hidden"}>${tr("Zrušit filtry")}</button>
       <span class="hint" style="margin:0">${tr("Klik na záhlaví = řazení (▲ / ▼ / původní pořadí); pole pod záhlavím = filtr sloupce.")}</span></div>
     <div class="tablewrap"><table class="bom"><thead><tr>${BOM_COLS.map(([k, t]) => "<th class='sortable' data-sort='" + k + "' title='" + esc(tr("Seřadit")) + "'>" + esc(k === "pos" ? t : tr(t)) + (bomView.sort && bomView.sort[0] === k ? (bomView.sort[1] ? " ▼" : " ▲") : "") + "</th>").join("")}</tr>
-      <tr class="filters">${BOM_COLS.map(([k, t]) => "<th><input type='search' data-flt='" + k + "' value='" + esc(bomView.filters[k] || "") + "' placeholder='" + esc(tr("filtr")) + "' aria-label='" + esc(tr("Filtr sloupce {col}", { col: k === "pos" ? t : tr(t) })) + "'></th>").join("")}</tr></thead><tbody>${rows}</tbody></table></div>
+      <tr class="filters">${BOM_COLS.map(([k, t]) => "<th><input type='search' data-flt='" + k + "' value='" + esc(bomView.filters[k] || "") + "' placeholder='" + esc(tr("filtr")) + "' aria-label='" + esc(tr("Filtr sloupce {col}", { col: k === "pos" ? t : tr(t) })) + "'></th>").join("")}</tr></thead><tbody id="bomBody"></tbody></table></div>
+    <div id="bomMore"></div>
     ${lines.some(l => l.safety) ? "<p class='warnbox'>⚠ " + tr("Volba a zapojení podle posouzení rizik (EN ISO 13849) — návrh k revizi.") + "</p>" : ""}
     <div class="row">
       <button class="small primary" id="bBomCsv">${tr("Stáhnout CSV")}</button>
@@ -1342,34 +1365,15 @@ export function makeSteps(ctx) {
     </div>
     <h3>${tr("Dodavatelé v kusovníku")}</h3>
     <p class="hint">${tr("Dodavatelé použití v řádcích kusovníku — koho poptat a kolik položek. Další dodavatele kategorie nabízí výběr u řádku.")}</p>
-    ${used.length ? "<div class='tablewrap'><table><thead><tr><th>" + tr("Dodavatel") + "</th><th>" + tr("Web") + "</th><th>" + tr("Druh") + "</th><th>" + tr("Řádků") + "</th></tr></thead><tbody>" + supRows + "</tbody></table></div>" : "<p class='hint'>" + tr("Žádný dodavatel není vybrán.") + "</p>"}`);
+    <div id="bomSup">${supHtml()}</div>`);
 
     c.querySelector("#bomPlat").addEventListener("change", e => { cfg.plat = e.target.value; commit(); });
-    /* řazení: klik na záhlaví; filtry: skrývání řádků bez překreslení (kurzor zůstane v poli) */
+    /* řazení: klik na záhlaví */
     c.querySelectorAll("th[data-sort]").forEach(th => th.addEventListener("click", () => {
       const k = th.dataset.sort, s = bomView.sort;
       bomView.sort = !s || s[0] !== k ? [k, false] : !s[1] ? [k, true] : null;
       rerender();
     }));
-    const applyFilters = () => {
-      const f = Object.entries(bomView.filters).filter(([, v]) => v);
-      let n = 0;
-      c.querySelectorAll("table.bom tbody tr[data-row]").forEach(row => {
-        const l = lines.find(x => x.id === row.dataset.row);
-        const ok = !l || f.every(([k, v]) => String(bomVal(l, k)).toLowerCase().includes(v.toLowerCase()));
-        row.hidden = !ok;
-        if (ok) n++;
-      });
-      c.querySelector("#bomShown").textContent = f.length ? tr("zobrazeno {n} z {m}", { n, m: lines.length }) : "";
-      c.querySelector("#bBomFltClear").hidden = !f.length;
-    };
-    c.querySelectorAll("input[data-flt]").forEach(inp => inp.addEventListener("input", () => {
-      const v = inp.value.trim();
-      if (v) bomView.filters[inp.dataset.flt] = v; else delete bomView.filters[inp.dataset.flt];
-      applyFilters();
-    }));
-    c.querySelector("#bBomFltClear").addEventListener("click", () => { bomView.filters = {}; rerender(); });
-    applyFilters();
     const lineById = id => lines.find(l => l.id === id);
     /* výrobce: pro řádek, nebo pro celou kategorii (pak se volby řádků téže kategorie zruší) */
     const setBrand = (l, val, forCat) => {
@@ -1385,46 +1389,103 @@ export function makeSteps(ctx) {
       }
     };
     const catOn = id => !!c.querySelector("input[data-bf=cat][data-id='" + CSS.escape(id) + "']")?.checked;
-    c.querySelectorAll("[data-bf]").forEach(inp => {
-      const id = inp.dataset.id, l = lineById(id), f = inp.dataset.bf;
-      if (!l) return;
-      inp.addEventListener("change", () => {
-        const v = inp.value;
-        if (f === "brand") {
-          if (v === BOM_CUSTOM) { bomCustomEdit.add("b:" + id); bomFocus = "b:" + id; rerender(); return; }
-          bomCustomEdit.delete("b:" + id);
-          setBrand(l, v, catOn(id));
-        } else if (f === "brandTxt") {
-          const t = v.trim();
-          if (!t) return;   // prázdný vlastní text nic nemění
-          bomCustomEdit.delete("b:" + id);
-          setBrand(l, t, catOn(id));
-        } else if (f === "cat") {
-          const pk = pickOf(l);
-          const cur = pk.pick ?? pk.opt?.id;   // aktuální volba řádku (i výchozí z katalogu)
-          if (cur === undefined) return;   // kategorie bez katalogu a bez volby — není co rozšířit
-          if (inp.checked) setBrand(l, cur, true);
-          else lineCfg(id).brand = cur;
-        } else if (f === "supplier") {
-          if (v === BOM_CUSTOM) { bomCustomEdit.add("s:" + id); bomFocus = "s:" + id; rerender(); return; }
-          bomCustomEdit.delete("s:" + id);
-          lineCfg(id).supplier = v;
-        } else if (f === "supplierTxt") {
-          bomCustomEdit.delete("s:" + id);
-          lineCfg(id).supplier = v.trim();
-        } else if (f === "qty") {
-          const r = bomQtyInput(v);
-          if (r.error) { bomMsg = r.error; rerender(); return; }
-          if (r.reset) delete lineCfg(id).qty; else lineCfg(id).qty = r.qty;
-        } else if (f === "type" || f === "orderCode") {
-          // prázdné pole = zpět na hodnotu z katalogu
-          if (v.trim()) lineCfg(id)[f] = v.trim(); else delete lineCfg(id)[f];
-        } else if (f === "note") {
-          if (v.trim()) lineCfg(id).note = v.trim(); else delete lineCfg(id).note;
-        }
-        commit();
+    /* Úprava jednoho řádku (množství, typ, kód, dodavatel, poznámka) mění jen ten řádek, počty a dodavatele:
+       kusovník se sestaví znovu jádrem (buildBom, desítky ms), ale překreslí se jen řádek a souhrny —
+       ne celý krok (u 300 zařízení dřív přes sekundu na každou změnu, forenzní test N5). Výrobce
+       (i pro celou kategorii) a platforma mění víc řádků → celé překreslení. */
+    const commitRow = id => {
+      tidy(); save();
+      ({ lines } = buildBom(p));
+      const l = lineById(id), row = c.querySelector("tr[data-row='" + CSS.escape(id) + "']");
+      if (l && row) {
+        /* fokus (Tab z upraveného pole na další v témže řádku) přenést do nového řádku */
+        const a = document.activeElement, keep = a && row.contains(a) && a.dataset ? a.dataset.bf : "";
+        const t = document.createElement("tbody");
+        t.innerHTML = rowHtml(l);
+        const nr = t.firstElementChild;
+        row.replaceWith(nr);
+        bindRow(nr);
+        if (keep) { const f = nr.querySelector("[data-bf='" + keep + "']"); if (f) f.focus({ preventScroll: true }); }
+      }
+      c.querySelector("#bomStats").innerHTML = statsHtml();
+      c.querySelector("#bomSup").innerHTML = supHtml();
+      refresh();
+    };
+    function bindRow(row) {
+      row.querySelectorAll("[data-bf]").forEach(inp => {
+        const id = inp.dataset.id, f = inp.dataset.bf;
+        if (!lineById(id)) return;
+        inp.addEventListener("change", () => {
+          const l = lineById(id), v = inp.value;
+          if (!l) return;
+          if (f === "brand") {
+            if (v === BOM_CUSTOM) { bomCustomEdit.add("b:" + id); bomFocus = "b:" + id; rerender(); return; }
+            bomCustomEdit.delete("b:" + id);
+            setBrand(l, v, catOn(id));
+          } else if (f === "brandTxt") {
+            const t = v.trim();
+            if (!t) return;   // prázdný vlastní text nic nemění
+            bomCustomEdit.delete("b:" + id);
+            setBrand(l, t, catOn(id));
+          } else if (f === "cat") {
+            const pk = pickOf(l);
+            const cur = pk.pick ?? pk.opt?.id;   // aktuální volba řádku (i výchozí z katalogu)
+            if (cur === undefined) return;   // kategorie bez katalogu a bez volby — není co rozšířit
+            if (inp.checked) setBrand(l, cur, true);
+            else lineCfg(id).brand = cur;
+          } else if (f === "supplier") {
+            if (v === BOM_CUSTOM) { bomCustomEdit.add("s:" + id); bomFocus = "s:" + id; rerender(); return; }
+            bomCustomEdit.delete("s:" + id);
+            lineCfg(id).supplier = v;
+            return commitRow(id);
+          } else if (f === "supplierTxt") {
+            bomCustomEdit.delete("s:" + id);
+            lineCfg(id).supplier = v.trim();
+            return commitRow(id);
+          } else if (f === "qty") {
+            const r = bomQtyInput(v);
+            if (r.error) { bomMsg = r.error; rerender(); return; }
+            if (r.reset) delete lineCfg(id).qty; else lineCfg(id).qty = r.qty;
+            return commitRow(id);
+          } else if (f === "type" || f === "orderCode") {
+            // prázdné pole = zpět na hodnotu z katalogu
+            if (v.trim()) lineCfg(id)[f] = v.trim(); else delete lineCfg(id)[f];
+            return commitRow(id);
+          } else if (f === "note") {
+            if (v.trim()) lineCfg(id).note = v.trim(); else delete lineCfg(id).note;
+            return commitRow(id);
+          }
+          commit();
+        });
       });
-    });
+    }
+    /* filtry a stránkování nad daty (ne skrýváním řádků): vykreslí se jen prvních PAGE vyhovujících
+       řádků (util.js pageLimit) — tělo tabulky se plní znovu bez překreslení kroku (kurzor zůstane ve filtru) */
+    const fillBody = (need = "") => {
+      const view = lines.slice();
+      if (bomView.sort) {
+        const [k, desc] = bomView.sort, num = k === "pos" || k === "qty";
+        view.sort((a, b) => (num ? bomVal(a, k) - bomVal(b, k) : bomVal(a, k).localeCompare(bomVal(b, k), getLang())) * (desc ? -1 : 1));
+      }
+      const f = Object.entries(bomView.filters).filter(([, v]) => v);
+      const shown = f.length ? view.filter(l => f.every(([k, v]) => String(bomVal(l, k)).toLowerCase().includes(v.toLowerCase()))) : view;
+      const lim = pageLimit("bom", need ? shown.findIndex(l => l.id === need) : -1);
+      const body = c.querySelector("#bomBody");
+      body.innerHTML = shown.slice(0, lim).map(rowHtml).join("");
+      body.querySelectorAll("tr[data-row]").forEach(bindRow);
+      const more = c.querySelector("#bomMore");
+      more.innerHTML = moreHtml("bom", Math.min(lim, shown.length), shown.length);
+      wireMore(more, () => fillBody());
+      c.querySelector("#bomShown").textContent = f.length ? tr("zobrazeno {n} z {m}", { n: shown.length, m: lines.length }) : "";
+      c.querySelector("#bBomFltClear").hidden = !f.length;
+    };
+    c.querySelectorAll("input[data-flt]").forEach(inp => inp.addEventListener("input", () => {
+      const v = inp.value.trim();
+      if (v) bomView.filters[inp.dataset.flt] = v; else delete bomView.filters[inp.dataset.flt];
+      fillBody();
+    }));
+    c.querySelector("#bBomFltClear").addEventListener("click", () => { bomView.filters = {}; rerender(); });
+    fillBody(bomFocus ? bomFocus.slice(2) : "");
     if (bomFocus) {   // právě zvolené „vlastní…" → kurzor rovnou do pole pro text
       const [t, id] = [bomFocus.slice(0, 1), bomFocus.slice(2)];
       bomFocus = "";

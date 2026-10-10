@@ -214,12 +214,17 @@ export function oopProgram(prj, plat) {
 }
 /** Výstupy instancí, které čtou podmínky kroků (pohony fáze 2a), s typem portu — vstupy FB_Sequence. */
 export function seqMembers(ir) {
-    const clsOf = new Map(ir.devices.flatMap(d => d.kind === "fb" ? [[d.inst, d.cls]] : []));
+    /* E-stop / blokování na zařízení s blokem (validace = chyba) nesmí generátor shodit: blok je v `alt` */
+    const clsOf = new Map(ir.devices.flatMap(d => {
+        const fb = d.kind === "fb" ? d : d.kind === "enableInput" && d.alt.kind === "fb" ? d.alt : null;
+        return fb ? [[fb.inst, fb.cls]] : [];
+    }));
     const out = [];
     const walk = (e) => {
         if (e.k === "member") {
-            if (!out.some(m => m.inst === e.inst && m.port === e.port))
-                out.push({ inst: e.inst, port: e.port, type: irPortTypes(clsOf.get(e.inst))[e.port] });
+            const cls = clsOf.get(e.inst);
+            if (cls && !out.some(m => m.inst === e.inst && m.port === e.port))
+                out.push({ inst: e.inst, port: e.port, type: irPortTypes(cls)[e.port] });
         }
         else if (e.k === "not" || e.k === "paren")
             walk(e.e);
@@ -266,7 +271,11 @@ function oopMain(prj, plat, ir, c) {
     const { inst, calls, free } = renderWiring(ir, c, { call });
     const decl = renderDecls(ir, c, d => d.group !== "seqOut" && d.group !== "timer");
     const vars = [{ name: C.enable, type: "BOOL" }];
-    const clsOf = new Map(ir.devices.flatMap(d => d.kind === "fb" ? [[d.inst, d.cls]] : []));
+    /* E-stop / blokování na zařízení s blokem (validace = chyba) nesmí generátor shodit: blok je v `alt` */
+    const clsOf = new Map(ir.devices.flatMap(d => {
+        const fb = d.kind === "fb" ? d : d.kind === "enableInput" && d.alt.kind === "fb" ? d.alt : null;
+        return fb ? [[fb.inst, fb.cls]] : [];
+    }));
     for (const i of inst)
         vars.push({ name: i.n, type: OOP_CLASSES[clsOf.get(i.n)] });
     if (ir.seq)

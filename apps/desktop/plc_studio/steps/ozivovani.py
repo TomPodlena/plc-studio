@@ -15,7 +15,7 @@ from tkinter import ttk
 from .. import theme
 from ..bridge import BridgeError
 from ..i18n import N_, _
-from ..widgets import Table, card, note_box, save_file, wrap_label
+from ..widgets import FlowFrame, Table, card, note_box, save_file, wrap_label
 from .schvaleni import GREY, _file_name, approver, name_bar, when
 
 RESULTS = {"ok": N_("OK"), "nok": N_("Nevyhovuje"), "na": N_("N/A")}
@@ -73,8 +73,10 @@ def render(app, parent) -> None:
                ).pack(side="right", padx=(0, 6))
     nm = ttk.Frame(bar)
     nm.pack(side="left")
-    fbar = ttk.Frame(bar)
-    fbar.pack(side="left", padx=(16, 0))
+    # filtr na vlastním řádku, který se zalamuje (de/es: dlouhé popisky se v jedné řadě s tlačítky
+    # uřízly uprostřed počtu — forenzní test M1)
+    fbar = FlowFrame(body, padx=3)
+    fbar.pack(fill="x", pady=(0, 4), after=bar)
     open_ids = set(s.get("openIds") or [])
     counts = {"all": len(plan), "open": len(open_ids) if "openIds" in s else s["open"] + s["nok"],
               "nok": s["nok"]}
@@ -85,10 +87,11 @@ def render(app, parent) -> None:
         ui["filter"] = var_f.get()
         app.render()
 
-    ttk.Label(fbar, text=_("Zobrazit:")).pack(side="left", padx=(0, 6))
+    ttk.Label(fbar, text=_("Zobrazit:"))
     for k, label in FILTERS.items():
         ttk.Radiobutton(fbar, text=_(label, n=counts[k]), value=k, variable=var_f,
-                        style="Tab.Toolbutton", command=set_filter).pack(side="left", padx=(0, 3))
+                        style="Tab.Toolbutton", command=set_filter)
+    fbar.schedule()
 
     sumrow = ttk.Frame(body)
     sumrow.pack(fill="x", pady=(2, 6))

@@ -237,7 +237,8 @@ class License:
                         res["remote"] = {"status": str(chk["status"]), "plan": chk.get("plan"),
                                          "valid_until": chk.get("valid_until")}
                         vu, exp = chk.get("valid_until") or "", claims.get("exp") or ""
-                        if chk["status"] == "active" and vu[:19] > exp[:19]:
+                        # uvolněný počítač (správa) se sám znovu neaktivuje; soubor platí do exp
+                        if chk["status"] == "active" and vu[:19] > exp[:19] and chk.get("device") != "revoked":
                             st, act = http("/api/license/activate", {"key": key, "device_hash": dev,
                                                                     "device_label": device_label(),
                                                                     "locale": self.app.lang})
@@ -288,14 +289,14 @@ class License:
             on_done(True, self.state["message"])
             return
         if not is_license_key(t):
-            on_done(False, _("Vložte licenční klíč (PLCD-XXXX-XXXX-XXXX-XXXX) nebo celý licenční soubor z e-mailu."))
+            on_done(False, _("Vlož licenční klíč (PLCD-XXXX-XXXX-XXXX-XXXX) nebo celý licenční soubor z e-mailu."))
             return
         key, http = t.upper(), self.http
         body = {"key": key, "device_hash": device_hash(), "device_label": device_label(), "locale": self.app.lang}
 
         def done(res) -> None:
             if isinstance(res, Exception):
-                on_done(False, _("Server licencí se nepodařilo zastihnout. Bez internetu vložte místo "
+                on_done(False, _("Server licencí se nepodařilo zastihnout. Bez internetu vlož místo "
                                  "klíče licenční soubor z e-mailu (dlouhý řádek s tečkou uprostřed)."))
                 return
             st, data = res
@@ -434,7 +435,7 @@ class LicenseDialog:
                 ttk.Label(grid, text=v, font=theme.FONT_MONO).grid(row=i, column=1, sticky="w")
 
         ttk.Label(self.body, text=_("Vložit licenci"), style="Section.TLabel").pack(anchor="w", pady=(14, 0))
-        wrap_label(self.body, _("Licenční klíč (PLCD-…) se aktivuje přes internet. Bez internetu vložte celý "
+        wrap_label(self.body, _("Licenční klíč (PLCD-…) se aktivuje přes internet. Bez internetu vlož celý "
                                 "licenční soubor z e-mailu — ověří se v aplikaci podpisem."))
         self.entry = ttk.Entry(self.body, textvariable=self.var_in, font=theme.FONT_MONO)
         self.entry.pack(fill="x", pady=(6, 0))
@@ -454,8 +455,8 @@ class LicenseDialog:
         if st.get("ent", {}).get("ioLimit"):
             ttk.Label(self.body, text=_("Odemknout první projekt zdarma"), style="Section.TLabel"
                       ).pack(anchor="w", pady=(14, 0))
-            wrap_label(self.body, _("Narazíte na limit u reálného stroje? První projekt nad limit odemkneme "
-                                    "zdarma. Odešlete nám žádost přes stránku Kontakt — text s ID projektu se "
+            wrap_label(self.body, _("Narazíš na limit u reálného stroje? První projekt nad limit odemkneme "
+                                    "zdarma. Pošli nám žádost přes stránku Kontakt — text s ID projektu se "
                                     "zkopíruje do schránky; odemčení přijde jako licenční klíč e-mailem."))
             g = app.lic.gate() or {}
             wrap_label(self.body, _("Tento projekt: {io} I/O (limit Free {n}), ID {id}", io=g.get("io", 0),

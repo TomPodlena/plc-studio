@@ -16,7 +16,8 @@ from tkinter import ttk
 from .. import ai_client, theme
 from ..bridge import BridgeError
 from ..i18n import N_, _
-from ..widgets import Table, card, scrolled_text, set_text, wrap_label
+from ..widgets import trace
+from ..widgets import Table, card, note_box, scrolled_text, set_text, wrap_label
 from .program import ACT_LABEL
 from .zarizeni import _opts_text
 
@@ -30,6 +31,21 @@ def _is_num(v) -> bool:
     """Konečné číslo (bool ani NaN se nepočítá)."""
     return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v \
         and v not in (float("inf"), float("-inf"))
+
+
+def notes_text(app, pr: dict | None) -> str:
+    """Poznámky normalizace návrhu AI (``aiNorm`` → ``notes``: nepřevzaté kroky, neznámé třídy,
+    neplatné časy) jako text (``aiNotesText`` z ai.js). Bez poznámek / starší ai.js = ""."""
+    notes = (pr or {}).get("notes")
+    if not notes:
+        return ""
+    try:
+        text = app.bridge.ai("aiNotesText", notes)
+    except BridgeError:
+        text = ""
+    if not text and isinstance(notes, list):
+        text = "\n".join(f"• {n}" for n in notes if isinstance(n, str))
+    return text if isinstance(text, str) else ""
 
 
 def apply_proposal(app) -> None:
@@ -49,10 +65,13 @@ def apply_proposal(app) -> None:
     if res.get("renamed"):
         msg += " " + _("Přejmenováno kvůli duplicitě nebo neplatnému označení: {list}.",
                        list=", ".join(f"{r['from']} → {r['to']}" for r in res["renamed"]))
+    notes = notes_text(app, pr)                  # co se z odpovědi AI nepřevzalo (souhrn převzetí)
+    if notes:
+        msg += " " + " ".join(notes.split())
     app.step = 3
     app.save()
     app.render()
-    app.set_status(msg, keep=bool(res.get("renamed")))
+    app.set_status(msg, keep=bool(res.get("renamed") or notes))
 
 
 def _turn_lines(app, turn: dict) -> list[tuple[str, str]]:
@@ -172,9 +191,9 @@ def render(app, parent) -> None:
         app.settings["ai_model"] = var_model.get().strip() or ai_client.DEFAULT_MODEL
         app.save_settings()
 
-    var_key.trace_add("write", save_cfg)
-    var_model.trace_add("write", save_cfg)
-    var_model.trace_add("write", show_label)
+    trace(var_key, save_cfg, lbl_model)
+    trace(var_model, save_cfg, lbl_model)
+    trace(var_model, show_label, lbl_model)
     cfg._vars = (var_key, var_model)  # StringVar nesmí zaniknout s funkcí (prázdné pole)
 
     # --- tlačítka a vstup (úplně dole) — balí se PŘED návrhem: pack dává místo v pořadí
@@ -225,6 +244,10 @@ def render(app, parent) -> None:
                 set_text(seq_txt, seq_text)
         if _is_num(pr.get("takt")):              # navržený takt (převzetím se zapíše do projektu)
             wrap_label(prop, _("Takt: {t} s", t=f"{pr['takt']:g}"), pady=(4, 0))
+        notes = notes_text(app, pr)              # nepřevzaté části odpovědi AI (aiNorm notes)
+        if notes:
+            note_box(prop, notes, warn=True, pady=(6, 0))
+            prop.notes_text = notes              # testy
         row = ttk.Frame(prop)
         row.pack(fill="x", pady=(6, 0))
         ttk.Button(row, text=_("Převzít návrh (nahradí zařízení)"), style="Accent.TButton",
@@ -233,10 +256,17 @@ def render(app, parent) -> None:
                   style="Dim.TLabel").pack(side="left", padx=10)
 
     def on_draft(_e=None):
-        ai["draft"] = txt_in.get("1.0", "end-1c")
-        app.save()
+        if not txt_in.winfo_exists():
+            return
+        text = txt_in.get("1.0", "end-1c")
+        if text != ai.get("draft"):
+            ai["draft"] = text
+            app.save()
 
     txt_in.bind("<KeyRelease>", on_draft)
+    # vložení bez klávesy (myš, IME, diktování) a opuštění pole — forenzní test L10
+    txt_in.bind("<FocusOut>", on_draft, add="+")
+    txt_in.bind("<<Paste>>", lambda _e: txt_in.after_idle(on_draft), add="+")
 
     status = ttk.Label(btns, text=ui["status"], style="Err.TLabel")
     ui["status"] = ""

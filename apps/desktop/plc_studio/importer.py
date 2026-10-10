@@ -50,6 +50,12 @@ ERRORS = {
 }
 
 _FILETYPES = "*.xml *.l5x *.csv *.tsv *.txt *.st *.scl *.awl *.gvl *.TcGVL *.TcPOU *.json *.md"
+# velké podklady (forenzní test M2: I/O list s 200 000 řádky = 26 s zamrzlé okno, revize 2 026 zařízení
+# 28 s a znovu po každém ☑): rozpoznání nad BIG_INPUT znaků běží v pracovním procesu s průběhem
+# a Zrušit, tabulky revize ukazují nejvýš REVIEW_ROWS řádků, odškrtnutí mění jen řádek
+BIG_INPUT = 1_000_000
+REVIEW_ROWS = 1000
+MANY_DEVICES = 1000
 
 
 # --- podklady mezi spuštěními (jako web: IndexedDB) ------------------------------------------
@@ -140,7 +146,8 @@ def new_state() -> dict:
     return {"page": 0, "files": [], "paste": "", "sig": None, "ex": None, "exact": None,
             "ai": None, "merged": None, "est": None, "est_key": None, "code": True,
             "model": "", "skip": set(), "busy": False, "token": 0, "part": 0, "parts": 0,
-            "prev": None, "usage": None, "partial": None, "msg": ("", ""), "tab": 0, "sel": None}
+            "prev": None, "usage": None, "partial": None, "msg": ("", ""), "tab": 0, "sel": None,
+            "job": None}
 
 
 def _size(n: int) -> str:
@@ -213,12 +220,14 @@ class ImportWizard:
         win.transient(app.root)
         app.root.update_idletasks()
         rw, rh = app.root.winfo_width(), app.root.winfo_height()
-        w, h = min(1180, max(900, rw - 60)), min(820, max(600, rh - 40))
+        k = getattr(app, "ui_scale", 1.0)          # DPI-aware proces (theme.set_dpi_aware)
+        w, h = min(int(1180 * k), max(int(900 * k), rw - 60)), min(int(820 * k), max(int(600 * k), rh - 40))
         x = app.root.winfo_rootx() + max(0, (rw - w) // 2)
         y = app.root.winfo_rooty() + max(0, (rh - h) // 3)
         win.geometry(f"{w}x{h}+{x}+{y}")
-        win.minsize(860, 580)
+        win.minsize(int(860 * k), int(580 * k))
         win.protocol("WM_DELETE_WINDOW", self.close)
+        win.bind("<Escape>", self._escape)
 
         frm = ttk.Frame(win)
         frm.pack(fill="both", expand=True, padx=16, pady=12)
@@ -251,6 +260,14 @@ class ImportWizard:
             self.set_msg("err", _("Podklady nad {mb} MB se mezi spuštěními nepamatují: {files}.",
                                   mb=SOURCES_MAX // (1024 * 1024), files=", ".join(skipped)))
 
+    def _escape(self, event=None):
+        """Escape zavře průvodce (forenzní test L5) — ne v rozepsaném poli / editoru buňky."""
+        w = getattr(event, "widget", None)
+        if isinstance(w, (tk.Entry, ttk.Entry, ttk.Combobox)):
+            return None
+        self.close()
+        return "break"
+
     def _persist_later(self) -> None:
         if self._save_job is not None:
             try:
@@ -268,6 +285,10 @@ class ImportWizard:
                 pass
         if self.win.winfo_exists():
             self.persist()
+        job = S.get("job")
+        if job is not None:                  # rozpoznávání v pracovním procesu zrušit
+            S["job"] = None
+            self.app.bridge.cancel(job)
         dropfiles.disable(getattr(self, "_drop", None))
         self._drop = None
         if S["busy"]:                        # rozběhnutý dotaz zahodit (výsledek se nepoužije)
@@ -304,7 +325,7 @@ class ImportWizard:
         return out
 
     def goto(self, page: int) -> None:
-        if self.S["busy"] or not 0 <= page < len(PAGES):
+        if self.S["busy"] or self.S.get("job") is not None or not 0 <= page < len(PAGES):
             return
         if page > 0 and self.S["ex"] is None:
             return
@@ -382,15 +403,26 @@ class ImportWizard:
 
     def _dropped(self, paths: list[str]) -> None:
         """Soubory přetažené do okna = jako „Přidat soubory…“ (složky se přeskočí)."""
-        if self.S["busy"] or not self.win.winfo_exists():
+        if self.S["busy"] or self.S.get("job") is not None or not self.win.winfo_exists():
             return
         files = [p for p in paths if Path(p).is_file()]
+        dirs = [p for p in paths if Path(p).is_dir()]
+        gone = [p for p in paths if p not in files and p not in dirs]
         if not files:
-            self.set_msg("err", _("Přetáhni soubory, ne složku."))
+            self.set_msg("err", _("Soubor nebyl nalezen: {files}", files=", ".join(Path(p).name for p in gone))
+                         if gone and not dirs else _("Přetáhni soubory, ne složku."))
             return
         if self.S["page"] != 0:
             self.S["page"] = 0
+        n0 = len(self.S["files"])
         self.add_paths(files)
+        added = len(self.S["files"]) - n0
+        notes = [_n(added, N_("Přidán {n} soubor.|Přidány {n} soubory.|Přidáno {n} souborů."))]
+        if dirs:
+            notes.append(_("Složky se přeskočily: {files}", files=", ".join(Path(p).name for p in dirs)))
+        if gone:
+            notes.append(_("Soubor nebyl nalezen: {files}", files=", ".join(Path(p).name for p in gone)))
+        self.S["msg"] = ("err" if dirs or gone else "ok", " ".join(notes))
         self.render()
 
     def remove(self, index: int | None = None) -> None:
@@ -466,6 +498,13 @@ class ImportWizard:
         txt.bind("<KeyRelease>", on_paste)
         txt.bind("<<Paste>>", lambda _e: txt.after_idle(on_paste), add="+")
 
+        def on_leave(_e=None):               # opuštění pole = uložit hned (zavření aplikace, M4)
+            if txt.winfo_exists():
+                S["paste"] = txt.get("1.0", "end-1c")
+                self.persist()
+
+        txt.bind("<FocusOut>", on_leave, add="+")
+
         tbl = Table(body, [("name", _("Soubor"), 280, True), ("kind", _("Druh"), 180, False),
                            ("size", _("Velikost"), 90, False)], height=6)
         tbl.pack(fill="both", expand=True, pady=(8, 0))
@@ -475,6 +514,12 @@ class ImportWizard:
         tbl.tv.bind("<Delete>", lambda _e: remove_sel())
         self.files_table = tbl
 
+        if S.get("job") is not None:
+            bar = ttk.Progressbar(self._foot, mode="indeterminate", length=180)
+            bar.pack(side="right", padx=(6, 0))
+            bar.start(15)
+            self._foot_btn(_("Zrušit"), self.cancel_extract)
+            return
         self._foot_btn(_("Zavřít"), self.close)
         self._foot_btn(_("Rozpoznat") + " →", self.extract, accent=True)
 
@@ -488,23 +533,66 @@ class ImportWizard:
             self.set_msg("err", _("Nejdřív přidej soubory nebo vlož text."))
             return False
         self.persist()
+        if S.get("job") is not None:
+            return False                     # rozpoznávání už běží
         sig = [(f["name"], f.get("size"), len(f.get("text") or f.get("data") or "")) for f in inputs]
         if sig != S["sig"] or S["ex"] is None:
+            if sum(len(f.get("text") or f.get("data") or "") for f in inputs) > BIG_INPUT:
+                self._extract_async(inputs, sig)
+                return True
             try:
                 res = self.bridge("import.extract", files=inputs)
             except BridgeError as exc:
                 self.set_msg("err", _("Jádro hlásí chybu: {exc}", exc=exc))
                 return False
-            S.update(sig=sig, ex=res["ex"], exact=res["proposal"], ai=None, merged=None,
-                     est=None, est_key=None, skip=set(), tab=0)
-            n = len(res["proposal"]["prj"]["devices"])
-            # tvar podle čísla (z 1 souboru / ze 2 souborů…; angl. 1 device / 2 devices)
-            S["msg"] = ("ok", _n(n, N_("Rozpoznáno: {n} zařízení|Rozpoznáno: {n} zařízení|"
-                                       "Rozpoznáno: {n} zařízení")) + " "
-                        + _n(len(inputs), N_("z {n} souboru.|ze {n} souborů.|z {n} souborů.")))
+            self._extracted(res, sig, len(inputs))
         S["page"] = 1
         self.render()
         return True
+
+    def _extracted(self, res: dict, sig, n_inputs: int) -> None:
+        S = self.S
+        S.update(sig=sig, ex=res["ex"], exact=res["proposal"], ai=None, merged=None,
+                 est=None, est_key=None, skip=set(), tab=0)
+        n = len(res["proposal"]["prj"]["devices"])
+        # tvar podle čísla (z 1 souboru / ze 2 souborů…; angl. 1 device / 2 devices)
+        S["msg"] = ("ok", _n(n, N_("Rozpoznáno: {n} zařízení|Rozpoznáno: {n} zařízení|"
+                                   "Rozpoznáno: {n} zařízení")) + " "
+                    + _n(n_inputs, N_("z {n} souboru.|ze {n} souborů.|z {n} souborů.")))
+
+    def _extract_async(self, inputs: list[dict], sig) -> None:
+        """Velké podklady: rozpoznání v pracovním procesu (okno nezamrzne), průběh a Zrušit."""
+        S = self.S
+        job = self.app.bridge.submit("import.extract", {"files": inputs}, preemptible=False, cache=False)
+        S["job"] = job
+        S["msg"] = ("", _("Rozpoznávám velké podklady — může to trvat desítky sekund…"))
+        self.render()
+
+        def done(j) -> None:
+            if S.get("job") is not j:
+                return                       # zrušeno zavřením / novým rozpoznáním
+            S["job"] = None
+            if not self.win.winfo_exists():
+                return
+            if j.state == "done":
+                try:
+                    self._extracted(j.result(), sig, len(inputs))
+                except BridgeError as exc:
+                    S["msg"] = ("err", _("Jádro hlásí chybu: {exc}", exc=exc))
+                else:
+                    S["page"] = 1
+            elif j.state == "error":
+                S["msg"] = ("err", _("Jádro hlásí chybu: {exc}", exc=j.error))
+            else:
+                S["msg"] = ("err", _("Rozpoznávání zrušeno."))
+            self.render()
+
+        self.app.on_job(job, done, owner=self.win)
+
+    def cancel_extract(self) -> None:
+        job = self.S.get("job")
+        if job is not None:
+            self.app.bridge.cancel(job)
 
     # --- 2. rozpoznáno -------------------------------------------------------------------
 
@@ -619,6 +707,7 @@ class ImportWizard:
             self._foot_btn("← " + _("Zpět"), lambda: self.goto(1))
             return
         nothing = not any(p["files"] for p in est["parts"])
+        over = self.over_context(est)
 
         # zdola: upozornění na odeslání dat, varování odhadu
         if not key:
@@ -629,6 +718,12 @@ class ImportWizard:
             "firmu. Výsledek je návrh k revizi, ne ověřená dokumentace."), warn=True, side="bottom")
         if est["warnings"]:
             note_box(body, "\n".join("• " + w for w in est["warnings"]), warn=True, side="bottom")
+        if over:
+            note_box(body, _("Dotaz {parts} se nevejde do kontextu modelu {model} ({ctx} tokenů včetně "
+                             "rezervy na odpověď) — analýzu AI nejde spustit. Rozděl podklady na menší "
+                             "celky (méně souborů, menší I/O list), vypni posílání programů, nebo zvol "
+                             "model s větším kontextem.", parts=", ".join(str(i + 1) for i in over),
+                             model=S["model"], ctx=_num(est.get("ctx") or 0)), warn=True, side="bottom")
 
         stats = ttk.Frame(body)
         stats.pack(fill="x", pady=(10, 0))
@@ -683,7 +778,7 @@ class ImportWizard:
                            accent=nothing or not key or S["merged"] is not None)
             if key and not nothing:
                 self._foot_btn(_("Spustit analýzu (placené)"), self.confirm_ai,
-                               accent=S["merged"] is None)
+                               accent=S["merged"] is None, disabled=bool(over))
             self._foot_btn("← " + _("Zpět"), lambda: self.goto(1))
 
     def _key_box(self, body) -> None:
@@ -714,8 +809,22 @@ class ImportWizard:
         ttk.Button(row, text=_("Uložit klíč"), command=save_key).pack(side="left", padx=(6, 0))
         self.key_entry = ent
 
+    @staticmethod
+    def over_context(est: dict) -> list[int]:
+        """Dotazy, jejichž jeden požadavek se nevejde do kontextu modelu (průměr na navazující
+        odpověď vs. kontext bez rezervy na odpověď); bez údaje o kontextu nic."""
+        ctx, out = est.get("ctx"), est.get("maxOut") or 0
+        if not isinstance(ctx, (int, float)) or ctx <= 0:
+            return []
+        room = ctx - out
+        return [i for i, p in enumerate(est.get("parts") or [])
+                if p.get("files") and p.get("inputTokens", 0) / max(int(p.get("rounds") or 1), 1) > room]
+
     def confirm_ai(self) -> None:
         est = self.estimate()
+        if self.over_context(est):
+            self.set_msg("err", _("Dotaz se nevejde do kontextu modelu — rozděl podklady na menší celky."))
+            return
         if not messagebox.askyesno(
                 _("Spustit analýzu AI?"),
                 _("Odešle se {n} dotazů do Anthropic API (model {model}). Odhad ceny "
@@ -870,10 +979,12 @@ class ImportWizard:
     # --- 4. revize ----------------------------------------------------------------------------
 
     def toggle(self, name: str) -> None:
-        """Zařízení převzít / nepřevzít."""
+        """Zařízení převzít / nepřevzít — změní se jen řádek a počty (ne celá stránka)."""
         skip = self.S["skip"]
         skip.symmetric_difference_update({name})
-        self.render()
+        upd = getattr(self, "_toggle_row", None)
+        if upd is None or not upd(name):
+            self.render()
 
     def _evidence(self, key: str) -> dict | None:
         return (self.proposal() or {}).get("evidence", {}).get(key)
@@ -883,6 +994,7 @@ class ImportWizard:
         return ev["conf"] if ev else ""
 
     def _page_review(self) -> None:
+        self._toggle_row = None
         S, body, app = self.S, self.body, self.app
         prop = self.proposal()
         prj = prop["prj"]
@@ -904,9 +1016,14 @@ class ImportWizard:
             tk.Label(legend, text=_(CONF_LABEL[c]), bg=CONF_BG[c], fg=CONF_FG[c],
                      font=theme.FONT_DIM, padx=6, pady=1).pack(side="left", padx=(0, 4))
 
+        if len(devs) > MANY_DEVICES:
+            note_box(body, _("Podklady daly {n} zařízení — to je nezvykle mnoho. Nejspíš jde o I/O list, "
+                             "ve kterém se zařízení nepoznala (každý signál = zařízení); zkontroluj sloupce "
+                             "podkladů (Tag;Adresa;Zařízení;Třída;Komentář).", n=len(devs)),
+                     warn=True, side="bottom")
         # patička revize: převzetí
         take = len(devs) - len(skip_ids)
-        self._foot_btn(_("Převzít jako projekt"), self.take_over, accent=True, disabled=not take)
+        take_btn = self._foot_btn(_("Převzít jako projekt"), self.take_over, accent=True, disabled=not take)
         self._foot_btn("← " + _("Zpět"), lambda: self.goto(2 if S["ex"]["unparsed"] or S["ai"]
                                                                else 1))
 
@@ -1000,9 +1117,9 @@ class ImportWizard:
         ttk.Button(brow, text=_("Převzít vše"), command=lambda: set_all(True)).pack(side="left")
         ttk.Button(brow, text=_("Nepřevzít nic"), command=lambda: set_all(False)
                    ).pack(side="left", padx=(6, 0))
-        ttk.Label(brow, text=_("Převezme se {k} z {n} zařízení · klik do sloupce ✓ = převzít / "
-                               "nepřevzít", k=take, n=len(devs)), style="Dim.TLabel"
-                  ).pack(side="left", padx=10)
+        take_lbl = ttk.Label(brow, text=_("Převezme se {k} z {n} zařízení · klik do sloupce ✓ = převzít / "
+                                          "nepřevzít", k=take, n=len(devs)), style="Dim.TLabel")
+        take_lbl.pack(side="left", padx=10)
 
         def on_click(iid: str, key: str) -> None:
             if key == "take" and iid.isdigit() and int(iid) in by_id:
@@ -1013,7 +1130,15 @@ class ImportWizard:
                                    ("cls", _("Třída"), 130, False), ("desc", _("Popis"), 200, True),
                                    ("opt", _("Volby"), 160, True), ("conf", _("Jistota"), 90, False),
                                    ("src", _("Zdroj"), 170, True)], "d", on_click=on_click)
-        for d in devs:
+        def capped(parent, table, n: int) -> int:
+            """Kolik řádků ukázat; nad REVIEW_ROWS poznámka (převezme se vše podle voleb)."""
+            if n > REVIEW_ROWS:
+                ttk.Label(parent, text=_("Zobrazeno prvních {k} z {n} řádků — převezme se vše (podle "
+                                         "voleb Převzít vše / Nepřevzít nic).", k=REVIEW_ROWS, n=n),
+                          style="Dim.TLabel").pack(anchor="w", before=table)
+            return min(n, REVIEW_ROWS)
+
+        for d in devs[:capped(f_dev, t_dev, len(devs))]:
             k = "dev:" + d["name"]
             c, off = self._conf(k), d["id"] in skip_ids
             cls = app.CLS.get(d["cls"], {}).get("label", d["cls"])
@@ -1023,6 +1148,29 @@ class ImportWizard:
             rows[f"d{d['id']}"] = (f"{d['name']} — {cls}", self._evidence(k),
                                    _("nepřevezme se") if off else "")
         self.dev_table = t_dev
+        by_name = {d["name"]: d for d in devs}
+
+        def toggle_row(name: str) -> bool:
+            """Odškrtnutí v místě: buňka ✓, barva řádku, počet a tlačítko převzetí."""
+            d = by_name.get(name)
+            if d is None or not t_dev.winfo_exists() or not t_dev.tv.exists(str(d["id"])):
+                return False
+            off = name in S["skip"]
+            iid = str(d["id"])
+            t_dev.set_cell(iid, "take", "☐" if off else "☑")
+            t_dev.tv.item(iid, tags=conf_tags(self._conf("dev:" + name), off))
+            cls = app.CLS.get(d["cls"], {}).get("label", d["cls"])
+            rows["d" + iid] = (f"{name} — {cls}", self._evidence("dev:" + name), _("nepřevezme se") if off else "")
+            k = sum(1 for x in devs if x["name"] not in S["skip"])
+            take_lbl.configure(text=_("Převezme se {k} z {n} zařízení · klik do sloupce ✓ = převzít / "
+                                      "nepřevzít", k=k, n=len(devs)))
+            take_btn.state(["!disabled"] if k else ["disabled"])
+            t_dev.select(iid, reveal=False)
+            S["sel"] = "d" + iid
+            show(*rows["d" + iid])
+            return True
+
+        self._toggle_row = toggle_row
 
         # I/O
         f_io = tab(_("I/O ({n})", n=len(prj["io"])))
@@ -1030,7 +1178,7 @@ class ImportWizard:
                                  ("dir", _("Směr"), 50, False), ("dev", _("Zařízení"), 90, False),
                                  ("cmt", _("Komentář"), 200, True), ("conf", _("Jistota"), 90, False),
                                  ("src", _("Zdroj"), 170, True)], "i")
-        for i, e in enumerate(prj["io"]):
+        for i, e in enumerate(prj["io"][:capped(f_io, t_io, len(prj["io"]))]):
             d = by_id.get(e["devId"], {})
             k = "io:" + e["tag"]
             ev = self._evidence(k) or self._evidence("dev:" + d.get("name", ""))
@@ -1104,7 +1252,7 @@ class ImportWizard:
         missing = self.missing()
         f_mis = tab(_("Chybí ({n})", n=len(missing)))
         t_mis = make_table(f_mis, [("what", _("Co v podkladech chybí"), 500, True)], "m")
-        for i, m in enumerate(missing):
+        for i, m in enumerate(missing[:capped(f_mis, t_mis, len(missing))]):
             t_mis.add(i, (m,), tags=("missing",))
 
         # otázky a poznámka AI

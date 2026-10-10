@@ -283,6 +283,15 @@ def write_all(pdir: Path, data: dict, project_text: str) -> dict:
     return {"dirs": dirs, "blocked": blocked, "nblocked": nblocked, "project": proj, "total": total + 1}
 
 
+MAX_PATH = 260          # klasický limit cesty Windows (Průzkumník, ZIP, starší programy)
+
+
+def long_path_warning(n: int, total: int) -> str:
+    """Varování: část souborů má cestu delší než 260 znaků (forenzní test L8)."""
+    return _("Cesta {n} z {total} souborů je delší než 260 znaků — Průzkumník, rozbalení ZIP a starší "
+             "programy s nimi nemusí pracovat. Zvol kratší kořenový adresář projektů.", n=n, total=total)
+
+
 def summary_text(pdir: Path, s: dict) -> str:
     lines = [_n(s["total"], N_("Uložen {n} soubor do {path}.|Uloženy {n} soubory do {path}."
                                "|Uloženo {n} souborů do {path}."), path=pdir), ""]
@@ -311,6 +320,9 @@ def save_all(app, *, ask: bool = True, on_done=None):
     root = ensure_root(app)
     if root is None:
         return None
+    # projekt se zachytí TEĎ (výstupy počítá pracovní proces z tohoto stavu): otevření jiného
+    # projektu během výpočtu nesmí do složky zapsat soubor nového projektu (forenzní test H2)
+    project_text = app.project_payload()
     job = app.bridge.submit("datadir", payload(app), preemptible=False)
 
     win = tk.Toplevel(app.root)
@@ -337,6 +349,7 @@ def save_all(app, *, ask: bool = True, on_done=None):
     def done(j) -> None:
         if j.state != "done":
             if j.state == "error":
+                app.set_status("⚠ " + _("Uložení se nezdařilo"), keep=True)
                 messagebox.showerror(_("Uložení se nezdařilo"), str(j.error), parent=app.root)
             else:
                 app.set_status(_("Ukládání do složky projektu zrušeno."))
@@ -354,8 +367,9 @@ def save_all(app, *, ask: bool = True, on_done=None):
             finish(None)
             return
         try:
-            s = write_all(pdir, data, app.project_payload())
+            s = write_all(pdir, data, project_text)
         except OSError as exc:
+            app.set_status("⚠ " + _("Uložení se nezdařilo"), keep=True)
             messagebox.showerror(_("Uložení se nezdařilo"), str(exc), parent=app.root)
             finish(None)
             return
@@ -365,9 +379,16 @@ def save_all(app, *, ask: bool = True, on_done=None):
                                          "|Uloženo {n} souborů do {path}"), path=pdir))
         if win.winfo_exists():
             win.destroy()
+        long_paths = [p for p, _b in targets if len(str(p)) >= MAX_PATH]
+        if len(str(s["project"])) >= MAX_PATH:
+            long_paths.append(s["project"])
+        s["long"] = len(long_paths)
         if ask:
+            text = summary_text(pdir, s)
+            if long_paths:
+                text += "\n\n⚠ " + long_path_warning(len(long_paths), s["total"])
             if messagebox.askyesno(_("Uloženo do složky projektu"),
-                                   summary_text(pdir, s) + "\n\n" + _("Otevřít složku?"),
+                                   text + "\n\n" + _("Otevřít složku?"),
                                    parent=app.root):
                 open_folder(pdir)
             if s["nblocked"] and getattr(app, "lic", None):
