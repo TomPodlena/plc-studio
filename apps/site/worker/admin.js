@@ -518,8 +518,8 @@ async function issue(env, ctx, body, { legacy }) {
 // soubor je v odpovedi a provozovatel ho preda sam.
 async function mailLicense(env, args) {
   try {
-    await sendLicense(env, args);
-    return { sent: env.MAIL_MODE !== "direct" };
+    const r = await sendLicense(env, args);
+    return { sent: !r?.skipped };   // direct / owner (cizí adresát) = neodesláno, soubor předá provozovatel
   } catch (err) {
     console.error("Sprava: e-mail s licenci se nepodarilo odeslat:", err?.message ?? err);
     return { sent: false, mail_error: true };

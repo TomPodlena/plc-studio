@@ -1381,6 +1381,24 @@ await check("MAIL_MODE=direct: prihlaska se ulozi, nic se neposila", async () =>
   eq(sentMail.length, m, "bez e-mailu");
   eq(db.prepare("SELECT status FROM beta_applications WHERE email = 'direct@firma-example.cz'").get().status, "new", "ulozeno");
 });
+await check("MAIL_MODE=owner: upozorneni jen provozovateli z testovaciho odesilatele, zadateli nic", async () => {
+  const m = sentMail.length;
+  const ownerEnv = { ...env, MAIL_MODE: "owner", MAIL_FROM: "", MAIL_OWNER: "Provoz@Mail.example.eu", BETA_NOTIFY_TO: "provoz@mail.example.eu" };
+  eq((await beta({ ...betaOk, email: "owner@firma-example.cz" }, ownerEnv)).status, 200, "status");
+  const out = sentMail.slice(m);
+  eq(out.length, 1, "jen jeden e-mail");
+  eq(out[0].to[0], "provoz@mail.example.eu", "adresat = provozovatel");
+  eq(out[0].from, "PLCdesk <onboarding@resend.dev>", "testovaci odesilatel");
+  if (out[0].text.includes("owner@firma-example.cz")) throw new Error("upozorneni obsahuje e-mail zadatele");
+});
+await check("MAIL_MODE=owner: formular ke stazeni vrati odkaz rovnou, zajemci nic nechodi", async () => {
+  const m = sentMail.length;
+  const r = await call("POST", "/api/lead", { email: "owner-lead@firma.cz", ...human }, {}, { ...env, MAIL_MODE: "owner", MAIL_OWNER: "provoz@mail.example.eu" });
+  eq(r.status, 200, "status");
+  const j = await r.json();
+  if (!String(j.download_url || "").startsWith("/api/download?t=")) throw new Error("chybi odkaz v odpovedi");
+  eq(sentMail.length, m, "bez e-mailu");
+});
 await check("selhani posty prihlasku neztrati (200, radek ulozen)", async () => {
   const r = await beta({ ...betaOk, email: "posta@firma-example.cz" }, { ...env, RESEND_API_KEY: undefined });
   eq(r.status, 200, "status");

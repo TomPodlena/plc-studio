@@ -260,6 +260,15 @@ Jedna otevřená přihláška na e-mail. Potvrzení žadateli a upozornění pro
 `BETA_NOTIFY_TO`, jinak `MAIL_REPLY_TO`; bez osobních údajů, jen odkaz do správy) jdou přes `email.js` —
 při `MAIL_MODE = "direct"` se přihláška jen uloží.
 
+**Pošta bez domény — režim `MAIL_MODE = "owner"`:** jde jen upozornění provozovateli (`MAIL_OWNER`) z testovacího
+odesílatele Resend `onboarding@resend.dev`, který smí posílat jen na adresu majitele účtu Resend. Žadatel potvrzení
+nedostane, odkaz ke stažení se ukáže na stránce jako u `direct`, licence se předá souborem ze správy. Nastavení:
+1. Účet na <https://resend.com> založený na adresu `MAIL_OWNER` (zdarma, karta se nezadává).
+2. V Resend *API Keys → Create API Key* (oprávnění *Sending access*), klíč zkopírovat — ukáže se jen jednou.
+3. Z `apps/site`: `npx wrangler@4 secret put RESEND_API_KEY` a vložit klíč (do repa ani do `wrangler.toml` nepatří).
+4. `npx wrangler@4 deploy`. Kontrola: zkušební přihláška na `/beta/` → e-mail „nová přihláška“ na `MAIL_OWNER`.
+Po koupi domény přepnout na `"resend"` s `MAIL_FROM` z ověřené domény.
+
 Migrace (jednou, před nasazením Workeru s přihláškami; idempotentní):
 ```bash
 npx wrangler@4 d1 execute plcdesk --remote --file=schema_beta.sql
