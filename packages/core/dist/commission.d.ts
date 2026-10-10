@@ -12,7 +12,7 @@
  * Simulace ani generátor se tu nemění — plán z nich jen čte (seqCond, ověření, matice stavů).
  */
 import { Project } from "./model.js";
-import { type ApprovalItem, type ApprovalOptions } from "./approval.js";
+import { type ApprovalItem, type ApprovalOptions, type ApprovalSummary } from "./approval.js";
 export type CommissionResult = "ok" | "nok" | "na";
 /** Výsledek kroku oživení (`Project.commissioning[id]`). */
 export interface CommissioningRecord {
@@ -88,3 +88,12 @@ export declare const COMMISSION_FILE_CSV = "12_protokol_ozivovani.csv";
 export declare function commissioningMd(prj: Project, plan?: CommissioningStep[]): string;
 /** Protokol oživení jako CSV (oddělovač „;“) — k tisku a vyplnění. */
 export declare function commissioningCsv(prj: Project, plan?: CommissioningStep[]): string;
+/** Souhrn odznaku „Neschváleno: N“ + značky hotových kroků 11–13 (jako desktop `approval.badge`): bezpečnost =
+    všechny položky bezpečnosti schválené, schválení = povinné schválené, oživení = všechny kroky OK / N/A
+    (u levného výpočtu `null`). Jeden zdroj pro hlavní vlákno webu i jeho Worker. Žije tady, ne v approval.ts —
+    commission.ts se registruje u schvalování a opačný import by byl kruhový. */
+export interface ApprovalBadge extends ApprovalSummary {
+    safetyOk: boolean;
+    commissionDone: boolean | null;
+}
+export declare function approvalBadgeOf(prj: Project, items: ApprovalItem[], sum?: ApprovalSummary): ApprovalBadge;

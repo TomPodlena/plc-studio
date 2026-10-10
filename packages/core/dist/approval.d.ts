@@ -84,6 +84,11 @@ export declare function noGuid<T extends {
 export declare function designView(prj: Project): Project;
 /** Ověření simulací nad návrhem (sdílená cache s dokumentací a s levným souhrnem). */
 export declare function verifyDesign(prj: Project): VerifyResult;
+/**
+ * Převezme výsledek `verifyDesign(prj)` spočítaný jinde (web Worker klienta nad týmž jádrem, v aktuálním
+ * jazyce) do cache ověření — kroky Schválení / Oživení / Dokumentace pak simulaci znovu nespouštějí.
+ */
+export declare function seedVerifyDesign(prj: Project, v: VerifyResult): void;
 /** Ověření z cache, nebo null — nic nespouští. */
 export declare function verifyDesignCached(prj: Project): VerifyResult | null;
 /** Je ověření návrhu už spočítané (v aktuálním jazyce)? */

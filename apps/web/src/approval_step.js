@@ -4,7 +4,7 @@
 import {
   escHtml as esc, tr, syncIO, approvalItems, approvalStatus, approvalStatusLabel, approve, reject, resetApproval,
   approvalSummary, approvalOrphans, tuningProposals, applyTuningResult, approveMany, approvalsMd, APPROVAL_GROUPS, APPROVAL_FILE,
-  APPROVAL_FILTERS, approvalFilterLabel, approvalFilterPass, commissioningSummary,
+  APPROVAL_FILTERS, approvalFilterLabel, approvalFilterPass, approvalBadgeOf,
 } from "../../../packages/core/dist/index.js";
 import { card, downloadFile } from "./util.js";
 import { revisionAffected } from "./biz_view.js";
@@ -84,10 +84,7 @@ export function approvalBadge(prj, compute = true) {
  * `key` = projekt, ke kterému souhrn patří (značky v liště kroků jen pro aktuální projekt).
  */
 function badgeOf(prj, items, sum, key) {
-  const safety = items.filter(i => i.group === "safety");
-  return { ...sum, key,
-    safetyOk: safety.length > 0 && safety.every(i => approvalStatus(prj, i) === "approved"),
-    commissionDone: sum.partial ? null : commissioningSummary(prj).done };
+  return { ...approvalBadgeOf(prj, items, sum), key };
 }
 function noteSummary(prj, items, sum) { badgeKey = JSON.stringify(prj); badgeSum = badgeOf(prj, items, sum, badgeKey); return badgeSum; }
 

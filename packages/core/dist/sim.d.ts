@@ -523,6 +523,11 @@ export declare function devFaultRaw(d: Device, sp: number): number;
  */
 export declare function stateMatrix(prj: Project, base?: SimOptions, nominalRun?: SimResult, checkpoints?: Checkpoints): StateMatrix;
 export declare function verifyProject(prj: Project, base?: SimOptions): VerifyResult;
+/**
+ * Vloží hotový výsledek ověření do cache (klient ho spočítal mimo hlavní vlákno — web Worker nad
+ * týmž jádrem, týmž projektem a v témž jazyce). Další `verifyProject` se stejným vstupem už nepočítá.
+ */
+export declare function primeVerifyCache(prj: Project, res: VerifyResult, base?: SimOptions): void;
 /** Protokol o ověření simulací (Markdown do dokumentace projektu). */
 export declare function docVerifyMd(prj: Project): string;
 /** Klíč „výstupu pohybu“ servoosy ve snímku simulace (osa jede — FB_Axis výstup moving). */

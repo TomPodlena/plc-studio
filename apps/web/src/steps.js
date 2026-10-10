@@ -19,6 +19,7 @@ import { gateFor } from "./license.js";
 import { mountFolderControls, pickProjectText, suggestNumberAsync, saveProjectFile } from "./project_dir.js";
 import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, AI_EXAMPLE } from "./ai.js";
 import { trn } from "./plural.js";
+import { get as workerGet, pendingCard } from "./worker_client.js";
 
 /** Šířka číselného pole konfigurace osy podle délky textu (číslice + rezerva na šipky pole). */
 const axWidth = t => "calc(" + Math.max(5, String(t).length + 1) + "ch + 34px)";
@@ -1184,7 +1185,12 @@ export function makeSteps(ctx) {
     const p = prj();
     syncIO(p);
     if (!p.devices.length) { card(el, "09", tr("Dokumentace"), "<p class='hint'>" + tr("Nejdřív navrhni zařízení (kroky 2–4).") + "</p>"); return; }
-    const files = licensedProjectFiles(p, gateFor(p));
+    /* drahé (ověření simulací, u velkého projektu desítky sekund) → výpočetní Worker (worker_client.js);
+       do výsledku zástupný stav s průběhem a Zrušit, hotový výsledek krok překreslí */
+    const redraw = () => { if (S.step === 8) { const y = window.scrollY; render(); window.scrollTo({ top: y }); } };
+    const r = workerGet("docs", { prj: p, gate: gateFor(p) }, { onDone: redraw });
+    if (r.pending) { pendingCard(el, "09", tr("Dokumentace projektu"), r, tr("Generuji dokumentaci a ověřuji návrh simulací…"), redraw); return; }
+    const files = r.value.files;
     if (docSel >= files.length) docSel = 0;
     const groups = [...new Set(files.map(f => f.group))];
     let listHtml = "";

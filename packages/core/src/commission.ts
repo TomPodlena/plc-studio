@@ -17,7 +17,8 @@ import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_P
 import { axisCfgOf, axisObjName } from "./axis.js";
 import { tr, N_, today, formatDateTime } from "./i18n.js";
 import { hwAddrText } from "./hardware.js";
-import { contentHash, registerApprovalProvider, approvalStamp, verifyDesign, verifyDesignCached, isVerified, APPROVAL_FILE, type ApprovalItem, type ApprovalOptions } from "./approval.js";
+import { contentHash, registerApprovalProvider, approvalStamp, verifyDesign, verifyDesignCached, isVerified, APPROVAL_FILE, type ApprovalItem, type ApprovalOptions,
+  approvalSummary, approvalStatus, type ApprovalSummary } from "./approval.js";
 
 export type CommissionResult = "ok" | "nok" | "na";
 
@@ -492,4 +493,16 @@ export function commissioningCsv(prj: Project, plan: CommissioningStep[] = commi
       r ? RESULT_LABEL[r.result] : "", r ? r.by : "", r ? formatDateTime(r.at) : "", r?.measured || "", r?.note || ""].map(csvCell).join(";"));
   }
   return l.join("\n");
+}
+
+/** Souhrn odznaku „Neschváleno: N“ + značky hotových kroků 11–13 (jako desktop `approval.badge`): bezpečnost =
+    všechny položky bezpečnosti schválené, schválení = povinné schválené, oživení = všechny kroky OK / N/A
+    (u levného výpočtu `null`). Jeden zdroj pro hlavní vlákno webu i jeho Worker. Žije tady, ne v approval.ts —
+    commission.ts se registruje u schvalování a opačný import by byl kruhový. */
+export interface ApprovalBadge extends ApprovalSummary { safetyOk: boolean; commissionDone: boolean | null }
+export function approvalBadgeOf(prj: Project, items: ApprovalItem[], sum: ApprovalSummary = approvalSummary(prj, items)): ApprovalBadge {
+  const safety = items.filter(i => i.group === "safety");
+  return { ...sum,
+    safetyOk: safety.length > 0 && safety.every(i => approvalStatus(prj, i) === "approved"),
+    commissionDone: sum.partial ? null : commissioningSummary(prj).done };
 }

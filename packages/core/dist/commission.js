@@ -17,7 +17,7 @@ import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_P
 import { axisCfgOf, axisObjName } from "./axis.js";
 import { tr, N_, today, formatDateTime } from "./i18n.js";
 import { hwAddrText } from "./hardware.js";
-import { contentHash, registerApprovalProvider, approvalStamp, verifyDesign, verifyDesignCached, isVerified, APPROVAL_FILE } from "./approval.js";
+import { contentHash, registerApprovalProvider, approvalStamp, verifyDesign, verifyDesignCached, isVerified, APPROVAL_FILE, approvalSummary, approvalStatus } from "./approval.js";
 /** Fáze oživení (klíče překladu). */
 export const COMMISSION_PHASES = {
     1: N_("Rozvaděč a napájení"),
@@ -512,4 +512,10 @@ export function commissioningCsv(prj, plan = commissioningPlan(prj)) {
             r ? RESULT_LABEL[r.result] : "", r ? r.by : "", r ? formatDateTime(r.at) : "", r?.measured || "", r?.note || ""].map(csvCell).join(";"));
     }
     return l.join("\n");
+}
+export function approvalBadgeOf(prj, items, sum = approvalSummary(prj, items)) {
+    const safety = items.filter(i => i.group === "safety");
+    return { ...sum,
+        safetyOk: safety.length > 0 && safety.every(i => approvalStatus(prj, i) === "approved"),
+        commissionDone: sum.partial ? null : commissioningSummary(prj).done };
 }

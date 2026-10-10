@@ -14,6 +14,7 @@ import {
 } from "../../../packages/core/dist/index.js";
 import { card } from "./util.js";
 import { trn } from "./plural.js";
+import { request as workerRequest, cancel as workerCancel, workerActive } from "./worker_client.js";
 
 /** Rozsah běhu jako v dokumentu 15 (emuDocMd): plná matice do 40 kroků, nad tím rychlá sada. */
 export const emuScope = p => p.program.seq.length <= 40 ? "full" : "quick";
@@ -46,6 +47,16 @@ export function makeEmuTab(ctx) {
     const repaint = () => { const el = document.getElementById("emuProgress"); if (el) el.innerHTML = progressHtml(); };
     try {
       for (let i = 0; i < plats.length && !RUN.stop; i++) {
+        if (workerActive()) {
+          /* výpočetní Worker (worker_client.js): hlavní vlákno nezamrzne, Zastavit přeruší i rozběhnutou
+             platformu (terminate); cache emulace zůstane ve Workeru pro dokument 15 */
+          RUN.i = i; RUN.phase = "run"; repaint();
+          let r;
+          try { r = await workerRequest("emu", { prj: p, plat: plats[i], scope }, { slot: "emu" }); }
+          catch (e) { if (e && e.cancelled) break; throw e; }
+          out.files[plats[i]] = r.files; out.comp[plats[i]] = r.comp; out.run[plats[i]] = r.run;
+          continue;
+        }
         RUN.i = i; RUN.phase = "compile"; repaint(); await tick();
         out.files[plats[i]] = genFor(p, plats[i]);
         out.comp[plats[i]] = emulateCompile(p, plats[i]);
@@ -152,7 +163,7 @@ export function makeEmuTab(ctx) {
       run(p, plats);
       render();
     });
-    c.querySelector("#emuStop").addEventListener("click", () => { if (RUN) { RUN.stop = true; c.querySelector("#emuStop").disabled = true; } });
+    c.querySelector("#emuStop").addEventListener("click", () => { if (RUN) { RUN.stop = true; c.querySelector("#emuStop").disabled = true; if (workerActive()) workerCancel(); } });
     const res = c.querySelector("#emuResult");
     if (!RES || RUN) {
       if (!RUN) res.innerHTML = "<p class='hint'>" + tr("Emulace zatím neproběhla. Vyber platformy a spusť ověření — výsledek se zapíše i do dokumentu {file} v kroku Dokumentace.", { file: "<code>" + EMU_DOC_FILE + "</code>" }) + "</p>";

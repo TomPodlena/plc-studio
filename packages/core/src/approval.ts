@@ -21,7 +21,7 @@ import {
 } from "./model.js";
 import { seqCond } from "./codegen.js";
 import { axisCfgOf } from "./axis.js";
-import { verifyProject, stepWatchdog, stepTitle, T_MOTOR_FBK, T_VALVE_TRAVEL, type VerifyResult } from "./sim.js";
+import { verifyProject, primeVerifyCache, stepWatchdog, stepTitle, T_MOTOR_FBK, T_VALVE_TRAVEL, type VerifyResult } from "./sim.js";
 import { tr, N_, getLang, formatDate, formatDateTime } from "./i18n.js";
 
 export type ApprovalState = "proposed" | "approved" | "rejected";
@@ -165,6 +165,15 @@ export function verifyDesign(prj: Project): VerifyResult {
   verifyMemo.set(k, v);
   if (verifyMemo.size > 8) verifyMemo.delete(verifyMemo.keys().next().value as string);
   return v;
+}
+/**
+ * Převezme výsledek `verifyDesign(prj)` spočítaný jinde (web Worker klienta nad týmž jádrem, v aktuálním
+ * jazyce) do cache ověření — kroky Schválení / Oživení / Dokumentace pak simulaci znovu nespouštějí.
+ */
+export function seedVerifyDesign(prj: Project, v: VerifyResult): void {
+  verifyMemo.set(verifyKey(prj), v);
+  if (verifyMemo.size > 8) verifyMemo.delete(verifyMemo.keys().next().value as string);
+  primeVerifyCache(designView(prj), v);
 }
 /** Ověření z cache, nebo null — nic nespouští. */
 export function verifyDesignCached(prj: Project): VerifyResult | null {

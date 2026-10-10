@@ -30,6 +30,11 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
 - `apps/web` — aplikace: statické HTML + ES moduly nad `packages/core/dist` (bez bundleru,
   záměrně — budoucí přechod na Vite/React je OK, ale core zůstává oddělené).
   `prototype.html` = původní single-file prototyp (historický, zastaralý), `demo.html` = technické demo jádra.
+  **Drahé výpočty ve Web Workeru** (`core_worker.js` operace docs / verify / badge / emu, klient `worker_client.js`:
+  cache operace × jazyk × dokument 15 × projekt, zástupný stav s průběhem a Zrušit; výsledek ověření převezme cache
+  jádra `primeVerifyCache` / `seedVerifyDesign`). Bez Workeru (file://, CSP, `?worker=off`) synchronně jako dřív.
+  Shodu Worker × hlavní vlákno hlídá `apps/web/tests/worker_parity.html` (headless Edge, `window.__result`).
+  Souhrn odznaku schválení = `approvalBadgeOf` (commission.ts) pro hlavní vlákno i Worker.
 - `apps/desktop` — desktopová aplikace: Python + tkinter (vizuál nástrojů PearTec), stejné workflow
   jako web. **Logiku nekopíruje** — volá `packages/core/dist` a `apps/web/src/ai.js` přes trvalý
   proces Node (`bridge.mjs`, JSON po řádcích); výkresy z jádra kreslí na `tk.Canvas`.

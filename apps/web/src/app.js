@@ -1,5 +1,6 @@
 /* PLCdesk — aplikační shell: stav, navigace, render, jazyk. */
-import { blankProject, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule, escHtml as esc } from "../../../packages/core/dist/index.js";
+import { blankProject, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule, escHtml as esc, syncIO, isVerified } from "../../../packages/core/dist/index.js";
+import { get as workerGet, peek as workerPeek, forget as workerForget, workerActive, pendingCard } from "./worker_client.js";
 import { makeSteps } from "./steps.js";
 import { makeImportWizard } from "./import_wizard.js";
 import { makeSafetyStep } from "./safety_step.js";
@@ -129,7 +130,27 @@ const biz = makeBizSteps(sctx);
 setApproverSource(() => approverNames(S.prj));   // schvalovatelé z firemní knihovny projektu
 const RENDERERS = [el => { steps.rProjekt(el); biz.rRevisions(el); biz.rLibrary(el); }, steps.rAI, steps.rPlat,
   el => { steps.rDev(el); biz.rDevLibrary(el); }, steps.rIO, steps.rSchema, steps.rProg, genTabs.rGenTabs, steps.rDocs,
-  el => biz.rBomTabs(el, steps.rBom), safety.rSafety, approval.rApproval, commission.rCommission];
+  el => biz.rBomTabs(el, steps.rBom), safety.rSafety,
+  el => verified(el, "12", N_("Schválení návrhu"), approval.rApproval), el => verified(el, "13", N_("Oživení"), commission.rCommission)];
+
+/** Kroky, které potřebují ověření simulací (Schválení, Oživení): u velkého projektu desítky sekund →
+    spočítá ho Worker (worker_client.js), výsledek převezme cache jádra a krok se pak vykreslí beze změny. */
+const refetched = new Set();
+function verified(el, num, title, r) {
+  const p = S.prj;
+  if (workerActive() && p.devices.length && p.program.seq.length) {
+    syncIO(p);
+    if (!isVerified(p)) {
+      const step = S.step;
+      const redraw = () => { if (S.step === step) { const y = window.scrollY; render(); window.scrollTo({ top: y }); } };
+      let w = workerGet("verify", { prj: p }, { slot: "verify", onDone: redraw });
+      /* hotové, ale cache jádra ho mezitím vyřadila (jiný jazyk, starší projekt) → znovu z cache Workeru */
+      if (!w.pending && !isVerified(p) && !refetched.has(w.key)) { refetched.add(w.key); workerForget(w.key); w = workerGet("verify", { prj: p }, { slot: "verify", onDone: redraw }); }
+      if (w.pending) { pendingCard(el, num, tr(title), w, tr("Ověřuji návrh simulací…"), redraw); return; }
+    }
+  }
+  r(el);
+}
 
 /* ---------------------------------------------------------------- odznak „Neschváleno: N"
    pending + stale ze schvalování; počítá se odloženě po vykreslení a jen při změně projektu
@@ -154,6 +175,17 @@ function showBadge(sum) {
 function scheduleBadge() {
   clearTimeout(badgeTimer);
   badgeTimer = setTimeout(() => {
+    /* s Workerem (worker_client.js): plný souhrn mimo hlavní vlákno, bez limitu velikosti projektu;
+       do výsledku levný souhrn (dolní odhad „?“) — výsledek ho přepíše, jen když patří k aktuálnímu projektu */
+    if (workerActive()) {
+      try {
+        syncIO(S.prj);
+        const r = workerGet("badge", { prj: S.prj }, { slot: "badge", onDone: v => { if (workerPeek("badge", { prj: S.prj }) === v) showBadge(v.sum); } });
+        if (!r.pending) showBadge(r.value.sum);
+        else { const s = approvalBadge(S.prj, false); if (s) showBadge(s); }
+      } catch (e) { console.warn("approval badge:", e); }
+      return;
+    }
     /* souhrn potřebuje ověření simulací — u velkého projektu (sekundy) jen v krocích, které ho počítají stejně */
     const compute = S.prj.devices.length <= BADGE_LIVE_DEVICES || [8, 10, 11, 12].includes(S.step);
     try { const s = approvalBadge(S.prj, compute); if (s) showBadge(s); else $("badgeApproval").hidden = true; } catch (e) { console.warn("approval badge:", e); }
