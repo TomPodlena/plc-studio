@@ -53,7 +53,7 @@ MAIL_REPLY_TO = ""
 MAIL_SIGNATURE = "PLCdesk"
 # Upozorneni provozovateli na novou prihlasku beta testera (/api/beta). Prazdne = MAIL_REPLY_TO,
 # i to prazdne = jen ulozit do D1 (sprava #/beta). Pri MAIL_MODE = "direct" se nic neposila.
-BETA_NOTIFY_TO = ""
+BETA_NOTIFY_TO = "podlena.t@gmail.com"
 # Soubor ke stazeni (bez R2): odkaz na asset v GitHub Releases, napr.
 #   https://github.com/<ucet>/<repo>/releases/download/v0.1.0/PLCdesk-0.1.0-portable.zip
 # Prazdne = "soubor zatim neni k dispozici" (503), dokud neni prvni verze.

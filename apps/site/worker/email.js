@@ -55,7 +55,7 @@ děkujeme za přihlášku do beta testu {app}. Přihlásili jste se k ověření
 Co bude dál:
 - Přihlášku si osobně projdeme a odpovíme na tuto adresu, obvykle do dvou pracovních dnů.
 - Po potvrzení si stáhnete aplikaci, v kroku Platformy uložíte „Balík k ověření“, naimportujete ho a přeložíte ve svém IDE a vyplníte PROTOKOL.md.
-- Podmínky (například licenci Pro po dobu testu) vám potvrdíme e-mailem spolu s přijetím přihlášky.
+- S přijetím přihlášky vám pošleme licenci PLCdesk Pro zdarma na 90 dní.
 
 Údaje z přihlášky používáme jen pro beta test. Když si to rozmyslíte, stačí odepsat a přihlášku smažeme.
 
@@ -123,7 +123,7 @@ thank you for applying to the {app} beta test. You signed up to verify these pla
 What happens next:
 - We will review your application personally and reply to this address, usually within two working days.
 - Once confirmed, you download the application, save the "Verification pack" in the Platforms step, import and compile it in your IDE and fill in PROTOKOL.md.
-- We will confirm the terms (for example a Pro licence for the duration of the test) by e-mail together with accepting your application.
+- Together with accepting your application we will send you a free PLCdesk Pro licence for 90 days.
 
 We use the data from your application only for the beta test. If you change your mind, just reply and we will delete your application.
 
@@ -191,7 +191,7 @@ vielen Dank für Ihre Anmeldung zum Betatest von {app}. Sie möchten folgende Pl
 Wie es weitergeht:
 - Wir sehen uns Ihre Anmeldung persönlich an und antworten an diese Adresse, meist innerhalb von zwei Arbeitstagen.
 - Nach der Bestätigung laden Sie die Anwendung herunter, speichern im Schritt Plattformen das „Prüfpaket“, importieren und übersetzen es in Ihrer IDE und füllen PROTOKOL.md aus.
-- Die Bedingungen (zum Beispiel eine Pro-Lizenz für die Dauer des Tests) bestätigen wir Ihnen per E-Mail zusammen mit der Annahme der Anmeldung.
+- Mit der Annahme der Anmeldung senden wir Ihnen eine kostenlose PLCdesk-Pro-Lizenz für 90 Tage.
 
 Die Angaben aus der Anmeldung verwenden wir nur für den Betatest. Wenn Sie es sich anders überlegen, antworten Sie einfach, und wir löschen Ihre Anmeldung.
 

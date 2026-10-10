@@ -4703,7 +4703,7 @@ const d = {
     "Za tečkou chybí jméno členu": "点号后缺少成员名",
     "Za vlastností {name} emulátor další člen ani index nepodporuje": "仿真器不支持属性 {name} 之后的其他成员或索引",
     "Za {what} chybí středník — {plat} vyžaduje {what};": "{what} 后缺少分号 —— {plat} 要求 {what};",
-    "Za úplný protokol od vás dostanete licenci PLCdesk Pro zdarma.": "提交完整报告即可免费获得 PLCdesk Pro 许可证。",
+    "Za úplný protokol od vás dostanete licenci PLCdesk Pro zdarma na 90 dní.": "提交完整的测试记录后，您将获得 90 天免费的 PLCdesk Pro 许可证。",
     "Zablokovat osu (chyba sledování)": "卡住轴（跟随误差）",
     "Zadej cílovou polohu / dráhu osy.": "请输入轴的目标位置 / 行程。",
     "Zadej jméno osoby, která revizi vydává.": "请输入发布版本的人员姓名。",

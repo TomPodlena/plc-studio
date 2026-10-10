@@ -908,7 +908,7 @@
     "all_link": "Prüfstand aller Plattformen",
     "get_title": "Was Sie bekommen",
     "get": [
-      "Jedem angenommenen Tester bieten wir eine {{site.brand}}-Pro-Lizenz für die Dauer des Tests an. Umfang und Zeitraum bestätigen wir per E-Mail zusammen mit der Annahme der Anmeldung.",
+      "Jeder angenommene Tester erhält eine kostenlose {{site.brand}}-Pro-Lizenz für 90 Tage. Wir senden sie per E-Mail zusammen mit der Annahme der Anmeldung.",
       "Einen direkten Draht zur Entwicklung: Befunde aus Ihrem Protokoll beheben wir vorrangig und sagen Ihnen, was sich geändert hat.",
       "Ausgaben für Ihre Plattform, die Sie selbst in Ihrer IDE ausprobiert haben."
     ],

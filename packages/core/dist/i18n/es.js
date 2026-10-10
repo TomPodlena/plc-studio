@@ -4703,7 +4703,7 @@ const d = {
     "Za tečkou chybí jméno členu": "Falta el nombre del miembro tras el punto",
     "Za vlastností {name} emulátor další člen ani index nepodporuje": "Tras la propiedad {name} el emulador no admite otro miembro ni índice",
     "Za {what} chybí středník — {plat} vyžaduje {what};": "Falta el punto y coma tras {what} — {plat} exige {what};",
-    "Za úplný protokol od vás dostanete licenci PLCdesk Pro zdarma.": "Por un informe completo recibirá una licencia PLCdesk Pro gratis.",
+    "Za úplný protokol od vás dostanete licenci PLCdesk Pro zdarma na 90 dní.": "Por un protocolo completo recibirá una licencia PLCdesk Pro gratuita durante 90 días.",
     "Zablokovat osu (chyba sledování)": "Bloquear el eje (error de seguimiento)",
     "Zadej cílovou polohu / dráhu osy.": "Introduce la posición de destino / distancia del eje.",
     "Zadej jméno osoby, která revizi vydává.": "Introduzca el nombre de la persona que emite la revisión.",

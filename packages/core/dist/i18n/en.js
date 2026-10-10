@@ -4703,7 +4703,7 @@ const d = {
     "Za tečkou chybí jméno členu": "Member name missing after the dot",
     "Za vlastností {name} emulátor další člen ani index nepodporuje": "After property {name} the emulator supports no further member or index",
     "Za {what} chybí středník — {plat} vyžaduje {what};": "Semicolon missing after {what} — {plat} requires {what};",
-    "Za úplný protokol od vás dostanete licenci PLCdesk Pro zdarma.": "For a complete report you get a PLCdesk Pro license for free.",
+    "Za úplný protokol od vás dostanete licenci PLCdesk Pro zdarma na 90 dní.": "For a complete protocol you will receive a free PLCdesk Pro licence for 90 days.",
     "Zablokovat osu (chyba sledování)": "Block the axis (following error)",
     "Zadej cílovou polohu / dráhu osy.": "Enter the target position / distance of the axis.",
     "Zadej jméno osoby, která revizi vydává.": "Enter the name of the person issuing the revision.",

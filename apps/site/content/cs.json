@@ -908,7 +908,7 @@
     "all_link": "Stav ověření všech platforem",
     "get_title": "Co dostanete",
     "get": [
-      "Licenci {{site.brand}} Pro na dobu testu nabízíme každému přijatému testerovi. Rozsah a dobu potvrdíme e-mailem spolu s přijetím přihlášky.",
+      "Každý přijatý tester dostane licenci {{site.brand}} Pro zdarma na 90 dní. Pošleme ji e-mailem spolu s přijetím přihlášky.",
       "Přímou linku na vývoj: nálezy z vašeho protokolu opravujeme přednostně a dáme vědět, co se změnilo.",
       "Výstupy pro vaši platformu, které jste si sami vyzkoušeli ve svém IDE."
     ],

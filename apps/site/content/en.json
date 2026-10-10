@@ -908,7 +908,7 @@
     "all_link": "Verification status of all platforms",
     "get_title": "What you get",
     "get": [
-      "We offer every accepted tester a {{site.brand}} Pro licence for the duration of the test. We confirm the scope and period by e-mail together with accepting your application.",
+      "Every accepted tester gets a free {{site.brand}} Pro licence for 90 days. We send it by e-mail together with accepting your application.",
       "A direct line to development: findings from your report are fixed with priority and we tell you what changed.",
       "Outputs for your platform that you have tried yourself in your own IDE."
     ],
