@@ -16,7 +16,7 @@ import { seqCond, manVarOf } from "./codegen.js";
 import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_POS_ACK, T_POS_MOVE, T_AXIS_POWER } from "./sim.js";
 import { axisCfgOf, axisObjName } from "./axis.js";
 import { tr, N_, today, formatDateTime } from "./i18n.js";
-import { hwAddrText } from "./hardware.js";
+import { hwAddrText, withFrozenHw } from "./hardware.js";
 import { contentHash, registerApprovalProvider, approvalStamp, verifyDesign, verifyDesignCached, isVerified, APPROVAL_FILE, approvalSummary, approvalStatus } from "./approval.js";
 /** Fáze oživení (klíče překladu). */
 export const COMMISSION_PHASES = {
@@ -115,6 +115,10 @@ function ioStep(prj, e, role) {
  * nespouští — bez spočítaného ověření pak fáze 8 chybí a doby jsou „—“ (jen náhled, ne pro otisk).
  */
 export function commissioningPlan(prj, opts = {}) {
+    /* plán projekt nemění — sestava hardwaru jednou na platformu (hwAddrText pro každý signál; dřív O(N²)) */
+    return withFrozenHw(() => commissioningPlanImpl(prj, opts));
+}
+function commissioningPlanImpl(prj, opts) {
     const out = [];
     const add = (s) => out.push(s);
     const mods = modules(prj);

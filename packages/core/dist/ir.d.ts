@@ -50,6 +50,8 @@
  * (přegenerování `node scripts/golden.mjs --write`, zdůvodnění v commitu).
  */
 import { Project, Device, IoEntry, SeqStep, SeqAct, DoRole } from "./model.js";
+import { IR_CTRL, seqVarOf, manVarOf, manVarsOf } from "./names.js";
+export { IR_CTRL, seqVarOf, manVarOf, manVarsOf };
 /** Datový typ proměnné / portu (IEC). */
 export type IrType = "BOOL" | "INT" | "WORD" | "REAL" | "TON"
 /** objekt servoosy (technologický objekt, AXIS_REF…) — typ dosadí renderer podle platformy */
@@ -130,16 +132,6 @@ export interface IrNames {
 }
 /** Zápis výrazu v IEC ST (TRUE/FALSE, AND/OR/NOT, `=`, `<>`); dialekty upravuje renderer. */
 export declare function irText(e: IrExpr, n: IrNames): string;
-/** Proměnné řízení stroje (jména jsou rozhraním k HMI — neměnit). */
-export declare const IR_CTRL: {
-    readonly enable: "enable";
-    readonly modeAuto: "modeAuto";
-    readonly cmdAutoStart: "cmdAutoStart";
-    readonly cmdAck: "cmdAck";
-    readonly machineFault: "machineFault";
-    readonly faultStep: "faultStep";
-    readonly seqStep: "seqStep";
-};
 /** Pořadí vyhodnocení v jednom scanu (generátor = simulátor). */
 export declare const IR_EVAL_ORDER: readonly ["enable", "seq", "seqTimers", "blocks", "fault"];
 export type IrPhase = typeof IR_EVAL_ORDER[number];
@@ -319,15 +311,6 @@ export declare function limitedAnalogs(prj: Project): Device[];
 export declare function waitedDis(prj: Project): Set<number>;
 /** Zařízení s funkčním blokem a povelem (motory, ventily, měniče, polohovací pohony, proporcionální ventily). */
 export declare function actuators(prj: Project): Device[];
-/** Proměnná povelu ze sekvence (BOOL) / ručního povelu z HMI pro dané zařízení. */
-export declare function seqVarOf(d: Device): string;
-/** Ruční povel z HMI: motor / měnič chod, ventil otevřít, polohovací pohon referování, proporcionální ventil zapnout. */
-export declare function manVarOf(d: Device): string;
-/**
- * Ruční povely z HMI pro zařízení: u servoosy regulace (úroveň), referování (hrana) a ruční pojezd
- * +/− (držet; po E-stopu / poruše až po puštění tlačítka), jinak jeden povel `manVarOf`.
- */
-export declare function manVarsOf(d: Device): string[];
 /** Povely sekvence motorů a ventilů (BOOL, pořadí prvního výskytu v sekvenci). */
 export declare function seqVars(prj: Project): string[];
 /** Proměnné povelů sekvence pohonu fáze 2a (jméno → typ a hodnota po přerušení). */

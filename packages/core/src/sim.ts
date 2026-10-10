@@ -14,6 +14,7 @@
 import {
   Project, Device, IoEntry, SeqStep, CLS, devById, ioOf, enableInputs, interlockDevs, isDiWait, roleExpr,
   isMotionClass, rampStepOf, tolOf, tolTicksOf, travelOf, devSp, stepSp, isSpAct, instName, stepAxisTarget,
+  registerValidationHook, type ValidationIssue,
 } from "./model.js";
 import { AX, AX_SIZE, MC_GEN, MC_GEN_SIZE, AXERR, axisCfgOf, axisInit, axisTick, mcCall, type McKind } from "./axis.js";
 import { AXIS_MODE } from "./ir.js";
@@ -386,6 +387,8 @@ export class Simulator {
   readonly frames: SimFrame[] = [];
   readonly steps: SimStepRun[] = [];
   readonly errors: Array<{ dev: number; t: number }> = [];
+  /** Kontrolní bod sdílí záznam se zdrojem: délky [události, snímky, chyby] v okamžiku kopie (`clone(true)`). */
+  private sharedLen?: [number, number, number];
   /** Počet dokončených cyklů a doba prvního / posledního z nich [s]. */
   cycles = 0;
   firstCycleTime: number | null = null;
@@ -532,14 +535,25 @@ export class Simulator {
    * navazuje zásahy v okamžiku `t` místo simulace celého cyklu od začátku — výsledek je
    * shodný, protože scan je deterministický a kopie nese i stav časovačů a hran.
    */
-  clone(): Simulator {
+  clone(shared = false): Simulator {
     const c = Object.create(Simulator.prototype) as Simulator;
     Object.assign(c, this);
     const s = this as unknown as Record<string, unknown>, d = c as unknown as Record<string, unknown>;
     const ctl = this.controls;
+    /* záznam (snímky, události, chyby): kontrolní bod (`shared`) si pamatuje jen délky polí zdroje — zdroj dál jen
+       připisuje, takže prefix se nemění; skutečná kopie vznikne až při klonu, ze kterého se simuluje. Bez toho
+       drží každý kontrolní bod kopii celého záznamu (desítky kroků × dlouhý cyklus = OOM; forenzní test 2026-10-10, N1) */
+    const len = this.sharedLen;
+    if (shared) {
+      d.sharedLen = [len ? len[0] : this.events.length, len ? len[1] : this.frames.length, len ? len[2] : this.errors.length];
+    } else {
+      d.sharedLen = undefined;
+      d.events = len ? this.events.slice(0, len[0]) : [...this.events];
+      d.frames = len ? this.frames.slice(0, len[1]) : [...this.frames];
+      d.errors = len ? this.errors.slice(0, len[2]) : [...this.errors];
+    }
     d.controls = { ...ctl, man: { ...ctl.man }, frozen: [...ctl.frozen], fault: [...ctl.fault], comm: [...ctl.comm], notReady: [...(ctl.notReady || [])],
       axMan: Object.fromEntries(Object.entries(ctl.axMan).map(([k, v]) => [k, { ...v }])), di: { ...ctl.di }, ai: { ...ctl.ai }, force: { ...ctl.force } };
-    d.events = [...this.events]; d.frames = [...this.frames]; d.errors = [...this.errors];
     d.steps = this.steps.map(x => ({ ...x }));
     for (const k of ["io", "model", "forced", "plant", "seqVar", "ilPrev", "mseq"]) d[k] = { ...(s[k] as object) };
     d.insts = (s.insts as FbInst[]).map(f => ({ ...f, ton: f.ton.clone(), ton2: f.ton2.clone(),
@@ -1237,6 +1251,36 @@ export function seqEstimate(prj: Project, motorDelay: number, valveTravel: numbe
 
 /** Nejdelší odhad cyklu [s], který ověření simulací ještě pustí (simuluje se po scanech 10 ms). */
 export const SIM_MAX_CYCLE_S = 2 * 86400;
+/** Nejvyšší odhad doby výpočtu ověření simulací [s] (verifyCost) — nad ním ověření neběží („neověřeno“). */
+export const VERIFY_MAX_COST_S = 75;
+
+/**
+ * Odhad nákladů ověření simulací (verifyProject / dokumentace / emulace běhu): simulovaný čas všech běhů
+ * a doba výpočtu na referenční stanici. Počítá běžný cyklus (simuluje se několikrát: scénáře, druhý cyklus,
+ * kvitace, zdroj kontrolních bodů), matici stavů (každý krok × zásahy obsluhy ve třech okamžicích, poruchy)
+ * a scénáře zamrzlého hlášení, které čekají celý hlídací čas kroku. Cena scanu roste s počtem zařízení,
+ * pohony a osy jsou dražší (měřeno 2026-10-10 na vzorech a lince 300 zařízení: ~1 µs + 0,06 µs na zařízení
+ * + 0,0004 µs × zařízení², pohon v chodu +2 µs, servoosa +4 µs). Konzervativní — skutečné ověření bývá rychlejší (forenzní test 2026-10-10, N1).
+ */
+export function verifyCost(prj: Project, dt = 0.01): { simS: number; scans: number; seconds: number } {
+  const seq = prj.program.seq;
+  if (!seq.length) return { simS: 0, scans: 0, seconds: 0 };
+  const C = seqEstimate(prj, prj.sim?.motorDelay ?? 0.5, prj.sim?.valveTravel ?? 1.0) + T_VALVE_TRAVEL + 5;
+  const stopCols = (devById(prj, prj.program.estop) ? 1 : 0) + interlockDevs(prj).length + 1;
+  let simS = 7 * C;
+  for (const s of seq) {
+    simS += stopCols * 3 * 1.4 + 6 * 1.5;
+    if (s.act !== "wait" && s.cond !== "time") simS += 2 * ((Number(s.timeS) || 1) + T_VALVE_TRAVEL + 3);
+  }
+  simS += prj.devices.length * 4;
+  const scans = simS / dt;
+  const motion = prj.devices.filter(d => isMotionClass(d.cls)).length, axes = prj.devices.filter(d => d.cls === "Axis").length;
+  const n = prj.devices.length;
+  /* kvadratický člen: u velkých linek se v zásazích vstupy promítají celé (vnucení) a snímek vzniká skoro každý scan */
+  const usScan = 1 + 0.06 * n + 0.0004 * n * n + 2 * motion + 4 * axes;
+  /* ×2,5 = režie scénářů (kopie stavu, vyhodnocení snímků) — kalibrace na vzorech 00a–16 */
+  return { simS: Math.round(simS), scans: Math.round(scans), seconds: Math.round(2.5 * scans * usScan / 1e5) / 10 };
+}
 
 /**
  * Proč projekt NEJDE ověřit simulací (prázdné = jde): zadání, které je chybou návrhu (validace) a které by
@@ -1250,6 +1294,10 @@ export function simBlockers(prj: Project): string[] {
   const bad = (v: unknown, max: number) => v !== undefined && v !== null && !(Number(v) >= 0 && Number(v) <= max);
   prj.program.seq.forEach((st, i) => {
     if (bad(st.timeS, 86400)) out.push(tr("krok {n}: čas {t} s (povoleno 0 až 86 400 s)", { n: i + 1, t: String(st.timeS) }));
+    /* čekání na vstup E-stopu (validace = chyba, N4): model E-stopu a klidová hodnota čekaného vstupu se
+       přetahují každý scan — událost za scan, u dlouhého kroku miliony záznamů (OOM, N1) */
+    if (isDiWait(st) && prj.program.estop !== "" && st.dev === prj.program.estop)
+      out.push(tr("krok {n}: čeká na vstup E-stopu", { n: i + 1 }));
   });
   for (const d of prj.devices) {
     if ((d.cls === "Vfd" || d.cls === "PropValve") && bad(d.rampS, 3600)) out.push(tr("{dev}: rampa {t} s (nejvýš 3600 s)", { dev: d.name, t: String(d.rampS) }));
@@ -1261,9 +1309,25 @@ export function simBlockers(prj: Project): string[] {
   if (!out.length) {
     const est = seqEstimate(prj, prj.sim?.motorDelay ?? 0.5, prj.sim?.valveTravel ?? 1.0);
     if (!(est <= SIM_MAX_CYCLE_S)) out.push(tr("odhad cyklu {t} s je delší než 48 h (dynamika os, časy kroků)", { t: Math.round(est) }));
+    else {
+      const c = verifyCost(prj);
+      if (!(c.seconds <= VERIFY_MAX_COST_S))
+        out.push(tr("odhad výpočtu ověření {t} s překračuje limit {max} s (simulovaný čas všech scénářů {h} h — dlouhé hlídací časy a výdrže kroků, počet kroků a zařízení)", { t: Math.round(c.seconds), max: VERIFY_MAX_COST_S, h: Math.round(c.simS / 360) / 10 }));
+    }
   }
   return out;
 }
+
+/* kontrola návrhu (validateProject) hlásí ověření, které by kvůli nákladům neproběhlo — model.ts sim.ts importovat
+   nemůže (cyklus), proto přihlášení při načtení modulu; ostatní překážky už validace hlásí sama jako chyby */
+registerValidationHook((prj: Project): ValidationIssue[] => {
+  if (!prj.program?.seq?.length) return [];
+  const est = seqEstimate(prj, prj.sim?.motorDelay ?? 0.5, prj.sim?.valveTravel ?? 1.0);
+  if (!(est <= SIM_MAX_CYCLE_S)) return [{ level: "warn", where: tr("ověření simulací"), msg: tr("Odhad cyklu {t} s je delší než 48 h — ověření simulací, dokumentace s ověřením a emulace běhu neproběhnou. Zkrať časy kroků.", { t: Math.round(est) }) }];
+  const c = verifyCost(prj);
+  if (c.seconds <= VERIFY_MAX_COST_S) return [];
+  return [{ level: "warn", where: tr("ověření simulací"), msg: tr("Ověření simulací by trvalo odhadem {t} s (limit {max} s, simulovaný čas {h} h) — neproběhne a výstupy zůstanou neověřené. Zkrať hlídací časy a výdrže kroků, nebo rozděl projekt.", { t: Math.round(c.seconds), max: VERIFY_MAX_COST_S, h: Math.round(c.simS / 360) / 10 }) }];
+});
 
 /** Dávková simulace jednoho scénáře: start v čase `startAt`, zásahy podle `faults`. */
 export function simulate(prj: Project, options: SimOptions = {}, from?: Simulator): SimResult {
@@ -1347,14 +1411,20 @@ export class Checkpoints {
     const hit = this.cache.get(key);
     if (hit) return hit;
     if (!this.sim || this.sim.t > t + 1e-9) {
-      this.sim = new Simulator(this.prj, { dt: this.base.dt, motorDelay: this.base.motorDelay, valveTravel: this.base.valveTravel, record: true });
+      /* zpět v čase: navázat z nejbližšího dřívějšího kontrolního bodu, ne od nuly — matice jde po krocích
+         dopředu, ale zásah „zamrzlé hlášení“ začíná na začátku kroku (před okamžiky zásahů obsluhy); od nuly
+         by to bylo kroky × délka cyklu (dlouhé výdrže = desítky minut; forenzní test 2026-10-10, N1) */
+      let best: Simulator | undefined;
+      for (const cp of this.cache.values()) if (cp.t <= t + 1e-9 && (!best || cp.t > best.t)) best = cp;
+      this.sim = best ? best.clone()
+        : new Simulator(this.prj, { dt: this.base.dt, motorDelay: this.base.motorDelay, valveTravel: this.base.valveTravel, record: true });
     }
     const s = this.sim, c = s.controls, startAt = this.base.startAt ?? 0.2;
     while (s.t < t - 1e-9) {                    // stejné řízení jako běžný cyklus v simulate()
       c.start = s.t >= startAt - 1e-9 && s.t < startAt + 0.3;
       s.scan();
     }
-    const cp = s.clone();
+    const cp = s.clone(true);                    // jen stav, záznam sdílený (simulate z něj dělá plnou kopii)
     this.cache.set(key, cp);
     return cp;
   }
@@ -1626,10 +1696,14 @@ export function stateMatrix(prj: Project, base: SimOptions = {}, nominalRun?: Si
   const mk = (id: string, label: string, purpose: string, opts: SimOptions): SimScenario => ({ id, label, purpose, opts });
 
   /* zásah obsluhy / blokování: stroj stojí do 3 scanů, po odeznění se sám nerozběhne */
-  const evalStop = (sc: SimScenario, at: number, idle: boolean, mustRun = false): MatrixCell => {
+  const evalStop = (sc: SimScenario, at: number, idle: boolean, mustRun: Device[] = []): MatrixCell => {
     const r = cps.run(sc.opts);
     const after = stateAt(r, at + react), prior = stateAt(r, at - 1e-6);
-    if (mustRun && !(prior && outs.some(k => prior.io[k] === true))) {
+    /* ruční povely zabraly = před zásahem něco běží, nebo některý ovládaný blok byl aktivní (proporcionální ventil
+       se žádanou 0 nemá „sepnutý“ výstup, polohovací pohon dojede referování dřív než zásah — N9) */
+    const worked = () => !!prior && outs.some(k => prior.io[k] === true)
+      || r.frames.some(fr => fr.t < at && mustRun.some(d => { const v = fr.dev[d.id]; return !!v && v.step > 0 && v.step < 90; }));
+    if (mustRun.length && !worked()) {
       return { ok: false, text: "✖", scenario: sc, detail: sc.purpose + ": " + tr("před zásahem nic neběželo — ruční povely nezabraly") };
     }
     const restarted = r.frames.some(fr => fr.t > at + react && (fr.step >= 0 || outs.some(k => fr.io[k] === true)));
@@ -1728,10 +1802,10 @@ export function stateMatrix(prj: Project, base: SimOptions = {}, nominalRun?: Si
       const pre = tr("Ruční režim");
       const lab = (what: string) => pre + " + " + what;
       if (es) cells.estop = evalStop(mk("m-man-estop", lab(tr("E-stop")), tr("ruční povely všech pohonů, E-stop v čase {t} s, uvolnění po 1 s", { t: at }),
-        { ...o, faults: [{ kind: "manual", at: 0.1 }, ...man, { kind: "estop", at, release: at + 1 }] }), at, false, true);
+        { ...o, faults: [{ kind: "manual", at: 0.1 }, ...man, { kind: "estop", at, release: at + 1 }] }), at, false, acts);
       for (const d of locks) cells["lock-" + d.id] = evalStop(mk("m-man-lock-" + d.id, lab(tr("blokování {dev}", { dev: d.name })),
         tr("ruční povely všech pohonů, {dev} rozpojeno v čase {t} s, obnoveno po 1 s", { dev: d.name, t: at }),
-        { ...o, faults: [{ kind: "manual", at: 0.1 }, ...man, { kind: "interlock", dev: d.id, at, until: at + 1 }] }), at, false, true);
+        { ...o, faults: [{ kind: "manual", at: 0.1 }, ...man, { kind: "interlock", dev: d.id, at, until: at + 1 }] }), at, false, acts);
       for (const col of cols) if (!cells[col.id]) cells[col.id] = na;
       rows.push({ step: -2, title: pre, cells });
     }
@@ -1786,12 +1860,21 @@ export function stateMatrix(prj: Project, base: SimOptions = {}, nominalRun?: Si
       tr("hlášení „v poloze“ {dev} vypadne v kroku {n} (t = {t} s), pak START", { dev: d.name, n: run.i + 1, t: at }),
       { ...base, faults: [{ kind: "lost", dev: d.id, at }, { kind: "start", at: at + 1 }], maxTime: at + 1.4 })), at, at + 0.5) : na;
     /* proporcionální ventil v toleranci → skutečná hodnota mimo toleranci = porucha po nastavené době */
-    const inTol = mx.dev.filter(d => fr && fr.dev[d.id] && fr.dev[d.id].step === 20);
+    /* zásah až ve scanu, kdy blok už v toleranci JE (stav 20 i ve scanu před zásahem): bez rampy (rampS = 0)
+       vejde ventil do 20 právě v okamžiku `at` — vnucená odchylka v tomtéž scanu ho nechá ve stavu RAMP,
+       kde chybu hlásí až hlídání dosažení (5 s), ne doba odchylky (forenzní test 2026-10-10, N3) */
+    const inTolAt = (d: Device, t: number) => {
+      const a = stateAt(nominal, t), b = stateAt(nominal, t - dt);
+      return !!(a && b && a.dev[d.id] && b.dev[d.id] && a.dev[d.id].step === 20 && b.dev[d.id].step === 20);
+    };
+    const atD = mx.dev.some(d => fr && fr.dev[d.id] && fr.dev[d.id].step === 20 && !inTolAt(d, at)) ? round(at + dt) : at;
+    const frD = stateAt(nominal, atD);
+    const inTol = mx.dev.filter(d => inTolAt(d, atD));
     if (mx.dev.length) {
       const wait = Math.max(0, ...inTol.map(d => devDeadline(d, dt)));
       cells.dev = inTol.length ? evalFault(inTol.map(d => mk(id("dev-" + d.id), lab(tr("odchylka {dev}", { dev: d.name })),
-        tr("skutečná hodnota {dev} mimo toleranci v kroku {n} (t = {t} s), pak START", { dev: d.name, n: run.i + 1, t: at }),
-        { ...base, faults: [{ kind: "analog", dev: d.id, at, raw: devFaultRaw(d, fr!.dev[d.id].cmd ?? d.rmin) }, { kind: "start", at: round(at + wait + 0.5) }], maxTime: round(at + wait + 0.9) })), at, round(at + wait)) : na;
+        tr("skutečná hodnota {dev} mimo toleranci v kroku {n} (t = {t} s), pak START", { dev: d.name, n: run.i + 1, t: atD }),
+        { ...base, faults: [{ kind: "analog", dev: d.id, at: atD, raw: devFaultRaw(d, frD!.dev[d.id].cmd ?? d.rmin) }, { kind: "start", at: round(atD + wait + 0.5) }], maxTime: round(atD + wait + 0.9) })), atD, round(atD + wait)) : na;
     }
     /* servoosa se zapnutou regulací → ztráta komunikace = porucha */
     const live = mx.comm.filter(d => fr && fr.dev[d.id] && fr.dev[d.id].step >= 10 && fr.dev[d.id].step < 90);

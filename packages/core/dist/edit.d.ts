@@ -26,6 +26,8 @@ export interface EditResult {
         from: string;
         to: string;
     }>;
+    /** applyAiProposal: kroky návrhu AI, které se nepřevzaly (důvod pro uživatele, číslo kroku návrhu). */
+    dropped?: string[];
     /** Nálezy kontroly návrhu, které se úpravy týkají (zařízení, krok, signál). */
     issues?: ValidationIssue[];
 }
@@ -70,7 +72,11 @@ export declare function setDeviceRange(prj: Project, devId: number, range: {
  * Ostatní (rozsahy, limity os, platformy) hlásí kontrola návrhu.
  */
 export declare function stepProblem(prj: Project, step: Partial<SeqStep>): string | null;
-/** Uloží změněný krok `index` (stejná kontrola jako při přidání). */
+/**
+ * Uloží změněný krok `index` (stejná kontrola jako při přidání). Krok s akcí (`act`) = celý nový krok
+ * (formuláře posílají jen vyplněná pole); bez akce = částečná změna sloučená s původním krokem
+ * (např. jen `{ timeS }` nebo `{ dev }` — akce zůstane a kontrola řekne, jestli ke zařízení patří).
+ */
 export declare function updateStep(prj: Project, index: number, step: Partial<SeqStep>): EditResult;
 /** Vloží krok za krok `afterIndex` (−1 = na začátek, za poslední / mimo = na konec). */
 export declare function insertStep(prj: Project, afterIndex: number, step: Partial<SeqStep>): EditResult;

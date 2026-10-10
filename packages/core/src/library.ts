@@ -16,6 +16,8 @@ import {
 } from "./model.js";
 import { SCL_AI, SCL_AO, SCL_MOTOR, SCL_VENTIL, ST_AI, ST_AO, ST_MOTOR, ST_VENTIL, cmtSafe } from "./codegen.js";
 import { CAT_LABEL } from "./catalog.js";
+import { lex } from "./emu/lexer.js";
+import { parse } from "./emu/parser.js";
 import { registerBomProvider, type BomExtra } from "./bom.js";
 
 export const LIBRARY_FORMAT = "plcdesk-library";
@@ -187,6 +189,18 @@ export function validateFbTemplate(t: LibFbTemplate): LibraryIssue[] {
       out.push({ level: "warn", where, msg: tr("Vnořený komentář (* (* — CODESYS / TwinCAT ho čtou jinak než ostatní.") });
     if (/\bRETURN\b/.test(code) && !/^\s*IF\s+NOT\s+enable\s+THEN[\s\S]*?RETURN;[\s\S]*?END_IF;/m.test(code))
       out.push({ level: "warn", where, msg: tr("RETURN mimo úvodní IF NOT enable — u Unitronics (rozepsání bloku) se převádí jen tento tvar.") });
+  }
+  /* syntaxe parserem emulátoru (lexer + parser IEC 61131-3 / SCL): nepárový komentář, deklarace mimo blok VAR,
+     neúplný výraz… — jinak by se šablona použila a kód na většině platforem nepřeložil (forenzní test 2026-10-10, N7).
+     Komentáře se čtou oběma způsoby (CODESYS / TwinCAT vnořují, ostatní ne) — šablona musí projít na všech. */
+  for (const nested of t.dialect === "scl" ? [false] : [false, true]) {
+    const lx = lex(src, t.id || "template", { nestedComments: nested, scl: t.dialect === "scl" });
+    const pr = parse(lx.toks, t.id || "template", { scl: t.dialect === "scl", statementsOnly: false });
+    const e = [...lx.errors, ...pr.errors].find(f => f.level === "error");
+    if (e) {
+      out.push({ level: "error", where, msg: tr("Syntaktická chyba šablony na řádku {line}: {msg}", { line: e.line, msg: e.msg }) });
+      break;
+    }
   }
   out.push({ level: "warn", where, msg: tr("Vlastní blok simulace neověřuje — simulace a ověření zrcadlí vestavěnou šablonu. Odladit v cílovém IDE.") });
   return out;

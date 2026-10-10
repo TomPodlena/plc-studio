@@ -629,6 +629,26 @@ python scripts/build_verification.py        # data/verification.json → verific
   edit.ts, normalizace), výstupy `outputSafe` (genFor, docFiles, HMI, EPLAN, SISTEMA) + `lineSafe` (komentáře, CSV/TSV,
   DXF) + `xmlSafe` (všechny XML escapery) — pro čistý text identita (golden). Ověření simulací / emulace běhu
   neběží při `simBlockers` (čas kroku mimo 0–24 h, rampa / doba jízdy / model stroje nad 3600 s, odhad cyklu nad 48 h).
+- **Forenzní test 2026-10-10 (kolo 2, regrese `forenz2:` ve `forenz.test.ts`):** jména, která program deklaruje
+  sám (`IR_CTRL`, povely `seqRun_` / `manRun_`…, `instX`, `instX_*`, `tonSeqN`, MAIN, GVL_IO, FB_*), a rezervovaná slova
+  dialektů emulátoru (klíčová slova IEC a standardní bloky / funkce vždy; klíčová slova SCL, instrukce Sysmac, operandy
+  GX Works3 a předpona `P_` jen pro platformy projektu — „S1“, „B1“ z importu TIA jsou běžné tagy)
+  jsou v `names.ts` (`reservedNameProblem`, `generatedNames`; generátor bere jména odtud) — tag s kolizí = chyba
+  validace, `setIoTag` / `renameDevice` odmítnou. Validace dál: E-stop / blokování jen DI, krok nesmí čekat na
+  E-stop (i `stepProblem`), akce musí patřit třídě (každý krok; `applyAiProposal` nepatřičné kroky vynechá do
+  `dropped`), meze AnalogIn v ⟨rmin, rmax⟩ (`limitsRangeProblem`). Šablona knihovny projde parserem emulátoru
+  (syntaktická chyba = error a vestavěný blok). **Náklady ověření:** `verifyCost` (simulovaný čas všech scénářů ×
+  cena scanu; kalibrace na vzorech, konzervativní) — nad `VERIFY_MAX_COST_S` (75 s) je to `simBlockers` (neověřeno)
+  a varování validace (`registerValidationHook` — model.ts sim.ts importovat nemůže). Kontrolní body sdílejí záznam
+  se zdrojem (`clone(true)`) a zpět v čase navazují z nejbližšího dřívějšího bodu. Krok: `cleanStep` nechá jen pole
+  akce (Vfd start sp/rev, PropValve sp, posRecord rec, osa pos/posRef/vel/acc/dec), `updateStep` bez `act` = částečná
+  změna. `withFrozenHw(fn)` (hardware.ts) = dávka bez změn projektu, sestava bez přepočtu podpisu (plán oživení).
+- **Známé omezení — round-trip importu bez adres v kódu** (Beckhoff `%I*`, Omron, Unitronics, WAGO a profily CODESYS
+  bez AT, analogy Mitsubishi): výstup nenese kanál, importér přidělí adresy podle pořadí deklarací. Připnutí ručních
+  adres (pořadí sestavy ≠ pořadí zařízení, např. vzor 09 B17 na %IW64) se tím ztratí — výkresy a svorkovnice po
+  importu nemusí odpovídat originálu. Import z jiné platformy než `hwPlatform` dává adresy sestavy té platformy.
+- **Návrhové omezení licence:** odemčení Free projektu (`free-unlock`) se váže jen na `prj.guid` — GUID přepsaný do
+  jiného projektu odemčení přenese (klientská kontrola, `normalizeProject` GUID zachová).
 - **GUID objektů** (`guid.ts`, export EPLAN AML v2 `eplan_aml.ts` podle nich páruje opakovaný import):
   `Project.guid`, `Device.guid`, `Project.moduleGuids` (karta = klíč DI1, DO2…), `IoEntry.guid` (odvozený
   ze zařízení + signálu). Přidělují se při vzniku (`blankProject`, `syncIO`, import), chybějící doplní

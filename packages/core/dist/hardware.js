@@ -240,8 +240,40 @@ function signature(prj, plat) {
     return JSON.stringify([plat, hwPlatform(prj), prj.hw || null, b.brand || null, lines, prj.moduleGuids || null,
         prj.io.map(e => e.key + "|" + e.dir + "|" + (e.addr || "")), prj.devices.filter(d => d.cls === "Axis").map(d => d.name)]);
 }
+/* Dávka bez změn projektu (`withFrozenHw`): sestava se v ní ověří podpisem jen jednou — podpis (JSON přes všechna
+   I/O) jinak stojí O(N) na každé volání a plán oživení / schvalování volá hwAddrText pro každý signál = O(N²)
+   (300 zařízení ~190 ms). Výstup beze změny. */
+let frozen = null;
+/** Spustí `fn` s cachí sestavy bez kontroly podpisu — jen pro výpočty, které projekt nemění. */
+export function withFrozenHw(fn) {
+    const outer = frozen;
+    if (!outer)
+        frozen = new WeakMap();
+    try {
+        return fn();
+    }
+    finally {
+        frozen = outer;
+    }
+}
 /** Sestava hardwaru pro platformu (výchozí = platforma hardwaru projektu). Výsledek je cachovaný. */
 export function hwLayout(prj, plat = hwPlatform(prj)) {
+    if (frozen) {
+        let fz = frozen.get(prj);
+        if (!fz) {
+            fz = new Map();
+            frozen.set(prj, fz);
+        }
+        const f = fz.get(plat);
+        if (f)
+            return f;
+        const L = hwLayoutChecked(prj, plat);
+        fz.set(plat, L);
+        return L;
+    }
+    return hwLayoutChecked(prj, plat);
+}
+function hwLayoutChecked(prj, plat) {
     let per = cache.get(prj);
     if (!per) {
         per = new Map();

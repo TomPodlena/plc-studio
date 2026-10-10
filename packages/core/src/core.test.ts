@@ -1415,7 +1415,7 @@ test("import: neznámé a binární soubory jdou AI vrstvě; mergeProposals — 
   const bp = b.prj;
   const conv = bp.devices.find(d => d.name === "Conveyor")!, push = bp.devices.find(d => d.name === "Pusher")!;
   bp.io.find(e => e.tag === "Conveyor_Run")!.addr = "%Q3.0";
-  bp.devices.find(d => d.name === "Level")!.limHi = 1800;
+  bp.devices.find(d => d.name === "Level")!.limHi = 80;          // v rozsahu 0–100 (mez mimo rozsah = chyba validace, forenz2 N8)
   bp.devices.push({ id: 99, name: "H9", cls: "DO", desc: "Maják", opt: {}, unit: "", rmin: 0, rmax: 100, role: "fault" });
   syncIO(bp);
   bp.program.seq = [{ dev: push.id, act: "open", cond: "fbk", timeS: 3 }, { dev: conv.id, act: "start", cond: "fbk", timeS: 3 }];
@@ -1428,7 +1428,7 @@ test("import: neznámé a binární soubory jdou AI vrstvě; mergeProposals — 
   assert.ok(m.conflicts.some(c => c.what === "io:Conveyor_Run"), "rozpor adres hlášen");
   assert.ok(m.prj.devices.some(d => d.name === "H9" && d.role === "fault"), "AI doplní zařízení");
   assert.ok(m.prj.io.some(e => e.tag === "H9_out"), "i jeho signál");
-  assert.equal(m.prj.devices.find(d => d.name === "Level")!.limHi, 1800, "AI doplní mez");
+  assert.equal(m.prj.devices.find(d => d.name === "Level")!.limHi, 80, "AI doplní mez");
   assert.equal(m.prj.program.seq.length, 2);
   assert.equal(m.prj.program.seq[0].dev, m.prj.devices.find(d => d.name === "Pusher")!.id);
   assert.equal(m.prj.meta.takt, 12);

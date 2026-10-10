@@ -20,6 +20,7 @@ import { tr, N_, getLang, withLang } from "./i18n.js";
 import { buildHmi, hmiPlcPath, hmiAscii } from "./hmi.js";
 import { xlsxWorkbook } from "./hmi_xlsx.js";
 import { CDS_PROFILES, CDS_PROFILE_KEYS } from "./codesys_profiles.js";
+import { axisBlocked } from "./axis_gen.js";
 export function hmiStatusLabel(s) {
     return tr(s === "unverified" ? N_("neověřeno importem") : s === "reference" ? N_("referenční seznam (formát výrobce nezveřejněn)") : N_("kostra k doplnění"));
 }
@@ -415,6 +416,9 @@ function ascii(prj, m) {
  * (hmi_docs.ts) se přidají do sady projektu jako skupina „HMI — <platforma>“; `genFor` se nemění.
  */
 export function hmiFiles(prj0, plat, m = buildHmi(prj0)) {
+    /* osa na platformě, která ji negeneruje: genFor vrátí jen README s důvodem — tagy HMI by neměly proměnné v kódu (N12) */
+    if (axisBlocked(prj0, plat))
+        return {};
     const prj = outputSafe(prj0);
     switch (plat) {
         case "siemens": return siemensFiles(prj, m);
