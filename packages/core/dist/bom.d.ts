@@ -71,5 +71,39 @@ export declare function registerBomProvider(fn: BomProvider, name: string): () =
 export declare function buildBom(prj: Project): Bom;
 /** CSV pro Excel (středník, UTF-8 s BOM — česká lokalizace Excelu). */
 export declare function bomCsv(prj: Project): string;
+/**
+ * Text tabulky ke kopírování (tabulátory, řádky \n) — Excel / e-mail. Stejné sloupce a řádky
+ * jako `bomCsv` (řádky s množstvím 0 vyřazené); web i desktop volají tuto funkci, nic neskládají sami.
+ */
+export declare function bomTableText(prj: Project): string;
+/** Nejvyšší množství řádku kusovníku, které jde zadat ručně. */
+export declare const BOM_QTY_MAX = 100000;
+/**
+ * Množství řádku kusovníku zadané uživatelem (text z pole nebo číslo): celé číslo 0…`BOM_QTY_MAX`
+ * (0 = řádek vyřadit z CSV a dokumentu, zůstane v přehledu šedě). Prázdné pole = `reset` (zpět
+ * na množství z návrhu). Jednotky kusovníku jsou kusy, proto jen celá čísla.
+ */
+export declare function bomQtyInput(v: unknown): {
+    qty?: number;
+    reset?: boolean;
+    error?: string;
+};
+export interface BomSupplierRow {
+    /** jméno, jak stojí v řádcích kusovníku */
+    name: string;
+    url: string;
+    /** druh (přeložený), prázdné = neznámý */
+    kind: string;
+    /** dodavatele zadal uživatel a v katalogu není */
+    custom: boolean;
+    /** počet řádků kusovníku s tímto dodavatelem */
+    rows: number;
+}
+/**
+ * Přehled dodavatelů POUŽITÝCH v kusovníku (podklad k poptávce: koho oslovit a kolik položek).
+ * Nabídku všech dodavatelů kategorie dává výběr u řádku. Dodavatelé u značek v katalogu jsou volný
+ * text („Festo CZ (přímo)“) → shoda se seznamem dodavatelů i podle začátku jména.
+ */
+export declare function bomSuppliers(prj: Project): BomSupplierRow[];
 /** Kusovník do dokumentace (Markdown). */
 export declare function bomMd(prj: Project): string;

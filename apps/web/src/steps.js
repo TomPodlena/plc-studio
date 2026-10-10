@@ -6,13 +6,13 @@ import {
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
   tr, N_, getLang, DO_ROLES, stepTitle, projectFileName, projectFolderName, projectNumberProblem,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
-  buildBom, bomOptions, bomPlatform, bomCsv, catKey, suppliersFor, SUPPLIERS, CATALOG_DATE, PLATFORM_REFS,
+  buildBom, bomOptions, bomPlatform, bomCsv, bomTableText, bomQtyInput, bomSuppliers, BOM_QTY_MAX, catKey, suppliersFor, CATALOG_DATE, PLATFORM_REFS,
   hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
-  verifyPackArchive, licenseSiteUrl,
+  verifyPackArchive, licenseSiteUrl, PLCDESK_VERSION,
   renameDevice, setDeviceDesc, setDeviceOpts, setDeviceRange, deviceOpts,
   updateStep, insertStep, duplicateStep, setIoTag, setIoAddr, setIoCmt,
   addDevice, setDeviceParams, deviceUsage, deleteDevice, parseRecordsForm, parseAxisPositionsForm,
-  renumberIo, fixIoTags, projectIsEmpty, applyAiProposal, DEVICE_PARAM_LABEL,
+  renumberIo, fixIoTags, projectIsEmpty, applyAiProposal, DEVICE_PARAM_LABEL, setSimModel, SIM_MODEL_DEFAULT, SIM_MODEL_RANGE,
 } from "../../../packages/core/dist/index.js";
 import { $, card, copyText, downloadFile, downloadFiles, downloadProjectZip, saveBytesUngated, normProject, normAi, setProjectHeader, prefixedName } from "./util.js";
 import { gateFor } from "./license.js";
@@ -52,7 +52,22 @@ export function makeSteps(ctx) {
   const roleOptions = sel => "<option value=''>" + tr("— bez vazby —") + "</option>" +
     Object.keys(DO_ROLES).map(r => "<option value='" + r + "'" + (sel === r ? " selected" : "") + ">" + esc(tr(DO_ROLES[r])) + "</option>").join("");
   /** Hláška poslední úpravy v kroku Zařízení / I/O (ukáže se při dalším vykreslení kroku). */
-  let devMsg = null, ioMsg = null, schMsg = null;
+  let devMsg = null, ioMsg = null, schMsg = null, progMsg = null;
+  /**
+   * Odkazy mezi kroky (jako desktop): `data-godev` = zařízení v kroku Zařízení, `data-goterm` = svorka
+   * signálu ve svorkovnici kroku Schéma, `data-goschema` = krok Schéma (blokové schéma).
+   */
+  function wireStepLinks(root) {
+    /* render() končí posunem nahoru — zvýrazněný cílový řádek (goToRow) pak znovu do pohledu */
+    const go = (ev, fn) => {
+      ev.preventDefault(); fn(); save(); render();
+      const hl = document.querySelector("#view tr.hl");
+      if (hl) hl.scrollIntoView({ block: "center" }); else window.scrollTo(0, 0);
+    };
+    root.querySelectorAll("a[data-godev]").forEach(a => a.addEventListener("click", ev => go(ev, () => { S.devSel = +a.dataset.godev; S.step = 3; })));
+    root.querySelectorAll("a[data-goterm]").forEach(a => a.addEventListener("click", ev => go(ev, () => { S.schTerm = a.dataset.goterm; S.step = 5; })));
+    root.querySelectorAll("a[data-goschema]").forEach(a => a.addEventListener("click", ev => go(ev, () => { S.step = 5; })));
+  }
   /** Odkaz ze schématu: zvýrazní řádek tabulky, posune na něj a dá fokus do pole k úpravě. */
   function goToRow(root, sel, focusSel) {
     const row = sel && root.querySelector(sel);
@@ -743,12 +758,13 @@ export function makeSteps(ctx) {
     let rows = "";
     for (const e of p.io) {
       const d = devById(p, e.devId);
-      rows += "<tr data-row='" + esc(e.key) + "'><td class='mono'>" + esc(d ? d.name : "?") + "</td>" +
+      rows += "<tr data-row='" + esc(e.key) + "'><td class='mono'>" + (d ? "<a href='#' class='navlink' data-godev='" + d.id + "' title='" + esc(tr("Upravit v kroku Zařízení")) + "'>" + esc(d.name) + "</a>" : "?") + "</td>" +
         "<td class='mono dir" + esc(e.dir) + "'>" + esc(e.dir) + "</td>" +
         "<td><input type='text' data-k='" + esc(e.key) + "' data-f='tag' value='" + esc(e.tag) + "' class='" + (dup["t:" + e.tag] > 1 ? "dup" : "") + "'></td>" +
         "<td><input type='text' data-k='" + esc(e.key) + "' data-f='addr' value='" + esc(e.addr) + "' class='" + (e.addr && dup[e.addr] > 1 ? "dup" : "") + "' style='min-width:70px'></td>" +
         "<td style='text-align:center'>" + (e.dir === "DI" ? "<input type='checkbox' data-k='" + esc(e.key) + "' data-f='nc' " + (e.nc ? "checked" : "") + " aria-label='NC'>" : "—") + "</td>" +
-        "<td><input type='text' data-k='" + esc(e.key) + "' data-f='cmt' value='" + esc(e.cmt) + "' style='min-width:160px'></td></tr>";
+        "<td><input type='text' data-k='" + esc(e.key) + "' data-f='cmt' value='" + esc(e.cmt) + "' style='min-width:160px'></td>" +
+        "<td><a href='#' class='navlink' data-goterm='" + esc(e.key) + "' title='" + esc(tr("Ukázat svorku ve schématu (krok Schéma)")) + "'>" + tr("Schéma") + " ↗</a></td></tr>";
     }
     const issues = validateProject(p);
     const issuesHtml = issues.length
@@ -763,7 +779,7 @@ export function makeSteps(ctx) {
       ${["DI", "DO", "AI", "AO"].map(d => "<span class='stat'>" + d + " <b>" + p.io.filter(e => e.dir === d).length + "</b></span>").join("")}
     </div>
     ${ioMsg ? (ioMsg.err ? "<p class='errtxt' id='ioMsg' role='alert'>" : "<p class='oktxt' id='ioMsg' role='status'>") + esc(ioMsg.text) + "</p>" : ""}
-    <div class="tablewrap"><table><thead><tr><th>${tr("Zařízení")}</th><th>${tr("Směr")}</th><th>${tr("Tag")}</th><th>${tr("Adresa")}</th><th>NC</th><th>${tr("Komentář")}</th></tr></thead><tbody>${rows || "<tr><td colspan='6' class='hint'>" + tr("žádná zařízení") + "</td></tr>"}</tbody></table></div>
+    <div class="tablewrap"><table><thead><tr><th>${tr("Zařízení")}</th><th>${tr("Směr")}</th><th>${tr("Tag")}</th><th>${tr("Adresa")}</th><th>NC</th><th>${tr("Komentář")}</th><th></th></tr></thead><tbody>${rows || "<tr><td colspan='7' class='hint'>" + tr("žádná zařízení") + "</td></tr>"}</tbody></table></div>
     <div class="row"><button class="small" id="bRenum">${tr("Přečíslovat adresy od nuly")}</button><span class="hint" style="margin:0">${tr("Adresy přiděluje sestava hardwaru (kanál modulu, zápis v Siemens notaci); ruční adresa kanál připne, adresa mimo sestavu zůstane s upozorněním. Pro ostatní platformy se převedou automaticky. NC = rozpínací kontakt (promítne se do schématu). Duplicity červeně.")}</span></div>
     ${issuesHtml}`);
     ioMsg = null;
@@ -782,6 +798,7 @@ export function makeSteps(ctx) {
     }));
     goToRow(c, S.ioSel ? "tr[data-row='" + CSS.escape(S.ioSel) + "']" : "", "input[data-f=tag]");
     S.ioSel = null;
+    wireStepLinks(c);
     /* přečíslování a oprava tagů v jádře (edit.ts) — krátká hláška s počtem jako desktop */
     c.querySelector("#bRenum").addEventListener("click", () => {
       const r = renumberIo(p);
@@ -984,8 +1001,28 @@ export function makeSteps(ctx) {
       <button class="small" id="bInsStep"></button>
       <button class="small" id="bCancelStep">${tr("Zrušit úpravu")}</button>
     </div>
-    <p class="errtxt" id="sErr" role="alert" hidden></p>`);
+    <p class="errtxt" id="sErr" role="alert" hidden></p>
+    <h3>${tr("Model stroje (simulace)")}</h3>
+    <p class="hint" style="margin-top:0">${tr("Časy, se kterými ověření simulací počítá běžný cyklus, takt a hlídací časy (stejně jako desktopová simulace). Platí pro ověření a dokumentaci, do kódu PLC se nepíšou.")}</p>
+    <div class="row">
+      <label class="f" style="flex-direction:row;gap:6px;align-items:center">${tr("Rozběh motoru")}
+        <input type="number" id="simMotor" step="any" min="${SIM_MODEL_RANGE.min}" max="${SIM_MODEL_RANGE.max}" value="${esc(p.sim?.motorDelay ?? SIM_MODEL_DEFAULT.motorDelay)}" style="width:80px"> s</label>
+      <label class="f" style="flex-direction:row;gap:6px;align-items:center">${tr("Přestavení ventilu")}
+        <input type="number" id="simValve" step="any" min="${SIM_MODEL_RANGE.min}" max="${SIM_MODEL_RANGE.max}" value="${esc(p.sim?.valveTravel ?? SIM_MODEL_DEFAULT.valveTravel)}" style="width:80px"> s</label>
+      <span class="errtxt" id="simErr" role="alert" style="margin:0"${progMsg ? "" : " hidden"}>${esc(progMsg || "")}</span>
+    </div>
+    <p class="hint">${tr("Související kroky:")} <a href="#" class="navlink" data-goschema-dev>${tr("Zařízení")} ↗</a> · <a href="#" class="navlink" data-goschema>${tr("Schéma")} ↗</a></p>`);
+    progMsg = null;
     const sDev = c.querySelector("#sDev"), sAct = c.querySelector("#sAct"), sCond = c.querySelector("#sCond");
+    /* model stroje: kontrola a zápis v jádře (edit.ts setSimModel — stejně jako desktop) */
+    for (const id of ["#simMotor", "#simValve"]) c.querySelector(id).addEventListener("change", () => {
+      const r = setSimModel(p, { motorDelay: c.querySelector("#simMotor").value, valveTravel: c.querySelector("#simValve").value });
+      if (!r.ok) progMsg = r.error;
+      if (r.ok && r.count) save();
+      render();
+    });
+    c.querySelector("a[data-goschema-dev]").addEventListener("click", ev => { ev.preventDefault(); S.step = 3; save(); render(); window.scrollTo(0, 0); });
+    wireStepLinks(c);
     const sPar = c.querySelector("#sPar");
     /* parametr kroku pohonu: otáčky (+ směr) měniče, číslo záznamu pohonu, žádaná ventilu */
     const refreshPar = () => {
@@ -1087,7 +1124,8 @@ export function makeSteps(ctx) {
         const d = devById(p, s.dev);
         const head = s.act === "waitOn" || s.act === "waitOff" || (d && (isMotionClass(d.cls) || d.cls === "Axis")) ? stepTitle(p, s) : (d ? d.name : "?") + " " + (acts[s.act] || s.act);
         const txt = s.act === "wait" ? tr("výdrž {t} s", { t: s.timeS }) : head + " → " + (s.cond === "time" ? tr("čas {t} s", { t: s.timeS }) : tr("zpětné hlášení (hlídací čas {t} s)", { t: s.timeS }));
-        return "<div class='seqrow" + (i === edIdx ? " editing" : "") + "'><span class='k'>" + tr("Krok {n}", { n: i + 1 }) + "</span><span style='flex:1;font-size:.86rem'>" + esc(txt) + "</span>" +
+        return "<div class='seqrow" + (i === edIdx ? " editing" : "") + "'><span class='k'>" + tr("Krok {n}", { n: i + 1 }) + "</span><span style='flex:1;font-size:.86rem'>" + esc(txt) +
+          (d && s.act !== "wait" ? " <a href='#' class='navlink' data-godev='" + d.id + "' title='" + esc(tr("Upravit v kroku Zařízení")) + "'>" + esc(d.name) + " ↗</a>" : "") + "</span>" +
           "<button class='small' data-ed='" + i + "' title='" + esc(tr("Načíst krok do formuláře pod seznamem a upravit")) + "'>" + tr("Upravit") + "</button>" +
           "<button class='small' data-dup='" + i + "'>" + tr("Duplikovat") + "</button>" +
           "<button class='small' data-up='" + i + "' " + (i === 0 ? "disabled" : "") + ">↑</button><button class='small' data-dn='" + i + "' " + (i === p.program.seq.length - 1 ? "disabled" : "") + ">↓</button><button class='small danger' data-rm='" + i + "'>×</button></div>";
@@ -1095,6 +1133,7 @@ export function makeSteps(ctx) {
       /* přesun / odstranění: upravovaný krok se stěhuje s sebou (nebo úprava skončí) */
       const follow = (a, b) => { if (S.seqEdit === a) S.seqEdit = b; else if (S.seqEdit === b) S.seqEdit = a; };
       list.querySelectorAll("[data-ed]").forEach(b => b.addEventListener("click", () => { S.seqEdit = +b.dataset.ed; render(); const f = document.querySelector("#sEditRow"); if (f) f.scrollIntoView({ block: "center" }); }));
+      wireStepLinks(list);
       list.querySelectorAll("[data-dup]").forEach(b => b.addEventListener("click", () => applied(duplicateStep(p, +b.dataset.dup), false)));
       list.querySelectorAll("[data-up]").forEach(b => b.addEventListener("click", () => { const i = +b.dataset.up; [p.program.seq[i - 1], p.program.seq[i]] = [p.program.seq[i], p.program.seq[i - 1]]; follow(i, i - 1); save(); render(); }));
       list.querySelectorAll("[data-dn]").forEach(b => b.addEventListener("click", () => { const i = +b.dataset.dn; [p.program.seq[i + 1], p.program.seq[i]] = [p.program.seq[i], p.program.seq[i + 1]]; follow(i, i + 1); save(); render(); }));
@@ -1198,8 +1237,8 @@ export function makeSteps(ctx) {
   const bomView = { sort: null, filters: {} };
   const BOM_COLS = [["pos", "#"], ["tag", N_("Označení")], ["item", N_("Položka")], ["desc", N_("Popis")], ["qty", N_("Ks")],
     ["brand", N_("Výrobce")], ["type", N_("Typ")], ["orderCode", N_("Objednací kód")], ["supplier", N_("Dodavatel")], ["note", N_("Poznámka")]];
-  /** Druhy dodavatelů z katalogu (data jsou česky) → přeložitelný popisek. */
-  const SUP_KIND = { "distributor": N_("distributor"), "e-shop": N_("e-shop"), "výrobce": N_("výrobce") };
+  /** Hláška poslední úpravy kusovníku (neplatné množství) — ukáže se při dalším vykreslení. */
+  let bomMsg = null;
   function rBom(el) {
     const p = prj();
     syncIO(p);
@@ -1256,11 +1295,12 @@ export function makeSteps(ctx) {
       const src = !pk.custom && pk.opt?.brand.src && ov.type === undefined
         ? " <a href='" + esc(pk.opt.brand.src) + "' target='_blank' rel='noopener' title='" + esc(tr("Zdroj údajů o typu")) + "'>↗</a>" : "";
       const autoNote = ov.note ? l.note.slice(0, Math.max(0, l.note.length - ov.note.length)).replace(/; $/, "") : l.note;
-      rows += "<tr data-row='" + esc(l.id) + "'" + (l.safety ? " class='safety'" : "") + "><td class='mono'>" + esc(l.pos) + "</td>" +
+      const rowCls = [l.safety ? "safety" : "", l.excluded ? "excluded" : ""].filter(Boolean).join(" ");
+      rows += "<tr data-row='" + esc(l.id) + "'" + (rowCls ? " class='" + rowCls + "'" : "") + (l.excluded ? " title='" + esc(tr("Množství 0 — řádek je vyřazený z CSV a dokumentace.")) + "'" : "") + "><td class='mono'>" + esc(l.pos) + "</td>" +
         "<td class='mono'><b>" + esc(l.tag) + "</b></td>" +
         "<td>" + (l.safety ? "<span class='warnmark' title='" + esc(tr("Bezpečnostní prvek")) + "'>⚠</span> " : "") + esc(l.item) + "</td>" +
         "<td style='font-size:.78rem;min-width:140px'>" + esc(l.desc) + "</td>" +
-        "<td><input type='number' min='0' step='1' data-bf='qty' data-id='" + esc(l.id) + "' value='" + esc(l.qty) + "' style='width:64px' aria-label='" + esc(tr("Ks")) + "'> <span class='hint' style='margin:0'>" + esc(l.unit) + "</span></td>" +
+        "<td><input type='number' min='0' max='" + BOM_QTY_MAX + "' step='1' data-bf='qty' data-id='" + esc(l.id) + "' value='" + esc(l.qty) + "' style='width:64px' aria-label='" + esc(tr("Ks")) + "'> <span class='hint' style='margin:0'>" + esc(l.unit) + "</span></td>" +
         "<td style='min-width:170px'>" + brandSel + "</td>" +
         "<td style='min-width:200px'><input type='text' data-bf='type' data-id='" + esc(l.id) + "' value='" + esc(l.type) + "'>" + src + "</td>" +
         "<td style='min-width:150px'><input type='text' data-bf='orderCode' data-id='" + esc(l.id) + "' value='" + esc(l.orderCode) + "'></td>" +
@@ -1268,25 +1308,20 @@ export function makeSteps(ctx) {
         "<td style='min-width:160px'>" + (autoNote ? "<div class='bomnote" + (l.safety ? " warn" : "") + "'>" + esc(autoNote) + "</div>" : "") +
         "<input type='text' data-bf='note' data-id='" + esc(l.id) + "' value='" + esc(ov.note || "") + "' placeholder='" + esc(tr("vlastní poznámka")) + "'></td></tr>";
     }
-    /* přehled dodavatelů použitých v kusovníku */
-    const used = [...new Set(lines.map(l => l.supplier).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-    const supRows = used.map(n => {
-      // dodavatelé u značek v katalogu jsou volný text („Festo CZ (přímo)") → shoda i podle začátku názvu
-      const base = n.split(" (")[0].toLowerCase();
-      const s = SUPPLIERS.find(x => x.name === n || tr(x.name) === n) || SUPPLIERS.find(x => x.name.split(" (")[0].toLowerCase() === base)
-        || SUPPLIERS.find(x => base.length > 3 && (x.name.toLowerCase().startsWith(base) || base.startsWith(x.name.split(" (")[0].toLowerCase())));
-      const userText = lines.some(l => l.supplier === n && cfg.lines?.[l.id]?.supplier === n);
-      return "<tr><td><b>" + esc(n) + "</b></td><td>" + (s?.url ? "<a href='" + esc(s.url) + "' target='_blank' rel='noopener'>" + esc(s.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")) + "</a>" : "—") + "</td><td>" +
-        esc(s ? (SUP_KIND[s.kind] ? tr(SUP_KIND[s.kind]) : (s.kind || "—")) : userText ? tr("vlastní") : "—") + "</td><td style='font-size:.78rem'>" + esc(lines.filter(l => l.supplier === n).length) + "</td></tr>";
-    }).join("");
-    const c = card(el, "10", tr("Kusovník"), intro + `
+    /* přehled dodavatelů použitých v kusovníku (jádro bomSuppliers — stejně jako desktop) */
+    const used = bomSuppliers(p);
+    const supRows = used.map(s =>
+      "<tr><td><b>" + esc(s.name) + "</b></td><td>" + (s.url ? "<a href='" + esc(s.url) + "' target='_blank' rel='noopener'>" + esc(s.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")) + "</a>" : "—") + "</td><td>" +
+        esc(s.kind || (s.custom ? tr("vlastní") : "—")) + "</td><td style='font-size:.78rem'>" + esc(s.rows) + "</td></tr>").join("");
+    const msg = bomMsg; bomMsg = null;
+    const c = card(el, "10", tr("Kusovník"), intro + (msg ? "<p class='warnbox' role='alert'>" + esc(msg) + "</p>" : "") + `
     <div class="row" style="margin-top:4px">
       <label class="f" style="flex-direction:row;gap:8px;align-items:center">${tr("Platforma HW")}
         <select id="bomPlat">${Object.entries(PLAT).map(([k, pf]) => opt(k, pf.name + (p.platforms.includes(k) ? " ★" : ""), k === plat)).join("")}</select>
       </label>
       <span class="hint" style="margin:0">${tr("★ = platforma zvolená v projektu. Podle platformy se vybere CPU a I/O moduly.")}</span>
     </div>
-    <div class="stats"><span class="stat">${tr("řádků <b>{n}</b>", { n: lines.length })}</span><span class="stat">${tr("kusů <b>{n}</b>", { n: lines.reduce((a, l) => a + l.qty, 0) })}</span>${lines.some(l => l.safety) ? "<span class='stat'>⚠ <b>" + lines.filter(l => l.safety).length + "</b></span>" : ""}</div>
+    <div class="stats"><span class="stat">${tr("řádků <b>{n}</b>", { n: lines.length })}</span><span class="stat">${tr("kusů <b>{n}</b>", { n: lines.reduce((a, l) => a + l.qty, 0) })}</span>${lines.some(l => l.excluded) ? "<span class='stat'>" + tr("vyřazeno <b>{n}</b>", { n: lines.filter(l => l.excluded).length }) + "</span>" : ""}${lines.some(l => l.safety) ? "<span class='stat'>⚠ <b>" + lines.filter(l => l.safety).length + "</b></span>" : ""}</div>
     <div class="row" style="margin:6px 0 2px"><span class="hint" style="margin:0" id="bomShown"></span>
       <button class="small" id="bBomFltClear" ${Object.keys(bomView.filters).length ? "" : "hidden"}>${tr("Zrušit filtry")}</button>
       <span class="hint" style="margin:0">${tr("Klik na záhlaví = řazení (▲ / ▼ / původní pořadí); pole pod záhlavím = filtr sloupce.")}</span></div>
@@ -1297,9 +1332,10 @@ export function makeSteps(ctx) {
       <button class="small primary" id="bBomCsv">${tr("Stáhnout CSV")}</button>
       <button class="small" id="bBomTsv">${tr("Kopírovat jako tabulku")}</button>
       <button class="small danger" id="bBomReset">${tr("Obnovit výchozí volby")}</button>
-      <span class="hint" style="margin:0">${tr("CSV se středníky pro Excel; tabulku vložíš do Excelu nebo e-mailu. Množství 0 řádek z kusovníku vyřadí — vrátí ho Obnovit výchozí volby.")}</span>
+      <span class="hint" style="margin:0">${tr("CSV se středníky pro Excel; tabulku vložíš do Excelu nebo e-mailu. Množství 0 řádek vyřadí z CSV a dokumentace (zůstane šedě v přehledu); prázdné pole vrátí množství z návrhu.")}</span>
     </div>
     <h3>${tr("Dodavatelé v kusovníku")}</h3>
+    <p class="hint">${tr("Dodavatelé použití v řádcích kusovníku — koho poptat a kolik položek. Další dodavatele kategorie nabízí výběr u řádku.")}</p>
     ${used.length ? "<div class='tablewrap'><table><thead><tr><th>" + tr("Dodavatel") + "</th><th>" + tr("Web") + "</th><th>" + tr("Druh") + "</th><th>" + tr("Řádků") + "</th></tr></thead><tbody>" + supRows + "</tbody></table></div>" : "<p class='hint'>" + tr("Žádný dodavatel není vybrán.") + "</p>"}`);
 
     c.querySelector("#bomPlat").addEventListener("change", e => { cfg.plat = e.target.value; commit(); });
@@ -1371,8 +1407,9 @@ export function makeSteps(ctx) {
           bomCustomEdit.delete("s:" + id);
           lineCfg(id).supplier = v.trim();
         } else if (f === "qty") {
-          const n = numIn(v);
-          if (n === undefined || n < 0) delete lineCfg(id).qty; else lineCfg(id).qty = Math.round(n);
+          const r = bomQtyInput(v);
+          if (r.error) { bomMsg = r.error; rerender(); return; }
+          if (r.reset) delete lineCfg(id).qty; else lineCfg(id).qty = r.qty;
         } else if (f === "type" || f === "orderCode") {
           // prázdné pole = zpět na hodnotu z katalogu
           if (v.trim()) lineCfg(id)[f] = v.trim(); else delete lineCfg(id)[f];
@@ -1390,10 +1427,7 @@ export function makeSteps(ctx) {
     }
     c.querySelector("#bBomCsv").addEventListener("click", () => downloadFile(projectFileName(p, "_kusovnik.csv"), bomCsv(p)));
     c.querySelector("#bBomTsv").addEventListener("click", () => {
-      const cell = v => String(v ?? "").replace(/[\t\r\n]+/g, " ");
-      const head = ["#", tr("Označení"), tr("Položka"), tr("Popis"), tr("Množství"), tr("Jednotka"), tr("Výrobce"), tr("Typ"), tr("Objednací kód"), tr("Dodavatel"), tr("Poznámka")];
-      const body = lines.map(l => [l.pos, l.tag, l.item, l.desc, l.qty, l.unit, l.brand, l.type, l.orderCode, l.supplier, l.note]);
-      copyText([head, ...body].map(r => r.map(cell).join("\t")).join("\n") + "\n", c.querySelector("#bBomTsv"));
+      copyText(bomTableText(p), c.querySelector("#bBomTsv"));
     });
     c.querySelector("#bBomReset").addEventListener("click", () => {
       p.bom = cfg.plat ? { plat: cfg.plat } : {};
@@ -1410,6 +1444,8 @@ export function makeSteps(ctx) {
     const c = document.createElement("section");
     c.className = "card";
     c.innerHTML = "<h2><span class='n'>?</span>" + tr("Škola PLC — nápověda pro začátečníky") + "</h2>"
+      /* verze aplikace (jako desktop about_bar) — PLCDESK_VERSION z jádra = package.json = desktop __version__ */
+      + "<p class='hint' id='helpVersion' style='margin-top:0'><b>" + esc(tr("PLCdesk verze {v}", { v: PLCDESK_VERSION })) + "</b></p>"
       + H(tr("Co je PLC a jak funguje"), `
       <p>${tr("PLC (programovatelný logický automat) je průmyslový počítač, který řídí stroj: čte vstupy (tlačítka, snímače), vyhodnotí program a nastaví výstupy (stykače, ventily, signálky). Na rozdíl od běžného PC je stavěný na nepřetržitý provoz, rušení a teploty v rozvaděči.")}</p>
       <p>${tr(`<b>Scan cyklus</b>: <b>1)</b> načti vstupy, <b>2)</b> vykonej program odshora dolů, <b>3)</b> zapiš výstupy — opakuje se každých 1–10 ms. Program nikdy „nečeká" uvnitř; stav do dalšího cyklu musí být v proměnné.`)}</p>

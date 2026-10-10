@@ -2760,13 +2760,14 @@ class GuiTest(unittest.TestCase):
         self.root.update()
         steps = [i for g in self.table().tv.get_children() for i in self.table().tv.get_children(g)]
         self.assertEqual(steps, ["p1:24v"])
-        radio = next(r for r in self.find(ttk.Radiobutton) if str(r.cget("text")).startswith("bez výsledku"))
+        # „otevřené“ = bez výsledku nebo nevyhovuje (sjednoceno s webem 2026-10-10)
+        radio = next(r for r in self.find(ttk.Radiobutton) if str(r.cget("text")).startswith("otevřené"))
         radio.invoke()
         self.root.update()
         tv = self.table().tv
         steps = [i for g in tv.get_children() for i in tv.get_children(g)]
         self.assertNotIn("p1:visual", steps)
-        self.assertNotIn("p1:24v", steps)
+        self.assertIn("p1:24v", steps)
         self.assertIn("p1:plc", steps)
         self.assertEqual(self.app.ui["com"]["filter"], "open")
 

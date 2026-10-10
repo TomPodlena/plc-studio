@@ -1,5 +1,5 @@
 /* PLCdesk — aplikační shell: stav, navigace, render, jazyk. */
-import { blankProject, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule } from "../../../packages/core/dist/index.js";
+import { blankProject, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule, escHtml as esc } from "../../../packages/core/dist/index.js";
 import { makeSteps } from "./steps.js";
 import { makeImportWizard } from "./import_wizard.js";
 import { makeSafetyStep } from "./safety_step.js";
@@ -95,8 +95,27 @@ function stepDone(i) {
   if (i === 0) return !!S.prj.meta.name;
   if (i === 2) return S.prj.platforms.length > 0;
   if (i === 3) return S.prj.devices.length > 0;
+  /* kroky 11–13 (jako desktop): ze souhrnu odznaku, jen pokud patří k aktuálnímu projektu */
+  const b = badgeSum && badgeFresh ? badgeSum : null;
+  if (b && i === STEP_APPROVAL - 1) return !!b.safetyOk;
+  if (b && i === STEP_APPROVAL) return !!b.ok;
+  if (b && i === STEP_APPROVAL + 1) return !!b.commissionDone;
   return false;
 }
+/** Souhrn odznaku patří k aktuálnímu projektu? (nastaví render a showBadge) */
+let badgeFresh = false;
+/** Značky hotových kroků v liště bez překreslení kroku (souhrn odznaku dorazí později). */
+function markDone() {
+  $("stepper").querySelectorAll("button[data-i]").forEach(b => {
+    const i = +b.dataset.i;
+    if (i === S.step) return;
+    const done = stepDone(i);
+    b.classList.toggle("done", done);
+    b.textContent = navLabel(i, done);
+  });
+}
+/** Popisek kroku v liště: hotový krok s fajfkou (jako desktop). */
+const navLabel = (i, done) => (done ? "✔ " : "") + (i + 1) + " · " + tr(STEPS[i]);
 
 /* Průvodce importem stávajícího zařízení (modální okno nad kroky; vstup z kroku Projekt a Zařízení). */
 let wizard = null;
@@ -119,12 +138,16 @@ let badgeSum = null, badgeTimer = 0;
 const BADGE_LIVE_DEVICES = 60;   // do této velikosti se odznak přepočítá po každé změně
 function showBadge(sum) {
   badgeSum = sum || badgeSum;
+  badgeFresh = !!badgeSum && !!S.prj.devices.length && (!badgeSum.key || badgeSum.key === JSON.stringify(S.prj));
+  markDone();
   const b = $("badgeApproval");
-  if (!badgeSum) { b.hidden = true; return; }
+  /* bez zařízení odznak není (jako desktop); při nule „✔ Vše schváleno“ (jako desktop) */
+  if (!badgeSum || !S.prj.devices.length) { b.hidden = true; return; }
   const n = badgeSum.pending + badgeSum.stale + (badgeSum.unverified || 0);   // „čeká na ověření“ = neschváleno
-  b.hidden = !n;
-  b.textContent = tr("Neschváleno: {n}", { n }) + (badgeSum.old ? " ?" : "");
-  b.title = tr("Položky bez platného schválení (čeká, změněno po schválení) — otevře krok Schválení")
+  b.hidden = false;
+  b.classList.toggle("allok", !n);
+  b.textContent = n ? tr("Neschváleno: {n}", { n }) + (badgeSum.old ? " ?" : "") : "✔ " + tr("Vše schváleno");
+  b.title = (n ? tr("Položky bez platného schválení (čeká, změněno po schválení) — otevře krok Schválení") : tr("Všechny položky jsou schválené — otevře krok Schválení"))
     + (badgeSum.old ? " · " + tr("Projekt se od výpočtu změnil; u velkého projektu se počet přepočítá v krocích Dokumentace a Schválení.") : "");
   b.classList.toggle("stale", badgeSum.stale > 0);
 }
@@ -157,7 +180,7 @@ function render() {
   renderStatic();
   showSaveWarn();   // text varování v aktuálním jazyce
   const nav = $("stepper");
-  nav.innerHTML = STEPS.map((s, i) => "<button class='" + (i === S.step ? "on" : (stepDone(i) ? "done" : "")) + "' data-i='" + i + "'>" + (i + 1) + " · " + tr(s) + "</button>").join("")
+  nav.innerHTML = STEPS.map((s, i) => { const done = i !== S.step && stepDone(i); return "<button class='" + (i === S.step ? "on" : (done ? "done" : "")) + "' data-i='" + i + "'>" + esc(navLabel(i, done)) + "</button>"; }).join("")
     + "<button class='helpbtn" + (S.step === "help" ? " on" : "") + "' data-help>?&nbsp;" + tr("Nápověda") + "</button>";
   nav.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { S.step = b.hasAttribute("data-help") ? "help" : +b.dataset.i; save(); render(); }));
   setProjectHeader(S.prj);

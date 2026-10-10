@@ -194,16 +194,17 @@ SECTIONS = [
            "Markdown nebo CSV k tisku."),
     ]),
     (N_("Odkazy na dokumentaci platforem"), [
-        N_("Oficiální stránky výrobců: produkt, vývojové prostředí, reference jazyka, manuály, "
-           "import zdrojů a podpora. Odkazy byly ověřené k datu rešerše; výrobci je mohou "
+        N_("Oficiální stránky výrobců: produkt, vývojové prostředí, reference jazyka, příručky, "
+           "postup importu a podpora. Odkazy byly ověřené k datu rešerše; výrobci je mohou "
            "přesunout. Klik otevře odkaz v prohlížeči."),
         "@odkazy",
     ]),
 ]
 
-REF_KIND = {"product": N_("produkt"), "ide": N_("vývojové prostředí"),
-            "st_ref": N_("reference jazyka"), "manual": N_("manuál"), "import": N_("import zdrojů"),
-            "support": N_("podpora"), "cz": N_("Česko")}
+# druhy odkazů a jejich pořadí — stejné názvy jako web (steps.js REF_KIND)
+REF_KIND = {"product": N_("Produkt"), "ide": N_("Vývojové prostředí (IDE)"),
+            "st_ref": N_("Reference jazyka"), "manual": N_("Příručky"),
+            "import": N_("Import a export"), "support": N_("Podpora"), "cz": N_("Zastoupení v ČR")}
 
 
 def _insert_rich(txt, line: str, base: str) -> None:
@@ -225,6 +226,8 @@ def _insert_refs(app, txt) -> None:
         if not items:
             continue
         _insert_rich(txt, f"• **{pf['name']}**", "plat")
+        order = list(REF_KIND)                      # po druzích v pořadí webu
+        items = sorted(items, key=lambda r: order.index(r["kind"]) if r["kind"] in order else len(order))
         for r in items:
             tag = f"ref{txt.index('end')}"
             txt.insert("end", _(REF_KIND.get(r["kind"], r["kind"])) + ": ", ("dim",))

@@ -87,7 +87,7 @@ const sheetName =(m, i) => String(i + 1).padStart(2, "0") + "_" + m.dir + m.idx 
 /** Funkce ruční úpravy návrhu (edit.ts), které most pustí přes operaci `edit`. */
 const EDIT_FNS = new Set(["renameDevice", "setDeviceDesc", "setDeviceOpts", "setDeviceRange", "updateStep",
   "insertStep", "duplicateStep", "setIoTag", "setIoAddr", "setIoCmt",
-  "addDevice", "setDeviceParams", "deleteDevice", "renumberIo", "fixIoTags", "applyAiProposal"]);
+  "addDevice", "setDeviceParams", "deleteDevice", "renumberIo", "fixIoTags", "applyAiProposal", "setSimModel"]);
 
 /** Do kolika zařízení se ověření simulací pro odznak spočítá hned (zlomek sekundy). */
 const BADGE_LIVE_DEVICES = 30;
@@ -123,7 +123,7 @@ const OPS = {
      Jedna operace místo volání pro každý řádek. */
   bom({ prj }) {
     const b = core.buildBom(prj);
-    const options = {}, sups = new Map();
+    const options = {};
     for (const l of b.lines) {
       const k = core.catKey(l.cat, b.plat);
       if (!options[k]) {
@@ -133,10 +133,16 @@ const OPS = {
           src: o.brand.src || "", suppliers: (o.brand.suppliers || []).map(x => core.tr(x)), note: o.brand.note ? core.tr(o.brand.note) : "",
         }));
       }
-      for (const s of core.suppliersFor(k)) sups.set(s.name, { ...s, name: core.tr(s.name), note: s.note ? core.tr(s.note) : "" });
     }
-    return { plat: b.plat, lines: b.lines.map(l => ({ ...l, key: core.catKey(l.cat, b.plat) })), options,
-      suppliers: [...sups.values()], date: core.CATALOG_DATE, csv: core.bomCsv(prj) };
+    /* supOpts řádku = nabídka dodavatelů jako ve webu (dodavatelé zvolené značky + dodavatelé kategorie);
+       suppliers = přehled použitých (bomSuppliers — jako web); tsv = tabulka ke kopírování (bomTableText) */
+    const supOpts = l => {
+      const k = core.catKey(l.cat, b.plat), o = (options[k] || []).find(x => x.id === l.optId);
+      return [...new Set([...(o ? o.suppliers : []), ...core.suppliersFor(k).map(s => core.tr(s.name))])];
+    };
+    return { plat: b.plat, lines: b.lines.map(l => ({ ...l, key: core.catKey(l.cat, b.plat), supOpts: supOpts(l) })), options,
+      suppliers: core.bomSuppliers(prj), date: core.CATALOG_DATE,
+      csv: core.bomCsv(prj), tsv: core.bomTableText(prj), qtyMax: core.BOM_QTY_MAX };
   },
 
   /* Balík k ověření pro beta testery (verify_pack.ts): ZIP v base64 + název souboru. Není to export
@@ -262,8 +268,11 @@ const OPS = {
       groups: Object.fromEntries(Object.entries(core.APPROVAL_GROUPS).map(([k, v]) => [k, core.tr(v)])),
       items: items.map(i => {
         const st = core.approvalStatus(prj, i);
-        return { ...i, status: st, statusLabel: core.approvalStatusLabel(st), rec: rec[i.key] || null };
+        return { ...i, status: st, statusLabel: core.approvalStatusLabel(st), rec: rec[i.key] || null,
+          /* filtry, kterými položka projde (approvalFilterPass — stejné pravidlo jako web) */
+          filters: core.APPROVAL_FILTERS.filter(f => core.approvalFilterPass(st, f)) };
       }),
+      filters: core.APPROVAL_FILTERS.map(f => ({ id: f, label: core.approvalFilterLabel(f) })),
       summary: { total: s.total, approved: s.approved, stale: s.stale, rejected: s.rejected, pending: s.pending,
         ok: s.ok, blocking: s.blocking.map(i => i.key) },
       orphans: core.approvalOrphans(prj, items).map(k => ({ key: k, rec: rec[k], statusLabel: core.approvalStatusLabel(rec[k].state) })),
@@ -295,7 +304,9 @@ const OPS = {
     return {
       prj, plan,
       phases: Object.fromEntries(Object.entries(core.COMMISSION_PHASES).map(([k, v]) => [k, core.tr(v)])),
-      summary: { total: s.total, ok: s.ok, nok: s.nok, na: s.na, open: s.open, done: s.done },
+      /* openIds = otevřené kroky (bez výsledku nebo nevyhovuje) — filtr „otevřené“ jako web */
+      summary: { total: s.total, ok: s.ok, nok: s.nok, na: s.na, open: s.open, done: s.done,
+        openIds: s.openSteps.map(x => x.id) },
       files: { md: core.COMMISSION_FILE_MD, csv: core.COMMISSION_FILE_CSV },
       md: core.commissioningMd(prj, plan), csv: core.commissioningCsv(prj, plan),
     };

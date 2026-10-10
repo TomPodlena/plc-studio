@@ -57,6 +57,13 @@ export interface ApprovalItem {
 export declare const APPROVAL_GROUPS: Record<ApprovalGroup, string>;
 /** Přeložený popisek stavu položky. */
 export declare function approvalStatusLabel(s: ApprovalStatus): string;
+/** Filtry seznamu položek ke schválení (web i desktop): vše, k rozhodnutí, podle stavu. */
+export declare const APPROVAL_FILTERS: readonly ["all", "open", "stale", "rejected", "approved"];
+export type ApprovalFilter = typeof APPROVAL_FILTERS[number];
+/** Přeložený popisek filtru. */
+export declare function approvalFilterLabel(f: ApprovalFilter): string;
+/** Projde položka se stavem `st` filtrem `f`? „k rozhodnutí“ = neschváleno, čeká, změněno po schválení. */
+export declare function approvalFilterPass(st: ApprovalStatus, f: ApprovalFilter | string): boolean;
 /** Kanonický JSON: klíče objektů seřazené, `undefined` vynechané, nekonečna a NaN jako null. */
 export declare function canonicalJson(v: unknown): string;
 /** FNV-1a 64 bit nad UTF-8 bajty textu → 16 hex znaků. */

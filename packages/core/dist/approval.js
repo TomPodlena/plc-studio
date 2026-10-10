@@ -40,6 +40,20 @@ const STATUS_LABEL = {
 };
 /** Přeložený popisek stavu položky. */
 export function approvalStatusLabel(s) { return tr(STATUS_LABEL[s]); }
+/** Filtry seznamu položek ke schválení (web i desktop): vše, k rozhodnutí, podle stavu. */
+export const APPROVAL_FILTERS = ["all", "open", "stale", "rejected", "approved"];
+/** Přeložený popisek filtru. */
+export function approvalFilterLabel(f) {
+    return f === "all" ? tr("vše") : f === "open" ? tr("k rozhodnutí (čeká, změněno po schválení)") : approvalStatusLabel(f);
+}
+/** Projde položka se stavem `st` filtrem `f`? „k rozhodnutí“ = neschváleno, čeká, změněno po schválení. */
+export function approvalFilterPass(st, f) {
+    if (f === "all" || !APPROVAL_FILTERS.includes(f))
+        return true;
+    if (f === "open")
+        return st === "missing" || st === "proposed" || st === "stale";
+    return st === f;
+}
 /* ------------------------------------------------------------ otisk */
 /** Kanonický JSON: klíče objektů seřazené, `undefined` vynechané, nekonečna a NaN jako null. */
 export function canonicalJson(v) {

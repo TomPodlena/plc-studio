@@ -83,6 +83,20 @@ const STATUS_LABEL: Record<ApprovalStatus, string> = {
 /** Přeložený popisek stavu položky. */
 export function approvalStatusLabel(s: ApprovalStatus): string { return tr(STATUS_LABEL[s]); }
 
+/** Filtry seznamu položek ke schválení (web i desktop): vše, k rozhodnutí, podle stavu. */
+export const APPROVAL_FILTERS = ["all", "open", "stale", "rejected", "approved"] as const;
+export type ApprovalFilter = typeof APPROVAL_FILTERS[number];
+/** Přeložený popisek filtru. */
+export function approvalFilterLabel(f: ApprovalFilter): string {
+  return f === "all" ? tr("vše") : f === "open" ? tr("k rozhodnutí (čeká, změněno po schválení)") : approvalStatusLabel(f);
+}
+/** Projde položka se stavem `st` filtrem `f`? „k rozhodnutí“ = neschváleno, čeká, změněno po schválení. */
+export function approvalFilterPass(st: ApprovalStatus, f: ApprovalFilter | string): boolean {
+  if (f === "all" || !(APPROVAL_FILTERS as readonly string[]).includes(f)) return true;
+  if (f === "open") return st === "missing" || st === "proposed" || st === "stale";
+  return st === f;
+}
+
 /* ------------------------------------------------------------ otisk */
 
 /** Kanonický JSON: klíče objektů seřazené, `undefined` vynechané, nekonečna a NaN jako null. */

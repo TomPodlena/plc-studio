@@ -4,6 +4,7 @@
 import {
   escHtml as esc, tr, syncIO, approvalItems, approvalStatus, approvalStatusLabel, approve, reject, resetApproval,
   approvalSummary, approvalOrphans, tuningProposals, applyTuningResult, approveMany, approvalsMd, APPROVAL_GROUPS, APPROVAL_FILE,
+  APPROVAL_FILTERS, approvalFilterLabel, approvalFilterPass, commissioningSummary,
 } from "../../../packages/core/dist/index.js";
 import { card, downloadFile } from "./util.js";
 import { revisionAffected } from "./biz_view.js";
@@ -72,11 +73,23 @@ export function approvalBadge(prj, compute = true) {
   if (key === badgeKey && badgeSum) return badgeSum;
   /* bez výpočtu: levný souhrn — ověření simulací se nespouští, položky na něm závislé jsou
      „čeká na ověření“ a počet je jen dolní odhad (`old` → „?“) */
-  if (!compute) { const s = approvalSummary(prj, { cheap: true }); return { ...s, old: s.partial }; }
-  badgeSum = approvalSummary(prj); badgeKey = key;
+  if (!compute) { const items = approvalItems(prj, { cheap: true }), s = approvalSummary(prj, items); return badgeOf(prj, items, { ...s, old: s.partial }, key); }
+  const items = approvalItems(prj);
+  badgeSum = badgeOf(prj, items, approvalSummary(prj, items), key); badgeKey = key;
   return badgeSum;
 }
-function noteSummary(prj, sum) { badgeKey = JSON.stringify(prj); badgeSum = sum; }
+/**
+ * Souhrn odznaku + značky hotových kroků 11–13 (jako desktop „approval.badge“): bezpečnost = všechny
+ * položky bezpečnosti schválené, schválení = povinné schválené, oživení = všechny kroky OK / N/A.
+ * `key` = projekt, ke kterému souhrn patří (značky v liště kroků jen pro aktuální projekt).
+ */
+function badgeOf(prj, items, sum, key) {
+  const safety = items.filter(i => i.group === "safety");
+  return { ...sum, key,
+    safetyOk: safety.length > 0 && safety.every(i => approvalStatus(prj, i) === "approved"),
+    commissionDone: sum.partial ? null : commissioningSummary(prj).done };
+}
+function noteSummary(prj, items, sum) { badgeKey = JSON.stringify(prj); badgeSum = badgeOf(prj, items, sum, badgeKey); return badgeSum; }
 
 /* ---------------------------------------------------------------- krok 12 */
 
@@ -85,8 +98,9 @@ export function makeApprovalStep(ctx) {
   /* pohled (drží se mezi překresleními): filtr, otevřené skupiny, počet zobrazených návrhů ladění, rozepsané poznámky */
   const view = { filter: "all", open: {}, more: 50, notes: {}, err: {}, pick: new Set(), rev: { id: "", invalid: new Set() } };
   const rerender = () => { const y = window.scrollY; render(); window.scrollTo({ top: y }); };
-  const FILTERS = () => [["all", tr("vše")], ["open", tr("k rozhodnutí (čeká, změněno po schválení)")], ["stale", approvalStatusLabel("stale")], ["rejected", approvalStatusLabel("rejected")], ["approved", approvalStatusLabel("approved")]];
-  const pass = st => view.filter === "all" || (view.filter === "open" ? st === "missing" || st === "proposed" || st === "stale" : st === view.filter);
+  /* filtry a jejich pravidlo z jádra (approval.ts) — stejně jako desktop */
+  const FILTERS = () => APPROVAL_FILTERS.map(f => [f, approvalFilterLabel(f)]);
+  const pass = st => approvalFilterPass(st, view.filter);
 
   function row(p, it, st, tuning) {
     const rec = p.approvals?.[it.key];
@@ -118,8 +132,8 @@ export function makeApprovalStep(ctx) {
     syncIO(p);
     const items = approvalItems(p);
     const sum = approvalSummary(p, items);
-    noteSummary(p, sum);
-    if (ctx.showBadge) ctx.showBadge(sum);
+    const badge = noteSummary(p, items, sum);
+    if (ctx.showBadge) ctx.showBadge(badge);
     const status = new Map(items.map(i => [i.key, approvalStatus(p, i)]));
     const tun = new Map(tuningProposals(p).map(t => [t.approvalKey, t]));
     const orphans = approvalOrphans(p, items);

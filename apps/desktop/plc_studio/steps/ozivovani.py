@@ -21,15 +21,18 @@ from .schvaleni import GREY, _file_name, approver, name_bar, when
 RESULTS = {"ok": N_("OK"), "nok": N_("Nevyhovuje"), "na": N_("N/A")}
 RESULT_SHORT = {"ok": "OK", "nok": "NOK", "na": "N/A"}
 RESULT_COLOR = {"ok": theme.OK, "nok": theme.ERR, "na": GREY}
-FILTERS = {"all": N_("vše ({n})"), "open": N_("bez výsledku ({n})"),
+# „otevřené“ = bez výsledku nebo nevyhovuje (commissioningSummary.openSteps) — stejně jako web
+FILTERS = {"all": N_("vše ({n})"), "open": N_("otevřené (bez výsledku nebo nevyhovuje) ({n})"),
            "nok": N_("nevyhovuje ({n})")}
 TEXT_MAX = 300
 
 
-def _visible(step: dict, results: dict, flt: str) -> bool:
+def _visible(step: dict, results: dict, flt: str, open_ids: set | None = None) -> bool:
     r = results.get(step["id"])
     if flt == "open":
-        return r is None
+        if open_ids is not None:
+            return step["id"] in open_ids
+        return r is None or r["result"] == "nok"
     if flt == "nok":
         return r is not None and r["result"] == "nok"
     return True
@@ -72,7 +75,9 @@ def render(app, parent) -> None:
     nm.pack(side="left")
     fbar = ttk.Frame(bar)
     fbar.pack(side="left", padx=(16, 0))
-    counts = {"all": len(plan), "open": s["open"], "nok": s["nok"]}
+    open_ids = set(s.get("openIds") or [])
+    counts = {"all": len(plan), "open": len(open_ids) if "openIds" in s else s["open"] + s["nok"],
+              "nok": s["nok"]}
     var_f = tk.StringVar(value=flt)
     fbar._var = var_f                                   # držet proměnnou naživu (GC)
 
@@ -112,7 +117,7 @@ def render(app, parent) -> None:
     order: list[str] = []                               # viditelné kroky v pořadí
     for ph, label in data["phases"].items():
         steps = [st for st in plan if str(st["phase"]) == str(ph)]
-        shown = [st for st in steps if _visible(st, results, flt)]
+        shown = [st for st in steps if _visible(st, results, flt, open_ids if "openIds" in s else None)]
         if not shown:
             continue
         done = sum(1 for st in steps if st["id"] in results and results[st["id"]]["result"] != "nok")

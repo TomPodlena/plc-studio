@@ -352,6 +352,10 @@ export function makeImportWizard(ctx) {
     if (W.busy) return;
     const { ex, exact: p0 } = exact();
     if (!aiSettings().key) { W.err = tr("Chybí API klíč — doplň ho výše."); render(); return; }
+    /* placený dotaz: potvrzení s odhadem ceny (estimateImport) — stejný text jako desktop */
+    const est = estimateImport(W.files, W.model, { ex, prj: p0.prj, code: W.code });
+    const usd = est.usd >= 0.1 ? est.usd.toFixed(2) : est.usd.toFixed(3);
+    if (!window.confirm(tr("Odešle se {n} dotazů do Anthropic API (model {model}). Odhad ceny ≈ {usd} USD, účtuje se skutečná spotřeba. Pokračovat?", { n: est.parts.length, model: W.model, usd }))) return;
     W.busy = true; W.err = ""; W.progress = tr("Odesílám…"); render();
     ctl = new AbortController();
     try {
