@@ -69,29 +69,16 @@ def render(app, parent) -> None:
     tbl.pack(fill="both", expand=True)
     tbl.tv.column("nc", anchor="center")
 
+    # přečíslování a oprava tagů v jádře (edit.ts renumberIo / fixIoTags — jako web)
     def renumber() -> None:
-        for e in app.prj["io"]:
-            e["addr"] = ""
-        app.prj = app.bridge.mutate("autoAddr", app.prj, True)
-        app.save()
+        res = app.edit("renumberIo")
         refresh()
-        app.set_status(_("Adresy přečíslovány od nuly ({n} signálů).", n=len(app.prj["io"])))
+        app.set_status(_("Adresy přečíslovány od nuly ({n} signálů).", n=res.get("count", 0)))
 
     def fix_tags() -> None:
-        used = set()
-        changed = 0
-        for e in app.prj["io"]:
-            base = tag = app.core("sanitizeTag", e["tag"])
-            n = 2
-            while tag in used:
-                tag = f"{base}_{n}"
-                n += 1
-            used.add(tag)
-            changed += tag != e["tag"]
-            e["tag"] = tag
-        app.save()
+        res = app.edit("fixIoTags")
         refresh()
-        app.set_status(_("Opraveno tagů: {n}", n=changed))      # odezva i když není co opravit
+        app.set_status(_("Opraveno tagů: {n}", n=res.get("count", 0)))      # odezva i když není co opravit
 
     def with_row(action) -> None:
         e = by_key(tbl.selected() or "")

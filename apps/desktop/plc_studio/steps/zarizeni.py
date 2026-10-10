@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import re
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 from .. import theme
+from ..bridge import BridgeError
 from ..detail import DevicePanel
 from ..i18n import N_, _, _n
 from ..project import parse_num
-from ..widgets import Table, card, field, note_box, wrap_label
+from ..widgets import Table, card, field, issue_box, note_box, wrap_label
 
 DEFAULT_ON = ("fbk", "fbkOpen")  # volby zapnuté už při založení zařízení
 RANGE_CLS = ("AnalogIn", "AnalogOut", "Vfd", "PropValve")   # třídy s rozsahem a jednotkou
@@ -136,22 +136,21 @@ def param_fields(app, parent, cls: str, d: dict | None = None) -> dict:
 
 
 def read_params(vars_: dict) -> dict:
-    """Parametry z polí; neplatné číslo nebo min ≥ max → ``ValueError`` (text pro uživatele)."""
+    """Parametry z polí jako slovník pro jádro (``setDeviceParams`` / ``addDevice``): prázdné pole
+    = ``None`` (nezadáno → klíč se odebere), neplatné číslo nebo nesrozumitelné záznamy / polohy →
+    ``ValueError`` (text pro uživatele). Meze hodnot (mez min < max, rampa 0–3600 s, bity 1–6, REAL…)
+    kontroluje jádro (``deviceParamsProblem``) — stejně jako web."""
     res: dict = {}
     for key, v in vars_.items():
-        if key in ("_app", "_ax"):
-            continue
-        if key.startswith("ax"):            # servoosa: složí se níže do slovníku ``axis``
+        if key in ("_app", "_ax") or key.startswith("ax"):   # servoosa: složí se níže do ``axis``
             continue
         if key == "unit":
             res["unit"] = v.get().strip() or "mm"
             continue
         if key == "records":         # „1 = převzetí @ 0; 2 = lis @ 180“ → tabulka záznamů
-            r = vars_["_app"].core("parseRecordsChecked", v.get())
-            probs = _parse_problems(r["bad"], r["dup"])
-            if probs:                # nic tiše nezahazovat (test odolnosti 2026-10-08)
-                raise ValueError(_("Záznamy pohonu nejsou uložené — {problems}. Zapiš je ve tvaru "
-                                   "„1 = název @ poloha; 2 = …“.", problems=probs))
+            r = vars_["_app"].core("parseRecordsForm", v.get())
+            if r["error"]:           # nic tiše nezahazovat (test odolnosti 2026-10-08)
+                raise ValueError(r["error"])
             res["records"] = r["records"]
             continue
         if key == "role":
@@ -162,111 +161,32 @@ def read_params(vars_: dict) -> dict:
                 res[key] = _opt_num(v.get(), key)
             except ValueError as exc:
                 raise ValueError(_("Neplatné číslo v poli „{field}“.", field=exc)) from exc
-    if res.get("limLo") is not None and res.get("limHi") is not None \
-            and res["limLo"] >= res["limHi"]:
-        raise ValueError(_("Mez min musí být menší než mez max."))
-    _check_params(res)
     if "_ax" in vars_:
-        ax = dict(vars_["_ax"])
-        for key, label in AXIS_FIELDS:
+        ax: dict = {}
+        for key, _label in AXIS_FIELDS:
             try:
-                n = _opt_num(vars_["ax:" + key].get(), "ax:" + key)
+                ax[key] = _opt_num(vars_["ax:" + key].get(), "ax:" + key)   # None = výchozí (axisCfgOf)
             except ValueError as exc:
                 raise ValueError(_("Neplatné číslo v poli „{field}“.", field=exc)) from exc
-            if n is None:
-                ax.pop(key, None)
-            else:
-                ax[key] = n
-        r = vars_["_app"].core("parseAxisPositionsChecked", vars_["axpos"].get())
-        probs = _parse_problems(r["bad"], r["dup"])
-        if probs:
-            raise ValueError(_("Pojmenované polohy osy nejsou uložené — {problems}. Zapiš je ve tvaru "
-                               "„název @ poloha; …“.", problems=probs))
-        for n in (ax.get(k) for k, _label in AXIS_FIELDS):
-            if n is not None and abs(n) > REAL_MAX:
-                raise ValueError(_("Hodnota je mimo rozsah REAL (±3,4E38) — PLC ji neuloží; zkontroluj jednotky."))
+        r = vars_["_app"].core("parseAxisPositionsForm", vars_["axpos"].get())
+        if r["error"]:
+            raise ValueError(r["error"])
         ax["positions"] = r["positions"]
-        drv = vars_["axdrive"].get().strip()
-        if drv:
-            ax["drive"] = drv
-        else:
-            ax.pop("drive", None)
+        ax["drive"] = vars_["axdrive"].get().strip() or None
         res["axis"] = ax
-    if res.get("rampS") is not None and res["rampS"] < 0:
-        raise ValueError(_("Rampa musí být 0 (bez rampy) nebo kladný čas v sekundách."))
     return res
 
 
-REAL_MAX = 3.4028234663852886e38      # největší REAL (IEEE 754 single) — model.ts REAL_MAX
-
-
-def _parse_problems(bad: list, dup: list) -> str:
-    """Text „nesrozumitelné: …; duplicitní: …“ pro hlášku formuláře ("" = v pořádku)."""
-    out = []
-    if bad:
-        out.append(_("nesrozumitelné části: {parts}", parts="; ".join(str(b) for b in bad[:5])))
-    if dup:
-        out.append(_("duplicitní: {items}", items=", ".join(str(x) for x in dup[:10])))
-    return "; ".join(out)
-
-
-def _check_params(res: dict) -> None:
-    """Meze parametrů jako kontrola návrhu (model.ts validateProject) — formulář chybné hodnoty
-    neuloží (dřív se záporná tolerance / 1e9 uložily a bity výběru se tiše ořízly)."""
-    for key, v in res.items():
-        if isinstance(v, float) and abs(v) > REAL_MAX:
-            raise ValueError(_("Hodnota {par} je mimo rozsah REAL (±3,4E38) — PLC ji neuloží; zkontroluj jednotky.",
-                               par=_(PARAM_LABEL.get(key, key))))
-    if res.get("selBits") is not None:
-        b = res["selBits"]
-        if not (float(b).is_integer() and 1 <= b <= 6):
-            raise ValueError(_("Počet bitů výběru záznamu musí být 1 až 6."))
-        res["selBits"] = int(b)
-    if res.get("tol") is not None and not res["tol"] > 0:
-        raise ValueError(_("Povolená odchylka proporcionálního ventilu musí být kladná."))
-    if res.get("tolTimeS") is not None and not (0 < res["tolTimeS"] <= 3276.7):
-        raise ValueError(_("Doba odchylky proporcionálního ventilu musí být kladná a nejvýš 3 276,7 s "
-                           "(počítá se v taktech 0,1 s v proměnné INT)."))
-    if res.get("rampS") is not None and res["rampS"] > 3600:
-        raise ValueError(_("Rampa může být nejvýš 3600 s (delší rampa by ověření simulací zamrazila)."))
-    if res.get("travelS") is not None and not (0 < res["travelS"] <= 3600):
-        raise ValueError(_("Doba jízdy (model simulace) musí být kladná a nejvýš 3600 s."))
-
-
-def apply_params(d: dict, params: dict) -> None:
+def params_unchanged(d: dict, params: dict) -> bool:
+    """Parametry z polí jsou stejné jako v zařízení (opuštění pole beze změny nic neukládá)."""
     for key, v in params.items():
-        if v is None:
-            d.pop(key, None)
-        else:
-            d[key] = v
-
-
-NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
-
-
-def name_problem(prj: dict, name: str, skip_id: int | None = None) -> str | None:
-    """Proč označení zařízení nejde použít (``None`` = v pořádku). Stejná pravidla jako
-    ``validateProject`` v jádře: identifikátor IEC, nejvýš 32 znaků, bez „__“ a „_“ na konci,
-    jedinečné bez ohledu na velikost písmen (CODESYS ji nerozlišuje)."""
-    if not NAME_RE.fullmatch(name):
-        return _("Označení zařízení musí být identifikátor — písmena bez diakritiky, číslice a _, "
-                 "na začátku písmeno (např. M1, Y2_A). Používá se v názvech instancí v kódu.")
-    if len(name) > 32 or "__" in name or name.endswith("_"):
-        return _("Označení zařízení může mít nejvýš 32 znaků, bez „__“ a bez „_“ na konci — vznikají "
-                 "z něj jména jako seqOpen_<označení> a Rockwell Logix povoluje 40 znaků.")
-    for d in prj["devices"]:
-        if d["id"] != skip_id and d["name"].upper() == name.upper():
-            return _("Označení {name} už má zařízení {other} — označení musí být jedinečné "
-                     "(velká a malá písmena se nerozlišují).", name=name, other=d["name"])
-    return None
-
-
-def used_by(prj: dict, dev_id: int) -> dict:
-    """Kde program zařízení používá: počet kroků sekvence, E-stop, blokování."""
-    prog = prj.get("program") or {}
-    return {"steps": sum(1 for s in prog.get("seq") or [] if s.get("act") != "wait" and s.get("dev") == dev_id),
-            "estop": prog.get("estop") == dev_id,
-            "lock": dev_id in (prog.get("interlocks") or [])}
+        if key == "axis":
+            ax = d.get("axis") or {}
+            if any(ax.get(k) != val for k, val in v.items()):     # None = pole chybí (výchozí)
+                return False
+        elif d.get(key) != v:
+            return False
+    return True
 
 
 def _num(value: str, default: float) -> float:
@@ -335,40 +255,26 @@ def render(app, parent) -> None:
     render_opts()
 
     def add() -> None:
-        prj = app.prj
         key = labels[var_cls.get()]
         analog = key in RANGE_CLS
-        rmin = _num(var_min.get(), 0) if analog else 0
-        rmax = _num(var_max.get(), 100) if analog else 100
-        name = var_name.get().strip() or app.core("nextName", prj, key)
-        # duplicitní / neplatné označení dřív prošlo a rozbilo dokumentaci, schválení i oživení
-        problem = name_problem(prj, name)
-        if problem:
-            app.set_status("⚠ " + problem, keep=True)
-            return
         try:
             if analog and (parse_num(var_min.get()) is None or parse_num(var_max.get()) is None):
                 raise ValueError(_("Neplatné číslo v poli „{field}“.", field=_("rozsah")))
-            if rmax <= rmin:
-                raise ValueError(_("Rozsah měření: horní mez musí být větší než dolní."))
             params = read_params(new_params)
         except ValueError as exc:
-            app.set_status(str(exc))
+            app.set_status("⚠ " + str(exc), keep=True)
             return
-        prj["devices"].append({
-            "id": prj["nextId"],
-            "name": name,
-            "cls": key, "desc": var_desc.get().strip(),
-            "opt": {k: v.get() for k, v in opt_vars.items()},
-            "unit": var_unit.get().strip() if analog else "",
-            "rmin": rmin, "rmax": rmax,
-        })
-        apply_params(prj["devices"][-1], params)
-        if key == "Axis":                    # osa nemá rozsah analogu
-            prj["devices"][-1].update(rmin=0, rmax=0)
-        prj["nextId"] += 1
-        app.sync()
-        app.save()
+        dev = {"cls": key, "name": var_name.get().strip(), "desc": var_desc.get(),
+               "opt": {k: v.get() for k, v in opt_vars.items()},
+               "unit": var_unit.get().strip() if analog else "",
+               "rmin": _num(var_min.get(), 0) if analog else 0, "rmax": _num(var_max.get(), 100) if analog else 100}
+        dev.update({k: v for k, v in params.items() if v is not None})
+        # jádro (edit.ts addDevice, stejně jako web): označení (identifikátor, jedinečné bez ohledu na
+        # velikost písmen), rozsah a parametry se zkontrolují — chybné zařízení se nepřidá
+        res = app.edit("addDevice", dev)
+        if not res.get("ok"):
+            app.set_status("⚠ " + (res.get("error") or ""), keep=True)
+            return
         app.ui["dev_cls"] = key              # klíč třídy, ne popisek (ten závisí na jazyce)
         app.render()
 
@@ -401,6 +307,23 @@ def render(app, parent) -> None:
     params_row.pack(side="bottom", fill="x", pady=(6, 0))
     dev_row = ttk.Frame(body)                       # označení, popis, volby, rozsah vybraného zařízení
     dev_row.pack(side="bottom", fill="x", pady=(6, 0))
+    issues_row = ttk.Frame(body)                    # kontrola zařízení přímo pod tabulkou (jako web)
+    issues_row.pack(side="bottom", fill="x")
+
+    def refresh_issues() -> None:
+        """Nálezy kontroly návrhu, které se týkají zařízení (označení, meze, rozsah, parametry)."""
+        for w in issues_row.winfo_children():
+            w.destroy()
+        names = {d["name"] for d in app.prj["devices"]}
+        if not names:
+            return
+        try:
+            issues = [i for i in app.core("validateProject", app.prj) if i.get("where") in names]
+        except BridgeError:
+            return
+        if issues:
+            issue_box(issues_row, issues, limit=6, pady=(6, 0))
+        issues_row.issues = issues                   # testy
 
     # --- seznam zařízení ---
     def refresh_row(dev_id: int) -> None:
@@ -417,6 +340,7 @@ def render(app, parent) -> None:
         for lbl in (getattr(dev_row, "_title", None), getattr(params_row, "_title", None)):
             if lbl is not None and lbl.winfo_exists():
                 lbl.configure(text=_("{dev}:", dev=d["name"]))
+        refresh_issues()
 
     def rename(dev_id: int, value: str) -> bool:
         """Přejmenování v jádře (renameDevice): výchozí tagy s ním, ruční zůstanou (hláška)."""
@@ -459,10 +383,11 @@ def render(app, parent) -> None:
         if iid is None or not iid.isdigit():
             app.set_status(_("Nejdřív vyber zařízení v tabulce."))
             return
-        prj = app.prj
         dev = app.dev_by_id(int(iid))
-        use = used_by(prj, int(iid))
-        if dev is not None and (use["steps"] or use["estop"] or use["lock"]):
+        if dev is None:
+            return
+        use = app.core("deviceUsage", app.prj, dev["id"])     # jádro — stejně jako web
+        if use["used"]:
             # zařízení v programu: smazání zahodí i jeho kroky sekvence — jen po potvrzení
             parts = []
             if use["steps"]:
@@ -477,21 +402,14 @@ def render(app, parent) -> None:
                       "i toto. Pokračovat?", name=dev["name"], what=", ".join(parts)),
                     icon="warning", parent=app.root):
                 return
-        prj["devices"] = [d for d in prj["devices"] if d["id"] != int(iid)]
-        ids = {d["id"] for d in prj["devices"]}
-        prog = prj["program"]
-        prog["seq"] = [s for s in prog["seq"] if s["act"] == "wait" or s["dev"] in ids]
-        prog["interlocks"] = [i for i in prog.get("interlocks") or [] if i in ids]
-        if prog["estop"] and prog["estop"] not in ids:
-            prog["estop"] = ""
-        app.sync()
-        app.save()
+        app.edit("deleteDevice", dev["id"])          # i kroky, E-stop a blokování (jádro edit.ts)
         app.render()
+        app.set_status(_("Zařízení {name} odstraněno.", name=dev["name"]))
 
     if not p["devices"]:
-        wrap_label(body, _("Zatím žádná zařízení — přidej je výše, načti ukázku v kroku Projekt, "
-                           "nech si je navrhnout v kroku AI návrh, nebo použij Import vpravo "
-                           "dole."), pady=(0, 6))
+        wrap_label(body, _("Zatím žádná zařízení — přidej je výše, otevři příklad stroje v kroku Projekt "
+                           "(Příklady strojů), nech si je navrhnout v kroku AI návrh, nebo použij Import "
+                           "vpravo dole."), pady=(0, 6))
     mid = ttk.Frame(body)
     mid.pack(fill="both", expand=True)
     panel = DevicePanel(mid, app, terms, here="zarizeni",
@@ -505,6 +423,7 @@ def render(app, parent) -> None:
     for d in p["devices"]:
         tbl.add(d["id"], (d["name"], app.CLS[d["cls"]]["label"], d["desc"], _opts_text(app, d)))
     tbl.tv.bind("<Delete>", delete)
+    refresh_issues()
 
     def on_commit(widget, fn) -> None:
         """Uložení pole Enterem i opuštěním (FocusOut) — ne jen tlačítkem."""
@@ -629,21 +548,25 @@ def render(app, parent) -> None:
             try:
                 params = read_params(vars_)
             except ValueError as exc:       # neplatné číslo mez dřív tiše smazalo
-                app.set_status(str(exc))
+                app.set_status("⚠ " + str(exc), keep=True)
                 return
-            if quiet and all(d.get(k) == v for k, v in params.items()):
+            if quiet and params_unchanged(d, params):
                 return                      # opuštění pole beze změny: nic neukládat ani nehlásit
-            bits = d.get("selBits")
-            apply_params(d, params)
-            if d["cls"] == "PosDrive" and d.get("selBits") != bits:   # jiný počet bitů = jiné signály
-                app.sync()
-                app.save()
-                app.render()
+            # jádro (edit.ts setDeviceParams, stejně jako web): mez min ≥ max, záporná rampa, bity mimo
+            # 1–6… se neuloží a hláška řekne proč
+            res = app.edit("setDeviceParams", dev_id, params)
+            if not res.get("ok"):
+                app.set_status("⚠ " + (res.get("error") or ""), keep=True)
                 return
-            app.save()
+            d = app.dev_by_id(dev_id)
+            if res.get("added") or res.get("removed"):   # jiný počet bitů výběru záznamu = jiné signály
+                app.render()
+                app.set_status(_("Parametry {dev} uloženy.", dev=d["name"]))
+                return
             tbl.tv.set(str(d["id"]), "opt", _opts_text(app, d))
             if panel.dev_id == dev_id:
                 panel.show(dev_id)
+            refresh_issues()
             app.set_status(_("Parametry {dev} uloženy.", dev=d["name"]))
 
         ttk.Button(params_row, text=_("Uložit parametry"), command=save_params).pack(side="left")

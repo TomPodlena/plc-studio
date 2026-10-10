@@ -1,0 +1,110 @@
+[
+ {
+  "file": "00a_hydraulicka_stanice.plcstudio.json",
+  "name": "Hydraulická zkušební stanice (ukázka)",
+  "devices": 7,
+  "steps": 5
+ },
+ {
+  "file": "00b_lisovaci_linka_LL-03.plcstudio.json",
+  "name": "Lisovací a značicí linka LL-03 (složitý příklad)",
+  "devices": 29,
+  "steps": 30
+ },
+ {
+  "file": "01_pasovy_dopravnik_vyhazovac.plcstudio.json",
+  "name": "Pásový dopravník s vyhazovačem (jednoduchý příklad)",
+  "devices": 6,
+  "steps": 6
+ },
+ {
+  "file": "02_michaci_nadrz_MN-200.plcstudio.json",
+  "name": "Míchací nádrž MN-200 (jednoduchý příklad)",
+  "devices": 10,
+  "steps": 8
+ },
+ {
+  "file": "03_nytovaci_lis_NL-1.plcstudio.json",
+  "name": "Pneumatický nýtovací lis NL-1",
+  "devices": 15,
+  "steps": 14
+ },
+ {
+  "file": "04_upravna_vody_UV-04.plcstudio.json",
+  "name": "Čerpací stanice a úpravna vody ÚV-04 (střední příklad)",
+  "devices": 18,
+  "steps": 14
+ },
+ {
+  "file": "05_paletizacni_bunka_PB-05.plcstudio.json",
+  "name": "Paletizační buňka s ovíjením PB-05 (střední příklad)",
+  "devices": 30,
+  "steps": 27
+ },
+ {
+  "file": "06_lakovaci_linka_LK-06.plcstudio.json",
+  "name": "Lakovací linka s předúpravou LK-06 (složitý příklad)",
+  "devices": 47,
+  "steps": 34
+ },
+ {
+  "file": "07_transferova_lisovna_TL-07.plcstudio.json",
+  "name": "Transferová lisovna TL-07 se třemi lisy (velmi složitý příklad)",
+  "devices": 56,
+  "steps": 47
+ },
+ {
+  "file": "08_montazni_linka_otocny_stul_MS-8.plcstudio.json",
+  "name": "Montážní linka s otočným stolem MS-8",
+  "devices": 78,
+  "steps": 79
+ },
+ {
+  "file": "09_plnici_linka_napoju_PL-12.plcstudio.json",
+  "name": "Plnicí a balicí linka nápojů PL-12 (velmi složitý příklad)",
+  "devices": 111,
+  "steps": 104
+ },
+ {
+  "file": "10_vyrobni_hala_linka_rozdelovacu.plcstudio.json",
+  "name": "Výrobní hala H2 — linka výroby a balení hydraulických rozdělovačů (největší příklad)",
+  "devices": 125,
+  "steps": 120
+ },
+ {
+  "file": "11_podavaci_lisovaci_stanice_PS-11.plcstudio.json",
+  "name": "Podávací a lisovací stanice PS-11 (měnič, polohovací osa, proporcionální ventil)",
+  "devices": 12,
+  "steps": 16
+ },
+ {
+  "file": "12_portalovy_manipulator_PM-12.plcstudio.json",
+  "name": "Portálový manipulátor PM-12 (servoosa X, pick & place)",
+  "devices": 9,
+  "steps": 15
+ },
+ {
+  "file": "13_tridici_dopravnikova_linka_TD-13.plcstudio.json",
+  "name": "Třídicí dopravníková linka TD-13 (tři měniče, zdvihová výhybka)",
+  "devices": 17,
+  "steps": 31
+ },
+ {
+  "file": "14_hydraulicky_lis_HL-14.plcstudio.json",
+  "name": "Hydraulický lis HL-14 s proporcionální regulací tlaku a rychlosti",
+  "devices": 18,
+  "steps": 29
+ },
+ {
+  "file": "15_navijeci_davkovaci_stanice_NV-15.plcstudio.json",
+  "name": "Nanášecí a navíjecí stanice NV-15 (odvíječ, navíječ, dávkování lepidla, příčný řez)",
+  "devices": 18,
+  "steps": 27
+ },
+ {
+  "file": "16_paletizacni_bunka_osy_PC-16.plcstudio.json",
+  "name": "Paletizační buňka PC-16 se třemi polohovacími osami",
+  "devices": 16,
+  "steps": 38
+ }
+]

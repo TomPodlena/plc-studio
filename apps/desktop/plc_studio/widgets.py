@@ -202,6 +202,43 @@ def note_box(parent, text: str, *, warn: bool = False, **pack) -> tk.Label:
     return lbl
 
 
+ISSUE_FG = {"error": theme.ERR, "warn": theme.WARN, "info": theme.DIM}
+
+
+def issue_box(parent, issues: list[dict], *, head: str = "", text: str = "", limit: int = 8,
+              links=(), error: bool = False, **pack) -> tk.Frame:
+    """Rámeček s nálezy kontroly návrhu (``validateProject`` z jádra): tučný ``head``, vysvětlení
+    ``text``, řádky „kde — co“ barvou podle úrovně (nejvýš ``limit``, pak „… a dalších n“) a pod nimi
+    odkazy ``links`` = [(text, command)]. ``error`` = červený okraj (chyby návrhu v kroku Generovat)."""
+    bg = theme.DANGER_BG if error else theme.WARN_BG
+    box = tk.Frame(parent, bg=bg, highlightthickness=1, highlightbackground=theme.ERR if error else "#F0D9A0",
+                   padx=10, pady=7)
+    box.pack(**({"fill": "x", "pady": (8, 0)} | pack))
+    labels = []
+
+    def lbl(txt: str, fg: str, font=theme.FONT_DIM) -> None:
+        w = tk.Label(box, text=txt, bg=bg, fg=fg, font=font, justify="left", anchor="w")
+        w.pack(fill="x", anchor="w")
+        labels.append(w)
+
+    if head:
+        lbl(head, theme.ERR if error else theme.FG, theme.FONT_ACCENT)
+    if text:
+        lbl(text, theme.FG)
+    for i in issues[:limit]:
+        lbl(f"• {i['where']} — {i['msg']}", ISSUE_FG.get(i.get("level"), theme.FG))
+    if len(issues) > limit:
+        lbl(_("… a dalších {n}", n=len(issues) - limit), theme.DIM)
+    if links:
+        row = tk.Frame(box, bg=bg)
+        row.pack(fill="x", anchor="w", pady=(4, 0))
+        for t, cmd in links:
+            link(row, t, cmd, bg=bg).pack(side="left", padx=(0, 16))
+    box.bind("<Configure>", lambda e: [w.configure(wraplength=max(200, e.width - 24)) for w in labels])
+    box.issue_labels = labels            # testy
+    return box
+
+
 def field(parent, label: str, widget_factory, *, row: int = 0, col: int = 0,
           colspan: int = 1):
     """Popisek nad vstupem v mřížce; vrací vytvořený vstup."""

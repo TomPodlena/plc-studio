@@ -7,8 +7,9 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
+from ..bridge import BridgeError
 from ..i18n import N_, _
-from ..widgets import FlowFrame, card, note_box, save_file, save_many, scrolled_text, set_text, wrap_label
+from ..widgets import FlowFrame, card, issue_box, note_box, save_file, save_many, scrolled_text, set_text, wrap_label
 
 
 def _tsv_tabs(widget, text: str) -> tuple:
@@ -29,6 +30,26 @@ def _tsv_tabs(widget, text: str) -> tuple:
 
 TAB_CODE, TAB_HMI, TAB_EMU, TAB_EXPORTS = range(4)
 TABS = [N_("Kód"), N_("HMI"), N_("Emulace kódu"), N_("SISTEMA a EPLAN")]
+# krok (index) → odkaz z upozornění na chyby návrhu (jako web gen_tabs.js FIX_STEPS)
+FIX_STEPS = ((3, N_("Otevřít krok Zařízení")), (4, N_("Otevřít krok I/O")), (6, N_("Otevřít krok Program")))
+
+
+def error_box(app, body) -> None:
+    """Výrazné upozornění nad záložkami, když kontrola návrhu (``validateProject``) hlásí chyby —
+    s odkazy do kroků, kde se opravují; ukládání výstupů zůstává povolené (jako web)."""
+    try:
+        app.sync()                                       # I/O ze zařízení (kontrola čte tabulku signálů)
+        errs = [i for i in app.core("validateProject", app.prj) if i.get("level") == "error"]
+    except BridgeError:
+        return
+    if not errs:
+        return
+    box = issue_box(body, errs, limit=6, error=True, pady=(0, 10),
+                    head=_("Návrh obsahuje chyby ({n}).", n=len(errs)),
+                    text=_("Vygenerovaný kód nemusí jít v IDE přeložit nebo nebude fungovat podle návrhu — "
+                           "oprav je v kroku Zařízení, I/O nebo Program. Stahování zůstává povolené."),
+                    links=[(_(t) + " →", lambda s=s: app.goto(s)) for s, t in FIX_STEPS])
+    app.gen_errors = box                 # testy
 
 
 def render(app, parent) -> None:
@@ -38,6 +59,7 @@ def render(app, parent) -> None:
         wrap_label(body, _("Nejdřív přidej zařízení (krok 4), nech si je navrhnout v kroku "
                            "AI návrh, nebo použij volbu Import."))
         return
+    error_box(app, body)
     nb = ttk.Notebook(body)
     nb.pack(fill="both", expand=True)
     renderers = [render_code, hmi.render, emulace.render, exporty.render]

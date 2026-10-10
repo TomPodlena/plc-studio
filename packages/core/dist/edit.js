@@ -11,9 +11,10 @@
  *   `syncIO`, v kterémkoli jazyce UI) se při změně zařízení přepíšou, ručně změněné zůstanou;
  * - GUID a adresy (připnutí v sestavě hardwaru) se nemění; schválení se zneplatní samo otiskem.
  */
-import { tr, withLang, LANGS } from "./i18n.js";
-import { PLAT, CLS, ACTS_FOR, devById, devSignals, syncIO, autoAddr, hasRange, maxRecord, validateProject, oneLine, lineSafe, canonIoAddr, MIN_STEP_S, REAL_MAX, } from "./model.js";
-import { axisCfgOf } from "./axis.js";
+import { tr, N_, withLang, LANGS } from "./i18n.js";
+import { PLAT, CLS, ACTS_FOR, DO_ROLES, devById, devSignals, syncIO, autoAddr, hasRange, maxRecord, validateProject, nextName, sanitizeTag, parseRecordsChecked, oneLine, lineSafe, canonIoAddr, MIN_STEP_S, REAL_MAX, } from "./model.js";
+import { axisCfgOf, parseAxisPositionsChecked } from "./axis.js";
+import { AXIS_FIELDS } from "./axis_gen.js";
 import { canonAddr } from "./importers.js";
 import { hwPlatform } from "./hardware.js";
 const fail = (error) => ({ ok: false, error });
@@ -212,12 +213,9 @@ export function setDeviceRange(prj, devId, range) {
         return fail(tr("Zařízení {dev} nemá rozsah ani jednotku.", { dev: d.name }));
     const rmin = range.rmin === undefined ? d.rmin : Number(range.rmin);
     const rmax = range.rmax === undefined ? d.rmax : Number(range.rmax);
-    if (!Number.isFinite(rmin) || !Number.isFinite(rmax))
-        return fail(tr("Rozsah musí být číslo."));
-    if (Math.abs(rmin) > REAL_MAX || Math.abs(rmax) > REAL_MAX)
-        return fail(tr("Meze rozsahu leží mimo rozsah REAL (±3,4E38) — PLC je neuloží; zkontroluj jednotky."));
-    if (rmin >= rmax)
-        return fail(tr("Rozsah měření: minimum musí být menší než maximum."));
+    const problem = rangeProblem(rmin, rmax);
+    if (problem)
+        return fail(problem);
     const before = clone(d);
     if (range.unit !== undefined)
         d.unit = oneLine(range.unit);
@@ -373,4 +371,371 @@ export function setIoAddr(prj, key, addr) {
     e.addr = a;
     autoAddr(prj, false);
     return { ok: true, value: e.addr, issues: issuesFor(prj, new Set([e.tag, e.addr])) };
+}
+/* ------------------------------------------------------------------ přidání, parametry a odebrání zařízení */
+/** Proč rozsah analogu nejde použít (`null` = v pořádku): čísla, REAL, minimum < maximum. */
+export function rangeProblem(rmin, rmax) {
+    if (!Number.isFinite(rmin) || !Number.isFinite(rmax))
+        return tr("Rozsah musí být číslo.");
+    if (Math.abs(rmin) > REAL_MAX || Math.abs(rmax) > REAL_MAX)
+        return tr("Meze rozsahu leží mimo rozsah REAL (±3,4E38) — PLC je neuloží; zkontroluj jednotky.");
+    if (rmin >= rmax)
+        return tr("Rozsah měření: minimum musí být menší než maximum.");
+    return null;
+}
+/** Popisky číselných parametrů (klíče překladu). */
+export const DEVICE_PARAM_LABEL = {
+    limLo: N_("mez min"), limHi: N_("mez max"), setpoint: N_("žádaná hodnota"), rampS: N_("rampa [s]"),
+    tol: N_("tolerance ±"), tolTimeS: N_("doba odchylky [s]"), selBits: N_("bity výběru záznamu"), travelS: N_("doba jízdy (model) [s]"),
+};
+/** Které číselné parametry třída má (pořadí = pořadí polí ve formuláři). */
+export const DEVICE_PARAMS = {
+    AnalogIn: ["limLo", "limHi"], AnalogOut: ["setpoint"], Vfd: ["setpoint", "rampS"],
+    PropValve: ["setpoint", "rampS", "tol", "tolTimeS"], PosDrive: ["selBits", "travelS"],
+};
+const isSet = (v) => v !== undefined && v !== null && v !== "";
+const noParam = (d, k) => tr("Zařízení {dev} nemá parametr {par}.", { dev: d.name || String(d.cls), par: k });
+/**
+ * Proč hodnoty parametrů zařízení nejdou uložit (`null` = v pořádku). Kontroluje jen klíče v `p`
+ * (u mezí i druhou mez zařízení `d`): čísla a rozsah REAL, mez min < mez max, rampa 0–3600 s,
+ * tolerance a doba odchylky ventilu, bity výběru záznamu 1–6, doba jízdy, role výstupu, pole osy.
+ * Stejné meze jako kontrola návrhu (`validateProject`) — formuláře je hlásí hned při zadání.
+ */
+export function deviceParamsProblem(d, p) {
+    p = p || {};
+    const keys = DEVICE_PARAMS[d.cls] || [];
+    for (const k of Object.keys(p)) {
+        if (!isSet(p[k]))
+            continue;
+        if (k === "role") {
+            if (d.cls !== "DO")
+                return noParam(d, k);
+            if (!Object.prototype.hasOwnProperty.call(DO_ROLES, p.role))
+                return tr("Neznámá vazba výstupu na stav stroje: {role}.", { role: String(p.role) });
+            continue;
+        }
+        if (k === "records") {
+            if (d.cls !== "PosDrive" || !Array.isArray(p.records))
+                return noParam(d, k);
+            continue;
+        }
+        if (k === "unit") {
+            if (d.cls !== "Axis" || typeof p.unit !== "string")
+                return noParam(d, k);
+            continue;
+        }
+        if (k === "axis") {
+            if (d.cls !== "Axis" || typeof p.axis !== "object")
+                return noParam(d, k);
+            continue;
+        }
+        if (!keys.includes(k))
+            return noParam(d, k);
+        const v = p[k], label = tr(DEVICE_PARAM_LABEL[k]);
+        if (typeof v !== "number" || !Number.isFinite(v))
+            return tr("Neplatné číslo v poli „{field}“.", { field: label });
+        if (Math.abs(v) > REAL_MAX)
+            return tr("Hodnota {par} je mimo rozsah REAL (±3,4E38) — PLC ji neuloží; zkontroluj jednotky.", { par: label });
+    }
+    const val = (k) => k in p ? (isSet(p[k]) ? p[k] : undefined) : (Number.isFinite(d[k]) ? d[k] : undefined);
+    const lo = val("limLo"), hi = val("limHi");
+    if (("limLo" in p || "limHi" in p) && lo !== undefined && hi !== undefined && lo >= hi)
+        return tr("Mez min musí být menší než mez max.");
+    const n = (k) => (isSet(p[k]) ? p[k] : undefined);
+    const ramp = n("rampS"), tol = n("tol"), tolT = n("tolTimeS"), bits = n("selBits"), travel = n("travelS");
+    if (ramp !== undefined && ramp < 0)
+        return tr("Rampa musí být 0 (bez rampy) nebo kladný čas v sekundách.");
+    if (ramp !== undefined && ramp > 3600)
+        return tr("Rampa může být nejvýš 3600 s (delší rampa by ověření simulací zamrazila).");
+    if (tol !== undefined && !(tol > 0))
+        return tr("Povolená odchylka proporcionálního ventilu musí být kladná.");
+    if (tolT !== undefined && !(tolT > 0 && tolT <= 3276.7))
+        return tr("Doba odchylky proporcionálního ventilu musí být kladná a nejvýš 3 276,7 s (počítá se v taktech 0,1 s v proměnné INT).");
+    if (bits !== undefined && !(Number.isInteger(bits) && bits >= 1 && bits <= 6))
+        return tr("Počet bitů výběru záznamu musí být 1 až 6.");
+    if (travel !== undefined && !(travel > 0 && travel <= 3600))
+        return tr("Doba jízdy (model simulace) musí být kladná a nejvýš 3600 s.");
+    if (isSet(p.axis)) {
+        const ax = p.axis;
+        for (const f of AXIS_FIELDS) {
+            const v = ax[f.key];
+            if (!isSet(v))
+                continue;
+            if (typeof v !== "number" || !Number.isFinite(v))
+                return tr("Neplatné číslo v poli „{field}“.", { field: tr(f.label) });
+            if (Math.abs(v) > REAL_MAX)
+                return tr("Hodnota {par} je mimo rozsah REAL (±3,4E38) — PLC ji neuloží; zkontroluj jednotky.", { par: tr(f.label) });
+        }
+    }
+    return null;
+}
+/** Zapíše parametry do zařízení (`null` / "" = odebrat klíč); osa se slučuje. Bez kontroly. */
+function applyParams(d, p) {
+    for (const [k, v] of Object.entries(p || {})) {
+        if (v === undefined)
+            continue;
+        if (k === "axis") {
+            if (!isSet(v)) {
+                delete d.axis;
+                continue;
+            }
+            const ax = { ...(d.axis || {}) };
+            for (const [ak, av] of Object.entries(v)) {
+                if (!isSet(av))
+                    delete ax[ak];
+                else
+                    ax[ak] = ak === "drive" ? oneLine(String(av)) : clone(av);
+            }
+            d.axis = ax;
+        }
+        else if (k === "unit")
+            d.unit = oneLine(String(v ?? "")) || "mm";
+        else if (!isSet(v))
+            delete d[k];
+        else
+            d[k] = clone(v);
+    }
+}
+/**
+ * Uloží parametry zařízení (meze, žádaná hodnota, rampa, tolerance, bity výběru záznamu, doba jízdy,
+ * role výstupu, záznamy pohonu, konfigurace osy) po kontrole `deviceParamsProblem`. Změna bitů výběru
+ * záznamu mění signály pohonu (`syncIO`, vrací `added` / `removed`).
+ */
+export function setDeviceParams(prj, devId, params) {
+    const d = devById(prj, devId);
+    if (!d)
+        return fail(tr("Zařízení nenalezeno."));
+    const problem = deviceParamsProblem(d, params || {});
+    if (problem)
+        return fail(problem);
+    const before = ioOfDev(prj, d.id).map(e => e.tag);
+    const bits = d.selBits;
+    applyParams(d, params || {});
+    if (d.cls !== "PosDrive" || d.selBits === bits)
+        return { ok: true, issues: issuesFor(prj, new Set([d.name])) };
+    syncIO(prj); // jiný počet bitů výběru záznamu = jiné signály pohonu
+    const after = ioOfDev(prj, d.id).map(e => e.tag);
+    return { ok: true, added: after.filter(t => !before.includes(t)), removed: before.filter(t => !after.includes(t)), issues: issuesFor(prj, new Set([d.name])) };
+}
+/**
+ * Přidá zařízení po kontrole označení (`deviceNameProblem`), rozsahu (`rangeProblem`, jen třídy
+ * s rozsahem) a parametrů (`deviceParamsProblem`). Dostane id, GUID a signály (`syncIO`); vrací `id`.
+ */
+export function addDevice(prj, nd) {
+    if (!nd || !Object.prototype.hasOwnProperty.call(CLS, nd.cls))
+        return fail(tr("Neznámá třída zařízení."));
+    const { cls, name: rawName, desc, opt, unit, rmin: rawMin, rmax: rawMax, libType, ...params } = nd;
+    const name = oneLine(rawName || "") || nextName(prj, cls);
+    const nameErr = deviceNameProblem(prj, name);
+    if (nameErr)
+        return fail(nameErr);
+    const ranged = hasRange(cls);
+    const rmin = ranged ? Number(rawMin ?? 0) : 0, rmax = ranged ? Number(rawMax ?? 100) : cls === "Axis" ? 0 : 100;
+    if (ranged) {
+        const r = rangeProblem(rmin, rmax);
+        if (r)
+            return fail(r);
+    }
+    const d = {
+        id: prj.nextId, name, cls, desc: oneLine(desc || ""),
+        opt: Object.fromEntries(Object.entries(opt || {}).filter(([k]) => Object.prototype.hasOwnProperty.call(CLS[cls].opts, k)).map(([k, v]) => [k, !!v])),
+        unit: ranged || cls === "Axis" ? oneLine(unit || "") || (cls === "Axis" ? "mm" : "") : "", rmin, rmax,
+    };
+    const problem = deviceParamsProblem(d, params);
+    if (problem)
+        return fail(problem);
+    applyParams(d, params);
+    if (typeof libType === "string" && libType)
+        d.libType = libType;
+    prj.nextId = d.id + 1;
+    prj.devices.push(d);
+    syncIO(prj); // signály, adresy ze sestavy a GUID
+    return { ok: true, id: d.id, issues: issuesFor(prj, new Set([d.name])) };
+}
+/** Kde program zařízení používá: kroky sekvence (počet), vstup E-stop, blokovací vstup. */
+export function deviceUsage(prj, devId) {
+    const prog = prj.program;
+    const steps = prog.seq.filter(s => s.act !== "wait" && s.dev === devId).length;
+    const estop = prog.estop === devId, lock = (prog.interlocks || []).includes(devId);
+    return { steps, estop, lock, used: steps > 0 || estop || lock };
+}
+/** Odebere zařízení i s jeho kroky sekvence, vazbou E-stop a blokováním; signály zmizí (`syncIO`). */
+export function deleteDevice(prj, devId) {
+    const d = devById(prj, devId);
+    if (!d)
+        return fail(tr("Zařízení nenalezeno."));
+    const removed = ioOfDev(prj, devId).map(e => e.tag);
+    prj.devices = prj.devices.filter(x => x.id !== devId);
+    const prog = prj.program;
+    prog.seq = prog.seq.filter(s => s.act === "wait" || !!devById(prj, s.dev));
+    prog.interlocks = (prog.interlocks || []).filter(i => !!devById(prj, i));
+    if (prog.estop !== "" && !devById(prj, prog.estop))
+        prog.estop = "";
+    syncIO(prj);
+    return { ok: true, removed };
+}
+/** Text „nesrozumitelné části: …; duplicitní: …“ pro hlášku formuláře ("" = v pořádku). */
+function parseProblems(bad, dup) {
+    const out = [];
+    if (bad.length)
+        out.push(tr("nesrozumitelné části: {parts}", { parts: bad.slice(0, 5).join("; ") }));
+    if (dup.length)
+        out.push(tr("duplicitní: {items}", { items: dup.slice(0, 10).join(", ") }));
+    return out.join("; ");
+}
+/** Záznamy pohonu z textu formuláře; nesrozumitelné části / duplicity = `error` (nic se tiše nezahodí). */
+export function parseRecordsForm(text) {
+    const r = parseRecordsChecked(text);
+    const probs = parseProblems(r.bad, r.dup);
+    return { records: r.records, error: probs ? tr("Záznamy pohonu nejsou uložené — {problems}. Zapiš je ve tvaru „1 = název @ poloha; 2 = …“.", { problems: probs }) : null };
+}
+/** Pojmenované polohy osy z textu formuláře; nesrozumitelné části / duplicity = `error`. */
+export function parseAxisPositionsForm(text) {
+    const r = parseAxisPositionsChecked(text);
+    const probs = parseProblems(r.bad, r.dup);
+    return { positions: r.positions, error: probs ? tr("Pojmenované polohy osy nejsou uložené — {problems}. Zapiš je ve tvaru „název @ poloha; …“.", { problems: probs }) : null };
+}
+/* ------------------------------------------------------------------ I/O hromadně */
+/** Přečísluje adresy všech signálů od nuly podle sestavy hardwaru (ruční připnutí se zahodí). */
+export function renumberIo(prj) {
+    for (const e of prj.io)
+        e.addr = "";
+    autoAddr(prj, true);
+    return { ok: true, count: prj.io.length };
+}
+/** Opraví tagy na přenositelné (ASCII identifikátor, `sanitizeTag`) a jedinečné; vrací počet změněných. */
+export function fixIoTags(prj) {
+    const used = new Set();
+    let count = 0;
+    for (const e of prj.io) {
+        const base = sanitizeTag(e.tag);
+        let t = base, n = 2;
+        while (used.has(t))
+            t = base + "_" + n++;
+        used.add(t);
+        if (t !== e.tag) {
+            e.tag = t;
+            count++;
+        }
+    }
+    return { ok: true, count };
+}
+/* ------------------------------------------------------------------ projekt */
+/**
+ * Projekt bez obsahu (žádná zařízení, název ani popis) — jeho nahrazení (nový projekt, otevření
+ * souboru, příklad) se neptá. Konverzaci kroku AI návrh (stav klienta) přidá klient.
+ */
+export function projectIsEmpty(prj) {
+    return !(prj.devices || []).length && !String(prj.meta?.name || "").trim() && !String(prj.meta?.desc || "").trim();
+}
+const AI_ACTS = ["start", "stop", "open", "close", "wait", "waitOn", "waitOff", "home", "posRecord", "setPressure", "setFlow",
+    "moveAbs", "moveRel", "velocity", "halt", "waitInPos"];
+/** Číselná pole návrhu AI podle třídy (aiNorm je pustí jen u správné třídy; tady ještě jednou). */
+const AI_DEV_FIELDS = DEVICE_PARAMS;
+const finite = (v) => typeof v === "number" && Number.isFinite(v);
+/** První volné označení třídy, které projde `deviceNameProblem` (jedinečné i bez ohledu na velikost písmen). */
+function freeName(prj, cls) {
+    const pre = CLS[cls].prefix;
+    let n = 1;
+    while (deviceNameProblem(prj, pre + n))
+        n++;
+    return pre + n;
+}
+/**
+ * Převezme návrh AI do projektu (nahradí zařízení, E-stop, blokování a sekvenci; takt jen když ho
+ * AI navrhla). Zařízení, které v návrhu zůstalo (stejné označení a třída), si nechá VŠECHNA svá pole
+ * (GUID — identita pro export EPLAN —, knihovní typ, záznamy, konfiguraci osy…) a přepíšou se jen
+ * hodnoty, které AI poslala; jeho signály si nechají adresu, komentář, NC a GUID (úpravy z kroku I/O),
+ * změněný popis se propíše do komentáře. Duplicitní (i jen velikostí písmen) nebo neplatné označení
+ * od AI dostane další volné (`renamed`). Kroky na neznámé zařízení se zahodí, čekání jen na třídu DI.
+ * Vrací `issues` = chyby kontroly návrhu po převzetí.
+ */
+export function applyAiProposal(prj, pr) {
+    if (!pr || !Array.isArray(pr.devices) || !pr.devices.some(a => a && Object.prototype.hasOwnProperty.call(CLS, a.cls)))
+        return fail(tr("Návrh AI neobsahuje žádná zařízení."));
+    const oldIo = prj.io;
+    const oldByKey = new Map(prj.devices.map(d => [d.name + "|" + d.cls, d]));
+    const oldById = new Map(prj.devices.map(d => [d.id, d]));
+    prj.devices = [];
+    prj.io = [];
+    prj.nextId = 1;
+    const byAiName = new Map(), byName = new Map();
+    const renamed = [];
+    for (const a of pr.devices) {
+        if (!a || !Object.prototype.hasOwnProperty.call(CLS, a.cls))
+            continue;
+        const aiName = oneLine(String(a.name || ""));
+        let name = aiName;
+        if (!name || deviceNameProblem(prj, name)) {
+            name = freeName(prj, a.cls);
+            if (aiName)
+                renamed.push({ from: aiName, to: name });
+        }
+        const od = oldByKey.get(name + "|" + a.cls);
+        const nd = od ? clone(od) : {};
+        Object.assign(nd, {
+            id: prj.nextId++, name, cls: a.cls, desc: oneLine(String(a.desc || "")),
+            opt: a.opt && typeof a.opt === "object" ? { ...a.opt } : {},
+            unit: oneLine(String(a.unit || "")), rmin: finite(a.rmin) ? a.rmin : 0, rmax: finite(a.rmax) ? a.rmax : 100,
+        });
+        for (const f of AI_DEV_FIELDS[a.cls] || [])
+            if (finite(a[f]))
+                nd[f] = a[f];
+        if (a.cls === "DO" && a.role && Object.prototype.hasOwnProperty.call(DO_ROLES, a.role))
+            nd.role = a.role;
+        if (a.cls === "PosDrive" && Array.isArray(a.records))
+            nd.records = clone(a.records);
+        if (typeof a.libType === "string" && a.libType)
+            nd.libType = a.libType;
+        /* konfigurace osy: pole, která AI neposlala (pohon, ryv…), zůstanou z původní */
+        if (a.cls === "Axis" && a.axis && typeof a.axis === "object")
+            nd.axis = { ...(nd.axis || {}), ...clone(a.axis) };
+        prj.devices.push(nd);
+        if (aiName && !byAiName.has(aiName))
+            byAiName.set(aiName, nd);
+        byName.set(name, nd);
+    }
+    /* I/O zařízení, které zůstalo (stejné označení a třída): převzít — jen nové id a klíč */
+    prj.io = oldIo.flatMap(e => {
+        const od = oldById.get(e.devId), nd = od && byName.get(od.name);
+        if (!od || !nd || nd.cls !== od.cls)
+            return [];
+        const ne = { ...e, devId: nd.id, key: nd.id + ":" + e.sig };
+        if (od.desc && nd.desc && nd.desc !== od.desc && typeof ne.cmt === "string" && ne.cmt.startsWith(od.desc))
+            ne.cmt = nd.desc + ne.cmt.slice(od.desc.length);
+        return [ne];
+    });
+    syncIO(prj);
+    const dev = (n) => byAiName.get(oneLine(String(n || "")));
+    const es = dev(pr.estop);
+    prj.program.estop = es && es.cls === "DI" ? es.id : "";
+    prj.program.interlocks = [...new Set((pr.interlocks || []).map(dev)
+            .filter((d) => !!d && d.cls === "DI" && d.id !== prj.program.estop).map(d => d.id))];
+    prj.program.seq = (pr.seq || []).flatMap((s) => {
+        if (!s || typeof s !== "object")
+            return [];
+        const act = AI_ACTS.includes(s.act) ? s.act : "wait";
+        const wait = act === "waitOn" || act === "waitOff";
+        const d = dev(s.dev);
+        const devId = act !== "wait" && d && (!wait || d.cls === "DI") ? d.id : 0;
+        if (act !== "wait" && !devId)
+            return [];
+        const cond = wait ? "fbk" : act === "wait" ? "time" : s.cond === "time" ? "time" : "fbk";
+        const st = { dev: devId, act, cond, timeS: finite(s.timeS) ? s.timeS : 1 };
+        if (finite(s.sp))
+            st.sp = s.sp;
+        if (Number.isInteger(s.rec))
+            st.rec = s.rec;
+        if (s.rev === true)
+            st.rev = true;
+        if (typeof s.posRef === "string" && s.posRef)
+            st.posRef = oneLine(s.posRef);
+        for (const f of ["pos", "vel", "acc", "dec"])
+            if (finite(s[f]))
+                st[f] = s[f];
+        return [st];
+    });
+    if (finite(pr.takt) && pr.takt > 0)
+        prj.meta.takt = pr.takt;
+    return { ok: true, renamed, issues: validateProject(prj).filter(i => i.level === "error") };
 }

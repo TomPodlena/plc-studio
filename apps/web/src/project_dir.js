@@ -173,6 +173,22 @@ export async function writeProjectFolder(prj, projectText, { confirmOverwrite, o
   };
 }
 
+/**
+ * Jen soubor projektu (Ctrl+S) do projektové složky: <kořen>/<číslo>_<Název>/<číslo>_<Název>.plcstudio.json
+ * (stejné jméno a místo jako v „Uložit vše do složky projektu“). Bez přístupného kořene null (klient
+ * pak soubor stáhne); jinak cesta pro hlášku. Chyba zápisu = výjimka.
+ */
+export async function saveProjectFile(prj, projectText) {
+  if (!hasRoot()) return null;
+  const folder = projectFolderName(prj), name = folder + ".plcstudio.json";
+  const dir = await D.root.getDirectoryHandle(folder, { create: true });
+  const fh = await dir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable();
+  await w.write(projectText);
+  await w.close();
+  return D.root.name + "/" + folder + "/" + name;
+}
+
 /** Přehled po uložení jako HTML (podsložky s popisky a počty, projekt, zamčené licencí). */
 function summaryHtml(s) {
   const path = (D.root ? D.root.name + "/" : "") + s.folder;

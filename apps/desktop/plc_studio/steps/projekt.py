@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import ttk
 
 from .. import datadir, theme
 from ..i18n import _, get_lang
@@ -164,8 +164,8 @@ def render(app, parent) -> None:
     var_customer.trace_add("write", on_ref("customer", var_customer))
 
     def reset() -> None:
-        if messagebox.askyesno(_("Nový projekt"), _("Zahodit aktuální návrh a začít s prázdným "
-                                                    "projektem?"), parent=app.root):
+        # ptá se jen u neprázdného návrhu (zařízení, název, popis, konverzace AI) — jako web
+        if app.confirm_replace(_("Nový prázdný projekt")):
             app.reset_project()
 
     row = ttk.Frame(body)

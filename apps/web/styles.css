@@ -195,6 +195,7 @@ ul.warnlist li::marker{color:var(--warn)}
 .notice{border-radius:9px;padding:10px 14px;font-size:.86rem;border:1px solid var(--line);border-left:4px solid var(--ok);background:var(--surface)}
 .notice.warn{border-left-color:var(--warn)} .notice.err{border-left-color:var(--err)}
 .notice.savewarn{margin:10px 0}
+.notice.toast{position:fixed;right:16px;bottom:16px;z-index:60;max-width:min(520px,calc(100vw - 32px));box-shadow:0 6px 24px rgba(0,0,0,.18);overflow-wrap:anywhere}
 .notice.generr{margin-bottom:12px}
 .notice.generr code{font-family:var(--font-mono);font-size:.76rem;overflow-wrap:anywhere}
 

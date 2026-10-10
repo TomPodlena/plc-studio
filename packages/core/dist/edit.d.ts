@@ -1,4 +1,5 @@
-import { type Project, type Device, type Dir, type SeqStep, type ValidationIssue } from "./model.js";
+import { type Project, type Device, type DeviceClass, type DoRole, type PosRecord, type Dir, type SeqStep, type ValidationIssue } from "./model.js";
+import { type AxisCfg, type AxisPos } from "./axis.js";
 export interface EditResult {
     ok: boolean;
     /** Proč úprava neprošla (projekt beze změny). */
@@ -16,6 +17,15 @@ export interface EditResult {
     index?: number;
     /** setIoTag / setIoAddr: uložená hodnota. */
     value?: string;
+    /** addDevice: id nového zařízení. */
+    id?: number;
+    /** fixIoTags / renumberIo: počet změněných tagů / přečíslovaných signálů. */
+    count?: number;
+    /** applyAiProposal: označení od AI, která se musela změnit (duplicita, neplatný identifikátor). */
+    renamed?: Array<{
+        from: string;
+        to: string;
+    }>;
     /** Nálezy kontroly návrhu, které se úpravy týkají (zařízení, krok, signál). */
     issues?: ValidationIssue[];
 }
@@ -83,3 +93,126 @@ export declare function parseIoAddr(prj: Project, dir: Dir, addr: string): strin
  * už má jiný signál, = chyba (projekt beze změny).
  */
 export declare function setIoAddr(prj: Project, key: string, addr: string): EditResult;
+/** Proč rozsah analogu nejde použít (`null` = v pořádku): čísla, REAL, minimum < maximum. */
+export declare function rangeProblem(rmin: number, rmax: number): string | null;
+/** Číselné parametry zařízení (formuláře kroku Zařízení ve webu i desktopu). */
+export type DeviceParamKey = "limLo" | "limHi" | "setpoint" | "rampS" | "tol" | "tolTimeS" | "selBits" | "travelS";
+/** Popisky číselných parametrů (klíče překladu). */
+export declare const DEVICE_PARAM_LABEL: Record<DeviceParamKey, string>;
+/** Které číselné parametry třída má (pořadí = pořadí polí ve formuláři). */
+export declare const DEVICE_PARAMS: Partial<Record<DeviceClass, DeviceParamKey[]>>;
+/**
+ * Parametry zařízení z formuláře. `null` = nezadáno → klíč se ze zařízení odebere; klíč, který
+ * v objektu není, se nemění. `axis` se slučuje se stávající konfigurací osy (`null` u pole =
+ * výchozí z `axisCfgOf`), `positions` ji nahradí celou.
+ */
+export interface DeviceParams {
+    limLo?: number | null;
+    limHi?: number | null;
+    setpoint?: number | null;
+    rampS?: number | null;
+    tol?: number | null;
+    tolTimeS?: number | null;
+    selBits?: number | null;
+    travelS?: number | null;
+    role?: DoRole | "" | null;
+    /** jen servoosa (třídy s rozsahem mění jednotku přes setDeviceRange); prázdná = mm */
+    unit?: string | null;
+    records?: PosRecord[] | null;
+    axis?: {
+        [K in keyof AxisCfg]?: AxisCfg[K] | null;
+    } | null;
+}
+/**
+ * Proč hodnoty parametrů zařízení nejdou uložit (`null` = v pořádku). Kontroluje jen klíče v `p`
+ * (u mezí i druhou mez zařízení `d`): čísla a rozsah REAL, mez min < mez max, rampa 0–3600 s,
+ * tolerance a doba odchylky ventilu, bity výběru záznamu 1–6, doba jízdy, role výstupu, pole osy.
+ * Stejné meze jako kontrola návrhu (`validateProject`) — formuláře je hlásí hned při zadání.
+ */
+export declare function deviceParamsProblem(d: Pick<Device, "cls"> & Partial<Device>, p: DeviceParams): string | null;
+/**
+ * Uloží parametry zařízení (meze, žádaná hodnota, rampa, tolerance, bity výběru záznamu, doba jízdy,
+ * role výstupu, záznamy pohonu, konfigurace osy) po kontrole `deviceParamsProblem`. Změna bitů výběru
+ * záznamu mění signály pohonu (`syncIO`, vrací `added` / `removed`).
+ */
+export declare function setDeviceParams(prj: Project, devId: number, params: DeviceParams): EditResult;
+/** Nové zařízení z formuláře: třída, označení (prázdné = další volné), popis, volby, jednotka a rozsah, parametry. */
+export interface NewDevice extends DeviceParams {
+    cls: DeviceClass;
+    name?: string;
+    desc?: string;
+    opt?: Record<string, boolean>;
+    unit?: string;
+    rmin?: number;
+    rmax?: number;
+    libType?: string;
+}
+/**
+ * Přidá zařízení po kontrole označení (`deviceNameProblem`), rozsahu (`rangeProblem`, jen třídy
+ * s rozsahem) a parametrů (`deviceParamsProblem`). Dostane id, GUID a signály (`syncIO`); vrací `id`.
+ */
+export declare function addDevice(prj: Project, nd: NewDevice): EditResult;
+/** Kde program zařízení používá: kroky sekvence (počet), vstup E-stop, blokovací vstup. */
+export declare function deviceUsage(prj: Project, devId: number): {
+    steps: number;
+    estop: boolean;
+    lock: boolean;
+    used: boolean;
+};
+/** Odebere zařízení i s jeho kroky sekvence, vazbou E-stop a blokováním; signály zmizí (`syncIO`). */
+export declare function deleteDevice(prj: Project, devId: number): EditResult;
+/** Záznamy pohonu z textu formuláře; nesrozumitelné části / duplicity = `error` (nic se tiše nezahodí). */
+export declare function parseRecordsForm(text: string): {
+    records: PosRecord[];
+    error: string | null;
+};
+/** Pojmenované polohy osy z textu formuláře; nesrozumitelné části / duplicity = `error`. */
+export declare function parseAxisPositionsForm(text: string): {
+    positions: AxisPos[];
+    error: string | null;
+};
+/** Přečísluje adresy všech signálů od nuly podle sestavy hardwaru (ruční připnutí se zahodí). */
+export declare function renumberIo(prj: Project): EditResult;
+/** Opraví tagy na přenositelné (ASCII identifikátor, `sanitizeTag`) a jedinečné; vrací počet změněných. */
+export declare function fixIoTags(prj: Project): EditResult;
+/**
+ * Projekt bez obsahu (žádná zařízení, název ani popis) — jeho nahrazení (nový projekt, otevření
+ * souboru, příklad) se neptá. Konverzaci kroku AI návrh (stav klienta) přidá klient.
+ */
+export declare function projectIsEmpty(prj: Project): boolean;
+/** Zařízení návrhu AI (výstup `aiNorm` z apps/web/src/ai.js). */
+export interface AiProposalDevice extends Partial<Omit<Device, "id" | "name" | "cls">> {
+    name: string;
+    cls: DeviceClass;
+}
+/** Návrh AI (`aiNorm`): zařízení, E-stop a blokování podle označení, sekvence, takt. */
+export interface AiProposal {
+    devices: AiProposalDevice[];
+    estop?: string;
+    interlocks?: string[];
+    seq?: Array<{
+        dev: string;
+        act: string;
+        cond?: string;
+        timeS: number;
+        sp?: number;
+        rec?: number;
+        rev?: boolean;
+        posRef?: string;
+        pos?: number;
+        vel?: number;
+        acc?: number;
+        dec?: number;
+    }>;
+    takt?: number | null;
+}
+/**
+ * Převezme návrh AI do projektu (nahradí zařízení, E-stop, blokování a sekvenci; takt jen když ho
+ * AI navrhla). Zařízení, které v návrhu zůstalo (stejné označení a třída), si nechá VŠECHNA svá pole
+ * (GUID — identita pro export EPLAN —, knihovní typ, záznamy, konfiguraci osy…) a přepíšou se jen
+ * hodnoty, které AI poslala; jeho signály si nechají adresu, komentář, NC a GUID (úpravy z kroku I/O),
+ * změněný popis se propíše do komentáře. Duplicitní (i jen velikostí písmen) nebo neplatné označení
+ * od AI dostane další volné (`renamed`). Kroky na neznámé zařízení se zahodí, čekání jen na třídu DI.
+ * Vrací `issues` = chyby kontroly návrhu po převzetí.
+ */
+export declare function applyAiProposal(prj: Project, pr: AiProposal): EditResult;

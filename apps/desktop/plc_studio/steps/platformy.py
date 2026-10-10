@@ -57,6 +57,17 @@ def render(app, parent) -> None:
             "I/O a kusovník podle výrobce:")).grid(row=head_row, column=0, columnspan=COLS, sticky="w", padx=5, pady=(10, 0))
     for i, item in enumerate(prof):
         cells.append((head_row + 1 + i // COLS, i % COLS, item))
+    # servoosa: platformy, které osu negenerují (Mitsubishi, Schneider, Unitronics…), dostanou varování
+    # s důvodem v bublině (jádro axisSupport — jako web)
+    no_axis: dict[str, str] = {}
+    if any(d["cls"] == "Axis" for d in app.prj["devices"]):
+        for key in app.PLAT:
+            try:
+                sup = app.core("axisSupport", app.prj, key)
+            except BridgeError:
+                continue
+            if not sup["ok"]:
+                no_axis[key] = sup["why"]
     for row, col, (key, pf) in cells:
         on = key in app.prj["platforms"]
         bg = theme.TREE_SEL if on else theme.FIELD
@@ -77,6 +88,14 @@ def render(app, parent) -> None:
         parts[0].grid(row=0, column=0, sticky="ew", padx=(12, 4), pady=(10, 2))
         parts[1].grid(row=1, column=0, columnspan=2, sticky="ew", padx=12)
         parts[2].grid(row=2, column=0, columnspan=2, sticky="ew", padx=12, pady=(2, 10))
+        if key in no_axis:
+            parts[2].grid_configure(pady=(2, 0))
+            warn = tk.Label(box, text="⚠ " + _("servoosu nepodporuje"), bg=bg, fg=theme.WARN, anchor="w",
+                            font=theme.FONT_DIM, cursor="question_arrow")
+            warn.grid(row=3, column=0, columnspan=2, sticky="ew", padx=12, pady=(2, 10))
+            warn.axis_warning = True                 # testy
+            tooltip(warn, no_axis[key])
+            parts.append(warn)
         # štítek ověření (data/verification.json) + bublina: význam, co ověřeno, kde, co neověřeno
         ver = app.VERIF.get(key)
         if ver:
@@ -140,16 +159,16 @@ def verify_pack_row(app, box, bg: str, key: str, pf: dict) -> None:
     # přímo do mřížky karty (bez vnořeného tk.Frame — karty se v testech počítají podle tk.Frame)
     btn = ttk.Button(box, text=_("Balík k ověření"))
     btn.configure(command=lambda: download_verify_pack(app, key, btn))
-    btn.grid(row=3, column=0, columnspan=2, sticky="w", padx=12)
+    btn.grid(row=4, column=0, columnspan=2, sticky="w", padx=12)
     btn.verify_pack = key                      # pro testy
     msg = tk.Label(box, text=_("Máte {ide}? Ověřte import a pošlete nám protokol — licenci Pro "
                                "dostanete zdarma.", ide=pf["ide"]),
                    bg=bg, fg=theme.DIM, font=theme.FONT_DIM, justify="left", anchor="w")
-    msg.grid(row=4, column=0, columnspan=2, sticky="ew", padx=12, pady=(4, 0))
+    msg.grid(row=5, column=0, columnspan=2, sticky="ew", padx=12, pady=(4, 0))
     msg.bind("<Configure>", lambda e: e.widget.configure(wraplength=max(150, e.width - 4)))
     link = tk.Label(box, text=_("Kontakt"), bg=bg, fg=theme.ACCENT, cursor="hand2",
                     font=theme.FONT_DIM + ("underline",), anchor="w")
-    link.grid(row=5, column=0, sticky="w", padx=12, pady=(0, 10))
+    link.grid(row=6, column=0, sticky="w", padx=12, pady=(0, 10))
     link.bind("<Button-1>", lambda _e: webbrowser.open(site_url("kontakt", app.lang)))
 
 

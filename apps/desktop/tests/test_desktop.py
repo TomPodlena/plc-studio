@@ -587,6 +587,7 @@ class GuiTest(unittest.TestCase):
         lo.insert(0, "50")
         hi.insert(0, "200")
         self.click("Uložit parametry")
+        b1 = self.app.dev_by_id(b1["id"])          # úprava v jádře = nový objekt projektu
         self.assertEqual((b1["limLo"], b1["limHi"]), (50, 200))
         self.assertIn("max 200", tbl.tv.set(str(b1["id"]), "opt"))
         h1 = next(d for d in self.app.prj["devices"] if d["name"] == "H1")
@@ -595,7 +596,7 @@ class GuiTest(unittest.TestCase):
         role = next(c for c in self.find(ttk.Combobox) if "— bez vazby —" in c.cget("values"))
         role.current(list(self.app.DO_ROLES).index("ready") + 1)
         self.click("Uložit parametry")
-        self.assertEqual(h1["role"], "ready")
+        self.assertEqual(self.app.dev_by_id(h1["id"])["role"], "ready")
 
         self.app.ui["prog_tab"] = 0
         self.goto(6)
@@ -674,10 +675,9 @@ class GuiTest(unittest.TestCase):
         self.assertIn("M1", str(self.app._status.cget("text")))      # hláška jmenuje kolizi
         self.assertEqual(add("M2_A"), ["M1", "M2_A"])
         self.assertEqual(add("P1"), ["M1", "M2_A", "P1"])
-        from plc_studio.steps.zarizeni import name_problem
-        prj = self.app.prj
-        self.assertIsNone(name_problem(prj, "M1", skip_id=prj["devices"][0]["id"]))  # sám sebe
-        self.assertIsNotNone(name_problem(prj, "p1"))
+        prj = self.app.prj                  # pravidla označení = jádro (edit.ts deviceNameProblem)
+        self.assertIsNone(self.app.core("deviceNameProblem", prj, "M1", prj["devices"][0]["id"]))  # sám sebe
+        self.assertIsNotNone(self.app.core("deviceNameProblem", prj, "p1"))
         # Dokumentace se po přidání vykreslí (dřív: duplicate step id io:M1.fbkRunning)
         self.goto(8)
         self.assertNotIn("⚠", " ".join(str(w.cget("text")) for w in self.find(ttk.Label)))
@@ -2318,13 +2318,14 @@ class GuiTest(unittest.TestCase):
         hi.delete(0, "end")
         hi.insert(0, "abc")
         self.click("Uložit parametry")
+        b1 = self.app.dev_by_id(b1["id"])          # úprava v jádře = nový objekt projektu
         self.assertEqual(b1.get("limHi"), 200, "neplatné číslo mez nesmaže")
         self.assertIn("mez max", self.status())
         lo.insert(0, "300")
         hi.delete(0, "end")
         hi.insert(0, "200")
         self.click("Uložit parametry")
-        self.assertNotIn("limLo", b1)
+        self.assertNotIn("limLo", self.app.dev_by_id(b1["id"]))
         self.assertIn("menší", self.status())
 
         combo = self.find(ttk.Combobox)[0]                   # nové zařízení: rozsah analogu

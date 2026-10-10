@@ -148,7 +148,7 @@ SECTIONS = [
         N_("• **PLCSIM, Logix Echo, GX Simulator…** — simulátory CPU."),
     ]),
     (N_("Jak pracovat s PLCdesk"), [
-        N_("1. **Projekt** — pojmenuj; nebo načti ukázku."),
+        N_("1. **Projekt** — pojmenuj; nebo otevři příklad stroje (Příklady strojů)."),
         N_("2. **AI návrh** — popiš stroj, AI navrhne zařízení a sekvenci (API klíč v nastavení "
            "kroku)."),
         N_("3. **Platformy** — vyber cílové systémy."),
@@ -170,6 +170,13 @@ SECTIONS = [
            "a poznámkou; návrhy ladění z ověření simulací."),
         N_("13. **Oživení** — plán oživení po fázích, výsledky OK / Nevyhovuje / N/A "
            "a protokol MD / CSV."),
+    ]),
+    (N_("Klávesové zkratky"), [
+        N_("• **Ctrl+S** — uložit projekt: otevřený nebo už uložený projekt do jeho souboru, jinak "
+           "dialog Uložit projekt. Rozepsané pole se nejdřív uloží."),
+        N_("• **Ctrl+O** — otevřít projekt ze souboru (neprázdný návrh se nejdřív zeptá)."),
+        N_("• **Alt+←** / **Alt+→** — předchozí / další krok."),
+        N_("• **F1** — tato nápověda."),
     ]),
     (N_("Schvalování a oživení"), [
         N_("**Navrhovat vše, platí jen schválené.** PLCdesk navrhuje zařízení, I/O, "
