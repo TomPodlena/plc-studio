@@ -6,4 +6,4 @@ běží v Node a aplikace ho volá přes ``bridge.mjs``. Spuštění::
     python -m plc_studio          (z adresáře apps/desktop)
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"

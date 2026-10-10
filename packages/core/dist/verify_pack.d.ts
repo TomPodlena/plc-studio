@@ -1,6 +1,6 @@
 import { PlatformKey } from "./model.js";
 /** Verze PLCdesk (shodná s packages/core/package.json a apps/desktop/plc_studio/__init__.py — hlídá test). */
-export declare const PLCDESK_VERSION = "0.2.0";
+export declare const PLCDESK_VERSION = "0.2.1";
 /** Formát manifestu balíku (zvýšit při nekompatibilní změně). */
 export declare const VERIFY_PACK_SCHEMA = 1;
 export interface VerifyPackOptions {
