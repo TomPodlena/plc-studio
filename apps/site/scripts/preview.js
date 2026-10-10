@@ -18,7 +18,7 @@ if (!fs.existsSync(DIST)) {
 }
 
 const LANGS = ["cs", "en", "de"];
-const KEYS = ["home", "funkce", "platformy", "cenik", "ukazka", "stazeni", "kontakt", "podminky", "soukromi", "cookies"];
+const KEYS = ["home", "funkce", "platformy", "cenik", "ukazka", "stazeni", "kontakt", "beta", "podminky", "soukromi", "cookies"];
 const out = (k) => (k === "home" ? "" : k);
 const pages = [];
 for (const lang of LANGS) {

@@ -20,7 +20,7 @@ const VIEWS = [
   { name: "1440", w: 1440, h: 900 },
 ];
 const LANGS = ["cs", "en", "de"];
-const PAGES = ["", "funkce", "platformy", "cenik", "ukazka", "stazeni", "kontakt", "podminky", "soukromi", "cookies"];
+const PAGES = ["", "funkce", "platformy", "cenik", "ukazka", "stazeni", "kontakt", "beta", "podminky", "soukromi", "cookies"];
 
 // Pozor: uvnitr retezce nepouzivat zpetna lomitka.
 const PROBE = `(() => {

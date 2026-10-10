@@ -85,6 +85,7 @@ npx wrangler@4 d1 create plcdesk          # vypíše database_id
 ```bash
 npx wrangler@4 d1 execute plcdesk --remote --file=schema.sql
 npx wrangler@4 d1 execute plcdesk --remote --file=schema_admin.sql   # správa zákazníků (viz níže)
+npx wrangler@4 d1 execute plcdesk --remote --file=schema_beta.sql    # přihlášky beta testerů (viz níže)
 ```
 
 ### A3. Ochrana formuláře Turnstile — zdarma
@@ -249,6 +250,28 @@ Bez migrace přihlášení do správy končí chybou 500; webhooky plateb funguj
 Stejný příkaz zakládá i tabulky obchodního kanbanu `crm_leads`, `crm_events` a `crm_suppressed`
 (viz níže). Kdo už správu nasadil, spustí ho po aktualizaci znovu — existující tabulky a data
 zůstanou beze změny, jen přibudou nové. Bez toho záložka Leady končí chybou 500.
+
+### Beta testeři (stránka /beta, záložka Beta testeři)
+Stránka webu **`/beta/`** (cs, `/en/beta/`, `/de/beta/`) zve k ověření platforem, které mají
+v `data/verification.json` stav `beta` (seznam se čte při buildu, ne natvrdo). Formulář posílá
+`POST /api/beta` (`worker/beta.js`): honeypot + čas vyplnění, Turnstile (bez `TURNSTILE_SECRET` zavřeno),
+nejvýš 5 pokusů z jedné IP za hodinu, validace a limity délek na serveru, texty bez `<` `>`.
+Jedna otevřená přihláška na e-mail. Potvrzení žadateli a upozornění provozovateli (proměnná
+`BETA_NOTIFY_TO`, jinak `MAIL_REPLY_TO`; bez osobních údajů, jen odkaz do správy) jdou přes `email.js` —
+při `MAIL_MODE = "direct"` se přihláška jen uloží.
+
+Migrace (jednou, před nasazením Workeru s přihláškami; idempotentní):
+```bash
+npx wrangler@4 d1 execute plcdesk --remote --file=schema_beta.sql
+```
+Zakládá `beta_applications` a `beta_attempts`. Bez ní formulář i záložka končí chybou 500.
+
+Správa `/sprava/#/beta`: seznam s filtrem stavu (nová / přijatá / zamítnutá / hotovo), změna stavu
+a poznámka (audit `beta_update` bez obsahu poznámky), **Vystavit licenci Pro na N dní** (otevře
+Novou licenci s předvyplněným e-mailem a poznámkou — nic se nevystaví ani nepošle bez potvrzení),
+**Založit kartu v kanbanu** (zdroj Beta, fáze Zkouší; jen platforma, IDE, firma pokud ji žadatel
+vyplnil a odkaz na přihlášku — e-mail ani jméno do kanbanu nejdou). Převzetí protokolu testera:
+`docs/verification/POSTUP_BETA.md`.
 
 ### Obchodní kanban leadů (záložka Leady)
 `/sprava/#/leady`: sloupce **Prospekce → Nový → Kontaktován → Zkouší → Nabídka → Zákazník → Ztracen**

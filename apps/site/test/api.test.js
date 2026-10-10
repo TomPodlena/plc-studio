@@ -10,8 +10,8 @@ import worker from "../worker/index.js";
 import { ADMIN_PATHS, _resetAccessCache } from "../worker/admin.js";
 
 const db = new DatabaseSync(":memory:");
-// schema.sql + migrace spravy zakazniku (schema_admin.sql) - stejne poradi jako pri nasazeni
-for (const f of ["../schema.sql", "../schema_admin.sql"]) {
+// schema.sql + migrace spravy zakazniku (schema_admin.sql) a beta testeru (schema_beta.sql) - stejne poradi jako pri nasazeni
+for (const f of ["../schema.sql", "../schema_admin.sql", "../schema_beta.sql"]) {
   for (const stmt of readFileSync(new URL(f, import.meta.url), "utf8").split(";")) {
     if (stmt.replace(/--.*$/gm, "").trim()) db.exec(stmt + ";");
   }
@@ -673,7 +673,8 @@ await check("vsechny /api/admin/* bez prihlaseni -> 401 (no-store, DENY)", async
     ["POST", "/api/admin/license"], ["POST", "/api/admin/activation/release"], ["POST", "/api/admin/note"], ["GET", "/api/admin/export.csv?type=customers"], ["GET", "/api/admin/audit"],
     ["GET", "/api/admin/crm"], ["GET", "/api/admin/crm/lead?id=x"], ["POST", "/api/admin/crm/lead"], ["POST", "/api/admin/crm/move"],
     ["POST", "/api/admin/crm/note"], ["POST", "/api/admin/crm/delete"], ["POST", "/api/admin/crm/import"], ["GET", "/api/admin/crm/export.csv"],
-    ["GET", "/api/admin/docs"], ["GET", "/api/admin/doc?slug=plan"], ["POST", "/api/admin/doc"], ["POST", "/api/admin/doc/task"]];
+    ["GET", "/api/admin/docs"], ["GET", "/api/admin/doc?slug=plan"], ["POST", "/api/admin/doc"], ["POST", "/api/admin/doc/task"],
+    ["GET", "/api/admin/beta"], ["GET", "/api/admin/beta/app?id=x"], ["POST", "/api/admin/beta"], ["POST", "/api/admin/beta/crm"]];
   const covered = new Set(routes.map(([, p]) => p.split("?")[0]));
   for (const p of ADMIN_PATHS) if (!covered.has(p) && !/login|logout/.test(p)) throw new Error("netestovana cesta " + p);
   for (const [m, p] of routes) {
@@ -1272,6 +1273,241 @@ await check("klient: sprava.js taskLines = worker/docs.js taskLines (stejne regu
     eq(re.exec(js)?.[1], re.exec(wk)?.[1], name);
   }
   if (/innerHTML|insertAdjacentHTML|outerHTML|document\.write/.test(js)) throw new Error("sprava.js nesmi vkladat HTML");
+});
+
+// =====================================================================================
+console.log("\nbeta testeri: verejna prihlaska /api/beta");
+const betaRows = () => db.prepare("SELECT * FROM beta_applications ORDER BY created_at, id").all();
+const betaCount = () => count("SELECT COUNT(*) AS n FROM beta_applications");
+let betaIp = 0;
+// kazdy pozadavek z jine IP (omezeni pokusu se testuje zvlast)
+const beta = (body, e = env, ip = `203.0.113.${++betaIp}`) => call("POST", "/api/beta", body, { "CF-Connecting-IP": ip }, e);
+const betaOk = { ...human, platforms: ["siemens", "omron"], ide: "TIA Portal", ide_version: "V19 Update 3", name: "Ing. Beta Tester", company: "Testovaci Strojirna s.r.o.", email: "Tester@Firma-Example.cz", locale: "cs" };
+
+await check("prihlaska OK -> ulozena (stav new, platformy v poradi, e-mail malymi), potvrzeni zadateli", async () => {
+  const before = sentMail.length;
+  const r = await beta({ ...betaOk, platforms: ["omron", "siemens", "omron"] });
+  eq(r.status, 200, "status");
+  const d = await r.json();
+  eq(d.ok, true, "ok");
+  const rows = betaRows();
+  eq(rows.length, 1, "radek");
+  const a = rows[0];
+  eq([a.platforms, a.ide, a.ide_version, a.email, a.status, a.locale, a.name, a.company], ["siemens,omron", "TIA Portal", "V19 Update 3", "tester@firma-example.cz", "new", "cs", "Ing. Beta Tester", "Testovaci Strojirna s.r.o."], "data");
+  if (!a.consent_at) throw new Error("chybi consent_at");
+  eq(sentMail.length - before, 1, "jeden e-mail (bez BETA_NOTIFY_TO a MAIL_REPLY_TO jen zadateli)");
+  const m = sentMail.at(-1);
+  eq(m.to, ["tester@firma-example.cz"], "adresat");
+  if (!m.text.includes("Siemens SIMATIC") || !m.text.includes("OMRON") || !m.text.includes("TIA Portal V19 Update 3")) throw new Error("text potvrzeni: " + m.text.slice(0, 200));
+});
+await check("upozorneni provozovateli (BETA_NOTIFY_TO): bez e-mailu, jmena a firmy zadatele, s odkazem do spravy", async () => {
+  const before = sentMail.length;
+  const r = await beta({ ...betaOk, email: "druhy@firma-example.cz", locale: "de" }, { ...env, BETA_NOTIFY_TO: "provoz@mail.example.eu" });
+  eq(r.status, 200, "status");
+  eq(sentMail.length - before, 2, "dva e-maily");
+  const [conf, notice] = sentMail.slice(-2);
+  eq(conf.to, ["druhy@firma-example.cz"], "potvrzeni");
+  if (!/Betatest/.test(conf.subject)) throw new Error("nemecky predmet: " + conf.subject);
+  eq(notice.to, ["provoz@mail.example.eu"], "upozorneni");
+  for (const s of ["druhy@firma-example.cz", "Ing. Beta Tester", "Testovaci Strojirna"]) if (notice.text.includes(s) || notice.subject.includes(s)) throw new Error("v upozorneni: " + s);
+  const id = db.prepare("SELECT id FROM beta_applications WHERE email = 'druhy@firma-example.cz'").get().id;
+  if (!notice.text.includes(`/sprava/#/beta/${id}`)) throw new Error("odkaz do spravy: " + notice.text);
+});
+await check("validace: jen beta platformy, povinne IDE a verze, delky, < >, e-mail, souhlas -> 400, nic se neulozi", async () => {
+  const n = betaCount();
+  const bad = [
+    [{ platforms: ["codesys"] }, "platforms"], [{ platforms: [] }, "platforms"], [{ platforms: "siemens" }, "platforms"],
+    [{ platforms: ["siemens", 5] }, "platforms"], [{ platforms: Array(21).fill("siemens") }, "platforms"],
+    [{ ide: "" }, "ide"], [{ ide: "   " }, "ide"], [{ ide: "x".repeat(101) }, "ide"], [{ ide: 5 }, "ide"],
+    [{ ide_version: undefined }, "ide_version"], [{ ide_version: "v".repeat(61) }, "ide_version"],
+    [{ name: "n".repeat(121) }, "name"], [{ company: "c".repeat(201) }, "company"],
+    [{ ide: "<b>TIA</b>" }, "html"], [{ company: "Firma <script>" }, "html"], [{ name: "a > b" }, "html"],
+    [{ email: "neni-email" }, "email"], [{ email: "" }, "email"], [{ email: "a<b>@firma.cz" }, "email"],
+    [{ consent: false }, "consent"], [{ consent: "true" }, "consent"],
+  ];
+  for (const [patch, field] of bad) {
+    const r = await beta({ ...betaOk, email: "validace@firma-example.cz", ...patch });
+    const d = await r.json();
+    eq([r.status, d.field], [400, field], JSON.stringify(patch).slice(0, 60));
+    if (!d.error || /[a-z]_[a-z]/.test(d.error)) throw new Error("chybova hlaska pro lidi: " + d.error);
+  }
+  eq(betaCount(), n, "nic nezalozeno");
+  const en = await (await beta({ ...betaOk, email: "x@firma-example.cz", platforms: [], locale: "en" })).json();
+  eq(en.error, "Select at least one platform.", "anglicka hlaska");
+});
+await check("ridici znaky a vicenasobne mezery se v textu slouci, presne limity projdou", async () => {
+  const r = await beta({ ...betaOk, email: "limity@firma-example.cz", ide: "TIA\u0000\tPortal\n\n V19", ide_version: "v".repeat(60), name: null, company: "c".repeat(200) });
+  eq(r.status, 200, "status");
+  const a = db.prepare("SELECT * FROM beta_applications WHERE email = 'limity@firma-example.cz'").get();
+  eq([a.ide, a.ide_version.length, a.name, a.company.length], ["TIA Portal V19", 60, null, 200], "ulozeno");
+});
+await check("past na boty (honeypot, pod 3 s): 200 jako cloveku, nic se neulozi ani neposle", async () => {
+  const n = betaCount(), m = sentMail.length;
+  eq((await beta({ ...betaOk, email: "bot1@spam.example", web: "http://spam" })).status, 200, "honeypot");
+  eq((await beta({ ...betaOk, email: "bot2@spam.example", elapsed: 800 })).status, 200, "rychle");
+  eq([betaCount(), sentMail.length], [n, m], "nic");
+});
+await check("Turnstile: spatny token 403, chybejici secret mimo DEV_MODE 503 (zavreno)", async () => {
+  const n = betaCount();
+  eq((await beta({ ...betaOk, email: "ts@firma-example.cz", turnstile: "robot" })).status, 403, "spatny token");
+  eq((await beta({ ...betaOk, email: "ts@firma-example.cz" }, { ...env, TURNSTILE_SECRET: undefined })).status, 503, "bez secretu");
+  eq(betaCount(), n, "nic");
+});
+await check("jedna otevrena prihlaska na e-mail: opakovani 200, ale bez noveho radku a bez e-mailu", async () => {
+  const n = betaCount(), m = sentMail.length;
+  const r = await beta({ ...betaOk, email: "TESTER@firma-example.cz" });
+  eq(r.status, 200, "status");
+  eq([betaCount(), sentMail.length], [n, m], "nic noveho");
+});
+await check("omezeni pokusu: 6. pozadavek z jedne IP za hodinu -> 429 (pocitaji se i chybne), jina IP projde", async () => {
+  const ip = "198.51.100.99";
+  for (let i = 0; i < 5; i++) eq((await beta({ ...betaOk, email: `limit${i}@firma-example.cz`, platforms: i % 2 ? [] : ["rockwell"] }, env, ip)).status, i % 2 ? 400 : 200, "pokus " + i);
+  const r = await beta({ ...betaOk, email: "limit9@firma-example.cz" }, env, ip);
+  eq([r.status, r.headers.get("retry-after")], [429, "3600"], "blokovano");
+  eq(db.prepare("SELECT COUNT(*) AS n FROM beta_applications WHERE email = 'limit9@firma-example.cz'").get().n, 0, "neulozeno");
+  eq((await beta({ ...betaOk, email: "limit9@firma-example.cz" }, env, "198.51.100.100")).status, 200, "jina IP");
+  // IPv6: cela sit /64 se pocita dohromady
+  for (let i = 0; i < 5; i++) await beta({ ...betaOk, email: `v6-${i}@firma-example.cz` }, env, `2001:db8:1:2::${i + 1}`);
+  eq((await beta({ ...betaOk, email: "v6-x@firma-example.cz" }, env, "2001:db8:1:2:ffff::1")).status, 429, "IPv6 /64");
+});
+await check("telo: jine nez JSON 415, nad 16 kB 413, pole misto objektu 400", async () => {
+  eq((await call("POST", "/api/beta", "platforms=siemens", { "Content-Type": "application/x-www-form-urlencoded", "CF-Connecting-IP": "203.0.113.250" })).status, 415, "formular");
+  eq((await beta({ ...betaOk, email: "velky@firma-example.cz", note: "x".repeat(17 * 1024) })).status, 413, "velke");
+  eq((await beta([1, 2])).status, 400, "pole");
+});
+await check("MAIL_MODE=direct: prihlaska se ulozi, nic se neposila", async () => {
+  const m = sentMail.length;
+  eq((await beta({ ...betaOk, email: "direct@firma-example.cz" }, { ...env, MAIL_MODE: "direct", BETA_NOTIFY_TO: "provoz@mail.example.eu" })).status, 200, "status");
+  eq(sentMail.length, m, "bez e-mailu");
+  eq(db.prepare("SELECT status FROM beta_applications WHERE email = 'direct@firma-example.cz'").get().status, "new", "ulozeno");
+});
+await check("selhani posty prihlasku neztrati (200, radek ulozen)", async () => {
+  const r = await beta({ ...betaOk, email: "posta@firma-example.cz" }, { ...env, RESEND_API_KEY: undefined });
+  eq(r.status, 200, "status");
+  eq(db.prepare("SELECT COUNT(*) AS n FROM beta_applications WHERE email = 'posta@firma-example.cz'").get().n, 1, "ulozeno");
+});
+await check("platformy beta = data/verification.json (stav beta)", async () => {
+  const { BETA_PLATFORMS } = await import("../worker/beta.js");
+  const v = JSON.parse(readFileSync(new URL("../../../data/verification.json", import.meta.url), "utf8")).platforms;
+  eq(BETA_PLATFORMS, Object.keys(v).filter((k) => v[k].state === "beta"), "seznam");
+  if (!BETA_PLATFORMS.length) return;
+  const lang = (await beta({ ...betaOk, email: "lang@firma-example.cz", platforms: Object.keys(v).filter((k) => v[k].state !== "beta").slice(0, 1) })).status;
+  eq(lang, 400, "overena platforma neprojde");
+});
+
+// =====================================================================================
+console.log("\nbeta testeri: sprava (seznam, stav, poznamka, licence, kanban)");
+const B = withCookie(cookieOf(await adm("POST", "/api/admin/login", { token: "test-admin" })));
+const firstBeta = () => db.prepare("SELECT * FROM beta_applications WHERE email = 'tester@firma-example.cz'").get();
+await check("bez prihlaseni 401 (seznam, detail, zmena, kanban)", async () => {
+  const id = firstBeta().id;
+  eq((await adm("GET", "/api/admin/beta")).status, 401, "seznam");
+  eq((await adm("GET", "/api/admin/beta/app?id=" + id)).status, 401, "detail");
+  eq((await adm("POST", "/api/admin/beta", { id, status: "accepted" })).status, 401, "zmena");
+  eq((await adm("POST", "/api/admin/beta/crm", { id })).status, 401, "kanban");
+  eq(firstBeta().status, "new", "beze zmeny");
+});
+await check("seznam: pocty podle stavu, filtr stavu, nazvy platforem, neplatny filtr = vse", async () => {
+  const d = await (await adm("GET", "/api/admin/beta", undefined, B)).json();
+  eq(d.total, betaCount(), "celkem");
+  eq(d.counts.new, betaCount(), "vse nove");
+  eq(d.states, ["new", "accepted", "declined", "done"], "stavy");
+  const a = d.applications.find((x) => x.email === "tester@firma-example.cz");
+  eq(a.platform_names, ["Siemens SIMATIC", "OMRON"], "nazvy");
+  eq((await (await adm("GET", "/api/admin/beta?status=done", undefined, B)).json()).total, 0, "filtr done");
+  eq((await (await adm("GET", "/api/admin/beta?status=xxx", undefined, B)).json()).total, betaCount(), "neplatny filtr");
+});
+await check("detail -> audit beta_view (zkracene id, bez e-mailu)", async () => {
+  const id = firstBeta().id;
+  const r = await adm("GET", "/api/admin/beta/app?id=" + id, undefined, B);
+  eq(r.status, 200, "status");
+  eq((await r.json()).application.email, "tester@firma-example.cz", "detail");
+  const au = auditRows("beta_view").at(-1);
+  eq(au.target, id.slice(0, 8), "cil");
+  eq((await adm("GET", "/api/admin/beta/app?id=neni", undefined, B)).status, 404, "neexistuje");
+  eq((await adm("GET", "/api/admin/beta/app?id=../x", undefined, B)).status, 400, "spatne id");
+});
+await check("zmena stavu a poznamky -> ulozeno, audit beta_update bez obsahu poznamky", async () => {
+  const id = firstBeta().id;
+  const r = await adm("POST", "/api/admin/beta", { id, status: "accepted", note: "Domluveno: TIA V19,\r\nposlat licenci" }, B);
+  eq(r.status, 200, "status");
+  const d = await r.json();
+  eq(d.changed, ["status", "note"], "zmeny");
+  eq([firstBeta().status, firstBeta().note], ["accepted", "Domluveno: TIA V19,\nposlat licenci"], "ulozeno");
+  const au = auditRows("beta_update").at(-1);
+  eq([au.target, au.detail], [id.slice(0, 8), "new -> accepted, poznamka 34 znaku"], "audit");
+  const all = JSON.stringify(db.prepare("SELECT * FROM admin_audit WHERE action LIKE 'beta_%'").all());
+  for (const s of ["Domluveno", "tester@firma-example.cz", "Ing. Beta"]) if (all.includes(s)) throw new Error("v auditu: " + s);
+  const same = await (await adm("POST", "/api/admin/beta", { id, status: "accepted" }, B)).json();
+  eq(same.unchanged, true, "beze zmeny");
+});
+await check("validace spravy: stav, poznamka (delka, < >), klic licence, prazdna zmena", async () => {
+  const id = firstBeta().id;
+  eq((await adm("POST", "/api/admin/beta", { id, status: "hotovo" }, B)).status, 400, "stav");
+  eq((await adm("POST", "/api/admin/beta", { id, note: "x".repeat(2001) }, B)).status, 400, "dlouha poznamka");
+  eq((await adm("POST", "/api/admin/beta", { id, note: "<img src=x>" }, B)).status, 400, "HTML v poznamce");
+  eq((await adm("POST", "/api/admin/beta", { id, note: 5 }, B)).status, 400, "poznamka neni text");
+  eq((await adm("POST", "/api/admin/beta", { id, license_key: "neni-klic" }, B)).status, 400, "klic");
+  eq((await adm("POST", "/api/admin/beta", { id }, B)).status, 400, "nic ke zmene");
+  eq((await adm("POST", "/api/admin/beta", { id: "neni", status: "done" }, B)).status, 404, "neexistuje");
+  eq(firstBeta().status, "accepted", "beze zmeny");
+});
+await check("CSRF: cizi Origin / bez X-Requested-With / cross-site / formular -> 403 / 415, nic se nezmeni", async () => {
+  const id = firstBeta().id;
+  eq((await adm("POST", "/api/admin/beta", { id, status: "declined" }, { ...B, Origin: "https://utocnik.example" })).status, 403, "cizi Origin");
+  eq((await call("POST", "/api/admin/beta", { id, status: "declined" }, { ...B, Origin: SITE })).status, 403, "bez XRW");
+  eq((await adm("POST", "/api/admin/beta/crm", { id }, { ...B, Origin: "https://utocnik.example" })).status, 403, "kanban cizi Origin");
+  eq((await adm("GET", "/api/admin/beta", undefined, { ...B, "Sec-Fetch-Site": "cross-site" })).status, 403, "cteni cross-site");
+  eq((await adm("POST", "/api/admin/beta", "id=" + id, { ...B, "Content-Type": "text/plain" })).status, 415, "formular");
+  eq([firstBeta().status, firstBeta().crm_lead_id], ["accepted", null], "beze zmeny");
+});
+await check("licence Pro pro testera: vystaveni pres /api/admin/license + klic ulozeny k prihlasce (audit)", async () => {
+  const id = firstBeta().id;
+  const lic = await (await adm("POST", "/api/admin/license", { action: "issue", email: "tester@firma-example.cz", plan: "pro", days: 90, note: `Beta tester ${id.slice(0, 8)}` }, B)).json();
+  eq(lic.ok, true, "vystaveno");
+  eq(lic.sent, false, "bez odeslani (send nezadano)");
+  const r = await (await adm("POST", "/api/admin/beta", { id, license_key: lic.key.toLowerCase() }, B)).json();
+  eq(r.changed, ["license_key"], "ulozeno");
+  eq(firstBeta().license_key, lic.key, "klic velkymi");
+  eq(auditRows("beta_update").at(-1).detail, "licence", "audit bez klice");
+});
+await check("kanban: karta BEZ osobnich kontaktu (firma, platformy, IDE, odkaz na prihlasku), podruhe stejna karta", async () => {
+  const a = firstBeta();
+  const r = await adm("POST", "/api/admin/beta/crm", { id: a.id }, B);
+  eq(r.status, 200, "status");
+  const d = await r.json();
+  eq(d.created, true, "zalozeno");
+  const c = db.prepare("SELECT * FROM crm_leads WHERE id = ?").get(d.lead_id);
+  eq([c.email, c.contact_name, c.phone, c.website, c.domain], [null, null, null, null, null], "bez kontaktu");
+  eq([c.company, c.source, c.stage, c.segment], ["Testovaci Strojirna s.r.o.", "beta", "trial", "jine"], "karta");
+  eq(c.source_url, `${SITE}/sprava/#/beta/${a.id}`, "odkaz na prihlasku");
+  if (!c.value_note.includes("Siemens SIMATIC") || !c.value_note.includes("TIA Portal V19 Update 3")) throw new Error("platforma a IDE: " + c.value_note);
+  const flat = JSON.stringify(c) + JSON.stringify(db.prepare("SELECT * FROM crm_events WHERE lead_id = ?").all(d.lead_id));
+  for (const s of ["tester@firma-example.cz", "Ing. Beta Tester", "firma-example"]) if (flat.includes(s)) throw new Error("v kanbanu: " + s);
+  eq(firstBeta().crm_lead_id, d.lead_id, "vazba");
+  const again = await (await adm("POST", "/api/admin/beta/crm", { id: a.id }, B)).json();
+  eq([again.already, again.lead_id], [true, d.lead_id], "podruhe stejna");
+  eq(auditRows("beta_crm").length, 1, "audit jednou");
+  // bez vyplnene firmy: zastupny nazev z id a platforem, ne e-mail ani jmeno
+  const b = db.prepare("SELECT * FROM beta_applications WHERE email = 'limity@firma-example.cz'").get();
+  db.prepare("UPDATE beta_applications SET company = NULL WHERE id = ?").run(b.id);
+  const d2 = await (await adm("POST", "/api/admin/beta/crm", { id: b.id }, B)).json();
+  eq(db.prepare("SELECT company FROM crm_leads WHERE id = ?").get(d2.lead_id).company, `Beta tester ${b.id.slice(0, 8)} (Siemens SIMATIC, OMRON)`, "zastupny nazev");
+});
+await check("kanban: karty z prihlasky se ukazou na tabuli (sloupec Zkouší, zdroj beta) a projdou upravou", async () => {
+  const id = firstBeta().crm_lead_id;
+  const board = await (await adm("GET", "/api/admin/crm", undefined, B)).json();
+  const card = board.columns.trial.cards.find((x) => x.id === id);
+  eq([!!card, card?.source], [true, "beta"], "na tabuli");
+  eq(board.sources.includes("beta"), true, "zdroj v seznamu");
+  eq((await adm("POST", "/api/admin/crm/lead", { id, next_action: "Poslat balik k overeni" }, B)).status, 200, "uprava karty");
+});
+await check("klient sprava.js: zalozka beta bez vkladani HTML, Nova licence predvyplnuje z prihlasky", async () => {
+  const js = readFileSync(new URL("../sprava/sprava.js", import.meta.url), "utf8");
+  for (const s of ['"/api/admin/beta"', '"/api/admin/beta/crm"', "#/nova?", 'plan: "pro"', 'r.params.get("beta")']) if (!js.includes(s)) throw new Error("chybi " + s);
+  if (/innerHTML|insertAdjacentHTML|outerHTML|document\.write/.test(js)) throw new Error("sprava.js nesmi vkladat HTML");
+  const html = readFileSync(new URL("../sprava/index.html", import.meta.url), "utf8");
+  if (!html.includes('href="#/beta"')) throw new Error("chybi odkaz v navigaci spravy");
 });
 
 // Cloudflare: s run_worker_first jako seznamem dostane Worker JEN uvedené cesty — bez "/api/*"

@@ -125,6 +125,22 @@
       bad_slug: "Označení jen malá písmena bez diakritiky, číslice a pomlčka (max. 64 znaků).", bad_title: "Vyplňte název (max. 200 znaků).",
       bad_index: "Úkol v dokumentu nenalezen — načtěte dokument znovu.", bad_version: "Neplatná verze dokumentu.",
       a_doc_save: "uložení dokumentu", a_doc_task: "úkol v dokumentu",
+      // beta testeri
+      nav_beta: "Beta testeři", bt_h: "Beta testeři", bt_total: "{n} přihláška|{n} přihlášky|{n} přihlášek", bt_none: "Žádné přihlášky.",
+      bt_hint: "Přihlášky z formuláře na stránce /beta. E-mail a jméno žadatele zůstávají jen tady — do kanbanu se nepřenášejí. Stav a poznámka se zapisují do auditu (bez obsahu poznámky).",
+      bt_status: "Stav", bt_all: "Všechny stavy", bs_new: "Nová", bs_accepted: "Přijatá", bs_declined: "Zamítnutá", bs_done: "Hotovo",
+      col_platforms: "Platformy", col_ide: "IDE a verze", col_company: "Firma", col_created_at: "Přišla",
+      bt_back: "← Beta testeři", bt_detail: "Přihláška", bt_name: "Jméno", bt_company: "Firma", bt_email: "E-mail", bt_locale: "Jazyk",
+      bt_consent: "Souhlas se zpracováním", bt_created: "Přišla", bt_updated: "Změněno", bt_platforms: "Platformy", bt_ide: "Vývojové prostředí",
+      bt_ide_version: "Verze", bt_license: "Vystavená licence", bt_manage: "Vyřízení", bt_note: "Poznámka provozovatele (max. 2000 znaků, bez < >)",
+      bt_save: "Uložit", bt_saved: "Uloženo.", bt_unchanged: "Beze změny.",
+      bt_lic_h: "Licence pro testera", bt_lic_p: "Otevře formulář Nová licence s předvyplněným e-mailem, tarifem Pro a poznámkou. Nic se nevystaví ani neodešle bez vašeho potvrzení; klíč se pak uloží k přihlášce.",
+      bt_lic_days: "Počet dní", bt_lic_btn: "Vystavit licenci Pro na {n} dní",
+      bt_crm_h: "Obchodní kanban", bt_crm_p: "Karta ponese jen platformy, IDE, firmu (pokud ji žadatel vyplnil) a odkaz na tuto přihlášku — bez e-mailu a jména.",
+      bt_crm_btn: "Založit kartu v kanbanu", bt_crm_open: "Otevřít kartu v kanbanu", bt_crm_done: "Karta založena ve sloupci Zkouší.",
+      bt_lic_linked: "Klíč uložen k přihlášce beta testera.", bad_status: "Neznámý stav.", bad_note: "Poznámka je delší než 2000 znaků nebo obsahuje < >.",
+      src_beta: "Beta test", ev_import_beta: "Z přihlášky beta testera",
+      a_beta_view: "zobrazení přihlášky beta", a_beta_update: "vyřízení přihlášky beta", a_beta_crm: "karta z přihlášky beta",
     },
     en: {
       title: "Customer admin — PLCdesk", tag: "Admin", lang_label: "Language", nav_label: "Admin", logout: "Sign out",
@@ -242,6 +258,21 @@
       bad_slug: "Name may contain lowercase letters without accents, digits and hyphens only (max. 64 characters).", bad_title: "Enter a title (max. 200 characters).",
       bad_index: "Task not found in the document — reload the document.", bad_version: "Invalid document version.",
       a_doc_save: "document saved", a_doc_task: "document task",
+      nav_beta: "Beta testers", bt_h: "Beta testers", bt_total: "{n} application|{n} applications", bt_none: "No applications.",
+      bt_hint: "Applications from the form on the /beta page. The applicant's e-mail and name stay here only — they are not copied to the kanban. Status and note are audited (without the note text).",
+      bt_status: "Status", bt_all: "All statuses", bs_new: "New", bs_accepted: "Accepted", bs_declined: "Declined", bs_done: "Done",
+      col_platforms: "Platforms", col_ide: "IDE and version", col_company: "Company", col_created_at: "Received",
+      bt_back: "← Beta testers", bt_detail: "Application", bt_name: "Name", bt_company: "Company", bt_email: "E-mail", bt_locale: "Language",
+      bt_consent: "Consent to processing", bt_created: "Received", bt_updated: "Changed", bt_platforms: "Platforms", bt_ide: "Development environment",
+      bt_ide_version: "Version", bt_license: "Issued licence", bt_manage: "Handling", bt_note: "Operator note (max. 2000 characters, no < >)",
+      bt_save: "Save", bt_saved: "Saved.", bt_unchanged: "No changes.",
+      bt_lic_h: "Licence for the tester", bt_lic_p: "Opens the New licence form with the e-mail, the Pro plan and a note filled in. Nothing is issued or sent without your confirmation; the key is then stored with the application.",
+      bt_lic_days: "Days", bt_lic_btn: "Issue Pro licence for {n} days",
+      bt_crm_h: "Sales kanban", bt_crm_p: "The card carries only the platforms, IDE, company (if the applicant filled it in) and a link to this application — no e-mail or name.",
+      bt_crm_btn: "Create kanban card", bt_crm_open: "Open kanban card", bt_crm_done: "Card created in the Trial column.",
+      bt_lic_linked: "Key stored with the beta tester application.", bad_status: "Unknown status.", bad_note: "The note is longer than 2000 characters or contains < >.",
+      src_beta: "Beta test", ev_import_beta: "From a beta tester application",
+      a_beta_view: "beta application viewed", a_beta_update: "beta application handled", a_beta_crm: "card from beta application",
     },
   };
   const STATES = ["active", "past_due", "expired", "canceled", "downloaded", "lead"];
@@ -448,7 +479,7 @@
     document.querySelectorAll("#nav a").forEach((a) => (a.dataset.view === navName ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
     const my = ++seq;
     view.replaceChildren(msg(t("loading")));
-    const render = { prehled: vOverview, zakaznici: vCustomers, zakaznik: vCustomer, nova: vNew, audit: vAudit, leady: vLeads, lead: vLead, dokumenty: vDocs, dokument: vDoc }[r.name] || vOverview;
+    const render = { prehled: vOverview, zakaznici: vCustomers, zakaznik: vCustomer, nova: vNew, audit: vAudit, leady: vLeads, lead: vLead, dokumenty: vDocs, dokument: vDoc, beta: vBeta }[r.name] || vOverview;
     const node = await render(r);
     if (my === seq && node) { view.replaceChildren(node); window.scrollTo(0, 0); }
   }
@@ -642,11 +673,14 @@
   async function vNew(r) {
     const mailDirect = me?.mail_mode === "direct";
     const email = h("input", { type: "email", name: "email", required: true, maxlength: 253, autocomplete: "off", spellcheck: "false", value: r.params.get("email") || "" });
-    const plan = h("select", { name: "plan" }, PLANS.map((p) => h("option", { value: p, text: planName(p) })));
-    const days = h("input", { type: "number", name: "days", min: 1, max: 3650, step: 1, value: PLAN_DEFAULTS.pro.days });
+    const pPlan = PLANS.includes(r.params.get("plan")) ? r.params.get("plan") : "pro";
+    const pDays = Number(r.params.get("days"));
+    const betaId = /^[A-Za-z0-9-]{1,64}$/.test(r.params.get("beta") || "") ? r.params.get("beta") : null;
+    const plan = h("select", { name: "plan" }, PLANS.map((p) => h("option", { value: p, text: planName(p), selected: p === pPlan })));
+    const days = h("input", { type: "number", name: "days", min: 1, max: 3650, step: 1, value: Number.isInteger(pDays) && pDays >= 1 && pDays <= 3650 ? pDays : PLAN_DEFAULTS[pPlan].days });
     const until = h("input", { type: "date", name: "valid_until" });
-    const seats = h("input", { type: "number", name: "seats", min: 1, max: 100, step: 1, value: PLAN_DEFAULTS.pro.seats });
-    const note = h("input", { type: "text", name: "note", maxlength: 200 });
+    const seats = h("input", { type: "number", name: "seats", min: 1, max: 100, step: 1, value: PLAN_DEFAULTS[pPlan].seats });
+    const note = h("input", { type: "text", name: "note", maxlength: 200, value: (r.params.get("note") || "").slice(0, 200) });
     const send = h("input", { type: "checkbox", name: "send", disabled: mailDirect });
     plan.addEventListener("change", () => { const dft = PLAN_DEFAULTS[plan.value]; days.value = dft.days; seats.value = dft.seats; });
     const out = h("div", { "aria-live": "polite" });
@@ -662,8 +696,12 @@
       const x = await api("POST", "/api/admin/license", body);
       submit.disabled = false;
       if (!x.ok) { out.replaceChildren(msg(errText(x), "err")); return; }
+      // licence z prihlasky beta testera: klic se ulozi k prihlasce (jen evidence, audit beta_update)
+      const linked = betaId ? await api("POST", "/api/admin/beta", { id: betaId, license_key: x.data.key }) : null;
       out.replaceChildren(msg(t("nl_ok"), "ok"), licenseResult(x.data.key, x.data.license, x.data.sent, x.data.mail_error),
-        h("a", { class: "btn btn-ghost btn-sm", href: `#/zakaznik/${encodeURIComponent(body.email)}`, text: body.email + " →" }));
+        linked ? msg(linked.ok ? t("bt_lic_linked") : errText(linked), linked.ok ? "ok" : "err") : null,
+        h("a", { class: "btn btn-ghost btn-sm", href: `#/zakaznik/${encodeURIComponent(body.email)}`, text: body.email + " →" }),
+        betaId ? h("a", { class: "btn btn-ghost btn-sm", href: `#/beta/${encodeURIComponent(betaId)}`, text: t("bt_back") }) : null);
       note.value = "";
     } },
       h("label", { class: "adm-field wide" }, h("span", { text: t("nl_email") }), email),
@@ -1097,6 +1135,109 @@
       h("div", { class: "crm-lead-grid" },
         h("section", { class: "adm-panel" }, form),
         h("div", {}, histPanel, infoPanel)));
+  }
+
+  // ------------------------------------------------------------ beta testeri (#/beta, #/beta/<id>)
+  const BETA_STATES = ["new", "accepted", "declined", "done"];
+  const bstamp = (st) => h("span", { class: `stamp st-b-${st}`, text: t("bs_" + st) });
+
+  async function vBeta(r) {
+    return r.arg ? vBetaApp(r) : vBetaList(r);
+  }
+
+  async function vBetaList(r) {
+    const status = BETA_STATES.includes(r.params.get("status")) ? r.params.get("status") : "", page = Number(r.params.get("page")) || 1;
+    const res = await api("GET", `/api/admin/beta?${new URLSearchParams({ status, page })}`);
+    const sel = h("select", { name: "status" }, h("option", { value: "", text: t("bt_all") }), BETA_STATES.map((s) => h("option", { value: s, text: t("bs_" + s), selected: s === status })));
+    const form = h("form", { class: "adm-filter", onsubmit: (e) => { e.preventDefault(); go(`#/beta?${new URLSearchParams(sel.value ? { status: sel.value } : {})}`); } },
+      h("label", { class: "adm-field narrow" }, h("span", { text: t("bt_status") }), sel));
+    sel.addEventListener("change", () => form.requestSubmit());
+    if (!res.ok) return h("div", {}, h("h1", { text: t("bt_h") }), form, msg(errText(res), "err"));
+    const d = res.data;
+    const pg = (p) => go(`#/beta?${new URLSearchParams({ status, page: p })}`);
+    const card = (s) => h("a", { class: `adm-card bt-card${s === status ? " cur" : ""}`, href: `#/beta?${new URLSearchParams({ status: s })}` }, h("b", { text: String(d.counts[s] || 0) }), h("span", { text: t("bs_" + s) }));
+    return h("div", {},
+      h("div", { class: "adm-title" }, h("h1", { text: t("bt_h") }), h("span", { class: "adm-count", text: tn("bt_total", d.total) })),
+      h("p", { class: "adm-hint", text: t("bt_hint") }),
+      h("div", { class: "adm-cards" }, BETA_STATES.map(card)),
+      form,
+      table(
+        [{ label: t("col_created_at") }, { label: t("col_platforms") }, { label: t("col_ide") }, { label: t("col_company") }, { label: t("col_email") }, { label: t("col_status") }],
+        d.applications,
+        (a) => [fmtDT(a.created_at), a.platform_names.join(", "), `${a.ide} ${a.ide_version}`, a.company || "—",
+          h("a", { href: `#/beta/${encodeURIComponent(a.id)}`, text: a.email }), bstamp(a.status)],
+        { empty: t("bt_none"), onRow: (a) => go(`#/beta/${encodeURIComponent(a.id)}`) }),
+      d.pages > 1 ? h("div", { class: "adm-pager" },
+        h("button", { class: "btn btn-ghost btn-sm", type: "button", disabled: d.page <= 1, onclick: () => pg(d.page - 1), text: t("prev") }),
+        h("span", { text: t("page", { p: d.page, n: d.pages }) }),
+        h("button", { class: "btn btn-ghost btn-sm", type: "button", disabled: d.page >= d.pages, onclick: () => pg(d.page + 1), text: t("next") })) : null);
+  }
+
+  async function vBetaApp(r) {
+    const res = await api("GET", `/api/admin/beta/app?${new URLSearchParams({ id: r.arg })}`);
+    const back = h("a", { href: "#/beta", class: "btn btn-ghost btn-sm", text: t("bt_back") });
+    if (!res.ok) return h("div", {}, h("div", { class: "adm-actions adm-back" }, back), msg(errText(res), "err"));
+    const A = res.data.application;
+    const flash = h("div", { "aria-live": "polite" });
+    const say = (text, cls) => flash.replaceChildren(msg(text, cls));
+    const reload = async (text, cls) => { const node = await vBetaApp(r); view.replaceChildren(node); const f = node.querySelector(".bt-flash"); if (f && text) f.replaceChildren(msg(text, cls)); };
+
+    const dd = (label, value) => [h("dt", { text: label }), h("dd", {}, value == null || value === "" ? "—" : value)];
+    const info = panel(t("bt_detail"), h("dl", { class: "adm-dl" },
+      dd(t("bt_platforms"), A.platform_names.join(", ")),
+      dd(t("bt_ide"), A.ide), dd(t("bt_ide_version"), A.ide_version),
+      dd(t("bt_name"), A.name), dd(t("bt_company"), A.company),
+      dd(t("bt_email"), h("a", { href: `mailto:${A.email}`, text: A.email })),
+      dd(t("bt_locale"), A.locale), dd(t("bt_consent"), fmtDT(A.consent_at)),
+      dd(t("bt_created"), fmtDT(A.created_at)), dd(t("bt_updated"), fmtDT(A.updated_at)),
+      dd(t("bt_license"), A.license_key ? h("span", { class: "adm-mono", text: shortKey(A.license_key) }) : null)));
+
+    // stav a poznamka
+    const sel = h("select", { name: "status" }, BETA_STATES.map((s) => h("option", { value: s, text: t("bs_" + s), selected: s === A.status })));
+    const note = h("textarea", { name: "note", rows: 4, maxlength: 2000, spellcheck: "true" });
+    note.value = A.note || "";
+    const saveBtn = h("button", { class: "btn btn-sm", type: "submit", text: t("bt_save") });
+    const manage = panel(t("bt_manage"), h("form", { class: "adm-form", onsubmit: async (e) => {
+      e.preventDefault();
+      saveBtn.disabled = true;
+      const x = await api("POST", "/api/admin/beta", { id: A.id, status: sel.value, note: note.value });
+      saveBtn.disabled = false;
+      if (!x.ok) return say(errText(x), "err");
+      await reload(x.data.unchanged ? t("bt_unchanged") : t("bt_saved"), "ok");
+    } },
+      h("label", { class: "adm-field" }, h("span", { text: t("bt_status") }), sel),
+      h("label", { class: "adm-field" }, h("span", { text: t("bt_note") }), note),
+      h("div", { class: "adm-actions" }, saveBtn)));
+
+    // licence Pro na N dni: jen otevre Novou licenci s predvyplnenim (vystaveni a odeslani az po potvrzeni tam)
+    const daysIn = h("input", { type: "number", min: 1, max: 3650, step: 1, value: 90, "aria-label": t("bt_lic_days") });
+    const licBtn = h("a", { class: "btn btn-sm" });
+    const licHref = () => {
+      const n = Math.min(Math.max(Math.floor(Number(daysIn.value)) || 90, 1), 3650);
+      licBtn.textContent = t("bt_lic_btn", { n });
+      licBtn.setAttribute("href", `#/nova?${new URLSearchParams({ email: A.email, plan: "pro", days: n, note: `Beta tester ${A.id.slice(0, 8)} (${A.platforms})`, beta: A.id })}`);
+    };
+    daysIn.addEventListener("input", licHref);
+    licHref();
+    const lic = panel(t("bt_lic_h"), h("p", { class: "adm-hint", text: t("bt_lic_p") }),
+      h("div", { class: "adm-actions" }, h("label", { class: "adm-field bt-days" }, h("span", { text: t("bt_lic_days") }), daysIn), licBtn));
+
+    // karta v kanbanu bez osobnich kontaktu
+    const crmBtn = A.crm_lead_id
+      ? h("a", { class: "btn btn-ghost btn-sm", href: `#/lead/${encodeURIComponent(A.crm_lead_id)}`, text: t("bt_crm_open") })
+      : h("button", { class: "btn btn-sm", type: "button", text: t("bt_crm_btn"), onclick: async () => {
+          const x = await api("POST", "/api/admin/beta/crm", { id: A.id });
+          if (!x.ok) return say(errText(x), "err");
+          await reload(t("bt_crm_done"), "ok");
+        } });
+    const crm = panel(t("bt_crm_h"), h("p", { class: "adm-hint", text: t("bt_crm_p") }), h("div", { class: "adm-actions" }, crmBtn));
+
+    flash.className = "bt-flash";
+    return h("div", {},
+      h("div", { class: "adm-actions adm-back" }, back),
+      h("div", { class: "adm-title" }, h("h1", { text: A.company || A.email }), h("div", { class: "adm-actions" }, bstamp(A.status))),
+      flash,
+      h("div", { class: "adm-grid2" }, info, h("div", {}, manage, lic, crm)));
   }
 
   // ------------------------------------------------------------ interni dokumenty (#/dokumenty, #/dokument/<slug>)

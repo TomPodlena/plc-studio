@@ -15,7 +15,10 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FILE = path.resolve(process.argv[2] || path.join(ROOT, "preview.html"));
 const BASE = process.env.BASE || "http://localhost:4173";
 const LANGS = ["cs", "en", "de"];
-const KEYS = ["home", "funkce", "platformy", "cenik", "ukazka", "stazeni", "kontakt", "podminky", "soukromi", "cookies"];
+// platformy ve stavu beta (stranka /beta a odkazy z tabulky platforem) - ze stejneho souboru jako build
+const BETA = Object.entries(JSON.parse(fs.readFileSync(path.join(ROOT, "..", "..", "data", "verification.json"), "utf-8")).platforms)
+  .filter(([, v]) => v.state === "beta").map(([k]) => k);
+const KEYS = ["home", "funkce", "platformy", "cenik", "ukazka", "stazeni", "kontakt", "beta", "podminky", "soukromi", "cookies"];
 
 let fails = 0;
 function check(label, got, want) {
@@ -152,6 +155,25 @@ try {
     await js(`document.querySelector('#email').value='rychly@spam.cz'; document.querySelector('[name=consent]').checked=true; document.querySelector('form[data-lead] button[type=submit]').click()`);
     await sleep(900);
     check("bot (pod 3 s): ok bez odkazu", await js(`document.querySelectorAll('.form-msg a').length`), 0);
+    // program pro beta testery: prihlaska ve vsech jazycich (klientska kontrola, pak odeslani)
+    for (const lang of LANGS) {
+      const pre = lang === "cs" ? "" : "/" + lang;
+      await page.goto(`${BASE}${pre}/beta/`, 300);
+      check(`${lang}: beta - volby jen beta platforem`, await js(`[...document.querySelectorAll('input[name=platforms]')].map(i=>i.value).join(',')`), BETA.join(","));
+      await sleep(3200);
+      await js(`document.querySelector('form[data-beta] button[type=submit]').click()`);
+      await sleep(200);
+      check(`${lang}: beta - bez platformy chyba`, await js(`document.querySelector('form[data-beta] .form-msg').className`), "form-msg err");
+      await js(`(()=>{const f=document.querySelector('form[data-beta]');f.querySelector('input[name=platforms]').click();f.elements.ide.value='TIA Portal';f.elements.ide_version.value='V19 Update 3';f.elements.email.value='tester-${lang}@firma.cz';f.querySelector('button[type=submit]').click()})()`);
+      await sleep(200);
+      check(`${lang}: beta - bez souhlasu chyba`, await js(`document.querySelector('form[data-beta] .form-msg').className`), "form-msg err");
+      await js(`(()=>{const f=document.querySelector('form[data-beta]');f.elements.consent.click();f.querySelector('button[type=submit]').click()})()`);
+      await sleep(900);
+      check(`${lang}: beta - prihlaska odeslana`, await js(`document.querySelector('form[data-beta] .form-msg').className`), "form-msg ok");
+      check(`${lang}: beta - formular vycisten`, await js(`document.querySelector('form[data-beta]').elements.email.value`), "");
+    }
+    await page.goto(`${BASE}/platformy/`, 300);
+    check("platformy: odkaz na beta u kazdeho beta radku", await js(`[...document.querySelectorAll('.ptable .beta-link')].map(a=>a.getAttribute('href')).join(',')`), BETA.map(() => "/beta/").join(","));
     // odkaz z e-mailu
     await page.goto(`${BASE}/en/stazeni/?t=AbCdEfGhIjKlMnOpQrStUvWx`, 200);
     check("odkaz z e-mailu ukaze tlacitko", await js(shown("[data-token-box] a")), 1);
@@ -160,7 +182,7 @@ try {
     check("bez tokenu je tlacitko skryte", await js(shown("[data-token-box]")), 0);
     check("lokalne testovaci klic Turnstile", await js(`document.querySelector('.cf-turnstile').dataset.sitekey`), "1x00000000000000000000AA");
     // zadne cookies ani uloziste prohlizece na zadne strance (stranka Cookies to slibuje)
-    for (const p of ["", "funkce", "cenik", "ukazka", "stazeni", "cookies"]) {
+    for (const p of ["", "funkce", "cenik", "ukazka", "stazeni", "beta", "cookies"]) {
       await page.goto(`${BASE}/${p ? p + "/" : ""}`, 300);
       check(`/${p}: cookies a localStorage prazdne`, await js("document.cookie + '|' + localStorage.length + '|' + sessionStorage.length"), "|0|0");
       check(`/${p}: zadne externi pismo ani skript krome Turnstile`, await js("[...document.querySelectorAll('script[src],link[rel=stylesheet],link[rel=preconnect]')].map(e=>e.src||e.href).filter(u=>/^https?:/.test(u)&&!u.startsWith(location.origin)&&!/challenges.cloudflare.com/.test(u)).join(' ')"), "");

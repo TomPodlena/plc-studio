@@ -16,6 +16,7 @@
 //   POST /api/license/activate  klic + otisk pocitace -> podepsany licencni soubor
 //   POST /api/license/check     obcasna kontrola stavu, tolerantni
 //   POST /api/unlock            odemceni jednoho projektu nad limit
+//   POST /api/beta              prihlaska beta testera platforem ve stavu beta (beta.js; sprava #/beta)
 //   POST /api/stripe/webhook    platby Stripe   (jen pri PAYMENT_PROVIDER="stripe")
 //   POST /api/paddle/webhook    platby Paddle   (jen pri PAYMENT_PROVIDER="paddle")
 //   /api/admin/*                sprava zakazniku (admin.js): prihlaseni, prehled, zakaznici,
@@ -27,6 +28,7 @@ import { signLicense, newToken, newId } from "./license.js";
 import { handleAdmin, securePage } from "./admin.js";
 import { handleStripeWebhook, handlePaddleWebhook } from "./payments.js";
 import { sendDownloadLink, sendUnlockConfirmation } from "./email.js";
+import { handleBetaApply } from "./beta.js";
 
 const LANGS = ["cs", "en", "de"];
 const MSG = {
@@ -319,6 +321,7 @@ const ROUTES = {
   "POST /api/license/activate": handleActivate,
   "POST /api/license/check": handleCheck,
   "POST /api/unlock": handleUnlock,
+  "POST /api/beta": handleBetaApply,
   "POST /api/stripe/webhook": handleStripeWebhook,
   "POST /api/paddle/webhook": handlePaddleWebhook,
 };

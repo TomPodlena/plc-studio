@@ -50,6 +50,7 @@ export const PAGES = [
   { key: "ukazka", out: "ukazka" },
   { key: "stazeni", out: "stazeni" },
   { key: "kontakt", out: "kontakt" },
+  { key: "beta", out: "beta" },
   { key: "podminky", out: "podminky", tpl: "legal" },
   { key: "soukromi", out: "soukromi", tpl: "legal" },
   { key: "cookies", out: "cookies", tpl: "legal" },
@@ -236,6 +237,46 @@ function checkPlatforms(c, lang) {
     if (m[1] !== site.platform_count) warn(`${lang}: "${m[0]}" - pocet platforem pis jako {{site.platform_count}} (= ${site.platform_count})`);
   }
 }
+// Program pro beta testery (stranka /beta, odkazy z tabulky platforem): platformy ve stavu "beta" podle
+// data/verification.json, nazvy a IDE z radku tabulky, "co chceme overit" = notVerified prelozene z katalogu
+// jadra (packages/core/src/i18n/<jazyk>.ts - stejne texty jako README a aplikace). Chybejici preklad = varovani.
+const CORE_I18N = path.join(ROOT, "..", "..", "packages", "core", "src", "i18n");
+const coreCatalog = {};
+function coreTr(lang, text) {
+  if (lang === "cs") return text;
+  if (!coreCatalog[lang]) {
+    const ts = fs.readFileSync(path.join(CORE_I18N, `${lang}.ts`), "utf-8");
+    coreCatalog[lang] = JSON.parse(ts.slice(ts.indexOf("{", ts.indexOf("=")), ts.lastIndexOf("}") + 1));
+  }
+  const t = coreCatalog[lang][text];
+  if (!t) warn(`${lang}: chybi preklad notVerified z data/verification.json v packages/core/src/i18n/${lang}.ts: "${text.slice(0, 60)}…"`);
+  return t || text;
+}
+export const BETA_KEYS = Object.keys(VERIF).filter((k) => VERIF[k].state === "beta");
+function betaPlatforms(c, lang) {
+  const rows = new Map(platformTiles(c).map((t, i) => [rowKeysFlat(c)[i], t]));
+  return BETA_KEYS.map((k) => ({ key: k, name: rows.get(k)?.name || k, ide: rows.get(k)?.ide || "", want: coreTr(lang, VERIF[k].notVerified || "") }));
+}
+const rowKeysFlat = (c) => (c.platformy.rows || []).flatMap(rowKeys);
+function betaContent(c, lang) {
+  const list = betaPlatforms(c, lang);
+  const b = c.beta, P = c.platformy;
+  const betaUrl = url(lang, "beta");
+  b.platforms_html = list.length
+    ? `<div class="table-wrap"><table class="ptable"><thead><tr><th>${esc(b.h_platform)}</th><th>${esc(b.h_ide)}</th><th>${esc(b.h_want)}</th><th></th></tr></thead><tbody>` +
+      list.map((p) => `<tr><th scope="row" data-l="${esc(b.h_platform)}">${esc(p.name)}</th><td data-l="${esc(b.h_ide)}">${esc(p.ide)}</td>` +
+        `<td data-l="${esc(b.h_want)}">${esc(p.want)}</td><td><span class="stamp stamp-beta">${esc(P.state_beta)}</span></td></tr>`).join("") +
+      `</tbody></table></div>`
+    : `<p class="note">${esc(b.none)}</p>`;
+  b.choices_html = list.length
+    ? list.map((p) => `<label class="choice"><input type="checkbox" name="platforms" value="${esc(p.key)}"> <span>${esc(p.name)}<small>${esc(p.ide)}</small></span></label>`).join("")
+    : `<p class="note">${esc(b.none)}</p>`;
+  for (const r of P.rows) r.beta_link = r.state === "beta" ? ` <a class="beta-link" href="${betaUrl}">${esc(P.beta_cta)}</a>` : "";
+  P.beta_box_html = list.length
+    ? `<div class="box box-ok measure"><h2>${esc(P.beta_box_title)}</h2><p>${esc(P.beta_box_body)}</p><p><a class="btn" href="${betaUrl}">${esc(P.beta_box_cta)}</a></p></div>`
+    : "";
+}
+
 // Dlazdice nad tabulkou: kazda platforma zvlast (slouceny radek se rozvine na sve cleny)
 function platformTiles(c) {
   return (c.platformy.rows || []).flatMap((r) =>
@@ -384,7 +425,11 @@ for (const l of LANGS) {
   checkPlatforms(content[l], l);
   if (l !== "cs") sameShape(content.cs, content[l], "", l);
 }
-for (const l of LANGS) content[l].platformy.tiles = platformTiles(content[l]); // az po kontrole tvaru (neni v JSON)
+for (const l of LANGS) {
+  // az po kontrole tvaru (neni v JSON)
+  content[l].platformy.tiles = platformTiles(content[l]);
+  betaContent(content[l], l);
+}
 
 const urls = [];
 for (const lang of LANGS) {

@@ -63,6 +63,7 @@
       <a href="{{BLOCK.url_cenik}}">{{nav.cenik}}</a>
       <a href="{{BLOCK.url_ukazka}}">{{nav.ukazka}}</a>
       <a href="{{BLOCK.url_stazeni}}">{{nav.stazeni}}</a>
+      <a href="{{BLOCK.url_beta}}">{{nav.beta}}</a>
     </div>
     <div class="foot-col">
       <h2>{{ui.foot_contact}}</h2>
@@ -274,6 +275,64 @@
     }).catch(function () {
       msg.className = "form-msg err";
       msg.textContent = T.net;
+    }).then(function () {
+      btn.disabled = false;
+      if (window.turnstile) window.turnstile.reset();
+    });
+  });
+})();
+
+// Prihlaska beta testera: JSON na /api/beta. Stejna past na boty jako formular ke stazeni
+// (honeypot, cas vyplneni), Turnstile; server vse overi znovu (delky, platformy, souhlas).
+(function () {
+  var f = document.querySelector("form[data-beta]");
+  if (!f) return;
+  var start = Date.now();
+  var msg = f.querySelector(".form-msg");
+  var T = f.dataset;
+  function err(text, el) { msg.className = "form-msg err"; msg.textContent = text; if (el) el.focus(); }
+  f.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var boxes = [].slice.call(f.querySelectorAll("input[name=platforms]"));
+    var platforms = boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+    if (!platforms.length) return err(T.platforms, boxes[0]);
+    var E = f.elements;
+    var miss = [E.ide, E.ide_version, E.email].filter(function (x) { return !x.value.trim(); })[0];
+    if (miss) return err(T.required, miss);
+    if (!E.consent.checked) return err(T.consent, E.consent);
+    var btn = f.querySelector("button[type=submit]");
+    var ts = f.querySelector("[name='cf-turnstile-response']");
+    btn.disabled = true;
+    msg.className = "form-msg";
+    msg.textContent = T.sending;
+    fetch("/api/beta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        platforms: platforms,
+        ide: E.ide.value.trim(),
+        ide_version: E.ide_version.value.trim(),
+        name: E.name.value.trim(),
+        company: E.company.value.trim(),
+        email: E.email.value.trim(),
+        web: E.web.value,
+        elapsed: Date.now() - start,
+        locale: E.lang.value,
+        consent: E.consent.checked,
+        turnstile: ts ? ts.value : ""
+      })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; });
+    }).then(function (res) {
+      if (res.ok) {
+        msg.className = "form-msg ok";
+        msg.textContent = res.d.message || T.ok;
+        f.reset();
+      } else {
+        err(res.d.error || T.err, null);
+      }
+    }).catch(function () {
+      err(T.net, null);
     }).then(function () {
       btn.disabled = false;
       if (window.turnstile) window.turnstile.reset();

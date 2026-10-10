@@ -112,7 +112,7 @@ function navodMd(plat, samples, version) {
     out.push("- " + tr("soubory, které jste museli upravit (s popisem úpravy v protokolu)."), "");
     out.push(tr("Do protokolu ani na snímky nepatří osobní údaje ani licenční a sériová čísla IDE — před odesláním je ze snímků odstraňte."), "");
     out.push(tr("Protokol pošlete přes stránku Kontakt: {url}", { url: kontakt }), "");
-    out.push(tr("Za úplný protokol od vás dostanete licenci PLCdesk Pro zdarma."), "");
+    out.push(tr("Za úplný protokol od vás dostanete licenci PLCdesk Pro zdarma na 90 dní."), "");
     return out.join("\n");
 }
 function protokolMd(plat, samples, version) {

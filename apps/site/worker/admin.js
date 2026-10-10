@@ -21,10 +21,11 @@
 
 import { signLicense, newLicenseKey, newId, b64url } from "./license.js";
 import { sendLicense } from "./email.js";
-import { out, enc, nowIso, isoAgo, clip, num, readJson, audit, likePattern, toCsv, csvResponse } from "./admin_util.js";
+import { out, enc, nowIso, isoAgo, clip, num, readJson, audit, likePattern, toCsv, csvResponse, clientIp } from "./admin_util.js";
+import { BETA_ROUTES } from "./beta.js";
 import { CRM_ROUTES } from "./crm.js";
 import { DOC_ROUTES } from "./docs.js";
-export { csvCell, toCsv } from "./admin_util.js";
+export { csvCell, toCsv, clientIp } from "./admin_util.js";
 
 export const ADMIN_COOKIE = "__Host-plcdesk_admin";
 export const SESSION_S = 8 * 3600;
@@ -72,29 +73,6 @@ function b64urlBytes(s) {
   const u = new Uint8Array(b.length);
   for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
   return u;
-}
-
-function expandIPv6(ip) {
-  if (!/^[0-9a-f:]+$/i.test(ip)) return null; // vcetne IPv4 uvnitr IPv6 -> beze zmeny
-  const halves = ip.split("::");
-  if (halves.length > 2) return null;
-  const head = halves[0] ? halves[0].split(":") : [];
-  const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
-  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0;
-  const parts = [...head, ...Array(Math.max(fill, 0)).fill("0"), ...tail];
-  if (parts.length !== 8 || parts.some((p) => !/^[0-9a-f]{1,4}$/i.test(p))) return null;
-  return parts.map((p) => p.toLowerCase().replace(/^0+(?=.)/, ""));
-}
-
-// IP klienta: CF-Connecting-IP nastavuje Cloudflare (klient ji nepodvrhne). IPv6 -> prefix /64.
-export function clientIp(req) {
-  const ip = String(req.headers.get("CF-Connecting-IP") || "").trim().slice(0, 64);
-  if (!ip) return "unknown";
-  if (ip.includes(":")) {
-    const p = expandIPv6(ip);
-    return p ? `${p.slice(0, 4).join(":")}::/64` : ip;
-  }
-  return ip;
 }
 
 async function sha256(s) {
@@ -721,6 +699,8 @@ const ROUTES = {
   ...CRM_ROUTES,
   // interni dokumenty provozovatele (docs.js) - obsah jen v D1, stejne prihlaseni, CSRF i audit
   ...DOC_ROUTES,
+  // prihlasky beta testeru (beta.js) - stejne prihlaseni, CSRF i audit
+  ...BETA_ROUTES,
 };
 export const ADMIN_PATHS = [...new Set(Object.keys(ROUTES).map((r) => r.split(" ")[1]))];
 
