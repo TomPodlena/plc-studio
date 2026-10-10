@@ -1,7 +1,7 @@
 /* PLCdesk — krok 13 Oživení: plán po fázích z jádra (commission.ts), zápis výsledků kroků,
    filtr, souhrn a export protokolu (MD, CSV). Výsledky žijí v projektu (Project.commissioning). */
 import {
-  esc, tr, syncIO, approvalItems, approvalStatus,
+  escHtml as esc, tr, syncIO, approvalItems, approvalStatus,
   commissioningPlan, COMMISSION_PHASES, setCommissionResult, clearCommissionResult, commissioningSummary,
   commissioningMd, commissioningCsv, COMMISSION_FILE_MD, COMMISSION_FILE_CSV, APPROVAL_FILE,
 } from "../../../packages/core/dist/index.js";

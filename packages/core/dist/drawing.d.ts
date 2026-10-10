@@ -42,11 +42,15 @@ export interface SheetOps {
     H: number;
     O: Op[];
 }
-/** `rev` = označení revize do popisového pole (jinak z `setSheetRevision`, výchozí „0.1“). */
+/** `rev` = označení revize do popisového pole (jinak z `setSheetRevision`, výchozí „0.1“);
+ *  `number` / `customer` / `startDate` = číslo projektu, zákazník a datum zahájení ISO (jinak z `prj.meta`). */
 export interface SheetMeta {
     projectName: string;
     date: string;
     rev?: string;
+    number?: string;
+    customer?: string;
+    startDate?: string;
 }
 export declare function setSheetRevision(fn: ((prj: Project) => string | undefined) | null): void;
 export declare function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number, total: number, meta?: SheetMeta): SheetOps;
@@ -67,6 +71,10 @@ export interface CircuitSheet {
     date?: string;
     logic: string;
     note: string;
+    /** Číslo projektu, zákazník a datum zahájení (ISO) do popisového pole (prázdné = pole bez pruhu). */
+    number?: string;
+    customer?: string;
+    startDate?: string;
     inputs: Array<{
         sf: string;
         dev: string;

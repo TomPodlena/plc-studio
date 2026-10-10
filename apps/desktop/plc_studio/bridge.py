@@ -34,12 +34,12 @@ SLOW_OPS = frozenset({"files", "verify", "commission", "approval", "scenarios", 
 WORKER_OPS = frozenset({"files", "verify", "commission", "approval", "approval.badge",
                         "approval.many", "approval.tune", "safety", "exports", "bom", "gen",
                         "quote.files", "revision.affected", "revision.view", "revision.md",
-                        "revision.create", "emu.platform", "emu.finish", "verifypack"})
+                        "revision.create", "emu.platform", "emu.finish", "verifypack", "datadir"})
 # funkce jádra (operace ``call``), které počítají položky schválení / plán oživení (ověření)
 WORKER_FNS = frozenset({"approve", "reject", "resetApproval", "setCommissionResult",
                         "clearCommissionResult", "docVerifyMd"})
 # operace se stavem v procesu jádra (emulace přihlašuje dokument 15) — výsledek necachovat
-NO_CACHE_OPS = frozenset({"emu.platform", "emu.finish", "approval.badge"})
+NO_CACHE_OPS = frozenset({"emu.platform", "emu.finish", "approval.badge", "datadir"})
 # výsledek závisí i na stavu procesu (dokument 15 po emulaci) — otisk nese „epochu“ stavu
 STATE_OPS = frozenset({"files"})
 CACHE_ITEMS = 24                 # výsledky drahých výpočtů (otisk operace + jazyka + projektu)

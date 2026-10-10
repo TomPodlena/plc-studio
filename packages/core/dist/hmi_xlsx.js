@@ -6,6 +6,7 @@
  * Struktura podle ECMA-376 (Office Open XML, část 1 – SpreadsheetML) a specifikace ZIP
  * (PKWARE APPNOTE 6.3.x, metoda 0 = stored).
  */
+import { xmlSafe } from "./model.js";
 const CRC_TABLE = (() => {
     const t = new Uint32Array(256);
     for (let n = 0; n < 256; n++) {
@@ -86,7 +87,7 @@ export function zipStored(files) {
     }
     return out;
 }
-const x = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+const x = (s) => xmlSafe(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
 function colName(i) {
     let s = "";

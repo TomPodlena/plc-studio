@@ -147,7 +147,12 @@ def read_params(vars_: dict) -> dict:
             res["unit"] = v.get().strip() or "mm"
             continue
         if key == "records":         # „1 = převzetí @ 0; 2 = lis @ 180“ → tabulka záznamů
-            res["records"] = vars_["_app"].core("parseRecords", v.get())
+            r = vars_["_app"].core("parseRecordsChecked", v.get())
+            probs = _parse_problems(r["bad"], r["dup"])
+            if probs:                # nic tiše nezahazovat (test odolnosti 2026-10-08)
+                raise ValueError(_("Záznamy pohonu nejsou uložené — {problems}. Zapiš je ve tvaru "
+                                   "„1 = název @ poloha; 2 = …“.", problems=probs))
+            res["records"] = r["records"]
             continue
         if key == "role":
             cb, keys = v
@@ -160,8 +165,7 @@ def read_params(vars_: dict) -> dict:
     if res.get("limLo") is not None and res.get("limHi") is not None \
             and res["limLo"] >= res["limHi"]:
         raise ValueError(_("Mez min musí být menší než mez max."))
-    if res.get("selBits") is not None:
-        res["selBits"] = min(6, max(1, int(round(res["selBits"]))))
+    _check_params(res)
     if "_ax" in vars_:
         ax = dict(vars_["_ax"])
         for key, label in AXIS_FIELDS:
@@ -173,7 +177,15 @@ def read_params(vars_: dict) -> dict:
                 ax.pop(key, None)
             else:
                 ax[key] = n
-        ax["positions"] = vars_["_app"].core("parseAxisPositions", vars_["axpos"].get())
+        r = vars_["_app"].core("parseAxisPositionsChecked", vars_["axpos"].get())
+        probs = _parse_problems(r["bad"], r["dup"])
+        if probs:
+            raise ValueError(_("Pojmenované polohy osy nejsou uložené — {problems}. Zapiš je ve tvaru "
+                               "„název @ poloha; …“.", problems=probs))
+        for n in (ax.get(k) for k, _label in AXIS_FIELDS):
+            if n is not None and abs(n) > REAL_MAX:
+                raise ValueError(_("Hodnota je mimo rozsah REAL (±3,4E38) — PLC ji neuloží; zkontroluj jednotky."))
+        ax["positions"] = r["positions"]
         drv = vars_["axdrive"].get().strip()
         if drv:
             ax["drive"] = drv
@@ -183,6 +195,42 @@ def read_params(vars_: dict) -> dict:
     if res.get("rampS") is not None and res["rampS"] < 0:
         raise ValueError(_("Rampa musí být 0 (bez rampy) nebo kladný čas v sekundách."))
     return res
+
+
+REAL_MAX = 3.4028234663852886e38      # největší REAL (IEEE 754 single) — model.ts REAL_MAX
+
+
+def _parse_problems(bad: list, dup: list) -> str:
+    """Text „nesrozumitelné: …; duplicitní: …“ pro hlášku formuláře ("" = v pořádku)."""
+    out = []
+    if bad:
+        out.append(_("nesrozumitelné části: {parts}", parts="; ".join(str(b) for b in bad[:5])))
+    if dup:
+        out.append(_("duplicitní: {items}", items=", ".join(str(x) for x in dup[:10])))
+    return "; ".join(out)
+
+
+def _check_params(res: dict) -> None:
+    """Meze parametrů jako kontrola návrhu (model.ts validateProject) — formulář chybné hodnoty
+    neuloží (dřív se záporná tolerance / 1e9 uložily a bity výběru se tiše ořízly)."""
+    for key, v in res.items():
+        if isinstance(v, float) and abs(v) > REAL_MAX:
+            raise ValueError(_("Hodnota {par} je mimo rozsah REAL (±3,4E38) — PLC ji neuloží; zkontroluj jednotky.",
+                               par=_(PARAM_LABEL.get(key, key))))
+    if res.get("selBits") is not None:
+        b = res["selBits"]
+        if not (float(b).is_integer() and 1 <= b <= 6):
+            raise ValueError(_("Počet bitů výběru záznamu musí být 1 až 6."))
+        res["selBits"] = int(b)
+    if res.get("tol") is not None and not res["tol"] > 0:
+        raise ValueError(_("Povolená odchylka proporcionálního ventilu musí být kladná."))
+    if res.get("tolTimeS") is not None and not (0 < res["tolTimeS"] <= 3276.7):
+        raise ValueError(_("Doba odchylky proporcionálního ventilu musí být kladná a nejvýš 3 276,7 s "
+                           "(počítá se v taktech 0,1 s v proměnné INT)."))
+    if res.get("rampS") is not None and res["rampS"] > 3600:
+        raise ValueError(_("Rampa může být nejvýš 3600 s (delší rampa by ověření simulací zamrazila)."))
+    if res.get("travelS") is not None and not (0 < res["travelS"] <= 3600):
+        raise ValueError(_("Doba jízdy (model simulace) musí být kladná a nejvýš 3600 s."))
 
 
 def apply_params(d: dict, params: dict) -> None:
@@ -339,6 +387,8 @@ def render(app, parent) -> None:
         "Třídy Motor / Ventil / Analog dostanou hotový funkční blok (stavový automat, "
         "timeouty, status). Třídy DI/DO jsou volné signály pro vlastní logiku. "
         "Popis upravíš dvojklikem do buňky.") + " " + _(
+        "Označení, popis, volby, jednotku a rozsah vybraného zařízení změníš v řádku pod tabulkou "
+        "(uloží se Enterem nebo opuštěním pole).") + " " + _(
         "Měnič, polohovací pohon a proporcionální ventil se ovládají přes běžné I/O "
         "(DO, DI, analog) — fungují na všech platformách; parametry pohonu (rampy, záznamy) "
         "se nastavují v pohonu, README je vypíše.") + " " + _(
@@ -349,17 +399,60 @@ def render(app, parent) -> None:
     tools.pack(side="bottom", fill="x", pady=(6, 0))
     params_row = ttk.Frame(body)                    # parametry vybraného zařízení
     params_row.pack(side="bottom", fill="x", pady=(6, 0))
+    dev_row = ttk.Frame(body)                       # označení, popis, volby, rozsah vybraného zařízení
+    dev_row.pack(side="bottom", fill="x", pady=(6, 0))
 
     # --- seznam zařízení ---
-    def edit(iid: str, _key: str, value: str) -> None:
-        d = app.dev_by_id(int(iid)) if iid.isdigit() else None
-        if d is not None:
-            d["desc"] = value.strip()
-            app.sync()
-            app.save()
-            tbl.tv.set(iid, "desc", d["desc"])
-            if panel.dev_id == d["id"]:
-                panel.show(d["id"])
+    def refresh_row(dev_id: int) -> None:
+        """Po úpravě v jádře (nový objekt projektu) přepíše řádek tabulky, panel a nadpisy řádků."""
+        d = app.dev_by_id(dev_id)
+        if d is None:
+            return
+        iid = str(dev_id)
+        if tbl.tv.exists(iid):
+            for key, val in (("name", d["name"]), ("desc", d["desc"]), ("opt", _opts_text(app, d))):
+                tbl.tv.set(iid, key, val)
+        if panel.dev_id == dev_id:
+            panel.show(dev_id)
+        for lbl in (getattr(dev_row, "_title", None), getattr(params_row, "_title", None)):
+            if lbl is not None and lbl.winfo_exists():
+                lbl.configure(text=_("{dev}:", dev=d["name"]))
+
+    def rename(dev_id: int, value: str) -> bool:
+        """Přejmenování v jádře (renameDevice): výchozí tagy s ním, ruční zůstanou (hláška)."""
+        d = app.dev_by_id(dev_id)
+        if d is None or value.strip() == d["name"]:
+            return True
+        old = d["name"]
+        res = app.edit("renameDevice", dev_id, value.strip())
+        if not res.get("ok"):
+            app.set_status("⚠ " + (res.get("error") or ""), keep=True)
+            return False
+        new = app.dev_by_id(dev_id)["name"]
+        msg = _("Zařízení {old} přejmenováno na {new}.", old=old, new=new)
+        if res.get("keptTags"):
+            msg += " " + _("Ručně změněné tagy zůstaly beze změny: {tags}.", tags=", ".join(res["keptTags"]))
+        app.set_status(msg, keep=bool(res.get("keptTags")))
+        refresh_row(dev_id)
+        return True
+
+    def set_desc(dev_id: int, value: str) -> None:
+        """Popis v jádře (setDeviceDesc): výchozí komentáře signálů s ním, ruční zůstanou."""
+        d = app.dev_by_id(dev_id)
+        if d is None or value.strip() == d["desc"]:
+            return
+        app.edit("setDeviceDesc", dev_id, value)
+        refresh_row(dev_id)
+
+    def edit(iid: str, key: str, value: str) -> None:
+        if not iid.isdigit() or app.dev_by_id(int(iid)) is None:
+            return
+        if key == "name":
+            rename(int(iid), value)
+        else:
+            set_desc(int(iid), value)
+        if app.ui.get("dev_sel") == int(iid):
+            show_device_row(app.dev_by_id(int(iid)))
 
     def delete(_e=None) -> None:
         iid = tbl.selected()
@@ -407,26 +500,139 @@ def render(app, parent) -> None:
     panel.pack(side="right", fill="y", padx=(12, 0))
     tbl = Table(mid, [("name", _("Označení"), 80, False), ("cls", _("Třída"), 170, False),
                       ("desc", _("Popis"), 260, True), ("opt", _("Volby"), 200, True)],
-                height=8, editable=("desc",), on_edit=edit)
+                height=8, editable=("name", "desc"), on_edit=edit)
     tbl.pack(side="left", fill="both", expand=True)
     for d in p["devices"]:
         tbl.add(d["id"], (d["name"], app.CLS[d["cls"]]["label"], d["desc"], _opts_text(app, d)))
     tbl.tv.bind("<Delete>", delete)
 
+    def on_commit(widget, fn) -> None:
+        """Uložení pole Enterem i opuštěním (FocusOut) — ne jen tlačítkem."""
+        widget.bind("<Return>", lambda _e: fn(), add="+")
+        widget.bind("<FocusOut>", lambda _e: fn(), add="+")
+
+    def show_device_row(d: dict | None) -> None:
+        """Řádek úprav vybraného zařízení: označení, popis, volby (Checkbutton), jednotka a rozsah."""
+        for w in dev_row.winfo_children():
+            w.destroy()
+        dev_row._title = None
+        if d is None:
+            return
+        dev_id = d["id"]
+        # 1. řádek: označení, popis, jednotka a rozsah; 2. řádek: volby (v němčině by se nevešly vedle)
+        line = ttk.Frame(dev_row)
+        line.pack(fill="x")
+        opt_line = ttk.Frame(dev_row)
+        if app.CLS[d["cls"]]["opts"]:
+            opt_line.pack(fill="x", pady=(4, 0))
+        dev_row._title = ttk.Label(line, text=_("{dev}:", dev=d["name"]), font=theme.FONT_ACCENT)
+        dev_row._title.pack(side="left", padx=(0, 8))
+        var_n, var_d = tk.StringVar(value=d["name"]), tk.StringVar(value=d["desc"])
+        ttk.Label(line, text=_("Označení")).pack(side="left")
+        ent_n = ttk.Entry(line, textvariable=var_n, width=max(10, len(d["name"]) + 2))
+        ent_n.pack(side="left", padx=(6, 14))
+        ttk.Label(line, text=_("Popis")).pack(side="left")
+        ent_d = ttk.Entry(line, textvariable=var_d, width=28)
+        ent_d.pack(side="left", padx=(6, 14))
+
+        def commit_name() -> None:
+            cur = app.dev_by_id(dev_id)
+            if cur is not None and var_n.get().strip() != cur["name"] and not rename(dev_id, var_n.get()):
+                var_n.set(cur["name"])
+
+        on_commit(ent_n, commit_name)
+        on_commit(ent_d, lambda: set_desc(dev_id, var_d.get()))
+        keep = [var_n, var_d]
+
+        def set_opt(key: str, var: tk.BooleanVar) -> None:
+            res = app.edit("setDeviceOpts", dev_id, {key: var.get()})
+            if not res.get("ok"):
+                app.set_status("⚠ " + (res.get("error") or ""), keep=True)
+                return
+            parts = []
+            if res.get("added"):
+                parts.append(_("přidány signály: {tags}", tags=", ".join(res["added"])))
+            if res.get("removed"):
+                parts.append(_("odebrány signály: {tags}", tags=", ".join(res["removed"])))
+            if res.get("affectedSteps"):
+                parts.append(_("zkontroluj kroky {steps} — čekaly na odebrané hlášení",
+                               steps=", ".join(str(i + 1) for i in res["affectedSteps"])))
+            more = "; ".join(parts)
+            app.set_status(_("Volby {dev} uloženy.", dev=app.dev_by_id(dev_id)["name"])
+                           + (" " + more[:1].upper() + more[1:] + "." if more else ""),
+                           keep=bool(res.get("affectedSteps")))
+            app.render()
+
+        state = app.core("deviceOpts", d) if app.CLS[d["cls"]]["opts"] else {}
+        for ok, olabel in app.CLS[d["cls"]]["opts"].items():
+            var = tk.BooleanVar(value=bool(state.get(ok)))
+            keep.append(var)
+            ttk.Checkbutton(opt_line, text=olabel, variable=var,
+                            command=lambda k=ok, v=var: set_opt(k, v)).pack(side="left", padx=(0, 10))
+        if d["cls"] in RANGE_CLS:
+            var_u = tk.StringVar(value=d.get("unit") or "")
+            var_lo, var_hi = tk.StringVar(value=f"{d['rmin']:g}"), tk.StringVar(value=f"{d['rmax']:g}")
+            keep += [var_u, var_lo, var_hi]
+            ttk.Label(line, text=_("jednotka")).pack(side="left", padx=(4, 0))
+            ent_u = ttk.Entry(line, textvariable=var_u, width=7)
+            ent_u.pack(side="left", padx=(6, 12))
+            ttk.Label(line, text=_("rozsah")).pack(side="left")
+            ent_lo = ttk.Entry(line, textvariable=var_lo, width=7)
+            ent_lo.pack(side="left", padx=6)
+            ttk.Label(line, text=_("až")).pack(side="left")
+            ent_hi = ttk.Entry(line, textvariable=var_hi, width=7)
+            ent_hi.pack(side="left", padx=(6, 0))
+
+            def reset_range(cur: dict) -> None:
+                var_u.set(cur.get("unit") or "")
+                var_lo.set(f"{cur['rmin']:g}")
+                var_hi.set(f"{cur['rmax']:g}")
+
+            def commit_range() -> None:
+                cur = app.dev_by_id(dev_id)
+                if cur is None:
+                    return
+                lo, hi = parse_num(var_lo.get()), parse_num(var_hi.get())
+                if lo is None or hi is None:
+                    app.set_status(_("Neplatné číslo v poli „{field}“.", field=_("rozsah")))
+                    reset_range(cur)
+                    return
+                if (var_u.get().strip(), lo, hi) == ((cur.get("unit") or ""), cur["rmin"], cur["rmax"]):
+                    return
+                res = app.edit("setDeviceRange", dev_id, {"unit": var_u.get(), "rmin": lo, "rmax": hi})
+                if not res.get("ok"):
+                    app.set_status("⚠ " + (res.get("error") or ""), keep=True)
+                    reset_range(cur)
+                    return
+                app.set_status(_("Rozsah {dev} uložen.", dev=cur["name"]))
+                refresh_row(dev_id)
+
+            for ent in (ent_u, ent_lo, ent_hi):
+                on_commit(ent, commit_range)
+        dev_row._vars = keep                       # proměnné naživu (GC)
+
     def show_params(d: dict | None) -> None:
         for w in params_row.winfo_children():
             w.destroy()
+        params_row._title = None
         if d is None or d["cls"] not in ("AnalogIn", "AnalogOut", "DO", "Axis", *MOTION_CLS):
             return
-        ttk.Label(params_row, text=_("{dev}:", dev=d["name"]), font=theme.FONT_ACCENT).pack(side="left", padx=(0, 8))
+        dev_id = d["id"]
+        params_row._title = ttk.Label(params_row, text=_("{dev}:", dev=d["name"]), font=theme.FONT_ACCENT)
+        params_row._title.pack(side="left", padx=(0, 8))
         vars_ = param_fields(app, params_row, d["cls"], d)
 
-        def save_params() -> None:
+        def save_params(quiet: bool = False) -> None:
+            d = app.dev_by_id(dev_id)       # projekt mohl být mezitím nahrazen (úpravy v jádře)
+            if d is None:
+                return
             try:
                 params = read_params(vars_)
             except ValueError as exc:       # neplatné číslo mez dřív tiše smazalo
                 app.set_status(str(exc))
                 return
+            if quiet and all(d.get(k) == v for k, v in params.items()):
+                return                      # opuštění pole beze změny: nic neukládat ani nehlásit
             bits = d.get("selBits")
             apply_params(d, params)
             if d["cls"] == "PosDrive" and d.get("selBits") != bits:   # jiný počet bitů = jiné signály
@@ -436,21 +642,33 @@ def render(app, parent) -> None:
                 return
             app.save()
             tbl.tv.set(str(d["id"]), "opt", _opts_text(app, d))
+            if panel.dev_id == dev_id:
+                panel.show(dev_id)
             app.set_status(_("Parametry {dev} uloženy.", dev=d["name"]))
 
         ttk.Button(params_row, text=_("Uložit parametry"), command=save_params).pack(side="left")
+        # uložení i Enterem / opuštěním pole (servoosa má pole v mřížce o úroveň níž)
+        widgets = list(params_row.winfo_children())
+        widgets += [c for f in widgets if type(f) is ttk.Frame for c in f.winfo_children()]
+        for w in widgets:
+            if type(w) is ttk.Entry:
+                on_commit(w, lambda: save_params(quiet=True))
+            elif isinstance(w, ttk.Combobox):
+                w.bind("<<ComboboxSelected>>", lambda _e: save_params(quiet=True), add="+")
 
     def on_select(_e=None) -> None:
         iid = tbl.selected()
         if iid is not None and iid.isdigit():
             app.ui["dev_sel"] = int(iid)
             panel.show(int(iid))
+            show_device_row(app.dev_by_id(int(iid)))
             show_params(app.dev_by_id(int(iid)))
 
     tbl.tv.bind("<<TreeviewSelect>>", on_select)
     if app.dev_by_id(app.ui.get("dev_sel")) is not None:
         tbl.select(app.ui["dev_sel"])
         panel.show(app.ui["dev_sel"])
+        show_device_row(app.dev_by_id(app.ui["dev_sel"]))
         show_params(app.dev_by_id(app.ui["dev_sel"]))
 
     ttk.Button(tools, text=_("Odstranit vybrané"), style="Danger.TButton", command=delete

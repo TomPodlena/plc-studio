@@ -36,7 +36,7 @@
  * validateEplan to hlásí. Objekty bez vlastního záznamu (stanice, rack, CPU, rozhraní, síť) mají GUID
  * odvozený z GUID projektu. Stav: neověřeno importem do EPLAN (EPLAN_VERIFIED v eplan.ts).
  */
-import { type Project, type Dir, type IoEntry, type Device, type PlatformKey, PLAT, devById, addrFor, dtFor, stripDia, devSignals, devRef } from "./model.js";
+import { type Project, type Dir, type IoEntry, type Device, type PlatformKey, PLAT, devById, addrFor, dtFor, stripDia, devSignals, devRef, xmlSafe } from "./model.js";
 import { tr, today, withLang, getLang, LANGS, type Lang } from "./i18n.js";
 import { buildBom, bomPlatform, type BomLine } from "./bom.js";
 import { derivedGuid, isGuid } from "./guid.js";
@@ -69,7 +69,7 @@ interface Ie {
 }
 interface Link { name: string; a: Ie; ai: string; b: Ie; bi: string; }
 
-const xe = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const xe = (s: unknown) => xmlSafe(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const ascii = (s: string) => stripDia(String(s ?? "")).replace(/[^\x20-\x7E]/g, "?");
 /** Část cesty CAEX: při znacích @ . : / v hranatých závorkách, „[“ a „]“ escapované (AR APC 5.2.8). */
 export const amlPathPart = (s: string) => /[@.:/[\]]/.test(s) ? "[" + s.replace(/\[/g, "\\[").replace(/\]/g, "\\]") + "]" : s;

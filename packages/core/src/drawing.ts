@@ -4,9 +4,10 @@
  * Konvence: rámeček s mřížkovými referencemi, popisové pole, značení -M1
  * (IEC 81346), čísla vodičů -W<svorkovnice><svorka> (`wireNo`), NC/NO kontakty (IEC 60617).
  */
-import { Project, IoModule, Device, CLS, PLAT, devById, modules, wireNo, esc, stripDia, devRef } from "./model.js";
+import { Project, IoModule, Device, CLS, PLAT, devById, modules, wireNo, esc, stripDia, devRef, lineSafe } from "./model.js";
 import { hwAddrText, hwLayout, hwSignalText, hwTypeText } from "./hardware.js";
 import { trx, N_, today } from "./i18n.js";
+import { projectRef, formatIsoDate } from "./project_meta.js";
 
 /* Texty výkresů jdou přes `trx()` — stejná geometrie se píše i do DXF R12, proto musí
    zůstat v latince (při čínštině angličtina). Značení dle norem se nepřekládá. */
@@ -21,8 +22,38 @@ export type Op =
 
 export interface SheetOps { W: number; H: number; O: Op[]; }
 
-/** `rev` = označení revize do popisového pole (jinak z `setSheetRevision`, výchozí „0.1“). */
-export interface SheetMeta { projectName: string; date: string; rev?: string; }
+/** `rev` = označení revize do popisového pole (jinak z `setSheetRevision`, výchozí „0.1“);
+ *  `number` / `customer` / `startDate` = číslo projektu, zákazník a datum zahájení ISO (jinak z `prj.meta`). */
+export interface SheetMeta { projectName: string; date: string; rev?: string; number?: string; customer?: string; startDate?: string; }
+
+/** Výška pruhu „Číslo projektu / Zákazník / Zahájeno“ nad popisovým polem (jen když je některý údaj vyplněn). */
+const REF_BAND = 26;
+
+/**
+ * Popisové pole výkresu (společné pro listy zapojení a bezpečnostní okruh). Bez čísla projektu
+ * a zákazníka přesně původní tvar; s nimi navíc pruh nad polem (volající zvětší list o `REF_BAND`).
+ * Hodnoty jsou obsah projektu (nepřekládají se); do DXF jdou přes `dxfText` jako ostatní texty.
+ */
+function titleBlock(Re: (x: number, y: number, w: number, h: number, k?: string) => void,
+  Ln: (x1: number, y1: number, x2: number, y2: number, k?: string) => void,
+  Tx: (x: number, y: number, s: unknown, o?: Partial<{ size: number; anchor: string; k: string }>) => void,
+  W: number, H: number, f: { project: string; drawing: string; sheet: string; date: string; rev: string; number: string; customer: string; startDate: string }): void {
+  const tx = W - 26 - 420, ty = H - 26 - 52;
+  Re(tx, ty, 420, 52, "f"); Ln(tx, ty + 26, tx + 420, ty + 26, "f"); Ln(tx + 180, ty, tx + 180, ty + 52, "f"); Ln(tx + 330, ty, tx + 330, ty + 52, "f");
+  Tx(tx + 7, ty + 10, trx("Projekt"), { k: "m", size: 8 }); Tx(tx + 7, ty + 22, (f.project || "—").slice(0, 32), { k: "b", size: 9 });
+  Tx(tx + 187, ty + 10, trx("Výkres"), { k: "m", size: 8 }); Tx(tx + 187, ty + 22, f.drawing, { size: 9 });
+  Tx(tx + 337, ty + 10, trx("List"), { k: "m", size: 8 }); Tx(tx + 337, ty + 22, f.sheet, { size: 9 });
+  Tx(tx + 7, ty + 36, trx("Kreslil"), { k: "m", size: 8 }); Tx(tx + 7, ty + 48, trx("PLCdesk (návrh k revizi)"), { size: 9 });
+  Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 }); Tx(tx + 187, ty + 48, f.date, { size: 9 });
+  Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 }); Tx(tx + 337, ty + 48, f.rev, { size: 9 });
+  if (!f.number && !f.customer && !f.startDate) return;
+  /* pruh nad polem: číslo | zákazník | zahájeno — sloupce lícují s polem pod ním (180 / 330) */
+  const by = ty - REF_BAND;
+  Re(tx, by, 420, REF_BAND, "f"); Ln(tx + 180, by, tx + 180, ty, "f"); Ln(tx + 330, by, tx + 330, ty, "f");
+  Tx(tx + 7, by + 10, trx("Číslo projektu"), { k: "m", size: 8 }); Tx(tx + 7, by + 22, (f.number || "—").slice(0, 30), { k: "b", size: 9 });
+  Tx(tx + 187, by + 10, trx("Zákazník"), { k: "m", size: 8 }); Tx(tx + 187, by + 22, (f.customer || "—").slice(0, 24), { k: "b", size: 9 });
+  Tx(tx + 337, by + 10, trx("Zahájeno"), { k: "m", size: 8 }); Tx(tx + 337, by + 22, formatIsoDate(f.startDate, true) || "—", { size: 9 });
+}
 
 /* Označení revize projektu pro sloupec „Rev“ popisového pole — dodá revision.ts (bez revize undefined → „0.1“). */
 let sheetRev: ((prj: Project) => string | undefined) | null = null;
@@ -32,14 +63,17 @@ function todayCz(): string { return today(true); }
 
 /** Text pro DXF R12: bez diakritiky a jen ASCII — typografické znaky nahradí nejbližší ASCII. */
 function dxfText(s: string): string {
-  return stripDia(s).replace(/[—–]/g, "-").replace(/[·•]/g, "|").replace(/…/g, "...").replace(/×/g, "x")
+  /* jeden řádek: DXF R12 je dvojice řádků kód / hodnota — konec řádku v textu posune celý zbytek souboru */
+  return stripDia(lineSafe(s)).replace(/[—–]/g, "-").replace(/[·•]/g, "|").replace(/…/g, "...").replace(/×/g, "x")
     .replace(/°/g, "deg").replace(/[„“”«»]/g, '"').replace(/[‚‘’]/g, "'").replace(/→/g, "->")
     .replace(/[^\x00-\x7F]/g, "?");
 }
 
 export function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number, total: number, meta?: SheetMeta): SheetOps {
   const rows = mod.ch.length, rh = 40, top = 96;
-  const W = 980, H = top + rows * rh + 104;
+  const ref0 = projectRef(prj);
+  const number = meta?.number ?? ref0.number, customer = meta?.customer ?? ref0.customer, startDate = meta?.startDate ?? ref0.startDate;
+  const W = 980, H = top + rows * rh + 104 + (number || customer || startDate ? REF_BAND : 0);
   const O: Op[] = [];
   let cur: string | undefined;                     // signál právě kresleného kanálu
   const ref = (): Ref => cur ? { io: cur } : {};
@@ -61,14 +95,8 @@ export function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number
   for (let i = 0; i < nR; i++) Tx(17, 26 + (H - 52) / nR * (i + 0.5) + 3, String.fromCharCode(65 + i), { anchor: "middle", k: "m", size: 9 });
 
   /* popisové pole */
-  const tx = W - 26 - 420, ty = H - 26 - 52;
-  Re(tx, ty, 420, 52, "f"); Ln(tx, ty + 26, tx + 420, ty + 26, "f"); Ln(tx + 180, ty, tx + 180, ty + 52, "f"); Ln(tx + 330, ty, tx + 330, ty + 52, "f");
-  Tx(tx + 7, ty + 10, trx("Projekt"), { k: "m", size: 8 }); Tx(tx + 7, ty + 22, (pname || "—").slice(0, 32), { k: "b", size: 9 });
-  Tx(tx + 187, ty + 10, trx("Výkres"), { k: "m", size: 8 }); Tx(tx + 187, ty + 22, trx("Zapojení {mod}", { mod: mod.dir + mod.idx }) + " · X" + xnum, { size: 9 });
-  Tx(tx + 337, ty + 10, trx("List"), { k: "m", size: 8 }); Tx(tx + 337, ty + 22, page + " / " + total, { size: 9 });
-  Tx(tx + 7, ty + 36, trx("Kreslil"), { k: "m", size: 8 }); Tx(tx + 7, ty + 48, trx("PLCdesk (návrh k revizi)"), { size: 9 });
-  Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 }); Tx(tx + 187, ty + 48, date, { size: 9 });
-  Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 }); Tx(tx + 337, ty + 48, meta?.rev ?? sheetRev?.(prj) ?? "0.1", { size: 9 });
+  titleBlock(Re, Ln, Tx, W, H, { project: pname, drawing: trx("Zapojení {mod}", { mod: mod.dir + mod.idx }) + " · X" + xnum,
+    sheet: page + " / " + total, date, rev: meta?.rev ?? sheetRev?.(prj) ?? "0.1", number, customer, startDate });
 
   /* potenciály a karta PLC */
   const yEnd = top + rows * rh - 12;
@@ -192,6 +220,8 @@ export function sheetDXF(prj: Project, mod: IoModule, xnum: number, page?: numbe
  */
 export interface CircuitSheet {
   title: string; projectName: string; date?: string; logic: string; note: string;
+  /** Číslo projektu, zákazník a datum zahájení (ISO) do popisového pole (prázdné = pole bez pruhu). */
+  number?: string; customer?: string; startDate?: string;
   inputs: Array<{ sf: string; dev: string; label: string; tags: string[]; kind: "nc2" | "ossd" | "twohand" | "single" }>;
   outputs: Array<{ id: string; label: string; tags: string[]; fbk: string[]; kind: "contactors" | "sto" | "valve" | "other" }>;
   reset: string | null;
@@ -203,7 +233,7 @@ export function circuitSheetOps(s: CircuitSheet): SheetOps {
   const rh = 54, top = 92;
   const rowsL = s.inputs.length + (s.reset ? 1 : 0), rowsR = s.outputs.length;
   const rows = Math.max(rowsL, rowsR, 2);
-  const W = 980, H = top + rows * rh + 120;
+  const W = 980, H = top + rows * rh + 120 + (s.number || s.customer || s.startDate ? REF_BAND : 0);
   const O: Op[] = [];
   let cur: string | undefined;
   const ref = (): Ref => cur ? { io: cur } : {};
@@ -216,14 +246,8 @@ export function circuitSheetOps(s: CircuitSheet): SheetOps {
   Re(8, 8, W - 16, H - 16, "f"); Re(26, 26, W - 52, H - 52, "f");
   for (let i = 1; i < 8; i++) { const x = 26 + (W - 52) / 8 * i; Ln(x, 8, x, 26, "f"); Ln(x, H - 26, x, H - 8, "f"); }
   for (let i = 0; i < 8; i++) Tx(26 + (W - 52) / 8 * (i + 0.5), 20, i + 1, { anchor: "middle", k: "m", size: 9 });
-  const tx = W - 26 - 420, ty = H - 26 - 52;
-  Re(tx, ty, 420, 52, "f"); Ln(tx, ty + 26, tx + 420, ty + 26, "f"); Ln(tx + 180, ty, tx + 180, ty + 52, "f"); Ln(tx + 330, ty, tx + 330, ty + 52, "f");
-  Tx(tx + 7, ty + 10, trx("Projekt"), { k: "m", size: 8 }); Tx(tx + 7, ty + 22, (s.projectName || "—").slice(0, 32), { k: "b", size: 9 });
-  Tx(tx + 187, ty + 10, trx("Výkres"), { k: "m", size: 8 }); Tx(tx + 187, ty + 22, s.title.slice(0, 26), { size: 9 });
-  Tx(tx + 337, ty + 10, trx("List"), { k: "m", size: 8 }); Tx(tx + 337, ty + 22, "1 / 1", { size: 9 });
-  Tx(tx + 7, ty + 36, trx("Kreslil"), { k: "m", size: 8 }); Tx(tx + 7, ty + 48, trx("PLCdesk (návrh k revizi)"), { size: 9 });
-  Tx(tx + 187, ty + 36, trx("Datum"), { k: "m", size: 8 }); Tx(tx + 187, ty + 48, s.date || todayCz(), { size: 9 });
-  Tx(tx + 337, ty + 36, trx("Rev"), { k: "m", size: 8 }); Tx(tx + 337, ty + 48, s.rev ?? "0.1", { size: 9 });
+  titleBlock(Re, Ln, Tx, W, H, { project: s.projectName, drawing: s.title.slice(0, 26), sheet: "1 / 1", date: s.date || todayCz(),
+    rev: s.rev ?? "0.1", number: s.number || "", customer: s.customer || "", startDate: s.startDate || "" });
   Tx(40, 52, s.title, { k: "b", size: 12 });
   Tx(40, 68, s.note.slice(0, 130), { k: "m", size: 9 });
   /* logika */
@@ -328,22 +352,22 @@ export function svgBlock(prj: Project, mods: IoModule[]): string {
     s += box(352, yy(i + 2), 276, lbl, trx("{n} kanálů · svorkovnice X{x}", { n: m.ch.length, x: i + 1 }) + (st ? " · " + st.head.dt : ""), false,
       ' data-mod="' + i + '"', lbl + "\n" + m.ch.map((e, c) => "X" + (i + 1) + ":" + (c + 1) + "  " + e.tag + "  " + hwAddrText(prj, e)).join("\n"));
   });
-  L.forEach((d, i) => { s += box(20, yy(i), 250, d.name, d.desc, false, ' data-dev="' + d.id + '" data-side="in"', devTitle(d)); });
-  R.forEach((d, i) => { s += box(710, yy(i), 250, d.name, d.desc, false, ' data-dev="' + d.id + '" data-side="out"', devTitle(d)); });
+  L.forEach((d, i) => { s += box(20, yy(i), 250, d.name, d.desc, false, ' data-dev="' + esc(d.id) + '" data-side="in"', devTitle(d)); });
+  R.forEach((d, i) => { s += box(710, yy(i), 250, d.name, d.desc, false, ' data-dev="' + esc(d.id) + '" data-side="out"', devTitle(d)); });
   AXS.forEach((d, k) => {
     const i = R.length + k, y = yy(i), net = HL.drives.find(x => x.dev === d.name)?.net || "";
     const ref = "-" + devRef(d);
-    s += box(710, y, 250, d.name + "  " + ref, trx("servoosa · {net}", { net }), false, ' data-dev="' + d.id + '" data-side="out"',
+    s += box(710, y, 250, d.name + "  " + ref, trx("servoosa · {net}", { net }), false, ' data-dev="' + esc(d.id) + '" data-side="out"',
       d.name + " — " + (d.desc || trx(CLS[d.cls].label)) + "\n" + trx(CLS[d.cls].label) + "\n" + ref + " " + trx("servoměnič, uzel sítě {net}", { net }));
     /* značka servomotoru (IEC 60617: kruh s M) */
     s += '<circle cx="940" cy="' + (y + bh / 2) + '" r="11" fill="none" stroke="var(--line, #999)"/>' + sT(940, y + bh / 2 + 4, "M", TXT, "middle");
-    s += '<line data-dev="' + d.id + '" x1="628" y1="' + (yy(1) + bh / 2) + '" x2="710" y2="' + (y + bh / 2) + '" stroke="var(--accent, #2457C5)" stroke-width="1" stroke-dasharray="5 3"/>';
+    s += '<line data-dev="' + esc(d.id) + '" x1="628" y1="' + (yy(1) + bh / 2) + '" x2="710" y2="' + (y + bh / 2) + '" stroke="var(--accent, #2457C5)" stroke-width="1" stroke-dasharray="5 3"/>';
   });
   for (const e of prj.io) {
     const mi = mods.findIndex(m => m.ch.includes(e)); if (mi < 0) continue;
     const yMod = yy(mi + 2) + bh / 2;
     const d = devById(prj, e.devId); if (!d) continue;
-    const ref = ' data-io="' + esc(e.key) + '" data-dev="' + d.id + '" data-mod="' + mi + '"';
+    const ref = ' data-io="' + esc(e.key) + '" data-dev="' + esc(d.id) + '" data-mod="' + esc(mi) + '"';
     if (e.dir === "DI" || e.dir === "AI") {
       const li = L.indexOf(d);
       if (li >= 0) s += '<line' + ref + ' x1="270" y1="' + (yy(li) + bh / 2) + '" x2="352" y2="' + yMod + '" stroke="var(--muted, #777)" stroke-width="1"/>';

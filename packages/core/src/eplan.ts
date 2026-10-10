@@ -17,7 +17,7 @@
  * I/O, -A2 DI, -A3 DO, -A4 AI, -A5 AO; víc karet téže řady = -A2.1, -A2.2 …; vzdálená stanice s = hlava
  * -A(10s), karty -A(10s+2) …). Stav ověření: `EPLAN_VERIFIED`.
  */
-import { Project, IoModule, Dir, PLAT, devById, wireNo, dtFor, stripDia, devRef } from "./model.js";
+import { Project, IoModule, Dir, PLAT, devById, wireNo, dtFor, stripDia, devRef, outputSafe } from "./model.js";
 import { hwLayout, hwLineId, hwAddrText, HW_DIRS } from "./hardware.js";
 import { tr, N_, today } from "./i18n.js";
 import { buildBom, bomPlatform, type BomLine } from "./bom.js";
@@ -65,7 +65,8 @@ export interface EplanTerminal {
 }
 
 /** I/O karty s označením (stejné pořadí jako výkresy a seznam svorek dokumentace). */
-export function eplanCards(prj: Project): EplanCard[] {
+export function eplanCards(prj0: Project): EplanCard[] {
+  const prj = outputSafe(prj0);
   const plat = bomPlatform(prj);
   const lines = buildBom(prj).lines;
   const L = hwLayout(prj, plat);
@@ -95,7 +96,8 @@ export function eplanTerminals(prj: Project, cards: EplanCard[] = eplanCards(prj
  * AutomationML AR APC (CAEX 2.15): stanice, rack, CPU s rozhraním PROFINET, karty, kanály
  * a symbolické adresy — generátor a kontrola jsou v eplan_aml.ts (`genEplanAml`, `validateEplan`).
  */
-export function eplanAml(prj: Project, cards: EplanCard[] = eplanCards(prj), opts: EplanAmlOptions = {}): string {
+export function eplanAml(prj0: Project, cards: EplanCard[] = eplanCards(prj0), opts: EplanAmlOptions = {}): string {
+  const prj = outputSafe(prj0);
   return genEplanAml(prj, { ...opts, cards });
 }
 
@@ -337,7 +339,7 @@ export function eplanFiles(prj: Project): Array<{ name: string; body: string }> 
 
 function files(prj: Project): ProjectFile[] {
   if (!prj.io.length) return [];
-  return eplanFiles(prj).map(f => ({ group: "EPLAN", name: f.name, save: f.name.startsWith("eplan_") ? f.name : "eplan_" + f.name, body: f.body, kind: "text" as const }));
+  return eplanFiles(prj).map(f => ({ group: "EPLAN", name: f.name, save: f.name.startsWith("eplan_") ? f.name : "eplan_" + f.name, body: f.body, kind: "text" as const, dir: "eplan" }));
 }
 /** Přihlásí soubory pro EPLAN do sady projektu (skupina „EPLAN“). Vrací odhlášení. */
 export function registerEplanExport(): () => void { return registerDocProvider("eplan", { files }); }

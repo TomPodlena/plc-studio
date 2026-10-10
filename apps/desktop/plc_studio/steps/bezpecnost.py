@@ -883,11 +883,11 @@ def _render_program(app, parent, v: dict, ui: dict, var_note, buttons: list) -> 
     ttk.Combobox(row, textvariable=var_f, values=names, state="readonly",
                  width=max(len(n) for n in names) + 1).pack(side="left", padx=(6, 12))
     ttk.Button(row, text=_("Uložit soubor…"), width=-6,
-               command=lambda: save_file(app, _file_name(app, "safety_" + var_f.get()), files[var_f.get()])
+               command=lambda: save_file(app, _file_name(app, "safety_" + var_f.get()), files[var_f.get()], "kod/safety")
                ).pack(side="left")
     ttk.Button(row, text=_("Uložit vše do složky…"), width=-6,
                command=lambda: save_many(app, [("safety_" + n, b) for n, b in files.items()],
-                                         _("bezpečnostní program"))).pack(side="left", padx=(6, 0))
+                                         _("bezpečnostní program"), "kod/safety")).pack(side="left", padx=(6, 0))
     frm, txt = scrolled_text(parent, mono=True, readonly=True, height=14)
     frm.pack(fill="both", expand=True)
 
@@ -909,9 +909,9 @@ def _render_sheet(app, parent, v: dict) -> None:
     row = ttk.Frame(parent)
     row.pack(side="bottom", fill="x", pady=(8, 0))
     ttk.Button(row, text=_("Uložit SVG…"),
-               command=lambda: save_file(app, "00_bezpecnostni_okruh.svg", sh["svg"])).pack(side="left")
+               command=lambda: save_file(app, "00_bezpecnostni_okruh.svg", sh["svg"], "vykresy")).pack(side="left")
     ttk.Button(row, text=_("Uložit DXF…"),
-               command=lambda: save_file(app, "00_bezpecnostni_okruh.dxf", sh["dxf"])
+               command=lambda: save_file(app, "00_bezpecnostni_okruh.dxf", sh["dxf"], "vykresy")
                ).pack(side="left", padx=(6, 0))
     wrap_label(row, _("Návrh k revizi — platí jen po schválení bezpečnostních funkcí; svorky "
                       "podle návodu zvolené logiky."), side="left", padx=10, expand=True)

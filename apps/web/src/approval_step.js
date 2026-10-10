@@ -2,7 +2,7 @@
    Logika (položky, otisky, stavy, návrhy ladění) je celá v jádře (approval.ts) — tady jen pohled
    a zápis rozhodnutí. Pravidlo: navrhovat vše, platí jen schválené; nic se neschvaluje samo. */
 import {
-  esc, tr, syncIO, approvalItems, approvalStatus, approvalStatusLabel, approve, reject, resetApproval,
+  escHtml as esc, tr, syncIO, approvalItems, approvalStatus, approvalStatusLabel, approve, reject, resetApproval,
   approvalSummary, approvalOrphans, tuningProposals, applyTuningResult, approveMany, approvalsMd, APPROVAL_GROUPS, APPROVAL_FILE,
 } from "../../../packages/core/dist/index.js";
 import { card, downloadFile } from "./util.js";

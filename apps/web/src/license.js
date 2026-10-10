@@ -12,7 +12,7 @@
    - odemčení prvního projektu zdarma: server ho bere jen s Turnstile (POST /api/unlock), web PLCdesk
      formulář zatím nemá → aplikace otevře stránku Kontakt a připraví text žádosti s ID projektu. */
 import {
-  tr, esc, getLang, verifyLicense, readLicense, licenseState, projectGate, applyLicenseToFile, isLicenseKey, normLicenseKey,
+  tr, escHtml as esc, getLang, verifyLicense, readLicense, licenseState, projectGate, applyLicenseToFile, isLicenseKey, normLicenseKey,
   isLicenseFile, licenseSiteUrl, LICENSE_SITE, LICENSE_CHECK_EVERY_MS, FREE_IO_LIMIT, projectIoCount,
 } from "../../../packages/core/dist/index.js";
 
@@ -27,7 +27,21 @@ let getProject = () => null;     // aktuální projekt (app.js)
 let onChange = () => {};         // překreslení aplikace po změně licence
 
 function readStore() {
-  try { const s = JSON.parse(localStorage.getItem(LS_LIC) || "{}"); return s && typeof s === "object" ? s : {}; } catch { return {}; }
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(LS_LIC) || "{}"); } catch { return {}; }
+  if (!s || typeof s !== "object" || Array.isArray(s)) return {};
+  /* poškozené / cizí úložiště: převzít jen pole v očekávaném tvaru (jinak by ověření shodilo start aplikace) */
+  const str = v => typeof v === "string" && v ? v : undefined;
+  const out = {};
+  if (str(s.text)) out.text = s.text;
+  if (str(s.key)) out.key = s.key;
+  if (str(s.checkedAt) && !isNaN(Date.parse(s.checkedAt))) out.checkedAt = s.checkedAt;
+  if (Number.isInteger(s.ioLimit) && s.ioLimit > 0) out.ioLimit = s.ioLimit;
+  const r = s.remote;
+  if (r && typeof r === "object" && !Array.isArray(r) && str(r.status)) {
+    out.remote = { status: r.status, ...(str(r.plan) ? { plan: r.plan } : {}), ...(str(r.valid_until) ? { valid_until: r.valid_until } : {}), ...(str(r.checkedAt) ? { checkedAt: r.checkedAt } : {}) };
+  }
+  return out;
 }
 function writeStore() {
   try { localStorage.setItem(LS_LIC, JSON.stringify(store)); } catch { /* bez úložiště: licence platí do zavření stránky */ }
@@ -53,14 +67,16 @@ export async function initLicense(opts = {}) {
   if (opts.project) getProject = opts.project;
   if (opts.onChange) onChange = opts.onChange;
   store = readStore();
-  check = store.text ? await verifyLicense(store.text) : null;
-  recompute();
+  try { check = store.text ? await verifyLicense(store.text) : null; } catch (e) { console.warn("license:", e); check = null; }
+  try { recompute(); } catch (e) { console.warn("license:", e); check = null; delete store.remote; recompute(); }
   if (opts.background !== false) setTimeout(() => backgroundCheck().catch(() => {}), 1500);
   return state;
 }
 export const licState = () => fresh();
 /** Brána projektu (core projectGate) podle platné licence a odemčených projektů z licence. */
 export function gateFor(prj) { fresh(); return prj ? projectGate(prj, state.ent, state.projects) : null; }
+/** Aktuální projekt (předpona čísla projektu u stahovaných souborů — util.js). */
+export function currentProject() { return getProject(); }
 
 /* ---------------------------------------------------------------- síť */
 

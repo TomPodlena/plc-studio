@@ -17,6 +17,7 @@
  * deklaruje globálně a stav bloků zrcadlí do globálních proměnných (`hmiGlobalVars`, codegen.ts).
  */
 import { Project, Device, PlatformKey } from "./model.js";
+import { type AlarmRow } from "./docs.js";
 export type HmiType = "BOOL" | "INT" | "WORD" | "REAL";
 /** ctrl = řízení stroje, dev = blok zařízení, seq = sekvence, ana = analogy, io = signál I/O, par = parametr. */
 export type HmiGroup = "ctrl" | "dev" | "seq" | "ana" | "io" | "par";
@@ -75,15 +76,9 @@ export interface HmiAlarm {
     ackRequired: boolean;
     trigger: HmiAlarmTrigger;
 }
-export interface AlarmRow {
-    code: string;
-    dev: string;
-    alarm: string;
-    cause: string;
-    reaction: string;
-    ack: string;
-}
-/** Řádky seznamu alarmů z dokumentace (`docAlarmCsv`) — tytéž kódy a texty. */
+export type { AlarmRow };
+/** Řádky seznamu alarmů z dokumentace (`docAlarmRows` = tytéž kódy a texty jako `docAlarmCsv`, buňky
+    jednořádkově) — přímo z dat, ne zpětným čtením CSV (na tvaru popisů nezávisí). */
 export declare function alarmRows(prj: Project): AlarmRow[];
 /**
  * Alarmy HMI: každý kód seznamu alarmů právě jednou. Blok zařízení nerozlišuje příčinu
@@ -163,7 +158,7 @@ export declare const HMI_W = 1024, HMI_H = 600;
 /** Obrazovky HMI (stránkované): Přehled, Ruční režim, Sekvence, Alarmy, Parametry. */
 export declare function hmiScreens(prj: Project, tags?: HmiTag[], alarms?: HmiAlarm[]): HmiScreen[];
 /** Celý model HMI projektu. */
-export declare function buildHmi(prj: Project): HmiModel;
+export declare function buildHmi(prj0: Project): HmiModel;
 /**
  * Symbolická cesta tagu HMI v programu cílové platformy:
  * Siemens `"InstMachine".instM1.status` / `"M1_outRun"`, CODESYS rodina `MAIN.x` / `GVL_IO.x`,

@@ -218,7 +218,9 @@ test("licence: firemní knihovna v generátoru jen ve Firmě, jinak vestavěné 
   }, false);
   const firma = projectGate(p, entitlements("firma")), pro = projectGate(p, entitlements("pro"));
   /* Firma = přesně výstup jádra */
-  assert.deepEqual(licensedGen(p, "codesys", firma), genFor(p, "codesys"));
+  /* PLCopen XML nese čas generování (creationDateTime) — dvě generování se můžou minout o sekundu */
+  const noTime = (f: Record<string, string>) => JSON.parse(JSON.stringify(f).replace(/(creation|modification)DateTime=\\"[^\\"]*\\"/g, '$1DateTime=\\"*\\"'));
+  assert.deepEqual(noTime(licensedGen(p, "codesys", firma)), noTime(genFor(p, "codesys")));
   /* Pro: vestavěné šablony, bez firemní hlavičky, README to řekne */
   const g = licensedGen(p, "codesys", pro);
   assert.doesNotMatch(g["Gen_Library.st"], /ACME firemni/);

@@ -3,7 +3,7 @@
    eplan.ts); stav obou je „neověřeno importem“ a UI ho ukazuje u každého souboru. Stejné soubory
    jsou i v kroku Dokumentace (skupiny SISTEMA a EPLAN). Desktop: steps/exporty.py (operace exports). */
 import {
-  esc, tr, N_, syncIO, sistemaExport, sistemaFileName, SISTEMA_FILE, eplanFiles, eplanAmlName, eplanConverterId, validateEplan,
+  escHtml as esc, tr, N_, syncIO, sistemaExport, sistemaFileName, SISTEMA_FILE, eplanFiles, eplanAmlName, eplanConverterId, validateEplan,
   EPLAN_SCRIPT_NAME, EPLAN_VERIFIED,
 } from "../../../packages/core/dist/index.js";
 import { card, downloadFile, downloadFiles } from "./util.js";

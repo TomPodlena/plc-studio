@@ -125,18 +125,31 @@ export function recordsText(recs) {
 }
 /** Zpět z textu (řádky / středníky „číslo = název @ poloha“; poloha nepovinná). Neplatné části přeskočí. */
 export function parseRecords(s) {
-    const out = [];
+    return parseRecordsChecked(s).records;
+}
+/**
+ * Jako `parseRecords`, navíc co se zahodilo: nesrozumitelné části (`bad`) a duplicitní čísla záznamů
+ * (`dup`, platí první) — formuláře je ohlásí místo tichého zahození (test odolnosti 2026-10-08).
+ */
+export function parseRecordsChecked(s) {
+    const out = [], bad = [], dup = [];
     for (const part of String(s || "").split(/[;\n]+/)) {
-        const m = part.match(/^\s*(\d+)\s*[=:.\-]?\s*([^@]*?)\s*(?:@\s*(-?\d+(?:[.,]\d+)?))?\s*$/);
-        if (!m)
+        if (!part.trim())
             continue;
-        const r = { no: +m[1], name: m[2].trim() };
+        const m = part.match(/^\s*(\d+)\s*[=:.\-]?\s*([^@]*?)\s*(?:@\s*(-?\d+(?:[.,]\d+)?))?\s*$/);
+        if (!m) {
+            bad.push(oneLine(part));
+            continue;
+        }
+        const r = { no: +m[1], name: lineSafe(m[2]).trim() };
         if (m[3] !== undefined)
             r.pos = +m[3].replace(",", ".");
         if (!out.some(x => x.no === r.no))
             out.push(r);
+        else
+            dup.push(r.no);
     }
-    return out.sort((a, b) => a.no - b.no);
+    return { records: out.sort((a, b) => a.no - b.no), bad, dup };
 }
 /** Počet bitů výběru záznamu PosDrive (1–6, výchozí 3). */
 export function selBitsOf(d) {
@@ -205,11 +218,110 @@ export function isDiWait(s) { return s.act === "waitOn" || s.act === "waitOff"; 
 export function stripDia(s) {
     return s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss").replace(/[¿¡]/g, "");
 }
+/* ------------------------------------------------------------------ čištění textů (test odolnosti 2026-10-08)
+   Jednořádková pole projektu (název, číslo, zákazník, označení, popis zařízení, jednotka, tag, komentář I/O,
+   adresa, názvy záznamů a poloh) se dostávají do komentářů kódu, buněk CSV / TSV, XML a DXF — nový řádek
+   nebo řídicí znak je tam rozbije. Vstup se čistí při úpravě a načtení (`oneLine`, project_norm.ts), výstupy
+   navíc samy (`lineSafe`, `xmlSafe`, `outputSafe`) — pro čistý text jsou identitou (golden beze změny). */
+/** Řídicí znaky (C0, DEL, C1) a oddělovače řádků Unicode — v jednořádkovém textu nemají co dělat. */
+const LINE_BREAKERS = /[\x00-\x1F\x7F-\x9F\u2028\u2029]+/g;
+/** Znaky, které XML 1.0 nepovoluje (řídicí kromě \t \n \r, U+FFFE / U+FFFF, osamocené surogáty). */
+const XML_INVALID = /[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+/** Výstup: každý úsek řídicích znaků (i \t, \r, \n) → jedna mezera; jinak text beze změny. */
+export function lineSafe(s) {
+    return String(s ?? "").replace(LINE_BREAKERS, " ");
+}
+/** Víceřádkový text (popis projektu): konce řádků sjednotí na \n, ostatní řídicí znaky → mezera. */
+export function multiLineSafe(s) {
+    return String(s ?? "").replace(/\r\n?/g, "\n").replace(/[\x00-\x09\x0B-\x1F\x7F-\x9F\u2028\u2029]+/g, " ");
+}
+/** Vstup jednořádkového pole: řídicí znaky → mezera, sloučené mezery, bez okrajových mezer. */
+export function oneLine(s) {
+    return lineSafe(s).replace(/ {2,}/g, " ").trim();
+}
+/** Text bez znaků, které XML 1.0 nepovoluje (nahradí mezerou). */
+export function xmlSafe(s) {
+    return String(s ?? "").replace(XML_INVALID, " ");
+}
+/** Obsahuje text znaky, které jednořádkové pole nesmí mít? */
+export function hasLineBreakers(s) {
+    return typeof s === "string" && /[\x00-\x1F\x7F-\x9F\u2028\u2029]/.test(s);
+}
+/** Jednořádková textová pole projektu (cesta pro hlášení, čtení, zápis) — `outputSafe`, validace. */
+function singleLineFields(prj) {
+    const out = [];
+    const m = prj.meta || {};
+    for (const k of ["name", "number", "customer"])
+        out.push({ where: N_("projekt"), get: () => m[k], set: v => { m[k] = v; } });
+    for (const d of prj.devices || []) {
+        for (const k of ["name", "desc", "unit"])
+            out.push({ where: d.name, get: () => d[k], set: v => { d[k] = v; } });
+        for (const r of Array.isArray(d.records) ? d.records : [])
+            if (r)
+                out.push({ where: d.name, get: () => r.name, set: v => { r.name = v; } });
+        const a = d.axis;
+        if (a && typeof a === "object") {
+            out.push({ where: d.name, get: () => a.drive, set: v => { a.drive = v; } });
+            for (const p of Array.isArray(a.positions) ? a.positions : [])
+                if (p)
+                    out.push({ where: d.name, get: () => p.name, set: v => { p.name = v; } });
+        }
+    }
+    for (const e of prj.io || [])
+        for (const k of ["tag", "cmt", "addr"])
+            out.push({ where: e.tag, get: () => e[k], set: v => { e[k] = v; } });
+    for (const s of prj.program?.seq || [])
+        if (s)
+            out.push({ where: N_("sekvence"), get: () => s.posRef, set: v => { s.posRef = v; } });
+    const hdr = prj.library?.header;
+    if (Array.isArray(hdr))
+        hdr.forEach((_, i) => out.push({ where: N_("firemní knihovna"), get: () => hdr[i], set: v => { hdr[i] = v; } }));
+    return out;
+}
+/**
+ * Projekt pro výstupy (kód, dokumentace, výkresy, exporty): jednořádková pole bez řídicích znaků
+ * (`lineSafe`), popis projektu jen s \n. Čistý projekt vrací BEZE ZMĚNY (týž objekt) — kopie vzniká,
+ * jen když je co čistit (projekt ze starší verze / ručně upravený soubor, který obešel `oneLine`).
+ */
+export function outputSafe(prj) {
+    if (!prj || typeof prj !== "object")
+        return prj;
+    const dirty = singleLineFields(prj).some(f => hasLineBreakers(f.get()))
+        || (typeof prj.meta?.desc === "string" && multiLineSafe(prj.meta.desc) !== prj.meta.desc);
+    if (!dirty)
+        return prj;
+    const c = JSON.parse(JSON.stringify(prj));
+    for (const f of singleLineFields(c)) {
+        const v = f.get();
+        if (hasLineBreakers(v))
+            f.set(lineSafe(v));
+    }
+    if (typeof c.meta?.desc === "string")
+        c.meta.desc = multiLineSafe(c.meta.desc);
+    return c;
+}
+/** Validace: jednořádková pole s řídicími znaky / konci řádků (výstupy je nahradí mezerou). */
+function lineBreakIssues(prj) {
+    const seen = new Set(), out = [];
+    for (const f of singleLineFields(prj)) {
+        if (!hasLineBreakers(f.get()) || seen.has(f.where))
+            continue;
+        seen.add(f.where);
+        out.push({ level: "warn", where: lineSafe(f.where === "projekt" || f.where === "sekvence" || f.where === "firemní knihovna" ? tr(f.where) : f.where) || "—", msg: tr("Text obsahuje konec řádku, tabulátor nebo řídicí znak — v kódu, tabulkách a výkresech se nahradí mezerou. Uprav text (jednořádkové pole).") });
+    }
+    return out;
+}
+/** Text a atributy v UVOZOVKÁCH (SVG, XML exporty jádra) — výstupy pro import do IDE se nesmí měnit (golden).
+    Znaky, které XML nepovoluje (řídicí znaky z poškozeného vstupu), nahradí mezerou. */
 export function esc(s) {
-    return String(s ?? "")
+    return xmlSafe(s)
         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 export const xmlEsc = esc;
+/** HTML klientů: escapuje i apostrof — web vkládá hodnoty i do atributů v apostrofech (value='…'); test odolnosti 2026-10-08. */
+export function escHtml(s) {
+    return esc(s).replace(/'/g, "&#39;");
+}
 export function blankProject() {
     return {
         meta: { name: "", desc: "" },
@@ -365,7 +477,7 @@ export function syncIO(prj) {
                 key, devId: d.id, sig, dir,
                 tag: d.name + "_" + sig,
                 addr: "",
-                cmt: [d.desc, lbl].filter(Boolean).join(" – "), // DI/DO bez popisku signálu: bez visící pomlčky
+                cmt: lineSafe([d.desc, lbl].filter(Boolean).join(" – ")), // DI/DO bez popisku signálu: bez visící pomlčky; komentář je jednořádkový
                 nc: dir === "DI" && /\bNC\b/i.test(d.desc || ""),
                 guid: ioGuidFor(d.guid, sig),
             });
@@ -457,6 +569,20 @@ export function sanitizeTag(tag) {
         t = "T_" + t;
     return t.slice(0, 32) || "TAG";
 }
+/**
+ * Kanonický tvar adresy v Siemens notaci: bez úvodních nul (%Q00.1 → %Q0.1, %IW064 → %IW64), velká písmena.
+ * Jiný zápis vrací beze změny (validace ho ohlásí).
+ */
+export function canonIoAddr(a) {
+    const m = /^%([IQ])(W?)0*(\d+)(?:\.([0-7]))?$/i.exec(String(a ?? "").trim());
+    if (!m || (!m[2] && m[4] === undefined) || (m[2] && m[4] !== undefined))
+        return a;
+    return "%" + m[1].toUpperCase() + m[2].toUpperCase() + String(Number(m[3])) + (m[4] !== undefined ? "." + m[4] : "");
+}
+/** Nejkratší nenulový čas kroku [s] — jeden scan simulace / emulace (10 ms); kód zapisuje čas v ms. */
+export const MIN_STEP_S = 0.01;
+/** Největší konečná hodnota REAL (IEEE 754 single, IEC 61131-3) — větší literál překladač odmítne. */
+export const REAL_MAX = 3.4028234663852886e38;
 const RESERVED = new Set([
     "IF", "THEN", "ELSE", "CASE", "OF", "FOR", "WHILE", "DO", "NOT", "AND", "OR", "XOR",
     "TRUE", "FALSE", "VAR", "END_VAR", "BOOL", "INT", "REAL", "WORD", "TIME", "RETURN",
@@ -485,6 +611,12 @@ export function validateProject(prj) {
             out.push({ level: "error", where: d.name, msg: tr("Počet bitů výběru záznamu musí být 1 až 6.") });
         if ((d.cls === "Vfd" || d.cls === "PropValve") && d.rampS !== undefined && !(Number(d.rampS) >= 0))
             out.push({ level: "error", where: d.name, msg: tr("Rampa musí být 0 (bez rampy) nebo kladný čas v sekundách.") });
+        /* rampa se simuluje po taktech 0,1 s do dojetí — obří hodnota by ověření zamrazila (test odolnosti) */
+        else if ((d.cls === "Vfd" || d.cls === "PropValve") && Number(d.rampS) > 3600)
+            out.push({ level: "error", where: d.name, msg: tr("Rampa {dev} je delší než hodina — zadej nejvýš 3600 s.", { dev: d.name }) });
+        /* doba jízdy = model stroje simulace (sim.ts simBlockers): nad hodinu by ověření běželo hodiny */
+        if (d.cls === "PosDrive" && d.travelS !== undefined && !(Number(d.travelS) > 0 && Number(d.travelS) <= 3600))
+            out.push({ level: "error", where: d.name, msg: tr("Doba jízdy {dev} (model simulace) musí být kladná a nejvýš 3600 s.", { dev: d.name }) });
         if (d.cls === "PropValve" && d.opt?.fbk !== false && d.tol !== undefined && !(Number(d.tol) > 0))
             out.push({ level: "error", where: d.name, msg: tr("Povolená odchylka proporcionálního ventilu musí být kladná.") });
         /* odchylka pod rozlišením analogu: AO i AI se kvantují (každá platforma jinak) a rozhodnutí „v toleranci“
@@ -502,6 +634,43 @@ export function validateProject(prj) {
         if (d.cls === "AnalogOut" && Number.isFinite(d.setpoint) && Number.isFinite(d.rmin) && Number.isFinite(d.rmax) && d.rmin < d.rmax
             && (d.setpoint < d.rmin || d.setpoint > d.rmax))
             out.push({ level: "warn", where: d.name, msg: tr("Žádaná hodnota leží mimo rozsah výstupu.") });
+    }
+    /* čísla, která jdou do kódu jako literál REAL (rozsah, meze, žádané, tolerance, parametry kroků a osy):
+       |x| > 3,4E38 REAL nepojme (literál 1.0E+39 překladač odmítne, kód by běžel s ∞) a rozsah, jehož
+       meze REAL nerozliší, dělí nulou při škálování (test odolnosti 2026-10-08). Inženýrskou mez navíc
+       nezavádíme — jednotky se liší (Pa × MPa); přesnost tam, kde na ní závisí rozhodnutí, hlídá
+       kontrola odchylky proporcionálního ventilu (4 kroky modulu). */
+    {
+        const big = (v) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) > REAL_MAX;
+        const realIssue = (where, par) => out.push({ level: "error", where, msg: tr("Hodnota {par} je mimo rozsah REAL (±3,4E38) — PLC ji neuloží; zkontroluj jednotky.", { par }) });
+        for (const d of prj.devices) {
+            for (const k of ["rmin", "rmax", "limHi", "limLo", "setpoint", "tol"])
+                if (big(d[k]))
+                    realIssue(d.name, k);
+            for (const r of Array.isArray(d.records) ? d.records : [])
+                if (r && (big(r.pos) || big(r.vel)))
+                    realIssue(d.name, "records");
+            const a = d.axis && typeof d.axis === "object" ? d.axis : {};
+            for (const [k, v] of Object.entries(a))
+                if (big(v))
+                    realIssue(d.name, "axis." + k);
+            for (const p of Array.isArray(a.positions) ? a.positions : [])
+                if (p && big(p.pos))
+                    realIssue(d.name, "axis.positions");
+            if (hasRange(d.cls) && Number.isFinite(d.rmin) && Number.isFinite(d.rmax) && d.rmin < d.rmax && !big(d.rmin) && !big(d.rmax)
+                && Math.fround(d.rmin) === Math.fround(d.rmax))
+                out.push({ level: "error", where: d.name, msg: tr("Rozsah {min}–{max} je v REAL nulový (meze se liší až za 7. platnou číslicí) — škálování analogu by dělilo nulou.", { min: d.rmin, max: d.rmax }) });
+        }
+        prj.program.seq.forEach((s, i) => {
+            for (const k of ["sp", "pos", "vel", "acc", "dec"])
+                if (big(s[k]))
+                    realIssue(tr("krok {n}", { n: i + 1 }), k);
+        });
+    }
+    for (const k of ["motorDelay", "valveTravel"]) {
+        const v = prj.sim?.[k];
+        if (v !== undefined && v !== null && !(Number(v) > 0 && Number(v) <= 3600))
+            out.push({ level: "error", where: tr("model stroje"), msg: tr("Čas modelu stroje {par} musí být kladný a nejvýš 3600 s.", { par: k }) });
     }
     /* referenční označení odvozená z čísla v označení (kusovník, výkresy, EPLAN): motor -Q<n> / -K<n>,
        měnič -Q<n> a -TA<n>, polohovací pohon a servoosa -TA<n> — M1 a P1 by dostaly totéž */
@@ -535,8 +704,14 @@ export function validateProject(prj) {
             out.push({ level: "error", where, msg: tr("Čas kroku musí být nula nebo kladné číslo sekund.") });
         else if (t > 86400)
             out.push({ level: "error", where, msg: tr("Čas kroku {t} s je delší než 24 h — rozděl krok nebo zkontroluj jednotky.", { t }) });
+        /* kód píše čas v ms (timeLit: 0,0004 s → T#0S = krok bez hlídacího času) a nic kratšího než scan
+           nemá smysl: simulace i emulace běží po 10 ms, PLC cyklus bývá 1–10 ms (test odolnosti 2026-10-08) */
+        else if (t > 0 && t < MIN_STEP_S)
+            out.push({ level: "error", where, msg: tr("Čas kroku {t} s je kratší než 0,01 s (jeden scan) — zadej 0 (bez čekání) nebo aspoň 0,01 s.", { t }) });
         else if (t > 3600)
             out.push({ level: "warn", where, msg: tr("Čas kroku {t} s je delší než hodina — ověření simulací bude trvat déle.", { t }) });
+        if (Number.isFinite(t) && t >= MIN_STEP_S && t <= 86400 && Math.abs(t * 1000 - Math.round(t * 1000)) > 1e-6)
+            out.push({ level: "warn", where, msg: tr("Čas kroku {t} s není celý počet milisekund — kód ho zaokrouhlí na {ms} ms.", { t, ms: Math.round(t * 1000) }) });
     }
     /* kroky pohonů a proporcionálních prvků: akce musí patřit třídě, záznam a žádaná hodnota v rozsahu */
     for (const [i, s] of prj.program.seq.entries()) {
@@ -572,10 +747,23 @@ export function validateProject(prj) {
     const ADDR_RE = { DI: /^%I\d+\.[0-7]$/, DO: /^%Q\d+\.[0-7]$/, AI: /^%IW\d+$/, AO: /^%QW\d+$/ };
     const tags = new Map();
     const addrs = new Map();
+    /* adresní prostor (test odolnosti 2026-10-08): kanonická adresa je bajtová (Siemens notace) — nad 65 535
+       ji žádná platforma nemá (převody na %IX / X-Y / index slova by daly nesmysl) = chyba; Siemens má obraz
+       procesu S7-1200 1 024 B (I0.0–I1023.7), S7-1500 32 KB — nad tím varování (adresa mimo sestavu se respektuje) */
+    let sieMax;
+    const siemensMax = () => sieMax ??= hwLayout(prj, "siemens").stations[0]?.family === "S71500" ? 32767 : 1023;
     for (const e of prj.io) {
         tags.set(e.tag.toUpperCase(), (tags.get(e.tag.toUpperCase()) || 0) + 1); // CODESYS / Sysmac nerozlišují velikost
         if (e.addr)
-            addrs.set(e.addr, (addrs.get(e.addr) || 0) + 1);
+            addrs.set(canonIoAddr(e.addr), (addrs.get(canonIoAddr(e.addr)) || 0) + 1);
+        const am = /^%[IQ](W?)(\d+)/.exec(canonIoAddr(e.addr || ""));
+        if (am) {
+            const last = Number(am[2]) + (am[1] ? 1 : 0);
+            if (last > 65535)
+                out.push({ level: "error", where: e.tag, msg: tr("Adresa {addr} leží mimo adresní prostor řídicích systémů (bajt nejvýš 65 535).", { addr: e.addr }) });
+            else if ((prj.platforms || []).includes("siemens") && last > siemensMax())
+                out.push({ level: "warn", where: e.tag, msg: tr("Adresa {addr} leží mimo obraz procesu CPU Siemens v sestavě (bajt nejvýš {max}).", { addr: e.addr, max: siemensMax() }) });
+        }
         if (e.addr && ADDR_RE[e.dir] && !ADDR_RE[e.dir].test(e.addr)) {
             out.push({ level: "warn", where: e.tag, msg: tr("Adresa {addr} neodpovídá směru {dir} v Siemens notaci (např. %I0.0, %Q0.0, %IW64, %QW64) — pro ostatní platformy se nepřevede.", { addr: e.addr, dir: e.dir }) });
         }
@@ -608,8 +796,15 @@ export function validateProject(prj) {
             out.push({ level: "error", where: a, msg: tr("Duplicitní adresa.") });
     /* sestava hardwaru: projekt se do platformy nevejde, cizí adresy, nepasující volby modulů */
     out.push(...hwIssues(prj));
+    out.push(...lineBreakIssues(prj));
+    /* číslo projektu RRNNNN (project_meta.ts): jiný tvar jen upozorní — použije se, jak je zapsané */
+    const num = String(prj.meta?.number ?? "").trim();
+    if (num && !PROJECT_NUMBER_RE.test(num))
+        out.push({ level: "warn", where: num, msg: tr("Číslo projektu nemá tvar RRNNNN (6 číslic: rok a pořadí, např. 260705) — použije se tak, jak je zapsané.") });
     return out;
 }
+/** Číslo projektu „RRNNNN“: 6 číslic (rok a pořadí v roce; jiné řady zadává uživatel ručně). */
+export const PROJECT_NUMBER_RE = /^\d{6}$/;
 /**
  * Validace servoos (fáze 2b): podpora platforem projektu, konfigurace osy a kroky s pohybem.
  * Nepodporovaná platforma = chyba (kód se pro ni negeneruje, README vysvětlí proč).

@@ -8,11 +8,12 @@
    obnovení stránky se průvodce vrátí tam, kde byl. Přesná data a texty (formáty, „chybí")
    se počítají vždy znovu, takže se po změně jazyka přeloží. */
 import {
-  PLAT, CLS, DO_ROLES, esc, tr, N_, getLang, extractFiles, inferProject, mergeProposals, validateProject,
+  PLAT, CLS, DO_ROLES, escHtml as esc, tr, N_, getLang, extractFiles, inferProject, mergeProposals, validateProject,
 } from "../../../packages/core/dist/index.js";
 import { aiSettings, saveAiSettings, AI_DEFAULT_MODEL, seedFromProject } from "./ai.js";
 import { estimateImport, aiImport, importNorm, fileKind, modelInfo, IMPORT_MODELS, IMPORT_PRICES_DATE, IMPORT_PRICES_SRC } from "./import_ai.js";
 import { normProject } from "./util.js";
+import { idbStore } from "./idb.js";
 
 const LS_KEY = "plcstudio.import";
 const DB_NAME = "plcstudio-import";
@@ -57,31 +58,12 @@ async function readFile(file) {
   return text === null ? { ...base, data: toB64(buf) } : { ...base, mime: mime || "text/plain", text };
 }
 
-/* IndexedDB: obsah souborů (localStorage má malý limit a PDF / fotky by se nevešly). */
-function idb() {
-  return new Promise((res, rej) => {
-    const r = indexedDB.open(DB_NAME, 1);
-    r.onupgradeneeded = () => r.result.createObjectStore("files", { keyPath: "id" });
-    r.onsuccess = () => res(r.result);
-    r.onerror = () => rej(r.error);
-  });
-}
-async function idbDo(mode, fn) {
-  const db = await idb();
-  try {
-    return await new Promise((res, rej) => {
-      const tx = db.transaction("files", mode);
-      const out = fn(tx.objectStore("files"));
-      tx.oncomplete = () => res(out && "result" in out ? out.result : undefined);
-      tx.onerror = () => rej(tx.error);
-      tx.onabort = () => rej(tx.error);
-    });
-  } finally { db.close(); }
-}
-const idbPut = f => idbDo("readwrite", s => s.put(f));
-const idbDel = id => idbDo("readwrite", s => s.delete(id));
-const idbClear = () => idbDo("readwrite", s => s.clear());
-const idbAll = () => idbDo("readonly", s => s.getAll());
+/* IndexedDB: obsah souborů (localStorage má malý limit a PDF / fotky by se nevešly) — pomocník idb.js. */
+const filesDb = idbStore(DB_NAME, "files", "id");
+const idbPut = f => filesDb.put(f);
+const idbDel = id => filesDb.del(id);
+const idbClear = () => filesDb.clear();
+const idbAll = () => filesDb.all();
 
 const fmtSize = n => n < 1024 ? n + " B" : n < 1048576 ? Math.round(n / 1024) + " kB" : (n / 1048576).toFixed(1) + " MB";
 const NUM_LOCALE = { cs: "cs-CZ", en: "en-US", de: "de-DE", es: "es-ES", zh: "zh-CN" };
@@ -110,14 +92,23 @@ export function makeImportWizard(ctx) {
     if (!o || typeof o !== "object") return;
     W.open = !!o.open; W.step = Number.isInteger(o.step) && o.step >= 0 && o.step < WSTEPS.length ? o.step : 0;
     W.skip = Array.isArray(o.skip) ? o.skip.map(String) : [];
-    W.ai = o.ai && typeof o.ai === "object" && o.ai.raw ? o.ai : null;
+    /* výsledek AI z úložiště jen v očekávaném tvaru (poškozené / cizí úložiště nesmí shodit průvodce) */
+    const ai = o.ai, fin = v => Number.isFinite(v) && v >= 0 ? v : 0;
+    W.ai = ai && typeof ai === "object" && ai.raw ? {
+      raw: ai.raw, model: typeof ai.model === "string" ? ai.model : "",
+      usage: { input_tokens: fin(ai.usage && ai.usage.input_tokens), output_tokens: fin(ai.usage && ai.usage.output_tokens) },
+      parts: Number.isInteger(ai.parts) && ai.parts > 0 ? ai.parts : 1, at: fin(ai.at), ...(ai.partial === true ? { partial: true } : {}),
+    } : null;
     W.model = typeof o.model === "string" ? o.model : "";
     W.code = o.code !== false; W.paste = String(o.paste || "");
     const meta = Array.isArray(o.files) ? o.files.filter(f => f && f.id) : [];
     if (!meta.length) { if (W.step > 0) W.step = 0; return; }
     W.loading = true;
     idbAll().then(all => {
-      const byId = new Map((all || []).map(f => [f.id, f]));
+      /* jen platné záznamy souborů (název, velikost, obsah text / base64) — poškozená IndexedDB = soubor „ztracen“ */
+      const okRec = f => f && typeof f === "object" && typeof f.id === "string" && typeof f.name === "string"
+        && (typeof f.text === "string" || typeof f.data === "string");
+      const byId = new Map((Array.isArray(all) ? all : []).filter(okRec).map(f => [f.id, { ...f, size: Number.isFinite(f.size) ? f.size : 0, mime: typeof f.mime === "string" ? f.mime : "" }]));
       W.files = meta.map(m => byId.get(m.id)).filter(Boolean);
       W.lost = W.files.length < meta.length;
     }).catch(() => { W.files = []; W.lost = true; }).finally(() => {
@@ -276,7 +267,7 @@ export function makeImportWizard(ctx) {
     const p = p0.prj;
     const rows = ex.files.map(r => `<tr><td class="mono" style="white-space:normal;word-break:break-all">${esc(r.name)}</td><td style="font-size:.8rem">${esc(r.fmt)}</td>
       <td>${r.ok ? "<span class='conf sure'>" + tr("přesně") + "</span>" : "<span class='conf guess'>" + tr("→ AI") + "</span>"}</td>
-      <td class="mono">${r.signals}</td><td class="mono">${r.pous}</td><td style="font-size:.78rem;color:var(--muted)">${esc(r.note || "")}</td></tr>`).join("");
+      <td class="mono">${esc(r.signals)}</td><td class="mono">${esc(r.pous)}</td><td style="font-size:.78rem;color:var(--muted)">${esc(r.note || "")}</td></tr>`).join("");
     const unp = ex.unparsed.map(f => f.name);
     body.innerHTML = `
       <div class="tablewrap"><table><thead><tr><th>${tr("Soubor")}</th><th>${tr("Formát")}</th><th>${tr("Zpracování")}</th><th>${tr("Signálů")}</th><th>${tr("Programů")}</th><th>${tr("Poznámka")}</th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -405,7 +396,7 @@ export function makeImportWizard(ctx) {
 
   /* 4 Revize */
   const CONF_TXT = { sure: N_("jistě"), guess: N_("odhad"), missing: N_("chybí") };
-  const confChip = ev => ev ? "<span class='conf " + ev.conf + "'" + (ev.note ? " title='" + esc(ev.note) + "'" : "") + ">" + tr(CONF_TXT[ev.conf] || CONF_TXT.missing) + "</span>" : "<span class='hint' style='margin:0'>—</span>";
+  const confChip = ev => ev ? "<span class='conf " + esc(ev.conf) + "'" + (ev.note ? " title='" + esc(ev.note) + "'" : "") + ">" + tr(CONF_TXT[ev.conf] || CONF_TXT.missing) + "</span>" : "<span class='hint' style='margin:0'>—</span>";
   const refTxt = s => s.file + (s.page ? " · " + tr("str. {n}", { n: s.page }) : "") + (s.line ? " · " + tr("ř. {n}", { n: s.line }) : "");
   let srcList = [];
   const srcCell = refs => (refs || []).slice(0, 3).map(s => { srcList.push(s); return "<button class='srcref' data-src='" + (srcList.length - 1) + "' title='" + esc(s.quote ? "„" + s.quote + "“" : refTxt(s)) + "'>" + esc(refTxt(s)) + "</button>"; }).join(" ");
@@ -434,7 +425,7 @@ export function makeImportWizard(ctx) {
     }).join("");
     const ioRows = p.io.map(io => {
       const d = p.devices.find(x => x.id === io.devId), e = evd["io:" + io.tag];
-      return `<tr class="${d && skip.has(d.name) ? "off" : ""}"><td class="mono">${esc(io.tag)}</td><td class="mono">${esc(io.addr)}</td><td class="mono dir${io.dir}">${io.dir}</td><td class="mono">${esc(d ? d.name : "?")}</td>
+      return `<tr class="${d && skip.has(d.name) ? "off" : ""}"><td class="mono">${esc(io.tag)}</td><td class="mono">${esc(io.addr)}</td><td class="mono dir${esc(io.dir)}">${esc(io.dir)}</td><td class="mono">${esc(d ? d.name : "?")}</td>
         <td style="font-size:.76rem;color:var(--muted)">${esc(io.cmt)}</td><td>${confChip(e)}</td><td>${srcCell(e && e.src)}</td></tr>`;
     }).join("");
     const acts = { start: tr("start"), stop: tr("stop"), open: tr("otevřít"), close: tr("zavřít") };
@@ -470,7 +461,7 @@ export function makeImportWizard(ctx) {
       <ul class="plain">
         <li>E-stop: ${estop ? "<b class='mono'>" + esc(estop) + "</b> " + confChip(evd.estop) + " " + srcCell(evd.estop && evd.estop.src) : "<span class='conf missing'>" + tr("chybí") + "</span>"}</li>
         <li>${tr("Blokování:")} ${locks.length ? locks.map(n => "<b class='mono'>" + esc(n) + "</b> " + confChip(evd["lock:" + n]) + " " + srcCell(evd["lock:" + n] && evd["lock:" + n].src)).join(" · ") : "—"}</li>
-        ${p.meta.takt ? "<li>" + tr("Takt: {t} s", { t: p.meta.takt }) + " " + confChip(evd.meta) + "</li>" : ""}
+        ${p.meta.takt ? "<li>" + tr("Takt: {t} s", { t: esc(p.meta.takt) }) + " " + confChip(evd.meta) + "</li>" : ""}
       </ul>
       <p class="hint">${tr("E-stop a blokování jsou v programu jen signály — bezpečnostní funkce řeší safety technika podle posouzení rizik. Návrh k revizi.")}</p>
       <h3>${tr("Sekvence")}</h3>

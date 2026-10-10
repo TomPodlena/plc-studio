@@ -6,6 +6,7 @@ import { compile } from "./compile.js";
 import { runPlatforms } from "./run.js";
 import { bindEmuApi } from "./doc.js";
 import { axisBlocked, axisUnsupportedWhy } from "../axis_gen.js";
+import { simBlockers } from "../sim.js";
 export { DIALECTS as EMU_DIALECTS, RULES as EMU_RULES, SRC as EMU_SRC } from "./dialects.js";
 export { emuScenarios } from "./run.js";
 /** Rozsah surové hodnoty analogu, se kterým počítá kód platformy (rawMax ve volání bloku; Siemens 27648). */
@@ -87,6 +88,14 @@ export function emulateRun(prj, platform, opts = {}) {
 export function emulateRunMany(prj, platforms, opts = {}) {
     const out = {};
     const todo = [];
+    /* zadání, které by simulaci nafouklo na hodiny (chyba návrhu) — běh neemulovat, říct proč (sim.ts simBlockers) */
+    const blockers = simBlockers(prj);
+    if (blockers.length) {
+        const skipped = tr("Běh se neemuluje — oprav chyby návrhu: {list}", { list: blockers.join("; ") });
+        for (const plat of platforms)
+            out[plat] = { platform: plat, scenarios: [], diffs: [], ok: false, skipped, ms: 0, scans: 0 };
+        return out;
+    }
     for (const plat of platforms) {
         const c = compileEntry(prj, plat);
         const key = JSON.stringify([prj, plat, c.fp, opts.scope || "full", opts.dt || 0]);
@@ -115,6 +124,8 @@ export function emulateRunFiles(prj, platform, files, opts = {}) {
     const r = emulateFiles(prj, platform, files);
     if (!r.prog)
         return { platform, scenarios: [], diffs: [], ok: false, skipped: tr("Kód se nepřeložil — běh nelze emulovat (viz nálezy překladu)."), ms: 0, scans: 0 };
+    if (simBlockers(prj).length)
+        return emulateRunMany(prj, [platform], opts)[platform]; // neemulovat (chyby návrhu)
     return runPlatforms(prj, [{ plat: platform, prog: r.prog, rawMax: detectRawMax(files) }], opts)[platform];
 }
 /** Překlad i běh všech platforem projektu (výchozí: všech 8). */

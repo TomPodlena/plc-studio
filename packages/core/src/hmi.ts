@@ -16,12 +16,12 @@
  * → v HMI jen ke čtení. U Mitsubishi a Omron (HMI čte jen globální) generátor řízení stroje
  * deklaruje globálně a stav bloků zrcadlí do globálních proměnných (`hmiGlobalVars`, codegen.ts).
  */
-import { Project, Device, PlatformKey, ioOf, instName, stripDia, interlockDevs, isCodesysFamily, codeStyleFor } from "./model.js";
+import { Project, Device, PlatformKey, ioOf, instName, stripDia, interlockDevs, isCodesysFamily, codeStyleFor, lineSafe, outputSafe } from "./model.js";
 import { tr, N_ } from "./i18n.js";
 import { ctrlDecls, actuators, manVarOf, parseFbTemplate, hmiGlobalPlat, motionHmiPorts, ST_MOTOR, ST_VENTIL, ST_AI, ST_AO, ST_VFD, ST_POSDRIVE, ST_PROPVALVE, ST_AXIS } from "./codegen.js";
 import { axisCfgOf } from "./axis.js";
 import { buildIR, irBlocks, manVarsOf } from "./ir.js";
-import { docAlarmCsv } from "./docs.js";
+import { docAlarmRows, type AlarmRow } from "./docs.js";
 import {
   stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE, T_AXIS_POWER, MOTION_ERR,
 } from "./sim.js";
@@ -217,18 +217,12 @@ export interface HmiAlarm {
   trigger: HmiAlarmTrigger;
 }
 
-export interface AlarmRow { code: string; dev: string; alarm: string; cause: string; reaction: string; ack: string; }
+export type { AlarmRow };
 
-/** Řádky seznamu alarmů z dokumentace (`docAlarmCsv`) — tytéž kódy a texty. */
+/** Řádky seznamu alarmů z dokumentace (`docAlarmRows` = tytéž kódy a texty jako `docAlarmCsv`, buňky
+    jednořádkově) — přímo z dat, ne zpětným čtením CSV (na tvaru popisů nezávisí). */
 export function alarmRows(prj: Project): AlarmRow[] {
-  return docAlarmCsv(prj).split("\n").slice(1).filter(Boolean).map(line => {
-    const p = line.split(";");
-    /* text příčiny může obsahovat středník z popisu zařízení: krajní sloupce jsou pevné */
-    const [code, dev, alarm] = p;
-    const ack = p[p.length - 1], reaction = p[p.length - 2];
-    const cause = p.slice(3, p.length - 2).join(";");
-    return { code, dev, alarm, cause, reaction, ack };
-  });
+  return docAlarmRows(prj).map(r => ({ code: r.code, dev: lineSafe(r.dev), alarm: lineSafe(r.alarm), cause: lineSafe(r.cause), reaction: lineSafe(r.reaction), ack: lineSafe(r.ack) }));
 }
 
 /**
@@ -554,7 +548,8 @@ export function hmiScreens(prj: Project, tags: HmiTag[] = hmiTags(prj), alarms: 
 }
 
 /** Celý model HMI projektu. */
-export function buildHmi(prj: Project): HmiModel {
+export function buildHmi(prj0: Project): HmiModel {
+  const prj = outputSafe(prj0);   // texty alarmů a tagů jednořádkově (exporty HMI, CSV, XML)
   const tags = hmiTags(prj);
   const alarms = hmiAlarms(prj, tags);
   return { project: prj.meta.name || "", tags, alarms, screens: hmiScreens(prj, tags, alarms) };

@@ -23,6 +23,8 @@ export declare function trx(cs: string, p?: Record<string, unknown>): string;
  * (`tr(CLS[c].label)`). Sama nic nepřekládá.
  */
 export declare function N_(cs: string): string;
+/** Značka národního prostředí nastaveného jazyka (např. „cs-CZ“) — formáty data v klientech. */
+export declare function dateLocale(tech?: boolean): string;
 /** Dnešní datum ve zvyklosti nastaveného jazyka; `tech` = pro technické výstupy (viz `trx`). */
 export declare function today(tech?: boolean): string;
 /** Datum z ISO okamžiku ve zvyklosti nastaveného jazyka (neplatný vstup vrátí beze změny). */

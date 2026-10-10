@@ -1,21 +1,26 @@
 /* Renderery kroků workflow. ctx = { S, save, render } — stav vlastní app.js.
    Texty pro uživatele jdou přes tr() (český text = klíč překladu); struktura HTML zůstává mimo klíče. */
 import {
-  PLAT, CLS, esc, blankProject, devById, nextName, syncIO, autoAddr, modules, wireNo,
+  PLAT, CLS, escHtml as esc, blankProject, devById, nextName, syncIO, autoAddr, modules, wireNo,
   validateProject, sanitizeTag, genFor, allProjectFiles, licensedGen, licensedProjectFiles,
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
-  sampleSmall, sampleComplex, tr, N_, getLang, DO_ROLES, stepTitle,
+  tr, N_, getLang, DO_ROLES, stepTitle, projectFileName, projectFolderName, projectNumberProblem,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
   buildBom, bomOptions, bomPlatform, bomCsv, catKey, suppliersFor, SUPPLIERS, CATALOG_DATE, PLATFORM_REFS,
   hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
   verifyPackArchive, licenseSiteUrl,
+  renameDevice, setDeviceDesc, setDeviceOpts, setDeviceRange, deviceOpts, deviceNameProblem,
+  updateStep, insertStep, duplicateStep, setIoTag, setIoAddr, setIoCmt,
 } from "../../../packages/core/dist/index.js";
-import { $, card, copyText, downloadFile, downloadFiles, saveBytesUngated, normProject, normAi } from "./util.js";
+import { $, card, copyText, downloadFile, downloadFiles, downloadProjectZip, saveBytesUngated, normProject, normAi, setProjectHeader } from "./util.js";
 import { gateFor } from "./license.js";
-import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, SAMPLE_DESC, AI_EXAMPLE } from "./ai.js";
+import { mountFolderControls, pickProjectText, suggestNumberAsync } from "./project_dir.js";
+import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, seedFromProject, AI_EXAMPLE } from "./ai.js";
 
 /** Šířka číselného pole konfigurace osy podle délky textu (číslice + rezerva na šipky pole). */
 const axWidth = t => "calc(" + Math.max(5, String(t).length + 1) + "ch + 34px)";
+/** Největší přijatý text projektu (znaky): vzory mají do 50 kB, s dlouhou konverzací AI jednotky MB. */
+const MAX_PROJECT_TEXT = 20e6;
 
 export function makeSteps(ctx) {
   const { S, save, render } = ctx;
@@ -43,6 +48,17 @@ export function makeSteps(ctx) {
   /** Výběr role digitálního výstupu (včetně „bez vazby"). */
   const roleOptions = sel => "<option value=''>" + tr("— bez vazby —") + "</option>" +
     Object.keys(DO_ROLES).map(r => "<option value='" + r + "'" + (sel === r ? " selected" : "") + ">" + esc(tr(DO_ROLES[r])) + "</option>").join("");
+  /** Hláška poslední úpravy v kroku Zařízení / I/O (ukáže se při dalším vykreslení kroku). */
+  let devMsg = null, ioMsg = null, schMsg = null;
+  /** Odkaz ze schématu: zvýrazní řádek tabulky, posune na něj a dá fokus do pole k úpravě. */
+  function goToRow(root, sel, focusSel) {
+    const row = sel && root.querySelector(sel);
+    if (!row) return;
+    row.classList.add("hl");
+    row.scrollIntoView({ block: "center" });
+    const f = row.querySelector(focusSel);
+    if (f) f.focus({ preventScroll: true });
+  }
 
   /* ---------------------------------------------------------- 1 Projekt */
   function rProjekt(el) {
@@ -52,16 +68,31 @@ export function makeSteps(ctx) {
       <label class="f">${tr("Název projektu / stroje")}
         <input type="text" id="pName" value="${esc(p.meta.name)}" placeholder="${esc(tr("např. Temperační stanice TS-02"))}">
       </label>
-      <label class="f">${tr("Popis")}
-        <input type="text" id="pDesc" value="${esc(p.meta.desc)}" placeholder="${esc(tr("co stroj dělá, pro koho"))}">
+      <label class="f">${tr("Číslo projektu")}
+        <input type="text" id="pNumber" value="${esc(p.meta.number || "")}" placeholder="${esc(tr("RRNNNN, např. 260705"))}" aria-describedby="pNumberWarn">
+        <span class="hint errtxt" id="pNumberWarn" hidden></span>
+      </label>
+      <label class="f">${tr("Zákazník")}
+        <input type="text" id="pCustomer" value="${esc(p.meta.customer || "")}" placeholder="${esc(tr("jméno nebo firma zákazníka"))}">
+      </label>
+      <label class="f">${tr("Datum zahájení projektu")}
+        <input type="date" id="pStart" value="${esc(p.meta.startDate || "")}" lang="${esc(getLang())}">
       </label>
       <label class="f">${tr("Požadovaný takt [s] (ověří simulace)")}
         <input type="number" id="pTakt" min="0" step="any" value="${Number.isFinite(p.meta.takt) ? p.meta.takt : ""}">
       </label>
     </div>
+    <label class="f">${tr("Popis")}
+      <textarea id="pDesc" rows="3" style="min-height:0;overflow:hidden" placeholder="${esc(tr("co stroj dělá, pro koho — víc řádků a odstavců jde do dokumentace (FDS, návod)"))}">${esc(p.meta.desc)}</textarea>
+    </label>
+    <p class="hint">${tr("Číslo projektu, zákazník a datum zahájení se propíšou do popisového pole výkresů, hlaviček dokumentů a README platforem, číslo i do názvů stahovaných souborů — do kódu PLC ne.")}</p>
     <div class="row">
-      <button class="small" id="bSample">${tr("Ukázka: malá stanice")}</button>
-      <button class="small" id="bSample2">${tr("Ukázka: složitá linka")}</button>
+      <button class="small primary" id="bZip">${tr("Stáhnout projekt (ZIP)")}</button>
+      <span class="hint" id="zipInfo">${tr("celá projektová složka {folder}: dokumentace, výkresy, program PLC, HMI, bezpečnost, kusovník, oživení, schválení, exporty a projekt — s číslem projektu na začátku názvu každého souboru", { folder: "<code>" + esc(projectFolderName(p)) + "</code>" })}</span>
+    </div>
+    <div id="folderCtl"></div>
+    <div class="row">
+      <button class="small" id="bOpen">${tr("Otevřít projekt…")}</button>
       <button class="small" id="bExport">${tr("Export návrhu (JSON)")}</button>
       <button class="small" id="bImportJson">${tr("Načíst návrh (JSON)")}</button>
       <button class="small" id="bImportExisting">${tr("Načíst stávající zařízení…")}</button>
@@ -74,8 +105,38 @@ export function makeSteps(ctx) {
       <button class="small primary" id="bJsonLoad">${tr("Načíst z textu")}</button>
     </div>
     <p class="note">${tr("Projdi kroky zleva doprava — návrh se průběžně ukládá v prohlížeči a mezi kroky se můžeš kdykoli vracet a vstupy upřesňovat; výstupy se vždy přepočítají. Nejrychlejší start: popiš stroj v kroku <b>AI návrh</b>. Existující projekt převezmeš vedlejší volbou <b>Import</b> dole v kroku Zařízení. Pokud s PLC začínáš, otevři <b>Nápovědu</b> (tlačítko vpravo v liště kroků).")}</p>`);
-    c.querySelector("#pName").addEventListener("input", e => { p.meta.name = e.target.value; save(); $("projName").textContent = p.meta.name ? "— " + p.meta.name : ""; });
-    c.querySelector("#pDesc").addEventListener("input", e => { p.meta.desc = e.target.value; save(); });
+    c.querySelector("#pName").addEventListener("input", e => { p.meta.name = e.target.value; save(); setProjectHeader(p); numWarn(); });
+    /* číslo a zákazník: prázdné pole se v projektu neukládá (výstup pak přesně jako bez nich) */
+    /* tvar čísla RRNNNN (core projectNumberProblem): jiný tvar jen varuje, číslo se použije, jak je */
+    const numWarn = () => {
+      const w = c.querySelector("#pNumberWarn"), msg = projectNumberProblem(p.meta.number || "");
+      w.textContent = msg ? "⚠ " + msg : ""; w.hidden = !msg;
+      const zi = c.querySelector("#zipInfo code");
+      if (zi) zi.textContent = projectFolderName(p);
+      const fw = c.querySelector("#folderCtl [data-fd='where'] code");
+      if (fw) fw.textContent = fw.textContent.replace(/[^/]*$/, projectFolderName(p));
+    };
+    for (const [id, f] of [["#pNumber", "number"], ["#pCustomer", "customer"]]) c.querySelector(id).addEventListener("input", e => {
+      if (e.target.value.trim()) p.meta[f] = e.target.value; else delete p.meta[f];
+      save(); setProjectHeader(p); numWarn();
+    });
+    numWarn();
+    c.querySelector("#bZip").addEventListener("click", e => downloadProjectZip(p, JSON.stringify({ prj: S.prj, ai: S.ai }, null, 1), e.currentTarget));
+    /* projektová složka na disku (project_dir.js: kořen, Uložit vše, návrh čísla ze složek) */
+    mountFolderControls(c.querySelector("#folderCtl"), {
+      full: true, prj: () => S.prj, payload: () => JSON.stringify({ prj: S.prj, ai: S.ai }, null, 1), rerender: render,
+      onNumber: n => { S.prj.meta.number = n; save(); setProjectHeader(S.prj); render(); },
+    });
+    /* datum zahájení: prohlížeč dává ISO YYYY-MM-DD (zobrazení podle jazyka), prázdné = bez data */
+    c.querySelector("#pStart").addEventListener("change", e => {
+      if (e.target.value) p.meta.startDate = e.target.value; else delete p.meta.startDate;
+      save();
+    });
+    /* víceřádkový popis: výška podle obsahu */
+    const ta = c.querySelector("#pDesc");
+    const fit = () => { ta.style.height = "auto"; ta.style.height = (ta.scrollHeight + 2) + "px"; };
+    ta.addEventListener("input", e => { p.meta.desc = e.target.value; save(); fit(); });
+    requestAnimationFrame(fit);
     c.querySelector("#pTakt").addEventListener("change", e => {
       const v = parseFloat(e.target.value);   // prázdné / nesmysl / ≤ 0 = takt nezadán
       if (Number.isFinite(v) && v > 0) p.meta.takt = v; else delete p.meta.takt;
@@ -87,29 +148,35 @@ export function makeSteps(ctx) {
       return empty || window.confirm(tr("Tím se nahradí aktuální návrh ({name}, zařízení: {n}) včetně konverzace v kroku AI návrh. Uložit si ho můžeš tlačítkem Export návrhu (JSON). Pokračovat?",
         { name: S.prj.meta.name || tr("bez názvu"), n: S.prj.devices.length }));
     };
-    c.querySelector("#bSample").addEventListener("click", () => {
-      if (!replaceOk()) return;
-      S.prj = sampleSmall();
-      S.ai = seedFromProject(S.prj, tr(SAMPLE_DESC.small), tr("Ukázkový návrh malé stanice — předvyplněno jako příklad práce AI návrháře."));
-      S.step = 0; save(); render();
-    });
-    c.querySelector("#bSample2").addEventListener("click", () => {
-      if (!replaceOk()) return;
-      S.prj = sampleComplex();
-      S.ai = seedFromProject(S.prj, tr(SAMPLE_DESC.complex), tr("Ukázkový návrh složité linky — předvyplněno jako příklad práce AI návrháře."));
-      S.step = 0; save(); render();
-    });
     c.querySelector("#bImportExisting").addEventListener("click", () => ctx.openImport && ctx.openImport());
-    c.querySelector("#bReset").addEventListener("click", () => { if (!replaceOk()) return; S.prj = blankProject(); S.ai = { turns: [], last: null, draft: "" }; save(); render(); });
+    c.querySelector("#bReset").addEventListener("click", async () => {
+      if (!replaceOk()) return;
+      const n = await suggestNumberAsync([p.meta.number]);      // ze složek kořene, bez něj z historie prohlížeče
+      S.prj = blankProject(); if (n) S.prj.meta.number = n; S.ai = { turns: [], last: null, draft: "" }; save(); render();
+    });
+    /* Otevřít projekt…: soubor .plcstudio.json (z kořene projektů / odkudkoli; bez API <input type=file>) */
+    c.querySelector("#bOpen").addEventListener("click", async () => {
+      if (!replaceOk()) return;
+      let text;
+      try { text = await pickProjectText(); } catch { text = null; }
+      if (text != null) loadProjectText(text);
+    });
     const jb = c.querySelector("#jsonBox"), jr = c.querySelector("#jsonRow");
     const payload = () => JSON.stringify({ prj: S.prj, ai: S.ai }, null, 1);
     c.querySelector("#bExport").addEventListener("click", () => { jb.hidden = false; jr.hidden = false; jb.value = payload(); });
     c.querySelector("#bImportJson").addEventListener("click", () => { jb.hidden = false; jr.hidden = false; jb.value = ""; jb.placeholder = tr("Vlož dříve exportovaný JSON návrhu…"); jb.focus(); });
     c.querySelector("#bJsonCopy").addEventListener("click", () => copyText(jb.value || payload(), c.querySelector("#bJsonCopy")));
-    c.querySelector("#bJsonDl").addEventListener("click", () => downloadFile((p.meta.name || "plc-projekt") + ".plcstudio.json", jb.value || payload()));
-    c.querySelector("#bJsonLoad").addEventListener("click", () => {
+    c.querySelector("#bJsonDl").addEventListener("click", () => downloadFile(projectFolderName(p) + ".plcstudio.json", jb.value || payload()));
+    c.querySelector("#bJsonLoad").addEventListener("click", () => { if (jb.value.trim() && replaceOk()) loadProjectText(jb.value); });
+    /** Projekt z textu (vložený JSON, soubor .plcstudio.json z webu i desktopu): { prj, ai } nebo samotný projekt. */
+    function loadProjectText(text) {
+      /* obří soubor (projekt PLCdesk má jednotky MB i u haly se 125 zařízeními) by zamrazil kartu a nevešel se do úložiště */
+      if (typeof text !== "string" || text.length > MAX_PROJECT_TEXT) {
+        alertRow(c, tr("Soubor je příliš velký ({mb} MB) — projekt PLCdesk mívá nejvýš jednotky MB. Jde opravdu o export návrhu?", { mb: Math.round((text || "").length / 1e6) }));
+        return;
+      }
       try {
-        const d = JSON.parse(jb.value);
+        const d = JSON.parse(text);
         let prjNew;
         try { prjNew = normProject(d && d.prj ? d.prj : d); } catch { alertRow(c, tr("JSON neobsahuje návrh PLCdesk.")); return; }
         S.prj = prjNew;
@@ -121,7 +188,7 @@ export function makeSteps(ctx) {
         }
         S.step = 0; save(); render();
       } catch { alertRow(c, tr("Neplatný JSON.")); }
-    });
+    }
   }
   function alertRow(c, msg) {
     let d = c.querySelector(".errtxt");
@@ -404,14 +471,14 @@ export function makeSteps(ctx) {
       const df = devDefaults(k), dOpt = df.opt || {};
       const on = ok => dOpt[ok] !== undefined ? !!dOpt[ok] : ok === "fbk" || ok === "fbkOpen";
       const fld = (label, inner) => "<label class='f' style='flex-direction:row;gap:6px;align-items:center'>" + label + " " + inner + "</label>";
-      const numF = (id, v, w = 70) => "<input type='number' step='any' id='" + id + "' value='" + (v ?? "") + "' style='width:" + w + "px'>";
+      const numF = (id, v, w = 70) => "<input type='number' step='any' id='" + id + "' value='" + esc(v ?? "") + "' style='width:" + w + "px'>";
       let html = Object.entries(o).map(([ok, ol]) => "<label style='display:flex;gap:5px;align-items:center;font-size:.8rem'><input type='checkbox' id='opt_" + ok + "' " + (on(ok) ? "checked" : "") + "> " + tr(ol) + "</label>").join("");
       if (hasRange(k)) html += fld(tr("jednotka"), "<input type='text' id='dUnit' style='width:70px' value='" + esc(df.unit || "") + "' placeholder='bar'>") +
         fld(tr("rozsah {min} až {max}", { min: numF("dMin", df.rmin ?? 0, 80), max: numF("dMax", df.rmax ?? 100, 80) }), "");
       /* pohony fáze 2a: žádaná, rampa, tolerance, záznamy */
       if (k === "Vfd" || k === "PropValve") html += fld(tr("žádaná hodnota"), numF("dSetp", df.setpoint)) + fld(tr("rampa [s]"), numF("dRamp", df.rampS ?? 0));
       if (k === "PropValve") html += fld(tr("tolerance ±"), numF("dTol", df.tol)) + fld(tr("doba odchylky [s]"), numF("dTolT", df.tolTimeS));
-      if (k === "PosDrive") html += fld(tr("bity výběru záznamu"), "<input type='number' min='1' max='6' step='1' id='dBits' value='" + (df.selBits ?? 3) + "' style='width:56px'>") +
+      if (k === "PosDrive") html += fld(tr("bity výběru záznamu"), "<input type='number' min='1' max='6' step='1' id='dBits' value='" + esc(df.selBits ?? 3) + "' style='width:56px'>") +
         fld(tr("doba jízdy (model) [s]"), numF("dTravel", df.travelS ?? 1)) +
         fld(tr("záznamy"), "<input type='text' id='dRecs' style='width:280px' value='" + esc(recordsText(df.records)) + "' title='" + esc(tr("číslo = název @ poloha; oddělit středníkem")) + "'>");
       /* servoosa (fáze 2b): konfigurační list osy — dynamika, limity, reference, polohy */
@@ -435,7 +502,9 @@ export function makeSteps(ctx) {
       const opt = {};
       for (const ok of Object.keys(CLS[k].opts)) { const cb = c.querySelector("#opt_" + ok); if (cb) opt[ok] = cb.checked; }
       const name = nameIn.value.trim() || nextName(p, k);
-      if (p.devices.some(d => d.name === name)) { c.querySelector("#dErr").textContent = tr("Zařízení s označením {name} už v návrhu je — zvol jiné.", { name }); nameIn.focus(); return; }
+      /* stejná pravidla jako přejmenování a kontrola návrhu (identifikátor, délka, jedinečnost bez ohledu na velikost) */
+      const nameErr = deviceNameProblem(p, name);
+      if (nameErr) { c.querySelector("#dErr").textContent = nameErr; nameIn.focus(); return; }
       const rmin = numIn((c.querySelector("#dMin") || {}).value), rmax = numIn((c.querySelector("#dMax") || {}).value);
       const nd = {
         id: p.nextId++, name, cls: k,
@@ -448,7 +517,7 @@ export function makeSteps(ctx) {
       const val = id => numIn((c.querySelector(id) || {}).value);
       const extra = { limLo: val("#dLimLo"), limHi: val("#dLimHi"), setpoint: val("#dSetp"),
         rampS: val("#dRamp"), tol: val("#dTol"), tolTimeS: val("#dTolT"), selBits: val("#dBits"), travelS: val("#dTravel") };
-      for (const [f, v] of Object.entries(extra)) if (v !== undefined) nd[f] = f === "selBits" ? Math.round(v) : v;
+      for (const [f, v] of Object.entries(extra)) if (v !== undefined) nd[f] = f === "selBits" ? Math.min(6, Math.max(1, Math.round(v))) : v;   // bity 1–6 jako v tabulce
       if (k === "PosDrive") nd.records = parseRecords((c.querySelector("#dRecs") || {}).value || "");
       if (k === "Axis") {
         const ax = { ...(devDefaults("Axis").axis || {}) };
@@ -466,12 +535,21 @@ export function makeSteps(ctx) {
     });
     const list = c.querySelector("#dList");
     if (p.devices.length) {
-      let html = "<div class='tablewrap'><table><thead><tr><th>" + tr("Označení") + "</th><th>" + tr("Třída") + "</th><th>" + tr("Popis") + "</th><th>" + tr("Volby") + "</th><th></th></tr></thead><tbody>";
+      /* hláška poslední úpravy (přejmenování, volby…) přežije překreslení kroku jednou */
+      let html = devMsg ? "<p class='" + (devMsg.err ? "errtxt" : "oktxt") + "' id='dMsg' role='status'>" + esc(devMsg.text) + "</p>" : "";
+      devMsg = null;
+      html += "<div class='tablewrap'><table><thead><tr><th>" + tr("Označení") + "</th><th>" + tr("Třída") + "</th><th>" + tr("Popis") + "</th><th>" + tr("Volby") + "</th><th></th></tr></thead><tbody>";
       for (const d of p.devices) {
-        const opts = Object.entries(d.opt || {}).filter(([, v]) => v).map(([k]) => tr(CLS[d.cls].opts[k])).join(", ") + (hasRange(d.cls) ? ((d.unit ? " " + d.unit : "") + " " + d.rmin + "–" + d.rmax) : "");
+        /* volby (signály zařízení) a jednotka / rozsah se upravují přímo v řádku */
+        const on = deviceOpts(d);
+        const opts = Object.entries(CLS[d.cls].opts).map(([k, lbl]) => "<label class='chk' style='font-size:.76rem;margin-right:8px'><input type='checkbox' data-id='" + d.id + "' data-opt='" + k + "' " + (on[k] ? "checked" : "") + "> " + esc(tr(lbl)) + "</label>").join("") +
+          (hasRange(d.cls) ? "<label style='display:inline-flex;gap:4px;align-items:center;margin-right:8px'>" + tr("jednotka") + " <input type='text' data-id='" + d.id + "' data-rng='unit' value='" + esc(d.unit || "") + "' style='width:6ch'></label>" +
+            "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("rozsah {min} až {max}", {
+              min: "<input type='number' step='any' data-id='" + d.id + "' data-rng='rmin' value='" + esc(d.rmin) + "' style='width:72px'>",
+              max: "<input type='number' step='any' data-id='" + d.id + "' data-rng='rmax' value='" + esc(d.rmax) + "' style='width:72px'>" }) + "</label>" : "");
         // meze / žádaná hodnota / role se upravují přímo v tabulce (prázdné pole = nezadáno)
         const num = (f, label) => "<label style='display:inline-flex;gap:4px;align-items:center;margin-right:8px'>" + label +
-          " <input type='number' step='any' data-id='" + d.id + "' data-f='" + f + "' value='" + (Number.isFinite(d[f]) ? d[f] : "") + "' style='width:72px'></label>";
+          " <input type='number' step='any' data-id='" + d.id + "' data-f='" + f + "' value='" + esc(Number.isFinite(d[f]) ? d[f] : "") + "' style='width:72px'></label>";
         const extra = d.cls === "AnalogIn" ? num("limLo", tr("mez min")) + num("limHi", tr("mez max"))
           : d.cls === "AnalogOut" ? num("setpoint", tr("žádaná hodnota"))
           : d.cls === "Vfd" ? num("setpoint", tr("žádaná hodnota")) + num("rampS", tr("rampa [s]"))
@@ -482,17 +560,59 @@ export function makeSteps(ctx) {
                 /* šířka podle obsahu (hodnota / výchozí v placeholderu) — pevná šířka ořezávala 4000, -0.05… */
                 const v = Number.isFinite((d.axis || {})[f.key]) ? String(d.axis[f.key]) : "", ph = String(axisCfgOf(d)[f.key] ?? "");
                 return "<label style='display:inline-flex;gap:4px;align-items:center;margin-right:8px'>" + esc(tr(f.label)) +
-                " <input type='number' step='any' data-id='" + d.id + "' data-ax='" + f.key + "' value='" + v + "' placeholder='" + esc(ph) + "' style='width:" + axWidth(v || ph) + "'></label>";
+                " <input type='number' step='any' data-id='" + d.id + "' data-ax='" + f.key + "' value='" + esc(v) + "' placeholder='" + esc(ph) + "' style='width:" + axWidth(v || ph) + "'></label>";
               }).join("") +
               "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("pojmenované polohy") + " <input type='text' data-id='" + d.id + "' data-f='axpos' value='" + esc(axisPositionsText((d.axis || {}).positions)) + "' style='width:240px' title='" + esc(tr("název @ poloha; oddělit středníkem")) + "'></label>"
             : d.cls === "DO" ? "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("vazba na stav stroje") + " <select data-id='" + d.id + "' data-f='role'>" + roleOptions(d.role || "") + "</select></label>" : "";
-        html += "<tr><td class='mono'><b>" + esc(d.name) + "</b></td><td>" + tr(CLS[d.cls].label) + "</td>" +
+        html += "<tr data-row='" + d.id + "'><td><input type='text' class='mono' data-id='" + d.id + "' data-f='name' value='" + esc(d.name) + "' aria-label='" + esc(tr("Označení")) + "' style='width:" + Math.max(6, d.name.length + 2) + "ch;font-weight:600'></td><td>" + tr(CLS[d.cls].label) + "</td>" +
           "<td><input type='text' data-id='" + d.id + "' data-f='desc' value='" + esc(d.desc) + "' style='min-width:200px'></td>" +
-          "<td style='font-size:.76rem;color:var(--muted)'>" + (opts || !extra ? esc(opts || "—") : "") + (extra ? "<div style='margin-top:" + (opts ? "4px" : "0") + "'>" + extra + "</div>" : "") + "</td>" +
+          "<td style='font-size:.76rem;color:var(--muted)'>" + (opts || (!extra ? "—" : "")) + (extra ? "<div style='margin-top:" + (opts ? "4px" : "0") + "'>" + extra + "</div>" : "") + "</td>" +
           "<td><button class='small danger' data-del='" + d.id + "'>×</button></td></tr>";
       }
       list.innerHTML = html + "</tbody></table></div>";
-      list.querySelectorAll("input[data-f=desc]").forEach(i => i.addEventListener("change", e => { const d = devById(p, +e.target.dataset.id); if (d) { d.desc = e.target.value; syncIO(p); save(); } }));
+      /* úpravy přes jádro (edit.ts): výchozí tagy / komentáře signálů jdou se zařízením, ruční zůstanou */
+      list.querySelectorAll("input[data-f=name]").forEach(i => i.addEventListener("change", e => {
+        const d = devById(p, +e.target.dataset.id);
+        if (!d) return;
+        const old = d.name, r = renameDevice(p, d.id, e.target.value);
+        if (!r.ok) devMsg = { err: true, text: r.error };
+        else if (old !== d.name) {
+          devMsg = { text: tr("Zařízení {old} přejmenováno na {new}.", { old, new: d.name }) +
+            (r.keptTags.length ? " " + tr("Ručně změněné tagy zůstaly beze změny: {tags}.", { tags: r.keptTags.join(", ") }) : "") };
+          save();
+        }
+        render();
+      }));
+      list.querySelectorAll("input[data-f=desc]").forEach(i => i.addEventListener("change", e => {
+        const d = devById(p, +e.target.dataset.id);
+        if (d) { setDeviceDesc(p, d.id, e.target.value); save(); refreshIssues(); }
+      }));
+      list.querySelectorAll("input[data-opt]").forEach(i => i.addEventListener("change", e => {
+        const d = devById(p, +e.target.dataset.id);
+        if (!d) return;
+        const r = setDeviceOpts(p, d.id, { [e.target.dataset.opt]: e.target.checked });
+        if (!r.ok) devMsg = { err: true, text: r.error };
+        else {
+          const parts = [];
+          if (r.added.length) parts.push(tr("přidány signály: {tags}", { tags: r.added.join(", ") }));
+          if (r.removed.length) parts.push(tr("odebrány signály: {tags}", { tags: r.removed.join(", ") }));
+          if (r.affectedSteps.length) parts.push(tr("zkontroluj kroky {steps} — čekaly na odebrané hlášení", { steps: r.affectedSteps.map(n => n + 1).join(", ") }));
+          const more = parts.join("; ");
+          devMsg = { err: r.affectedSteps.length > 0, text: tr("Volby {dev} uloženy.", { dev: d.name }) + (more ? " " + more[0].toUpperCase() + more.slice(1) + "." : "") };
+          save();
+        }
+        render();
+      }));
+      list.querySelectorAll("input[data-rng]").forEach(i => i.addEventListener("change", e => {
+        const id = +e.target.dataset.id, d = devById(p, id);
+        if (!d) return;
+        const val = f => (list.querySelector("input[data-id='" + id + "'][data-rng='" + f + "']") || {}).value;
+        const rmin = numIn(val("rmin")), rmax = numIn(val("rmax"));
+        const r = rmin === undefined || rmax === undefined ? { ok: false, error: tr("Neplatné číslo v poli „{field}“.", { field: tr("rozsah") }) }
+          : setDeviceRange(p, id, { unit: val("unit"), rmin, rmax });
+        if (!r.ok) { devMsg = { err: true, text: r.error }; render(); return; }
+        save(); refreshIssues();
+      }));
       const NUM_F = "input[data-f=limLo],input[data-f=limHi],input[data-f=setpoint],input[data-f=rampS],input[data-f=tol],input[data-f=tolTimeS],input[data-f=selBits],input[data-f=travelS]";
       list.querySelectorAll(NUM_F).forEach(i => i.addEventListener("change", e => {
         const d = devById(p, +e.target.dataset.id), v = numIn(e.target.value), f = e.target.dataset.f;
@@ -549,6 +669,8 @@ export function makeSteps(ctx) {
       };
       refreshIssues();
       list.querySelectorAll(NUM_F).forEach(i => i.addEventListener("change", refreshIssues));
+      goToRow(list, S.devSel != null ? "tr[data-row='" + S.devSel + "']" : "", "input[data-f=name]");
+      S.devSel = null;
     } else list.innerHTML = "<p class='hint'>" + tr("Zatím žádná zařízení — přidej je výše, načti ukázku v kroku Projekt, nech si je navrhnout v kroku AI návrh, nebo použij Import níže.") + "</p>";
     importBlock(el);
   }
@@ -577,12 +699,12 @@ export function makeSteps(ctx) {
     let rows = "";
     for (const e of p.io) {
       const d = devById(p, e.devId);
-      rows += "<tr><td class='mono'>" + esc(d ? d.name : "?") + "</td>" +
-        "<td class='mono dir" + e.dir + "'>" + e.dir + "</td>" +
-        "<td><input type='text' data-k='" + e.key + "' data-f='tag' value='" + esc(e.tag) + "' class='" + (dup["t:" + e.tag] > 1 ? "dup" : "") + "'></td>" +
-        "<td><input type='text' data-k='" + e.key + "' data-f='addr' value='" + esc(e.addr) + "' class='" + (e.addr && dup[e.addr] > 1 ? "dup" : "") + "' style='min-width:70px'></td>" +
-        "<td style='text-align:center'>" + (e.dir === "DI" ? "<input type='checkbox' data-k='" + e.key + "' data-f='nc' " + (e.nc ? "checked" : "") + " aria-label='NC'>" : "—") + "</td>" +
-        "<td><input type='text' data-k='" + e.key + "' data-f='cmt' value='" + esc(e.cmt) + "' style='min-width:160px'></td></tr>";
+      rows += "<tr data-row='" + esc(e.key) + "'><td class='mono'>" + esc(d ? d.name : "?") + "</td>" +
+        "<td class='mono dir" + esc(e.dir) + "'>" + esc(e.dir) + "</td>" +
+        "<td><input type='text' data-k='" + esc(e.key) + "' data-f='tag' value='" + esc(e.tag) + "' class='" + (dup["t:" + e.tag] > 1 ? "dup" : "") + "'></td>" +
+        "<td><input type='text' data-k='" + esc(e.key) + "' data-f='addr' value='" + esc(e.addr) + "' class='" + (e.addr && dup[e.addr] > 1 ? "dup" : "") + "' style='min-width:70px'></td>" +
+        "<td style='text-align:center'>" + (e.dir === "DI" ? "<input type='checkbox' data-k='" + esc(e.key) + "' data-f='nc' " + (e.nc ? "checked" : "") + " aria-label='NC'>" : "—") + "</td>" +
+        "<td><input type='text' data-k='" + esc(e.key) + "' data-f='cmt' value='" + esc(e.cmt) + "' style='min-width:160px'></td></tr>";
     }
     const issues = validateProject(p);
     const issuesHtml = issues.length
@@ -596,18 +718,26 @@ export function makeSteps(ctx) {
       <span class="stat">${tr("tagů <b>{n}</b>", { n: p.io.length })}</span>
       ${["DI", "DO", "AI", "AO"].map(d => "<span class='stat'>" + d + " <b>" + p.io.filter(e => e.dir === d).length + "</b></span>").join("")}
     </div>
+    ${ioMsg ? "<p class='errtxt' id='ioMsg' role='alert'>" + esc(ioMsg) + "</p>" : ""}
     <div class="tablewrap"><table><thead><tr><th>${tr("Zařízení")}</th><th>${tr("Směr")}</th><th>${tr("Tag")}</th><th>${tr("Adresa")}</th><th>NC</th><th>${tr("Komentář")}</th></tr></thead><tbody>${rows || "<tr><td colspan='6' class='hint'>" + tr("žádná zařízení") + "</td></tr>"}</tbody></table></div>
     <div class="row"><button class="small" id="bRenum">${tr("Přečíslovat adresy od nuly")}</button><span class="hint" style="margin:0">${tr("Adresy přiděluje sestava hardwaru (kanál modulu, zápis v Siemens notaci); ruční adresa kanál připne, adresa mimo sestavu zůstane s upozorněním. Pro ostatní platformy se převedou automaticky. NC = rozpínací kontakt (promítne se do schématu). Duplicity červeně.")}</span></div>
     ${issuesHtml}`);
+    ioMsg = null;
     c.querySelectorAll("input[data-k]").forEach(i => i.addEventListener("change", e => {
       const en = p.io.find(x => x.key === e.target.dataset.k);
       if (!en) return;
       if (e.target.type === "checkbox") en.nc = e.target.checked;
-      else en[e.target.dataset.f] = e.target.value.trim();
-      // prázdný tag by rozbil generovaný kód — vrátí se výchozí <Zařízení>_<signál>
-      if (e.target.dataset.f === "tag" && !en.tag) { const d = devById(p, en.devId); en.tag = (d ? d.name : "IO") + "_" + en.sig; }
+      else {
+        /* jádro (edit.ts): prázdný tag / komentář = výchozí, adresa se kontroluje (Siemens notace nebo
+           notace platformy hardwaru, směr, obsazenost) — neplatná se neuloží a pole se vrátí */
+        const fn = { tag: setIoTag, addr: setIoAddr, cmt: setIoCmt }[e.target.dataset.f];
+        const r = fn(p, en.key, e.target.value);
+        if (!r.ok) { ioMsg = r.error; S.ioSel = en.key; }
+      }
       save(); render();
     }));
+    goToRow(c, S.ioSel ? "tr[data-row='" + CSS.escape(S.ioSel) + "']" : "", "input[data-f=tag]");
+    S.ioSel = null;
     c.querySelector("#bRenum").addEventListener("click", () => { for (const e of p.io) e.addr = ""; autoAddr(p, true); save(); render(); });
     const fix = c.querySelector("#bFixTags");
     if (fix) fix.addEventListener("click", () => {
@@ -653,12 +783,127 @@ export function makeSteps(ctx) {
     let rowsHtml = "";
     mods.forEach((m, mi) => m.ch.forEach((e, i) => {
       const d = devById(p, e.devId) || {};
-      rowsHtml += "<tr><td class='mono'><b>X" + (mi + 1) + ":" + (i + 1) + "</b></td><td class='mono'>" + esc((m.hw ? m.hw.dt + " " : "") + m.dir + m.idx) + "</td><td class='mono'>" + (m.chNo ? m.chNo[i] : i) + "</td><td class='mono'>" + esc(hwAddrText(p, e)) + "</td><td class='mono'>" + esc(e.tag) + "</td><td class='mono'>" + wireNo(mi + 1, i) + "</td><td style='color:var(--muted);font-size:.78rem'>" + esc((d.name ? d.name + " · " : "") + (e.cmt || "")) + "</td></tr>";
+      const nat = hwAddrText(p, e);
+      rowsHtml += "<tr data-row='" + esc(e.key) + "'><td class='mono'><a href='#' class='navlink' data-io='" + esc(e.key) + "' title='" + esc(tr("Upravit v kroku I/O")) + "'><b>X" + (mi + 1) + ":" + (i + 1) + "</b></a></td><td class='mono'>" + esc((m.hw ? m.hw.dt + " " : "") + m.dir + m.idx) + "</td><td class='mono'>" + (m.chNo ? m.chNo[i] : i) + "</td>" +
+        "<td><input type='text' data-k='" + esc(e.key) + "' data-f='addr' value='" + esc(e.addr) + "' aria-label='" + esc(tr("Adresa")) + "' style='min-width:70px;width:9ch'>" + (nat && nat !== e.addr ? "<div class='mono' style='color:var(--muted);font-size:.72rem'>" + esc(nat) + "</div>" : "") + "</td>" +
+        "<td><input type='text' data-k='" + esc(e.key) + "' data-f='tag' value='" + esc(e.tag) + "' aria-label='" + esc(tr("Tag")) + "'></td><td class='mono'>" + wireNo(mi + 1, i) + "</td>" +
+        "<td class='mono'>" + esc(d.name || "") + "</td><td><input type='text' data-k='" + esc(e.key) + "' data-f='cmt' value='" + esc(e.cmt || "") + "' aria-label='" + esc(tr("Komentář")) + "' style='min-width:160px'></td></tr>";
     }));
     const c3 = card(el, "·", tr("Svorkovnice"),
-      "<div class='tablewrap'><table><thead><tr><th>" + tr("Svorka") + "</th><th>" + tr("Modul") + "</th><th>" + tr("Kanál") + "</th><th>" + tr("Adresa") + "</th><th>" + tr("Tag") + "</th><th>" + tr("Vodič") + "</th><th>" + tr("Zařízení / komentář") + "</th></tr></thead><tbody>" + rowsHtml + "</tbody></table></div>" +
-      "<div class='row'><button class='small' id='bCsv'>" + tr("Stáhnout svorkovnici (CSV)") + "</button><span class='hint' style='margin:0'>" + tr("Podklad pro projektanta elektro.") + "</span></div>");
+      (schMsg && !S.schEd ? "<p class='errtxt' role='alert'>" + esc(schMsg) + "</p>" : "") +
+      "<div class='tablewrap'><table><thead><tr><th>" + tr("Svorka") + "</th><th>" + tr("Modul") + "</th><th>" + tr("Kanál") + "</th><th>" + tr("Adresa") + "</th><th>" + tr("Tag") + "</th><th>" + tr("Vodič") + "</th><th>" + tr("Zařízení") + "</th><th>" + tr("Komentář") + "</th></tr></thead><tbody>" + rowsHtml + "</tbody></table></div>" +
+      "<div class='row'><button class='small' id='bCsv'>" + tr("Stáhnout svorkovnici (CSV)") + "</button><span class='hint' style='margin:0'>" + tr("Podklad pro projektanta elektro.") + " " + tr("Prázdný tag nebo komentář = výchozí, prázdná adresa = přidělit automaticky; adresu zapiš v Siemens notaci (%I0.0, %QW64) nebo v notaci platformy hardwaru.") + "</span></div>");
     c3.querySelector("#bCsv").addEventListener("click", () => downloadFile("03_svorkovnice.csv", svorkyCSV(p)));
+    /* svorkovnice: tag / adresa / komentář přímo v tabulce (jádro edit.ts jako krok I/O) */
+    const ioFns = { tag: setIoTag, addr: setIoAddr, cmt: setIoCmt };
+    c3.querySelectorAll("input[data-k]").forEach(inp => inp.addEventListener("change", () => {
+      const r = ioFns[inp.dataset.f](p, inp.dataset.k, inp.value);
+      schMsg = r.ok ? null : r.error;
+      S.schTerm = inp.dataset.k;
+      save(); render();
+    }));
+    if (S.schTerm) {
+      const row = c3.querySelector("tr[data-row='" + CSS.escape(S.schTerm) + "']");
+      if (row) { row.classList.add("hl"); row.scrollIntoView({ block: "nearest" }); }
+      S.schTerm = null;
+      if (!S.schEd) schMsg = null;
+    }
+
+    /* Editor přímo pod schématem: klik na zařízení = popis a jeho signály, klik na signál = popis
+       a ten signál (tag, adresa, komentář). Uložení přes jádro (edit.ts), pak schéma znovu. */
+    function closeEditor(box) { S.schEd = null; schMsg = null; box.remove(); }
+    function showEditor(scroll) {
+      el.querySelectorAll(".schEditor").forEach(x => x.remove());
+      const ed = S.schEd;
+      const d = ed && devById(p, ed.dev);
+      if (!d) { S.schEd = null; return; }
+      const sigs = p.io.filter(e => e.devId === d.id && (!ed.io || e.key === ed.io));
+      const box = document.createElement("div");
+      box.className = "schEditor";
+      box.style.cssText = "margin:10px 0;padding:10px 12px;border:2px solid var(--accent, #008639);border-radius:6px";
+      box.innerHTML =
+        "<div class='row' style='margin:0 0 6px;align-items:baseline'><b class='mono'>" + esc(d.name) + "</b><span class='hint' style='margin:0'>" + esc(tr(CLS[d.cls].label)) + "</span>" +
+        "<span style='flex:1'></span><a href='#' class='navlink' data-go='dev'>" + tr("Upravit v kroku Zařízení") + " ↗</a>" +
+        (ed.io ? "<a href='#' class='navlink' data-go='io' style='margin-left:12px'>" + tr("Upravit v kroku I/O") + " ↗</a>" : "") + "</div>" +
+        (schMsg ? "<p class='errtxt' role='alert' style='margin:0 0 6px'>" + esc(schMsg) + "</p>" : "") +
+        "<label class='f'>" + tr("Popis") + "<input type='text' data-ed='desc' value='" + esc(d.desc || "") + "'></label>" +
+        (sigs.length ? "<div class='tablewrap'><table><thead><tr><th>" + tr("Směr") + "</th><th>" + tr("Tag") + "</th><th>" + tr("Adresa") + "</th><th>" + tr("Komentář") + "</th></tr></thead><tbody>" +
+          sigs.map(e => "<tr data-row='" + esc(e.key) + "'><td class='mono dir" + esc(e.dir) + "'>" + esc(e.dir) + "</td>" +
+            "<td><input type='text' data-k='" + esc(e.key) + "' data-f='tag' value='" + esc(e.tag) + "' aria-label='" + esc(tr("Tag")) + "'></td>" +
+            "<td><input type='text' data-k='" + esc(e.key) + "' data-f='addr' value='" + esc(e.addr) + "' aria-label='" + esc(tr("Adresa")) + "' style='min-width:70px;width:9ch'></td>" +
+            "<td><input type='text' data-k='" + esc(e.key) + "' data-f='cmt' value='" + esc(e.cmt || "") + "' aria-label='" + esc(tr("Komentář")) + "' style='min-width:160px'></td></tr>").join("") +
+          "</tbody></table></div>" : "") +
+        "<div class='row' style='margin:6px 0 0'><button class='small' data-ed='save'>" + tr("Uložit") + "</button><button class='small' data-ed='close'>" + tr("Zavřít") + "</button>" +
+        "<span class='hint' style='margin:0'>" + tr("Prázdný tag nebo komentář = výchozí, prázdná adresa = přidělit automaticky; adresu zapiš v Siemens notaci (%I0.0, %QW64) nebo v notaci platformy hardwaru.") + "</span></div>";
+      // pod obrázek, na který se kliklo (blokové schéma nebo list zapojení)
+      const figs = c2.querySelectorAll("figure");
+      const anchor = (ed.sheet >= 0 && figs[ed.sheet]) || c1.querySelector("figure");
+      (anchor.closest(".tablewrap") || anchor).after(box);
+      const saveEd = () => {
+        const cur = devById(p, d.id);
+        if (!cur) return;
+        const desc = box.querySelector("[data-ed=desc]").value;
+        if (desc.trim() !== (cur.desc || "")) setDeviceDesc(p, cur.id, desc);
+        let err = null;
+        for (const inp of box.querySelectorAll("input[data-k]")) {
+          const e = p.io.find(x => x.key === inp.dataset.k);
+          // jen pole, která uživatel změnil (výchozí komentáře mohl právě přepsat nový popis zařízení)
+          if (!e || inp.value.trim() === inp.defaultValue.trim()) continue;
+          const r = ioFns[inp.dataset.f](p, e.key, inp.value);
+          if (!r.ok) { err = r.error; break; }
+        }
+        schMsg = err;
+        save(); render();
+      };
+      box.querySelector("[data-ed=save]").addEventListener("click", saveEd);
+      box.querySelector("[data-ed=close]").addEventListener("click", () => closeEditor(box));
+      box.querySelectorAll("input").forEach(i => i.addEventListener("keydown", ev => {
+        if (ev.key === "Enter") { ev.preventDefault(); saveEd(); }
+        else if (ev.key === "Escape") closeEditor(box);
+      }));
+      box.querySelectorAll("[data-go]").forEach(a => a.addEventListener("click", ev => {
+        ev.preventDefault();
+        if (a.dataset.go === "io") { S.ioSel = ed.io; S.step = 4; } else { S.devSel = d.id; S.step = 3; }
+        S.schEd = null;
+        save(); render();
+        window.scrollTo(0, 0);
+      }));
+      if (scroll) {
+        box.scrollIntoView({ block: "nearest" });
+        const first = box.querySelector(ed.io ? "input[data-f=tag]" : "[data-ed=desc]");
+        if (first) first.focus({ preventScroll: true });
+      }
+    }
+    const pick = ev => {
+      const io = ev.target.closest("[data-io]"), dv = ev.target.closest("[data-dev]");
+      const fig = ev.target.closest("figure");
+      const sheet = fig && c2.contains(fig) ? [...c2.querySelectorAll("figure")].indexOf(fig) : -1;
+      const key = io && io.getAttribute("data-io");
+      const e = key && p.io.find(x => x.key === key);
+      let ed = null;
+      if (e) ed = { dev: e.devId, io: e.key, sheet };
+      else if (dv && devById(p, +dv.getAttribute("data-dev"))) ed = { dev: +dv.getAttribute("data-dev"), io: null, sheet };
+      if (!ed) return;
+      S.schEd = ed;
+      schMsg = null;
+      showEditor(true);
+    };
+    for (const box of [c1, c2]) {
+      box.querySelectorAll("svg [data-io], svg [data-dev]").forEach(n => n.classList.add("navlink"));
+      box.querySelectorAll("figure").forEach(f => f.addEventListener("click", pick));
+    }
+    /* svorka v tabulce = vedlejší odkaz na řádek v kroku I/O */
+    c3.querySelectorAll("a[data-io]").forEach(a => a.addEventListener("click", ev => {
+      ev.preventDefault();
+      S.ioSel = a.dataset.io; S.step = 4;
+      save(); render();
+      window.scrollTo(0, 0);
+    }));
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = tr("Klik na zařízení nebo signál ve schématu otevře pod ním úpravu (popis zařízení, tag, adresa a komentář signálu); svorkovnice se upravuje přímo v tabulce.");
+    c1.querySelector("figure").after(hint);
+    if (S.schEd) showEditor(true);
   }
 
   /* ---------------------------------------------------------- 7 Program */
@@ -687,13 +932,20 @@ export function makeSteps(ctx) {
       <input type="number" id="sTime" value="3" min="1" style="width:70px" aria-label="${esc(tr("čas s"))}"> s
       <span id="sPar"></span>
       <button class="primary small" id="bAddStep">${tr("Přidat krok")}</button>
-    </div>`);
+    </div>
+    <div class="row" id="sEditRow" hidden>
+      <span class="hint" style="margin:0" id="sEditTxt"></span>
+      <button class="primary small" id="bSaveStep">${tr("Uložit změny kroku")}</button>
+      <button class="small" id="bInsStep"></button>
+      <button class="small" id="bCancelStep">${tr("Zrušit úpravu")}</button>
+    </div>
+    <p class="errtxt" id="sErr" role="alert" hidden></p>`);
     const sDev = c.querySelector("#sDev"), sAct = c.querySelector("#sAct"), sCond = c.querySelector("#sCond");
     const sPar = c.querySelector("#sPar");
     /* parametr kroku pohonu: otáčky (+ směr) měniče, číslo záznamu pohonu, žádaná ventilu */
     const refreshPar = () => {
       const d = devById(p, +sDev.value), a = sAct.value;
-      const numF = (id, label, v, extra = "") => "<label style='display:inline-flex;gap:4px;align-items:center'>" + label + " <input type='number' step='any' id='" + id + "' value='" + (v ?? "") + "' style='width:70px'" + extra + "></label>";
+      const numF = (id, label, v, extra = "") => "<label style='display:inline-flex;gap:4px;align-items:center'>" + label + " <input type='number' step='any' id='" + id + "' value='" + esc(v ?? "") + "' style='width:70px'" + extra + "></label>";
       sPar.innerHTML = !d ? ""
         : d.cls === "Vfd" && a === "start" ? numF("sSp", tr("otáčky") + (d.unit ? " [" + esc(d.unit) + "]" : ""), d.setpoint) + (d.opt && d.opt.rev ? " <label class='chk'><input type='checkbox' id='sRev'> " + tr("vzad") + "</label>" : "")
         : d.cls === "PosDrive" && a === "posRecord" ? "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("záznam") + " <select id='sRec'>" +
@@ -707,7 +959,7 @@ export function makeSteps(ctx) {
     /* kroky servoosy: cíl (pojmenovaná poloha nebo číslo), dráha, rychlost se znaménkem; dynamika nepovinně (prázdné = výchozí z konfigurace osy) */
     const axisPar = (d, a, numF) => {
       const u = d.unit ? " [" + esc(d.unit) + "]" : "", us = d.unit ? " [" + esc(d.unit) + "/s]" : "", us2 = d.unit ? " [" + esc(d.unit) + "/s²]" : "";
-      const dyn = numF("sVel", tr("rychlost") + us, "", " placeholder='" + axisCfgOf(d).vDef + "'") + " " + numF("sAcc", tr("zrychlení") + us2, "") + " " + numF("sDec", tr("zpomalení") + us2, "");
+      const dyn = numF("sVel", tr("rychlost") + us, "", " placeholder='" + esc(axisCfgOf(d).vDef) + "'") + " " + numF("sAcc", tr("zrychlení") + us2, "") + " " + numF("sDec", tr("zpomalení") + us2, "");
       if (a === "moveAbs") return "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("poloha") + " <select id='sPosRef'><option value=''>" + tr("— zadat číslem —") + "</option>" +
         axisCfgOf(d).positions.map(x => "<option value='" + esc(x.name) + "'>" + esc(x.name + " (" + x.pos + ")") + "</option>").join("") + "</select></label> " + numF("sPos", tr("cíl") + u, "") + " " + dyn;
       if (a === "moveRel") return numF("sPos", tr("dráha") + u, "") + " " + dyn;
@@ -718,7 +970,7 @@ export function makeSteps(ctx) {
       const d = devById(p, +sDev.value), acts = actTxt();
       const opts = !d ? ["wait"] : d.cls === "DI" ? ["waitOn", "waitOff"] : (ACTS_FOR[d.cls] || []);
       const lbl = a => a === "wait" ? tr("čekat") : a === "waitOn" ? tr("čekat na TRUE") : a === "waitOff" ? tr("čekat na FALSE") : (acts[a] || a);
-      sAct.innerHTML = opts.map(a => "<option value='" + a + "'>" + lbl(a) + "</option>").join("");
+      sAct.innerHTML = opts.map(a => "<option value='" + esc(a) + "'>" + esc(lbl(a)) + "</option>").join("");
       // čekání na DI: přechod je vždy zpětné hlášení (vstup), čas je hlídací
       if (d && d.cls === "DI") sCond.value = "fbk";
       sCond.disabled = !!(d && d.cls === "DI");
@@ -736,9 +988,10 @@ export function makeSteps(ctx) {
       p.program.interlocks = p.devices.filter(d => set.has(d.id)).map(d => d.id);
       save();
     }));
-    c.querySelector("#bAddStep").addEventListener("click", () => {
+    /** Krok z formuláře (nový i upravovaný). Kontrolu dělá jádro (edit.ts stepProblem). */
+    const readForm = () => {
       const d = devById(p, +sDev.value);
-      const st = { dev: d ? d.id : 0, act: d ? sAct.value : "wait", cond: !d ? "time" : d.cls === "DI" ? "fbk" : sCond.value, timeS: (numIn(c.querySelector("#sTime").value) ?? 0) > 0 ? numIn(c.querySelector("#sTime").value) : 1 };
+      const st = { dev: d ? d.id : 0, act: d ? sAct.value : "wait", cond: !d ? "time" : d.cls === "DI" ? "fbk" : sCond.value, timeS: numIn(c.querySelector("#sTime").value) ?? NaN };
       const sp = numIn((c.querySelector("#sSp") || {}).value), rec = numIn((c.querySelector("#sRec") || {}).value), rev = c.querySelector("#sRev");
       if (sp !== undefined) st.sp = sp;
       if (rec !== undefined) st.rec = Math.round(rec);
@@ -749,9 +1002,39 @@ export function makeSteps(ctx) {
         else { const pos = numIn((c.querySelector("#sPos") || {}).value); if (pos !== undefined) st.pos = pos; }
         for (const f of ["Vel", "Acc", "Dec"]) { const v = numIn((c.querySelector("#s" + f) || {}).value); if (v !== undefined) st[f.toLowerCase()] = v; }
       }
-      p.program.seq.push(st);
+      return st;
+    };
+    /** Výsledek úpravy sekvence z jádra: chyba = hláška u formuláře, jinak uložit a překreslit. */
+    const applied = (r, editNext) => {
+      const err = c.querySelector("#sErr");
+      if (!r.ok) { err.textContent = r.error; err.hidden = false; return; }
+      S.seqEdit = editNext ? r.index : null;
       save(); render();
-    });
+    };
+    c.querySelector("#bAddStep").addEventListener("click", () => applied(insertStep(p, p.program.seq.length - 1, readForm()), false));
+    /* úprava kroku: „Upravit“ u řádku načte krok do formuláře pod seznamem */
+    const edIdx = Number.isInteger(S.seqEdit) && S.seqEdit < p.program.seq.length ? S.seqEdit : null;
+    if (edIdx === null) S.seqEdit = null;
+    else {
+      const s = p.program.seq[edIdx], d = s.act === "wait" ? null : devById(p, s.dev);
+      sDev.value = d ? String(d.id) : "0";
+      refreshActs();
+      if ([...sAct.options].some(o => o.value === s.act)) sAct.value = s.act;
+      if (!sCond.disabled) sCond.value = s.cond;
+      c.querySelector("#sTime").value = s.timeS;
+      refreshPar();
+      const setV = (id, v) => { const el = c.querySelector(id); if (el && v !== undefined && v !== null) el.value = v; };
+      setV("#sSp", s.sp); setV("#sRec", s.rec); setV("#sPos", s.pos); setV("#sVel", s.vel); setV("#sAcc", s.acc); setV("#sDec", s.dec);
+      const rev = c.querySelector("#sRev"); if (rev) rev.checked = !!s.rev;
+      const ref = c.querySelector("#sPosRef");
+      if (ref) { ref.value = s.posRef || ""; ref.dispatchEvent(new Event("change")); }
+      c.querySelector("#sEditRow").hidden = false;
+      c.querySelector("#sEditTxt").textContent = tr("Upravuješ krok {n} — změň hodnoty a ulož.", { n: edIdx + 1 });
+      c.querySelector("#bInsStep").textContent = tr("Vložit za krok {n}", { n: edIdx + 1 });
+      c.querySelector("#bSaveStep").addEventListener("click", () => applied(updateStep(p, edIdx, readForm()), true));
+      c.querySelector("#bInsStep").addEventListener("click", () => applied(insertStep(p, edIdx, readForm()), true));
+      c.querySelector("#bCancelStep").addEventListener("click", () => { S.seqEdit = null; render(); });
+    }
     const list = c.querySelector("#seqList");
     if (p.program.seq.length) {
       const acts = actTxt();
@@ -759,12 +1042,23 @@ export function makeSteps(ctx) {
         const d = devById(p, s.dev);
         const head = s.act === "waitOn" || s.act === "waitOff" || (d && (isMotionClass(d.cls) || d.cls === "Axis")) ? stepTitle(p, s) : (d ? d.name : "?") + " " + (acts[s.act] || s.act);
         const txt = s.act === "wait" ? tr("výdrž {t} s", { t: s.timeS }) : head + " → " + (s.cond === "time" ? tr("čas {t} s", { t: s.timeS }) : tr("zpětné hlášení (hlídací čas {t} s)", { t: s.timeS }));
-        return "<div class='seqrow'><span class='k'>" + tr("Krok {n}", { n: i + 1 }) + "</span><span style='flex:1;font-size:.86rem'>" + esc(txt) + "</span>" +
+        return "<div class='seqrow" + (i === edIdx ? " editing" : "") + "'><span class='k'>" + tr("Krok {n}", { n: i + 1 }) + "</span><span style='flex:1;font-size:.86rem'>" + esc(txt) + "</span>" +
+          "<button class='small' data-ed='" + i + "' title='" + esc(tr("Načíst krok do formuláře pod seznamem a upravit")) + "'>" + tr("Upravit") + "</button>" +
+          "<button class='small' data-dup='" + i + "'>" + tr("Duplikovat") + "</button>" +
           "<button class='small' data-up='" + i + "' " + (i === 0 ? "disabled" : "") + ">↑</button><button class='small' data-dn='" + i + "' " + (i === p.program.seq.length - 1 ? "disabled" : "") + ">↓</button><button class='small danger' data-rm='" + i + "'>×</button></div>";
       }).join("");
-      list.querySelectorAll("[data-up]").forEach(b => b.addEventListener("click", () => { const i = +b.dataset.up; [p.program.seq[i - 1], p.program.seq[i]] = [p.program.seq[i], p.program.seq[i - 1]]; save(); render(); }));
-      list.querySelectorAll("[data-dn]").forEach(b => b.addEventListener("click", () => { const i = +b.dataset.dn; [p.program.seq[i + 1], p.program.seq[i]] = [p.program.seq[i], p.program.seq[i + 1]]; save(); render(); }));
-      list.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => { p.program.seq.splice(+b.dataset.rm, 1); save(); render(); }));
+      /* přesun / odstranění: upravovaný krok se stěhuje s sebou (nebo úprava skončí) */
+      const follow = (a, b) => { if (S.seqEdit === a) S.seqEdit = b; else if (S.seqEdit === b) S.seqEdit = a; };
+      list.querySelectorAll("[data-ed]").forEach(b => b.addEventListener("click", () => { S.seqEdit = +b.dataset.ed; render(); const f = document.querySelector("#sEditRow"); if (f) f.scrollIntoView({ block: "center" }); }));
+      list.querySelectorAll("[data-dup]").forEach(b => b.addEventListener("click", () => applied(duplicateStep(p, +b.dataset.dup), false)));
+      list.querySelectorAll("[data-up]").forEach(b => b.addEventListener("click", () => { const i = +b.dataset.up; [p.program.seq[i - 1], p.program.seq[i]] = [p.program.seq[i], p.program.seq[i - 1]]; follow(i, i - 1); save(); render(); }));
+      list.querySelectorAll("[data-dn]").forEach(b => b.addEventListener("click", () => { const i = +b.dataset.dn; [p.program.seq[i + 1], p.program.seq[i]] = [p.program.seq[i], p.program.seq[i + 1]]; follow(i, i + 1); save(); render(); }));
+      list.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => {
+        const i = +b.dataset.rm;
+        p.program.seq.splice(i, 1);
+        if (S.seqEdit === i) S.seqEdit = null; else if (S.seqEdit > i) S.seqEdit--;
+        save(); render();
+      }));
     } else list.innerHTML = "<p class='hint'>" + tr("Bez sekvence se vygenerují jen instance zařízení s TODO povely pro ruční režim.") + "</p>";
   }
 
@@ -783,7 +1077,7 @@ export function makeSteps(ctx) {
     if (innerTab >= files.length) innerTab = 0;
     const c = card(el, "08", tr("Generované zdroje"), `
     <div class="tabs outer" role="tablist">${plats.map((pl, i) => "<button role='tab' aria-selected='" + (i === outerTab) + "' data-o='" + i + "'>" + PLAT[pl].name + "</button>").join("")}</div>
-    <div class="tabs" role="tablist" style="margin-top:8px">${files.map((f, i) => "<button role='tab' aria-selected='" + (i === innerTab) + "' data-f='" + i + "'>" + f + "</button>").join("")}</div>
+    <div class="tabs" role="tablist" style="margin-top:8px">${files.map((f, i) => "<button role='tab' aria-selected='" + (i === innerTab) + "' data-f='" + i + "'>" + esc(f) + "</button>").join("")}</div>
     <div class="codebox"><pre class="code" id="genCode"></pre><button class="copybtn" id="bCopyGen">${tr("Kopírovat")}</button></div>
     <div class="row"><button class="small primary" id="bDlGen">${tr("Stáhnout zobrazený soubor")}</button><button class="small" id="bDlAllGen">${tr("Stáhnout všechny soubory platformy")}</button></div>
     <p class="note">${tr("Postup importu pro danou platformu je v záložce <b>README.txt</b>. Výstup je výchozí kostra — TODO komentáře označují místa k doplnění.")}</p>`);
@@ -822,13 +1116,15 @@ export function makeSteps(ctx) {
         <div class="row" style="margin:0 0 10px">
           <button class="primary" id="bDocSave">${tr("Stáhnout soubor")}</button>
           <button class="small" id="bDocAll">${tr("Stáhnout vše (po souborech)")}</button>
+          <button class="small" id="bDocZip">${tr("Stáhnout projekt (ZIP)")}</button>
           <button class="small" id="bDocCopy">${tr("Kopírovat")}</button>
           <span class="hint" style="margin:0;font-family:var(--font-mono);font-size:.72rem" id="docName"></span>
         </div>
+        <div id="docFolder" style="margin:-4px 0 10px"></div>
         <div id="docPane"></div>
       </div>
     </div>
-    <p class="note">${tr(`Soubory platforem se ukládají s předponou platformy (např. <code>siemens_Gen_Main.scl</code>), ať se v jednom adresáři nepletou. „Stáhnout vše" uloží každý soubor zvlášť — prohlížeč se může zeptat na povolení více stahování.`)}</p>`);
+    <p class="note">${tr(`Soubory platforem se ukládají s předponou platformy (např. <code>siemens_Gen_Main.scl</code>), ať se v jednom adresáři nepletou. „Stáhnout vše" uloží každý soubor zvlášť — prohlížeč se může zeptat na povolení více stahování.`)} ${tr("Celou projektovou složku — podsložky 01_Dokumentace … 99_Interni a číslo projektu na začátku názvu každého souboru — stáhneš najednou tlačítkem Stáhnout projekt (ZIP).")}</p>`);
     const pane = c.querySelector("#docPane"), nameEl = c.querySelector("#docName");
     const show = () => {
       const f = files[docSel];
@@ -843,6 +1139,8 @@ export function makeSteps(ctx) {
     c.querySelector("#bDocCopy").addEventListener("click", () => copyText(files[docSel].body, c.querySelector("#bDocCopy")));
     c.querySelector("#bDocSave").addEventListener("click", () => downloadFile(files[docSel].save, files[docSel].body));
     c.querySelector("#bDocAll").addEventListener("click", () => downloadFiles(files.map(f => [f.save, f.body]), c.querySelector("#bDocAll")));
+    c.querySelector("#bDocZip").addEventListener("click", e => downloadProjectZip(S.prj, JSON.stringify({ prj: S.prj, ai: S.ai }, null, 1), e.currentTarget));
+    mountFolderControls(c.querySelector("#docFolder"), { prj: () => S.prj, payload: () => JSON.stringify({ prj: S.prj, ai: S.ai }, null, 1), rerender: render });
   }
 
   /* ---------------------------------------------------------- 10 Kusovník
@@ -913,11 +1211,11 @@ export function makeSteps(ctx) {
       const src = !pk.custom && pk.opt?.brand.src && ov.type === undefined
         ? " <a href='" + esc(pk.opt.brand.src) + "' target='_blank' rel='noopener' title='" + esc(tr("Zdroj údajů o typu")) + "'>↗</a>" : "";
       const autoNote = ov.note ? l.note.slice(0, Math.max(0, l.note.length - ov.note.length)).replace(/; $/, "") : l.note;
-      rows += "<tr data-row='" + esc(l.id) + "'" + (l.safety ? " class='safety'" : "") + "><td class='mono'>" + l.pos + "</td>" +
+      rows += "<tr data-row='" + esc(l.id) + "'" + (l.safety ? " class='safety'" : "") + "><td class='mono'>" + esc(l.pos) + "</td>" +
         "<td class='mono'><b>" + esc(l.tag) + "</b></td>" +
         "<td>" + (l.safety ? "<span class='warnmark' title='" + esc(tr("Bezpečnostní prvek")) + "'>⚠</span> " : "") + esc(l.item) + "</td>" +
         "<td style='font-size:.78rem;min-width:140px'>" + esc(l.desc) + "</td>" +
-        "<td><input type='number' min='0' step='1' data-bf='qty' data-id='" + esc(l.id) + "' value='" + l.qty + "' style='width:64px' aria-label='" + esc(tr("Ks")) + "'> <span class='hint' style='margin:0'>" + esc(l.unit) + "</span></td>" +
+        "<td><input type='number' min='0' step='1' data-bf='qty' data-id='" + esc(l.id) + "' value='" + esc(l.qty) + "' style='width:64px' aria-label='" + esc(tr("Ks")) + "'> <span class='hint' style='margin:0'>" + esc(l.unit) + "</span></td>" +
         "<td style='min-width:170px'>" + brandSel + "</td>" +
         "<td style='min-width:200px'><input type='text' data-bf='type' data-id='" + esc(l.id) + "' value='" + esc(l.type) + "'>" + src + "</td>" +
         "<td style='min-width:150px'><input type='text' data-bf='orderCode' data-id='" + esc(l.id) + "' value='" + esc(l.orderCode) + "'></td>" +
@@ -1045,7 +1343,7 @@ export function makeSteps(ctx) {
       const inp = c.querySelector("input[data-bf=" + (t === "b" ? "brandTxt" : "supplierTxt") + "][data-id='" + CSS.escape(id) + "']");
       if (inp) inp.focus();
     }
-    c.querySelector("#bBomCsv").addEventListener("click", () => downloadFile((p.meta.name || "plc-projekt") + "_kusovnik.csv", bomCsv(p)));
+    c.querySelector("#bBomCsv").addEventListener("click", () => downloadFile(projectFileName(p, "_kusovnik.csv"), bomCsv(p)));
     c.querySelector("#bBomTsv").addEventListener("click", () => {
       const cell = v => String(v ?? "").replace(/[\t\r\n]+/g, " ");
       const head = ["#", tr("Označení"), tr("Položka"), tr("Popis"), tr("Množství"), tr("Jednotka"), tr("Výrobce"), tr("Typ"), tr("Objednací kód"), tr("Dodavatel"), tr("Poznámka")];

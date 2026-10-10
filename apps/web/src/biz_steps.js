@@ -6,7 +6,7 @@
      - krok Zařízení: „Přidat z knihovny“ (jen s připojenou knihovnou),
      - krok Kusovník: záložky Kusovník / Nabídka,
      - krok Schválení: zvýraznění položek dotčených změnou od revize (approval_step.js). */
-import { esc, tr, getLang } from "../../../packages/core/dist/index.js";
+import { escHtml as esc, tr, getLang } from "../../../packages/core/dist/index.js";
 import {
   revisionView, revisionMd, issueRevision, revisionBadge,
   quoteView, importPrices, setQuote, quoteFiles,
@@ -191,7 +191,7 @@ export function makeBizSteps(ctx) {
   }
 
   /* ================================================================ krok Projekt: firemní knihovna */
-  const loadedLib = () => { try { const s = localStorage.getItem(LIB_KEY); return s ? JSON.parse(s) : null; } catch { return null; } };
+  const loadedLib = () => { try { const s = localStorage.getItem(LIB_KEY); const o = s ? JSON.parse(s) : null; return o && typeof o === "object" && !Array.isArray(o) ? o : null; } catch { return null; } };
   const storeLib = lib => { try { if (lib) localStorage.setItem(LIB_KEY, JSON.stringify(lib)); else localStorage.removeItem(LIB_KEY); } catch { /* bez úložiště */ } };
   const sameLib = (a, b) => !!a && !!b && JSON.stringify({ ...a, updated: "" }) === JSON.stringify({ ...b, updated: "" });
 
@@ -215,7 +215,7 @@ export function makeBizSteps(ctx) {
       <button class="small danger" id="libDetach"${own ? "" : " disabled"}>${tr("Odpojit od projektu")}</button>
       <button class="small" id="libTpl">${tr("Vzor knihovny…")}</button>
     </div>`;
-    if (lv.msg) html += "<div class='notice " + lv.msg.level + "' style='margin-top:10px'>" + esc(lv.msg.text) + "</div>";
+    if (lv.msg) html += "<div class='notice " + esc(lv.msg.level) + "' style='margin-top:10px'>" + esc(lv.msg.text) + "</div>";
     if (v) {
       const head = loaded && !sameLib(loaded, own) ? tr("Načtená knihovna") : tr("Knihovna projektu");
       html += "<h3>" + esc(head) + ": " + esc(v.name || "—") + " <span class='hint' style='margin:0;font-weight:400'>" + esc(tr("verze {v}", { v: v.version })) + (v.updated ? " · " + esc(v.updated) : "") + "</span></h3>";
@@ -232,7 +232,7 @@ export function makeBizSteps(ctx) {
       html += "<h3>" + tr("Typy zařízení ({n})", { n: v.deviceTypes.length }) + "</h3>" + (v.deviceTypes.length
         ? "<div class='tablewrap'><table id='libTypes'><thead><tr><th>ID</th><th>" + tr("Popisek") + "</th><th>" + tr("Třída") + "</th><th>" + tr("Předpona") + "</th><th>" + tr("Volby") + "</th><th>" + tr("Díly kusovníku") + "</th><th>" + tr("Hlídací čas kroku") + "</th></tr></thead><tbody>" +
           v.deviceTypes.map(t => "<tr><td class='mono'>" + esc(t.id) + "</td><td>" + esc(t.label) + (t.desc && t.desc !== t.label ? "<div class='apsum'>" + esc(t.desc) + "</div>" : "") + "</td><td>" + esc(t.clsLabel) + "</td><td class='mono'>" + esc(t.prefix) +
-            "</td><td style='font-size:.78rem'>" + esc([t.opts, t.range].filter(Boolean).join(" · ") || "—") + "</td><td class='mono'>" + t.bom + "</td><td class='mono'>" + (t.stepTimeS !== null ? esc(t.stepTimeS + " s") : "—") + "</td></tr>").join("") + "</tbody></table></div>"
+            "</td><td style='font-size:.78rem'>" + esc([t.opts, t.range].filter(Boolean).join(" · ") || "—") + "</td><td class='mono'>" + esc(t.bom) + "</td><td class='mono'>" + (t.stepTimeS !== null ? esc(t.stepTimeS + " s") : "—") + "</td></tr>").join("") + "</tbody></table></div>"
         : "<p class='hint'>" + tr("Knihovna nemá vlastní typy zařízení.") + "</p>");
       html += "<h3>" + tr("Šablony bloků ({n})", { n: v.fbTemplates.length }) + "</h3>" + (v.fbTemplates.length
         ? "<div class='tablewrap'><table id='libTpls'><thead><tr><th>ID</th><th>" + tr("Blok") + "</th><th>" + tr("Dialekt") + "</th><th>" + tr("Platformy") + "</th><th>" + tr("Stav") + "</th></tr></thead><tbody>" +
@@ -326,7 +326,7 @@ export function makeBizSteps(ctx) {
     /* --- ceník */
     html += "<h3 style='margin-top:6px'>" + tr("Ceník") + "</h3><div class='row' style='margin-top:4px'>" +
       "<label class='small filebtn'><input type='file' id='qFile' accept='.csv,.tsv,.txt,text/csv' hidden><span class='button small primary'>" + tr("Načíst ceník (CSV / TSV)…") + "</span></label>" +
-      "<label class='f' style='flex-direction:row;gap:6px;align-items:center'>" + tr("měna řádků bez měny") + " <select id='qDefCur'><option value=''>" + tr("podle souboru") + "</option>" + CURRENCIES.map(c => "<option>" + c + "</option>").join("") + "</select></label>" +
+      "<label class='f' style='flex-direction:row;gap:6px;align-items:center'>" + tr("měna řádků bez měny") + " <select id='qDefCur'><option value=''>" + tr("podle souboru") + "</option>" + CURRENCIES.map(c => "<option>" + esc(c) + "</option>").join("") + "</select></label>" +
       (v.priceCount ? "<button class='small danger' id='qDropPrices'>" + tr("Odebrat ceník") + "</button>" : "") +
       "<span class='stat'>" + (v.priceCount ? tr("položek ceníku <b>{n}</b>", { n: v.priceCount }) : tr("ceník nenačten")) + "</span></div>" +
       "<p class='hint'>" + tr("Ceník z Excelu (středník, desetinná čárka) nebo TSV; sloupce se poznají podle záhlaví (objednací kód, typ, výrobce, kategorie, cena, měna, dodavatel, dodací lhůta). Párování: objednací kód → typ a výrobce → kategorie.") + "</p>";
@@ -337,7 +337,7 @@ export function makeBizSteps(ctx) {
     }
     if (v.unused.length) html += "<details class='help' id='qUnused'><summary>" + tr("Nepoužité řádky ceníku ({n})", { n: v.unused.length }) + "</summary><div class='body' style='max-width:none'>" +
       "<p class='hint' style='margin-top:0'>" + tr("Řádky, které nepasují na žádnou položku kusovníku — zkontroluj objednací kód, typ nebo výrobce.") + "</p><div class='tablewrap'><table><thead><tr><th>" + tr("Řádek") + "</th><th>" + tr("Objednací kód") + "</th><th>" + tr("Typ") + "</th><th>" + tr("Výrobce") + "</th><th>" + tr("Kategorie") + "</th><th>" + tr("Cena") + "</th></tr></thead><tbody>" +
-      v.unused.map(u => "<tr><td class='mono'>" + u.row + "</td><td class='mono'>" + esc(u.orderCode || "—") + "</td><td>" + esc(u.type || "—") + "</td><td>" + esc(u.brand || "—") + "</td><td>" + esc(u.cat || "—") + "</td><td class='mono'>" + esc(u.price) + "</td></tr>").join("") + "</tbody></table></div></div></details>";
+      v.unused.map(u => "<tr><td class='mono'>" + esc(u.row) + "</td><td class='mono'>" + esc(u.orderCode || "—") + "</td><td>" + esc(u.type || "—") + "</td><td>" + esc(u.brand || "—") + "</td><td>" + esc(u.cat || "—") + "</td><td class='mono'>" + esc(u.price) + "</td></tr>").join("") + "</tbody></table></div></div></details>";
     /* --- měna, sazby */
     html += "<h3>" + tr("Měna, sazby a přirážky") + "</h3><div class='qgrid'>" +
       "<label class='f'>" + tr("Měna nabídky") + "<select id='qCur'>" + curOpts + "</select></label>" +
@@ -366,8 +366,8 @@ export function makeBizSteps(ctx) {
     /* --- materiál */
     html += "<h3>" + tr("Materiál ({n})", { n: v.material.length }) + "</h3><div class='tablewrap scrolly'><table class='qmat' id='qMat'><thead><tr><th>" + tr("Označení") + "</th><th>" + tr("Položka") + "</th><th>" + tr("Výrobce") + "</th><th>" + tr("Typ") +
       "</th><th>" + tr("Objednací kód") + "</th><th>" + tr("Ks") + "</th><th class='num'>" + tr("Cena/ks") + "</th><th class='num'>" + tr("Celkem") + "</th><th>" + tr("Párování") + "</th></tr></thead><tbody>" +
-      v.material.map(m => "<tr class='qm-" + m.match + "'><td class='mono'><b>" + esc(m.tag) + "</b></td><td>" + (m.safety ? "<span class='warnmark'>⚠</span> " : "") + esc(m.item) + "</td><td>" + esc(m.brand) + "</td><td style='font-size:.78rem'>" + esc(m.type) +
-        "</td><td class='mono'>" + esc(m.orderCode || "—") + "</td><td class='mono'>" + m.qty + "</td><td class='mono num'>" + (m.unitPrice ? esc(m.unitPrice) + (m.src ? "<div class='apsum'>" + esc(m.src) + "</div>" : "") : "<span class='noprice'>—</span>") +
+      v.material.map(m => "<tr class='qm-" + esc(m.match) + "'><td class='mono'><b>" + esc(m.tag) + "</b></td><td>" + (m.safety ? "<span class='warnmark'>⚠</span> " : "") + esc(m.item) + "</td><td>" + esc(m.brand) + "</td><td style='font-size:.78rem'>" + esc(m.type) +
+        "</td><td class='mono'>" + esc(m.orderCode || "—") + "</td><td class='mono'>" + esc(m.qty) + "</td><td class='mono num'>" + (m.unitPrice ? esc(m.unitPrice) + (m.src ? "<div class='apsum'>" + esc(m.src) + "</div>" : "") : "<span class='noprice'>—</span>") +
         "</td><td class='mono num'>" + (m.total ? esc(m.total) : "<span class='noprice'>—</span>") + "</td><td>" + chip(m.tone, m.matchLabel) + (m.priceRow ? " <span class='hint' style='margin:0'>" + tr("ř. {n}", { n: m.priceRow }) + "</span>" : "") +
         (m.reason && m.match !== "none" ? "<div class='apsum'>" + esc(m.reason) + "</div>" : "") + "</td></tr>").join("") + "</tbody></table></div>" +
       "<p class='hint'>" + tr("Párování „kategorie“ = cena podle kategorie, ne podle konkrétního typu — ověř.") + "</p>";

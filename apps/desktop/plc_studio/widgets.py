@@ -247,12 +247,15 @@ class Table(ttk.Frame):
     ``columns`` = seznam ``(klíč, nadpis, šířka, roztáhnout)``. ``editable`` =
     klíče sloupců, které jdou upravit; změnu hlásí ``on_edit(iid, klíč, hodnota)``.
     ``on_click(iid, klíč)`` hlásí jednoduchý klik (např. přepnutí zaškrtnutí).
+    ``edit_value(iid, klíč)`` = text do editoru buňky, když se liší od zobrazeného (např. uložená
+    adresa místo adresy v notaci platformy).
     ``ellipsis=True``: text, který se do sloupce nevejde, se zkrátí s „…“ (Treeview sám řeže
     uprostřed slova) a celý se ukáže v bublině po najetí myší; celou hodnotu vrací ``full()``.
     """
 
     def __init__(self, parent, columns, *, height: int = 8, editable=(),
-                 on_edit=None, on_click=None, tree: bool = False, ellipsis: bool = False):
+                 on_edit=None, on_click=None, tree: bool = False, ellipsis: bool = False,
+                 edit_value=None):
         super().__init__(parent)
         self._ellipsis = ellipsis
         self._full: dict[str, dict[str, str]] = {}    # iid → {sloupec / "#0": celý text}
@@ -266,6 +269,7 @@ class Table(ttk.Frame):
         self._editable = set(editable)
         self._on_edit = on_edit
         self._on_click = on_click
+        self._edit_value = edit_value
         self._editor: tk.Entry | None = None
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
@@ -527,7 +531,10 @@ class Table(ttk.Frame):
         ed = tk.Entry(self.tv, bg="#FFFFFF", fg=theme.FG, relief="flat", font=theme.FONT_UI,
                       highlightthickness=1, highlightbackground=theme.ACCENT,
                       highlightcolor=theme.ACCENT, insertbackground=theme.FG)
-        ed.insert(0, self.full(iid, key))           # celý text, ne zkrácený s „…“
+        start = self._edit_value(iid, key) if self._edit_value else None
+        if start is None:
+            start = self.full(iid, key)               # celý text, ne zkrácený s „…“
+        ed.insert(0, start)
         ed.select_range(0, "end")
         ed.place(x=x, y=y, width=w, height=h)
         ed.focus_set()
@@ -538,7 +545,7 @@ class Table(ttk.Frame):
                 return
             value = ed.get()
             self._cancel_edit()
-            if value != self.full(iid, key) and self._on_edit:
+            if value != start and self._on_edit:
                 self._on_edit(iid, key, value)
 
         ed.bind("<Return>", commit)
@@ -579,8 +586,55 @@ def license_filter(app, name: str, body):
     return out
 
 
-def save_file(app, name: str, body: str) -> bool:
+def _initial_dir(app, sub: str | None, name: str = "") -> str | None:
+    """Výchozí složka dialogu: podsložka projektové složky podle druhu ``sub`` a jména souboru
+    (datadir.py → core projectFileFolder), jinak poslední."""
+    if getattr(app, "prj", None) is None:
+        return app.settings.get("last_dir") or None
+    from .datadir import initial_dir
+    return initial_dir(app, sub, name)
+
+
+def _place(app, name: str, sub: str | None) -> tuple[str | None, str]:
+    """Výchozí složka a jméno (s předponou čísla projektu) dialogu „Uložit…“."""
+    if getattr(app, "prj", None) is None:
+        return app.settings.get("last_dir") or None, name
+    from .datadir import place
+    return place(app, name, sub)
+
+
+def prefix_files(app, files: list[tuple[str, object]]) -> list[tuple[str, object]]:
+    """Předpona čísla projektu u sady souborů (core prefixProjectFiles: odkazy v README / .md
+    přepsané, kód PLC beze změny, objekty TwinCAT bez předpony); bez čísla beze změny."""
+    number = str(((getattr(app, "prj", None) or {}).get("meta") or {}).get("number") or "").strip()
+    if not number:
+        return files
+    try:
+        out = app.core("prefixProjectFiles", [{"path": n, "body": b} if isinstance(b, str)
+                                              else {"path": n} for n, b in files], number)
+    except Exception:                                  # noqa: BLE001 — bez mostu (testy): jen jména
+        pre = file_prefix(app)
+        return [(n if n.startswith(pre) else pre + n, b) for n, b in files]
+    return [(o["path"], o["body"] if isinstance(b, str) else b) for o, (_n0, b) in zip(out, files)]
+
+
+def file_prefix(app) -> str:
+    """Prefix „<číslo projektu>_“ názvů souborů hromadného ukládání (core projectFilePrefix)."""
+    meta = (getattr(app, "prj", None) or {}).get("meta") or {}
+    if not str(meta.get("number") or "").strip():
+        return ""
+    try:
+        return app.core("projectFilePrefix", {"meta": meta}) or ""
+    except Exception:                                  # noqa: BLE001 — bez mostu (testy) bez prefixu
+        return ""
+
+
+def save_file(app, name: str, body: str, sub: str | None = None) -> bool:
     """Dialog „Uložit jako" pro jeden soubor; vrací, zda se uložilo.
+
+    ``sub`` = druh souboru (``kod/siemens``, ``vykresy``, ``dokumentace``…): dialog začne v podsložce
+    projektové složky, kam soubor patří (core projectFileFolder), výchozí jméno má předponu čísla
+    projektu.
 
     Licence: nad limitem Free a DXF ve Free se neuloží (okno Licence s důvodem), dokumenty a README
     dostanou ve Free patičku PLCdesk; projekt a firemní knihovna se ukládají vždy."""
@@ -590,9 +644,10 @@ def save_file(app, name: str, body: str) -> bool:
     ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
     # popis typu se překládá až tady (tabulka vzniká při importu, kdy jazyk ještě není znám)
     types = [(_(_FILETYPES[ext][0]), _FILETYPES[ext][1])] if ext in _FILETYPES else []
+    start, name = _place(app, name, sub)
     path = filedialog.asksaveasfilename(
         parent=app.root, title=_("Uložit soubor"), initialfile=name,
-        initialdir=app.settings.get("last_dir") or None,
+        initialdir=start,
         defaultextension="." + ext if ext else "",
         filetypes=types + [(_("Všechny soubory"), "*.*")])
     if not path:
@@ -607,8 +662,12 @@ def save_file(app, name: str, body: str) -> bool:
     return True
 
 
-def save_many(app, files: list[tuple[str, str]], what: str | None = None) -> bool:
+def save_many(app, files: list[tuple[str, str]], what: str | None = None,
+              sub: str | None = None) -> bool:
     """Uloží víc souborů do zvolené složky; na přepis existujících se zeptá.
+
+    Názvy dostanou předponu čísla projektu (``prefix_files``: odkazy v README a dokumentech se
+    přepíšou, kód PLC zůstane beze změny); ``sub`` jako u ``save_file``.
 
     ``what`` (4. pád, např. „výkresy") předává volající už přeložené. Licence jako ``save_file``:
     zamčené soubory (DXF ve Free) se přeskočí a důvod se ukáže jednou; nad limitem nic."""
@@ -629,9 +688,10 @@ def save_many(app, files: list[tuple[str, str]], what: str | None = None) -> boo
         why = ""
     folder = filedialog.askdirectory(
         parent=app.root, title=_("Složka pro {what}", what=what or _("soubory")), mustexist=True,
-        initialdir=app.settings.get("last_dir") or None)
+        initialdir=_initial_dir(app, sub, files[0][0] if files else ""))
     if not folder:
         return False
+    files = prefix_files(app, files)
     target = Path(folder)
     existing = [n for n, _body in files if (target / n).exists()]
     if existing and not messagebox.askyesno(

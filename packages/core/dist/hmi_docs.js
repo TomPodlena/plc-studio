@@ -85,8 +85,10 @@ export function hmiProjectFiles(prj, m = buildHmi(prj)) {
     for (const p of prj.platforms) {
         const g = tr("HMI — {name}", { name: PLAT[p].name });
         for (const [n, b] of Object.entries(hmiFiles(prj, p, m)))
-            out.push({ group: g, name: n, save: "hmi_" + p + "_" + n, body: b, kind: "text" });
+            out.push({ group: g, name: n, save: "hmi_" + p + "_" + n, body: b, kind: "text", dir: "hmi/" + p });
     }
+    for (const f of out)
+        f.dir = f.dir || "hmi";
     return out;
 }
 let off = null;

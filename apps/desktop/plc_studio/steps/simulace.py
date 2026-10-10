@@ -218,7 +218,7 @@ def build(app, parent) -> None:
     b_verify.pack(side="left")
     ttk.Button(vbar, text=_("Uložit protokol (MD)…"),
                command=lambda: save_file(app, "08_overeni_simulaci.md",
-                                         app.core("docVerifyMd", app.prj))
+                                         app.core("docVerifyMd", app.prj), "dokumentace")
                ).pack(side="left", padx=(6, 0))
     summary = ttk.Label(vbar, text=_("Spustí běžný cyklus a všechny poruchové scénáře."),
                         style="Dim.TLabel")

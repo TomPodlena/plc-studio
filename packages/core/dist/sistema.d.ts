@@ -116,7 +116,7 @@ export declare function sistemaGroupDts(g: OutGroup): string[];
 /** PFHd z textu katalogu („2,31E-09 1/h“). */
 export declare function sistemaParsePfh(t: string | undefined): number | null;
 /** Model exportu do SISTEMA z návrhu bezpečnostních funkcí. */
-export declare function sistemaModel(prj: Project, p?: SafetyProposal, items?: ApprovalItem[]): SistemaModel;
+export declare function sistemaModel(prj0: Project, p?: SafetyProposal, items?: ApprovalItem[]): SistemaModel;
 /** Číslo ve zvyklosti SISTEMA: desetinná čárka, malé hodnoty exponentem („1,5E-8“). */
 export declare function sistemaNum(x: number): string;
 export declare function sistemaCcfMid(id: string): string;

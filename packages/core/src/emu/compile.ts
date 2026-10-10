@@ -734,6 +734,9 @@ export function compile(inp: CompileInput): Compiled {
         lvlAdd(d.looseBool ? "ok" : "error", "type-conv", p, tr("{what}: reálný literál nelze přiřadit do {to}", { what, to: dn }), d.src.conv);
       } else if (val !== undefined && to.min !== undefined && to.max !== undefined && (val < to.min || val > to.max) && to.cat !== "real") {
         lvlAdd(d.plat === "rockwell" ? "warn" : "error", "literal-range", p, tr("{what}: hodnota {v} je mimo rozsah typu {to} ({min}…{max})", { what, v: val, to: dn, min: to.min, max: to.max }), d.src.conv);
+      } else if (val !== undefined && dn === "REAL" && !(Math.abs(val) <= 3.4028234663852886e38)) {
+        /* REAL = IEEE 754 single (IEC 61131-3 tab. 10): ±3,4E38 — větší literál překladače odmítnou / přetečou na ∞ */
+        add("error", "literal-range", p, tr("{what}: hodnota {v} je mimo rozsah typu REAL (±3,4E38)", { what, v: val }), d.src.conv);
       }
       if (val !== undefined && Number.isFinite(val)) {             // konstanta: zabalit už při překladu
         if (to.cat === "bool") return val ? "1" : "0";

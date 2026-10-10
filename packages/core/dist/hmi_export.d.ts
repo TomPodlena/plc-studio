@@ -50,4 +50,4 @@ export declare function hmiSiemensWorkbook(prj: Project, m?: HmiModel): Uint8Arr
  * Soubory exportu HMI pro platformu (název → obsah). Napojení: přes `registerHmiModule()`
  * (hmi_docs.ts) se přidají do sady projektu jako skupina „HMI — <platforma>“; `genFor` se nemění.
  */
-export declare function hmiFiles(prj: Project, plat: PlatformKey, m?: HmiModel): Record<string, string>;
+export declare function hmiFiles(prj0: Project, plat: PlatformKey, m?: HmiModel): Record<string, string>;

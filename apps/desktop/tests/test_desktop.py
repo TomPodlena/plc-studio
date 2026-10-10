@@ -571,7 +571,9 @@ class GuiTest(unittest.TestCase):
         """Meze měření, žádaná hodnota, role výstupu, krok čekání na vstup a takt."""
         self.app.load_sample("small")
         self.goto(0)
-        takt = next(e for e in self.find(ttk.Entry) if e.get() == "")
+        # pole taktu podle popisku (v kroku jsou i číslo projektu, zákazník a datum zahájení)
+        takt = next(e for e in self.find(ttk.Entry) if any(
+            "takt" in str(w.cget("text")) for w in e.master.winfo_children() if isinstance(w, ttk.Label)))
         takt.insert(0, "12")
         self.assertEqual(self.app.prj["meta"]["takt"], 12)
 
@@ -1709,9 +1711,12 @@ class GuiTest(unittest.TestCase):
         out = tempfile.mkdtemp()
         with mock.patch("tkinter.filedialog.askdirectory", return_value=out):
             self.click("Uložit všechny soubory platformy…")
+        # jména jako v projektové složce 03_Program_PLC/<Platforma>/ (README na ně odkazuje); bez čísla
+        # projektu bez předpony
         names = os.listdir(out)
-        self.assertTrue(names and all(n.startswith("siemens_") for n in names))
-        self.assertIn("FUNCTION_BLOCK", Path(out, "siemens_Gen_Main.scl").read_text(encoding="utf-8"))
+        self.assertIn("Gen_Main.scl", names)
+        self.assertIn("README.txt", names)
+        self.assertIn("FUNCTION_BLOCK", Path(out, "Gen_Main.scl").read_text(encoding="utf-8"))
 
         radios = self.find(ttk.Radiobutton)
         radios[1].invoke()                                   # druhá platforma
@@ -1719,7 +1724,19 @@ class GuiTest(unittest.TestCase):
         one = str(Path(tempfile.mkdtemp(), "x.txt"))
         with mock.patch("tkinter.filedialog.asksaveasfilename", return_value=one) as dlg:
             self.click("Uložit zobrazený soubor…")
-        self.assertTrue(dlg.call_args.kwargs["initialfile"].startswith("beckhoff_"))
+        self.assertFalse(dlg.call_args.kwargs["initialfile"].startswith("beckhoff_"))
+        # s číslem projektu: předpona u jména, kód beze změny
+        self.app.prj["meta"]["number"] = "260705"
+        with mock.patch("tkinter.filedialog.asksaveasfilename", return_value=one) as dlg:
+            self.click("Uložit zobrazený soubor…")
+        self.assertTrue(dlg.call_args.kwargs["initialfile"].startswith("260705_"))
+        out4 = tempfile.mkdtemp()
+        with mock.patch("tkinter.filedialog.askdirectory", return_value=out4):
+            self.click("Uložit všechny soubory platformy…")
+        n4 = os.listdir(out4)
+        self.assertIn("260705_README.txt", n4)
+        self.assertIn("260705_MAIN.st", Path(out4, "260705_README.txt").read_text(encoding="utf-8"))
+        del self.app.prj["meta"]["number"]
         self.assertEqual(Path(one).read_text(encoding="utf-8"), code.get("1.0", "end-1c"))
 
         self.goto(8)
@@ -2230,14 +2247,13 @@ class GuiTest(unittest.TestCase):
         return str(self.app._status.cget("text"))
 
     def test_broken_project_file_is_completed_or_rejected(self):
-        """Neúplný / vadný soubor projektu: buď se doplní a všechny kroky jdou vykreslit,
-        nebo se odmítne a rozpracovaný návrh zůstane (dřív KeyError a pády kroků)."""
+        """Neúplný / vadný soubor projektu: doplní se a všechny kroky jdou vykreslit (vadné položky
+        jádro zahodí — normalizeProject, stejně jako web), nebo se odmítne, když nejde o projekt,
+        a rozpracovaný návrh zůstane (dřív KeyError a pády kroků)."""
         self.app.load_sample("small")
         want = json.loads(json.dumps(self.app.prj))
         folder = Path(tempfile.mkdtemp())
-        rejected = ('{"prj":{"meta":{"name":"x"},"devices":"ne"}}', "[]", '{"a":1}',
-                    '{"meta":{"name":"x"},"devices":[{"id":1}]}',
-                    '{"meta":{"name":"x"},"devices":[{"id":1,"cls":"DI"},{"id":1,"cls":"DO"}]}')
+        rejected = ("[]", '{"a":1}', '"text"', "nejde o JSON")
         for i, text in enumerate(rejected):
             path = folder / f"r{i}.json"
             path.write_text(text, encoding="utf-8")
@@ -2245,6 +2261,16 @@ class GuiTest(unittest.TestCase):
                 self.assertFalse(self.app.open_project(path), text)
             err.assert_called_once()
             self.assertEqual(self.app.prj, want)
+        # vadné položky pryč, zbytek projektu zůstane (test odolnosti 2026-10-08)
+        for i, (text, n_dev) in enumerate((('{"prj":{"meta":{"name":"x"},"devices":"ne"}}', 0),
+                                           ('{"meta":{"name":"x"},"devices":[{"id":1}]}', 0),
+                                           ('{"meta":{"name":"x"},"devices":[{"id":1,"cls":"DI"},{"id":1,"cls":"DO"}]}', 1))):
+            path = folder / f"d{i}.json"
+            path.write_text(text, encoding="utf-8")
+            with mock.patch("tkinter.messagebox.showerror") as err:
+                self.assertTrue(self.app.open_project(path), text)
+            err.assert_not_called()
+            self.assertEqual(len(self.app.prj["devices"]), n_dev, text)
         path = folder / "neuplny.json"
         path.write_text(json.dumps({"meta": {"name": "Neúplný", "takt": "x"},
                                     "devices": [{"id": 3, "cls": "Motor", "name": "M1"},
@@ -2256,10 +2282,12 @@ class GuiTest(unittest.TestCase):
                                     "nextId": 1, "sim": {"motorDelay": "x"}}), encoding="utf-8")
         self.assertTrue(self.app.open_project(path))
         prj = self.app.prj
-        self.assertEqual((prj["meta"]["desc"], prj["nextId"], prj["sim"]), ("", 6, {}))
+        self.assertEqual((prj["meta"]["desc"], prj["nextId"]), ("", 6))
+        self.assertNotIn("sim", prj)
         self.assertNotIn("takt", prj["meta"])
         self.assertEqual(prj["program"]["estop"], "", "E-stop jen na DI")
-        self.assertEqual(len(prj["program"]["seq"]), 1)
+        # krok s neexistujícím zařízením pryč; výdrž bez platného času dostane 1 s (jako web)
+        self.assertEqual([(x["act"], x["timeS"]) for x in prj["program"]["seq"]], [("start", 2), ("wait", 1)])
         self.assertEqual(prj["devices"][0]["opt"], {})
         self.assertTrue(prj["io"], "I/O dopočítané")
         for step in [*range(9), "help"]:
@@ -2270,7 +2298,9 @@ class GuiTest(unittest.TestCase):
         a žádný krok nešel vykreslit) a neplatná mez se tiše nesmaže."""
         self.app.load_sample("small")
         self.goto(0)
-        takt = next(e for e in self.find(ttk.Entry) if e.get() == "")
+        # pole taktu podle popisku (v kroku jsou i číslo projektu, zákazník a datum zahájení)
+        takt = next(e for e in self.find(ttk.Entry) if any(
+            "takt" in str(w.cget("text")) for w in e.master.winfo_children() if isinstance(w, ttk.Label)))
         for text in ("inf", "1e999", "nan"):
             takt.delete(0, "end")
             takt.insert(0, text)
@@ -2442,15 +2472,15 @@ class GuiTest(unittest.TestCase):
         # CSV pro Excel se stejným počtem řádků
         saved = {}
         with mock.patch("plc_studio.steps.kusovnik.save_file",
-                        side_effect=lambda app, name, body: saved.update(name=name, body=body)):
+                        side_effect=lambda app, name, body, *_a: saved.update(name=name, body=body)):
             self.click("Uložit CSV…")
         self.assertTrue(saved["name"].endswith("_kusovnik.csv"))
         self.assertEqual(len(saved["body"].strip().splitlines()), len(rows) + 1)
         self.assertIn("Vlastní s.r.o.", saved["body"])
         # neplatné volby v souboru projektu se odfiltrují
-        from plc_studio.project import normalize_bom
-        self.assertEqual(normalize_bom({"plat": "x", "lines": {"a": {"qty": float("inf"), "brand": 5}}},
-                                       self.app.PLAT), {})
+        clean = self.app.core("normalizeProject", {"devices": [], "bom": {
+            "plat": "x", "lines": {"a": {"qty": -1, "brand": 5}}}})
+        self.assertNotIn("bom", clean)
         self.click("Obnovit výchozí volby")
         self.assertEqual(self.app.prj.get("bom"), {"plat": "rockwell"})
 
@@ -2692,7 +2722,7 @@ class GuiTest(unittest.TestCase):
         self.assertNotIn("dev:H1", self.app.prj.get("approvals") or {})
         with mock.patch("plc_studio.steps.schvaleni.save_file") as sf:
             self.click("Uložit 11_schvaleni.md…")
-        name, body = sf.call_args[0][1:]
+        name, body = sf.call_args[0][1:3]
         self.assertTrue(name.endswith("11_schvaleni.md"))
         self.assertIn("# Schválení projektu", body)
 
@@ -2749,7 +2779,7 @@ class GuiTest(unittest.TestCase):
         with mock.patch("plc_studio.steps.ozivovani.save_file") as sf:
             self.click("Uložit protokol…")
             self.click("Uložit CSV…")
-        (n1, md), (n2, csv) = [c[0][1:] for c in sf.call_args_list]
+        (n1, md), (n2, csv) = [c[0][1:3] for c in sf.call_args_list]
         self.assertTrue(n1.endswith("12_protokol_ozivovani.md"))
         self.assertTrue(n2.endswith("12_protokol_ozivovani.csv"))
         self.assertIn("# Protokol oživení", md)
@@ -2906,7 +2936,7 @@ class GuiTest(unittest.TestCase):
         self.root.update()
         with mock.patch("plc_studio.steps.bezpecnost.save_file") as sf:
             self.click("Uložit soubor…")
-        name, body = sf.call_args[0][1:]
+        name, body = sf.call_args[0][1:3]
         self.assertTrue(name.endswith("safety_Konfigurace_relay.md"))
         self.assertIn("SCHVÁLENO", body)
         # výkres okruhu je na plátně

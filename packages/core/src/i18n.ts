@@ -72,6 +72,9 @@ export function N_(cs: string): string { return cs; }
 
 const LOCALE: Record<Lang, string> = { cs: "cs-CZ", en: "en-GB", de: "de-DE", es: "es-ES", zh: "zh-CN" };
 
+/** Značka národního prostředí nastaveného jazyka (např. „cs-CZ“) — formáty data v klientech. */
+export function dateLocale(tech = false): string { return LOCALE[tech ? techLang() : lang]; }
+
 /** Dnešní datum ve zvyklosti nastaveného jazyka; `tech` = pro technické výstupy (viz `trx`). */
 export function today(tech = false): string {
   return new Date().toLocaleDateString(LOCALE[tech ? techLang() : lang]);

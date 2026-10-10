@@ -17,6 +17,9 @@ export function loadSampleFile(name: string): Project {
 /** Přísná kontrola well-formed XML (párování značek, uvozené atributy, entity); vrací chybu nebo "". */
 export function xmlProblem(src: string): string {
   let s = src.replace(/^﻿/, "");
+  /* znaky, které XML 1.0 nepovoluje (řídicí kromě \t \n \r) — test odolnosti 2026-10-08 */
+  const badCh = /[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFE\uFFFF]/.exec(s);
+  if (badCh) return "znak U+" + badCh[0].charCodeAt(0).toString(16).padStart(4, "0").toUpperCase() + " na " + badCh.index;
   let i = 0;
   const stack: string[] = [];
   const ent = /&(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);/y;

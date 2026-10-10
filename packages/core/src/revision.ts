@@ -22,7 +22,7 @@
  * rozsah potvrzuje odpovědná osoba. Zpráva `17_zmeny.md` (přes `registerDocProvider`) a sloupec
  * revize v popisovém poli výkresů (`setSheetRevision` v drawing.ts) se přihlašují samy.
  */
-import { Project, Device, SeqStep, PLAT, CLS, DO_ROLES, devById, interlockDevs, enableInputs, isMotionClass, type PlatformKey, type DeviceClass, type IoEntry } from "./model.js";
+import { Project, Device, SeqStep, PLAT, CLS, DO_ROLES, blankProject, devById, interlockDevs, enableInputs, isMotionClass, type PlatformKey, type DeviceClass, type IoEntry } from "./model.js";
 import { tr, N_, formatDate, today } from "./i18n.js";
 import { canonicalJson, fnv1a64, approvalItems, designView, noGuid, motionContent, type ApprovalItem, type ApprovalRecord, type ApprovalState } from "./approval.js";
 import { commissioningPlan, COMMISSION_PHASES, type CommissioningStep } from "./commission.js";
@@ -73,6 +73,11 @@ export function revisionContent(prj: Project): Partial<Project> {
   /* GUID (guid.ts) je identita objektu, ne obsah: doplnění při migraci není změna projektu */
   if (Array.isArray(o.devices)) o.devices = (o.devices as Device[]).map(noGuid);
   if (Array.isArray(o.io)) o.io = (o.io as IoEntry[]).map(noGuid);
+  /* složka dat projektu (desktop) je místo na disku konkrétního PC, ne obsah: změna není změna projektu */
+  if (o.meta && typeof o.meta === "object" && "dataDir" in (o.meta as object)) {
+    const { dataDir: _d, ...rest } = o.meta as Project["meta"];
+    o.meta = rest;
+  }
   return JSON.parse(canonicalJson(o));
 }
 const contentKey = (prj: Project): string => canonicalJson(revisionContent(prj));
@@ -183,7 +188,16 @@ export function revisionSnapshot(prj: Project, id: string): Project {
   return snapshotOf(findRevision(prj, id));
 }
 function snapshotOf(r: RevisionRecord): Project {
-  const p = JSON.parse(r.snapshot) as Project;
+  /* poškozený zmrazený obsah (ručně upravený soubor) = prázdný projekt — dokumentace nesmí spadnout
+     (test odolnosti 2026-10-08); platný JSON beze změny */
+  let p: Project;
+  try {
+    const v = JSON.parse(r.snapshot);
+    p = v && typeof v === "object" && !Array.isArray(v) && Array.isArray(v.devices) && Array.isArray(v.io) && v.program && typeof v.program === "object"
+      ? v as Project : blankProject();
+  } catch {
+    p = blankProject();
+  }
   p.approvals = {};
   for (const [k, a] of Object.entries(r.approvalsAt || {})) p.approvals[k] = { state: a.state, by: a.by, at: a.at, hash: a.hash, ...(a.note ? { note: a.note } : {}) };
   return p;
@@ -406,7 +420,8 @@ function rawDiff(x: Project, y: Project): Raw[] {
 
   /* projekt */
   const mx = x.meta || { name: "", desc: "" }, my = y.meta || { name: "", desc: "" };
-  for (const f of ["name", "desc"] as const) if ((mx[f] || "") !== (my[f] || ""))
+  /* název, popis, číslo projektu, zákazník a datum zahájení = metadata → kosmetická změna (nic dalšího neovlivní) */
+  for (const f of ["name", "desc", "number", "customer", "startDate"] as const) if ((mx[f] || "") !== (my[f] || ""))
     push({ area: "project", op: "change", field: "meta." + f, before: mx[f] || "", after: my[f] || "", a: { ref: "meta." + f }, b: { ref: "meta." + f }, floor: "cosmetic", cand: [], devs: [], tags: [] });
   if (fin(mx.takt) !== fin(my.takt))
     push({ area: "project", op: "change", field: "takt", before: fin(mx.takt), after: fin(my.takt), a: { ref: "meta.takt" }, b: { ref: "meta.takt" }, floor: "functional", cand: F("limits"), devs: [], tags: [] });
@@ -662,6 +677,7 @@ const FIELD: Record<string, string> = {
   cond: N_("přechod"), timeS: N_("čas [s]"), axis: N_("konfigurace osy"), axisMove: N_("cíl / rychlost / zrychlení / zpomalení osy"),
   modes: N_("režimy AUTO / ručně"), estop: N_("E-stop"),
   "meta.name": N_("název projektu"), "meta.desc": N_("popis projektu"), takt: N_("takt [s]"),
+  "meta.number": N_("číslo projektu"), "meta.customer": N_("zákazník"), "meta.startDate": N_("datum zahájení projektu"),
   motorDelay: N_("doba rozběhu motoru [s]"), valveTravel: N_("doba přestavení ventilu [s]"),
   sfp: N_("parametry rizika S/F/P"), stopCat: N_("kategorie zastavení"), cat: N_("kategorie"), channels: N_("počet kanálů"),
   pl: N_("dosažené PL"), distS: N_("bezpečná vzdálenost S [mm]"), off: N_("vyřazeno z návrhu"), inputs: N_("vstupní zařízení"), acts: N_("výstupy"),

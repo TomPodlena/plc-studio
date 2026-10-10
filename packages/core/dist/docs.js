@@ -5,7 +5,7 @@
  * Texty jdou přes `tr()` po přirozených jednotkách (nadpis, odstavec, odrážka, řádek
  * hlavičky tabulky, věta v buňce); struktura Markdownu / CSV zůstává mimo klíče.
  */
-import { CLS, PLAT, devById, modules, wireNo, dtFor, usedClasses, interlockDevs, DO_ROLES, codeStyleFor, isMotionClass, hasRange, ioOf, rampStepOf, tolOf, tolTicksOf, selBitsOf, maxRecord, stepSp, stepAxisTarget, } from "./model.js";
+import { CLS, PLAT, devById, modules, wireNo, dtFor, usedClasses, interlockDevs, DO_ROLES, codeStyleFor, isMotionClass, hasRange, ioOf, rampStepOf, tolOf, tolTicksOf, selBitsOf, maxRecord, stepSp, stepAxisTarget, lineSafe, outputSafe, } from "./model.js";
 import { axisCfgOf, axisObjName } from "./axis.js";
 import { axisSupport, AXIS_LIB, AXIS_NET } from "./axis_gen.js";
 import { bomCsv, bomMd } from "./bom.js";
@@ -13,10 +13,11 @@ import { hwAddrText, hwTypeText, hwSummary, hwPlatform } from "./hardware.js";
 import { tr, N_, today } from "./i18n.js";
 import { genFor, codeLibrary } from "./codegen.js";
 import { libraryDocHeader } from "./library.js";
+import { projectMetaMd, mdMultiline } from "./project_meta.js";
 import { oopInProject, oopProgram, oopClassSvg, OOP_CLASS_SVG } from "./codegen_oop.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
 import { conceptMd } from "./concept.js";
-import { simulate, docVerifyMd, stepWatchdog, stepTitle, stepCondText, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE, T_AXIS_POWER } from "./sim.js";
+import { simulate, simBlockers, docVerifyMd, stepWatchdog, stepTitle, stepCondText, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE, T_AXIS_POWER } from "./sim.js";
 import { svgFlow, svgTiming, svgMachine } from "./flow.js";
 import { approvalItems, approvalStamp, approvalsMd, designView, APPROVAL_FILE } from "./approval.js";
 import { commissioningPlan, commissioningMd, commissioningCsv, COMMISSION_FILE_MD, COMMISSION_FILE_CSV } from "./commission.js";
@@ -226,7 +227,7 @@ export function docFDSMd(prj) {
         "| **" + tr("Revize") + "** | " + tr("0.1 — návrh (PLCdesk)") + " |",
         "",
         "## " + tr("1. Popis stroje a účel"),
-        prj.meta.desc || tr("(doplnit)"),
+        mdMultiline(prj.meta.desc || "") || tr("(doplnit)"),
         "",
         ...(prj.concept ? ["### " + tr("Zvolený koncept řešení: {name}", { name: prj.concept.nazev }), prj.concept.shrnuti,
             tr("Podrobně viz {file}.", { file: "`" + CONCEPT_FILE + "`" }), ""] : []),
@@ -280,10 +281,22 @@ export function svorkyCSV(prj) {
         + ";" + (m.hw?.dt || "") + ";" + (m.hw ? (m.hw.opt?.orderCode || m.hw.custom || hwTypeText(m.hw)) : ""))));
     return l.join("\n");
 }
+/** Seznam alarmů jako CSV (středník) — buňky jednořádkově (`lineSafe`), jinak text beze změny. */
 export function docAlarmCsv(prj) {
     const l = [tr("Kód;Zařízení;Alarm;Příčina;Reakce systému;Kvitace")];
+    for (const r of docAlarmRows(prj))
+        l.push([r.code, r.dev, r.alarm, r.cause, r.reaction, r.ack].map(lineSafe).join(";"));
+    return l.join("\n");
+}
+/**
+ * Řádky seznamu alarmů (kód, zařízení, alarm, příčina, reakce, kvitace) — jediný zdroj pro CSV dokumentace
+ * i alarmy HMI. HMI dřív četlo zpět text CSV a víceřádkový popis blokovacího vstupu ho rozbil
+ * („HMI: alarm … nemá spouštěcí tag“, test odolnosti 2026-10-08) — teď na tvaru textů nezávisí.
+ */
+export function docAlarmRows(prj) {
+    const rows = [];
     /* řádek = kód; zařízení; alarm; příčina; reakce; kvitace (buňka = jeden klíč překladu) */
-    const row = (...c) => { l.push(c.join(";")); };
+    const row = (code, dev, alarm, cause, reaction, ack) => { rows.push({ code, dev, alarm, cause, reaction, ack }); };
     for (const d of prj.devices) {
         if (d.cls === "Motor") {
             row("A_" + d.name + "_START", d.name, tr("Timeout rozběhu"), tr("Nepřišlo zpětné hlášení běhu do 3 s"), tr("Stop zařízení, porucha stroje (stop sekvence)"), tr("Kvitace (cmdAck) po odstranění příčiny"));
@@ -349,7 +362,7 @@ export function docAlarmCsv(prj) {
         if (wd)
             row("A_SEQ_" + (i + 1), tr("sekvence"), tr("Timeout kroku {n} ({title})", { n: i + 1, title: stepTitle(prj, sq) }), tr("Podmínka „{cond}“ nesplněna do {wd} s", { cond: stepCondText(prj, sq), wd }), tr("Porucha stroje: sekvence do kroku 0, povely vypnuty (faultStep = {step})", { step: 10 + i * 10 }), tr("Kvitace (cmdAck) po odstranění příčiny"));
     });
-    return l.join("\n");
+    return rows;
 }
 export function docFATMd(prj) {
     const mods = modules(prj);
@@ -447,7 +460,7 @@ export function docManualMd(prj) {
         tr("Revize 0.1 ({date}) — kostra k doplnění; před předáním doplnit fotografie, ovládací panel a kontakty.", { date: dnes() }),
         "",
         "## " + tr("1. Popis stroje"),
-        prj.meta.desc || tr("(doplnit)"),
+        mdMultiline(prj.meta.desc || "") || tr("(doplnit)"),
         "",
         "## " + tr("2. Ovládací prvky"),
         tr("(doplnit: hlavní vypínač, panel HMI, tlačítka, signalizace — {list})", { list: prj.devices.filter(d => d.cls === "DO").map(d => d.name + " " + d.desc).join(", ") || "—" }),
@@ -545,7 +558,9 @@ function oopSwSection(prj) {
         "",
     ];
 }
-export function docFiles(prj, items = approvalItems(prj)) {
+export function docFiles(prj0, items = approvalItems(prj0)) {
+    /* jednořádková pole bez řídicích znaků (CSV, výkresy, tabulky Markdownu); otisky schválení z původního projektu */
+    const prj = outputSafe(prj0);
     const plan = commissioningPlan(prj);
     const bodies = [
         docIndexMd(prj), docFDSMd(prj), docIOcsv(prj), svorkyCSV(prj),
@@ -564,8 +579,9 @@ export function docFiles(prj, items = approvalItems(prj)) {
     for (const p of docProviders)
         if (p.docs)
             out.push(...p.docs(prj, items));
-    /* hlavička pod nadpisem dokumentů Markdown: firemní hlavička knihovny a řádek revize (bez nich beze změny) */
-    const head = [libraryDocHeader(prj).trim(), ...docProviders.map(p => (p.header ? p.header(prj) : "").trim())].filter(Boolean).join("\n\n");
+    /* hlavička pod nadpisem dokumentů Markdown: firemní hlavička knihovny, číslo projektu a zákazník
+       (project_meta.ts) a řádek revize (bez nich beze změny) */
+    const head = [libraryDocHeader(prj).trim(), projectMetaMd(prj), ...docProviders.map(p => (p.header ? p.header(prj) : "").trim())].filter(Boolean).join("\n\n");
     if (head)
         for (const f of out)
             if (f.path.endsWith(".md"))
@@ -591,11 +607,11 @@ export function allProjectFiles(prj) {
     const gDocs = tr("Dokumentace"), gSch = tr("Schémata");
     const items = approvalItems(prj);
     for (const f of docFiles(prj, items))
-        out.push({ group: gDocs, name: f.path, save: f.path, body: f.body, kind: "text" });
+        out.push({ group: gDocs, name: f.path, save: f.path, body: f.body, kind: "text", dir: /^09_kusovnik\./.test(f.path) ? "kusovnik" : "dokumentace" });
     const mods = modules(prj);
     out.push({ group: gSch, name: "blokove_schema.svg", save: "00_blokove_schema.svg", body: svgBlock(prj, mods), kind: "svg" });
     out.push({ group: gSch, name: "schema_stroje.svg", save: "00_schema_stroje.svg", body: svgMachine(prj), kind: "svg" });
-    if (prj.program.seq.length) {
+    if (prj.program.seq.length && !simBlockers(prj).length) { // zadání, které by simulaci nafouklo: diagramy bez běhu nevznikají
         const run = simulate(prj);
         out.push({ group: gSch, name: "funkcni_diagram.svg", save: "00_funkcni_diagram.svg", body: svgFlow(prj, run), kind: "svg" });
         out.push({ group: gSch, name: "casovy_diagram.svg", save: "00_casovy_diagram.svg", body: svgTiming(prj, run), kind: "svg" });
@@ -609,6 +625,9 @@ export function allProjectFiles(prj) {
         out.push({ group: gSch, name: base + ".svg", save: pre + base + ".svg", body: sheetSVG(prj, m, i + 1, i + 1, mods.length), kind: "svg" });
         out.push({ group: gSch, name: base + ".dxf", save: pre + base + ".dxf", body: sheetDXF(prj, m, i + 1, i + 1, mods.length), kind: "dxf", prev: sheetSVG(prj, m, i + 1, i + 1, mods.length) });
     });
+    for (const f of out)
+        if (f.group === gSch)
+            f.dir = "vykresy";
     for (const p of docProviders)
         if (p.files)
             out.push(...p.files(prj, items));
@@ -617,7 +636,7 @@ export function allProjectFiles(prj) {
         /* README platformy nese razítko stavu programu (zdrojové soubory se nemění) */
         const stamp = approvalStamp(prj, ["design", "program", "verify"], items).text;
         for (const [n, b] of Object.entries(files))
-            out.push({ group: tr("PLC — {name}", { name: PLAT[p].name }), name: n, save: p + "_" + n, body: n === "README.txt" && stamp ? stamp + "\n\n" + b : b, kind: "text" });
+            out.push({ group: tr("PLC — {name}", { name: PLAT[p].name }), name: n, save: p + "_" + n, body: n === "README.txt" && stamp ? stamp + "\n\n" + b : b, kind: "text", dir: "kod/" + p });
     }
     return out;
 }

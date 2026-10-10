@@ -20,7 +20,9 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
   funkce a program (`safety*.ts`), PLCopen XML (`plcopen.ts`), L5X (`logix.ts`), koncepty (`concept.ts`),
   emulace překladu a běhu (`emu/`), HMI (`hmi*.ts`), revize (`revision.ts`), nabídka (`quote.ts`),
   firemní knihovna (`library.ts`), exporty SISTEMA (`sistema.ts`) a EPLAN (`eplan.ts`), styl kódu OOP
-  (`codegen_oop.ts`, profily CODESYS WAGO / Delta AX).
+  (`codegen_oop.ts`, profily CODESYS WAGO / Delta AX), ruční úpravy projektu (`edit.ts`: přejmenování zařízení
+  s výchozími tagy, volby / rozsah / popis se `syncIO`, úprava / vložení / duplikace kroku, tag / komentář /
+  adresa signálu s kontrolou — klienti web i desktop jen volají tyto funkce, logiku úprav nekopírují).
   Jádro musí běžet v prohlížeči i Node — žádné závislosti nepřidávat.
 - `apps/web` — aplikace: statické HTML + ES moduly nad `packages/core/dist` (bez bundleru,
   záměrně — budoucí přechod na Vite/React je OK, ale core zůstává oddělené).
@@ -499,6 +501,32 @@ python scripts/build_verification.py        # data/verification.json → verific
   stránku Kontakt a text žádosti s ID projektu (`prj.guid`) dá do schránky; odemčení přijde jako licence
   `free-unlock`. Testy: `license.test.ts`, `apps/desktop/tests/test_license.py`.
 
+## Údaje projektu a projektová složka (`project_meta.ts`, `project_folder.ts`)
+
+- `meta.number` = šestimístné `RRNNNN` (rok + pořadí, 260705); po RR9999 přetoková řada RR+50 (269999 → 760001)
+  — `nextProjectNumber` (desktop i web z názvů složek `RRNNNN_*` v kořeni; web bez kořene z `plcstudio.numbers` v localStorage);
+  jiný tvar = jen `warn`. `meta.customer`, `meta.startDate` (ISO), víceřádkový `meta.desc` (`mdMultiline`).
+  Číslo / zákazník / datum → pruh nad popisovým polem výkresů (`titleBlock`), hlavičky dokumentů, README;
+  **prázdné = výstup beze změny (golden)**; do kódu PLC nikdy. Revize: kosmetická změna; `dataDir` mimo obsah revize.
+- **Projektová složka** `<kořen>\<číslo>_<Název>` (kořen = nastavení desktopu `projects_root`, projekt ho může
+  přepsat `meta.dataDir`; kořen se nikdy nevytváří bez potvrzení). Struktura `PROJECT_DIRS`: 01_Dokumentace,
+  02_Vykresy\SVG|DXF, 03_Program_PLC\<Platforma>|Bezpecnostni_program, 04_HMI, 05_Bezpecnost, 06_Kusovnik,
+  07_Oziveni_a_FAT, 08_Schvaleni_a_revize, 09_Exporty\EPLAN, 99_Interni (nabídka — nepředávat). Třídění souborů
+  jen v jádře (`projectFileFolder` / `projectFolderFiles`, test: nic nezařazeného).
+- **Předpona čísla u každého souboru** (`prefixProjectFiles`): přejmenuje klíče a v .md / .html / README /
+  NAVOD / PROTOKOL přepíše celé názvy souborů; kód PLC bajt po bajtu beze změny; výjimka `PREFIX_EXEMPT` =
+  objekty TwinCAT (.TcPOU / .TcGVL / .TcIO / .TcDUT / .TcTTO — jméno souboru = jméno objektu). Uplatňují
+  klienti při ukládání (desktop „Uložit vše do složky projektu“ = `projectBundle`, okna Uložit začínají v podsložce;
+  web každé stažení + „Stáhnout projekt (ZIP)“ = `projectZip`). Licence (`applyLicenseToFile`) před přejmenováním.
+  Aplikace začíná prázdná (návrh čísla), vzory jen v „Příklady strojů“.
+- **Web — projektová složka přes File System Access** (`apps/web/src/project_dir.js`, Edge / Chrome v secure contextu):
+  kořen `showDirectoryPicker` → handle v IndexedDB (`idb.js`, sdílí ho průvodce importu), po načtení stránky
+  `queryPermission`, jinak tlačítko „Obnovit přístup ke složce“ (`requestPermission` jen na gesto). „Uložit vše
+  do složky projektu“ (kroky Projekt a Dokumentace) = tentýž `projectBundle` jako ZIP a desktop, zápis po dávkách
+  s průběhem / Zrušit, jeden dotaz na přepis, přehled po podsložkách; „Otevřít projekt…“ (startIn = kořen, bez API
+  `<input type=file>`). Bez API (Firefox, Safari, politika, http mimo localhost) jen nápověda + ZIP. Na API sahá jen
+  `fsLayer` — test v headless Edge ho podvrhne kořenem OPFS (`navigator.storage.getDirectory()`) nebo `supported = () => false`.
+
 ## Revize a změnové řízení (`revision.ts`)
 
 - `createRevision(prj, kdo, poznámka)` → `prj.revisions` (označení A, B… nebo 01, 02…; zmrazený obsah bez
@@ -585,7 +613,13 @@ python scripts/build_verification.py        # data/verification.json → verific
 
 ## Konvence a pravidla
 
-- Kanonické adresy I/O v Siemens notaci (%I0.0, %IW64); převody per platforma přes `addrFor()`.
+- Kanonické adresy I/O v Siemens notaci (%I0.0, %IW64; `canonIoAddr` bez úvodních nul); převody per platforma přes `addrFor()`.
+- **Odolnost (test 2026-10-08):** načtený projekt normalizuje jádro `normalizeProject` (project_norm.ts) — web
+  `normProject` i desktop `project.normalize` ho volají (klienti dál jen safety / revize / nabídka / knihovna);
+  vadné položky se zahodí, soubor se odmítne jen když nejde o projekt. Jednořádková pole čistí `oneLine` (vstup:
+  edit.ts, normalizace), výstupy `outputSafe` (genFor, docFiles, HMI, EPLAN, SISTEMA) + `lineSafe` (komentáře, CSV/TSV,
+  DXF) + `xmlSafe` (všechny XML escapery) — pro čistý text identita (golden). Ověření simulací / emulace běhu
+  neběží při `simBlockers` (čas kroku mimo 0–24 h, rampa / doba jízdy / model stroje nad 3600 s, odhad cyklu nad 48 h).
 - **GUID objektů** (`guid.ts`, export EPLAN AML v2 `eplan_aml.ts` podle nich páruje opakovaný import):
   `Project.guid`, `Device.guid`, `Project.moduleGuids` (karta = klíč DI1, DO2…), `IoEntry.guid` (odvozený
   ze zařízení + signálu). Přidělují se při vzniku (`blankProject`, `syncIO`, import), chybějící doplní

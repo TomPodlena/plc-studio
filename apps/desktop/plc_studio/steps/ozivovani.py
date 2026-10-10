@@ -63,10 +63,10 @@ def render(app, parent) -> None:
     bar = ttk.Frame(body)
     bar.pack(fill="x", pady=(8, 4))
     ttk.Button(bar, text=_("Uložit CSV…"),
-               command=lambda: save_file(app, _file_name(app, data["files"]["csv"]), data["csv"])
+               command=lambda: save_file(app, _file_name(app, data["files"]["csv"]), data["csv"], "dokumentace")
                ).pack(side="right")
     ttk.Button(bar, text=_("Uložit protokol…"), style="Accent.TButton",
-               command=lambda: save_file(app, _file_name(app, data["files"]["md"]), data["md"])
+               command=lambda: save_file(app, _file_name(app, data["files"]["md"]), data["md"], "dokumentace")
                ).pack(side="right", padx=(0, 6))
     nm = ttk.Frame(bar)
     nm.pack(side="left")
