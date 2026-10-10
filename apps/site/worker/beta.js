@@ -18,7 +18,7 @@
 
 import VERIFICATION from "../../../data/verification.json" with { type: "json" };
 import CONTENT_CS from "../content/cs.json" with { type: "json" };
-import { out, readJson, audit, clip, nowIso, isoAgo, num, clientIp } from "./admin_util.js";
+import { out, readJson, audit, clip, nowIso, isoAgo, num, clientIp, safeEmail } from "./admin_util.js";
 import { newId } from "./license.js";
 import { sendBetaConfirmation, sendBetaNotice } from "./email.js";
 
@@ -127,6 +127,15 @@ async function reserveBetaAttempt(env, ip) {
 
 const platformList = (keys) => keys.map(platformName).join(", ");
 
+// Volny text zadatele do e-mailu na jeho (libovolnou) adresu: slova s adresou (://, www., @, domena
+// s pismennou koncovkou) nahradi "…", vysledek nejvys 60 znaku. Nazvy IDE a verze ("TIA Portal V19",
+// "CODESYS 3.5.21.60") projdou beze zmeny. Upozorneni provozovateli dostava text cely.
+const LINKISH = /\S*(?::\/\/|www\.|@|[\p{L}\p{N}-]\.[\p{L}]{2,}(?![\p{L}\p{N}]))\S*/giu;
+export function echoSafe(s) {
+  const t = String(s ?? "").replace(LINKISH, "…").replace(/\s+/g, " ").trim();
+  return t.length > 60 ? t.slice(0, 59) + "…" : t;
+}
+
 // ------------------------------------------------------------ verejna prihlaska
 
 export async function handleBetaApply(req, env) {
@@ -136,8 +145,9 @@ export async function handleBetaApply(req, env) {
   const locale = loc(b.locale);
 
   // Past na boty: skryte pole nebo odeslani driv nez za 3 s -> stejna odpoved jako cloveku, nic se neulozi
-  const elapsed = Number(b.elapsed);
-  if (String(b.web ?? "").trim() !== "" || (Number.isFinite(elapsed) && elapsed < 3000)) {
+  // (chybejici nebo neciselny cas = bot - formular webu ho posila vzdy)
+  const elapsed = typeof b.elapsed === "number" || typeof b.elapsed === "string" ? Number(b.elapsed) : NaN;
+  if (String(b.web ?? "").trim() !== "" || !Number.isFinite(elapsed) || elapsed < 3000) {
     return out({ ok: true, message: MSG[locale].ok }, 200, env.DEV_MODE ? { "x-plcdesk": "trap" } : {});
   }
 
@@ -158,7 +168,7 @@ export async function handleBetaApply(req, env) {
     fields[f] = r.value;
   }
   const email = typeof b.email === "string" ? b.email.trim().toLowerCase() : "";
-  if (!validEmail(email) || /[<>]/.test(email)) return fail(locale, "email");
+  if (!validEmail(email) || !safeEmail(email)) return fail(locale, "email");
   if (b.consent !== true) return fail(locale, "consent");
 
   const ts = await turnstile(env, b.turnstile, req.headers.get("CF-Connecting-IP"));
@@ -183,7 +193,8 @@ export async function handleBetaApply(req, env) {
   const names = platformList(platforms);
   const ide = `${fields.ide} ${fields.ide_version}`;
   try {
-    await sendBetaConfirmation(env, { to: email, locale, platforms: names, ide });
+    // Potvrzeni jde na adresu, kterou zadal kdokoli: volny text zadatele jen bez odkazu a zkraceny
+    await sendBetaConfirmation(env, { to: email, locale, platforms: names, ide: echoSafe(ide) });
   } catch (err) {
     console.error("Beta: potvrzeni zadateli se nepodarilo odeslat:", err?.message ?? err);
   }

@@ -12,6 +12,7 @@ from tkinter import ttk
 from .. import datadir, theme
 from ..i18n import _, get_lang
 from ..project import parse_num
+from ..widgets import trace
 from ..widgets import card, field, note_box, tooltip
 
 
@@ -31,9 +32,12 @@ def list_samples() -> list[dict]:
             try:
                 d = json.loads(f.read_text(encoding="utf-8-sig"))
                 prj = d.get("prj") or d
-                out.append({"path": f, "name": prj["meta"]["name"], "n": len(prj["devices"]),
+                # název příkladu přeložený (klíče generuje web do apps/web/src/sample_names.js —
+                # scripts/samples_index.mjs); bez překladu česky jako dřív
+                name = _(prj["meta"]["name"]) if prj["meta"]["name"] else f.stem
+                out.append({"path": f, "name": name, "raw": prj["meta"]["name"], "n": len(prj["devices"]),
                             "s": len(prj["program"]["seq"]), "label": _(
-                    "{name} ({n} zařízení, {s} kroků)", name=prj["meta"]["name"] or f.stem,
+                    "{name} ({n} zařízení, {s} kroků)", name=name,
                     n=len(prj["devices"]), s=len(prj["program"]["seq"]))})
             except (OSError, ValueError, KeyError, TypeError):
                 continue
@@ -137,7 +141,7 @@ def render(app, parent) -> None:
                 app.set_status(_("Takt musí být kladné číslo sekund — „{value}“ se neuložil.", value=text))
         app.save()
 
-    var_takt.trace_add("write", on_takt)
+    trace(var_takt, on_takt, dbox)
 
     def on_name(*_a):
         app.prj["meta"]["name"] = var_name.get()
@@ -159,9 +163,9 @@ def render(app, parent) -> None:
                 refresh_folder()
         return cb
 
-    var_name.trace_add("write", on_name)
-    var_number.trace_add("write", on_ref("number", var_number))
-    var_customer.trace_add("write", on_ref("customer", var_customer))
+    trace(var_name, on_name, dbox)
+    trace(var_number, on_ref("number", var_number), dbox)
+    trace(var_customer, on_ref("customer", var_customer), dbox)
 
     def reset() -> None:
         # ptá se jen u neprázdného návrhu (zařízení, název, popis, konverzace AI) — jako web
@@ -202,7 +206,7 @@ def render(app, parent) -> None:
         ui = app.ui.setdefault("projekt", {})
         cur = ui.get("sample")
         if not (isinstance(cur, int) and 0 <= cur < len(samples)):
-            cur = next((i for i, s in enumerate(samples) if s["name"] == p["meta"]["name"]
+            cur = next((i for i, s in enumerate(samples) if s["raw"] == p["meta"]["name"]
                         and s["n"] == len(p["devices"])
                         and s["s"] == len(p["program"]["seq"])), 0)
         var_s = tk.StringVar(value=labels[cur])

@@ -18,7 +18,9 @@ from tkinter import messagebox, ttk
 from .. import theme
 from ..bridge import BridgeError
 from ..i18n import _
+from ..project import parse_num
 from ..svgview import SvgView
+from ..widgets import trace
 from ..widgets import Table, card, note_box, save_file, save_many, scrolled_text, set_text, wrap_label
 from .schvaleni import GREY, STATUS_COLOR, _file_name, approver, name_bar, when
 
@@ -128,7 +130,8 @@ def _decide(app, ui: dict, it: dict, action: str, note: str) -> None:
             app.prj = app.bridge.mutate("resetApproval", app.prj, it["key"])
             msg = _("Rozhodnutí zrušeno: {title}", title=it["title"])
     except BridgeError as exc:
-        app.set_status("⚠ " + str(exc))
+        from .schvaleni import approval_error
+        approval_error(app, exc)
         return
     ui["note"] = ""
     app.save()
@@ -197,7 +200,7 @@ def render(app, parent) -> None:
     buttons: list = []                                 # (schválit, zamítnout, položka)
     var_note = tk.StringVar(value=ui.get("note", ""))
     body._var_note = var_note                          # držet proměnnou naživu (GC)
-    var_note.trace_add("write", lambda *_a: ui.update(note=var_note.get()))
+    trace(var_note, lambda *_a: ui.update(note=var_note.get()), body)
 
     wrap_label(body, _(
         "PLCdesk navrhuje bezpečnostní funkce z návrhu stroje: nebezpečí, požadovanou "
@@ -792,8 +795,22 @@ def _render_settings(app, parent, v: dict) -> None:
         ent._key = key
         ttk.Label(box, text=_("návrh: {n}", n=_num(par[key])), style="Dim.TLabel").pack(anchor="w")
         start = var.get()
-        ent.bind("<Return>", lambda _e, k=key, x=var, s=start: x.get().strip() != s and set_param(k, x.get()))
-        ent.bind("<FocusOut>", lambda _e, k=key, x=var, s=start: x.get().strip() != s and set_param(k, x.get()))
+
+        def commit(_e=None, k=key, x=var, s=start, label=L[key]) -> None:
+            text = x.get().strip()
+            if text == s:
+                return
+            v = parse_num(text)
+            if text and (v is None or v <= 0):
+                # nečíselná hodnota se dřív tiše zahodila (návrh aplikace) — forenzní test L6
+                x.set(s)
+                app.set_status("⚠ " + _("„{value}“ v poli {field} není kladné číslo — hodnota se neuložila.",
+                                        value=text, field=label), keep=True)
+                return
+            set_param(k, x.get())
+
+        ent.bind("<Return>", commit)
+        ent.bind("<FocusOut>", commit)
 
     def combo(row, col, key, text, pairs, current, colspan=1):
         box = ttk.Frame(frm)
@@ -888,14 +905,14 @@ def _render_program(app, parent, v: dict, ui: dict, var_note, buttons: list) -> 
     ttk.Button(row, text=_("Uložit vše do složky…"), width=-6,
                command=lambda: save_many(app, [("safety_" + n, b) for n, b in files.items()],
                                          _("bezpečnostní program"), "kod/safety")).pack(side="left", padx=(6, 0))
-    frm, txt = scrolled_text(parent, mono=True, readonly=True, height=14)
+    frm, txt = scrolled_text(parent, mono=True, readonly=True, height=8)
     frm.pack(fill="both", expand=True)
 
     def show(*_a) -> None:
         ui["file"] = var_f.get()
         set_text(txt, files.get(var_f.get(), ""))
 
-    var_f.trace_add("write", show)
+    trace(var_f, show, frm)
     show()
 
 

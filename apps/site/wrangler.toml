@@ -79,7 +79,9 @@ ADMIN_EMAILS = ""
 # RESEND_API_KEY          (az s MAIL_MODE = "resend")
 # STRIPE_WEBHOOK_SECRET   (PAYMENT_PROVIDER = "stripe"; bez nej webhook nic neprijme)
 # PADDLE_WEBHOOK_SECRET   (PAYMENT_PROVIDER = "paddle"; secret key notifikacni destinace)
-# PADDLE_API_KEY          (volitelne, Paddle: dohledani e-mailu zakaznika, kdyz neni v custom_data)
+# PADDLE_API_KEY          (PAYMENT_PROVIDER = "paddle"; povinne - e-mail zakaznika jen z Paddle API, bez nej 503)
+# Paddle tarif = zaplacena cena: content/site.json payments.paddle_price_pro / _firma, pripadne
+# promenne PADDLE_PRICE_PRO / PADDLE_PRICE_FIRMA v [vars] (vic ID pri_… oddelit carkou).
 #
 # Lokalne: soubor .dev.vars (je v .gitignore), napr.:
 #   DEV_MODE=1

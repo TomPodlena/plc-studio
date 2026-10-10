@@ -11,7 +11,7 @@ import { ADMIN_PATHS, _resetAccessCache } from "../worker/admin.js";
 
 const db = new DatabaseSync(":memory:");
 // schema.sql + migrace spravy zakazniku (schema_admin.sql) a beta testeru (schema_beta.sql) - stejne poradi jako pri nasazeni
-for (const f of ["../schema.sql", "../schema_admin.sql", "../schema_beta.sql"]) {
+for (const f of ["../schema.sql", "../schema_admin.sql", "../schema_beta.sql", "../schema_ratelimit.sql"]) {
   for (const stmt of readFileSync(new URL(f, import.meta.url), "utf8").split(";")) {
     if (stmt.replace(/--.*$/gm, "").trim()) db.exec(stmt + ";");
   }
@@ -78,6 +78,7 @@ const accessCertFetches = [];
 
 // Odchozi pozadavky odchytime: Resend, Turnstile a certs Cloudflare Access. Nic jineho ven nesmi.
 const sentMail = [];
+const PADDLE_CUSTOMERS = { ctm_1: "Zakaznik@Firma.eu", ctm_p1: "platil-pro@firma.eu" };
 globalThis.fetch = async (url, opts) => {
   const u = String(url);
   if (u.includes("resend.com")) {
@@ -87,6 +88,12 @@ globalThis.fetch = async (url, opts) => {
   if (accessCerts.has(u)) {
     accessCertFetches.push(u);
     return new Response(JSON.stringify(accessCerts.get(u)), { status: 200 });
+  }
+  // Paddle API: zakaznik podle customer_id (e-mail licence se bere odtud, ne z custom_data)
+  if (u.startsWith("https://api.paddle.com/customers/") || u.startsWith("https://sandbox-api.paddle.com/customers/")) {
+    const id = decodeURIComponent(u.split("/customers/")[1]);
+    if (!PADDLE_CUSTOMERS[id]) return new Response(JSON.stringify({ error: { code: "not_found" } }), { status: 404 });
+    return new Response(JSON.stringify({ data: { id, email: PADDLE_CUSTOMERS[id] } }), { status: 200 });
   }
   if (u.includes("challenges.cloudflare.com/turnstile")) {
     const ok = opts.body.get("secret") === "ts-test-secret" && opts.body.get("response") === "human";
@@ -110,11 +117,16 @@ const eq = (a, b, what) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`${what}: ${JSON.stringify(a)} != ${JSON.stringify(b)}`);
 };
 
+// Verejne endpointy s limitem pokusu z IP (ratelimit.js): bez vyslovne IP dostane kazdy pozadavek
+// vlastni adresu, at starsi testy nenarazi na limit; testy limitu IP posilaji samy.
+const LIMITED = new Set(["/api/lead", "/api/unlock", "/api/license/activate", "/api/license/check"]);
+let autoIp = 0;
+const ipFor = (path) => (LIMITED.has(path) ? { "CF-Connecting-IP": `10.99.${(autoIp >> 8) & 255}.${autoIp++ & 255}` } : {});
 const call = (method, path, body, headers = {}, e = env) =>
   worker.fetch(
     new Request("https://plcdesk.ucet.workers.dev" + path, {
       method,
-      headers: { "Content-Type": "application/json", ...headers },
+      headers: { "Content-Type": "application/json", ...ipFor(path), ...headers },
       body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body),
     }),
     e
@@ -369,7 +381,7 @@ await check("subscription.deleted -> zruseno a zamceno", async () => {
 });
 
 console.log("\nPaddle Billing");
-const penv = { ...env, PAYMENT_PROVIDER: "paddle" };
+const penv = { ...env, PAYMENT_PROVIDER: "paddle", PADDLE_API_KEY: "pdl_live_apikey_test", PADDLE_PRICE_PRO: "pri_pro_m, pri_pro_y", PADDLE_PRICE_FIRMA: "pri_firma_m" };
 function paddleSigned(event, secret = "pdl_ntfset_test", ts = Math.floor(Date.now() / 1000)) {
   const payload = JSON.stringify(event);
   const h1 = createHmac("sha256", secret).update(`${ts}:${payload}`).digest("hex");
@@ -382,7 +394,7 @@ const paddle = (event, opts = {}) => {
 const ptx = {
   event_id: "evt_pdl_1",
   event_type: "transaction.completed",
-  data: { id: "txn_1", subscription_id: "sub_pdl_1", customer_id: "ctm_1", custom_data: { plan: "firma", locale: "en", email: "Zakaznik@Firma.eu" } },
+  data: { id: "txn_1", subscription_id: "sub_pdl_1", customer_id: "ctm_1", items: [{ price: { id: "pri_firma_m" }, quantity: 1 }], custom_data: { locale: "en" } },
 };
 await check("Paddle webhook pri PAYMENT_PROVIDER=stripe neexistuje (404)", async () => {
   eq((await paddle(ptx, { env })).status, 404, "status");
@@ -411,7 +423,8 @@ await check("stara zprava (prehrani) odmitnuta", async () => {
 });
 await check("zmenene telo po podpisu odmitnuto", async () => {
   const s = paddleSigned(ptx);
-  const tampered = s.payload.replace('"firma"', '"pro"');
+  const tampered = s.payload.replace('"pri_firma_m"', '"pri_pro_m"');
+  if (tampered === s.payload) throw new Error("telo se nezmenilo");
   eq((await call("POST", "/api/paddle/webhook", tampered, { "Paddle-Signature": s.header }, penv)).status, 400, "status");
 });
 await check("transaction.completed vystavi licenci Firma (5 mist) a posle ji anglicky", async () => {
@@ -440,7 +453,7 @@ await check("bez e-mailu v udalosti se e-mail dohleda pres Paddle API", async ()
       ? new Response(JSON.stringify({ data: { email: "api@firma.cz" } }), { status: 200 })
       : orig(u, o);
   try {
-    await paddle({ event_id: "evt_pdl_3", event_type: "subscription.activated", data: { id: "sub_pdl_2", customer_id: "ctm_2", custom_data: { plan: "pro", locale: "cs" } } }, { env: e });
+    await paddle({ event_id: "evt_pdl_3", event_type: "subscription.activated", data: { id: "sub_pdl_2", customer_id: "ctm_2", items: [{ price: { id: "pri_pro_y" } }], custom_data: { locale: "cs" } } }, { env: e });
   } finally {
     globalThis.fetch = orig;
   }
@@ -1531,6 +1544,262 @@ await check("admin/index.html: skript CMS s pevnou verzí a integrity", async ()
 await check("build.js zapisuje _headers s nosniff a frame-ancestors", async () => {
   const js = readFileSync(new URL("../scripts/build.js", import.meta.url), "utf8");
   if (!/"_headers"/.test(js) || !/nosniff/.test(js) || !/frame-ancestors 'none'/.test(js)) throw new Error("_headers chybi");
+});
+
+// =====================================================================================
+// Opravy po forenznim testu webu 2026-10-10 (ZPRAVA.md, nalezy N1-N10)
+const { invoiceSub, paddlePlan } = await import("../worker/payments.js");
+const { echoSafe } = await import("../worker/beta.js");
+const { safeEmail } = await import("../worker/admin_util.js");
+const { RATE_LIMITS } = await import("../worker/ratelimit.js");
+const insLic = (key, seats, plan = "pro", status = "active") =>
+  db.prepare("INSERT INTO licenses (key, email, plan, seats, status, valid_until, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(key, "forenz@firma.cz", plan, seats, status, new Date(Date.now() + 30 * 864e5).toISOString(), new Date().toISOString(), new Date().toISOString());
+const act = (key, device_hash, ip) => call("POST", "/api/license/activate", { key, device_hash }, ip ? { "CF-Connecting-IP": ip } : {});
+const chk = (key, device_hash, ip) => call("POST", "/api/license/check", { key, device_hash }, ip ? { "CF-Connecting-IP": ip } : {});
+
+console.log("\nforenz N1: Paddle - tarif z ceny, e-mail z Paddle, custom_data jen jazyk");
+await check("cena Pro + custom_data.plan=firma a cizi e-mail -> licence Pro / 1 misto na e-mail zakaznika z Paddle", async () => {
+  const before = sentMail.length;
+  eq((await paddle({ event_id: "evt_n1_1", event_type: "transaction.completed",
+    data: { id: "txn_n1", subscription_id: "sub_n1", customer_id: "ctm_p1", items: [{ price: { id: "pri_pro_m" }, quantity: 1 }],
+      custom_data: { plan: "firma", email: "victim@example.test", locale: "de" } } })).status, 200, "status");
+  const lic = db.prepare("SELECT plan, seats, email FROM licenses WHERE sub_id = 'sub_n1'").get();
+  eq([lic.plan, lic.seats, lic.email], ["pro", 1, "platil-pro@firma.eu"], "licence");
+  eq(sentMail.length, before + 1, "jeden e-mail");
+  eq(sentMail.at(-1).to[0], "platil-pro@firma.eu", "adresat");
+  if (!/Lizenz/.test(sentMail.at(-1).subject)) throw new Error("jazyk z custom_data.locale: " + sentMail.at(-1).subject);
+  if (count("SELECT COUNT(*) AS n FROM licenses WHERE email = 'victim@example.test'")) throw new Error("licence na e-mail z custom_data");
+});
+await check("neznama cena -> zadna licence (200, udalost zpracovana)", async () => {
+  eq((await paddle({ event_id: "evt_n1_2", event_type: "transaction.completed",
+    data: { subscription_id: "sub_n1b", customer_id: "ctm_p1", items: [{ price: { id: "pri_cizi" } }], custom_data: { plan: "firma" } } })).status, 200, "status");
+  eq(count("SELECT COUNT(*) AS n FROM licenses WHERE sub_id = 'sub_n1b'"), 0, "licence");
+});
+await check("udalost bez polozek (jen custom_data.plan) -> zadna licence", async () => {
+  await paddle({ event_id: "evt_n1_3", event_type: "subscription.activated", data: { id: "sub_n1c", customer_id: "ctm_p1", custom_data: { plan: "pro" } } });
+  eq(count("SELECT COUNT(*) AS n FROM licenses WHERE sub_id = 'sub_n1c'"), 0, "licence");
+});
+await check("subscription.activated s cenou Firma (polozky predplatneho) -> Firma / 5 mist", async () => {
+  await paddle({ event_id: "evt_n1_4", event_type: "subscription.activated", data: { id: "sub_n1d", customer_id: "ctm_p1", items: [{ price: { id: "pri_firma_m" } }] } });
+  eq(db.prepare("SELECT plan || '/' || seats AS p FROM licenses WHERE sub_id = 'sub_n1d'").get()?.p, "firma/5", "licence");
+});
+await check("zakaznik v Paddle neexistuje -> zadna licence, e-mail z custom_data se nepouzije", async () => {
+  eq((await paddle({ event_id: "evt_n1_5", event_type: "transaction.completed",
+    data: { subscription_id: "sub_n1e", customer_id: "ctm_neni", items: [{ price: { id: "pri_pro_m" } }], custom_data: { email: "podvrh@example.test" } } })).status, 200, "status");
+  eq(count("SELECT COUNT(*) AS n FROM licenses WHERE sub_id = 'sub_n1e'"), 0, "licence");
+});
+await check("bez PADDLE_API_KEY nebo bez mapovani cen je webhook zavreny (503)", async () => {
+  eq((await paddle(ptx, { env: { ...penv, PADDLE_API_KEY: undefined } })).status, 503, "bez API klice");
+  eq((await paddle(ptx, { env: { ...penv, PADDLE_PRICE_PRO: "", PADDLE_PRICE_FIRMA: "" } })).status, 503, "bez cen (site.json prazdny)");
+});
+await check("paddlePlan: Firma ma prednost, price_id z details, nesmysly -> null", async () => {
+  eq(paddlePlan(penv, [{ price: { id: "pri_pro_m" } }, { price: { id: "pri_firma_m" } }]), "firma", "smes");
+  eq(paddlePlan(penv, [{ price_id: "pri_pro_y" }]), "pro", "price_id");
+  eq(paddlePlan(penv, null), null, "null");
+  eq(paddlePlan(penv, [{ price: { id: ["pri_pro_m"] } }]), null, "pole");
+});
+await check("checkout na strance Cenik posila v customData jen jazyk", async () => {
+  const src = readFileSync(new URL("../scripts/build.js", import.meta.url), "utf8");
+  const m = src.match(/customData: \{([^}]*)\}/);
+  if (!m || /plan|email/.test(m[1]) || !/locale/.test(m[1])) throw new Error("customData: " + (m && m[1]));
+});
+
+console.log("\nforenz N2: Stripe - predplatne faktury i ve tvaru API 2025-03-31.basil");
+await check("invoiceSub: basil (parent.subscription_details), stary tvar, rozbaleny objekt, jiny parent", async () => {
+  eq(invoiceSub({ parent: { type: "subscription_details", subscription_details: { subscription: "sub_b" } } }), "sub_b", "basil");
+  eq(invoiceSub({ subscription: "sub_old" }), "sub_old", "stary");
+  eq(invoiceSub({ subscription: { id: "sub_obj" } }), "sub_obj", "objekt");
+  eq(invoiceSub({ parent: { type: "quote_details", quote_details: { quote: "qt_1" } } }), null, "quote");
+  eq(invoiceSub({}), null, "nic");
+});
+await check("basil: invoice.payment_failed -> past_due, invoice.paid -> active a prodlouzeni", async () => {
+  eq((await stripe({ id: "evt_n2_0", type: "checkout.session.completed",
+    data: { object: { customer_details: { email: "basil@firma.cz" }, subscription: "sub_basil", metadata: { plan: "pro" } } } })).status, 200, "checkout");
+  db.prepare("UPDATE licenses SET valid_until = '2026-01-01T00:00:00.000Z' WHERE sub_id = 'sub_basil'").run();
+  const inv = (id, type) => ({ id, type, data: { object: { object: "invoice", parent: { type: "subscription_details", subscription_details: { subscription: "sub_basil" } } } } });
+  await stripe(inv("evt_n2_1", "invoice.payment_failed"));
+  eq(db.prepare("SELECT status FROM licenses WHERE sub_id = 'sub_basil'").get().status, "past_due", "past_due");
+  await stripe(inv("evt_n2_2", "invoice.paid"));
+  const lic = db.prepare("SELECT status, valid_until FROM licenses WHERE sub_id = 'sub_basil'").get();
+  eq(lic.status, "active", "active");
+  if (new Date(lic.valid_until) < new Date(Date.now() + 30 * 864e5)) throw new Error("neprodlouzeno: " + lic.valid_until);
+  eq(db.prepare("SELECT sub_id FROM payment_log WHERE event_id = 'evt_n2_2'").get()?.sub_id, "sub_basil", "prehled plateb");
+});
+
+console.log("\nforenz N3: pocet mist pri soubeznych aktivacich");
+await check("6 soubeznych aktivaci ruznych pocitacu na licenci se 2 misty -> 2x 200, 4x 409", async () => {
+  insLic("PLCD-RACE-RACE-RACE-RACE", 2);
+  const res = await Promise.all([1, 2, 3, 4, 5, 6].map((i) => act("PLCD-RACE-RACE-RACE-RACE", "zavod-" + i)));
+  eq(res.map((r) => r.status).sort(), [200, 200, 409, 409, 409, 409], "stavy");
+  eq(count("SELECT COUNT(*) AS n FROM activations WHERE license_key = 'PLCD-RACE-RACE-RACE-RACE' AND revoked_at IS NULL"), 2, "aktivni");
+});
+await check("plna licence: reaktivace tehoz pocitace projde, cizi ne, uvolneny se nevrati nad limit", async () => {
+  const ok = db.prepare("SELECT device_hash FROM activations WHERE license_key = 'PLCD-RACE-RACE-RACE-RACE' ORDER BY created_at LIMIT 1").get().device_hash;
+  eq((await act("PLCD-RACE-RACE-RACE-RACE", ok)).status, 200, "tentyz");
+  db.prepare("UPDATE activations SET revoked_at = ? WHERE license_key = 'PLCD-RACE-RACE-RACE-RACE' AND device_hash = ?").run(new Date().toISOString(), ok);
+  eq((await act("PLCD-RACE-RACE-RACE-RACE", "zavod-novy")).status, 200, "uvolnene misto pro jiny");
+  eq((await act("PLCD-RACE-RACE-RACE-RACE", ok)).status, 409, "uvolneny nad limit");
+  eq(count("SELECT COUNT(*) AS n FROM activations WHERE license_key = 'PLCD-RACE-RACE-RACE-RACE' AND revoked_at IS NULL"), 2, "aktivni");
+});
+
+console.log("\nforenz N4: telo null / pole / velke / jiny typ na verejnych POST");
+for (const path of ["/api/lead", "/api/unlock", "/api/license/activate", "/api/license/check", "/api/beta"]) {
+  await check(`${path}: null -> 400, [] -> 400, 20 kB -> 413, text/plain -> 415`, async () => {
+    eq((await call("POST", path, "null")).status, 400, "null");
+    eq((await call("POST", path, "[]")).status, 400, "pole");
+    eq((await call("POST", path, "{nevalidni")).status, 400, "nevalidni");
+    eq((await call("POST", path, { email: "a@firma.cz", pad: "x".repeat(20 * 1024) })).status, 413, "velke");
+    eq((await call("POST", path, "{}", { "Content-Type": "text/plain" })).status, 415, "text/plain");
+  });
+}
+await check("podepsane telo webhooku, ktere neni JSON -> 400 (Stripe i Paddle)", async () => {
+  const ts = Math.floor(Date.now() / 1000);
+  const sh = `t=${ts},v1=${createHmac("sha256", "whsec_test").update(`${ts}.{x`).digest("hex")}`;
+  eq((await call("POST", "/api/stripe/webhook", "{x", { "stripe-signature": sh })).status, 400, "stripe");
+  const ph = `ts=${ts};h1=${createHmac("sha256", "pdl_ntfset_test").update(`${ts}:null`).digest("hex")}`;
+  eq((await call("POST", "/api/paddle/webhook", "null", { "Paddle-Signature": ph }, penv)).status, 400, "paddle");
+});
+
+console.log("\nforenz N5: limit pokusu z jedne IP (lead, unlock, activate, check)");
+await check("lead: 5 za hodinu z jedne IP, 6. -> 429 s Retry-After; jina IP projde", async () => {
+  const ip = { "CF-Connecting-IP": "198.51.100.31" };
+  const st = [];
+  for (let i = 0; i < 7; i++) st.push((await call("POST", "/api/lead", { email: `flood${i}@firma.cz`, ...human }, ip)).status);
+  eq(st, [200, 200, 200, 200, 200, 429, 429], "stavy");
+  const r = await call("POST", "/api/lead", { email: "flood9@firma.cz", ...human }, ip);
+  eq(r.headers.get("Retry-After"), "3600", "Retry-After");
+  if (!/Příliš mnoho/.test((await r.json()).error)) throw new Error("ceska hlaska");
+  eq((await call("POST", "/api/lead", { email: "flood10@firma.cz", ...human }, { "CF-Connecting-IP": "198.51.100.32" })).status, 200, "jina IP");
+  eq(count("SELECT COUNT(*) AS n FROM leads WHERE email LIKE 'flood%'"), 6, "ulozene leady");
+});
+await check("lead: IPv6 ve stejne /64 sdili limit", async () => {
+  const st = [];
+  for (let i = 1; i <= 6; i++) st.push((await call("POST", "/api/lead", { email: `v6-${i}@firma.cz`, ...human }, { "CF-Connecting-IP": `2001:db8:5:6::${i}` })).status);
+  eq(st.at(-1), 429, "6. pokus");
+});
+await check("unlock: 5 za hodinu z jedne IP", async () => {
+  const st = [];
+  for (let i = 0; i < 6; i++) st.push((await call("POST", "/api/unlock", { email: `odemk${i}@firma.cz`, project_id: "p-" + i, turnstile: "human" }, { "CF-Connecting-IP": "198.51.100.41" })).status);
+  eq(st, [200, 200, 200, 200, 200, 429], "stavy");
+});
+await check(`activate + check: ${RATE_LIMITS.license.max} za hodinu z jedne IP, pak 429 (enumerace klicu)`, async () => {
+  const ip = "198.51.100.51";
+  let n429 = 0, first429 = 0;
+  for (let i = 1; i <= 40; i++) {
+    const r = await (i % 2 ? chk(`PLCD-ENUM-${i}`, "x", ip) : act(`PLCD-ENUM-${i}`, "x", ip));
+    if (r.status === 429) { n429++; first429 ||= i; }
+  }
+  eq([first429, n429], [RATE_LIMITS.license.max + 1, 40 - RATE_LIMITS.license.max], "429");
+});
+await check("neplatny vstup (bez klice / e-mailu) se do limitu nepocita", async () => {
+  const ip = { "CF-Connecting-IP": "198.51.100.52" };
+  for (let i = 0; i < 8; i++) await call("POST", "/api/lead", { email: "neni-email", ...human }, ip);
+  eq((await call("POST", "/api/lead", { email: "po-chybach@firma.cz", ...human }, ip)).status, 200, "status");
+});
+await check("DEV_MODE (lokalni nahled) limit nepouziva; chybejici tabulka limit vypne, licence funguje", async () => {
+  const ip = { "CF-Connecting-IP": "198.51.100.53" };
+  for (let i = 0; i < 7; i++) eq((await call("POST", "/api/lead", { email: `dev${i}@firma.cz`, ...human }, ip, { ...env, DEV_MODE: "1" })).status, 200, "dev " + i);
+  const brokenDb = { ...D1, prepare: (sql) => (/rate_attempts/.test(sql) ? { bind() { return this; }, async run() { throw new Error("no such table: rate_attempts"); }, async first() { throw new Error("no such table"); } } : D1.prepare(sql)),
+    async batch(stmts) { return Promise.all(stmts.map((s) => s.run())); } };
+  insLic("PLCD-NOTB-NOTB-NOTB-NOTB", 1);
+  const r = await call("POST", "/api/license/activate", { key: "PLCD-NOTB-NOTB-NOTB-NOTB", device_hash: "pc" }, {}, { ...env, DB: brokenDb });
+  eq(r.status, 200, "aktivace bez tabulky");
+});
+
+console.log("\nforenz N6: past na boty bez casu vyplneni");
+for (const [what, elapsed] of [["bez elapsed", undefined], ["elapsed 'abc'", "abc"], ["elapsed null", null], ["elapsed objekt", { a: 1 }], ["elapsed ''", ""]]) {
+  await check(`lead ${what} -> stejna odpoved, nic se neulozi`, async () => {
+    const r = await call("POST", "/api/lead", { email: "past-casu@firma.cz", consent: true, turnstile: "human", elapsed });
+    eq(r.status, 200, "status");
+    if ((await r.json()).download_url) throw new Error("odkaz pro bota");
+    eq(count("SELECT COUNT(*) AS n FROM leads WHERE email = 'past-casu@firma.cz'"), 0, "leady");
+  });
+}
+await check("beta bez elapsed -> past (200, nic ulozeno)", async () => {
+  const { elapsed, ...noTime } = betaOk;
+  eq((await beta({ ...noTime, email: "beta-bez-casu@firma-example.cz" })).status, 200, "status");
+  eq(count("SELECT COUNT(*) AS n FROM beta_applications WHERE email = 'beta-bez-casu@firma-example.cz'"), 0, "ulozeno");
+});
+await check("cas jako text cisla (\"9000\") projde jako clovek", async () => {
+  eq((await (await call("POST", "/api/lead", { email: "cas-text@firma.cz", consent: true, turnstile: "human", elapsed: "9000" })).json()).ok, true, "ok");
+  eq(count("SELECT COUNT(*) AS n FROM leads WHERE email = 'cas-text@firma.cz'"), 1, "lead");
+});
+
+console.log("\nforenz N7: e-mail bez HTML, uvozovek a vzorcu");
+const BAD_EMAILS = ['"><svg/onload=alert(1)>@x.cz', '=HYPERLINK("http://evil")@x.cz', "=cmd@x.cz", "+1@x.cz", "-a@x.cz", "@a@x.cz", "a'b@x.cz",
+  "a(b)@x.cz", "a;b@x.cz", "a,b@x.cz", "a\\b@x.cz", "a b@x.cz", "a\u0007b@x.cz", "a@x", "a@@x.cz", "a@x.c"];
+await check("safeEmail: bezne adresy ano, HTML / vzorce / ridici znaky ne", async () => {
+  for (const ok of ["jan.novak@firma.cz", "j+tag@firma.co.uk", "o'neil-no@x.cz".replace("'", ""), "info@stroje-ěšč.cz", "A_B.c-d@sub.firma.de"]) if (!safeEmail(ok)) throw new Error("odmitnuto: " + ok);
+  for (const bad of BAD_EMAILS) if (safeEmail(bad)) throw new Error("prijato: " + bad);
+});
+await check("lead, unlock i beta odmitnou e-mail s HTML a vzorcem (400, nic ulozeno)", async () => {
+  for (const email of BAD_EMAILS.slice(0, 2)) {
+    eq((await call("POST", "/api/lead", { email, ...human })).status, 400, "lead " + email);
+    eq((await call("POST", "/api/unlock", { email, project_id: "p", turnstile: "human" })).status, 400, "unlock " + email);
+    eq((await beta({ ...betaOk, email })).status, 400, "beta " + email);
+  }
+  eq(count("SELECT COUNT(*) AS n FROM leads WHERE email LIKE '%svg%' OR email LIKE '=%'"), 0, "leady");
+});
+
+console.log("\nforenz N8: kontrola licence rozlisi aktivni / uvolneny / cizi pocitac");
+await check("check vrati device active / revoked / unknown; status zustava stav licence", async () => {
+  insLic("PLCD-DEVS-DEVS-DEVS-DEVS", 2);
+  eq((await act("PLCD-DEVS-DEVS-DEVS-DEVS", "pc-aktivni")).status, 200, "aktivace");
+  eq((await act("PLCD-DEVS-DEVS-DEVS-DEVS", "pc-uvolneny")).status, 200, "aktivace 2");
+  db.prepare("UPDATE activations SET revoked_at = ?, last_seen_at = '2020-01-01T00:00:00.000Z' WHERE device_hash = 'pc-uvolneny'").run(new Date().toISOString());
+  const a = await (await chk("PLCD-DEVS-DEVS-DEVS-DEVS", "pc-aktivni")).json();
+  const r = await (await chk("PLCD-DEVS-DEVS-DEVS-DEVS", "pc-uvolneny")).json();
+  const u = await (await chk("PLCD-DEVS-DEVS-DEVS-DEVS", "pc-nikdy")).json();
+  eq([a.status, a.device, r.status, r.device, u.status, u.device], ["active", "active", "active", "revoked", "active", "unknown"], "stavy");
+  eq(db.prepare("SELECT last_seen_at FROM activations WHERE device_hash = 'pc-uvolneny'").get().last_seen_at, "2020-01-01T00:00:00.000Z", "uvolneny bez last_seen");
+  const bez = await (await call("POST", "/api/license/check", { key: "PLCD-DEVS-DEVS-DEVS-DEVS" })).json();
+  if ("device" in bez) throw new Error("device bez otisku");
+});
+await check("klienti: uvolneny pocitac se pri kontrole sam znovu neaktivuje (web i desktop)", async () => {
+  const web = readFileSync(new URL("../../web/src/license.js", import.meta.url), "utf8");
+  const py = readFileSync(new URL("../../desktop/plc_studio/license.py", import.meta.url), "utf8");
+  if (!/device !== "revoked"/.test(web)) throw new Error("web license.js");
+  if (!/get\("device"\) != "revoked"/.test(py)) throw new Error("desktop license.py");
+});
+
+console.log("\nforenz N9: dlouhy otisk pocitace");
+await check("otisk 300 znaku: opakovana aktivace tehoz pocitace 200, ulozen jako sha256, check ho najde", async () => {
+  insLic("PLCD-LONG-LONG-LONG-LONG", 1);
+  const dev = "L".repeat(300);
+  eq((await act("PLCD-LONG-LONG-LONG-LONG", dev)).status, 200, "1.");
+  eq((await act("PLCD-LONG-LONG-LONG-LONG", dev)).status, 200, "2.");
+  eq((await act("PLCD-LONG-LONG-LONG-LONG", "L".repeat(299) + "M")).status, 409, "jiny dlouhy otisk = jiny pocitac");
+  const row = db.prepare("SELECT device_hash FROM activations WHERE license_key = 'PLCD-LONG-LONG-LONG-LONG'").get();
+  if (!/^sha256:[0-9a-f]{64}$/.test(row.device_hash)) throw new Error(row.device_hash);
+  eq((await (await chk("PLCD-LONG-LONG-LONG-LONG", dev)).json()).device, "active", "check");
+});
+
+console.log("\nforenz N10: volny text beta prihlasky v e-mailu zadateli");
+await check("echoSafe: odkazy, domeny a e-maily pryc, nazvy IDE beze zmeny, nejvys 60 znaku", async () => {
+  eq(echoSafe("TIA Portal V19 Update 3"), "TIA Portal V19 Update 3", "TIA");
+  eq(echoSafe("CODESYS 3.5.21.60"), "CODESYS 3.5.21.60", "verze");
+  for (const s of ["Navstivte https://evil.example/claim a", "evil.example/claim", "www.zly.cz", "pis na x@y.cz", "hxxp://a"]) {
+    if (/evil|zly|x@y|:\/\//.test(echoSafe(s))) throw new Error("projde: " + echoSafe(s));
+  }
+  eq(echoSafe("a".repeat(100)).length, 60, "delka");
+});
+await check("potvrzeni zadateli neobsahuje odkaz z formulare", async () => {
+  const m = sentMail.length;
+  eq((await beta({ ...betaOk, email: "odkaz@firma-example.cz", ide: "Navstivte evil.example/claim", ide_version: "https://evil.example" },
+    { ...env, BETA_NOTIFY_TO: "provoz@mail.example.eu" })).status, 200, "status");
+  const out = sentMail.slice(m);
+  const toApplicant = out.find((x) => x.to[0] === "odkaz@firma-example.cz");
+  if (!toApplicant) throw new Error("potvrzeni neodeslo");
+  if (/evil\.example/.test(toApplicant.text + toApplicant.subject)) throw new Error("odkaz v potvrzeni");
+});
+
+console.log("\nforenz: drobnosti (I1)");
+await check("presmerovani ke stazeni nese nosniff, no-referrer a HSTS", async () => {
+  const lead = await (await call("POST", "/api/lead", { email: "redir@firma.cz", ...human }, {}, { ...env, MAIL_MODE: "direct" })).json();
+  const r = await call("GET", lead.download_url, undefined, {}, { ...env, RELEASES: undefined, DOWNLOAD_URL: "https://github.com/x/y/releases/download/v1/PLCdesk.zip" });
+  eq(r.status, 302, "status");
+  for (const h of ["x-content-type-options", "referrer-policy", "strict-transport-security"]) if (!r.headers.get(h)) throw new Error("chybi " + h);
 });
 
 console.log(`\n${pass} proslo, ${fail} selhalo`);

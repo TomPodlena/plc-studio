@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -10,6 +12,7 @@ from ..bridge import BridgeError
 from ..detail import DevicePanel
 from ..i18n import N_, _, _n
 from ..project import parse_num
+from ..widgets import trace
 from ..widgets import Table, card, field, issue_box, note_box, wrap_label
 
 DEFAULT_ON = ("fbk", "fbkOpen")  # volby zapnuté už při založení zařízení
@@ -148,6 +151,12 @@ def read_params(vars_: dict) -> dict:
             res["unit"] = v.get().strip() or "mm"
             continue
         if key == "records":         # „1 = převzetí @ 0; 2 = lis @ 180“ → tabulka záznamů
+            # samotné desetinné číslo („4.5047“) jádro čte jako „4. 5047“ (záznam 4 jménem 5047) a
+            # přepíše jím tabulku — to uživatel nechtěl (forenzní test L6)
+            odd = [p.strip() for p in re.split(r"[;\n]", v.get()) if re.fullmatch(r"\s*-?\d+[.,]\d+\s*", p)]
+            if odd:
+                raise ValueError(_("Záznamy pohonu nejsou uložené — „{part}“ je číslo, ne záznam. Zapiš je "
+                                   "ve tvaru „1 = název @ poloha; 2 = …“.", part=odd[0]))
             r = vars_["_app"].core("parseRecordsForm", v.get())
             if r["error"]:           # nic tiše nezahazovat (test odolnosti 2026-10-08)
                 raise ValueError(r["error"])
@@ -251,7 +260,7 @@ def render(app, parent) -> None:
         var_name.set(app.core("nextName", app.prj, labels[var_cls.get()]))
         render_opts()
 
-    var_cls.trace_add("write", lambda *_a: on_cls())
+    trace(var_cls, lambda *_a: on_cls(), opt_row)
     render_opts()
 
     def add() -> None:
@@ -387,8 +396,11 @@ def render(app, parent) -> None:
         if dev is None:
             return
         use = app.core("deviceUsage", app.prj, dev["id"])     # jádro — stejně jako web
+        appr_key = "dev:" + dev["name"]                       # položka schválení zařízení (approval.ts)
+        has_appr = appr_key in (app.prj.get("approvals") or {})
+        # potvrzení vždy (forenzní test M3: Delete smazal zařízení mimo program bez dotazu a bez zpět)
         if use["used"]:
-            # zařízení v programu: smazání zahodí i jeho kroky sekvence — jen po potvrzení
+            # zařízení v programu: smazání zahodí i jeho kroky sekvence
             parts = []
             if use["steps"]:
                 parts.append(_n(use["steps"], N_("{n} krok sekvence|{n} kroky sekvence|{n} kroků sekvence")))
@@ -396,13 +408,21 @@ def render(app, parent) -> None:
                 parts.append(_("vstup E-stop"))
             if use["lock"]:
                 parts.append(_("blokovací vstup"))
-            if not messagebox.askyesno(
-                    _("Odstranit zařízení?"),
-                    _("Zařízení {name} používá program: {what}. Odstraněním se z programu odebere "
-                      "i toto. Pokračovat?", name=dev["name"], what=", ".join(parts)),
-                    icon="warning", parent=app.root):
-                return
-        app.edit("deleteDevice", dev["id"])          # i kroky, E-stop a blokování (jádro edit.ts)
+            msg = _("Zařízení {name} používá program: {what}. Odstraněním se z programu odebere "
+                    "i toto. Pokračovat?", name=dev["name"], what=", ".join(parts))
+        else:
+            msg = _("Odstranit zařízení {name} ({cls})? Odstranění nejde vrátit — jeho signály zmizí "
+                    "z tabulky I/O, výkresů i kusovníku.", name=dev["name"],
+                    cls=app.CLS.get(dev["cls"], {}).get("label", dev["cls"]))
+        if has_appr:
+            msg += "\n\n" + _("Smaže se i záznam schválení tohoto zařízení.")
+        if not messagebox.askyesno(_("Odstranit zařízení?"), msg, icon="warning", parent=app.root):
+            return
+        res = app.edit("deleteDevice", dev["id"])    # i kroky, E-stop a blokování (jádro edit.ts)
+        if res.get("ok") and has_appr and app.dev_by_name(dev["name"]) is None:
+            # schválení smazaného zařízení by zůstalo jako sirotek v kroku Schválení
+            (app.prj.get("approvals") or {}).pop(appr_key, None)
+            app.save()
         app.render()
         app.set_status(_("Zařízení {name} odstraněno.", name=dev["name"]))
 

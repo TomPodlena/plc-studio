@@ -140,7 +140,7 @@ class Mimic(ttk.Frame):
         body.pack(fill="both", expand=True)
         body.rowconfigure(0, weight=1)
         body.columnconfigure(0, weight=1)
-        c = self.canvas = tk.Canvas(body, bg="#FFFFFF", height=320, highlightthickness=1,
+        c = self.canvas = tk.Canvas(body, bg="#FFFFFF", height=200, highlightthickness=1,
                                     highlightbackground=theme.BORDER)
         ys = ttk.Scrollbar(body, orient="vertical", command=c.yview)
         xs = ttk.Scrollbar(body, orient="horizontal", command=c.xview)

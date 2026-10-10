@@ -160,7 +160,10 @@ const OPS = {
 
   /* Pomocné funkce AI návrháře (instrukce, normalizace, vytažení JSON). */
   ai({ fn, args = [] }) {
-    if (!["aiInstructions", "aiNorm", "extractJson", "seedFromProject"].includes(fn)) throw new Error(core.tr("Neznámá funkce AI: {fn}", { fn }));
+    if (!["aiInstructions", "aiNorm", "extractJson", "seedFromProject", "aiNotesText"].includes(fn)) throw new Error(core.tr("Neznámá funkce AI: {fn}", { fn }));
+    /* aiNotesText (poznámky aiNorm: nepřevzaté kroky, neznámé třídy, neplatné časy) přibude v ai.js
+       se sloučením opravy webu — do té doby prázdný text */
+    if (typeof ai[fn] !== "function") return { result: fn === "aiNotesText" ? "" : null };
     return { result: ai[fn](...args) };
   },
 
@@ -377,7 +380,11 @@ const OPS = {
   },
   /* Odhad tokenů a ceny AI části (nic se neposílá). */
   "import.estimate"({ files = [], model, ex = null, prj = null, code = true }) {
-    return importAi.estimateImport(files, model || ai.AI_DEFAULT_MODEL, { ex, prj, code });
+    const m = model || ai.AI_DEFAULT_MODEL;
+    const est = importAi.estimateImport(files, m, { ex, prj, code });
+    /* kontext modelu a rezerva na odpověď: desktop odmítne dotaz, který se do kontextu nevejde
+       (forenzní test M8: jeden dotaz se 7,85 M vstupních tokenů) */
+    return { ...est, ctx: importAi.modelInfo(m).ctx, maxOut: importAi.IMPORT_MAX_TOKENS };
   },
   /* Zprávy jednoho dotazu pro Messages API; API volá desktop (ai_client.call_full).
      Postup části: known = složený výsledek předchozích částí (po celou část stejný),

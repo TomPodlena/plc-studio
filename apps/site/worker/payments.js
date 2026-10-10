@@ -1,8 +1,9 @@
 // Platby: Stripe NEBO Paddle Billing, volba jednim nastavenim PAYMENT_PROVIDER ve wrangler.toml.
 //
 //   PAYMENT_PROVIDER = "stripe"  -> POST /api/stripe/webhook, secret STRIPE_WEBHOOK_SECRET
-//   PAYMENT_PROVIDER = "paddle"  -> POST /api/paddle/webhook, secret PADDLE_WEBHOOK_SECRET
-//                                   (+ volitelne PADDLE_API_KEY k dohledani e-mailu zakaznika)
+//   PAYMENT_PROVIDER = "paddle"  -> POST /api/paddle/webhook, secrety PADDLE_WEBHOOK_SECRET a PADDLE_API_KEY
+//                                   (e-mail zakaznika z Paddle API) + mapovani cen na tarif
+//                                   (PADDLE_PRICE_PRO / _FIRMA nebo site.json payments.paddle_price_*)
 //
 // Webhook nezvoleneho poskytovatele vraci 404. Bez secretu zvoleneho poskytovatele 503
 // (chybejici nastaveni zavira - jinak by kdokoli mohl poslat "zaplaceno").
@@ -12,6 +13,7 @@
 
 import { signLicense, newLicenseKey, safeEqual } from "./license.js";
 import { sendLicense } from "./email.js";
+import SITE from "../content/site.json" with { type: "json" };
 
 const TOLERANCE_S = 300; // okno proti prehrani stare zpravy
 const VALID_DAYS = 37;
@@ -119,7 +121,30 @@ function closed(env, provider, secretName) {
   return null;
 }
 
+// Podepsane telo, ktere neni JSON objekt -> 400 (ne 500)
+function parseEvent(raw) {
+  try {
+    const v = JSON.parse(raw);
+    return v && typeof v === "object" && !Array.isArray(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------- Stripe
+
+// ID objektu: webhook posila retezec, rozbaleny objekt (expand) ma .id
+const idOf = (v) => (typeof v === "string" ? v : v && typeof v === "object" && typeof v.id === "string" ? v.id : null);
+
+// Predplatne faktury. Stripe API 2025-03-31.basil a novejsi pole invoice.subscription odstranilo:
+// predplatne je v invoice.parent.subscription_details.subscription (parent.type = "subscription_details"),
+// https://docs.stripe.com/changelog/basil/2025-03-31/adds-new-parent-field-to-invoicing-objects
+// Starsi verze API webhooku (nastavena u endpointu) posilaji invoice.subscription - bereme oba tvary.
+export function invoiceSub(inv) {
+  const p = inv?.parent;
+  const fromParent = p && (p.type == null || p.type === "subscription_details") ? idOf(p.subscription_details?.subscription) : null;
+  return fromParent ?? idOf(inv?.subscription);
+}
 
 export async function handleStripeWebhook(req, env) {
   const stop = closed(env, "stripe", "STRIPE_WEBHOOK_SECRET");
@@ -128,7 +153,8 @@ export async function handleStripeWebhook(req, env) {
   if (!(await verifyStripe(raw, req.headers.get("stripe-signature"), env.STRIPE_WEBHOOK_SECRET))) {
     return json({ error: "bad signature" }, 400);
   }
-  const event = JSON.parse(raw);
+  const event = parseEvent(raw);
+  if (!event) return json({ error: "bad json" }, 400);
   if (await seen(env, event.id)) return json({ received: true, duplicate: true });
   const obj = event.data?.object ?? {};
 
@@ -138,7 +164,7 @@ export async function handleStripeWebhook(req, env) {
       if (!validEmail(email)) break;
       await issueLicense(env, {
         provider: "stripe",
-        subId: obj.subscription ?? null,
+        subId: idOf(obj.subscription),
         email,
         plan: planOf(obj.metadata?.plan),
         locale: langOf(obj.metadata?.locale, obj.client_reference_id, obj.locale),
@@ -146,17 +172,17 @@ export async function handleStripeWebhook(req, env) {
       break;
     }
     case "invoice.paid":
-      await extend(env, obj.subscription);
+      await extend(env, invoiceSub(obj));
       break;
     case "invoice.payment_failed":
-      await setStatus(env, obj.subscription, "past_due");
+      await setStatus(env, invoiceSub(obj), "past_due");
       break;
     case "customer.subscription.deleted":
       await setStatus(env, obj.id, "canceled");
       break;
   }
   await markSeen(env, "stripe", event.id, event.type, {
-    subId: event.type === "customer.subscription.deleted" ? obj.id : obj.subscription,
+    subId: event.type === "customer.subscription.deleted" ? obj.id : String(event.type).startsWith("invoice.") ? invoiceSub(obj) : idOf(obj.subscription),
     email: obj.customer_details?.email ?? obj.customer_email,
   });
   return json({ received: true });
@@ -164,27 +190,59 @@ export async function handleStripeWebhook(req, env) {
 
 // ---------------------------------------------------------------- Paddle Billing
 
-// E-mail zakaznika: z custom_data (checkout ho posila), jinak dotazem na Paddle API.
+// custom_data plni prohlizec pri otevreni checkoutu (Paddle.Checkout.open) - kdokoli ho muze zmenit.
+// Proto z nej bereme JEN jazyk e-mailu. Tarif urcuje zaplacena cena (data.items[].price.id) podle
+// mapovani na serveru, e-mail zakaznik ulozeny v Paddle (customer_id -> Paddle API).
+
+// Mapovani ceny -> tarif: promenne PADDLE_PRICE_PRO / PADDLE_PRICE_FIRMA (ID pri_…, vic oddelit carkou,
+// napr. mesicni a rocni), jinak content/site.json payments.paddle_price_pro / paddle_price_firma
+// (tytez ceny, ktere otevira tlacitko na strance Cenik).
+const priceIds = (v) => String(v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+export function paddlePrices(env) {
+  return {
+    pro: priceIds(env.PADDLE_PRICE_PRO || SITE.payments?.paddle_price_pro),
+    firma: priceIds(env.PADDLE_PRICE_FIRMA || SITE.payments?.paddle_price_firma),
+  };
+}
+/** Tarif podle zaplacenych cen: "firma" | "pro" | null (zadna znama cena -> zadna licence). */
+export function paddlePlan(env, items) {
+  const map = paddlePrices(env);
+  const ids = (Array.isArray(items) ? items : []).map((i) => i?.price?.id ?? i?.price_id).filter((x) => typeof x === "string");
+  if (ids.some((id) => map.firma.includes(id))) return "firma";
+  if (ids.some((id) => map.pro.includes(id))) return "pro";
+  return null;
+}
+
+// E-mail zakaznika z Paddle: objekt customer v udalosti (kdyby ho Paddle poslal), jinak Paddle API.
 async function paddleEmail(env, data) {
-  const direct = data.custom_data?.email ?? data.customer?.email;
+  const direct = data.customer?.email;
   if (validEmail(String(direct ?? "").toLowerCase())) return String(direct).toLowerCase();
-  if (!env.PADDLE_API_KEY || !data.customer_id) return "";
+  if (!env.PADDLE_API_KEY || typeof data.customer_id !== "string" || !data.customer_id) return "";
   const base = env.PADDLE_API_KEY.includes("_sdbx_") || env.PADDLE_SANDBOX ? "https://sandbox-api.paddle.com" : "https://api.paddle.com";
   const r = await fetch(`${base}/customers/${encodeURIComponent(data.customer_id)}`, {
     headers: { Authorization: `Bearer ${env.PADDLE_API_KEY}` },
   });
-  if (!r.ok) throw new Error(`Paddle API ${r.status}`);
+  if (r.status === 404) return ""; // zakaznik neexistuje - trvale, licence se nevyda (chyba v logu)
+  if (!r.ok) throw new Error(`Paddle API ${r.status}`); // docasna chyba -> 500, Paddle udalost zopakuje
   return String((await r.json()).data?.email ?? "").toLowerCase();
 }
 
 export async function handlePaddleWebhook(req, env) {
   const stop = closed(env, "paddle", "PADDLE_WEBHOOK_SECRET");
   if (stop) return stop;
+  // Bez API klice (e-mail zakaznika) nebo bez mapovani cen nelze licenci vydat spravne -> zavreno (503,
+  // Paddle udalost zopakuje, az bude nastaveni doplnene).
+  const prices = paddlePrices(env);
+  if (!env.PADDLE_API_KEY || (!prices.pro.length && !prices.firma.length)) {
+    console.error("Paddle: chybi PADDLE_API_KEY nebo ceny (PADDLE_PRICE_PRO / _FIRMA, site.json payments.paddle_price_*) - webhook je zavreny.");
+    return json({ error: "not configured" }, 503);
+  }
   const raw = await req.text();
   if (!(await verifyPaddle(raw, req.headers.get("paddle-signature"), env.PADDLE_WEBHOOK_SECRET))) {
     return json({ error: "bad signature" }, 400);
   }
-  const event = JSON.parse(raw);
+  const event = parseEvent(raw);
+  if (!event) return json({ error: "bad json" }, 400);
   if (await seen(env, event.event_id)) return json({ received: true, duplicate: true });
   const data = event.data ?? {};
 
@@ -197,6 +255,11 @@ export async function handlePaddleWebhook(req, env) {
         if (event.event_type === "transaction.completed") await extend(env, subId);
         break;
       }
+      const plan = paddlePlan(env, data.items);
+      if (!plan) {
+        console.error("Paddle: zaplacena cena neni v mapovani tarifu - licence nevydana", event.event_id);
+        break;
+      }
       const email = await paddleEmail(env, data);
       if (!validEmail(email)) {
         console.error("Paddle: udalost bez e-mailu zakaznika", event.event_id);
@@ -206,7 +269,7 @@ export async function handlePaddleWebhook(req, env) {
         provider: "paddle",
         subId: subId ?? null,
         email,
-        plan: planOf(data.custom_data?.plan),
+        plan,
         locale: langOf(data.custom_data?.locale),
       });
       break;
@@ -220,7 +283,7 @@ export async function handlePaddleWebhook(req, env) {
   }
   await markSeen(env, "paddle", event.event_id, event.event_type, {
     subId: String(event.event_type).startsWith("subscription.") ? data.id : data.subscription_id,
-    email: data.custom_data?.email ?? data.customer?.email,
+    email: data.customer?.email,
   });
   return json({ received: true });
 }

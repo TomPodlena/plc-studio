@@ -5,7 +5,9 @@ import {
   commissioningPlan, COMMISSION_PHASES, setCommissionResult, clearCommissionResult, commissioningSummary,
   commissioningMd, commissioningCsv, COMMISSION_FILE_MD, COMMISSION_FILE_CSV, APPROVAL_FILE,
 } from "../../../packages/core/dist/index.js";
-import { card, downloadFile } from "./util.js";
+import { card, downloadFile, pageLimit, moreHtml, wireMore } from "./util.js";
+/** Kroků oživení na fázi najednou (velký projekt: stovky kroků ve fázi I/O — forenzní test N5); zbytek na tlačítko. */
+const CM_PAGE = 40;
 import { approverName, nameFieldHtml, wireNameField, fmtAt, statusChip } from "./approval_step.js";
 
 export function makeCommissionStep(ctx) {
@@ -56,7 +58,7 @@ export function makeCommissionStep(ctx) {
       const bad = steps.filter(s => nok.has(s.id)).length;
       phases += "<details class='help cmphase' data-ph='" + ph + "'" + (view.closed[ph] ? "" : " open") + "><summary>" + ph + ". " + esc(tr(COMMISSION_PHASES[ph])) +
         " <span class='hint' style='margin:0'>" + tr("{done} z {n} hotovo", { done, n: steps.length }) + (bad ? " · <span class='st st-rej'>" + esc(res.nok) + " " + bad + "</span>" : "") + "</span></summary><div class='body cmbody'>" +
-        shown.map(s => stepHtml(p, s)).join("") + "</div></details>";
+        shown.slice(0, pageLimit("cm:" + ph, -1, CM_PAGE)).map(s => stepHtml(p, s)).join("") + moreHtml("cm:" + ph, Math.min(pageLimit("cm:" + ph, -1, CM_PAGE), shown.length), shown.length, CM_PAGE) + "</div></details>";
     }
     if (!phases) phases = "<p class='hint'>" + tr("Žádný krok neodpovídá filtru.") + "</p>";
 
@@ -86,6 +88,7 @@ export function makeCommissionStep(ctx) {
     </div>
     ${phases}`);
     wireNameField(c);
+    wireMore(c, rerender, CM_PAGE);
     c.querySelector("#cmFilter").addEventListener("change", e => { view.filter = e.target.value; rerender(); });
     c.querySelector("#cmMd").addEventListener("click", () => downloadFile(COMMISSION_FILE_MD, commissioningMd(p, plan)));
     c.querySelector("#cmCsv").addEventListener("click", () => downloadFile(COMMISSION_FILE_CSV, commissioningCsv(p, plan)));

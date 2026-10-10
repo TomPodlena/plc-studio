@@ -37,11 +37,28 @@ CONFIG_URL = UPDATE_BASE + "/api/config"
 RELEASE_URL = UPDATE_BASE + "/api/release/latest"
 CHECK_EVERY_S = 24 * 3600
 TIMEOUT_S = 6
+VERSION_MAX = 32                         # delší „verze“ ze serveru = nesmysl (forenzní test L1)
+
+
+def safe_site(site) -> str:
+    """Adresa webu ze serveru jen jako https na hostu ``UPDATE_BASE`` — odkaz ``javascript:`` /
+    ``file:`` / cizí host by otevřel prohlížeč nebo program (forenzní test L1); jinak ``UPDATE_BASE``."""
+    from urllib.parse import urlsplit
+    try:
+        u = urlsplit(str(site or "").strip())
+        ok = (u.scheme == "https" and u.hostname == urlsplit(UPDATE_BASE).hostname
+              and not u.username and not u.password and u.port in (None, 443))
+    except ValueError:                     # neplatný port / adresa
+        return UPDATE_BASE
+    return f"https://{u.hostname}" if ok else UPDATE_BASE
 
 
 def parse_version(v) -> tuple[int, ...]:
     """„0.10.2“ → (0, 10, 2); přípona (-beta) a neplatné části se ignorují."""
-    m = re.match(r"\s*v?(\d+(?:\.\d+)*)", str(v or ""))
+    text = str(v or "")
+    if len(text) > VERSION_MAX:
+        return ()
+    m = re.match(r"\s*v?(\d{1,9}(?:\.\d{1,9})*)", text)
     return tuple(int(x) for x in m.group(1).split(".")) if m else ()
 
 
@@ -72,7 +89,7 @@ def latest_release(fetch=fetch_json) -> dict | None:
     try:
         cfg = fetch(CONFIG_URL)
         if isinstance(cfg, dict):
-            site = cfg.get("site") or site
+            site = safe_site(cfg.get("site"))
             version = cfg.get("version") or cfg.get("latest_version")
     except Exception:                      # noqa: BLE001 — bez sítě tiše nic
         cfg = None
@@ -82,9 +99,9 @@ def latest_release(fetch=fetch_json) -> dict | None:
             version = rel.get("version") if isinstance(rel, dict) else None
         except Exception:                  # noqa: BLE001
             return None
-    if not version or not any(parse_version(version)):      # „0.0.0“ = verze nenastavena
-        return None
-    return {"version": str(version), "site": site}
+    if not isinstance(version, (str, int, float)) or not any(parse_version(version)):
+        return None                        # „0.0.0“ = verze nenastavena; obří / nesmyslná = nic
+    return {"version": str(version), "site": safe_site(site)}
 
 
 def due(settings: dict, now: float | None = None) -> bool:
@@ -106,7 +123,13 @@ def start_check(app, *, force: bool = False, fetch=fetch_json, on_done=None) -> 
     app.settings["update_checked_at"] = time.time()       # i bez sítě: další pokus až zítra
     app.save_settings()
     out: queue.Queue = queue.Queue()
-    threading.Thread(target=lambda: out.put(latest_release(fetch)), daemon=True).start()
+
+    def work() -> None:
+        try:
+            out.put(latest_release(fetch))
+        except Exception:                  # noqa: BLE001 — chyba vlákna = jako bez sítě
+            out.put(None)
+    threading.Thread(target=work, daemon=True).start()
 
     def poll(tries: int = 0) -> None:
         try:
@@ -134,19 +157,21 @@ def show_notice(app, info: dict) -> None:
     bar = tk.Frame(foot, bg=theme.ACCENT_BG, padx=8, pady=2)
     tk.Label(bar, text="↑ " + _("K dispozici je PLCdesk {v} (máš {cur}).", v=info["version"], cur=__version__),
              bg=theme.ACCENT_BG, fg=theme.FG, font=theme.FONT_DIM).pack(side="left")
-    url = download_page(app.lang, info.get("site") or UPDATE_BASE)
+    url = download_page(app.lang, safe_site(info.get("site")))
     link(bar, _("Stáhnout"), lambda: webbrowser.open(url), bg=theme.ACCENT_BG,
          font=theme.FONT_DIM).pack(side="left", padx=(8, 0))
 
     def dismiss() -> None:
         app.settings["update_dismissed"] = info["version"]
         app.save_settings()
+        app._update_info = None
         bar.destroy()
 
     link(bar, _("Skrýt"), dismiss, bg=theme.ACCENT_BG, font=theme.FONT_DIM).pack(side="left", padx=(8, 0))
     bar.pack(side="left", padx=(12, 0))
     bar.url = url
     app._update_bar = bar
+    app._update_info = info               # po změně jazyka (nové okno) se upozornění ukáže znovu
 
 
 def about_bar(app, parent) -> ttk.Frame:

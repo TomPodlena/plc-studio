@@ -243,7 +243,7 @@ def _insert_refs(app, txt) -> None:
 def render(app, parent) -> None:
     body = card(parent, "?", _("Škola PLC — nápověda pro začátečníky"))
     about_bar(app, body)            # verze a volba kontroly aktualizací (updates.py)
-    frm, txt = scrolled_text(body, height=20, bg=theme.BG, spacing1=2, spacing3=4)
+    frm, txt = scrolled_text(body, height=10, bg=theme.BG, spacing1=2, spacing3=4)
     frm.pack(fill="both", expand=True)
     txt.tag_configure("h", foreground=theme.PRIMARY, font=theme.FONT_CARD, spacing1=14, spacing3=6)
     txt.tag_configure("p", lmargin1=4, lmargin2=4)
