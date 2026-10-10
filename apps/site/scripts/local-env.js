@@ -13,8 +13,8 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export function sqliteD1(file = ":memory:") {
   const db = new DatabaseSync(file);
-  // schema.sql + migrace spravy zakazniku (schema_admin.sql), stejne poradi jako pri nasazeni
-  for (const f of ["schema.sql", "schema_admin.sql"]) {
+  // schema.sql + migrace spravy zakazniku (schema_admin.sql) a beta testeru (schema_beta.sql), stejne poradi jako pri nasazeni
+  for (const f of ["schema.sql", "schema_admin.sql", "schema_beta.sql"]) {
     const schema = fs.readFileSync(path.join(ROOT, f), "utf-8");
     for (const stmt of schema.split(";")) if (stmt.replace(/--.*$/gm, "").trim()) db.exec(stmt + ";");
   }
@@ -114,6 +114,17 @@ export function seedDemo(db) {
   ins("INSERT INTO crm_events (lead_id, at, actor, type, text) VALUES (?, ?, 'token', 'contact', ?)", "crm-2", iso(-19), "Telefonát: řeší dvě linky na S7-1500, chtějí nabídku na Pro.");
   ins("INSERT INTO crm_events (lead_id, at, actor, type, text) VALUES (?, ?, 'token', 'stage_change', 'contacted>offer')", "crm-2", iso(-12));
   ins("INSERT INTO crm_events (lead_id, at, actor, type, text) VALUES (?, ?, 'token', 'note', ?)", "crm-2", iso(-4), "Nabídka odeslána, rozhodují do konce měsíce.");
+
+  // Prihlasky beta testeru (smyslene, domeny example)
+  const beta = [
+    ["beta-1", "siemens", "TIA Portal", "V19 Update 3", null, "Automatika Example s.r.o.", "tia.tester@automatika-example.cz", "cs", "new", null, -1],
+    ["beta-2", "rockwell,omron", "Studio 5000 Logix Designer", "V35.00", "M. Weber", null, "m.weber@anlagenbau-example.de", "de", "accepted", "Domluveno na příští týden, licence Pro 90 dní.", -6],
+    ["beta-3", "mitsubishi", "GX Works3", "1.110Q", null, null, "gx@controls-example.com", "en", "done", "Protokol převzat.", -20],
+  ];
+  for (const [id, platforms, ide, ver, name, company, email, locale, status, note, d] of beta) {
+    ins(`INSERT INTO beta_applications (id, created_at, updated_at, platforms, ide, ide_version, name, company, email, locale, consent_at, status, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, iso(d), iso(d), platforms, ide, ver, name, company, email, locale, iso(d), status, note);
+  }
 }
 
 export function localEnv(extra = {}) {

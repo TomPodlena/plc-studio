@@ -1,0 +1,85 @@
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">{{page.eyebrow}}</p>
+    <h1>{{page.h1}}</h1>
+    <p class="lead measure">{{page.lead}}</p>
+    <div class="cta-row"><a class="btn" href="#prihlaska">{{page.cta}}</a></div>
+  </div>
+</section>
+
+<section class="sec sec-tight">
+  <div class="wrap">
+    <h2>{{page.what_title}}</h2>
+    <p class="measure">{{page.what_lead}}</p>
+    {{page.platforms_html}}
+    <p class="beta-all"><a href="{{BLOCK.url_platformy}}">{{page.all_link}} →</a></p>
+  </div>
+</section>
+
+<section class="sec sec-tint sec-dots">
+  <div class="wrap split split-top">
+    <div>
+      <h2>{{page.get_title}}</h2>
+      <ul class="ticks">{{page.get|li}}</ul>
+    </div>
+    <div>
+      <h2>{{page.how_title}}</h2>
+      <ol class="nums">{{page.how|li}}</ol>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="prihlaska">
+  <div class="wrap split split-top">
+    <div>
+      <h2>{{page.form_title}}</h2>
+      <p>{{page.form_lead}}</p>
+      <form class="form form-beta" data-beta novalidate
+            data-sending="{{page.f_sending}}" data-ok="{{page.f_ok}}" data-consent="{{page.f_consent_err}}"
+            data-platforms="{{page.f_platforms_err}}" data-required="{{page.f_required_err}}" data-err="{{page.f_err}}" data-net="{{page.f_net}}">
+        <input type="hidden" name="lang" value="{{meta.lang}}">
+        <div class="hp" aria-hidden="true">
+          <label for="beta-web">{{page.f_hp}}</label>
+          <input id="beta-web" name="web" type="text" tabindex="-1" autocomplete="off">
+        </div>
+        <fieldset class="choices">
+          <legend>{{page.f_platforms}}</legend>
+          {{page.choices_html}}
+        </fieldset>
+        <div class="form-2">
+          <div class="field">
+            <label for="beta-ide">{{page.f_ide}}</label>
+            <input id="beta-ide" name="ide" type="text" maxlength="100" placeholder="{{page.f_ide_ph}}" required>
+          </div>
+          <div class="field">
+            <label for="beta-ide-version">{{page.f_ide_version}}</label>
+            <input id="beta-ide-version" name="ide_version" type="text" maxlength="60" placeholder="{{page.f_ide_version_ph}}" required>
+          </div>
+          <div class="field">
+            <label for="beta-name">{{page.f_name}}</label>
+            <input id="beta-name" name="name" type="text" maxlength="120" autocomplete="name">
+          </div>
+          <div class="field">
+            <label for="beta-company">{{page.f_company}}</label>
+            <input id="beta-company" name="company" type="text" maxlength="200" autocomplete="organization">
+          </div>
+        </div>
+        <label for="beta-email">{{page.f_email}}</label>
+        <input id="beta-email" name="email" type="email" maxlength="253" placeholder="{{page.f_placeholder}}" autocomplete="email" required>
+        <label class="consent"><input type="checkbox" name="consent" required> <span>{{page.f_consent}} <a href="{{BLOCK.url_soukromi}}">{{nav.soukromi}}</a></span></label>
+        <div class="cf-turnstile" data-sitekey="{{BLOCK.turnstile_sitekey}}" data-language="{{meta.lang}}" data-size="flexible"></div>
+        <div><button class="btn" type="submit">{{page.f_submit}}</button></div>
+        <p class="form-msg" role="status" aria-live="polite"></p>
+        <p class="fine">{{page.f_note}} <a href="{{BLOCK.url_soukromi}}">{{nav.soukromi}}</a></p>
+      </form>
+      <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    </div>
+
+    <div class="side">
+      <div class="box">
+        <h2>{{page.side_title}}</h2>
+        <ul class="ticks">{{page.side|li}}</ul>
+      </div>
+    </div>
+  </div>
+</section>

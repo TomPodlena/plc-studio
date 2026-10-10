@@ -16,7 +16,8 @@ import { newId } from "./license.js";
 
 export const CRM_STAGES = ["prospect", "new", "contacted", "trial", "offer", "won", "lost"];
 export const CRM_SEGMENTS = ["integrator", "strojirna", "vyrobce", "jine"];
-export const CRM_SOURCES = ["web_form", "research", "manual", "import"];
+// beta = karta z prihlasky beta testera (beta.js) - bez osobnich kontaktu, odkaz na prihlasku v source_url
+export const CRM_SOURCES = ["web_form", "research", "manual", "import", "beta"];
 export const IMPORT_MAX = 500;
 const IMPORT_BODY = 768 * 1024;
 const BOARD_MAX = 5000;      // karet nactenych do tabule

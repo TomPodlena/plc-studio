@@ -64,6 +64,15 @@ body.adm { font-size: 15px; line-height: 1.5; min-height: 100vh; }
 .st-past_due, .st-expired { color: var(--stale); background: var(--stale-soft); }
 .st-canceled, .st-revoked { color: var(--lock); background: var(--lock-soft); border-style: dashed; }
 .st-downloaded, .st-lead { color: var(--wait); background: var(--wait-soft); }
+/* prihlasky beta testeru */
+.st-b-new { color: var(--wait); background: var(--wait-soft); }
+.st-b-accepted { color: var(--accent-deep); background: var(--accent-soft); }
+.st-b-done { color: var(--ok); background: var(--ok-soft); }
+.st-b-declined { color: var(--lock); background: var(--lock-soft); border-style: dashed; }
+a.bt-card { color: inherit; text-decoration: none; }
+a.bt-card:hover, a.bt-card.cur { border-color: var(--accent); }
+.bt-days { flex: 0 0 120px; }
+.adm-grid2 > div > .adm-panel + .adm-panel { margin-top: 18px; }
 
 /* filtr */
 .adm-filter { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 14px; }

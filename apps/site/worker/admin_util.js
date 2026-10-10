@@ -63,3 +63,27 @@ export function csvResponse(text, filename) {
     headers: { ...API_HEADERS, "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${filename}"` },
   });
 }
+
+function expandIPv6(ip) {
+  if (!/^[0-9a-f:]+$/i.test(ip)) return null; // vcetne IPv4 uvnitr IPv6 -> beze zmeny
+  const halves = ip.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0;
+  const parts = [...head, ...Array(Math.max(fill, 0)).fill("0"), ...tail];
+  if (parts.length !== 8 || parts.some((p) => !/^[0-9a-f]{1,4}$/i.test(p))) return null;
+  return parts.map((p) => p.toLowerCase().replace(/^0+(?=.)/, ""));
+}
+
+// IP klienta (sprava i verejne formulare s omezenim pokusu): CF-Connecting-IP nastavuje Cloudflare (klient ji nepodvrhne). IPv6 -> prefix /64.
+export function clientIp(req) {
+  const ip = String(req.headers.get("CF-Connecting-IP") || "").trim().slice(0, 64);
+  if (!ip) return "unknown";
+  if (ip.includes(":")) {
+    const p = expandIPv6(ip);
+    return p ? `${p.slice(0, 4).join(":")}::/64` : ip;
+  }
+  return ip;
+}
+

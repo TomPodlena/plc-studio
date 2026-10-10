@@ -16,7 +16,7 @@ const site = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "site.json"),
 const LABELS = {
   meta: "SEO – výchozí", ui: "Popisky rozhraní", nav: "Menu", home: "Úvod", funkce: "Funkce",
   platformy: "Platformy", cenik: "Ceník", ukazka: "Ukázka dokumentace", stazeni: "Ke stažení",
-  kontakt: "Kontakt", podminky: "Podmínky užití", soukromi: "Ochrana osobních údajů",
+  kontakt: "Kontakt", beta: "Beta testeři", podminky: "Podmínky užití", soukromi: "Ochrana osobních údajů",
   notfound: "Stránka 404", pdf: "Texty ukázkového PDF",
 };
 

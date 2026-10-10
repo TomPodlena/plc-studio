@@ -90,7 +90,7 @@ collections:
                 i18n: true
                 widget: string
               - name: "beta"
-                label: "beta"
+                label: "Beta testeři"
                 i18n: true
                 widget: string
               - name: "pending_legal"
@@ -165,6 +165,10 @@ collections:
                 widget: string
               - name: "kontakt"
                 label: "Kontakt"
+                i18n: true
+                widget: string
+              - name: "beta"
+                label: "Beta testeři"
                 i18n: true
                 widget: string
               - name: "podminky"
@@ -731,6 +735,22 @@ collections:
                 label: "why_body"
                 i18n: true
                 widget: text
+              - name: "beta_cta"
+                label: "beta_cta"
+                i18n: true
+                widget: string
+              - name: "beta_box_title"
+                label: "beta_box_title"
+                i18n: true
+                widget: string
+              - name: "beta_box_body"
+                label: "beta_box_body"
+                i18n: true
+                widget: text
+              - name: "beta_box_cta"
+                label: "beta_box_cta"
+                i18n: true
+                widget: string
               - name: "safety_title"
                 label: "safety_title"
                 i18n: true
@@ -1137,6 +1157,176 @@ collections:
                 label: "company"
                 i18n: true
                 widget: string
+          - name: "beta"
+            label: "Beta testeři"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: text
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "cta"
+                label: "cta"
+                i18n: true
+                widget: string
+              - name: "what_title"
+                label: "what_title"
+                i18n: true
+                widget: string
+              - name: "what_lead"
+                label: "what_lead"
+                i18n: true
+                widget: text
+              - name: "h_platform"
+                label: "h_platform"
+                i18n: true
+                widget: string
+              - name: "h_ide"
+                label: "h_ide"
+                i18n: true
+                widget: string
+              - name: "h_want"
+                label: "h_want"
+                i18n: true
+                widget: string
+              - name: "none"
+                label: "none"
+                i18n: true
+                widget: string
+              - name: "all_link"
+                label: "all_link"
+                i18n: true
+                widget: string
+              - name: "get_title"
+                label: "get_title"
+                i18n: true
+                widget: string
+              - name: "get"
+                label: "get"
+                i18n: true
+                widget: list
+              - name: "how_title"
+                label: "how_title"
+                i18n: true
+                widget: string
+              - name: "how"
+                label: "how"
+                i18n: true
+                widget: list
+              - name: "form_title"
+                label: "form_title"
+                i18n: true
+                widget: string
+              - name: "form_lead"
+                label: "form_lead"
+                i18n: true
+                widget: string
+              - name: "f_platforms"
+                label: "f_platforms"
+                i18n: true
+                widget: string
+              - name: "f_ide"
+                label: "f_ide"
+                i18n: true
+                widget: string
+              - name: "f_ide_ph"
+                label: "f_ide_ph"
+                i18n: true
+                widget: string
+              - name: "f_ide_version"
+                label: "f_ide_version"
+                i18n: true
+                widget: string
+              - name: "f_ide_version_ph"
+                label: "f_ide_version_ph"
+                i18n: true
+                widget: string
+              - name: "f_name"
+                label: "f_name"
+                i18n: true
+                widget: string
+              - name: "f_company"
+                label: "f_company"
+                i18n: true
+                widget: string
+              - name: "f_email"
+                label: "f_email"
+                i18n: true
+                widget: string
+              - name: "f_placeholder"
+                label: "f_placeholder"
+                i18n: true
+                widget: string
+              - name: "f_hp"
+                label: "f_hp"
+                i18n: true
+                widget: string
+              - name: "f_consent"
+                label: "f_consent"
+                i18n: true
+                widget: text
+              - name: "f_consent_err"
+                label: "f_consent_err"
+                i18n: true
+                widget: string
+              - name: "f_platforms_err"
+                label: "f_platforms_err"
+                i18n: true
+                widget: string
+              - name: "f_required_err"
+                label: "f_required_err"
+                i18n: true
+                widget: string
+              - name: "f_submit"
+                label: "f_submit"
+                i18n: true
+                widget: string
+              - name: "f_sending"
+                label: "f_sending"
+                i18n: true
+                widget: string
+              - name: "f_ok"
+                label: "f_ok"
+                i18n: true
+                widget: string
+              - name: "f_err"
+                label: "f_err"
+                i18n: true
+                widget: string
+              - name: "f_net"
+                label: "f_net"
+                i18n: true
+                widget: string
+              - name: "f_note"
+                label: "f_note"
+                i18n: true
+                widget: text
+              - name: "side_title"
+                label: "side_title"
+                i18n: true
+                widget: string
+              - name: "side"
+                label: "side"
+                i18n: true
+                widget: list
           - name: "podminky"
             label: "Podmínky užití"
             i18n: true

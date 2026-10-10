@@ -26,7 +26,7 @@
             <td data-l="{{page.h_ide}}">{{.ide}}</td>
             <td data-l="{{page.h_output}}">{{.output}}</td>
             <td data-l="{{page.h_check}}">{{.check}}</td>
-            <td data-l="{{page.h_state}}"><span class="stamp stamp-{{.state}}">{{page.state_{{.state}}}}</span></td>
+            <td data-l="{{page.h_state}}"><span class="stamp stamp-{{.state}}">{{page.state_{{.state}}}}</span>{{.beta_link}}</td>
           </tr>
           {{/each}}
         </tbody>
@@ -41,6 +41,7 @@
       </dl>
       <p>{{page.why_body}}</p>
     </div>
+    {{page.beta_box_html}}
   </div>
 </section>
 
