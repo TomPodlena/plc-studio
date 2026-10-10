@@ -275,6 +275,15 @@ export declare function devRef(d: {
 export declare function recordsText(recs: PosRecord[] | undefined): string;
 /** Zpět z textu (řádky / středníky „číslo = název @ poloha“; poloha nepovinná). Neplatné části přeskočí. */
 export declare function parseRecords(s: string): PosRecord[];
+/**
+ * Jako `parseRecords`, navíc co se zahodilo: nesrozumitelné části (`bad`) a duplicitní čísla záznamů
+ * (`dup`, platí první) — formuláře je ohlásí místo tichého zahození (test odolnosti 2026-10-08).
+ */
+export declare function parseRecordsChecked(s: string): {
+    records: PosRecord[];
+    bad: string[];
+    dup: number[];
+};
 /** Počet bitů výběru záznamu PosDrive (1–6, výchozí 3). */
 export declare function selBitsOf(d: Device): number;
 /** Nejvyšší číslo záznamu PosDrive (2^bity − 1; záznam 0 = referenční poloha). */
@@ -305,7 +314,24 @@ export declare const DO_ROLES: Record<DoRole, string>;
 /** Čeká krok na digitální vstup? */
 export declare function isDiWait(s: SeqStep): boolean;
 export declare function stripDia(s: string): string;
-/** Text a atributy v UVOZOVKÁCH (SVG, XML exporty jádra) — výstupy pro import do IDE se nesmí měnit (golden). */
+/** Výstup: každý úsek řídicích znaků (i \t, \r, \n) → jedna mezera; jinak text beze změny. */
+export declare function lineSafe(s: unknown): string;
+/** Víceřádkový text (popis projektu): konce řádků sjednotí na \n, ostatní řídicí znaky → mezera. */
+export declare function multiLineSafe(s: unknown): string;
+/** Vstup jednořádkového pole: řídicí znaky → mezera, sloučené mezery, bez okrajových mezer. */
+export declare function oneLine(s: unknown): string;
+/** Text bez znaků, které XML 1.0 nepovoluje (nahradí mezerou). */
+export declare function xmlSafe(s: unknown): string;
+/** Obsahuje text znaky, které jednořádkové pole nesmí mít? */
+export declare function hasLineBreakers(s: unknown): boolean;
+/**
+ * Projekt pro výstupy (kód, dokumentace, výkresy, exporty): jednořádková pole bez řídicích znaků
+ * (`lineSafe`), popis projektu jen s \n. Čistý projekt vrací BEZE ZMĚNY (týž objekt) — kopie vzniká,
+ * jen když je co čistit (projekt ze starší verze / ručně upravený soubor, který obešel `oneLine`).
+ */
+export declare function outputSafe<T extends Project>(prj: T): T;
+/** Text a atributy v UVOZOVKÁCH (SVG, XML exporty jádra) — výstupy pro import do IDE se nesmí měnit (golden).
+    Znaky, které XML nepovoluje (řídicí znaky z poškozeného vstupu), nahradí mezerou. */
 export declare function esc(s: unknown): string;
 export declare const xmlEsc: typeof esc;
 /** HTML klientů: escapuje i apostrof — web vkládá hodnoty i do atributů v apostrofech (value='…'); test odolnosti 2026-10-08. */
@@ -373,6 +399,15 @@ export interface ValidationIssue {
 }
 /** Tag bezpečný pro všechny platformy: ASCII, bez mezer, nezačíná číslicí. */
 export declare function sanitizeTag(tag: string): string;
+/**
+ * Kanonický tvar adresy v Siemens notaci: bez úvodních nul (%Q00.1 → %Q0.1, %IW064 → %IW64), velká písmena.
+ * Jiný zápis vrací beze změny (validace ho ohlásí).
+ */
+export declare function canonIoAddr(a: string): string;
+/** Nejkratší nenulový čas kroku [s] — jeden scan simulace / emulace (10 ms); kód zapisuje čas v ms. */
+export declare const MIN_STEP_S = 0.01;
+/** Největší konečná hodnota REAL (IEEE 754 single, IEC 61131-3) — větší literál překladač odmítne. */
+export declare const REAL_MAX = 3.4028234663852886e+38;
 export declare function validateProject(prj: Project): ValidationIssue[];
 /** Číslo projektu „RRNNNN“: 6 číslic (rok a pořadí v roce; jiné řady zadává uživatel ručně). */
 export declare const PROJECT_NUMBER_RE: RegExp;

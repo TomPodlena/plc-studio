@@ -64,6 +64,12 @@ export declare function axisCfgOf(d: {
 export declare function axisPositionsText(ps: AxisPos[] | undefined): string;
 /** Zpět z textu (středníky / řádky „název @ poloha“). Neplatné části a duplicitní názvy přeskočí. */
 export declare function parseAxisPositions(s: string): AxisPos[];
+/** Jako `parseAxisPositions`, navíc nesrozumitelné části (`bad`) a duplicitní názvy (`dup`, platí první). */
+export declare function parseAxisPositionsChecked(s: string): {
+    positions: AxisPos[];
+    bad: string[];
+    dup: string[];
+};
 /** Jméno objektu osy v kódu (technologický objekt, AXIS_REF, osa SoftMotion / Sysmac, tag osy Logix). */
 export declare function axisObjName(dev: {
     name: string;

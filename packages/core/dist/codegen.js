@@ -7,7 +7,7 @@
  * (Siemens SCL, IEC ST, plochý ST Unitronics); Logix ST píše logix.ts nad stejným IR.
  * Šablony bloků (SCL_* / ST_*) zůstávají zdrojem logiky bloků.
  */
-import { PLAT, usedClasses, dtFor, addrFor, xmlEsc, stripDia, isCodesysFamily, codeStyleFor, isMotionClass, ioOf, rampStepOf, selBitsOf, maxRecord, tolOf, tolTicksOf, } from "./model.js";
+import { PLAT, usedClasses, dtFor, addrFor, xmlEsc, stripDia, isCodesysFamily, codeStyleFor, isMotionClass, ioOf, rampStepOf, selBitsOf, maxRecord, tolOf, tolTicksOf, lineSafe, outputSafe, } from "./model.js";
 /* codegen_oop.ts a codegen.ts se importují navzájem: OOP renderer se volá až uvnitř genFor */
 import { genForOop } from "./codegen_oop.js";
 import { projectMetaText } from "./project_meta.js";
@@ -842,7 +842,7 @@ export function flatTplProblems(tpl) {
 }
 /** Řádky firemní hlavičky jako komentář (Siemens `//`, ostatní `(* *)`); bez hlavičky "". */
 function libHeader(lib, sie) {
-    return lib.header.map(l => sie ? "// " + l : "(* " + cmtSafe(l) + " *)").join("\n") + (lib.header.length ? "\n" : "");
+    return lib.header.map(l => sie ? "// " + lineSafe(l) : "(* " + cmtSafe(l) + " *)").join("\n") + (lib.header.length ? "\n" : "");
 }
 /* ------------------------------------------------ překlad komentářů šablon */
 /* Šablony jsou konstanty modulu (čte je parseFbTemplate, simulátor i testy), proto se
@@ -958,7 +958,7 @@ export function stCtx(plat) {
     const sie = plat === "siemens";
     return {
         plat, sie, L: locFn(plat), R: refFn(plat), real: fmtR,
-        cm: sie ? (t) => "// " + t : (t) => "(* " + cmtSafe(t) + " *)",
+        cm: sie ? (t) => "// " + lineSafe(t) : (t) => "(* " + cmtSafe(t) + " *)",
         /* objekt osy: TIA technologický objekt (globální DB), TwinCAT AXIS_REF v GVL_IO, jinak globální jméno osy */
         A: sie ? (n) => '"' + n + '"' : plat === "beckhoff" ? (n) => "GVL_IO." + n : (n) => n,
         /* plochá logika Unitronics: stav instance je v globálních tazích s předponou instance */
@@ -1095,7 +1095,7 @@ function rawMaxArg(plat) {
 /** Text do komentáře (* … *): bez diakritiky a pomlček, bez konce řádku; „(*“ a „*)“ z textu
     uživatele rozdělí mezerou (CODESYS/TwinCAT komentáře vnořují — jinak by rozbily zbytek souboru). */
 export function cmtSafe(t) {
-    return stripDia(t).replace(/[–—]/g, "-").replace(/[\r\n]+/g, " ").replace(/\(\*/g, "( *").replace(/\*\)/g, "* )");
+    return stripDia(lineSafe(t)).replace(/[–—]/g, "-").replace(/\(\*/g, "( *").replace(/\*\)/g, "* )");
 }
 /** Text komentáře deklarace řízení (přeložený, s „TODO:" u vstupů z HMI); bez komentáře "". */
 export function declNote(d) {
@@ -1293,7 +1293,7 @@ function roleLine(c, tag, role, expr) {
 /** Řádek volného signálu (komentář s adresou platformy) v IEC ST / SCL. */
 export function freeLine(c, e, prj) {
     const sie = c.sie;
-    return "    " + (sie ? "//" : "(*") + "   " + (addrFor(c.plat, e, prj) || "").padEnd(8) + " " + c.R(e.tag) + "  " + (sie ? e.cmt : cmtSafe(e.cmt) + " *)");
+    return "    " + (sie ? "//" : "(*") + "   " + (addrFor(c.plat, e, prj) || "").padEnd(8) + " " + c.R(e.tag) + "  " + (sie ? lineSafe(e.cmt) : cmtSafe(e.cmt) + " *)");
 }
 /**
  * Instance, volání bloků / rolí a volné signály z IR (pořadí zařízení; bez vstupů uvolnění).
@@ -1354,7 +1354,7 @@ export function renderEnable(ir, c) {
 /** Uvolnění jako text pro přiřazení `enable := …` (výraz + komentář). */
 export function enableText(ir, c) {
     const e = renderEnable(ir, c);
-    return e.expr + " " + (c.sie ? "// " + e.note : "(* " + e.note + " *)");
+    return e.expr + " " + (c.sie ? "// " + lineSafe(e.note) : "(* " + cmtSafe(e.note) + " *)");
 }
 export function enableExpr(prj, plat) {
     return enableText(buildIR(prj), stCtx(plat));
@@ -1377,8 +1377,9 @@ export function genSiemensTagsXml(prj) {
 /** P1: robustní ruční cesta — sloupce k vložení přímo do tabulky tagů TIA / Excelu. */
 export function genSiemensTagsTSV(prj) {
     const l = ["Name\tData Type\tLogical Address\tComment"];
+    /* buňky jednořádkově — tabulátor / konec řádku z textu by posunul sloupce (test odolnosti 2026-10-08) */
     for (const e of prj.io)
-        l.push([e.tag, dtFor(e) === "INT" ? "Int" : "Bool", addrFor("siemens", e, prj), e.cmt || ""].join("\t"));
+        l.push([e.tag, dtFor(e) === "INT" ? "Int" : "Bool", addrFor("siemens", e, prj), e.cmt || ""].map(lineSafe).join("\t"));
     return l.join("\n");
 }
 export function genLibrary(prj, plat) {
@@ -1402,7 +1403,7 @@ export function genLibrary(prj, plat) {
         const own = lib.ids[c];
         if (own) {
             const t = trx("Vlastní blok firemní knihovny {lib}: šablona {id} (neověřeno simulací)", { lib: ((lib.library?.name || "") + " " + (lib.library?.version || "")).trim(), id: own });
-            parts.push(plat === "siemens" ? "// " + t : "(* " + cmtSafe(t) + " *)");
+            parts.push(plat === "siemens" ? "// " + lineSafe(t) : "(* " + cmtSafe(t) + " *)");
         }
         parts.push(trComments(fbTemplate(c, dia, lib), fix), "");
     }
@@ -1506,7 +1507,7 @@ export function genTagFile(prj, plat) {
            (GX Works3 Operating Manual SH-081215ENG, Exporting/importing a label: hlavičky CSV se párují
            s nadpisy sloupců, sloupec, který editor nemá — FX5 —, se při importu vynechá) */
         const MT = { BOOL: "Bit", INT: "Word [Signed]", WORD: "Word [Unsigned]/Bit String [16-bit]", REAL: "FLOAT [Single Precision]" };
-        const row = (name, type, cmt, assign) => ['"' + name + '"', '"' + type + '"', '"VAR_GLOBAL"', '"' + uniAscii(cmt).replace(/"/g, "'") + '"', '"' + assign + '"', '"1"'].join(",");
+        const row = (name, type, cmt, assign) => ['"' + lineSafe(name) + '"', '"' + type + '"', '"VAR_GLOBAL"', '"' + uniAscii(lineSafe(cmt)).replace(/"/g, "'") + '"', '"' + assign + '"', '"1"'].join(",");
         const l = ['"Label Name","Data Type","Class","Comment","Assign (Device/Label)","Access from External Device"'];
         for (const e of prj.io)
             l.push(row(e.tag, dtFor(e) === "INT" ? "Word [Signed]" : "Bit", e.cmt || "", addrFor(plat, e, prj)));
@@ -1521,9 +1522,9 @@ export function genTagFile(prj, plat) {
            pro tag data links (W501 6-3-8 Network Publish), pro HMI nejsou potřeba */
         const l = [];
         for (const e of prj.io)
-            l.push([e.tag, dtFor(e), "", "", "", "", "Publish Only", uniAscii(e.cmt || "")].join("\t"));
+            l.push([e.tag, dtFor(e), "", "", "", "", "Publish Only", uniAscii(e.cmt || "")].map(lineSafe).join("\t"));
         for (const v of hmiVars)
-            l.push([v.name, v.type, "", "", "", "", "Publish Only", uniAscii(v.note)].join("\t"));
+            l.push([v.name, v.type, "", "", "", "", "Publish Only", uniAscii(v.note)].map(lineSafe).join("\t"));
         return { name: "Variables.txt", body: l.join("\n") };
     }
     return { name: "GVL_IO.st", body: genGVL(prj, plat) };
@@ -1784,7 +1785,7 @@ export function uniTags(prj) {
     return out;
 }
 export function genUnitronicsTags(prj) {
-    const q = (s) => '"' + uniAscii(String(s)).replace(/"/g, "'") + '"';
+    const q = (s) => '"' + uniAscii(lineSafe(s)).replace(/"/g, "'") + '"';
     const l = ["Name,Data Type,Group,I/O address hint,Comment"];
     for (const t of uniTags(prj))
         l.push([q(t.name), q(t.type), q(t.group), q(t.hint), q(t.cmt)].join(","));
@@ -1851,7 +1852,10 @@ ${free.join("\n") || "    (*   " + trx("žádné") + " *)"}
     return uniAscii(uniDialect(st));
 }
 /** Všechny generované soubory programu pro jednu platformu. */
-export function genFor(prj, plat) {
+export function genFor(prj0, plat) {
+    /* texty projektu bez řídicích znaků a konců řádků v jednořádkových polích (komentáře, CSV / TSV, XML);
+       čistý projekt = týž objekt (golden beze změny) — test odolnosti 2026-10-08 */
+    const prj = outputSafe(prj0);
     /* servoosa na platformě bez podpory: žádný kód (nepřeložitelný program by klamal), jen README s důvodem */
     if (axisBlocked(prj, plat))
         return { "README.txt": axisBlockedReadme(prj, plat) };

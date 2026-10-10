@@ -29,7 +29,8 @@ const num = (v) => {
 };
 /** Konfigurace osy s výchozími hodnotami (chybějící pole). */
 export function axisCfgOf(d) {
-    const a = d.axis || {};
+    /* konfigurace ze souboru může být cokoli (řetězec, seznam) — pak výchozí (test odolnosti 2026-10-08) */
+    const a = d && d.axis && typeof d.axis === "object" && !Array.isArray(d.axis) ? d.axis : {};
     const vMax = num(a.vMax) && num(a.vMax) > 0 ? num(a.vMax) : 500;
     const aMax = num(a.aMax) && num(a.aMax) > 0 ? num(a.aMax) : 2000;
     const dMax = num(a.dMax) && num(a.dMax) > 0 ? num(a.dMax) : aMax;
@@ -46,7 +47,7 @@ export function axisCfgOf(d) {
         jogVel: num(a.jogVel) && num(a.jogVel) > 0 ? Math.min(num(a.jogVel), vMax) : Math.max(vDef / 5, 1e-3),
         startPos: start,
         ...(a.drive ? { drive: String(a.drive) } : {}),
-        positions: (a.positions || []).filter(p => p && p.name && Number.isFinite(Number(p.pos))).map(p => ({ name: String(p.name), pos: Number(p.pos) })),
+        positions: (Array.isArray(a.positions) ? a.positions : []).filter(p => p && typeof p === "object" && p.name && Number.isFinite(Number(p.pos))).map(p => ({ name: String(p.name), pos: Number(p.pos) })),
     };
 }
 /** Pojmenované polohy osy jako text pro formuláře: „název @ poloha; …“. */
@@ -55,15 +56,25 @@ export function axisPositionsText(ps) {
 }
 /** Zpět z textu (středníky / řádky „název @ poloha“). Neplatné části a duplicitní názvy přeskočí. */
 export function parseAxisPositions(s) {
-    const out = [];
+    return parseAxisPositionsChecked(s).positions;
+}
+/** Jako `parseAxisPositions`, navíc nesrozumitelné části (`bad`) a duplicitní názvy (`dup`, platí první). */
+export function parseAxisPositionsChecked(s) {
+    const out = [], bad = [], dup = [];
     for (const part of String(s || "").split(/[;\n]+/)) {
-        const m = part.match(/^\s*([^@]*?)\s*[@=:]\s*(-?\d+(?:[.,]\d+)?)\s*$/);
-        if (!m || !m[1])
+        if (!part.trim())
             continue;
+        const m = part.match(/^\s*([^@]*?)\s*[@=:]\s*(-?\d+(?:[.,]\d+)?)\s*$/);
+        if (!m || !m[1]) {
+            bad.push(part.replace(/[\x00-\x1F\x7F]+/g, " ").trim());
+            continue;
+        }
         if (!out.some(x => x.name === m[1]))
             out.push({ name: m[1], pos: +m[2].replace(",", ".") });
+        else
+            dup.push(m[1]);
     }
-    return out;
+    return { positions: out, bad, dup };
 }
 /** Jméno objektu osy v kódu (technologický objekt, AXIS_REF, osa SoftMotion / Sysmac, tag osy Logix). */
 export function axisObjName(dev) { return "Ax_" + dev.name; }

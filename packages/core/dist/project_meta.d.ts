@@ -11,7 +11,6 @@
  * a tabulátory z ručně upraveného JSON se slijí do mezery).
  */
 import type { Project } from "./model.js";
-export declare function oneLine(s: unknown): string;
 /** Platné datum ISO „YYYY-MM-DD“ (skutečný den v kalendáři)? */
 export declare function isIsoDate(s: unknown): s is string;
 /** Datum ISO „YYYY-MM-DD“ ve zvyklosti jazyka (`tech` = technické výstupy, výkresy); neplatné "". */
@@ -77,6 +76,9 @@ export declare function projectNumberProblem(s: unknown): string;
 export declare function nextProjectNumber(existing: Iterable<unknown>, year?: number): string;
 /** Část názvu složky / souboru: bez diakritiky, mezery a ostatní znaky → „_“, jen [A-Za-z0-9_-]. */
 export declare function folderSafe(s: unknown, max?: number): string;
+/** Rezervovaná jména zařízení Windows (CON, NUL, COM1…) jako název složky / souboru → s „_“ na konci
+    (složka „NUL“ by tiše nevznikla — test odolnosti 2026-10-08). */
+export declare function notReserved(name: string): string;
 /**
  * Název projektové složky „<číslo>_<Název>“ (název bez diakritiky, mezery → _, jen [A-Za-z0-9_-],
  * nejvýš 60 znaků); bez čísla jen „<Název>“, bez názvu jen číslo, bez obojího „plc-projekt“.

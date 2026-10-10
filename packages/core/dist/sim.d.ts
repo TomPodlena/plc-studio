@@ -410,6 +410,16 @@ export declare function lostFaultIo(prj: Project, d: Device): IoEntry | undefine
  * pohon fáze 2a podle modelu (jízda, rampa), ostatní nejdelší přestavení + rezerva.
  */
 export declare function seqEstimate(prj: Project, motorDelay: number, valveTravel: number): number;
+/** Nejdelší odhad cyklu [s], který ověření simulací ještě pustí (simuluje se po scanech 10 ms). */
+export declare const SIM_MAX_CYCLE_S: number;
+/**
+ * Proč projekt NEJDE ověřit simulací (prázdné = jde): zadání, které je chybou návrhu (validace) a které by
+ * simulaci nafouklo na hodiny až dny výpočtu — čas kroku mimo 0…24 h, rampa nad hodinu, doba jízdy / model
+ * stroje nad hodinu, doba odchylky nad rozsah INT, odhad cyklu nad 48 h. Ověření (verifyProject, dokumentace,
+ * emulace běhu, diagramy) pak neběží a protokol řekne „neověřeno — oprav chyby návrhu“ (test odolnosti
+ * 2026-10-08: krok 1e9 s zamrazil dokumentaci na víc než 15 min). Platí pro web i desktop (jedno jádro).
+ */
+export declare function simBlockers(prj: Project): string[];
 /** Dávková simulace jednoho scénáře: start v čase `startAt`, zásahy podle `faults`. */
 export declare function simulate(prj: Project, options?: SimOptions, from?: Simulator): SimResult;
 /**

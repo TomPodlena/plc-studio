@@ -25,6 +25,7 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import os
+import re
 from pathlib import Path
 
 import tkinter as tk
@@ -60,8 +61,25 @@ def raw_root(app) -> str:
     return own_root(app) or settings_root(app)
 
 
+# rezervovaná jména zařízení Windows (CON, NUL, COM1…): složka s takovým jménem „neexistuje“
+# a zápis do ní tiše skončí v zařízení — test odolnosti 2026-10-08 („NUL“ jako kořen = tiše nic)
+_RESERVED = re.compile(r"^(CON|PRN|AUX|NUL|COM[0-9¹²³]|LPT[0-9¹²³])(\..*)?$", re.I)
+
+
+def reserved_part(raw: str) -> str | None:
+    """Část cesty, která je rezervovaným jménem Windows (jinak ``None``)."""
+    try:
+        parts = Path(raw).parts
+    except (TypeError, ValueError):
+        return None
+    for part in parts:
+        if _RESERVED.match(part.rstrip(" .")):
+            return part
+    return None
+
+
 def _dir(raw: str) -> Path | None:
-    if not raw:
+    if not raw or reserved_part(raw):
         return None
     try:
         p = Path(raw)
@@ -193,12 +211,22 @@ def ensure_root(app) -> Path | None:
         return None
     if ans is False:
         return existing_root(app) if choose(app, own=own) else None
+    bad = reserved_part(raw)
+    if bad:
+        messagebox.showerror(_("Složku nejde vytvořit"), _(
+            "„{name}“ je ve Windows rezervované jméno zařízení — složka s ním nejde použít. Zvol jiný "
+            "kořenový adresář projektů.", name=bad), parent=app.root)
+        return None
     try:
         Path(raw).mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         messagebox.showerror(_("Složku nejde vytvořit"), str(exc), parent=app.root)
         return None
-    return existing_root(app)
+    root = existing_root(app)
+    if root is None:                                   # mkdir „prošel“, ale složka není (neplatná cesta)
+        messagebox.showerror(_("Složku nejde vytvořit"), _(
+            "Kořenový adresář {path} nejde použít. Zvol jiný.", path=raw), parent=app.root)
+    return root
 
 
 def suggest_number(app, year: int | None = None) -> str:

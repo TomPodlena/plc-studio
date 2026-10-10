@@ -32,18 +32,26 @@ def walk(widget):
 
 
 class NormalizeTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from plc_studio.bridge import CoreBridge
+        cls.b = CoreBridge()
+        cls.norm = staticmethod(lambda raw: cls.b.call("normalizeProject", raw))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.b.close()
+
     def test_meta_fields(self):
-        blank = {"meta": {"name": "", "desc": ""}, "platforms": [], "devices": [], "io": [],
-                 "program": {"seq": []}, "nextId": 1}
         raw = {"meta": {"name": "A", "desc": "a\nb", "number": "2610705", "customer": "ACME",
                         "startDate": "2026-10-08", "dataDir": "D:\\Projekty\\2610705"}, "devices": []}
-        out = project.normalize(raw, blank, {}, {})
+        out = project.normalize(raw, self.norm)
         for k in ("number", "customer", "startDate", "dataDir"):
             self.assertEqual(out["meta"][k], raw["meta"][k])
         self.assertEqual(out["meta"]["desc"], "a\nb")
         bad = {"meta": {"name": "A", "desc": "", "number": "  ", "customer": 5,
                         "startDate": "2026-02-30", "dataDir": ""}, "devices": []}
-        out = project.normalize(bad, blank, {}, {})
+        out = project.normalize(bad, self.norm)
         for k in ("number", "customer", "startDate", "dataDir"):
             self.assertNotIn(k, out["meta"])
 

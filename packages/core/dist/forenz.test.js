@@ -193,3 +193,276 @@ test("odolnost: dvě nečinná zařízení se stejným označením — schválen
     assert.equal(new Set(keys).size, keys.length);
     docFiles(p); // výjimka = pád testu
 });
+/* ================================================================ odolnost desktop (test odolnosti 2026-10-08)
+   Nálezy forenzního testu desktopu (apps/site/_shots/robust_desk/ZPRAVA.md) — většina platí i pro web
+   (stejné jádro): A jednořádková pole s \n / \t / řídicími znaky, B meze REAL, C čas pod 0,01 s,
+   D adresy, E zamrzlé ověření, F poškozený soubor projektu (normalizeProject). */
+/** Konec řádku, tabulátor, BEL a VT; „ZZQ“ = značka textu za koncem řádku (nesmí začít nový řádek výstupu). */
+const POISON = "A\nZZQ\tC\u0007D\u000bE\r\nF";
+const S12 = new URL("../../../samples/12_portalovy_manipulator_PM-12.plcstudio.json", import.meta.url);
+function loadUrl(u) {
+    const raw = JSON.parse(readFileSync(u, "utf8"));
+    const prj = Object.assign(blankProject(), raw.prj || raw);
+    syncIO(prj);
+    return prj;
+}
+function poisoned(p) {
+    p.meta.name = "Linka" + POISON;
+    p.meta.customer = "ACME" + POISON;
+    p.meta.desc = "Popis" + POISON;
+    for (const d of p.devices) {
+        d.desc = "Popis " + d.name + POISON;
+        if (d.unit)
+            d.unit = "bar" + POISON;
+        if (d.axis)
+            d.axis.drive = "S210" + POISON;
+        for (const r of d.records || [])
+            r.name = "Zaznam" + POISON;
+    }
+    syncIO(p);
+    for (const e of p.io)
+        e.cmt = "Cmt " + e.tag + POISON;
+    return p;
+}
+const BAD_XML = /[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFE\uFFFF]/;
+/** Počet buněk řádku CSV / TSV s uvozovkami; -1 = neuzavřená uvozovka. */
+function cells(line, sep) {
+    let n = 1, q = false;
+    for (const ch of line) {
+        if (ch === '"')
+            q = !q;
+        else if (ch === sep && !q)
+            n++;
+    }
+    return q ? -1 : n;
+}
+test("odolnost desktop A: \\n, \\t a řídicí znaky v textech — kód 20 platforem, XML, CSV / TSV, DXF, dokumentace, HMI", async () => {
+    setLang("cs");
+    registerHmiModule();
+    const { PLAT, modules, normalizeProject } = await import("./index.js");
+    const { sheetDXF } = await import("./drawing.js");
+    const { eplanAml } = await import("./eplan.js");
+    const { hmiFiles } = await import("./hmi_export.js");
+    const { xmlProblem } = await import("./exp_util.test.js");
+    const { emulateRun } = await import("./emu/index.js");
+    for (const [name, base] of [["small", sampleSmall()], ["11", load11()], ["12", loadUrl(S12)]]) {
+        const p = poisoned(base);
+        assert.deepEqual(errors(p), [], name + ": řídicí znaky v textech nejsou chyba návrhu");
+        assert.ok(validateProject(p).some(i => i.level === "warn" && /konec řádku, tabulátor/.test(i.msg)), name + ": varování");
+        for (const plat of Object.keys(PLAT)) {
+            const files = genFor(p, plat);
+            for (const [fn, body] of Object.entries(files)) {
+                assert.ok(!/[\x07\x0B]/.test(body), `${name}/${plat}/${fn}: BEL / VT ve výstupu`);
+                assert.ok(!/^\s*ZZQ/m.test(body), `${name}/${plat}/${fn}: konec řádku z textu rozdělil řádek výstupu`);
+                if (/\.(xml|l5x|tcpou|tcgvl|tcio)$/i.test(fn)) {
+                    assert.ok(!BAD_XML.test(body), `${name}/${plat}/${fn}: znak, který XML nepovoluje`);
+                    /* přísná kontrola sekce CDATA nezná (L5X): obsah CDATA nahradit prázdnou sekcí */
+                    assert.equal(xmlProblem(body.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "")), "", `${name}/${plat}/${fn}`);
+                }
+                if (/\.(csv|tsv)$/i.test(fn) || fn === "Variables.txt") {
+                    const sep = /\.tsv$|Variables\.txt$/.test(fn) ? "\t" : /GlobalLabels|Tags\.csv/.test(fn) ? "," : ";";
+                    const rows = body.replace(/^﻿/, "").split(/\r?\n/).filter(l => l.trim() && !/^remark,/.test(l) && l !== "0.3");
+                    const counts = new Set(rows.map(l => cells(l, sep)));
+                    assert.ok(!counts.has(-1) && counts.size === 1, `${name}/${plat}/${fn}: počty sloupců ${[...counts]}`);
+                }
+            }
+            const f = findings(p, plat).filter(x => !/servoosu nepodporuje/.test(x.msg));
+            assert.deepEqual(f.map(x => x.msg), [], `${name}/${plat}: emulace překladu`);
+        }
+        for (const m of modules(p)) {
+            const L = sheetDXF(p, m, 1).split(/\r?\n/);
+            for (let i = 0; i + 1 < L.length; i += 2)
+                assert.match(L[i], /^\s*-?\d+$/, `${name}: DXF kód skupiny na řádku ${i + 1}`);
+        }
+        for (const f of docFiles(p))
+            if (/\.(svg|xml|aml|ssm)$/i.test(f.path))
+                assert.ok(!BAD_XML.test(f.body), `${name}: ${f.path}`);
+        assert.equal(xmlProblem(eplanAml(p)), "", name + ": EPLAN AML");
+        assert.ok(!BAD_XML.test(eplanAml(p)), name + ": EPLAN AML řídicí znaky");
+        buildHmi(p);
+        for (const plat of ["siemens", "rockwell", "codesys", "mitsubishi", "omron"])
+            for (const [fn, body] of Object.entries(hmiFiles(p, plat)))
+                if (/\.xml$/i.test(fn))
+                    assert.ok(!BAD_XML.test(body), `${name}: HMI ${plat}/${fn}`);
+        /* jádro při načtení jednořádková pole vyčistí (web i desktop) — výstup pak beze změny proti outputSafe */
+        const n = normalizeProject(JSON.parse(JSON.stringify(p)));
+        assert.ok(!/[\n\t\x07]/.test(n.meta.name + n.meta.customer + n.devices.map(d => d.desc + d.unit).join("") + n.io.map(e => e.cmt).join("")), name + ": normalizeProject");
+        assert.match(n.meta.desc, /\n/, name + ": popis projektu zůstává víceřádkový");
+        assert.ok(!validateProject(n).some(i => /konec řádku, tabulátor/.test(i.msg)), name + ": po normalizaci bez varování");
+    }
+    /* emulace běhu (rychlé scénáře) nad otráveným projektem: kód = návrh */
+    const p = poisoned(sampleSmall());
+    for (const plat of ["siemens", "codesys", "mitsubishi", "omron", "unitronics", "rockwell"]) {
+        const r = emulateRun(p, plat, { scope: "quick" });
+        assert.ok(r.ok, `${plat}: ${r.skipped || ""} ${r.diffs.slice(0, 2).map(d => d.msg).join(" | ")}`);
+    }
+});
+test("odolnost desktop A: víceřádkový popis blokovacího vstupu — HMI a dokumentace nespadnou (alarmy nezávisí na tvaru popisu)", () => {
+    setLang("cs");
+    registerHmiModule();
+    const p = sampleSmall();
+    const lock = p.devices.find(d => (p.program.interlocks || []).includes(d.id)) || p.devices.find(d => d.cls === "DI" && d.id !== p.program.estop);
+    if (!(p.program.interlocks || []).includes(lock.id))
+        p.program.interlocks = [...(p.program.interlocks || []), lock.id];
+    lock.desc = "levy\nkryt;\nB;C\r\nD";
+    const h = buildHmi(p);
+    const a = h.alarms.find(x => x.codes.includes("A_" + lock.name + "_OPEN"));
+    assert.ok(a, "alarm blokování");
+    assert.ok(!/[\r\n]/.test(a.cause), "text alarmu jednořádkově");
+    docFiles(p); // výjimka = pád testu
+    const csv = docAlarmCsv(p).split("\n");
+    assert.ok(csv.every(l => !/^\s*(kryt|B;C|D)/.test(l)), "seznam alarmů: řádek = alarm");
+});
+test("odolnost desktop B: hodnoty mimo REAL (|x| > 3,4E38) a rozsah, který REAL nerozliší = chyba; emulátor literál hlásí", async () => {
+    setLang("cs");
+    const { setDeviceRange } = await import("./edit.js");
+    const p = sampleSmall();
+    const a = p.devices.find(d => d.cls === "AnalogIn");
+    a.rmax = 1e39;
+    assert.ok(errors(p).some(m => /mimo rozsah REAL/.test(m)));
+    assert.ok(findings(p, "codesys").some(f => /mimo rozsah typu REAL/.test(f.msg)), "emulátor CODESYS");
+    assert.ok(findings(p, "siemens").some(f => /mimo rozsah typu REAL/.test(f.msg)), "emulátor Siemens");
+    a.rmin = 0;
+    a.rmax = 1e-300;
+    assert.ok(errors(p).some(m => /v REAL nulový/.test(m)));
+    a.rmax = 100;
+    a.limHi = -1e300;
+    assert.ok(errors(p).some(m => /mimo rozsah REAL/.test(m)));
+    delete a.limHi;
+    assert.deepEqual(errors(p), []);
+    assert.equal(setDeviceRange(p, a.id, { rmin: 0, rmax: 1e39 }).ok, false);
+});
+test("odolnost desktop C: čas kroku 0 < t < 0,01 s = chyba (kód by zapsal T#0S), čas mimo celé ms = varování", async () => {
+    setLang("cs");
+    const { stepProblem } = await import("./edit.js");
+    const p = sampleSmall();
+    p.program.seq[0].timeS = 0.0001;
+    assert.ok(errors(p).some(m => /kratší než 0,01 s/.test(m)));
+    p.program.seq[0].timeS = 0.01;
+    assert.ok(!errors(p).some(m => /kratší než 0,01 s/.test(m)));
+    p.program.seq[0].timeS = 0.0155;
+    assert.ok(validateProject(p).some(i => i.level === "warn" && /celý počet milisekund/.test(i.msg)));
+    assert.match(stepProblem(p, { dev: 0, act: "wait", cond: "time", timeS: 0.005 }) || "", /0,01 s/);
+    assert.equal(stepProblem(p, { dev: 0, act: "wait", cond: "time", timeS: 0.01 }), null);
+});
+test("odolnost desktop D: adresy — kanonický tvar (%Q00.1), obsazenost, adresní prostor", async () => {
+    setLang("cs");
+    const { setIoAddr } = await import("./edit.js");
+    const { canonIoAddr } = await import("./model.js");
+    assert.equal(canonIoAddr("%Q00.1"), "%Q0.1");
+    assert.equal(canonIoAddr("%iw064"), "%IW64");
+    assert.equal(canonIoAddr("%Q0.8"), "%Q0.8"); // neplatný bit: beze změny (validace)
+    const p = sampleSmall();
+    const dos = p.io.filter(e => e.dir === "DO");
+    const taken = dos[0].addr, m = /^%Q(\d+)\.(\d)$/.exec(taken);
+    const r1 = setIoAddr(p, dos[1].key, "%Q0" + m[1] + "." + m[2]);
+    assert.equal(r1.ok, false, "úvodní nula obešla kontrolu obsazenosti");
+    const r2 = setIoAddr(p, dos[1].key, "%Q099.3");
+    assert.equal(r2.ok, true);
+    assert.equal(r2.value, "%Q99.3");
+    assert.equal(setIoAddr(p, dos[1].key, "%Q99999.7").ok, false);
+    const ai = p.io.find(e => e.dir === "AI");
+    assert.equal(setIoAddr(p, ai.key, "%IW99999").ok, false);
+    dos[1].addr = "%Q5000.1";
+    assert.ok(validateProject(p).some(i => i.level === "warn" && /obraz procesu CPU Siemens/.test(i.msg)));
+    dos[1].addr = "%Q70000.1";
+    assert.ok(errors(p).some(x => /adresní prostor/.test(x)));
+    dos[1].addr = "%Q0" + m[1] + "." + m[2]; // uloženo ze starší verze: duplicita na kanonickém tvaru
+    assert.ok(validateProject(p).some(i => i.level === "error" && /Duplicitní adresa/.test(i.msg)));
+});
+test("odolnost desktop E: krok 1e9 s — ověření, dokumentace a emulace běhu neběží (neověřeno), nezamrznou", async () => {
+    setLang("cs");
+    const { verifyProject, simBlockers } = await import("./sim.js");
+    const { emulateRun } = await import("./emu/index.js");
+    const { allProjectFiles } = await import("./docs.js");
+    const p = sampleSmall();
+    p.program.seq[0].timeS = 1e9;
+    assert.ok(simBlockers(p).length);
+    const t0 = Date.now();
+    const v = verifyProject(p);
+    assert.equal(v.ok, false);
+    assert.match(v.checks[0].title, /Neověřeno/);
+    docFiles(p);
+    allProjectFiles(p);
+    const { simulate, simScenarios } = await import("./sim.js");
+    const { svgFlow } = await import("./flow.js");
+    svgFlow(p, simulate(p)); // funkční diagram kroku Schéma (desktop most „schema“)
+    simScenarios(p);
+    const r = emulateRun(p, "codesys", { scope: "quick" });
+    assert.equal(r.ok, false);
+    assert.match(r.skipped || "", /oprav chyby návrhu/);
+    assert.ok(Date.now() - t0 < 20000, "ověření s chybným zadáním nesmí běžet dlouho");
+    /* totéž pro rampu, dobu jízdy a model stroje */
+    const q = load11();
+    q.devices.find(d => d.cls === "PosDrive").travelS = 1e9;
+    assert.ok(simBlockers(q).length && errors(q).some(m => /Doba jízdy/.test(m)));
+    const s = sampleSmall();
+    s.sim = { motorDelay: 1e9 };
+    assert.ok(simBlockers(s).length && errors(s).some(m => /modelu stroje/.test(m)));
+});
+test("odolnost desktop F: normalizeProject — poškozené typy zahodí po položkách, projekt zůstane použitelný", async () => {
+    setLang("cs");
+    const { normalizeProject } = await import("./project_norm.js");
+    const { axisCfgOf } = await import("./axis.js");
+    const good = loadUrl(S12);
+    const raw = JSON.parse(JSON.stringify(good));
+    const di = raw.devices.find((d) => d.cls === "DI");
+    raw.program.estop = [di.id];
+    raw.program.interlocks = [{ a: 1 }, di.id, "x"];
+    raw.io[0].devId = [raw.io[0].devId];
+    raw.program.seq[1].dev = [raw.program.seq[1].dev];
+    raw.platforms = ["siemens", ["codesys"], "toString", "codesys"];
+    const ax = raw.devices.find((d) => d.cls === "Axis");
+    ax.axis = "osa";
+    raw.devices.push({ id: "x", cls: "Motor" }, { id: 999, cls: "Nic" }, "text", { id: 1000, cls: "DO", role: ["run"], name: "H9", desc: 5 });
+    raw.devices.push({ id: 1001, cls: "PosDrive", name: "P9", records: "1 = a", axis: { positions: "a @ 1" } });
+    const n = normalizeProject(raw);
+    assert.equal(n.program.estop, "");
+    assert.deepEqual(n.program.interlocks, [di.id]);
+    assert.equal(n.io.length, good.io.length - 1);
+    assert.equal(n.program.seq.length, good.program.seq.length - 1);
+    assert.deepEqual(n.platforms, ["siemens", "codesys"]);
+    assert.equal(n.devices.find(d => d.cls === "Axis").axis, undefined);
+    assert.equal(n.devices.length, good.devices.length + 2);
+    const h9 = n.devices.find(d => d.name === "H9");
+    assert.equal(h9.role, undefined);
+    assert.equal(h9.desc, "");
+    const p9 = n.devices.find(d => d.name === "P9");
+    assert.equal(p9.records, undefined);
+    assert.deepEqual(axisCfgOf({ axis: "osa" }).positions, []);
+    assert.deepEqual(axisCfgOf({ axis: { positions: "a @ 1" } }).positions, []);
+    syncIO(n);
+    validateProject(n);
+    for (const plat of ["siemens", "codesys"])
+        genFor(n, plat);
+    docFiles(n);
+    assert.throws(() => normalizeProject([1, 2]), /not a project/);
+    assert.throws(() => normalizeProject({ name: "package.json" }), /not a project/);
+    normalizeProject({ meta: 5 }); // výjimka = pád testu
+});
+test("odolnost desktop F: rezervovaná jména Windows ve složkách a souborech, hlášení zahozených záznamů a poloh", async () => {
+    const { folderSafe, fileSafe, notReserved } = await import("./project_meta.js");
+    const { parseRecordsChecked } = await import("./model.js");
+    const { parseAxisPositionsChecked } = await import("./axis.js");
+    assert.equal(folderSafe("NUL"), "NUL_");
+    assert.equal(folderSafe("com1"), "com1_");
+    assert.equal(fileSafe("CON.txt"), "CON_.txt");
+    assert.equal(notReserved("Linka"), "Linka");
+    const r = parseRecordsChecked("1 = a @ 0; xx; 2 = b; 1 = c");
+    assert.deepEqual(r.records.map(x => x.no), [1, 2]);
+    assert.deepEqual(r.bad, ["xx"]);
+    assert.deepEqual(r.dup, [1]);
+    const a = parseAxisPositionsChecked("A @ 1; B; A @ 2");
+    assert.deepEqual(a.positions, [{ name: "A", pos: 1 }]);
+    assert.deepEqual(a.bad, ["B"]);
+    assert.deepEqual(a.dup, ["A"]);
+});
+test("odolnost desktop F: revize s poškozeným zmrazeným obsahem — dokumentace nespadne", async () => {
+    setLang("cs");
+    const { allProjectFiles } = await import("./docs.js");
+    await import("./revision.js"); // přihlásí dokument změn a hlavičku revize
+    const p = sampleSmall();
+    p.revisions = [{ id: "A", date: "x", by: "me", hash: "h", snapshot: "not json", approvalsAt: {}, note: "" }];
+    docFiles(p); // výjimka = pád testu
+    allProjectFiles(p);
+});

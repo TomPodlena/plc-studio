@@ -17,7 +17,7 @@
  * I/O, -A2 DI, -A3 DO, -A4 AI, -A5 AO; víc karet téže řady = -A2.1, -A2.2 …; vzdálená stanice s = hlava
  * -A(10s), karty -A(10s+2) …). Stav ověření: `EPLAN_VERIFIED`.
  */
-import { devById, wireNo, stripDia, devRef } from "./model.js";
+import { devById, wireNo, stripDia, devRef, outputSafe } from "./model.js";
 import { hwLayout, hwLineId, hwAddrText } from "./hardware.js";
 import { tr, N_, today } from "./i18n.js";
 import { buildBom, bomPlatform } from "./bom.js";
@@ -42,7 +42,8 @@ export function eplanConverterId(prj) {
 /* ================================================================ označení */
 const ascii = (s) => stripDia(String(s ?? "")).replace(/[^\x20-\x7E]/g, "?");
 /** I/O karty s označením (stejné pořadí jako výkresy a seznam svorek dokumentace). */
-export function eplanCards(prj) {
+export function eplanCards(prj0) {
+    const prj = outputSafe(prj0);
     const plat = bomPlatform(prj);
     const lines = buildBom(prj).lines;
     const L = hwLayout(prj, plat);
@@ -70,7 +71,8 @@ export function eplanTerminals(prj, cards = eplanCards(prj)) {
  * AutomationML AR APC (CAEX 2.15): stanice, rack, CPU s rozhraním PROFINET, karty, kanály
  * a symbolické adresy — generátor a kontrola jsou v eplan_aml.ts (`genEplanAml`, `validateEplan`).
  */
-export function eplanAml(prj, cards = eplanCards(prj), opts = {}) {
+export function eplanAml(prj0, cards = eplanCards(prj0), opts = {}) {
+    const prj = outputSafe(prj0);
     return genEplanAml(prj, { ...opts, cards });
 }
 /* ================================================================ skript EPLAN */

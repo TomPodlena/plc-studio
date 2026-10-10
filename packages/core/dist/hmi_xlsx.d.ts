@@ -1,11 +1,3 @@
-/**
- * PLCdesk — minimální zapisovač XLSX bez závislostí (ZIP „stored“ + SpreadsheetML s inline
- * řetězci). Slouží importu tabulek do nástrojů, které berou jen Excel (TIA Portal WinCC:
- * „Hmi Tags“, „DiscreteAlarms“, „AnalogAlarms“). Výstup jsou bajty — klient je musí uložit
- * binárně (sada projektu `ProjectFile` nese jen text).
- * Struktura podle ECMA-376 (Office Open XML, část 1 – SpreadsheetML) a specifikace ZIP
- * (PKWARE APPNOTE 6.3.x, metoda 0 = stored).
- */
 export interface XlsxSheet {
     name: string;
     rows: Array<Array<string | number>>;

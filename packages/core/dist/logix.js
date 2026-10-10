@@ -15,7 +15,7 @@
  * Zdroje: 1756-PM007 (ST), 1756-RM003 (TONR, FBD_TIMER), 1756-PM010 (AOI), 1756-RM014 (L5X, CSV),
  * 5000-UM004 / 5069-UM005 (tagy modulů 5069). Výstup není ověřen importem ve Studiu 5000.
  */
-import { stripDia } from "./model.js";
+import { stripDia, lineSafe, xmlSafe } from "./model.js";
 import { parseFbTemplate, trComments, fbTemplate, stCtx, renderSeq, renderWiring, renderFault, enableText, freeLine, declNote, cmtSafe, stCallNotes, codeLibrary, portText, } from "./codegen.js";
 import { buildIR, irBlocks, IR_CLASS_ORDER } from "./ir.js";
 import { tr, trx } from "./i18n.js";
@@ -51,7 +51,7 @@ export function lxCsvEsc(s) {
 function cdata(s) {
     return "<![CDATA[" + s.replace(/]]>/g, "]]]]><![CDATA[>") + "]]>";
 }
-const attr = (s) => lxAscii(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const attr = (s) => lxAscii(xmlSafe(s)).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 /** Číslo jako REAL literál bez exponentu (100 → 100.0). */
 function lxReal(v) {
     const n = Number(v);
@@ -397,7 +397,7 @@ export function logixSafetyProblems(x) {
 export function genLogixTagsCsv(prj) {
     const { spec } = lxIoMap(prj);
     const slots = lxSlotText(prj);
-    const q = (s) => '"' + lxCsvEsc(s) + '"';
+    const q = (s) => '"' + lxCsvEsc(lineSafe(s)) + '"';
     const A = (t) => BASE.has(t)
         ? "(RADIX := " + (t === "REAL" ? "Float" : "Decimal") + ", Constant := false, ExternalAccess := Read/Write)"
         : "(Constant := false, ExternalAccess := Read/Write)";

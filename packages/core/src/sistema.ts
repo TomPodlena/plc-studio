@@ -21,7 +21,7 @@
  * kontrola struktury). Kategorie, podmínky kategorie a PL (CATReq / PLReq) se v SISTEMA
  * potvrzují ručně — export je záměrně nevyplňuje. Stav: viz `SISTEMA_VERIFIED`.
  */
-import { Project } from "./model.js";
+import { Project, xmlSafe, outputSafe } from "./model.js";
 import { tr, N_, today } from "./i18n.js";
 import { type ApprovalItem } from "./approval.js";
 import { registerDocProvider, type DocFile, type ProjectFile } from "./docs.js";
@@ -183,7 +183,8 @@ function subsystemOf(prj: Project, f: SafetyFunction, s: SafetySubsystem, g: Out
 }
 
 /** Model exportu do SISTEMA z návrhu bezpečnostních funkcí. */
-export function sistemaModel(prj: Project, p: SafetyProposal = proposeSafety(prj), items: ApprovalItem[] = safetyApprovalItems(prj)): SistemaModel {
+export function sistemaModel(prj0: Project, p: SafetyProposal = proposeSafety(prj0), items: ApprovalItem[] = safetyApprovalItems(prj0)): SistemaModel {
+  const prj = outputSafe(prj0);
   const fns: SistemaFunction[] = [];
   const skipped: SistemaModel["skipped"] = [];
   for (const f of p.fns) {
@@ -281,7 +282,7 @@ function ssmText(s: unknown, max = 4000): string {
   const t = String(s ?? "").replace(/\r?\n/g, "\\n").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, " ");
   return t.length > max ? t.slice(0, max - 1) + "…" : t;
 }
-const xmlAttr = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const xmlAttr = (s: string) => xmlSafe(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 /** Pole „equipmentid“ (50 znaků): celá označení, zbytek jako „+N“ (úplný seznam jde do popisu). */
 function dtField(dt: string): string {
   const xs = dt.split(", ").filter(Boolean);

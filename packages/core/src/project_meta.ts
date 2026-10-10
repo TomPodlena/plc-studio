@@ -11,14 +11,10 @@
  * a tabulátory z ručně upraveného JSON se slijí do mezery).
  */
 import type { Project } from "./model.js";
-import { stripDia, PROJECT_NUMBER_RE } from "./model.js";
+import { stripDia, PROJECT_NUMBER_RE, oneLine } from "./model.js";
 import { tr, formatDate, dateLocale } from "./i18n.js";
 
-/** Jeden řádek: řídicí znaky a zalomení → mezera, ořez. */
-const CTRL = new RegExp("[" + String.fromCharCode(0) + "-" + String.fromCharCode(31) + String.fromCharCode(127, 0x2028, 0x2029) + "]+", "g");
-export function oneLine(s: unknown): string {
-  return String(s ?? "").replace(CTRL, " ").replace(/ {2,}/g, " ").trim();
-}
+/* Jeden řádek (řídicí znaky a zalomení → mezera, ořez): `oneLine` z model.ts — společné pravidlo jednořádkových polí. */
 
 /** Platné datum ISO „YYYY-MM-DD“ (skutečný den v kalendáři)? */
 export function isIsoDate(s: unknown): s is string {
@@ -128,8 +124,8 @@ export function firstLine(s: unknown, max?: number): string {
 
 /** Část názvu souboru: bez diakritiky, jen [A-Za-z0-9._-], bez teček / podtržítek na krajích. */
 export function fileSafe(s: string, max = 60): string {
-  return stripDia(oneLine(s)).replace(/[^A-Za-z0-9._-]+/g, "_").replace(/_{2,}/g, "_")
-    .replace(/^[._-]+|[._-]+$/g, "").slice(0, max).replace(/[._-]+$/g, "");
+  return notReserved(stripDia(oneLine(s)).replace(/[^A-Za-z0-9._-]+/g, "_").replace(/_{2,}/g, "_")
+    .replace(/^[._-]+|[._-]+$/g, "").slice(0, max).replace(/[._-]+$/g, ""));
 }
 
 /** Prefix názvů ukládaných souborů „<číslo>_“ (bez čísla ""). Nepřidá se dvakrát (`withFilePrefix`). */
@@ -198,8 +194,14 @@ export function nextProjectNumber(existing: Iterable<unknown>, year: number = ne
 
 /** Část názvu složky / souboru: bez diakritiky, mezery a ostatní znaky → „_“, jen [A-Za-z0-9_-]. */
 export function folderSafe(s: unknown, max = 60): string {
-  return stripDia(oneLine(s)).replace(/[^A-Za-z0-9_-]+/g, "_").replace(/_{2,}/g, "_")
-    .replace(/^[_-]+|[_-]+$/g, "").slice(0, max).replace(/[_-]+$/g, "");
+  return notReserved(stripDia(oneLine(s)).replace(/[^A-Za-z0-9_-]+/g, "_").replace(/_{2,}/g, "_")
+    .replace(/^[_-]+|[_-]+$/g, "").slice(0, max).replace(/[_-]+$/g, ""));
+}
+
+/** Rezervovaná jména zařízení Windows (CON, NUL, COM1…) jako název složky / souboru → s „_“ na konci
+    (složka „NUL“ by tiše nevznikla — test odolnosti 2026-10-08). */
+export function notReserved(name: string): string {
+  return /^(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])$/i.test(name.split(".")[0]) ? name.replace(/^[^.]*/, m => m + "_") : name;
 }
 
 /**

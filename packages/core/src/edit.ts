@@ -14,6 +14,7 @@
 import { tr, withLang, LANGS, type Lang } from "./i18n.js";
 import {
   PLAT, CLS, ACTS_FOR, devById, devSignals, syncIO, autoAddr, hasRange, maxRecord, validateProject,
+  oneLine, lineSafe, canonIoAddr, MIN_STEP_S, REAL_MAX,
   type Project, type Device, type Dir, type IoEntry, type SeqStep, type SeqAct, type ValidationIssue,
 } from "./model.js";
 import { axisCfgOf } from "./axis.js";
@@ -61,7 +62,7 @@ export function defaultTag(d: Pick<Device, "name">, sig: string): string {
 /** Výchozí komentář signálu v aktuálním jazyce (jako `syncIO`): „popis – popisek signálu“. */
 export function defaultCmt(d: Device, sig: string): string {
   const s = devSignals(d).find(x => x[0] === sig);
-  return [d.desc, s ? s[2] : ""].filter(Boolean).join(" – ");
+  return lineSafe([d.desc, s ? s[2] : ""].filter(Boolean).join(" – "));
 }
 
 /** Výchozí komentáře signálu ve všech jazycích UI (komentář vzniká v jazyce platném při založení). */
@@ -131,7 +132,7 @@ function renameRefs(f: { inputs?: string[]; acts?: string[] }, from: string, to:
 export function renameDevice(prj: Project, devId: number, newName: string): EditResult {
   const d = devById(prj, devId);
   if (!d) return fail(tr("Zařízení nenalezeno."));
-  const name = String(newName ?? "").trim();
+  const name = oneLine(newName);
   const old = d.name;
   if (name === old) return { ok: true, keptTags: [] };
   const problem = deviceNameProblem(prj, name, d.id);
@@ -166,7 +167,7 @@ export function setDeviceDesc(prj: Project, devId: number, desc: string): EditRe
   const d = devById(prj, devId);
   if (!d) return fail(tr("Zařízení nenalezeno."));
   const before = clone(d);
-  d.desc = String(desc ?? "").trim();
+  d.desc = oneLine(desc);   // popis zařízení je jednořádkový (komentáře I/O, kód, výkresy)
   const keptCmts = refreshDefaultTexts(prj, before, d);
   return { ok: true, keptCmts };
 }
@@ -226,9 +227,10 @@ export function setDeviceRange(prj: Project, devId: number, range: { unit?: stri
   const rmin = range.rmin === undefined ? d.rmin : Number(range.rmin);
   const rmax = range.rmax === undefined ? d.rmax : Number(range.rmax);
   if (!Number.isFinite(rmin) || !Number.isFinite(rmax)) return fail(tr("Rozsah musí být číslo."));
+  if (Math.abs(rmin) > REAL_MAX || Math.abs(rmax) > REAL_MAX) return fail(tr("Meze rozsahu leží mimo rozsah REAL (±3,4E38) — PLC je neuloží; zkontroluj jednotky."));
   if (rmin >= rmax) return fail(tr("Rozsah měření: minimum musí být menší než maximum."));
   const before = clone(d);
-  if (range.unit !== undefined) d.unit = String(range.unit).trim();
+  if (range.unit !== undefined) d.unit = oneLine(range.unit);
   d.rmin = rmin; d.rmax = rmax;
   const keptCmts = refreshDefaultTexts(prj, before, d);
   return { ok: true, keptCmts, issues: issuesFor(prj, new Set([d.name])) };
@@ -247,7 +249,7 @@ function cleanStep(s: Partial<SeqStep>): SeqStep {
   for (const k of NUM_FIELDS) if (s[k] !== undefined && s[k] !== null && (s[k] as unknown) !== "") (out as any)[k] = Number(s[k]);
   if (out.rec !== undefined) out.rec = Math.round(out.rec);
   if (s.rev) out.rev = true;
-  if (s.posRef) out.posRef = String(s.posRef);
+  if (s.posRef) out.posRef = oneLine(s.posRef);
   return out;
 }
 
@@ -260,6 +262,7 @@ export function stepProblem(prj: Project, step: Partial<SeqStep>): string | null
   const s = cleanStep(step);
   if (!(Number.isFinite(s.timeS) && s.timeS > 0 && s.timeS <= 86400))
     return tr("Čas kroku musí být kladné číslo sekund (nejvýš 86 400 s = 24 h).");
+  if (s.timeS < MIN_STEP_S) return tr("Čas kroku musí být aspoň 0,01 s (jeden scan) — kratší čas kód zapíše jako T#0S.");
   if (s.act === "wait") return null;
   const d = devById(prj, s.dev);
   if (!d) return tr("Zařízení kroku nenalezeno.");
@@ -269,6 +272,7 @@ export function stepProblem(prj: Project, step: Partial<SeqStep>): string | null
   if (d.cls === "PosDrive" && s.act === "posRecord" && !(Number.isInteger(s.rec) && (s.rec as number) >= 1 && (s.rec as number) <= maxRecord(d)))
     return tr("Číslo záznamu {dev} musí být 1 až {max} (záznam 0 = referenční poloha, jede se na ni akcí home).", { dev: d.name, max: maxRecord(d) });
   for (const k of NUM_FIELDS) if (s[k] !== undefined && !Number.isFinite(s[k] as number)) return tr("Neplatné číslo v poli „{field}“.", { field: k });
+  for (const k of NUM_FIELDS) if (s[k] !== undefined && Math.abs(s[k] as number) > REAL_MAX) return tr("Hodnota {par} je mimo rozsah REAL (±3,4E38) — PLC ji neuloží; zkontroluj jednotky.", { par: k });
   if (d.cls === "Axis") {
     if (s.act === "moveAbs" && s.posRef && !axisCfgOf(d).positions.some(x => x.name === s.posRef))
       return tr("Osa {dev} nemá pojmenovanou polohu „{name}“.", { dev: d.name, name: s.posRef });
@@ -315,7 +319,7 @@ export function setIoTag(prj: Project, key: string, tag: string): EditResult {
   const e = prj.io.find(x => x.key === key);
   if (!e) return fail(tr("Signál nenalezen."));
   const d = devById(prj, e.devId);
-  e.tag = String(tag ?? "").trim() || defaultTag({ name: d ? d.name : "IO" }, e.sig);
+  e.tag = oneLine(tag) || defaultTag({ name: d ? d.name : "IO" }, e.sig);
   return { ok: true, value: e.tag, issues: issuesFor(prj, new Set([e.tag, e.tag.toUpperCase()])) };
 }
 
@@ -324,7 +328,7 @@ export function setIoCmt(prj: Project, key: string, cmt: string): EditResult {
   const e = prj.io.find(x => x.key === key);
   if (!e) return fail(tr("Signál nenalezen."));
   const d = devById(prj, e.devId);
-  e.cmt = String(cmt ?? "").trim() || (d ? defaultCmt(d, e.sig) : "");
+  e.cmt = oneLine(cmt) || (d ? defaultCmt(d, e.sig) : "");   // komentář je jednořádkový (kód, CSV / TSV, XML)
   return { ok: true, value: e.cmt };
 }
 
@@ -337,10 +341,10 @@ export function setIoCmt(prj: Project, key: string, cmt: string): EditResult {
 export function parseIoAddr(prj: Project, dir: Dir, addr: string): string | null {
   const a = String(addr ?? "").trim().toUpperCase().replace(/\s+/g, "");
   if (!a) return "";
-  const withPct = a.startsWith("%") ? a : "%" + a;
+  const withPct = canonIoAddr(a.startsWith("%") ? a : "%" + a);   // %Q00.1 → %Q0.1 (kontrola obsazenosti na kanonickém tvaru)
   if (ADDR_RE[dir].test(withPct)) return withPct;
   const c = canonAddr(a, /^%[IQ]W/.test(a) ? undefined : hwPlatform(prj));
-  return c && ADDR_RE[dir].test(c) ? c : null;
+  return c && ADDR_RE[dir].test(canonIoAddr(c)) ? canonIoAddr(c) : null;
 }
 
 /**
@@ -355,7 +359,10 @@ export function setIoAddr(prj: Project, key: string, addr: string): EditResult {
   if (a === null)
     return fail(tr("Adresa {addr} neodpovídá signálu {dir} — zapiš ji v Siemens notaci (např. {ex}) nebo v notaci platformy hardwaru {plat}.", { addr: String(addr).trim(), dir: e.dir, ex: ADDR_EX[e.dir], plat: PLAT[hwPlatform(prj)]?.name || hwPlatform(prj) }));
   if (a) {
-    const other = prj.io.find(x => x !== e && x.addr === a);
+    const m = /^%[IQ](W?)(\d+)/.exec(a);
+    if (m && Number(m[2]) + (m[1] ? 1 : 0) > 65535)
+      return fail(tr("Adresa {addr} leží mimo adresní prostor řídicích systémů (bajt nejvýš 65 535).", { addr: a }));
+    const other = prj.io.find(x => x !== e && x.addr && canonIoAddr(x.addr) === a);
     if (other) return fail(tr("Adresu {addr} už má signál {tag}.", { addr: a, tag: other.tag }));
   }
   e.addr = a;

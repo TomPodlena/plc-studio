@@ -1,6 +1,6 @@
 /* Drobné UI utility. */
 import {
-  tr, blankProject, CLS, PLAT, DO_ROLES, isGuid, ensureGuids, projectTitle, isIsoDate,
+  tr, normalizeProject, projectTitle,
   withFilePrefix, prefixProjectFiles, projectBundle, projectZip, nextProjectNumber, PREFIX_EXEMPT,
 } from "../../../packages/core/dist/index.js";
 import { aiNorm } from "./ai.js";
@@ -8,170 +8,19 @@ import { normSafety } from "./safety_view.js";
 import { normBiz } from "./biz_view.js";
 import { licenseFilter, currentProject, gateFor, openLicenseDialog } from "./license.js";
 
-const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
 /** Vlastní klíč tabulky (ne „toString“ / „constructor“ z prototypu — cizí JSON by s ním prošel přes `in`). */
 export const ownKey = (o, k) => typeof k === "string" && Object.prototype.hasOwnProperty.call(o, k);
-/** Konečné číslo z čísla nebo číselného textu; cokoli jiného (text, null, bool, objekt, ±Infinity) = undefined. */
-const numOf = v => {
-  if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
-  if (typeof v === "string" && v.trim() !== "") { const n = Number(v); return Number.isFinite(n) ? n : undefined; }
-  return undefined;
-};
-/** Číselná pole zařízení, kroku sekvence a konfigurace osy (model.ts Device / SeqStep, axis.ts AxisCfg). */
-const DEV_NUM = ["rmin", "rmax", "limHi", "limLo", "setpoint", "rampS", "tol", "tolTimeS", "selBits", "travelS"];
-const STEP_NUM = ["sp", "rec", "pos", "vel", "acc", "dec"];
-const AXIS_NUM = ["vMax", "aMax", "dMax", "jerk", "vDef", "limNeg", "limPos", "homePos", "posTol", "followMax", "jogVel", "startPos"];
-const DIRS = ["DI", "DO", "AI", "AO"];
 /**
- * Projekt z načteného JSON (import / localStorage) v bezpečném tvaru: zahodí, co neodpovídá
- * modelu (jinak by rozbitý soubor shodil vykreslení a uložil se). Nejde-li o projekt, vyhodí chybu.
+ * Projekt z načteného JSON (import / localStorage) v bezpečném tvaru: model normalizuje jádro
+ * (`normalizeProject`, project_norm.ts — stejné pravidlo jako desktop: typově ověří každou hodnotu,
+ * vadné položky zahodí, jednořádková pole vyčistí); tady jen bezpečnostní data a revize / nabídka /
+ * knihovna (`normSafety`, `normBiz`). Nejde-li o projekt, vyhodí chybu.
  */
 export function normProject(raw) {
-  if (!isObj(raw)) throw new Error("not a project");
-  /* cizí JSON (package.json, export jiné aplikace) není prázdný projekt — nesmí přepsat rozpracovaný návrh */
-  if (!["meta", "devices", "io", "program", "platforms"].some(k => ownKey(raw, k))) throw new Error("not a project");
-  const p = blankProject();
-  if (isObj(raw.meta)) {
-    p.meta = { ...raw.meta, name: String(raw.meta.name ?? ""), desc: String(raw.meta.desc ?? "") };
-    if (!(Number.isFinite(raw.meta.takt) && raw.meta.takt > 0)) delete p.meta.takt;
-    /* číslo projektu, zákazník a složka dat (desktop) — jen text; prázdné se neukládá. Složka dat se
-       ve webu nezobrazuje, ale zůstává (projekt putuje mezi webem a desktopem). */
-    for (const f of ["number", "customer", "dataDir"]) {
-      if (typeof raw.meta[f] === "string" && raw.meta[f].trim()) p.meta[f] = raw.meta[f]; else delete p.meta[f];
-    }
-    /* datum zahájení projektu: jen platné ISO YYYY-MM-DD */
-    if (isIsoDate(raw.meta.startDate)) p.meta.startDate = raw.meta.startDate; else delete p.meta.startDate;
-  }
-  if (Array.isArray(raw.platforms)) p.platforms = raw.platforms.filter(k => ownKey(PLAT, k));
-  /* styl kódu: jen "oop" se ukládá (výchozí klasický = bez pole) */
-  if (raw.codeStyle === "oop") p.codeStyle = "oop";
-  if (Array.isArray(raw.devices)) {
-    const seen = new Set();
-    p.devices = raw.devices.filter(d => isObj(d) && ownKey(CLS, d.cls) && Number.isFinite(d.id) && !seen.has(d.id) && seen.add(d.id))
-      .map(d => {
-        const nd = { ...d, name: String(d.name ?? ""), desc: String(d.desc ?? ""), unit: String(d.unit ?? ""),
-          opt: isObj(d.opt) ? Object.fromEntries(Object.entries(d.opt).map(([k, v]) => [k, !!v])) : {} };
-        /* čísla jen jako konečná čísla — text z cizího JSON by se jinak dostal do HTML i do kódu (test odolnosti 2026-10-08) */
-        for (const f of DEV_NUM) { const n = numOf(d[f]); if (n === undefined) delete nd[f]; else nd[f] = n; }
-        /* rozsah je povinný (měřítko analogů v kódu): neplatný → výchozí 0–100 jako při přidání zařízení */
-        if (d.rmin !== undefined && nd.rmin === undefined) nd.rmin = 0;
-        if (d.rmax !== undefined && nd.rmax === undefined) nd.rmax = 100;
-        if (!ownKey(DO_ROLES, d.role)) delete nd.role;
-        if (typeof d.libType !== "string") delete nd.libType;
-        if (!isGuid(d.guid)) delete nd.guid;
-        /* polohovací pohon: tabulka záznamů jen v platném tvaru (číslo, název, poloha, rychlost) */
-        if (d.records !== undefined) {
-          if (Array.isArray(d.records)) nd.records = d.records.filter(r => isObj(r) && Number.isInteger(r.no))
-            .map(r => ({ no: r.no, name: String(r.name ?? ""), ...(Number.isFinite(r.pos) ? { pos: r.pos } : {}), ...(Number.isFinite(r.vel) ? { vel: r.vel } : {}) }));
-          else delete nd.records;
-        }
-        /* servoosa: konfigurační list — čísla, text pohonu, pojmenované polohy */
-        if (d.axis !== undefined) {
-          if (isObj(d.axis)) {
-            const a = {};
-            for (const f of AXIS_NUM) { const n = numOf(d.axis[f]); if (n !== undefined) a[f] = n; }
-            if (typeof d.axis.drive === "string") a.drive = d.axis.drive;
-            if (Array.isArray(d.axis.positions)) a.positions = d.axis.positions.filter(x => isObj(x) && Number.isFinite(numOf(x.pos)))
-              .map(x => ({ name: String(x.name ?? ""), pos: numOf(x.pos) }));
-            nd.axis = a;
-          } else delete nd.axis;
-        }
-        return nd;
-      });
-  }
-  const ids = new Set(p.devices.map(d => d.id));
-  if (Array.isArray(raw.io)) p.io = raw.io.filter(e => isObj(e) && typeof e.key === "string" && ids.has(e.devId))
-    .filter(e => DIRS.includes(e.dir))
-    .map(e => {
-      const ne = { ...e, sig: String(e.sig ?? ""), tag: String(e.tag ?? ""), addr: String(e.addr ?? ""), cmt: String(e.cmt ?? "") };
-      if (e.nc !== undefined) ne.nc = e.nc === true;
-      if (!isGuid(e.guid)) delete ne.guid;
-      return ne;
-    });
-  if (isObj(raw.program)) {
-    const pr = raw.program;
-    p.program = {
-      ...p.program, ...pr,
-      estop: ids.has(pr.estop) ? pr.estop : "",
-      interlocks: Array.isArray(pr.interlocks) ? pr.interlocks.filter(id => ids.has(id) && id !== pr.estop) : [],
-      modes: pr.modes === undefined ? p.program.modes : !!pr.modes,
-      seq: Array.isArray(pr.seq) ? pr.seq.filter(s => isObj(s) && typeof s.act === "string" && (s.act === "wait" || ids.has(s.dev)))
-        .map(s => {
-          /* čekání bez zařízení: dev vždy 0 (cizí hodnota by šla do data-* atributů výkresů) */
-          const ns = { ...s, dev: s.act === "wait" ? (s.dev === "" ? "" : 0) : s.dev, timeS: numOf(s.timeS) > 0 ? numOf(s.timeS) : 1 };
-          /* přechod jen „fbk“ / „time“; jiná hodnota = výchozí (zpětné hlášení), chybějící zůstává chybět (otisky schválení) */
-          if (s.cond !== undefined && s.cond !== "fbk" && s.cond !== "time") ns.cond = s.act === "wait" ? "time" : "fbk";
-          for (const f of STEP_NUM) { const n = numOf(s[f]); if (n === undefined) delete ns[f]; else ns[f] = n; }
-          if (s.rev !== undefined) ns.rev = s.rev === true;
-          if (typeof s.posRef !== "string") delete ns.posRef;
-          return ns;
-        }) : [],
-    };
-  }
-  /* volby kusovníku: platforma, výrobce po kategoriích, úpravy řádků (jen texty a čísla) */
-  if (isObj(raw.bom)) {
-    const b = {};
-    if (ownKey(PLAT, raw.bom.plat)) b.plat = raw.bom.plat;
-    if (isObj(raw.bom.brand)) {
-      const br = Object.fromEntries(Object.entries(raw.bom.brand).filter(([, v]) => typeof v === "string"));
-      if (Object.keys(br).length) b.brand = br;
-    }
-    if (isObj(raw.bom.lines)) {
-      const ls = {};
-      for (const [id, o] of Object.entries(raw.bom.lines)) {
-        if (!isObj(o)) continue;
-        const c = {};
-        for (const f of ["brand", "type", "orderCode", "supplier", "note"]) if (typeof o[f] === "string") c[f] = o[f];
-        if (Number.isFinite(o.qty) && o.qty >= 0) c.qty = o.qty;
-        if (Object.keys(c).length) ls[id] = c;
-      }
-      if (Object.keys(ls).length) b.lines = ls;
-    }
-    p.bom = b;
-  }
-  /* schválení položek a výsledky oživení: jen záznamy v platném tvaru (jinak by shodily kroky 11–13) */
-  const str = v => typeof v === "string";
-  if (isObj(raw.approvals)) {
-    const a = {};
-    for (const [k, r] of Object.entries(raw.approvals)) {
-      if (!isObj(r) || !["approved", "rejected", "proposed"].includes(r.state) || !str(r.by) || !r.by.trim() || !str(r.at) || !str(r.hash)) continue;
-      a[k] = { state: r.state, by: r.by, at: r.at, hash: r.hash, ...(str(r.note) && r.note ? { note: r.note } : {}) };
-    }
-    if (Object.keys(a).length) p.approvals = a;
-  }
-  if (isObj(raw.commissioning)) {
-    const c = {};
-    for (const [k, r] of Object.entries(raw.commissioning)) {
-      if (!isObj(r) || !["ok", "nok", "na"].includes(r.result) || !str(r.by) || !r.by.trim() || !str(r.at)) continue;
-      c[k] = { result: r.result, by: r.by, at: r.at, ...(str(r.note) && r.note ? { note: r.note } : {}), ...(str(r.measured) && r.measured ? { measured: r.measured } : {}) };
-    }
-    if (Object.keys(c).length) p.commissioning = c;
-  }
-  /* bezpečnostní data (úpravy návrhu funkcí, parametry výpočtu) */
+  const p = normalizeProject(raw);
   const sf = normSafety(raw.safety);
   if (sf) p.safety = sf;
-  /* revize, volby nabídky a kopie firemní knihovny (biz_view.js) */
   normBiz(raw, p);
-  /* časy modelu stroje pro simulaci (i výchozí z firemní knihovny) a zvolený koncept řešení */
-  if (isObj(raw.sim)) {
-    const s = {};
-    for (const f of ["motorDelay", "valveTravel"]) if (Number.isFinite(raw.sim[f]) && raw.sim[f] > 0) s[f] = raw.sim[f];
-    if (Object.keys(s).length) p.sim = s;
-  }
-  if (isObj(raw.concept)) p.concept = raw.concept;
-  p.nextId = Math.max(Number.isFinite(raw.nextId) ? raw.nextId : 1, ...p.devices.map(d => d.id + 1));
-  /* GUID (export EPLAN páruje podle nich): převzít uložené, chybějící doplnit — nikdy při exportu */
-  if (isGuid(raw.guid)) p.guid = raw.guid;
-  if (isObj(raw.moduleGuids)) {
-    const mg = Object.fromEntries(Object.entries(raw.moduleGuids).filter(([, g]) => isGuid(g)));
-    if (Object.keys(mg).length) p.moduleGuids = mg;
-  }
-  /* značka sestavy hardwaru: adresy I/O patří platformě `plat` (hardware.ts) — bez ní se přidělí znovu */
-  if (isObj(raw.hw) && ownKey(PLAT, raw.hw.plat) && Number.isInteger(raw.hw.ver)) p.hw = { plat: raw.hw.plat, ver: raw.hw.ver };
-  /* migrace: starý projekt bez GUID → doplnit; volající ho podle `guidsAdded` uloží (projekt změněn) */
-  const hadGuid = isGuid(raw.guid);
-  const added = ensureGuids(p);
-  Object.defineProperty(p, "guidsAdded", { value: added || !hadGuid, enumerable: false });
   return p;
 }
 

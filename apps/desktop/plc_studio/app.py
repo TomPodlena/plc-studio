@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 import traceback
@@ -59,6 +60,27 @@ def new_ai() -> dict:
     return {"turns": [], "last": None, "draft": ""}
 
 
+def read_text_any(path: Path) -> str:
+    """Text souboru projektu: UTF-8 (i s BOM), UTF-16 / UTF-32 s BOM (Poznámkový blok, PowerShell).
+    Binární soubor (obrázek…) → ``ValueError`` se srozumitelnou hláškou místo „'utf-8' codec…“."""
+    raw = path.read_bytes()
+    for bom, enc in ((b"\xff\xfe\x00\x00", "utf-32"), (b"\x00\x00\xfe\xff", "utf-32"),
+                     (b"\xff\xfe", "utf-16"), (b"\xfe\xff", "utf-16")):
+        if raw.startswith(bom):
+            try:
+                return raw.decode(enc)
+            except UnicodeDecodeError:
+                break
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = None
+    if text is None or "\x00" in text:
+        raise ValueError(_("soubor není textový projekt PLCdesk (JSON v kódování UTF-8 nebo UTF-16) — "
+                           "nejde o obrázek nebo jiný binární soubor?"))
+    return text
+
+
 class App:
     def __init__(self, root: tk.Tk, home: Path | None = None):
         self.root = root
@@ -74,7 +96,10 @@ class App:
         self._badge_cur: dict | None = None
         self.ui: dict = {}               # stav UI kroků, který má přežít překreslení
 
-        self.settings = self._read_json("settings.json", {})
+        self.settings = self._load_settings()
+        self.quiet = bool(os.environ.get("PLCSTUDIO_QUIET")) or "unittest" in sys.modules
+        self._shown_errors: set[str] = set()   # chyby callbacků už ukázané dialogem (jednou za běh)
+        self._startup_notes: list[tuple[str, str]] = []   # hlášky ze startu (poškozený stav) → po vykreslení
         self.bridge = DualBridge(log_file=self.home / "bridge.log")
         self._listeners: dict[int, list] = {}   # požadavek pracovního procesu → kdo čeká
         self._pump_job = None
@@ -97,7 +122,11 @@ class App:
             self._suggest_number()
 
         theme.setup_window(root, "PLCdesk", topmost=bool(self.settings.get("topmost")))
-        root.geometry(self.settings.get("geometry") or "1240x820")
+        try:                                     # neplatná geometrie v settings.json nesmí shodit start
+            root.geometry(self.settings.get("geometry") or "1240x820")
+        except tk.TclError:
+            self.settings.pop("geometry", None)
+            root.geometry("1240x820")
         root.minsize(1100, 680)
         theme.apply_styles(root)
         root.report_callback_exception = self._on_callback_error
@@ -106,6 +135,8 @@ class App:
         self._busy_depth = 0
         self.bridge.on_busy = self._on_busy        # drahé výpočty jádra: kurzor „watch“ + „Počítám…“
         self.render()
+        for title, msg in self._startup_notes:    # poškozený stav ze startu: hláška až nad oknem
+            self._notify(title, msg)
 
     # --- jádro -----------------------------------------------------------------
 
@@ -324,9 +355,37 @@ class App:
 
     def _read_json(self, name: str, default):
         try:
-            return json.loads((self.home / name).read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+            return json.loads((self.home / name).read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError, RecursionError):   # UnicodeDecodeError je ValueError; hluboké vnoření JSON
             return default
+
+    def _load_settings(self) -> dict:
+        """settings.json: jen slovník a jen hodnoty očekávaného typu (jinak výchozí) — rozbitý soubor
+        nesmí shodit start (test odolnosti 2026-10-08: seznam místo slovníku, geometrie číslem)."""
+        raw = self._read_json("settings.json", {})
+        if not isinstance(raw, dict):
+            return {}
+        out = dict(raw)
+        for key, typ in (("geometry", str), ("lang", str), ("last_dir", str)):
+            if key in out and not isinstance(out[key], typ):
+                out.pop(key)
+        if "geometry" in out and not re.fullmatch(r"\d{2,5}x\d{2,5}([+-]-?\d{1,6}){0,2}", out["geometry"]):
+            out.pop("geometry")
+        if "topmost" in out and not isinstance(out["topmost"], bool):
+            out.pop("topmost")
+        return out
+
+    def _backup_corrupt(self, name: str) -> Path | None:
+        """Nečitelný soubor stavu odloží jako ``<jméno>.corrupt`` (jako web) a vrátí cestu."""
+        src = self.home / name
+        dst = self.home / (name + ".corrupt")
+        try:
+            if src.exists():
+                src.replace(dst)
+                return dst
+        except OSError:
+            pass
+        return None
 
     def _write_json(self, name: str, data) -> None:
         try:
@@ -337,13 +396,23 @@ class App:
             pass  # stav je pohodlí, ne důvod aplikaci shodit
 
     def _load_state(self) -> None:
-        d = self._read_json("state.json", None)
-        if not isinstance(d, dict):
+        path = self.home / "state.json"
+        if not path.exists():
             return
+        d = self._read_json("state.json", None)
         try:
+            if not isinstance(d, dict):
+                raise ValueError(_("soubor neobsahuje objekt návrhu"))
             self.set_project(d.get("prj") or {}, d.get("ai"))
-        except ValueError:
-            return                              # poškozený stav — začni ukázkou
+        except Exception as exc:  # noqa: BLE001 — poškozený stav nesmí zabránit startu
+            # nečitelný / poškozený stav: odložit jako state.json.corrupt, začít prázdně a říct to
+            self.prj, self.ai = self.core("blankProject"), new_ai()
+            bak = self._backup_corrupt("state.json")
+            self._log(traceback.format_exc())
+            self._startup_notes.append((_("Rozpracovaný návrh nejde načíst"), _(
+                "Uložený stav aplikace je poškozený ({exc}) — začínám s prázdným návrhem. Původní soubor "
+                "je uložený jako {path}.", exc=exc, path=bak or path)))
+            return
         step = d.get("step", 0)
         self.step = step if step == "help" or (isinstance(step, int) and 0 <= step < len(STEPS)) else 0
 
@@ -351,7 +420,8 @@ class App:
         """Nahradí projekt; chybějící části doplní z prázdného projektu.
 
         ``ValueError``, když se projekt použít nedá (pak zůstane původní)."""
-        self.prj = project.normalize(prj, self.core("blankProject"), self.CLS, self.PLAT)
+        # model normalizuje jádro (project_norm.ts, stejné pravidlo jako web): vadné položky zahodí
+        self.prj = project.normalize(prj, lambda raw: self.core("normalizeProject", raw))
         # GUID objektů (export EPLAN podle nich páruje): starý projekt bez nich doplnit jádrem
         # a označit jako změněný (uložit) — export je nikdy negeneruje
         res = self.bridge.request("call", fn="ensureGuids", args=[self.prj])
@@ -763,6 +833,15 @@ class App:
             self._report(_("Jádro hlásí chybu: {exc}", exc=exc), traceback.format_exc())
             ttk.Label(self.view, text="⚠ " + _("Krok se nepodařilo vykreslit: {exc}", exc=exc),
                       style="Err.TLabel").pack(anchor="w")
+        except Exception as exc:  # noqa: BLE001 — chyba kroku (např. poškozená data) nesmí shodit okno
+            self._report(_("Krok se nepodařilo vykreslit: {exc}", exc=exc), traceback.format_exc())
+            for child in self.view.winfo_children():
+                child.destroy()
+            self._license_banner()
+            ttk.Label(self.view, text="⚠ " + _("Krok se nepodařilo vykreslit: {exc}", exc=exc) + "\n"
+                      + _("Podrobnosti jsou v {path}. Ostatní kroky fungují dál — zkontroluj data návrhu.",
+                          path=self.home / "plc_studio.log"),
+                      style="Err.TLabel", justify="left").pack(anchor="w")
         self.schedule_badge()
         from .steps import revize
         revize.update_badge(self, getattr(self, "_rev_lbl", None), before=self._titles)
@@ -782,19 +861,42 @@ class App:
         self.root.clipboard_append(text)
         self.set_status(_("Zkopírováno do schránky."))
 
-    def _report(self, summary: str, detail: str) -> None:
-        self.errors.append(detail)
+    def _log(self, detail: str) -> None:
         try:
             with open(self.home / "plc_studio.log", "a", encoding="utf-8") as fh:
                 fh.write(f"\n===== {datetime.now():%Y-%m-%d %H:%M:%S} =====\n{detail}\n")
         except OSError:
             pass
-        self.set_status(f"⚠ {summary}", keep=True)
+
+    def _report(self, summary: str, detail: str) -> None:
+        self.errors.append(detail)
+        self._log(detail)
+        try:
+            self.set_status(f"⚠ {summary}", keep=True)
+        except (AttributeError, tk.TclError):    # okno ještě / už není postavené
+            pass
+
+    def _notify(self, title: str, msg: str) -> None:
+        """Chybová hláška dialogem (v testech a --smoke jen stavový řádek a log)."""
+        if self.quiet:
+            return
+        try:
+            messagebox.showerror(title, msg, parent=self.root)
+        except tk.TclError:
+            pass
 
     def _on_callback_error(self, exc_type, exc, tb) -> None:
+        """Výjimka v obsluze události Tk: log, stavový řádek a (jednou za běh pro tutéž chybu) dialog —
+        ne tichý pád; aplikace běží dál."""
         detail = "".join(traceback.format_exception(exc_type, exc, tb))
-        self._report(_("Chyba: {exc}  (podrobnosti v {path})", exc=exc,
-                       path=self.home / "plc_studio.log"), detail)
+        path = self.home / "plc_studio.log"
+        self._report(_("Chyba: {exc}  (podrobnosti v {path})", exc=exc, path=path), detail)
+        key = f"{exc_type.__name__}: {exc}"
+        if key not in self._shown_errors and not self._closing:
+            self._shown_errors.add(key)
+            self.root.after_idle(lambda: self._notify(_("Chyba aplikace"), _(
+                "Akce se nepodařila: {exc}\n\nPodrobnosti jsou v {path}. Aplikace běží dál; rozpracovaný "
+                "návrh zůstal uložený.", exc=exc, path=path)))
 
     # --- projekt: ukázky, otevření, uložení -------------------------------------------------
 
@@ -878,7 +980,7 @@ class App:
 
     def open_project(self, path: str | Path) -> bool:
         try:
-            d = json.loads(Path(path).read_text(encoding="utf-8-sig"))
+            d = json.loads(read_text_any(Path(path)))
             if not isinstance(d, dict):
                 raise ValueError(_("soubor neobsahuje objekt návrhu"))
             old = (self.prj, self.ai)
@@ -890,7 +992,7 @@ class App:
             except BridgeError as exc:
                 self.prj, self.ai = old
                 raise ValueError(str(exc)) from exc
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, RecursionError) as exc:   # RecursionError = extrémně vnořený JSON
             messagebox.showerror(_("Projekt nejde otevřít"),
                                  _("Neplatný soubor návrhu:") + f"\n{exc}", parent=self.root)
             return False
@@ -906,7 +1008,23 @@ class App:
 
     # --- konec ---------------------------------------------------------------------------
 
+    def _commit_focused(self) -> None:
+        """Rozepsané pole (Entry / Text s uložením při opuštění) před zavřením okna uložit —
+        zavření křížkem jinak FocusOut nevyvolá a hodnota by se ztratila (test odolnosti 2026-10-08)."""
+        try:
+            w = self.root.focus_get()
+        except (KeyError, tk.TclError):         # fokus v dialogu / zničeném widgetu
+            w = None
+        if w is None:
+            return
+        try:
+            w.event_generate("<FocusOut>")
+            self.root.update_idletasks()
+        except Exception:  # noqa: BLE001 — uložení stavu níže proběhne tak jako tak
+            self._log(traceback.format_exc())
+
     def close(self) -> None:
+        self._commit_focused()            # před _closing: obsluha pole ještě smí volat jádro
         self._closing = True              # pracovní proces ruší výpočty, okno už nic nedokreslí
         try:
             self.settings["geometry"] = self.root.geometry()

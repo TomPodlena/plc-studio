@@ -19,6 +19,7 @@ import { compile, Compiled } from "./compile.js";
 import { runPlatforms, EmuRunResult, EmuRunOptions } from "./run.js";
 import { bindEmuApi } from "./doc.js";
 import { axisBlocked, axisUnsupportedWhy } from "../axis_gen.js";
+import { simBlockers } from "../sim.js";
 
 export type { EmuFinding } from "./types.js";
 export type { EmuRunResult, EmuRunOptions, EmuDiff, EmuScenarioResult } from "./run.js";
@@ -110,6 +111,13 @@ export function emulateRun(prj: Project, platform: PlatformKey, opts: EmuRunOpti
 export function emulateRunMany(prj: Project, platforms: PlatformKey[], opts: EmuRunOptions = {}): Partial<Record<PlatformKey, EmuRunResult>> {
   const out: Partial<Record<PlatformKey, EmuRunResult>> = {};
   const todo: Array<{ plat: PlatformKey; prog: Compiled; key: string; rawMax: number }> = [];
+  /* zadání, které by simulaci nafouklo na hodiny (chyba návrhu) — běh neemulovat, říct proč (sim.ts simBlockers) */
+  const blockers = simBlockers(prj);
+  if (blockers.length) {
+    const skipped = tr("Běh se neemuluje — oprav chyby návrhu: {list}", { list: blockers.join("; ") });
+    for (const plat of platforms) out[plat] = { platform: plat, scenarios: [], diffs: [], ok: false, skipped, ms: 0, scans: 0 };
+    return out;
+  }
   for (const plat of platforms) {
     const c = compileEntry(prj, plat);
     const key = JSON.stringify([prj, plat, c.fp, opts.scope || "full", opts.dt || 0]);
@@ -132,6 +140,7 @@ export function emulateRunMany(prj: Project, platforms: PlatformKey[], opts: Emu
 export function emulateRunFiles(prj: Project, platform: PlatformKey, files: Record<string, string>, opts: EmuRunOptions = {}): EmuRunResult {
   const r = emulateFiles(prj, platform, files);
   if (!r.prog) return { platform, scenarios: [], diffs: [], ok: false, skipped: tr("Kód se nepřeložil — běh nelze emulovat (viz nálezy překladu)."), ms: 0, scans: 0 };
+  if (simBlockers(prj).length) return emulateRunMany(prj, [platform], opts)[platform]!;   // neemulovat (chyby návrhu)
   return runPlatforms(prj, [{ plat: platform, prog: r.prog, rawMax: detectRawMax(files) }], opts)[platform]!;
 }
 

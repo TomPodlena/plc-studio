@@ -2247,14 +2247,13 @@ class GuiTest(unittest.TestCase):
         return str(self.app._status.cget("text"))
 
     def test_broken_project_file_is_completed_or_rejected(self):
-        """Neúplný / vadný soubor projektu: buď se doplní a všechny kroky jdou vykreslit,
-        nebo se odmítne a rozpracovaný návrh zůstane (dřív KeyError a pády kroků)."""
+        """Neúplný / vadný soubor projektu: doplní se a všechny kroky jdou vykreslit (vadné položky
+        jádro zahodí — normalizeProject, stejně jako web), nebo se odmítne, když nejde o projekt,
+        a rozpracovaný návrh zůstane (dřív KeyError a pády kroků)."""
         self.app.load_sample("small")
         want = json.loads(json.dumps(self.app.prj))
         folder = Path(tempfile.mkdtemp())
-        rejected = ('{"prj":{"meta":{"name":"x"},"devices":"ne"}}', "[]", '{"a":1}',
-                    '{"meta":{"name":"x"},"devices":[{"id":1}]}',
-                    '{"meta":{"name":"x"},"devices":[{"id":1,"cls":"DI"},{"id":1,"cls":"DO"}]}')
+        rejected = ("[]", '{"a":1}', '"text"', "nejde o JSON")
         for i, text in enumerate(rejected):
             path = folder / f"r{i}.json"
             path.write_text(text, encoding="utf-8")
@@ -2262,6 +2261,16 @@ class GuiTest(unittest.TestCase):
                 self.assertFalse(self.app.open_project(path), text)
             err.assert_called_once()
             self.assertEqual(self.app.prj, want)
+        # vadné položky pryč, zbytek projektu zůstane (test odolnosti 2026-10-08)
+        for i, (text, n_dev) in enumerate((('{"prj":{"meta":{"name":"x"},"devices":"ne"}}', 0),
+                                           ('{"meta":{"name":"x"},"devices":[{"id":1}]}', 0),
+                                           ('{"meta":{"name":"x"},"devices":[{"id":1,"cls":"DI"},{"id":1,"cls":"DO"}]}', 1))):
+            path = folder / f"d{i}.json"
+            path.write_text(text, encoding="utf-8")
+            with mock.patch("tkinter.messagebox.showerror") as err:
+                self.assertTrue(self.app.open_project(path), text)
+            err.assert_not_called()
+            self.assertEqual(len(self.app.prj["devices"]), n_dev, text)
         path = folder / "neuplny.json"
         path.write_text(json.dumps({"meta": {"name": "Neúplný", "takt": "x"},
                                     "devices": [{"id": 3, "cls": "Motor", "name": "M1"},
@@ -2273,10 +2282,12 @@ class GuiTest(unittest.TestCase):
                                     "nextId": 1, "sim": {"motorDelay": "x"}}), encoding="utf-8")
         self.assertTrue(self.app.open_project(path))
         prj = self.app.prj
-        self.assertEqual((prj["meta"]["desc"], prj["nextId"], prj["sim"]), ("", 6, {}))
+        self.assertEqual((prj["meta"]["desc"], prj["nextId"]), ("", 6))
+        self.assertNotIn("sim", prj)
         self.assertNotIn("takt", prj["meta"])
         self.assertEqual(prj["program"]["estop"], "", "E-stop jen na DI")
-        self.assertEqual(len(prj["program"]["seq"]), 1)
+        # krok s neexistujícím zařízením pryč; výdrž bez platného času dostane 1 s (jako web)
+        self.assertEqual([(x["act"], x["timeS"]) for x in prj["program"]["seq"]], [("start", 2), ("wait", 1)])
         self.assertEqual(prj["devices"][0]["opt"], {})
         self.assertTrue(prj["io"], "I/O dopočítané")
         for step in [*range(9), "help"]:
@@ -2467,9 +2478,9 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(len(saved["body"].strip().splitlines()), len(rows) + 1)
         self.assertIn("Vlastní s.r.o.", saved["body"])
         # neplatné volby v souboru projektu se odfiltrují
-        from plc_studio.project import normalize_bom
-        self.assertEqual(normalize_bom({"plat": "x", "lines": {"a": {"qty": float("inf"), "brand": 5}}},
-                                       self.app.PLAT), {})
+        clean = self.app.core("normalizeProject", {"devices": [], "bom": {
+            "plat": "x", "lines": {"a": {"qty": -1, "brand": 5}}}})
+        self.assertNotIn("bom", clean)
         self.click("Obnovit výchozí volby")
         self.assertEqual(self.app.prj.get("bom"), {"plat": "rockwell"})
 

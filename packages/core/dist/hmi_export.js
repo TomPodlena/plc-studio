@@ -15,7 +15,7 @@
  *  Omron NA (Sysmac)               proměnné k vložení (TSV), uživatelské alarmy (TSV)
  *  Unitronics                      bez exportu (HMI je součástí UniLogic, tagy jsou globální)
  */
-import { PLAT, platBase } from "./model.js";
+import { PLAT, platBase, xmlSafe, outputSafe } from "./model.js";
 import { tr, N_, getLang, withLang } from "./i18n.js";
 import { buildHmi, hmiPlcPath, hmiAscii } from "./hmi.js";
 import { xlsxWorkbook } from "./hmi_xlsx.js";
@@ -116,7 +116,7 @@ export function hmiExportSpec(plat) { return SPECS[plat] || null; }
 const TIA_CULTURE = { cs: "cs-CZ", en: "en-US", de: "de-DE", es: "es-ES", zh: "zh-CN" };
 const tiaType = (t) => t.type === "BOOL" ? "Bool" : t.type === "INT" ? "Int" : t.type === "WORD" ? "Word" : "Real";
 const tiaLen = (t) => t.type === "BOOL" ? 1 : t.type === "REAL" ? 4 : 2;
-const xe = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const xe = (s) => xmlSafe(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const tsv = (s) => String(s ?? "").replace(/[\t\r\n]+/g, " ");
 const q = (s) => '"' + String(s ?? "").replace(/"/g, '""') + '"';
 const NV = "<No Value>";
@@ -414,7 +414,8 @@ function ascii(prj, m) {
  * Soubory exportu HMI pro platformu (název → obsah). Napojení: přes `registerHmiModule()`
  * (hmi_docs.ts) se přidají do sady projektu jako skupina „HMI — <platforma>“; `genFor` se nemění.
  */
-export function hmiFiles(prj, plat, m = buildHmi(prj)) {
+export function hmiFiles(prj0, plat, m = buildHmi(prj0)) {
+    const prj = outputSafe(prj0);
     switch (plat) {
         case "siemens": return siemensFiles(prj, m);
         case "rockwell": return rockwellFiles(prj, ascii(prj, m));

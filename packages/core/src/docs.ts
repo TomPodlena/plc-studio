@@ -7,7 +7,7 @@
  */
 import {
   Project, Device, CLS, PLAT, devById, modules, wireNo, dtFor, usedClasses, interlockDevs, DO_ROLES, codeStyleFor,
-  isMotionClass, hasRange, ioOf, rampStepOf, tolOf, tolTicksOf, selBitsOf, maxRecord, stepSp, stepAxisTarget,
+  isMotionClass, hasRange, ioOf, rampStepOf, tolOf, tolTicksOf, selBitsOf, maxRecord, stepSp, stepAxisTarget, lineSafe, outputSafe,
 } from "./model.js";
 import { axisCfgOf, axisObjName } from "./axis.js";
 import { axisSupport, AXIS_LIB, AXIS_NET } from "./axis_gen.js";
@@ -20,7 +20,7 @@ import { projectMetaMd, mdMultiline } from "./project_meta.js";
 import { oopInProject, oopProgram, oopClassSvg, OOP_CLASS_SVG, type OopPou } from "./codegen_oop.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
 import { conceptMd } from "./concept.js";
-import { simulate, docVerifyMd, stepWatchdog, stepTitle, stepCondText, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE, T_AXIS_POWER } from "./sim.js";
+import { simulate, simBlockers, docVerifyMd, stepWatchdog, stepTitle, stepCondText, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE, T_AXIS_POWER } from "./sim.js";
 import { svgFlow, svgTiming, svgMachine } from "./flow.js";
 import { approvalItems, approvalStamp, approvalsMd, designView, APPROVAL_FILE, type ApprovalGroup, type ApprovalItem } from "./approval.js";
 import { commissioningPlan, commissioningMd, commissioningCsv, COMMISSION_FILE_MD, COMMISSION_FILE_CSV } from "./commission.js";
@@ -309,10 +309,25 @@ export function svorkyCSV(prj: Project): string {
   return l.join("\n");
 }
 
+/** Řádek seznamu alarmů (`04_seznam_alarmu.csv`); HMI z něj bere kódy a texty (hmi.ts `alarmRows`). */
+export interface AlarmRow { code: string; dev: string; alarm: string; cause: string; reaction: string; ack: string; }
+
+/** Seznam alarmů jako CSV (středník) — buňky jednořádkově (`lineSafe`), jinak text beze změny. */
 export function docAlarmCsv(prj: Project): string {
   const l = [tr("Kód;Zařízení;Alarm;Příčina;Reakce systému;Kvitace")];
+  for (const r of docAlarmRows(prj)) l.push([r.code, r.dev, r.alarm, r.cause, r.reaction, r.ack].map(lineSafe).join(";"));
+  return l.join("\n");
+}
+
+/**
+ * Řádky seznamu alarmů (kód, zařízení, alarm, příčina, reakce, kvitace) — jediný zdroj pro CSV dokumentace
+ * i alarmy HMI. HMI dřív četlo zpět text CSV a víceřádkový popis blokovacího vstupu ho rozbil
+ * („HMI: alarm … nemá spouštěcí tag“, test odolnosti 2026-10-08) — teď na tvaru textů nezávisí.
+ */
+export function docAlarmRows(prj: Project): AlarmRow[] {
+  const rows: AlarmRow[] = [];
   /* řádek = kód; zařízení; alarm; příčina; reakce; kvitace (buňka = jeden klíč překladu) */
-  const row = (...c: string[]) => { l.push(c.join(";")); };
+  const row = (code: string, dev: string, alarm: string, cause: string, reaction: string, ack: string) => { rows.push({ code, dev, alarm, cause, reaction, ack }); };
   for (const d of prj.devices) {
     if (d.cls === "Motor") {
       row("A_" + d.name + "_START", d.name, tr("Timeout rozběhu"), tr("Nepřišlo zpětné hlášení běhu do 3 s"),
@@ -371,7 +386,7 @@ export function docAlarmCsv(prj: Project): string {
       tr("Porucha stroje: sekvence do kroku 0, povely vypnuty (faultStep = {step})", { step: 10 + i * 10 }),
       tr("Kvitace (cmdAck) po odstranění příčiny"));
   });
-  return l.join("\n");
+  return rows;
 }
 
 export function docFATMd(prj: Project): string {
@@ -566,7 +581,9 @@ function oopSwSection(prj: Project): string[] {
 }
 
 export interface DocFile { path: string; tab: string; title: string; body: string; }
-export function docFiles(prj: Project, items: ApprovalItem[] = approvalItems(prj)): DocFile[] {
+export function docFiles(prj0: Project, items: ApprovalItem[] = approvalItems(prj0)): DocFile[] {
+  /* jednořádková pole bez řídicích znaků (CSV, výkresy, tabulky Markdownu); otisky schválení z původního projektu */
+  const prj = outputSafe(prj0);
   const plan = commissioningPlan(prj);
   const bodies = [
     docIndexMd(prj), docFDSMd(prj), docIOcsv(prj), svorkyCSV(prj),
@@ -629,7 +646,7 @@ export function allProjectFiles(prj: Project): ProjectFile[] {
   const mods = modules(prj);
   out.push({ group: gSch, name: "blokove_schema.svg", save: "00_blokove_schema.svg", body: svgBlock(prj, mods), kind: "svg" });
   out.push({ group: gSch, name: "schema_stroje.svg", save: "00_schema_stroje.svg", body: svgMachine(prj), kind: "svg" });
-  if (prj.program.seq.length) {
+  if (prj.program.seq.length && !simBlockers(prj).length) {   // zadání, které by simulaci nafouklo: diagramy bez běhu nevznikají
     const run = simulate(prj);
     out.push({ group: gSch, name: "funkcni_diagram.svg", save: "00_funkcni_diagram.svg", body: svgFlow(prj, run), kind: "svg" });
     out.push({ group: gSch, name: "casovy_diagram.svg", save: "00_casovy_diagram.svg", body: svgTiming(prj, run), kind: "svg" });

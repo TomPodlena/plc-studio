@@ -278,6 +278,6 @@ export declare function genUnitronicsTags(prj: Project): string;
 /** Logika stroje jako tělo jedné ST funkce pro UniLogic (stav v globálních tazích). */
 export declare function genMainUnitronics(prj: Project): string;
 /** Všechny generované soubory programu pro jednu platformu. */
-export declare function genFor(prj: Project, plat: PlatformKey): Record<string, string>;
+export declare function genFor(prj0: Project, plat: PlatformKey): Record<string, string>;
 /** README platformy, která servoosu nepodporuje: proč se kód negeneruje a čím osu nahradit. */
 export declare function axisBlockedReadme(prj: Project, plat: PlatformKey): string;

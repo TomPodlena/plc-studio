@@ -50,14 +50,14 @@ export interface EplanTerminal {
     wire: string;
 }
 /** I/O karty s označením (stejné pořadí jako výkresy a seznam svorek dokumentace). */
-export declare function eplanCards(prj: Project): EplanCard[];
+export declare function eplanCards(prj0: Project): EplanCard[];
 /** Svorky a vodiče podle výkresů: svorka X<n>:<k>, vodič `wireNo(n, k − 1)` (X1:1 → -W101, X2:1 → -W201 …). */
 export declare function eplanTerminals(prj: Project, cards?: EplanCard[]): EplanTerminal[];
 /**
  * AutomationML AR APC (CAEX 2.15): stanice, rack, CPU s rozhraním PROFINET, karty, kanály
  * a symbolické adresy — generátor a kontrola jsou v eplan_aml.ts (`genEplanAml`, `validateEplan`).
  */
-export declare function eplanAml(prj: Project, cards?: EplanCard[], opts?: EplanAmlOptions): string;
+export declare function eplanAml(prj0: Project, cards?: EplanCard[], opts?: EplanAmlOptions): string;
 /** Název skriptu EPLAN (C#) v sadě souborů a v repozitáři (apps/eplan/). */
 export declare const EPLAN_SCRIPT_NAME = "PLCdesk_ImportAML.cs";
 /**

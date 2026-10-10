@@ -127,11 +127,14 @@ def render(app, parent) -> None:
     app.ui.setdefault("projekt", {})["desc_widget"] = desc          # testy
 
     def on_takt(*_a):
-        v = parse_num(var_takt.get())          # „inf“ / „1e999“ by projekt rozbily (JSON)
+        text = var_takt.get().strip()
+        v = parse_num(text)                    # „inf“ / „1e999“ by projekt rozbily (JSON)
         if v is not None and v > 0:
             app.prj["meta"]["takt"] = v
         else:
             app.prj["meta"].pop("takt", None)
+            if text:                           # neplatný takt se neuloží — říct to (dřív tiše zahozen)
+                app.set_status(_("Takt musí být kladné číslo sekund — „{value}“ se neuložil.", value=text))
         app.save()
 
     var_takt.trace_add("write", on_takt)

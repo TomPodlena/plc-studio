@@ -22,7 +22,7 @@
  * rozsah potvrzuje odpovědná osoba. Zpráva `17_zmeny.md` (přes `registerDocProvider`) a sloupec
  * revize v popisovém poli výkresů (`setSheetRevision` v drawing.ts) se přihlašují samy.
  */
-import { PLAT, CLS, DO_ROLES, devById, interlockDevs, enableInputs, isMotionClass } from "./model.js";
+import { PLAT, CLS, DO_ROLES, blankProject, devById, interlockDevs, enableInputs, isMotionClass } from "./model.js";
 import { tr, N_, formatDate, today } from "./i18n.js";
 import { canonicalJson, fnv1a64, approvalItems, designView, noGuid, motionContent } from "./approval.js";
 import { commissioningPlan, COMMISSION_PHASES } from "./commission.js";
@@ -148,7 +148,17 @@ export function revisionSnapshot(prj, id) {
     return snapshotOf(findRevision(prj, id));
 }
 function snapshotOf(r) {
-    const p = JSON.parse(r.snapshot);
+    /* poškozený zmrazený obsah (ručně upravený soubor) = prázdný projekt — dokumentace nesmí spadnout
+       (test odolnosti 2026-10-08); platný JSON beze změny */
+    let p;
+    try {
+        const v = JSON.parse(r.snapshot);
+        p = v && typeof v === "object" && !Array.isArray(v) && Array.isArray(v.devices) && Array.isArray(v.io) && v.program && typeof v.program === "object"
+            ? v : blankProject();
+    }
+    catch {
+        p = blankProject();
+    }
     p.approvals = {};
     for (const [k, a] of Object.entries(r.approvalsAt || {}))
         p.approvals[k] = { state: a.state, by: a.by, at: a.at, hash: a.hash, ...(a.note ? { note: a.note } : {}) };

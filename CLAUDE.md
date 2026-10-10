@@ -613,7 +613,13 @@ python scripts/build_verification.py        # data/verification.json → verific
 
 ## Konvence a pravidla
 
-- Kanonické adresy I/O v Siemens notaci (%I0.0, %IW64); převody per platforma přes `addrFor()`.
+- Kanonické adresy I/O v Siemens notaci (%I0.0, %IW64; `canonIoAddr` bez úvodních nul); převody per platforma přes `addrFor()`.
+- **Odolnost (test 2026-10-08):** načtený projekt normalizuje jádro `normalizeProject` (project_norm.ts) — web
+  `normProject` i desktop `project.normalize` ho volají (klienti dál jen safety / revize / nabídka / knihovna);
+  vadné položky se zahodí, soubor se odmítne jen když nejde o projekt. Jednořádková pole čistí `oneLine` (vstup:
+  edit.ts, normalizace), výstupy `outputSafe` (genFor, docFiles, HMI, EPLAN, SISTEMA) + `lineSafe` (komentáře, CSV/TSV,
+  DXF) + `xmlSafe` (všechny XML escapery) — pro čistý text identita (golden). Ověření simulací / emulace běhu
+  neběží při `simBlockers` (čas kroku mimo 0–24 h, rampa / doba jízdy / model stroje nad 3600 s, odhad cyklu nad 48 h).
 - **GUID objektů** (`guid.ts`, export EPLAN AML v2 `eplan_aml.ts` podle nich páruje opakovaný import):
   `Project.guid`, `Device.guid`, `Project.moduleGuids` (karta = klíč DI1, DO2…), `IoEntry.guid` (odvozený
   ze zařízení + signálu). Přidělují se při vzniku (`blankProject`, `syncIO`, import), chybějící doplní

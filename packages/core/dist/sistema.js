@@ -1,3 +1,27 @@
+/**
+ * PLCdesk — export bezpečnostních funkcí do SISTEMA (IFA / DGUV).
+ *
+ * Výpočet PL v jádře (safety.ts) je zjednodušený (sloupcový graf ISO 13849-1, bez PFHd) —
+ * export proto slouží ke KONTROLE v SISTEMA, kde se PL a PFHd spočítá Markovovým modelem IFA.
+ *
+ *   sistemaModel(prj)   mezivrstva: funkce → subsystémy → kanály → bloky se všemi hodnotami
+ *                       (B10d, nop, MTTFd, DC, CCF, kategorie, PLr) a označením dle IEC 81346
+ *                       shodným s kusovníkem a výkresem bezpečnostního okruhu
+ *   sistemaSsm(prj)     projektový soubor SISTEMA (*.ssm) — XML vrstvy tiOPF 2.1, tabulky
+ *                       projectops / sfops / componentops / channelops / blocops / elementops /
+ *                       dcmeasureops / ccfmeasureops / libmetadata ve struktuře SISTEMA 2.0.8
+ *                       (ISO 13849-1:2015); SISTEMA 3.x má čtečku formátu 2.x (VisitorsXML_SSM2) a nabízí převod
+ *                       na ISO 13849-1:2023 — otevření v SISTEMA zatím neověřeno
+ *   sistemaCsv(prj)     předpis pro ruční zadání (řádek = blok / subsystém), kdyby import selhal
+ *   sistemaMd(prj)      dokument 19_sistema.md: postup, předpis krok za krokem, porovnání PL
+ *                       PLCdesk × SISTEMA (sloupce k vyplnění z protokolu SISTEMA)
+ *
+ * Struktura .ssm je převzatá z veřejných příkladů IFA (IFA Report 2/2017e, příklady SISTEMA)
+ * a ověřená proti schématu `ssm_21.xsd`, které SISTEMA instaluje (validace XML = jen hrubá
+ * kontrola struktury). Kategorie, podmínky kategorie a PL (CATReq / PLReq) se v SISTEMA
+ * potvrzují ručně — export je záměrně nevyplňuje. Stav: viz `SISTEMA_VERIFIED`.
+ */
+import { xmlSafe, outputSafe } from "./model.js";
 import { tr, N_, today } from "./i18n.js";
 import { registerDocProvider } from "./docs.js";
 import { proposeSafety, safetyApprovalItems, safetyApprovalState, addSafetyRegistration, } from "./safety.js";
@@ -108,7 +132,8 @@ function subsystemOf(prj, f, s, g) {
     return { ...base, cat, mode: s.from === "none" ? "missing" : "blocks", pfh: null, pfhAssumed: false, ccf, channels };
 }
 /** Model exportu do SISTEMA z návrhu bezpečnostních funkcí. */
-export function sistemaModel(prj, p = proposeSafety(prj), items = safetyApprovalItems(prj)) {
+export function sistemaModel(prj0, p = proposeSafety(prj0), items = safetyApprovalItems(prj0)) {
+    const prj = outputSafe(prj0);
     const fns = [];
     const skipped = [];
     for (const f of p.fns) {
@@ -206,7 +231,7 @@ function ssmText(s, max = 4000) {
     const t = String(s ?? "").replace(/\r?\n/g, "\\n").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, " ");
     return t.length > max ? t.slice(0, max - 1) + "…" : t;
 }
-const xmlAttr = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const xmlAttr = (s) => xmlSafe(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 /** Pole „equipmentid“ (50 znaků): celá označení, zbytek jako „+N“ (úplný seznam jde do popisu). */
 function dtField(dt) {
     const xs = dt.split(", ").filter(Boolean);

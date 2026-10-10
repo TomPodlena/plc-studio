@@ -15,7 +15,7 @@
  *  Omron NA (Sysmac)               proměnné k vložení (TSV), uživatelské alarmy (TSV)
  *  Unitronics                      bez exportu (HMI je součástí UniLogic, tagy jsou globální)
  */
-import { Project, PlatformKey, PLAT, platBase } from "./model.js";
+import { Project, PlatformKey, PLAT, platBase, xmlSafe, outputSafe } from "./model.js";
 import { tr, N_, getLang, withLang } from "./i18n.js";
 import { buildHmi, hmiPlcPath, hmiAscii, type HmiModel, type HmiTag, type HmiAlarm } from "./hmi.js";
 import { xlsxWorkbook } from "./hmi_xlsx.js";
@@ -137,7 +137,7 @@ export function hmiExportSpec(plat: PlatformKey): HmiExportSpec | null { return 
 const TIA_CULTURE: Record<string, string> = { cs: "cs-CZ", en: "en-US", de: "de-DE", es: "es-ES", zh: "zh-CN" };
 const tiaType = (t: HmiTag) => t.type === "BOOL" ? "Bool" : t.type === "INT" ? "Int" : t.type === "WORD" ? "Word" : "Real";
 const tiaLen = (t: HmiTag) => t.type === "BOOL" ? 1 : t.type === "REAL" ? 4 : 2;
-const xe = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const xe = (s: string) => xmlSafe(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const tsv = (s: unknown) => String(s ?? "").replace(/[\t\r\n]+/g, " ");
 const q = (s: unknown) => '"' + String(s ?? "").replace(/"/g, '""') + '"';
 const NV = "<No Value>";
@@ -442,7 +442,8 @@ function ascii(prj: Project, m: HmiModel): HmiModel {
  * Soubory exportu HMI pro platformu (název → obsah). Napojení: přes `registerHmiModule()`
  * (hmi_docs.ts) se přidají do sady projektu jako skupina „HMI — <platforma>“; `genFor` se nemění.
  */
-export function hmiFiles(prj: Project, plat: PlatformKey, m: HmiModel = buildHmi(prj)): Record<string, string> {
+export function hmiFiles(prj0: Project, plat: PlatformKey, m: HmiModel = buildHmi(prj0)): Record<string, string> {
+  const prj = outputSafe(prj0);
   switch (plat) {
     case "siemens": return siemensFiles(prj, m);
     case "rockwell": return rockwellFiles(prj, ascii(prj, m));

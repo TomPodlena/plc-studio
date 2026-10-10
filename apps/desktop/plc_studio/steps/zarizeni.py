@@ -147,7 +147,12 @@ def read_params(vars_: dict) -> dict:
             res["unit"] = v.get().strip() or "mm"
             continue
         if key == "records":         # „1 = převzetí @ 0; 2 = lis @ 180“ → tabulka záznamů
-            res["records"] = vars_["_app"].core("parseRecords", v.get())
+            r = vars_["_app"].core("parseRecordsChecked", v.get())
+            probs = _parse_problems(r["bad"], r["dup"])
+            if probs:                # nic tiše nezahazovat (test odolnosti 2026-10-08)
+                raise ValueError(_("Záznamy pohonu nejsou uložené — {problems}. Zapiš je ve tvaru "
+                                   "„1 = název @ poloha; 2 = …“.", problems=probs))
+            res["records"] = r["records"]
             continue
         if key == "role":
             cb, keys = v
@@ -160,8 +165,7 @@ def read_params(vars_: dict) -> dict:
     if res.get("limLo") is not None and res.get("limHi") is not None \
             and res["limLo"] >= res["limHi"]:
         raise ValueError(_("Mez min musí být menší než mez max."))
-    if res.get("selBits") is not None:
-        res["selBits"] = min(6, max(1, int(round(res["selBits"]))))
+    _check_params(res)
     if "_ax" in vars_:
         ax = dict(vars_["_ax"])
         for key, label in AXIS_FIELDS:
@@ -173,7 +177,15 @@ def read_params(vars_: dict) -> dict:
                 ax.pop(key, None)
             else:
                 ax[key] = n
-        ax["positions"] = vars_["_app"].core("parseAxisPositions", vars_["axpos"].get())
+        r = vars_["_app"].core("parseAxisPositionsChecked", vars_["axpos"].get())
+        probs = _parse_problems(r["bad"], r["dup"])
+        if probs:
+            raise ValueError(_("Pojmenované polohy osy nejsou uložené — {problems}. Zapiš je ve tvaru "
+                               "„název @ poloha; …“.", problems=probs))
+        for n in (ax.get(k) for k, _label in AXIS_FIELDS):
+            if n is not None and abs(n) > REAL_MAX:
+                raise ValueError(_("Hodnota je mimo rozsah REAL (±3,4E38) — PLC ji neuloží; zkontroluj jednotky."))
+        ax["positions"] = r["positions"]
         drv = vars_["axdrive"].get().strip()
         if drv:
             ax["drive"] = drv
@@ -183,6 +195,42 @@ def read_params(vars_: dict) -> dict:
     if res.get("rampS") is not None and res["rampS"] < 0:
         raise ValueError(_("Rampa musí být 0 (bez rampy) nebo kladný čas v sekundách."))
     return res
+
+
+REAL_MAX = 3.4028234663852886e38      # největší REAL (IEEE 754 single) — model.ts REAL_MAX
+
+
+def _parse_problems(bad: list, dup: list) -> str:
+    """Text „nesrozumitelné: …; duplicitní: …“ pro hlášku formuláře ("" = v pořádku)."""
+    out = []
+    if bad:
+        out.append(_("nesrozumitelné části: {parts}", parts="; ".join(str(b) for b in bad[:5])))
+    if dup:
+        out.append(_("duplicitní: {items}", items=", ".join(str(x) for x in dup[:10])))
+    return "; ".join(out)
+
+
+def _check_params(res: dict) -> None:
+    """Meze parametrů jako kontrola návrhu (model.ts validateProject) — formulář chybné hodnoty
+    neuloží (dřív se záporná tolerance / 1e9 uložily a bity výběru se tiše ořízly)."""
+    for key, v in res.items():
+        if isinstance(v, float) and abs(v) > REAL_MAX:
+            raise ValueError(_("Hodnota {par} je mimo rozsah REAL (±3,4E38) — PLC ji neuloží; zkontroluj jednotky.",
+                               par=_(PARAM_LABEL.get(key, key))))
+    if res.get("selBits") is not None:
+        b = res["selBits"]
+        if not (float(b).is_integer() and 1 <= b <= 6):
+            raise ValueError(_("Počet bitů výběru záznamu musí být 1 až 6."))
+        res["selBits"] = int(b)
+    if res.get("tol") is not None and not res["tol"] > 0:
+        raise ValueError(_("Povolená odchylka proporcionálního ventilu musí být kladná."))
+    if res.get("tolTimeS") is not None and not (0 < res["tolTimeS"] <= 3276.7):
+        raise ValueError(_("Doba odchylky proporcionálního ventilu musí být kladná a nejvýš 3 276,7 s "
+                           "(počítá se v taktech 0,1 s v proměnné INT)."))
+    if res.get("rampS") is not None and res["rampS"] > 3600:
+        raise ValueError(_("Rampa může být nejvýš 3600 s (delší rampa by ověření simulací zamrazila)."))
+    if res.get("travelS") is not None and not (0 < res["travelS"] <= 3600):
+        raise ValueError(_("Doba jízdy (model simulace) musí být kladná a nejvýš 3600 s."))
 
 
 def apply_params(d: dict, params: dict) -> None:

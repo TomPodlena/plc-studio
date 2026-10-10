@@ -7,7 +7,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PLAT, modules, syncIO, type Project, type PlatformKey } from "./model.js";
+import { PLAT, modules, syncIO, oneLine, type Project, type PlatformKey } from "./model.js";
 import { genFor } from "./codegen.js";
 import { docFiles, allProjectFiles } from "./docs.js";
 import { sheetSVG, sheetDXF, circuitSheetSVG, circuitSheetDXF } from "./drawing.js";
@@ -20,7 +20,7 @@ import { registerHmiModule } from "./hmi_docs.js";
 import { sistemaExport } from "./sistema.js";
 import { eplanFiles, eplanAml } from "./eplan.js";
 import { diffProjects, createRevision, modifiedSinceRevision } from "./revision.js";
-import { projectFilePrefix, projectFileName, withFilePrefix, projectTitle, mdMultiline, firstLine, oneLine, projectMetaMd, isIsoDate, formatIsoDate, projectRef, parseUserDate, calendarLabels } from "./project_meta.js";
+import { projectFilePrefix, projectFileName, withFilePrefix, projectTitle, mdMultiline, firstLine, projectMetaMd, isIsoDate, formatIsoDate, projectRef, parseUserDate, calendarLabels } from "./project_meta.js";
 import { xmlProblem } from "./exp_util.test.js";
 
 const NUM = "2610705", CUST = "Strojírny Šťastný a syn, s.r.o.", START = "2026-10-05";
@@ -98,7 +98,9 @@ test("víceřádkový popis: kód všech platforem a emulace překladu bez chyb"
     const files = genFor(p, pl);
     /* popis do kódu nejde: kromě README beze změny proti projektu s jednořádkovým popisem */
     const base = genFor(ref, pl);
-    for (const [n, b] of Object.entries(files)) if (!/README/.test(n)) assert.equal(b, base[n], pl + " / " + n);
+    /* čas vytvoření v PLCopen XML se může mezi oběma voláními přehoupnout přes sekundu */
+    const noTime = (t: string) => t.replace(/DateTime="[^"]*"/g, 'DateTime=""');
+    for (const [n, b] of Object.entries(files)) if (!/README/.test(n)) assert.equal(noTime(b), noTime(base[n]), pl + " / " + n);
     if (pl === "unitronics") for (const n of ["Machine.st", "Tags.csv"]) assert.ok(!/[^\x00-\x7F]/.test(files[n]), n + " ASCII");
     /* README: popis se do něj nepíše, číslo a zákazník jen jako jeden řádek */
     assert.ok(!files["README.txt"].includes("Druhý řádek"), pl + ": README bez popisu");

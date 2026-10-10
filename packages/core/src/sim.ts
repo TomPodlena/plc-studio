@@ -1235,6 +1235,36 @@ export function seqEstimate(prj: Project, motorDelay: number, valveTravel: numbe
   }, 0);
 }
 
+/** Nejdelší odhad cyklu [s], který ověření simulací ještě pustí (simuluje se po scanech 10 ms). */
+export const SIM_MAX_CYCLE_S = 2 * 86400;
+
+/**
+ * Proč projekt NEJDE ověřit simulací (prázdné = jde): zadání, které je chybou návrhu (validace) a které by
+ * simulaci nafouklo na hodiny až dny výpočtu — čas kroku mimo 0…24 h, rampa nad hodinu, doba jízdy / model
+ * stroje nad hodinu, doba odchylky nad rozsah INT, odhad cyklu nad 48 h. Ověření (verifyProject, dokumentace,
+ * emulace běhu, diagramy) pak neběží a protokol řekne „neověřeno — oprav chyby návrhu“ (test odolnosti
+ * 2026-10-08: krok 1e9 s zamrazil dokumentaci na víc než 15 min). Platí pro web i desktop (jedno jádro).
+ */
+export function simBlockers(prj: Project): string[] {
+  const out: string[] = [];
+  const bad = (v: unknown, max: number) => v !== undefined && v !== null && !(Number(v) >= 0 && Number(v) <= max);
+  prj.program.seq.forEach((st, i) => {
+    if (bad(st.timeS, 86400)) out.push(tr("krok {n}: čas {t} s (povoleno 0 až 86 400 s)", { n: i + 1, t: String(st.timeS) }));
+  });
+  for (const d of prj.devices) {
+    if ((d.cls === "Vfd" || d.cls === "PropValve") && bad(d.rampS, 3600)) out.push(tr("{dev}: rampa {t} s (nejvýš 3600 s)", { dev: d.name, t: String(d.rampS) }));
+    if (d.cls === "PosDrive" && bad(d.travelS, 3600)) out.push(tr("{dev}: doba jízdy {t} s (nejvýš 3600 s)", { dev: d.name, t: String(d.travelS) }));
+    if (d.cls === "PropValve" && bad(d.tolTimeS, 3276.7)) out.push(tr("{dev}: doba odchylky {t} s (nejvýš 3 276,7 s)", { dev: d.name, t: String(d.tolTimeS) }));
+  }
+  for (const k of ["motorDelay", "valveTravel"] as const)
+    if (bad(prj.sim?.[k], 3600)) out.push(tr("model stroje: {par} = {t} s (nejvýš 3600 s)", { par: k, t: String(prj.sim?.[k]) }));
+  if (!out.length) {
+    const est = seqEstimate(prj, prj.sim?.motorDelay ?? 0.5, prj.sim?.valveTravel ?? 1.0);
+    if (!(est <= SIM_MAX_CYCLE_S)) out.push(tr("odhad cyklu {t} s je delší než 48 h (dynamika os, časy kroků)", { t: Math.round(est) }));
+  }
+  return out;
+}
+
 /** Dávková simulace jednoho scénáře: start v čase `startAt`, zásahy podle `faults`. */
 export function simulate(prj: Project, options: SimOptions = {}, from?: Simulator): SimResult {
   /* `from` = kontrolní bod běžného cyklu (stejný projekt i model) — simulace z něj naváže */
@@ -1243,7 +1273,10 @@ export function simulate(prj: Project, options: SimOptions = {}, from?: Simulato
   const startAt = options.startAt ?? 0.2;
   const faults = options.faults ?? [];
   const seq = prj.program.seq;
-  const maxTime = options.maxTime ?? (startAt + seqEstimate(prj, motorDelay, valveTravel) + T_VALVE_TRAVEL + 5);
+  /* zadání, které by simulaci nafouklo (simBlockers — chyba návrhu): jen krátký úsek, běh se nedokončí;
+     chrání i volající mimo verifyProject (funkční diagram kroku Schéma, scénáře) — test odolnosti 2026-10-08 */
+  const maxTime = options.maxTime ?? (simBlockers(prj).length ? startAt + 1
+    : startAt + seqEstimate(prj, motorDelay, valveTravel) + T_VALVE_TRAVEL + 5);
   const on = (f: { at: number; until?: number }, t: number) => t >= f.at - 1e-9 && !(f.until !== undefined && t >= f.until - 1e-9);
   const pulse = (at: number, t: number) => t >= at - 1e-9 && t < at + 0.3;
   const c = sim.controls;
@@ -1843,6 +1876,12 @@ export function verifyProject(prj: Project, base: SimOptions = {}): VerifyResult
 
 function verifyUncached(prj: Project, base: SimOptions): VerifyResult {
   const checks: SimCheck[] = [];
+  /* zadání, které by simulaci nafouklo (chyba návrhu): neověřovat, říct proč */
+  const blockers = simBlockers(prj);
+  if (blockers.length) {
+    checks.push({ level: "error", title: tr("Neověřeno: oprav chyby návrhu"), detail: tr("Ověření simulací neproběhlo — zadání by simulaci prodloužilo na hodiny až dny: {list}. Oprav je (kontrola návrhu je hlásí jako chyby) a ověření se spustí samo.", { list: blockers.join("; ") }) });
+    return { ok: false, checks, scenarios: [], nominal: null, matrix: { cols: [], rows: [], total: 0, failed: 0 } };
+  }
   const seq = prj.program.seq;
   const tagOf = (key: string) => (prj.io.find(e => e.key === key) || { tag: axisKeyTag(prj, key) }).tag;
   const scenarios = simScenarios(prj, base);

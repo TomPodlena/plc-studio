@@ -4,7 +4,7 @@
  * Konvence: rámeček s mřížkovými referencemi, popisové pole, značení -M1
  * (IEC 81346), čísla vodičů -W<svorkovnice><svorka> (`wireNo`), NC/NO kontakty (IEC 60617).
  */
-import { CLS, PLAT, devById, modules, wireNo, esc, stripDia, devRef } from "./model.js";
+import { CLS, PLAT, devById, modules, wireNo, esc, stripDia, devRef, lineSafe } from "./model.js";
 import { hwAddrText, hwLayout, hwSignalText, hwTypeText } from "./hardware.js";
 import { trx, N_, today } from "./i18n.js";
 import { projectRef, formatIsoDate } from "./project_meta.js";
@@ -53,7 +53,8 @@ export function setSheetRevision(fn) { sheetRev = fn; }
 function todayCz() { return today(true); }
 /** Text pro DXF R12: bez diakritiky a jen ASCII — typografické znaky nahradí nejbližší ASCII. */
 function dxfText(s) {
-    return stripDia(s).replace(/[—–]/g, "-").replace(/[·•]/g, "|").replace(/…/g, "...").replace(/×/g, "x")
+    /* jeden řádek: DXF R12 je dvojice řádků kód / hodnota — konec řádku v textu posune celý zbytek souboru */
+    return stripDia(lineSafe(s)).replace(/[—–]/g, "-").replace(/[·•]/g, "|").replace(/…/g, "...").replace(/×/g, "x")
         .replace(/°/g, "deg").replace(/[„“”«»]/g, '"').replace(/[‚‘’]/g, "'").replace(/→/g, "->")
         .replace(/[^\x00-\x7F]/g, "?");
 }
