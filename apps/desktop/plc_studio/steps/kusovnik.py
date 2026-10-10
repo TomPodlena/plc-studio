@@ -12,7 +12,6 @@ import webbrowser
 from tkinter import ttk
 
 from ..i18n import _
-from ..project import finite, parse_num
 from ..widgets import Table, card, note_box, save_file, wrap_label
 
 CUSTOM = "custom"
@@ -72,8 +71,9 @@ def render(app, parent) -> None:
     bar.pack(fill="x", pady=(8, 6))
     ttk.Label(bar, text=_("Platforma řízení:")).pack(side="left")
     plat_keys = list(app.PLAT)
-    plat_names = [app.PLAT[k]["name"] for k in plat_keys]
-    var_plat = tk.StringVar(value=app.PLAT[data["plat"]]["name"])
+    chosen = set(app.prj.get("platforms") or [])
+    plat_names = [app.PLAT[k]["name"] + (" ★" if k in chosen else "") for k in plat_keys]
+    var_plat = tk.StringVar(value=plat_names[plat_keys.index(data["plat"])])
     cb_plat = ttk.Combobox(bar, textvariable=var_plat, values=plat_names, state="readonly",
                            width=max(len(n) for n in plat_names) + 2)
     cb_plat.pack(side="left", padx=(6, 14))
@@ -85,19 +85,15 @@ def render(app, parent) -> None:
 
     cb_plat.bind("<<ComboboxSelected>>", on_plat)
 
-    def tsv() -> str:
-        cols = [_("Pozice"), _("Označení"), _("Položka"), _("Popis"), _("Množství"), _("Výrobce"),
-                _("Typ"), _("Objednací kód"), _("Dodavatel"), _("Poznámka")]
-        rows = [[str(ln["pos"]), ln["tag"], ln["item"], ln["desc"], str(ln["qty"]), ln["brand"],
-                 ln["type"], ln["orderCode"], ln["supplier"], ln["note"]] for ln in lines]
-        return "\n".join("\t".join(c.replace("\t", " ").replace("\n", " ") for c in r)
-                         for r in [cols, *rows])
+    ttk.Label(bar, text=_("★ = platforma zvolená v projektu."), style="Dim.TLabel"
+              ).pack(side="left", padx=(0, 14))
 
     # „<číslo>_<název>_kusovnik.csv“ (core projectFileName — stejně jako web)
     fname = app.core("projectFileName", {"meta": app.prj["meta"]}, "_kusovnik.csv")
     ttk.Button(bar, text=_("Uložit CSV…"), style="Accent.TButton",
                command=lambda: save_file(app, fname, data["csv"], "kusovnik")).pack(side="left")
-    ttk.Button(bar, text=_("Kopírovat jako tabulku"), command=lambda: app.copy(tsv())
+    # tabulka ke kopírování z jádra (bomTableText) — stejné sloupce a řádky jako web a CSV
+    ttk.Button(bar, text=_("Kopírovat jako tabulku"), command=lambda: app.copy(data["tsv"])
                ).pack(side="left", padx=(6, 0))
 
     def reset() -> None:
@@ -129,13 +125,17 @@ def render(app, parent) -> None:
         ln = by_id.get(iid)
         if ln is None or key not in edit_keys:
             return
+        if key == "qty":
+            res = app.core("bomQtyInput", value) or {}      # jedno pravidlo s webem (bom.ts)
+            if res.get("error"):
+                app.set_status(res["error"])
+                return
         lc = _line_cfg(app, iid)
         if key == "qty":
-            v = parse_num(value)
-            if v is None or not finite(v) or v < 0 or v > 100000:
-                app.set_status(_("Množství zadej jako číslo 0 až 100000."))
-                return
-            lc["qty"] = int(v) if float(v).is_integer() else v
+            if res.get("reset"):
+                lc.pop("qty", None)                          # prázdné = množství z návrhu
+            else:
+                lc["qty"] = int(res["qty"])
         else:
             value = value.strip()
             if value:
@@ -248,8 +248,10 @@ def render(app, parent) -> None:
 
     refill()
     wrap_label(t_items, _("Dvojklik na Ks, Typ, Objednací kód nebo Dodavatele = úprava řádku "
-                       "(prázdná hodnota vrátí katalog). Výrobce a typ z katalogu a poznámku "
-                       "změníš dole u vybraného řádku."), pady=(4, 0))
+                       "(prázdná hodnota vrátí katalog). Výrobce a typ z katalogu, dodavatele "
+                       "a poznámku změníš dole u vybraného řádku."), pady=(4, 0))
+    wrap_label(t_items, _("Množství 0 řádek vyřadí z CSV a dokumentace (zůstane šedě v přehledu); "
+                          "prázdné pole vrátí množství z návrhu."), pady=(2, 0))
 
     # --- volba z katalogu u vybraného řádku -----------------------------------------
     ttk.Label(t_items, text=_("Vybraný řádek"), style="Section.TLabel").pack(anchor="w", pady=(10, 2))
@@ -270,11 +272,17 @@ def render(app, parent) -> None:
                               variable=var_all, command=lambda: ui.update(all=var_all.get()))
     chk_all._var = var_all
     chk_all.grid(row=2, column=1, sticky="w", padx=(6, 0), pady=(4, 0))
-    ttk.Label(pick, text=_("Poznámka:")).grid(row=3, column=0, sticky="w", pady=(6, 0))
+    # dodavatel: nabídka jako ve webu (dodavatelé značky + kategorie), nebo vlastní text
+    ttk.Label(pick, text=_("Dodavatel:")).grid(row=3, column=0, sticky="w", pady=(6, 0))
+    var_sup = tk.StringVar()
+    cb_sup = ttk.Combobox(pick, textvariable=var_sup, width=40)
+    cb_sup._var = var_sup
+    cb_sup.grid(row=3, column=1, sticky="w", padx=(6, 6), pady=(6, 0))
+    ttk.Label(pick, text=_("Poznámka:")).grid(row=4, column=0, sticky="w", pady=(6, 0))
     var_note = tk.StringVar()
     ent_note = ttk.Entry(pick, textvariable=var_note)
     ent_note._var = var_note
-    ent_note.grid(row=3, column=1, sticky="we", padx=(6, 6), pady=(6, 0))
+    ent_note.grid(row=4, column=1, sticky="we", padx=(6, 6), pady=(6, 0))
     src_lbl = ttk.Label(pick, text="", style="Link.TLabel", cursor="hand2")
     src_lbl.grid(row=1, column=3, sticky="w")
     pick.columnconfigure(1, weight=1)
@@ -288,7 +296,11 @@ def render(app, parent) -> None:
         if ln is None:
             cb_opt.configure(values=[])
             var_opt.set("")
+            cb_sup.configure(values=[])
+            var_sup.set("")
             return
+        cb_sup.configure(values=ln.get("supOpts") or [])
+        var_sup.set(ln["supplier"])
         opts = options.get(ln["key"], [])
         state["opts"] = opts
         labels = [o["brand"] + " — " + (o["typical"] or " / ".join(o["series"]))
@@ -357,6 +369,24 @@ def render(app, parent) -> None:
         ui["sel"] = ln["id"]
         _changed(app)
 
+    def on_sup(_e=None) -> None:
+        ln = state["line"]
+        if ln is None:
+            return
+        v = var_sup.get().strip()
+        if v == ln["supplier"]:
+            return
+        lc = _line_cfg(app, ln["id"])
+        if v:
+            lc["supplier"] = v
+        else:
+            lc.pop("supplier", None)                   # prázdné = dodavatel z katalogu
+        ui["sel"] = ln["id"]
+        _changed(app)
+
+    cb_sup.bind("<<ComboboxSelected>>", on_sup)
+    cb_sup.bind("<Return>", on_sup)
+    cb_sup.bind("<FocusOut>", on_sup)
     ent_note.bind("<Return>", on_note)
     ent_note.bind("<FocusOut>", on_note)
     cb_opt.bind("<<ComboboxSelected>>", on_opt)
@@ -372,17 +402,23 @@ def render(app, parent) -> None:
     tbl.tv.bind("<<TreeviewSelect>>", on_select)
 
     # --- dodavatelé -----------------------------------------------------------------
-    wrap_label(t_sup, _("Dodavatelé z katalogu pro kategorie tohoto kusovníku — výrobci "
-                        "s pobočkou v ČR, distributoři a e-shopy. Dvojklik otevře web."))
-    if data["suppliers"]:
+    # přehled POUŽITÝCH dodavatelů (jádro bomSuppliers — stejně jako web)
+    wrap_label(t_sup, _("Dodavatelé použití v řádcích kusovníku — koho poptat a kolik položek. "
+                        "Další dodavatele kategorie nabízí výběr u řádku.") + " "
+               + _("Dvojklik otevře web."))
+    if not data["suppliers"]:
+        ttk.Label(t_sup, text=_("Žádný dodavatel není vybrán."), style="Dim.TLabel"
+                  ).pack(anchor="w", pady=(6, 0))
+    else:
         sup = ttk.Frame(t_sup)
         sup.pack(fill="both", expand=True, pady=(6, 0))
-        st = Table(sup, [("name", _("Dodavatel"), 220, False), ("kind", _("Druh"), 110, False),
-                         ("url", _("Web"), 260, True), ("note", _("Poznámka"), 260, True)],
+        st = Table(sup, [("name", _("Dodavatel"), 240, False), ("url", _("Web"), 280, True),
+                         ("kind", _("Druh"), 140, False), ("rows", _("Řádků"), 60, False)],
                    height=12)
         st.pack(fill="both", expand=True)
-        for i, s in enumerate(sorted(data["suppliers"], key=lambda s: s["name"].lower())):
-            st.add(i, (s["name"], s.get("kind", ""), s.get("url", ""), s.get("note", "")))
+        for i, s in enumerate(data["suppliers"]):
+            st.add(i, (s["name"], s["url"] or "—",
+                       s["kind"] or (_("vlastní") if s["custom"] else "—"), s["rows"]))
 
         def open_url(_e=None) -> None:
             iid = st.selected()

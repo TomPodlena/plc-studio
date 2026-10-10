@@ -145,6 +145,30 @@ def render(app, parent) -> None:
         nb.add(t_orph, text=_("Záznamy bez položky ({n})", n=len(data["orphans"])))
     nb.bind("<<NotebookTabChanged>>", lambda _e: ui.update(tab=nb.index("current")))
 
+    # --- filtr (jako web: vše / k rozhodnutí / podle stavu; pravidlo approvalFilterPass z jádra) --
+    filters = data.get("filters") or [{"id": "all", "label": _("vše")}]
+    fids = [f["id"] for f in filters]
+    flt = ui.get("filter") if ui.get("filter") in fids else "all"
+    fbar = ttk.Frame(t_items)
+    fbar.pack(fill="x", pady=(0, 6))
+    ttk.Label(fbar, text=_("Zobrazit")).pack(side="left")
+    var_flt = tk.StringVar(value=filters[fids.index(flt)]["label"])
+    cb_flt = ttk.Combobox(fbar, textvariable=var_flt, values=[f["label"] for f in filters],
+                          state="readonly", width=max(len(f["label"]) for f in filters) + 2)
+    cb_flt._var = var_flt                               # držet proměnnou naživu (GC)
+    cb_flt.pack(side="left", padx=(6, 0))
+    shown_lbl = ttk.Label(fbar, text="", style="Dim.TLabel")
+    shown_lbl.pack(side="left", padx=(10, 0))
+
+    def on_filter(_e=None) -> None:
+        ui["filter"] = fids[max(cb_flt.current(), 0)]
+        app.render()
+
+    cb_flt.bind("<<ComboboxSelected>>", on_filter)
+
+    def passes(it: dict) -> bool:
+        return flt == "all" or flt in (it.get("filters") or [])
+
     # --- položky po skupinách -----------------------------------------------------------
     main = ttk.Frame(t_items)
     main.pack(fill="both", expand=True)
@@ -164,16 +188,23 @@ def render(app, parent) -> None:
     aff = affected(app)
     rev_inv = set(aff["invalid"])
     tbl.tv.tag_configure("revchg", background=theme.WARN_BG)
+    n_shown = 0
     for g, label in data["groups"].items():
-        its = [it for it in items if it["group"] == g]
+        all_its = [it for it in items if it["group"] == g]
+        its = [it for it in all_its if passes(it)]
         if not its:
             continue
+        n_shown += len(its)
         open_ = ui.get("closed", {}).get(g) is not True
-        gid = tbl.add("g:" + g, ("", "", ""), text=f"{label} ({len(its)})", tags=("group",),
+        count = f"{len(its)}" if flt == "all" else f"{len(its)} / {len(all_its)}"
+        gid = tbl.add("g:" + g, ("", "", ""), text=f"{label} ({count})", tags=("group",),
                       open_=open_)
         for it in its:
             tbl.add(it["key"], (it["statusLabel"], when(it["rec"]), it["summary"]), parent=gid,
                     text=it["title"], tags=(it["status"], *(("revchg",) if it["key"] in rev_inv else ())))
+    if flt != "all":
+        shown_lbl.configure(text=_("zobrazeno {n} z {m}", n=n_shown, m=len(items))
+                            if n_shown else _("Žádná položka neodpovídá filtru."))
     if rev_inv:
         tk.Label(t_items, text=_("Podbarvené položky: změna od revize {rev} se dotýká {n} položek, které byly při "
                                  "vydání revize platně schválené — znovu posoudit a schválit. Přehled změn je "

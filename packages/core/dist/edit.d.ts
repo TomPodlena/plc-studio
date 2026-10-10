@@ -175,6 +175,25 @@ export declare function parseAxisPositionsForm(text: string): {
 export declare function renumberIo(prj: Project): EditResult;
 /** Opraví tagy na přenositelné (ASCII identifikátor, `sanitizeTag`) a jedinečné; vrací počet změněných. */
 export declare function fixIoTags(prj: Project): EditResult;
+/** Výchozí časy modelu stroje (sim.ts): rozběh motoru, přestavení ventilu [s]. */
+export declare const SIM_MODEL_DEFAULT: {
+    readonly motorDelay: 0.5;
+    readonly valveTravel: 1;
+};
+/** Rozsah času modelu stroje zadaného v UI [s] (validace pustí nejvýš 3600 s; UI drží rozumnou mez). */
+export declare const SIM_MODEL_RANGE: {
+    readonly min: 0.05;
+    readonly max: 600;
+};
+/**
+ * Časy modelu stroje `prj.sim` (rozběh motoru, přestavení ventilu) — ovlivňují ověření simulací,
+ * takt a dokumenty. Web i desktop zadávají totéž: číslo 0,05…600 s (desetinná čárka i tečka);
+ * prázdné / nezadané pole = beze změny.
+ */
+export declare function setSimModel(prj: Project, model: {
+    motorDelay?: unknown;
+    valveTravel?: unknown;
+}): EditResult;
 /**
  * Projekt bez obsahu (žádná zařízení, název ani popis) — jeho nahrazení (nový projekt, otevření
  * souboru, příklad) se neptá. Konverzaci kroku AI návrh (stav klienta) přidá klient.

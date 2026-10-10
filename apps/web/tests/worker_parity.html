@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker parity</title>
+<style>body{font:14px/1.4 system-ui,sans-serif;margin:16px;background:#fff;color:#111}pre{white-space:pre-wrap}</style>
+</head>
+<body>
+<h1>PLCdesk — Worker × hlavní vlákno</h1>
+<p>Porovná výstupy výpočetního Workeru (apps/web/src/core_worker.js) se synchronním výpočtem v hlavním vlákně:
+dokumentace <code>licensedProjectFiles</code> (vč. ověření simulací), souhrn schvalování pro odznak, emulace kódu
+a dokument 15. Výsledek je v <code>window.__result</code> a níže. Parametry adresy: <code>?samples=03_nytovaci_lis_NL-1,11_…&amp;langs=cs,en&amp;emu=03_nytovaci_lis_NL-1</code>.</p>
+<pre id="out">běží…</pre>
+<script type="module">
+import {
+  setLang, registerSafetyModule, registerHmiModule, registerEmuModule, unregisterEmuModule, normalizeProject, syncIO,
+  licensedProjectFiles, approvalItems, approvalBadgeOf, genFor, emulateCompile, emulateRunMany, isVerified, sampleSmall,
+} from "../../../packages/core/dist/index.js";
+import { request, workerActive, workerStats } from "../src/worker_client.js";
+
+registerSafetyModule(); registerHmiModule();
+const q = new URLSearchParams(location.search);
+const SAMPLES = (q.get("samples") || "sampleSmall,00b_lisovaci_linka_LL-03,03_nytovaci_lis_NL-1,11_podavaci_lisovaci_stanice_PS-11,12_portalovy_manipulator_PM-12,16_paletizacni_bunka_osy_PC-16").split(",");
+const LANGS = (q.get("langs") || "cs,en,de,es,zh").split(",");
+const EMU = (q.get("emu") || "03_nytovaci_lis_NL-1").split(",").filter(Boolean);
+const out = document.getElementById("out");
+const log = [];
+const say = s => { log.push(s); out.textContent = log.join("\n"); };
+/* Exporty nesou čas vzniku na sekundy (EPLAN AML `now`, PLCopen / IEC 61131-10 creationDateTime) — dva
+   výpočty téhož projektu se v něm liší i v jednom vlákně; jen to razítko (ISO datum a čas) se nahradí,
+   vše ostatní se porovnává bajtově. */
+const stamp = (f, b) => typeof b === "string" ? b.replace(/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z?/g, "<now>") : b;
+const canon = files => JSON.stringify(files.map(f => [f.group, f.name, f.save, f.kind, f.dir ?? null, stamp(f, f.body), f.prev ?? null]));
+const noMs = o => JSON.stringify(o, (k, v) => k === "ms" ? undefined : v);   // doba běhu emulace se liší vždy
+
+/** První rozdíl dvou kanonických výstupů: soubor a okolí. */
+function diffAt(x, y) {
+  const a = JSON.parse(x), b = JSON.parse(y);
+  const i = a.findIndex((f, k) => JSON.stringify(f) !== JSON.stringify(b[k]));
+  if (i < 0) return a.length === b.length ? null : "count " + a.length + "/" + b.length;
+  const sa = JSON.stringify(a[i]), sb = JSON.stringify(b[i] || null);
+  let j = 0; while (j < sa.length && sa[j] === sb[j]) j++;
+  return a[i][2] + " @" + j + ": " + sa.slice(Math.max(0, j - 80), j + 60) + " ≠ " + sb.slice(Math.max(0, j - 80), j + 60);
+}
+
+async function loadSample(name) {
+  if (name === "sampleSmall") return sampleSmall();
+  const raw = await (await fetch("../../../samples/" + name + ".plcstudio.json")).json();
+  const r = normalizeProject(raw.prj || raw);
+  return r.prj || r;
+}
+
+const res = { ok: true, worker: workerActive(), cases: [], errors: [] };
+try {
+  for (const name of SAMPLES) {
+    const base = await loadSample(name);
+    for (const lang of LANGS) {
+      setLang(lang);
+      const prj = structuredClone(base); syncIO(prj);
+      const gate = null;
+      const t0 = performance.now();
+      const sync = canon(licensedProjectFiles(prj, gate));
+      syncIO(prj);
+      const key = JSON.stringify(prj);   // = approval_step.js approvalBadge (souhrn + značky kroků 11–13 + key)
+      const sumSync = JSON.stringify({ ...approvalBadgeOf(prj, approvalItems(prj)), key });
+      const tSync = performance.now() - t0;
+      const t1 = performance.now();
+      const w = await request("docs", { prj, gate });
+      const wb = await request("badge", { prj });
+      const tW = performance.now() - t1;
+      const viaWorker = canon(w.files);
+      /* po převzetí ověření z Workeru (seedVerifyDesign) musí hlavní vlákno dát totéž */
+      const seeded = canon(licensedProjectFiles(structuredClone(prj), gate));
+      const c = { sample: name, lang, files: w.files.length, bytes: sync.length, docs: sync === viaWorker, seeded: seeded === sync,
+        badge: sumSync === JSON.stringify(wb.sum), verified: isVerified(prj), msSync: Math.round(tSync), msWorker: Math.round(tW) };
+      if (!c.docs || !c.seeded || !c.badge) {
+        res.ok = false;
+        if (!c.docs) c.diffAt = diffAt(sync, viaWorker);
+        if (!c.seeded) c.diffSeeded = diffAt(sync, seeded);
+      }
+      res.cases.push(c);
+      say(JSON.stringify(c));
+    }
+  }
+  /* emulace: Worker (op emu po platformách) × hlavní vlákno, pak dokument 15 v dokumentaci */
+  setLang("cs");
+  for (const name of EMU) {
+    const prj = await loadSample(name); syncIO(prj);
+    const scope = prj.program.seq.length <= 40 ? "full" : "quick";
+    let same = true;
+    for (const plat of prj.platforms) {
+      const w = await request("emu", { prj, plat, scope });
+      const s = { files: genFor(prj, plat), comp: emulateCompile(prj, plat), run: emulateRunMany(prj, [plat], { scope })[plat] };
+      const ws = noMs(w), ss = noMs(s);
+      if (ws !== ss) { let j = 0; while (ws[j] === ss[j]) j++; same = false; say("emu diff " + name + " " + plat + " @" + j + ": " + ws.slice(j - 80, j + 40) + " ≠ " + ss.slice(j - 80, j + 40)); }
+    }
+    registerEmuModule();
+    const sync = canon(licensedProjectFiles(prj, null));
+    const w = await request("docs", { prj, gate: null });
+    unregisterEmuModule();
+    const c = { sample: name, emu: true, platforms: prj.platforms.length, emuSame: same, docs15: sync === canon(w.files), has15: w.files.some(f => /15_emulace/.test(f.save)) };
+    if (!c.emuSame || !c.docs15 || !c.has15) res.ok = false;
+    res.cases.push(c); say(JSON.stringify(c));
+  }
+} catch (e) {
+  res.ok = false; res.errors.push(String(e && e.stack || e)); say("ERROR " + (e && e.stack || e));
+}
+res.stats = workerStats();
+say((res.ok ? "OK" : "FAIL") + " " + JSON.stringify(res.stats));
+window.__result = res;
+</script>
+</body>
+</html>

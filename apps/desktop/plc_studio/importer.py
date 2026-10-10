@@ -15,6 +15,8 @@ překreslení i zavření okna — mění se jen tehdy, když se změní podklad
 from __future__ import annotations
 
 import copy
+import json
+import os
 import queue
 import threading
 from pathlib import Path
@@ -22,7 +24,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from . import ai_client, theme
+from . import ai_client, dropfiles, theme
 from .bridge import BridgeError
 from .i18n import N_, _, _n
 from .widgets import Table, note_box, scrolled_text, set_text, wrap_label
@@ -35,7 +37,7 @@ CONF_BG = {"sure": theme.OK_BG, "guess": theme.WARN_BG, "missing": theme.DANGER_
 CONF_FG = {"sure": theme.OK, "guess": theme.WARN, "missing": theme.ERR}
 
 ERRORS = {
-    "no_key": N_("Chybí API klíč — zadej ho v kroku AI návrh."),
+    "no_key": N_("Chybí API klíč — doplň ho výše."),
     "bad_key": N_("API klíč byl odmítnut (401)."),
     "rate_limited": N_("Příliš mnoho dotazů — zkus to za chvíli."),
     "too_large": N_("Dotaz je pro API příliš velký (413) — rozděl podklady na menší soubory."),
@@ -48,6 +50,79 @@ ERRORS = {
 }
 
 _FILETYPES = "*.xml *.l5x *.csv *.tsv *.txt *.st *.scl *.awl *.gvl *.TcGVL *.TcPOU *.json *.md"
+
+
+# --- podklady mezi spuštěními (jako web: IndexedDB) ------------------------------------------
+# Soubory a vložený text průvodce se ukládají do složky stavu aplikace (``app.home``), takže je
+# průvodce po novém spuštění nabídne znovu. Obsah PDF / fotek je v base64 — nad limit se další
+# soubory neuloží (průvodce to řekne). Po převzetí importu se záznam smaže.
+SOURCES_FILE = "import_podklady.json"
+SOURCES_MAX = 20 * 1024 * 1024          # znaků JSON (≈ 15 MB binárních podkladů)
+
+
+def _sources_path(app) -> Path:
+    return Path(app.home) / SOURCES_FILE
+
+
+def save_sources(app, S: dict) -> list[str]:
+    """Uloží podklady průvodce; vrací jména souborů, které se kvůli limitu neuložily."""
+    path = _sources_path(app)
+    files = [f for f in S.get("files") or [] if isinstance(f, dict) and isinstance(f.get("file"), dict)]
+    paste = S.get("paste") or ""
+    try:
+        if not files and not paste.strip():
+            path.unlink(missing_ok=True)
+            return []
+        kept, skipped = [], []
+        total = len(json.dumps(paste, ensure_ascii=False)) + 64
+        for f in files:
+            n = len(json.dumps(f, ensure_ascii=False))
+            if total + n > SOURCES_MAX:
+                skipped.append(f["file"].get("name", ""))
+                continue
+            kept.append({"path": f.get("path") or "", "file": f["file"]})
+            total += n
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"version": 1, "paste": paste, "files": kept}, ensure_ascii=False),
+                       encoding="utf-8")
+        os.replace(tmp, path)
+        return skipped
+    except OSError:                       # plný disk / práva: průvodce funguje dál, jen si nepamatuje
+        return []
+
+
+def load_sources(app) -> tuple[list[dict], str]:
+    """Podklady z minulého spuštění (poškozený nebo cizí soubor = nic)."""
+    try:
+        raw = json.loads(_sources_path(app).read_text(encoding="utf-8"))
+    except (OSError, ValueError, RecursionError):
+        return [], ""
+    if not isinstance(raw, dict):
+        return [], ""
+    files = []
+    for f in raw.get("files") or []:
+        fi = f.get("file") if isinstance(f, dict) else None
+        if not isinstance(fi, dict) or not isinstance(fi.get("name"), str) or not fi["name"]:
+            continue
+        if not isinstance(fi.get("text"), str) and not isinstance(fi.get("data"), str):
+            continue
+        clean = {"name": fi["name"][:260]}
+        for k in ("text", "data", "mime"):
+            if isinstance(fi.get(k), str):
+                clean[k] = fi[k]
+        size = fi.get("size")
+        clean["size"] = size if isinstance(size, int) and size >= 0 else len(clean.get("text") or clean.get("data") or "")
+        path = f.get("path") if isinstance(f.get("path"), str) else ""
+        files.append({"path": path, "file": clean})
+    paste = raw.get("paste") if isinstance(raw.get("paste"), str) else ""
+    return files, paste
+
+
+def clear_sources(app) -> None:
+    try:
+        _sources_path(app).unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def open_wizard(app) -> "ImportWizard":
@@ -118,7 +193,17 @@ class ImportWizard:
         S = app.ui.get("import")
         if not isinstance(S, dict):
             S = app.ui["import"] = new_state()
+            # první otevření v tomto spuštění: podklady z minula (jen jednou — později už stav žije v app.ui)
+            if not getattr(app, "_import_restored", False):
+                files, paste = load_sources(app)
+                if files or paste.strip():
+                    S["files"], S["paste"] = files, paste
+                    S["msg"] = ("ok", _n(len(files), N_(
+                        "Podklady z minulého spuštění: {n} soubor.|Podklady z minulého spuštění: {n} soubory."
+                        "|Podklady z minulého spuštění: {n} souborů.")))
+        app._import_restored = True
         self.S = S
+        self._save_job = None
         if not S["model"]:
             S["model"] = app.settings.get("ai_model") or ai_client.DEFAULT_MODEL
         self._price: dict = {}
@@ -149,13 +234,42 @@ class ImportWizard:
         ttk.Separator(frm, orient="horizontal").pack(side="bottom", fill="x", pady=(8, 8))
         self.body = ttk.Frame(frm)
         self.body.pack(fill="both", expand=True)
+        # přetažení souborů z Průzkumníka (Windows, bez závislostí — dropfiles.py); jinde jen tlačítko
+        self._drop = dropfiles.enable(win, self._dropped)
         self.render()
         win.grab_set()
 
     # --- obecné ------------------------------------------------------------------------
 
+    def persist(self) -> None:
+        """Uloží podklady na disk (složka stavu); co se nevešlo do limitu, oznámí v patičce."""
+        self._save_job = None
+        if hasattr(self, "paste_text") and self.paste_text.winfo_exists():
+            self.S["paste"] = self.paste_text.get("1.0", "end-1c")
+        skipped = save_sources(self.app, self.S)
+        if skipped:
+            self.set_msg("err", _("Podklady nad {mb} MB se mezi spuštěními nepamatují: {files}.",
+                                  mb=SOURCES_MAX // (1024 * 1024), files=", ".join(skipped)))
+
+    def _persist_later(self) -> None:
+        if self._save_job is not None:
+            try:
+                self.win.after_cancel(self._save_job)
+            except tk.TclError:
+                pass
+        self._save_job = self.win.after(800, self.persist)
+
     def close(self) -> None:
         S = self.S
+        if self._save_job is not None:
+            try:
+                self.win.after_cancel(self._save_job)
+            except tk.TclError:
+                pass
+        if self.win.winfo_exists():
+            self.persist()
+        dropfiles.disable(getattr(self, "_drop", None))
+        self._drop = None
         if S["busy"]:                        # rozběhnutý dotaz zahodit (výsledek se nepoužije)
             S["token"] += 1
             S["busy"] = False
@@ -262,14 +376,29 @@ class ImportWizard:
             names.add(name)
             f.setdefault("size", len(f.get("text") or "") or len(f.get("data") or "") * 3 // 4)
             self.S["files"].append({"path": path, "file": f})
+        self.persist()
         if self.S["page"] == 0:
             self.render()
+
+    def _dropped(self, paths: list[str]) -> None:
+        """Soubory přetažené do okna = jako „Přidat soubory…“ (složky se přeskočí)."""
+        if self.S["busy"] or not self.win.winfo_exists():
+            return
+        files = [p for p in paths if Path(p).is_file()]
+        if not files:
+            self.set_msg("err", _("Přetáhni soubory, ne složku."))
+            return
+        if self.S["page"] != 0:
+            self.S["page"] = 0
+        self.add_paths(files)
+        self.render()
 
     def remove(self, index: int | None = None) -> None:
         if index is None:
             self.S["files"].clear()
         elif 0 <= index < len(self.S["files"]):
             del self.S["files"][index]
+        self.persist()
         self.render()
 
     def inputs(self) -> list[dict]:
@@ -312,6 +441,9 @@ class ImportWizard:
                    command=lambda: self.remove(None)).pack(side="left", padx=(6, 0))
         ttk.Label(row, text=_("souborů: {n}", n=len(S["files"])), style="Dim.TLabel"
                   ).pack(side="left", padx=10)
+        if getattr(self, "_drop", None) is not None:
+            ttk.Label(row, text=_("Soubory můžeš do okna i přetáhnout z Průzkumníka."),
+                      style="Dim.TLabel").pack(side="left", padx=(6, 0))
 
         note_box(body, _(
             "Nejlépe poslouží exporty tabulek tagů a zdroje programů (SimaticML XML, SCL, "
@@ -329,6 +461,7 @@ class ImportWizard:
 
         def on_paste(_e=None):
             S["paste"] = txt.get("1.0", "end-1c")
+            self._persist_later()
 
         txt.bind("<KeyRelease>", on_paste)
         txt.bind("<<Paste>>", lambda _e: txt.after_idle(on_paste), add="+")
@@ -354,6 +487,7 @@ class ImportWizard:
         if not inputs:
             self.set_msg("err", _("Nejdřív přidej soubory nebo vlož text."))
             return False
+        self.persist()
         sig = [(f["name"], f.get("size"), len(f.get("text") or f.get("data") or "")) for f in inputs]
         if sig != S["sig"] or S["ex"] is None:
             try:
@@ -488,9 +622,7 @@ class ImportWizard:
 
         # zdola: upozornění na odeslání dat, varování odhadu
         if not key:
-            note_box(body, _("Bez API klíče je analýza AI nedostupná — klíč zadáš v kroku "
-                             "AI návrh (ukládá se jen na tomto počítači). Na revizi můžeš "
-                             "pokračovat s přesně rozpoznanými údaji."), warn=True, side="bottom")
+            self._key_box(body)
         note_box(body, _(
             "Podklady uvedené v tabulce se odešlou do Anthropic API (Claude) pod tvým klíčem "
             "a dotaz se účtuje podle skutečné spotřeby tokenů. Neodesílej, co nesmí opustit "
@@ -553,6 +685,34 @@ class ImportWizard:
                 self._foot_btn(_("Spustit analýzu (placené)"), self.confirm_ai,
                                accent=S["merged"] is None)
             self._foot_btn("← " + _("Zpět"), lambda: self.goto(1))
+
+    def _key_box(self, body) -> None:
+        """Bez klíče: pole pro API klíč přímo v průvodci (jako web) — ukládá se tam, kde ho
+        drží krok AI návrh (``settings.json`` na tomto počítači)."""
+        box = ttk.Frame(body)
+        box.pack(side="bottom", fill="x", pady=(8, 0))
+        wrap_label(box, _("Bez API klíče analýzu AI spustit nejde — návrh z přesného zpracování "
+                          "v revizi funguje i tak. Klíč můžeš zadat tady (uloží se jen na tomto "
+                          "počítači, stejně jako v kroku AI návrh):"))
+        row = ttk.Frame(box)
+        row.pack(fill="x", pady=(4, 0))
+        var = tk.StringVar()
+        ent = ttk.Entry(row, textvariable=var, show="•", width=48)
+        ent._var = var                                   # držet proměnnou naživu (GC)
+        ent.pack(side="left")
+
+        def save_key(_e=None) -> None:
+            k = var.get().strip()
+            if not k:
+                return
+            self.app.settings["ai_key"] = k
+            self.app.save_settings()
+            self.S["msg"] = ("ok", _("API klíč uložen."))
+            self.render()
+
+        ent.bind("<Return>", save_key)
+        ttk.Button(row, text=_("Uložit klíč"), command=save_key).pack(side="left", padx=(6, 0))
+        self.key_entry = ent
 
     def confirm_ai(self) -> None:
         est = self.estimate()
@@ -1040,4 +1200,5 @@ class ImportWizard:
                          io=len(app.prj["io"]), s=len(app.prj["program"]["seq"]), e=errs, w=warns),
                        keep=True)
         app.ui.pop("import", None)       # průvodce příště začne načisto
+        clear_sources(app)               # … i po dalším spuštění
         return True

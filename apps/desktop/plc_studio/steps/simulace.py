@@ -16,7 +16,6 @@ from tkinter import ttk
 from .. import theme
 from ..bridge import Pending
 from ..i18n import N_, _
-from ..project import parse_num
 from ..svgview import SvgView
 from ..widgets import Table, link, note_box, save_file, scrolled_text, set_text, wrap_label
 
@@ -36,11 +35,6 @@ def _fault_step(run: dict) -> int | None:
         return run["faultStep"]
     live = [r["i"] for r in run["steps"] if r["tStart"] <= run["faultT"] + 1e-9]
     return live[-1] if live else None
-
-
-def _num(text: str, default: float) -> float:
-    v = parse_num(text)                   # „inf“ / „nan“ by projekt rozbily (JSON)
-    return default if v is None else min(600.0, max(0.05, v))
 
 
 def build(app, parent) -> None:
@@ -103,16 +97,16 @@ def build(app, parent) -> None:
 
     def apply_model(_e=None) -> None:
         old = {"motorDelay": model.get("motorDelay", 0.5), "valveTravel": model.get("valveTravel", 1.0)}
-        # neplatný text = beze změny (dřív se tiše vrátil výchozí čas, ne ten zadaný)
-        new = {"motorDelay": _num(var_motor.get(), old["motorDelay"]),
-               "valveTravel": _num(var_valve.get(), old["valveTravel"])}
-        if new == old:
+        # kontrola a zápis v jádře (edit.ts setSimModel — stejně jako web, krok Program);
+        # neplatný text = beze změny s hláškou
+        res = app.edit("setSimModel", {"motorDelay": var_motor.get(), "valveTravel": var_valve.get()})
+        if not res.get("ok") or not res.get("count"):
             var_motor.set(f"{old['motorDelay']:g}")
             var_valve.set(f"{old['valveTravel']:g}")
+            if res.get("error"):
+                app.set_status("⚠ " + res["error"])
         else:
-            app.prj["sim"] = new
             ui.pop("verify", None)
-            app.save()
             app.render()                      # scénáře závisí na časech běžného cyklu
 
     for e in (e_motor, e_valve):

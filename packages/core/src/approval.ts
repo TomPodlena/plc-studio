@@ -21,7 +21,7 @@ import {
 } from "./model.js";
 import { seqCond } from "./codegen.js";
 import { axisCfgOf } from "./axis.js";
-import { verifyProject, stepWatchdog, stepTitle, T_MOTOR_FBK, T_VALVE_TRAVEL, type VerifyResult } from "./sim.js";
+import { verifyProject, primeVerifyCache, stepWatchdog, stepTitle, T_MOTOR_FBK, T_VALVE_TRAVEL, type VerifyResult } from "./sim.js";
 import { tr, N_, getLang, formatDate, formatDateTime } from "./i18n.js";
 
 export type ApprovalState = "proposed" | "approved" | "rejected";
@@ -82,6 +82,20 @@ const STATUS_LABEL: Record<ApprovalStatus, string> = {
 };
 /** Přeložený popisek stavu položky. */
 export function approvalStatusLabel(s: ApprovalStatus): string { return tr(STATUS_LABEL[s]); }
+
+/** Filtry seznamu položek ke schválení (web i desktop): vše, k rozhodnutí, podle stavu. */
+export const APPROVAL_FILTERS = ["all", "open", "stale", "rejected", "approved"] as const;
+export type ApprovalFilter = typeof APPROVAL_FILTERS[number];
+/** Přeložený popisek filtru. */
+export function approvalFilterLabel(f: ApprovalFilter): string {
+  return f === "all" ? tr("vše") : f === "open" ? tr("k rozhodnutí (čeká, změněno po schválení)") : approvalStatusLabel(f);
+}
+/** Projde položka se stavem `st` filtrem `f`? „k rozhodnutí“ = neschváleno, čeká, změněno po schválení. */
+export function approvalFilterPass(st: ApprovalStatus, f: ApprovalFilter | string): boolean {
+  if (f === "all" || !(APPROVAL_FILTERS as readonly string[]).includes(f)) return true;
+  if (f === "open") return st === "missing" || st === "proposed" || st === "stale";
+  return st === f;
+}
 
 /* ------------------------------------------------------------ otisk */
 
@@ -151,6 +165,15 @@ export function verifyDesign(prj: Project): VerifyResult {
   verifyMemo.set(k, v);
   if (verifyMemo.size > 8) verifyMemo.delete(verifyMemo.keys().next().value as string);
   return v;
+}
+/**
+ * Převezme výsledek `verifyDesign(prj)` spočítaný jinde (web Worker klienta nad týmž jádrem, v aktuálním
+ * jazyce) do cache ověření — kroky Schválení / Oživení / Dokumentace pak simulaci znovu nespouštějí.
+ */
+export function seedVerifyDesign(prj: Project, v: VerifyResult): void {
+  verifyMemo.set(verifyKey(prj), v);
+  if (verifyMemo.size > 8) verifyMemo.delete(verifyMemo.keys().next().value as string);
+  primeVerifyCache(designView(prj), v);
 }
 /** Ověření z cache, nebo null — nic nespouští. */
 export function verifyDesignCached(prj: Project): VerifyResult | null {

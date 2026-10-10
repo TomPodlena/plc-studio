@@ -1874,6 +1874,15 @@ export function verifyProject(prj: Project, base: SimOptions = {}): VerifyResult
   return res;
 }
 
+/**
+ * Vloží hotový výsledek ověření do cache (klient ho spočítal mimo hlavní vlákno — web Worker nad
+ * týmž jádrem, týmž projektem a v témž jazyce). Další `verifyProject` se stejným vstupem už nepočítá.
+ */
+export function primeVerifyCache(prj: Project, res: VerifyResult, base: SimOptions = {}): void {
+  verifyCache.set(JSON.stringify([prj, base, getLang()]), res);
+  if (verifyCache.size > 6) verifyCache.delete(verifyCache.keys().next().value as string);
+}
+
 function verifyUncached(prj: Project, base: SimOptions): VerifyResult {
   const checks: SimCheck[] = [];
   /* zadání, které by simulaci nafouklo (chyba návrhu): neověřovat, říct proč */

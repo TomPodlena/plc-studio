@@ -620,6 +620,33 @@ export function fixIoTags(prj) {
     }
     return { ok: true, count };
 }
+/* ------------------------------------------------------------------ model stroje (simulace) */
+/** Výchozí časy modelu stroje (sim.ts): rozběh motoru, přestavení ventilu [s]. */
+export const SIM_MODEL_DEFAULT = { motorDelay: 0.5, valveTravel: 1.0 };
+/** Rozsah času modelu stroje zadaného v UI [s] (validace pustí nejvýš 3600 s; UI drží rozumnou mez). */
+export const SIM_MODEL_RANGE = { min: 0.05, max: 600 };
+/**
+ * Časy modelu stroje `prj.sim` (rozběh motoru, přestavení ventilu) — ovlivňují ověření simulací,
+ * takt a dokumenty. Web i desktop zadávají totéž: číslo 0,05…600 s (desetinná čárka i tečka);
+ * prázdné / nezadané pole = beze změny.
+ */
+export function setSimModel(prj, model) {
+    const cur = { motorDelay: prj.sim?.motorDelay ?? SIM_MODEL_DEFAULT.motorDelay, valveTravel: prj.sim?.valveTravel ?? SIM_MODEL_DEFAULT.valveTravel };
+    const next = { ...cur };
+    for (const k of ["motorDelay", "valveTravel"]) {
+        const raw = model[k];
+        if (raw === undefined || raw === null || String(raw).trim() === "")
+            continue;
+        const v = typeof raw === "number" ? raw : Number(String(raw).trim().replace(",", "."));
+        if (!Number.isFinite(v) || v < SIM_MODEL_RANGE.min || v > SIM_MODEL_RANGE.max)
+            return fail(tr("Čas modelu stroje zadej jako číslo {min} až {max} s.", { min: SIM_MODEL_RANGE.min, max: SIM_MODEL_RANGE.max }));
+        next[k] = v;
+    }
+    if (next.motorDelay === cur.motorDelay && next.valveTravel === cur.valveTravel)
+        return { ok: true, count: 0 };
+    prj.sim = next;
+    return { ok: true, count: 1 };
+}
 /* ------------------------------------------------------------------ projekt */
 /**
  * Projekt bez obsahu (žádná zařízení, název ani popis) — jeho nahrazení (nový projekt, otevření

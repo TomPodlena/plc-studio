@@ -150,6 +150,7 @@ table.bom tr.filters input{width:100%;min-width:50px;padding:3px 6px;font-size:.
 table.bom select{width:100%;min-width:140px;padding:4px 6px;font-size:.76rem}
 table.bom td input[type=number]{padding:4px 6px}
 table.bom tr.safety td{background:color-mix(in srgb,var(--warn) 7%,transparent)}
+table.bom tr.excluded td{color:var(--muted);opacity:.6}
 table.bom a{color:var(--accent);text-decoration:none;margin-left:4px}
 .warnmark{color:var(--warn);font-weight:700}
 .bomnote{font-size:.72rem;color:var(--muted);margin-bottom:4px}
@@ -202,6 +203,8 @@ ul.warnlist li::marker{color:var(--warn)}
 /* schválení (krok 12), bezpečnost (11), oživení (13) a odznak v hlavičce */
 button.apprbadge{border:1px solid var(--warn);color:var(--warn);background:var(--surface);font-weight:600;cursor:pointer;line-height:1.4}
 button.apprbadge:hover{background:color-mix(in srgb,var(--warn) 10%,var(--surface))}
+button.apprbadge.allok{border-color:var(--ok);color:var(--ok)}
+button.apprbadge.allok:hover{background:color-mix(in srgb,var(--ok) 10%,var(--surface))}
 .st{display:inline-block;font-family:var(--font-mono);font-size:.68rem;border-radius:999px;padding:1px 8px;white-space:nowrap;border:1px solid currentColor;font-weight:600}
 .st-ok{color:var(--ok)} .st-stale{color:var(--warn)} .st-rej{color:var(--err)} .st-wait{color:var(--muted)}
 .stat.st-ok,.stat.st-stale,.stat.st-rej,.stat.st-wait{color:var(--fg);border:none;font-weight:400}

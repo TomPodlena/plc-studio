@@ -14,7 +14,7 @@
  */
 import { tr, N_ } from "./i18n.js";
 import { PLAT, interlockDevs, devRef, maxRecord, ioOf, } from "./model.js";
-import { CAT_LABEL, brandsFor, catKey, suppliersFor, brandOptId } from "./catalog.js";
+import { CAT_LABEL, brandsFor, catKey, suppliersFor, brandOptId, SUPPLIERS } from "./catalog.js";
 import { hwLayout, hwPlatform, HW_DIRS } from "./hardware.js";
 import { axisCfgOf, axisObjName } from "./axis.js";
 import { axisDialect, AXIS_NET } from "./axis_gen.js";
@@ -303,6 +303,64 @@ export function bomCsv(prj) {
         tr("Výrobce"), tr("Typ"), tr("Objednací kód"), tr("Dodavatel"), tr("Poznámka")];
     const rows = lines.map(l => [l.pos, l.tag, l.item, l.desc, l.qty, l.unit, l.brand, l.type, l.orderCode, l.supplier, l.note]);
     return "﻿" + [head, ...rows].map(r => r.map(csvCell).join(";")).join("\r\n") + "\r\n";
+}
+/** Sloupce tabulky kusovníku pro export (CSV i kopírování) — klíče překladu. */
+const BOM_EXPORT_HEAD = [N_("Pozice"), N_("Označení"), N_("Položka"), N_("Popis"), N_("Množství"), N_("Jednotka"),
+    N_("Výrobce"), N_("Typ"), N_("Objednací kód"), N_("Dodavatel"), N_("Poznámka")];
+/**
+ * Text tabulky ke kopírování (tabulátory, řádky \n) — Excel / e-mail. Stejné sloupce a řádky
+ * jako `bomCsv` (řádky s množstvím 0 vyřazené); web i desktop volají tuto funkci, nic neskládají sami.
+ */
+export function bomTableText(prj) {
+    const cell = (v) => String(v ?? "").replace(/[\t\r\n]+/g, " ");
+    const rows = buildBom(prj).lines.filter(l => !l.excluded)
+        .map(l => [l.pos, l.tag, l.item, l.desc, l.qty, l.unit, l.brand, l.type, l.orderCode, l.supplier, l.note]);
+    return [BOM_EXPORT_HEAD.map(h => tr(h)), ...rows].map(r => r.map(cell).join("\t")).join("\n") + "\n";
+}
+/** Nejvyšší množství řádku kusovníku, které jde zadat ručně. */
+export const BOM_QTY_MAX = 100000;
+/**
+ * Množství řádku kusovníku zadané uživatelem (text z pole nebo číslo): celé číslo 0…`BOM_QTY_MAX`
+ * (0 = řádek vyřadit z CSV a dokumentu, zůstane v přehledu šedě). Prázdné pole = `reset` (zpět
+ * na množství z návrhu). Jednotky kusovníku jsou kusy, proto jen celá čísla.
+ */
+export function bomQtyInput(v) {
+    const s = typeof v === "number" ? String(v) : String(v ?? "").trim().replace(/\s/g, "").replace(",", ".");
+    if (!s)
+        return { reset: true };
+    const n = Number(s);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > BOM_QTY_MAX)
+        return { error: tr("Množství zadej jako celé číslo 0 až {max}.", { max: BOM_QTY_MAX }) };
+    return { qty: n };
+}
+/** Druhy dodavatelů z katalogu (data jsou česky) → klíč překladu. */
+const SUP_KIND = {
+    "distributor": N_("distributor"), "e-shop": N_("e-shop"), "výrobce": N_("výrobce"),
+    "pobočka výrobce": N_("pobočka výrobce"), "pobočka výrobce (EU)": N_("pobočka výrobce (EU)"),
+    "výrobce (evropská pobočka)": N_("výrobce (evropská pobočka)"),
+};
+/**
+ * Přehled dodavatelů POUŽITÝCH v kusovníku (podklad k poptávce: koho oslovit a kolik položek).
+ * Nabídku všech dodavatelů kategorie dává výběr u řádku. Dodavatelé u značek v katalogu jsou volný
+ * text („Festo CZ (přímo)“) → shoda se seznamem dodavatelů i podle začátku jména.
+ */
+export function bomSuppliers(prj) {
+    const lines = buildBom(prj).lines.filter(l => !l.excluded);
+    const own = prj.bom?.lines || {};
+    const used = [...new Set(lines.map(l => l.supplier).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const head = (s) => s.split(" (")[0].toLowerCase();
+    return used.map(n => {
+        const base = head(n);
+        const s = SUPPLIERS.find(x => x.name === n || tr(x.name) === n) || SUPPLIERS.find(x => head(x.name) === base)
+            || SUPPLIERS.find(x => base.length > 3 && (x.name.toLowerCase().startsWith(base) || base.startsWith(head(x.name))));
+        const mine = lines.filter(l => l.supplier === n);
+        return {
+            name: n, url: s?.url || "",
+            kind: s?.kind ? (SUP_KIND[s.kind] ? tr(SUP_KIND[s.kind]) : s.kind) : "",
+            custom: !s && mine.some(l => own[l.id]?.supplier === n),
+            rows: mine.length,
+        };
+    });
 }
 /** Kusovník do dokumentace (Markdown). */
 export function bomMd(prj) {

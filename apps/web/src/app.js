@@ -1,5 +1,6 @@
 /* PLCdesk — aplikační shell: stav, navigace, render, jazyk. */
-import { blankProject, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule } from "../../../packages/core/dist/index.js";
+import { blankProject, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule, escHtml as esc, syncIO, isVerified } from "../../../packages/core/dist/index.js";
+import { get as workerGet, peek as workerPeek, forget as workerForget, workerActive, pendingCard } from "./worker_client.js";
 import { makeSteps } from "./steps.js";
 import { makeImportWizard } from "./import_wizard.js";
 import { makeSafetyStep } from "./safety_step.js";
@@ -95,8 +96,27 @@ function stepDone(i) {
   if (i === 0) return !!S.prj.meta.name;
   if (i === 2) return S.prj.platforms.length > 0;
   if (i === 3) return S.prj.devices.length > 0;
+  /* kroky 11–13 (jako desktop): ze souhrnu odznaku, jen pokud patří k aktuálnímu projektu */
+  const b = badgeSum && badgeFresh ? badgeSum : null;
+  if (b && i === STEP_APPROVAL - 1) return !!b.safetyOk;
+  if (b && i === STEP_APPROVAL) return !!b.ok;
+  if (b && i === STEP_APPROVAL + 1) return !!b.commissionDone;
   return false;
 }
+/** Souhrn odznaku patří k aktuálnímu projektu? (nastaví render a showBadge) */
+let badgeFresh = false;
+/** Značky hotových kroků v liště bez překreslení kroku (souhrn odznaku dorazí později). */
+function markDone() {
+  $("stepper").querySelectorAll("button[data-i]").forEach(b => {
+    const i = +b.dataset.i;
+    if (i === S.step) return;
+    const done = stepDone(i);
+    b.classList.toggle("done", done);
+    b.textContent = navLabel(i, done);
+  });
+}
+/** Popisek kroku v liště: hotový krok s fajfkou (jako desktop). */
+const navLabel = (i, done) => (done ? "✔ " : "") + (i + 1) + " · " + tr(STEPS[i]);
 
 /* Průvodce importem stávajícího zařízení (modální okno nad kroky; vstup z kroku Projekt a Zařízení). */
 let wizard = null;
@@ -110,7 +130,27 @@ const biz = makeBizSteps(sctx);
 setApproverSource(() => approverNames(S.prj));   // schvalovatelé z firemní knihovny projektu
 const RENDERERS = [el => { steps.rProjekt(el); biz.rRevisions(el); biz.rLibrary(el); }, steps.rAI, steps.rPlat,
   el => { steps.rDev(el); biz.rDevLibrary(el); }, steps.rIO, steps.rSchema, steps.rProg, genTabs.rGenTabs, steps.rDocs,
-  el => biz.rBomTabs(el, steps.rBom), safety.rSafety, approval.rApproval, commission.rCommission];
+  el => biz.rBomTabs(el, steps.rBom), safety.rSafety,
+  el => verified(el, "12", N_("Schválení návrhu"), approval.rApproval), el => verified(el, "13", N_("Oživení"), commission.rCommission)];
+
+/** Kroky, které potřebují ověření simulací (Schválení, Oživení): u velkého projektu desítky sekund →
+    spočítá ho Worker (worker_client.js), výsledek převezme cache jádra a krok se pak vykreslí beze změny. */
+const refetched = new Set();
+function verified(el, num, title, r) {
+  const p = S.prj;
+  if (workerActive() && p.devices.length && p.program.seq.length) {
+    syncIO(p);
+    if (!isVerified(p)) {
+      const step = S.step;
+      const redraw = () => { if (S.step === step) { const y = window.scrollY; render(); window.scrollTo({ top: y }); } };
+      let w = workerGet("verify", { prj: p }, { slot: "verify", onDone: redraw });
+      /* hotové, ale cache jádra ho mezitím vyřadila (jiný jazyk, starší projekt) → znovu z cache Workeru */
+      if (!w.pending && !isVerified(p) && !refetched.has(w.key)) { refetched.add(w.key); workerForget(w.key); w = workerGet("verify", { prj: p }, { slot: "verify", onDone: redraw }); }
+      if (w.pending) { pendingCard(el, num, tr(title), w, tr("Ověřuji návrh simulací…"), redraw); return; }
+    }
+  }
+  r(el);
+}
 
 /* ---------------------------------------------------------------- odznak „Neschváleno: N"
    pending + stale ze schvalování; počítá se odloženě po vykreslení a jen při změně projektu
@@ -119,18 +159,33 @@ let badgeSum = null, badgeTimer = 0;
 const BADGE_LIVE_DEVICES = 60;   // do této velikosti se odznak přepočítá po každé změně
 function showBadge(sum) {
   badgeSum = sum || badgeSum;
+  badgeFresh = !!badgeSum && !!S.prj.devices.length && (!badgeSum.key || badgeSum.key === JSON.stringify(S.prj));
+  markDone();
   const b = $("badgeApproval");
-  if (!badgeSum) { b.hidden = true; return; }
+  /* bez zařízení odznak není (jako desktop); při nule „✔ Vše schváleno“ (jako desktop) */
+  if (!badgeSum || !S.prj.devices.length) { b.hidden = true; return; }
   const n = badgeSum.pending + badgeSum.stale + (badgeSum.unverified || 0);   // „čeká na ověření“ = neschváleno
-  b.hidden = !n;
-  b.textContent = tr("Neschváleno: {n}", { n }) + (badgeSum.old ? " ?" : "");
-  b.title = tr("Položky bez platného schválení (čeká, změněno po schválení) — otevře krok Schválení")
+  b.hidden = false;
+  b.classList.toggle("allok", !n);
+  b.textContent = n ? tr("Neschváleno: {n}", { n }) + (badgeSum.old ? " ?" : "") : "✔ " + tr("Vše schváleno");
+  b.title = (n ? tr("Položky bez platného schválení (čeká, změněno po schválení) — otevře krok Schválení") : tr("Všechny položky jsou schválené — otevře krok Schválení"))
     + (badgeSum.old ? " · " + tr("Projekt se od výpočtu změnil; u velkého projektu se počet přepočítá v krocích Dokumentace a Schválení.") : "");
   b.classList.toggle("stale", badgeSum.stale > 0);
 }
 function scheduleBadge() {
   clearTimeout(badgeTimer);
   badgeTimer = setTimeout(() => {
+    /* s Workerem (worker_client.js): plný souhrn mimo hlavní vlákno, bez limitu velikosti projektu;
+       do výsledku levný souhrn (dolní odhad „?“) — výsledek ho přepíše, jen když patří k aktuálnímu projektu */
+    if (workerActive()) {
+      try {
+        syncIO(S.prj);
+        const r = workerGet("badge", { prj: S.prj }, { slot: "badge", onDone: v => { if (workerPeek("badge", { prj: S.prj }) === v) showBadge(v.sum); } });
+        if (!r.pending) showBadge(r.value.sum);
+        else { const s = approvalBadge(S.prj, false); if (s) showBadge(s); }
+      } catch (e) { console.warn("approval badge:", e); }
+      return;
+    }
     /* souhrn potřebuje ověření simulací — u velkého projektu (sekundy) jen v krocích, které ho počítají stejně */
     const compute = S.prj.devices.length <= BADGE_LIVE_DEVICES || [8, 10, 11, 12].includes(S.step);
     try { const s = approvalBadge(S.prj, compute); if (s) showBadge(s); else $("badgeApproval").hidden = true; } catch (e) { console.warn("approval badge:", e); }
@@ -157,7 +212,7 @@ function render() {
   renderStatic();
   showSaveWarn();   // text varování v aktuálním jazyce
   const nav = $("stepper");
-  nav.innerHTML = STEPS.map((s, i) => "<button class='" + (i === S.step ? "on" : (stepDone(i) ? "done" : "")) + "' data-i='" + i + "'>" + (i + 1) + " · " + tr(s) + "</button>").join("")
+  nav.innerHTML = STEPS.map((s, i) => { const done = i !== S.step && stepDone(i); return "<button class='" + (i === S.step ? "on" : (done ? "done" : "")) + "' data-i='" + i + "'>" + esc(navLabel(i, done)) + "</button>"; }).join("")
     + "<button class='helpbtn" + (S.step === "help" ? " on" : "") + "' data-help>?&nbsp;" + tr("Nápověda") + "</button>";
   nav.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { S.step = b.hasAttribute("data-help") ? "help" : +b.dataset.i; save(); render(); }));
   setProjectHeader(S.prj);
