@@ -22,7 +22,7 @@ import { licenseSiteUrl } from "./license.js";
 import { zipStored } from "./hmi_xlsx.js";
 import { VP_SAMPLE_PS11, VP_SAMPLE_PM12 } from "./verify_pack_samples.js";
 /** Verze PLCdesk (shodná s packages/core/package.json a apps/desktop/plc_studio/__init__.py — hlídá test). */
-export const PLCDESK_VERSION = "0.2.0";
+export const PLCDESK_VERSION = "0.2.1";
 /** Formát manifestu balíku (zvýšit při nekompatibilní změně). */
 export const VERIFY_PACK_SCHEMA = 1;
 /** Projekt z uložených dat vzoru (jako goldenProject), s jedinou platformou balíku. */
