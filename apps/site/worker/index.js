@@ -27,7 +27,7 @@
 import { signLicense, newToken, newId } from "./license.js";
 import { handleAdmin, securePage } from "./admin.js";
 import { handleStripeWebhook, handlePaddleWebhook } from "./payments.js";
-import { sendDownloadLink, sendUnlockConfirmation } from "./email.js";
+import { sendDownloadLink, sendUnlockConfirmation, customerMail } from "./email.js";
 import { handleBetaApply } from "./beta.js";
 
 const LANGS = ["cs", "en", "de"];
@@ -163,8 +163,8 @@ async function handleLead(req, env) {
     .bind(token, leadId, plusDays(7), now())
     .run();
 
-  // Free tarif bez vlastni domeny: e-mail neodchazi, odkaz je rovnou v odpovedi
-  if (env.MAIL_MODE === "direct") {
+  // Free tarif bez vlastni domeny (direct / owner): e-mail zajemci neodchazi, odkaz je rovnou v odpovedi
+  if (!customerMail(env)) {
     return json({ ok: true, message: t(locale, "direct"), download_url: `/api/download?t=${token}&ch=portable` });
   }
 

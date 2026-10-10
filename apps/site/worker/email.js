@@ -8,6 +8,9 @@
 // Rezimy (promenna MAIL_MODE ve wrangler.toml):
 //   "resend"  ostry provoz, vyzaduje RESEND_API_KEY a MAIL_FROM z overene domeny
 //   "direct"  zadne e-maily; /api/lead vrati odkaz ke stazeni primo v odpovedi
+//   "owner"   bez domeny: posila jen provozovateli (MAIL_OWNER = e-mail uctu Resend) z testovaciho
+//             odesilatele Resend (onboarding@resend.dev smi jen na adresu majitele uctu); ostatnim nic,
+//             zakaznikum se chova jako "direct" (customerMail = false). Vyzaduje RESEND_API_KEY.
 // Vyvojovy rezim se zapina VYSLOVNE pres DEV_MODE (jen vypis do logu), nikdy tim,
 // ze chybi klic - zapomenuty secret v ostrem provozu by jinak maily tise zahazoval.
 
@@ -233,20 +236,32 @@ function common(env) {
   return { app: env.APP_NAME || "PLCdesk", sig: env.MAIL_SIGNATURE || env.APP_NAME || "PLCdesk", site: env.PUBLIC_SITE };
 }
 
+// Testovaci odesilatel Resend: bez overene domeny smi posilat jen na adresu majitele uctu.
+const OWNER_FROM = "PLCdesk <onboarding@resend.dev>";
+
+/** Chodi e-maily zakaznikum? Ne v rezimu "direct" ani "owner" (tam se odkaz / licence predava jinak). */
+export const customerMail = (env) => env.MAIL_MODE !== "direct" && env.MAIL_MODE !== "owner";
+
 async function send(env, { to, subject, text }) {
   if (env.DEV_MODE) {
     console.log(`[DEV] e-mail pro ${to}: ${subject}\n${text}`);
     return { ok: true, dev: true };
   }
   if (env.MAIL_MODE === "direct") return { ok: true, skipped: true };
-  if (!env.RESEND_API_KEY || !env.MAIL_FROM) {
+  let from = env.MAIL_FROM;
+  if (env.MAIL_MODE === "owner") {
+    const owner = String(env.MAIL_OWNER || "").trim().toLowerCase();
+    if (!owner || String(to).trim().toLowerCase() !== owner) return { ok: true, skipped: true };
+    from = env.MAIL_FROM || OWNER_FROM;
+  }
+  if (!env.RESEND_API_KEY || !from) {
     throw new Error("RESEND_API_KEY nebo MAIL_FROM neni nastaveny - e-mail nelze odeslat");
   }
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: env.MAIL_FROM,
+      from,
       to: [to],
       subject: oneLine(subject),
       text,
