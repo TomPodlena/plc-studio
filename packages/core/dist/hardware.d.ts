@@ -116,6 +116,8 @@ export declare function driveNet(plat: PlatformKey): string;
 export declare function hwPlatform(prj: Project): PlatformKey;
 /** Id řádku kusovníku (označení skupiny + kategorie) — volby uživatele `prj.bom.lines`. */
 export declare const hwLineId: (tag: string, cat: string) => string;
+/** Spustí `fn` s cachí sestavy bez kontroly podpisu — jen pro výpočty, které projekt nemění. */
+export declare function withFrozenHw<T>(fn: () => T): T;
 /** Sestava hardwaru pro platformu (výchozí = platforma hardwaru projektu). Výsledek je cachovaný. */
 export declare function hwLayout(prj: Project, plat?: PlatformKey): HwLayout;
 /** Kanál signálu v sestavě platformy. */

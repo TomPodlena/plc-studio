@@ -9,6 +9,7 @@ from tkinter import ttk
 
 from ..bridge import BridgeError
 from ..i18n import N_, _
+from ..widgets import trace
 from ..widgets import FlowFrame, card, issue_box, note_box, save_file, save_many, scrolled_text, set_text, wrap_label
 
 
@@ -119,7 +120,7 @@ def render_code(app, body) -> None:
     btns = ttk.Frame(body)
     btns.pack(side="bottom", fill="x", pady=(8, 0))
 
-    code_frm, code = scrolled_text(body, mono=True, readonly=True, height=14)
+    code_frm, code = scrolled_text(body, mono=True, readonly=True, height=8)
     code_frm.pack(fill="both", expand=True)
 
     def cur() -> tuple[str, str]:
@@ -143,8 +144,8 @@ def render_code(app, body) -> None:
         tabs_f.schedule()
         var_file.set(app.ui.get("gen_file") if app.ui.get("gen_file") in files else files[0])
 
-    var_file.trace_add("write", show_file)
-    var_plat.trace_add("write", show_plat)
+    trace(var_file, show_file, tabs_f)
+    trace(var_plat, show_plat, tabs_f)
     show_plat()
 
     def save_all() -> None:

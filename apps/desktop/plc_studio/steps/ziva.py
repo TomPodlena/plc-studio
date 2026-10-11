@@ -25,6 +25,7 @@ from ..bridge import BridgeError
 from ..i18n import _
 from ..mimic import Mimic, dev_mark
 from ..svgview import SvgView
+from ..widgets import trace
 from ..widgets import link, scrolled_text, set_text, wrap_label
 
 TICK_MS = 50
@@ -82,7 +83,7 @@ def build(app, parent) -> None:
     b_run = ttk.Button(bar, text=_("⏸ Zastavit čas"),
                        width=max(13, len(_("⏸ Zastavit čas")) - 1, len(_("▶ Pustit čas")) - 1))
     b_run.pack(side="right", padx=(0, 4))
-    var_speed.trace_add("write", lambda *_a: ui.__setitem__("live_speed", var_speed.get()))
+    trace(var_speed, lambda *_a: ui.__setitem__("live_speed", var_speed.get()), bar)
 
     info = ttk.Frame(parent)
     info.pack(fill="x", pady=(6, 6))
@@ -254,6 +255,12 @@ def build(app, parent) -> None:
                 b.pack(side="left", padx=(0, 4))
                 b.bind("<ButtonPress-1>", lambda _e, s=sig: ax_set(**{s: True}))
                 b.bind("<ButtonRelease-1>", lambda _e, s=sig: ax_set(**{s: False}))
+                # klávesnice (forenzní test L9): mezerník / Enter drží povel po dobu stisku jako myš;
+                # opakování klávesy (autorepeat) povel jen potvrdí
+                for k in ("space", "Return"):
+                    b.bind(f"<KeyPress-{k}>", lambda _e, s=sig: (
+                        None if controls["axMan"].get(key, {}).get(s) else ax_set(**{s: True})) or "break")
+                    b.bind(f"<KeyRelease-{k}>", lambda _e, s=sig: ax_set(**{s: False}) or "break")
             if has_seq:
                 ttk.Label(dev_box, text=_("referování a pojezd platí jen při vypnutém režimu AUTO"),
                           style="Dim.TLabel").pack(anchor="w", padx=(20, 0))

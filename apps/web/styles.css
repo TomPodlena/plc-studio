@@ -33,6 +33,8 @@ header.app h1{font-size:1.4rem;font-weight:700;margin:0;letter-spacing:-.01em;fo
 header.app h1 picture,header.app h1 img{display:block;height:28px;width:28px;flex:none}
 .badge{font-family:var(--font-mono);font-size:.7rem;background:var(--chip);padding:3px 9px;border-radius:999px;white-space:nowrap}
 #projName{color:var(--muted);font-size:.9rem;flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* úzký displej: zalomená hlavička by název smrštila na pomlčku — vlastní řádek pod odznaky (zkrácený výpustkou) */
+@media (max-width:600px){ #projName{flex-basis:100%;order:10} }
 header.app #lang{margin-left:auto;font-size:.75rem;padding:4px 8px;border-radius:999px;color:var(--muted);background:var(--surface)}
 nav.stepper{display:flex;flex-wrap:wrap;gap:6px}
 nav.stepper button{font-family:var(--font-mono);font-size:.74rem;border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:7px 12px;border-radius:999px;cursor:pointer}
@@ -255,3 +257,5 @@ button.licbadge.lic-warn{border-color:var(--warn);color:var(--warn)}
 .lictab{border-collapse:collapse;font-size:.84rem;margin:6px 0}
 .lictab th{text-align:left;color:var(--muted);font-weight:500;padding:2px 14px 2px 0}
 .lictab td{font-family:var(--font-mono);font-size:.78rem;overflow-wrap:anywhere}
+/* listy zapojení mimo obrazovku se nerozvrhují ani nekreslí (velký projekt: desítky listů) — výška odhadem, pak skutečná */
+.sheetwrap{content-visibility:auto;contain-intrinsic-size:auto 620px}

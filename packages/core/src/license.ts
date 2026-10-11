@@ -216,7 +216,7 @@ export function licenseState(check: LicenseCheck | null, now: Date | number = Da
   if (t <= grace) {
     const ent = entitlements(c.plan, ioLimit);
     return { ...info, graceUntil, pastDue, state: "grace", plan: ent.plan, planLabel: lbl, ent, daysLeft: Math.ceil((grace - t) / DAY),
-      message: tr("Období licence {plan} skončilo {date}; licence platí ještě do {until} (tolerance {n} dní). Prodlužte předplatné a licenci znovu aktivujte.", { plan: lbl, date: isoDate(exp), until: isoDate(grace), n: GRACE_DAYS }) };
+      message: tr("Období licence {plan} skončilo {date}; licence platí ještě do {until} (tolerance {n} dní). Prodluž předplatné a licenci znovu aktivuj.", { plan: lbl, date: isoDate(exp), until: isoDate(grace), n: GRACE_DAYS }) };
   }
   return { ...info, graceUntil, state: "expired", plan: "free", planLabel: "Free", ent: free,
     message: tr("Licence {plan} vypršela {date} (i s tolerancí {n} dní) — aplikace běží v tarifu Free.", { plan: lbl, date: isoDate(grace), n: GRACE_DAYS }) + " " + freeText };
@@ -224,7 +224,7 @@ export function licenseState(check: LicenseCheck | null, now: Date | number = Da
 
 export function licenseErrorText(err: string): string {
   if (err === "nokey") return tr("Tahle verze aplikace nemá veřejný klíč pro ověření licencí — licenci zatím nejde použít.");
-  if (err === "crypto") return tr("Prostředí neumí ověřit podpis Ed25519 — aktualizujte prohlížeč (Chrome / Edge 137+, Firefox 129+, Safari 17+).");
+  if (err === "crypto") return tr("Prostředí neumí ověřit podpis Ed25519 — aktualizuj prohlížeč (Chrome / Edge 137+, Firefox 129+, Safari 17+).");
   if (err === "format") return tr("Text není licenční soubor PLCdesk (jeden řádek s tečkou uprostřed).");
   return tr("Podpis licence nesedí — soubor je poškozený nebo upravený.");
 }
@@ -246,7 +246,7 @@ export function projectGate(prj: Project, ent: Entitlements, unlocks: Iterable<s
   const unlocked = !!prj.guid && set.has(prj.guid);
   const over = ent.ioLimit != null && io > ent.ioLimit && !unlocked;
   const reasons: string[] = [];
-  if (over) reasons.push(tr("Projekt má {io} I/O, tarif Free povoluje {n}. Náhled funguje, stažení a ukládání výstupů ne — vložte licenci Pro nebo Firma, nebo si nechte první projekt nad limit odemknout zdarma.", { io, n: ent.ioLimit! }));
+  if (over) reasons.push(tr("Projekt má {io} I/O, tarif Free povoluje {n}. Náhled funguje, stažení a ukládání výstupů ne — vlož licenci Pro nebo Firma, nebo si nech první projekt nad limit odemknout zdarma.", { io, n: ent.ioLimit! }));
   return { io, limit: ent.ioLimit, unlocked, over, canExport: !over, canDxf: !over && ent.dxf, footer: ent.footer, library: ent.library, plan: ent.plan, reason: reasons.join(" ") };
 }
 
@@ -263,7 +263,8 @@ export function licenseFileKind(name: string): "doc" | "readme" | "dxf" | "own" 
   const n = String(name || "").toLowerCase();
   if (n.endsWith(".plcstudio.json") || n.endsWith(".plcdesk-library.json")) return "own";
   if (n.endsWith(".dxf")) return "dxf";
-  if (/(^|[_/\\])readme(\.[a-z]+)?$/.test(n) || /readme\.(txt|md)$/.test(n)) return "readme";
+  /* README platforem i dílčí README s příponou názvu (README_EPLAN.txt, hmi_siemens_README_HMI.txt) */
+  if (/(^|[_/\\])readme(\.[a-z]+)?$/.test(n) || /(^|[_/\\])readme([_.-][a-z0-9]+)*\.(txt|md)$/.test(n)) return "readme";
   if (n.endsWith(".md") || n.endsWith(".html") || n.endsWith(".htm")) return "doc";
   return "out";
 }
@@ -307,7 +308,7 @@ export function applyLicenseToFile(name: string, body: string, gate: ProjectGate
   const kind = licenseFileKind(name);
   if (!gate || kind === "own") return { body };
   if (gate.over) return { blocked: gate.reason };
-  if (kind === "dxf" && !gate.canDxf) return { blocked: tr("Export DXF je v tarifu Pro a Firma. Výkres si prohlédněte v náhledu nebo uložte jako SVG.") };
+  if (kind === "dxf" && !gate.canDxf) return { blocked: tr("Export DXF je v tarifu Pro a Firma. Výkres si prohlédni v náhledu nebo ulož jako SVG.") };
   return { body: gate.footer ? addLicenseFooter(name, body) : body };
 }
 

@@ -110,7 +110,8 @@ export async function backgroundCheck(force = false) {
       if (r.status === 200 && r.data.status) {
         store.remote = { status: String(r.data.status), plan: r.data.plan, valid_until: r.data.valid_until, checkedAt: store.checkedAt };
         /* zaplaceno dál → nový podepsaný soubor (nepodepsané valid_until samo nic neprodlouží) */
-        if (r.data.status === "active" && r.data.valid_until && Date.parse(r.data.valid_until) > Date.parse(claims.exp)) {
+        /* uvolněný počítač (správa) se sám znovu neaktivuje; soubor platí do exp */
+        if (r.data.status === "active" && r.data.device !== "revoked" && r.data.valid_until && Date.parse(r.data.valid_until) > Date.parse(claims.exp)) {
           const a = await api("/api/license/activate", { key: claims.key, device_hash: deviceId(), device_label: "PLCdesk web", locale: getLang() });
           if (a.status === 200 && a.data.license) {
             const c = await verifyLicense(a.data.license);
@@ -140,12 +141,12 @@ export async function insertLicense(input) {
     check = c; writeStore(); recompute(); onChange();
     return { ok: true, message: state.message };
   }
-  if (!isLicenseKey(t)) return { ok: false, message: tr("Vložte licenční klíč (PLCD-XXXX-XXXX-XXXX-XXXX) nebo celý licenční soubor z e-mailu.") };
+  if (!isLicenseKey(t)) return { ok: false, message: tr("Vlož licenční klíč (PLCD-XXXX-XXXX-XXXX-XXXX) nebo celý licenční soubor z e-mailu.") };
   let r;
   try {
     r = await api("/api/license/activate", { key: normLicenseKey(t), device_hash: deviceId(), device_label: "PLCdesk web", locale: getLang() });
   } catch {
-    return { ok: false, message: tr("Server licencí se nepodařilo zastihnout. Bez internetu vložte místo klíče licenční soubor z e-mailu (dlouhý řádek s tečkou uprostřed).") };
+    return { ok: false, message: tr("Server licencí se nepodařilo zastihnout. Bez internetu vlož místo klíče licenční soubor z e-mailu (dlouhý řádek s tečkou uprostřed).") };
   }
   if (r.status !== 200 || !r.data.license) return { ok: false, message: r.data.error ? String(r.data.error) : tr("Aktivace se nezdařila (HTTP {status}).", { status: r.status }) };
   const c = await verifyLicense(r.data.license);
@@ -178,6 +179,25 @@ export function licenseFilter(name, body, quiet = false) {
   return r.body;
 }
 
+/**
+ * Hromadné uložení (Uložit vše do složky, ZIP, Stáhnout vše) s vynechanými soubory podle licence:
+ * okno s vysvětlením jen poprvé za relaci — dál stačí řádek v souhrnu / u tlačítka (okno by jinak
+ * po každém uložení blokovalo i Ctrl+S). Vrací true, když se okno otevřelo.
+ */
+/** Důvod, proč se soubor podle licence nestáhne („“ = stáhne se). */
+export function licenseReason(name, body) {
+  const g = gateFor(getProject());
+  if (g && g.over) return g.reason;
+  return typeof body === "string" ? applyLicenseToFile(name, body, g).blocked || "" : "";
+}
+let bulkExplained = false;
+export function explainBulkBlocked(reason) {
+  if (bulkExplained) return false;
+  bulkExplained = true;
+  openLicenseDialog(reason || "");
+  return true;
+}
+
 /* ---------------------------------------------------------------- UI */
 
 /** Odznak tarifu v hlavičce. */
@@ -185,7 +205,7 @@ export function renderLicenseBadge(btn) {
   if (!btn) return;
   const s = fresh();
   btn.textContent = s.planLabel + (s.state === "grace" ? " · " + tr("tolerance") : "");
-  btn.title = s.message + " — " + tr("klikněte pro licenci");
+  btn.title = s.message + " — " + tr("klikni pro licenci");
   btn.classList.toggle("lic-paid", s.plan !== "free");
   btn.classList.toggle("lic-warn", s.state === "grace" || s.state === "invalid" || s.state === "canceled" || s.state === "expired");
 }
@@ -245,12 +265,12 @@ export function openLicenseDialog(reason = "", focus = "") {
       ${s.key ? "<table class='lictab'>" + row(tr("Klíč"), s.key) + row(tr("E-mail"), s.email || "") + row(tr("Počet počítačů"), String(s.seats))
         + (s.exp ? row(tr("Platí do"), s.exp.slice(0, 10)) : "") + "</table>" : ""}
       <h3>${esc(tr("Vložit licenci"))}</h3>
-      <p class="hint">${esc(tr("Licenční klíč (PLCD-…) se aktivuje přes internet. Bez internetu vložte celý licenční soubor z e-mailu — ověří se v aplikaci podpisem."))}</p>
+      <p class="hint">${esc(tr("Licenční klíč (PLCD-…) se aktivuje přes internet. Bez internetu vlož celý licenční soubor z e-mailu — ověří se v aplikaci podpisem."))}</p>
       <textarea id="licInput" rows="3" spellcheck="false" style="width:100%;min-height:0;font-family:var(--font-mono);font-size:.78rem" placeholder="PLCD-XXXX-XXXX-XXXX-XXXX"></textarea>
       <div class="row"><button class="primary" id="licGo">${esc(tr("Aktivovat"))}</button>${s.key || store.text ? "<button class='small' id='licRemove'>" + esc(tr("Odebrat licenci")) + "</button>" : ""}
         <button class="small" id="licPricing">${esc(tr("Ceník"))}</button><span id="licOut" class="hint" role="status" style="margin:0"></span></div>
       ${s.ent.ioLimit == null ? "" : `<h3 id="licUnlockH">${esc(tr("Odemknout první projekt zdarma"))}</h3>
-      <p class="hint">${esc(tr("Narazíte na limit u reálného stroje? První projekt nad limit odemkneme zdarma. Odešlete nám žádost přes stránku Kontakt — text s ID projektu se zkopíruje do schránky; odemčení přijde jako licenční klíč e-mailem."))}</p>
+      <p class="hint">${esc(tr("Narazíš na limit u reálného stroje? První projekt nad limit odemkneme zdarma. Pošli nám žádost přes stránku Kontakt — text s ID projektu se zkopíruje do schránky; odemčení přijde jako licenční klíč e-mailem."))}</p>
       ${prj ? "<p class='hint' id='licProj'>" + esc(tr("Tento projekt: {io} I/O (limit Free {n}), ID {id}", { io: g ? g.io : 0, n: s.ent.ioLimit ?? ioLimit(), id: prj.guid || "?" })) + "</p>" : ""}
       <div class="row"><button id="licUnlock">${esc(tr("Odemknout první projekt zdarma"))}</button></div>
       <p class="hint" id="licUnlockOut" role="status"></p>`}

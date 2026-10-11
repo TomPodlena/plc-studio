@@ -18,6 +18,7 @@ from .. import theme
 from ..detail import DevicePanel
 from ..i18n import N_, _, _n
 from ..svgview import SvgView
+from ..widgets import trace
 from ..widgets import (FlowFrame, Table, file_prefix, note_box, save_file, save_many, scrolled_text,
                        set_text, wrap_label)
 
@@ -159,7 +160,7 @@ def _screens(app, parent, screens: list, ui: dict) -> None:
         ui["screen"] = var.get()
         view.show(screens[var.get()]["svg"])
 
-    var.trace_add("write", show)
+    trace(var, show, view)
     show()
     if app.dev_by_id(ui.get("dev")) is not None:
         panel.show(ui["dev"])
@@ -195,7 +196,7 @@ def _tags(app, parent, tags: list, ui: dict) -> None:
     tbl = Table(parent, [("name", _("Tag"), 170, False), ("type", _("Typ"), 60, False),
                          ("access", _("Přístup"), 90, False), ("group", _("Skupina"), 110, False),
                          ("dev", _("Zařízení"), 70, False), ("desc", _("Popis"), 260, True),
-                         ("path", _("Cesta v PLC"), 220, True)], height=14, ellipsis=True)
+                         ("path", _("Cesta v PLC"), 220, True)], height=8, ellipsis=True)
 
     def fill(plat: str) -> None:
         tbl.clear()
@@ -216,7 +217,7 @@ def _alarms(parent, alarms: list) -> None:
     tbl = Table(parent, [("id", "#", 40, False), ("name", _("Alarm"), 150, False),
                          ("dev", _("Zařízení"), 70, False), ("text", _("Text"), 300, True),
                          ("cls", _("Třída"), 150, False), ("trig", _("Spouští"), 200, False),
-                         ("ack", _("Kvitace"), 160, True)], height=14, ellipsis=True)
+                         ("ack", _("Kvitace"), 160, True)], height=8, ellipsis=True)
     tbl.tv.tag_configure("fault", foreground=theme.ERR)
     tbl.tv.tag_configure("stop", foreground=theme.WARN)
     for a in alarms:
@@ -265,7 +266,7 @@ def _export(app, parent, data: dict, ui: dict) -> None:
         tbl.pack(fill="x")
         btns = ttk.Frame(body)
         btns.pack(fill="x", pady=(6, 0))
-        prev_frm, prev = scrolled_text(body, mono=True, readonly=True, height=10)
+        prev_frm, prev = scrolled_text(body, mono=True, readonly=True, height=6)
 
         def cur() -> str | None:
             return tbl.selected()

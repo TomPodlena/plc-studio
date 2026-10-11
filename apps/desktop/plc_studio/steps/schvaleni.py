@@ -9,12 +9,15 @@ Jméno schvalujícího se zadá jednou a drží v ``settings.json`` (sdílí ho 
 
 from __future__ import annotations
 
+import re
+
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 from .. import theme
 from ..bridge import BridgeError
 from ..i18n import _
+from ..widgets import trace
 from ..widgets import Table, card, note_box, save_file, wrap_label
 
 NAME_MAX = 60
@@ -28,6 +31,18 @@ STATUS_COLOR = {"approved": theme.OK, "stale": theme.WARN, "rejected": theme.ERR
 def approver(app) -> str:
     """Jméno odpovědné osoby (prázdné = nezadáno)."""
     return str(app.settings.get("approver") or "").strip()
+
+
+def approval_error(app, exc) -> None:
+    """Chyba rozhodnutí o položce: zastaralá položka (zařízení mezitím smazané / přejmenované) se
+    hlásí srozumitelně a krok se obnoví (forenzní test L4: „approval: unknown item dev:M1“)."""
+    m = re.search(r"approval: unknown item (.+)$", str(exc))
+    if m:
+        app.render()
+        app.set_status("⚠ " + _("Položka {key} už neexistuje (zařízení bylo smazané nebo přejmenované) — "
+                                "seznam položek se obnovil, vyber ji znovu.", key=m.group(1).strip()), keep=True)
+        return
+    app.set_status("⚠ " + str(exc))
 
 
 def name_bar(parent, app, label: str, on_change=None) -> ttk.Entry:
@@ -54,7 +69,7 @@ def name_bar(parent, app, label: str, on_change=None) -> ttk.Entry:
         if on_change:
             on_change()
 
-    var.trace_add("write", changed)
+    trace(var, changed, ent)
     return ent
 
 
@@ -245,7 +260,7 @@ def render(app, parent) -> None:
     ent_note = ttk.Entry(side, textvariable=var_note)
     ent_note._var = var_note
     ent_note.pack(fill="x", pady=(2, 6))
-    var_note.trace_add("write", lambda *_a: ui.update(note=var_note.get()))
+    trace(var_note, lambda *_a: ui.update(note=var_note.get()), ent_note)
     btns = ttk.Frame(side)
     btns.pack(fill="x")
     # šířka podle textu (nejmenší 6 znaků) — tři tlačítka se vejdou i v němčině
@@ -330,7 +345,7 @@ def render(app, parent) -> None:
                 app.prj = app.bridge.mutate("resetApproval", app.prj, it["key"])
                 msg = _("Rozhodnutí zrušeno: {title}", title=it["title"])
         except BridgeError as exc:
-            app.set_status("⚠ " + str(exc))
+            approval_error(app, exc)
             return
         ui["note"] = ""
         app.save()

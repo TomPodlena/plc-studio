@@ -25,6 +25,8 @@
 //   POST /api/admin/license     i skriptem s X-Admin-Token / Bearer (beta, skoly)
 
 import { signLicense, newToken, newId } from "./license.js";
+import { readJson, safeEmail } from "./admin_util.js";
+import { overLimit } from "./ratelimit.js";
 import { handleAdmin, securePage } from "./admin.js";
 import { handleStripeWebhook, handlePaddleWebhook } from "./payments.js";
 import { sendDownloadLink, sendUnlockConfirmation } from "./email.js";
@@ -49,6 +51,7 @@ const MSG = {
     unlock_missing: "Chybí e-mail nebo projekt.",
     unlock_used: "Jeden projekt už máte odemčený. Další stroje nad limit potřebují tarif Pro.",
     server: "Došlo k chybě na serveru.",
+    many: "Příliš mnoho pokusů. Zkuste to prosím znovu za hodinu.",
   },
   en: {
     email: "Please enter a valid e-mail address.",
@@ -67,6 +70,7 @@ const MSG = {
     unlock_missing: "E-mail or project missing.",
     unlock_used: "You already have one project unlocked. Further machines above the limit need the Pro plan.",
     server: "A server error occurred.",
+    many: "Too many attempts. Please try again in an hour.",
   },
   de: {
     email: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
@@ -85,6 +89,7 @@ const MSG = {
     unlock_missing: "E-Mail oder Projekt fehlt.",
     unlock_used: "Sie haben bereits ein Projekt freigeschaltet. Weitere Maschinen über dem Limit benötigen den Tarif Pro.",
     server: "Auf dem Server ist ein Fehler aufgetreten.",
+    many: "Zu viele Versuche. Bitte versuchen Sie es in einer Stunde erneut.",
   },
 };
 const loc = (l) => (LANGS.includes(l) ? l : "cs");
@@ -104,7 +109,18 @@ function json(data, status = 200, extra = {}) {
 
 const now = () => new Date().toISOString();
 const plusDays = (d) => new Date(Date.now() + d * 864e5).toISOString();
-const validEmail = (s) => typeof s === "string" && s.length < 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
+const validEmail = safeEmail; // bez < > " ' ( ) ; a vzorcu na zacatku (admin_util.js)
+const tooMany = (locale) => json({ error: t(locale, "many") }, 429, { "Retry-After": "3600" });
+
+// Otisk pocitace: aplikace posila SHA-256 hex (64 znaku). Delsi hodnota se neorezava (stejny pocitac
+// by se pak pri porovnani plnou hodnotou uz nenasel), ale nahradi se svym otiskem SHA-256 -
+// stejny vstup = stejny klic v aktivaci i v kontrole.
+async function deviceKey(v) {
+  const s = String(v ?? "").trim();
+  if (s.length <= 200) return s;
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return "sha256:" + [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 const clip = (s, n) => (s == null ? null : String(s).slice(0, n));
 
 // Turnstile: vraci "ok" | "fail" | "closed" (secret chybi a neni DEV_MODE)
@@ -127,20 +143,23 @@ async function turnstile(env, token, ip) {
 // ---------------------------------------------------------------- lead
 
 async function handleLead(req, env) {
-  const body = await req.json().catch(() => ({}));
+  const p = await readJson(req); // jen JSON objekt do 16 kB (415 / 413 / 400 i pro telo `null`)
+  if (p.res) return p.res;
+  const body = p.body;
   const locale = loc(body.locale);
   const email = String(body.email ?? "").trim().toLowerCase();
 
-  // Past na boty: skryte pole vyplnene, nebo odeslano driv nez za 3 s.
-  // Bot dostane stejnou odpoved jako clovek, at nehleda jinou cestu.
-  const elapsed = Number(body.elapsed);
-  if (String(body.web ?? "").trim() !== "" || (Number.isFinite(elapsed) && elapsed < 3000)) {
+  // Past na boty: skryte pole vyplnene, cas vyplneni chybi (formular ho posila vzdy), neni cislo
+  // nebo je kratsi nez 3 s. Bot dostane stejnou odpoved jako clovek, at nehleda jinou cestu.
+  const elapsed = typeof body.elapsed === "number" || typeof body.elapsed === "string" ? Number(body.elapsed) : NaN;
+  if (String(body.web ?? "").trim() !== "" || !Number.isFinite(elapsed) || elapsed < 3000) {
     return json({ ok: true, message: t(locale, "sent") }, 200, env.DEV_MODE ? { "x-plcdesk": "trap" } : {});
   }
 
   if (!validEmail(email)) return json({ error: t(locale, "email") }, 400);
   // souhlas s licencnimi podminkami (checkbox ve formulari) - bez nej se nic neulozi
   if (body.consent !== true) return json({ error: t(locale, "consent") }, 400);
+  if (await overLimit(env, req, "lead")) return tooMany(locale);
 
   const ts = await turnstile(env, body.turnstile, req.headers.get("CF-Connecting-IP"));
   if (ts === "closed") {
@@ -211,7 +230,10 @@ async function handleDownload(req, env) {
   ]);
 
   if (asset.url) {
-    return new Response(null, { status: 302, headers: { Location: asset.url, "Cache-Control": "no-store" } });
+    return new Response(null, { status: 302, headers: {
+      Location: asset.url, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",
+      "Strict-Transport-Security": "max-age=31536000",
+    } });
   }
   const object = await env.RELEASES.get(asset.key);
   if (!object) return json({ error: t(locale, "no_build") }, 404);
@@ -228,59 +250,74 @@ async function handleDownload(req, env) {
 // ------------------------------------------------------------- licence
 
 async function handleActivate(req, env) {
-  const body = await req.json().catch(() => ({}));
+  const p = await readJson(req);
+  if (p.res) return p.res;
+  const body = p.body;
   const locale = loc(body.locale);
-  const key = String(body.key ?? "").trim().toUpperCase();
-  const device = String(body.device_hash ?? "").trim();
+  const key = String(body.key ?? "").trim().toUpperCase().slice(0, 64);
+  const device = await deviceKey(body.device_hash);
   if (!key || !device) return json({ error: t(locale, "missing") }, 400);
+  if (await overLimit(env, req, "license")) return tooMany(locale);
 
   const lic = await env.DB.prepare("SELECT * FROM licenses WHERE key = ?").bind(key).first();
   if (!lic) return json({ error: t(locale, "no_key") }, 404);
   if (lic.status === "canceled") return json({ error: t(locale, "canceled") }, 403);
 
-  const used = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM activations WHERE license_key = ? AND revoked_at IS NULL AND device_hash != ?"
-  )
-    .bind(key, device)
-    .first();
-  if ((used?.n ?? 0) >= lic.seats) return json({ error: t(locale, "seats", { n: lic.seats }) }, 409);
-
-  await env.DB.prepare(
+  // Pocet mist a zapis JEDNIM prikazem: radek vznikne (nebo se obnovi) jen kdyz ostatnich aktivnich
+  // pocitacu je mene nez mist. Dva dotazy (COUNT, pak INSERT) pustily soubezne aktivace pres limit.
+  const ins = await env.DB.prepare(
     `INSERT INTO activations (id, license_key, device_hash, device_label, last_seen_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)
+     SELECT ?1, ?2, ?3, ?4, ?5, ?5
+     WHERE (SELECT COUNT(*) FROM activations WHERE license_key = ?2 AND revoked_at IS NULL AND device_hash != ?3) < ?6
      ON CONFLICT(license_key, device_hash)
      DO UPDATE SET last_seen_at = excluded.last_seen_at, revoked_at = NULL`
   )
-    .bind(newId(), key, clip(device, 200), clip(body.device_label, 100), now(), now())
+    .bind(newId(), key, device, clip(body.device_label, 100), now(), Number(lic.seats) || 0)
     .run();
+  if (!(ins?.meta?.changes > 0)) return json({ error: t(locale, "seats", { n: lic.seats }) }, 409);
 
   const file = await signLicense(env, { key: lic.key, email: lic.email, plan: lic.plan, seats: lic.seats, validUntil: lic.valid_until });
   return json({ ok: true, license: file, plan: lic.plan, valid_until: lic.valid_until });
 }
 
 // Kontrola na pozadi. Zamerne tolerantni: po splatnosti aplikace bezi dal, zamyka se az zruseni.
+// Pole `device` (jen kdyz klient poslal otisk): "active" = pocitac ma misto, "revoked" = misto bylo
+// ve sprave uvolneno, "unknown" = tento pocitac licenci nikdy neaktivoval. Klient u "revoked" / "unknown"
+// licenci sam znovu neaktivuje (soubor plati do exp - zamer); `status` zustava stav licence.
 async function handleCheck(req, env) {
-  const body = await req.json().catch(() => ({}));
-  const key = String(body.key ?? "").trim().toUpperCase();
+  const p = await readJson(req);
+  if (p.res) return p.res;
+  const body = p.body;
+  const key = String(body.key ?? "").trim().toUpperCase().slice(0, 64);
+  if (await overLimit(env, req, "license")) return tooMany(loc(body.locale));
   const lic = await env.DB.prepare("SELECT key, plan, status, valid_until, seats FROM licenses WHERE key = ?").bind(key).first();
   if (!lic) return json({ status: "unknown" }, 404);
+  const extra = {};
   if (body.device_hash) {
-    await env.DB.prepare("UPDATE activations SET last_seen_at = ? WHERE license_key = ? AND device_hash = ?")
-      .bind(now(), key, String(body.device_hash))
-      .run();
+    const device = await deviceKey(body.device_hash);
+    const act = await env.DB.prepare("SELECT revoked_at FROM activations WHERE license_key = ? AND device_hash = ?").bind(key, device).first();
+    extra.device = !act ? "unknown" : act.revoked_at ? "revoked" : "active";
+    if (extra.device === "active") {
+      await env.DB.prepare("UPDATE activations SET last_seen_at = ? WHERE license_key = ? AND device_hash = ? AND revoked_at IS NULL")
+        .bind(now(), key, device)
+        .run();
+    }
   }
-  return json({ status: lic.status, plan: lic.plan, seats: lic.seats, valid_until: lic.valid_until, grace_days: 30 });
+  return json({ status: lic.status, plan: lic.plan, seats: lic.seats, valid_until: lic.valid_until, grace_days: 30, ...extra });
 }
 
 // ------------------------------------------------------- odemceni projektu
 
 // Kdo narazi na limit u realne zakazky, dostane prvni projekt odemceny zdarma.
 async function handleUnlock(req, env) {
-  const body = await req.json().catch(() => ({}));
+  const p = await readJson(req);
+  if (p.res) return p.res;
+  const body = p.body;
   const locale = loc(body.locale);
   const email = String(body.email ?? "").trim().toLowerCase();
   const projectId = String(body.project_id ?? "").trim();
   if (!validEmail(email) || !projectId) return json({ error: t(locale, "unlock_missing") }, 400);
+  if (await overLimit(env, req, "unlock")) return tooMany(locale);
   // pocet I/O jde do databaze i do textu e-mailu: jen cele cislo v rozumnem rozsahu, jinak nic
   const io = Number(body.io_count);
   const ioCount = Number.isInteger(io) && io > 0 && io <= 100000 ? io : null;

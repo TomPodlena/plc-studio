@@ -134,8 +134,9 @@ class UpdatesTest(unittest.TestCase):
                 return {"free_io_limit": 64, "site": "https://example.test", "payment_provider": None}
             return {"version": "0.2.0", "assets": {}}
 
+        # cizí host ze serveru se nepoužije (forenzní test L1) — jen https na hostu UPDATE_BASE
         self.assertEqual(updates.latest_release(fetch_cfg_without_version),
-                         {"version": "0.2.0", "site": "https://example.test"})
+                         {"version": "0.2.0", "site": updates.UPDATE_BASE})
         self.assertEqual(calls, [updates.CONFIG_URL, updates.RELEASE_URL])
 
         calls.clear()
@@ -148,6 +149,19 @@ class UpdatesTest(unittest.TestCase):
 
         self.assertIsNone(updates.latest_release(offline))
         self.assertIsNone(updates.latest_release(lambda u: {"version": "0.0.0"} if u == updates.RELEASE_URL else {}))
+
+    def test_server_site_and_version_are_checked(self):
+        """Forenzní test L1: ``site`` ze serveru jen https na očekávaném hostu, obří verze nic neshodí."""
+        base = updates.UPDATE_BASE
+        for bad in ("javascript:alert(1)", "file:///C:/Windows/System32/calc.exe#", "http://" + base[8:],
+                    "https://evil.example", "https://user@" + base[8:], "https://" + base[8:] + ":99999", None, 5):
+            self.assertEqual(updates.safe_site(bad), base, bad)
+        self.assertEqual(updates.safe_site(base + "/cs/"), base)
+        self.assertEqual(updates.parse_version("9" * 5000), ())
+        self.assertFalse(updates.is_newer("1" * 5000))
+        self.assertIsNone(updates.latest_release(lambda u: {"version": "9" * 5000}))
+        self.assertEqual(updates.latest_release(lambda u: {"version": "1.2.3", "site": "javascript:x"}),
+                         {"version": "1.2.3", "site": base})
 
     def test_due_once_a_day_and_switch(self):
         now = 1_000_000.0

@@ -45,7 +45,13 @@ export async function audit(env, { actor, via, action, target = null, detail = n
   }
 }
 
-export const likePattern = (q) => `%${q.replace(/[\\%_]/g, (m) => "\\" + m)}%`;
+// E-mail z verejneho formulare: tvar a@b.cz, bez mezer, ridicich znaku a znaku HTML / CSV / SQL
+// (< > " ' ( ) ; , \) a bez vzorce na zacatku (= + - @) - data jdou do spravy, kanbanu, exportu a e-mailu.
+const EMAIL_BAD = /[\s<>"'();,\\\p{Cc}\p{Zl}\p{Zp}]/u;
+export const safeEmail = (s) =>
+  typeof s === "string" && s.length < 254 && !EMAIL_BAD.test(s) && !/^[=+\-@]/.test(s) && /^[^@]+@[^@]+\.[^@.]{2,}$/.test(s);
+
+export const likePattern =(q) => `%${q.replace(/[\\%_]/g, (m) => "\\" + m)}%`;
 
 // Strednik, BOM UTF-8, CRLF (cesky Excel). Bunky zacinajici = + - @ dostanou apostrof
 // (ochrana proti vzorcum v Excelu); text s ; " nebo koncem radku jde do uvozovek.

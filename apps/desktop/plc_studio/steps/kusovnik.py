@@ -102,9 +102,10 @@ def render(app, parent) -> None:
         _changed(app)
 
     ttk.Button(bar, text=_("Obnovit výchozí volby"), command=reset).pack(side="left", padx=(6, 0))
-    ttk.Label(bar, text=_("{n} položek · {c} s objednacím kódem", n=len(lines),
-                          c=sum(1 for ln in lines if ln["orderCode"])),
-              style="Dim.TLabel").pack(side="left", padx=(14, 0))
+    # počet na vlastním řádku — vedle tlačítek se v úzkém okně uřízl („36“; forenzní test M1)
+    ttk.Label(body, text=_("{n} položek · {c} s objednacím kódem", n=len(lines),
+                           c=sum(1 for ln in lines if ln["orderCode"])),
+              style="Dim.TLabel").pack(anchor="w", pady=(0, 4), after=bar)
 
     # --- záložky: položky / dodavatelé ---------------------------------------------
     nb = ttk.Notebook(body)

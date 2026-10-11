@@ -71,14 +71,64 @@ def read_text_any(path: Path) -> str:
                 return raw.decode(enc)
             except UnicodeDecodeError:
                 break
+    # UTF-16 bez BOM (některé exporty): nulové bajty pravidelně na lichých / sudých pozicích
+    if len(raw) >= 4 and len(raw) % 2 == 0 and b"\x00" in raw[:200]:
+        odd, even = raw[1::2], raw[0::2]
+        for zeros, enc in ((odd, "utf-16-le"), (even, "utf-16-be")):
+            if zeros.count(0) >= len(zeros) * 0.9:
+                try:
+                    return raw.decode(enc)
+                except UnicodeDecodeError:
+                    break
     try:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         text = None
+        if b"\x00" not in raw and raw.lstrip()[:1] in (b"{", b"["):
+            # JSON uložený v kódování Windows (cp1250, Poznámkový blok „ANSI“) — přečíst ho
+            text = raw.decode("cp1250", errors="replace")
     if text is None or "\x00" in text:
         raise ValueError(_("soubor není textový projekt PLCdesk (JSON v kódování UTF-8 nebo UTF-16) — "
                            "nejde o obrázek nebo jiný binární soubor?"))
     return text
+
+
+def _bad_number(name: str):
+    raise ValueError(_("soubor obsahuje neplatné číslo {value} (JSON nepovoluje NaN ani nekonečno) — "
+                       "oprav hodnotu v souboru, třeba na 0.", value=name))
+
+
+def parse_json(text: str):
+    """JSON projektu: NaN / Infinity (Python je jinak přijme, jádro ne) = srozumitelná chyba."""
+    return json.loads(text, parse_constant=_bad_number)
+
+
+def check_target(path: str | Path) -> None:
+    """Cíl uložení: rezervované jméno zařízení Windows (NUL, CON, COM1…) = ``OSError`` — zápis do
+    něj „projde“ a nic se neuloží (forenzní test L3: „Projekt uložen: …\\NUL“)."""
+    from .datadir import reserved_part
+    bad = reserved_part(str(path))
+    if bad:
+        raise OSError(_("„{name}“ je ve Windows rezervované jméno zařízení — soubor s ním nejde uložit. "
+                        "Zvol jiné jméno.", name=bad))
+
+
+def signed_license(app):
+    """Správce licence s limitem Free jen z podepsaných / pevných údajů (forenzní test M6).
+
+    ``license.json`` není podepsaný — ruční ``"io_limit": 100000`` dřív zrušil limit Free. Uložená
+    hodnota proto limit jen zpřísní (``< FREE_IO_LIMIT``); tarif bere jádro jen z podepsaného
+    licenčního souboru (``remote`` ho umí jen snížit). Řešeno podtřídou tady, ať se ``license.py``
+    (sdílené úpravy textů licence) nemění."""
+    from . import license as licmod
+
+    class SignedLicense(licmod.License):
+        def io_limit(self) -> int:
+            v = self.store.get("io_limit")
+            free = licmod.FREE_IO_LIMIT
+            return v if isinstance(v, int) and not isinstance(v, bool) and 0 < v < free else free
+
+    return SignedLicense(app)
 
 
 class App:
@@ -112,8 +162,7 @@ class App:
         self.bridge.start_worker()               # druhý proces startuje na pozadí hned
 
         # licence (license.py): ověření uloženého licenčního souboru jádrem — síť až na pozadí
-        from .license import License
-        self.lic = License(self)
+        self.lic = signed_license(self)
 
         self.prj: dict = self.core("blankProject")
         self.ai: dict = new_ai()
@@ -125,12 +174,17 @@ class App:
             self._suggest_number()
 
         theme.setup_window(root, "PLCdesk", topmost=bool(self.settings.get("topmost")))
+        # rozměry okna v pixelech při 96 dpi; DPI-aware proces (theme.set_dpi_aware) je přepočítá
+        # podle škálování Windows, ale nikdy nad velikost obrazovky (notebook 1920×1080 při 150 %)
+        self.ui_scale = theme.scale(root)
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        default = f"{min(int(1240 * self.ui_scale), sw - 40)}x{min(int(820 * self.ui_scale), sh - 80)}"
         try:                                     # neplatná geometrie v settings.json nesmí shodit start
-            root.geometry(self.settings.get("geometry") or "1240x820")
+            root.geometry(self.settings.get("geometry") or default)
         except tk.TclError:
             self.settings.pop("geometry", None)
-            root.geometry("1240x820")
-        root.minsize(1100, 680)
+            root.geometry(default)
+        root.minsize(min(int(1100 * self.ui_scale), sw - 40), min(int(680 * self.ui_scale), sh - 80))
         theme.apply_styles(root)
         root.report_callback_exception = self._on_callback_error
         root.protocol("WM_DELETE_WINDOW", self.close)
@@ -332,6 +386,9 @@ class App:
         self._status_job = None
         self._build_chrome()
         self.render()
+        if getattr(self, "_update_info", None):           # upozornění na novou verzi v novém jazyce
+            from . import updates
+            updates.show_notice(self, self._update_info)
 
     def core(self, fn: str, *args):
         """Zavolá funkci jádra a vrátí výsledek."""
@@ -354,6 +411,9 @@ class App:
 
     def dev_by_id(self, dev_id) -> dict | None:
         return next((d for d in self.prj["devices"] if d["id"] == dev_id), None)
+
+    def dev_by_name(self, name: str) -> dict | None:
+        return next((d for d in self.prj["devices"] if d["name"] == name), None)
 
     # --- stav na disku -------------------------------------------------------------
 
@@ -427,7 +487,8 @@ class App:
 
         ``ValueError``, když se projekt použít nedá (pak zůstane původní)."""
         # model normalizuje jádro (project_norm.ts, stejné pravidlo jako web): vadné položky zahodí
-        self.prj = project.normalize(prj, lambda raw: self.core("normalizeProject", raw))
+        self.prj = project.normalize(prj, lambda raw: self.core("normalizeProject", raw),
+                                     lambda raw: self.bridge.request("biz.norm", raw=raw))
         # GUID objektů (export EPLAN podle nich páruje): starý projekt bez nich doplnit jádrem
         # a označit jako změněný (uložit) — export je nikdy negeneruje
         res = self.bridge.request("call", fn="ensureGuids", args=[self.prj])
@@ -484,7 +545,7 @@ class App:
             "návrh hned tlačítkem Uložit projekt… (Ctrl+S); varování zmizí, až se uložení znovu podaří.",
             path=self.home / "state.json", err=self._save_error))
         if not w.winfo_ismapped():
-            w.pack(fill="x", pady=(8, 0), before=self.view)
+            w.pack(fill="x", pady=(8, 0), before=getattr(self, "_page", self.view))
 
     def save_settings(self) -> None:
         self._write_json("settings.json", self.settings)
@@ -575,8 +636,12 @@ class App:
                                     command=lambda: self.goto(self.step - 1))
         self._prev_btn.pack(side="right", padx=(0, 6))
 
-        self.view = ttk.Frame(frm)
-        self.view.pack(fill="both", expand=True, pady=(12, 0))
+        # obsah kroku se při malém okně posouvá (M1: funkce pod okrajem okna nebyly dosažitelné)
+        from .widgets import PageArea
+        self._page = PageArea(frm)
+        self._page.pack(fill="both", expand=True, pady=(12, 0))
+        self._page_step = None
+        self.view = self._page.inner
         # varování „Projekt se neukládá!“ (balí se nad obsah kroku, jen když uložení stavu selže)
         self._save_warn = tk.Label(frm, text="", bg=theme.DANGER_BG, fg=theme.ERR, font=theme.FONT_ACCENT,
                                    justify="left", anchor="w", padx=10, pady=6, highlightthickness=1,
@@ -649,6 +714,17 @@ class App:
             r.bind_all(seq, fn)
         # Text má vlastní vazbu Ctrl+O (vloží nový řádek) — přebít, ať zkratka v poli nic nepřidá
         r.bind_class("Text", "<Control-o>", self._key_open)
+        # kolečko myši posouvá obsah kroku (PageArea) nad prvky, které nerolují samy
+        r.bind_all("<MouseWheel>", self._page_wheel, add="+")
+
+    def _page_wheel(self, event):
+        page = getattr(self, "_page", None)
+        if page is None or self._closing:
+            return None
+        try:
+            return page.wheel(event)
+        except tk.TclError:
+            return None
 
     def _key_ok(self, event) -> bool:
         """Zkratka platí jen v hlavním okně (ne v dialozích) a ne během zavírání."""
@@ -678,6 +754,8 @@ class App:
                 self.goto(self.step + delta)        # mimo rozsah goto nic neudělá
             elif delta < 0:
                 self.goto(self._last_step)          # z Nápovědy zpět do kroku
+            else:                                   # Alt+→ z Nápovědy: krok za posledním (L7)
+                self.goto(min(self._last_step + 1, len(STEPS) - 1))
         return "break"
 
     def _key_help(self, event=None):
@@ -904,6 +982,9 @@ class App:
 
         for child in self.view.winfo_children():
             child.destroy()
+        if self._page_step != self.step:          # jiný krok začíná nahoře; překreslení téhož polohu drží
+            self._page_step = self.step
+            self._page.reset()
         renderer = render_help if self.step == "help" else RENDERERS[self.step]
         self._license_banner()
         try:
@@ -1057,8 +1138,11 @@ class App:
 
     def _write_project_file(self, path: str | Path) -> bool:
         try:
+            check_target(path)
             Path(path).write_text(self.project_payload(), encoding="utf-8")
         except OSError as exc:
+            # stavový řádek nesmí dál hlásit předchozí „Projekt uložen“ (forenzní test L2)
+            self.set_status("⚠ " + _("Uložení se nezdařilo"), keep=True)
             messagebox.showerror(_("Uložení se nezdařilo"), str(exc), parent=self.root)
             return False
         self.settings["last_dir"] = str(Path(path).parent)
@@ -1097,9 +1181,27 @@ class App:
         if path and self.open_project(path):
             self._project_file = (self.prj.get("guid"), str(path))   # Ctrl+S pak ukládá sem
 
+    def open_external(self, path: str | Path | None) -> bool:
+        """Soubor z příkazové řádky / z druhého spuštění aplikace: okno dopředu, neprázdný návrh
+        se nejdřív zeptá (forenzní test M5 — dřív se bez dotazu přepsal), Ctrl+S pak míří do souboru."""
+        try:
+            self.root.deiconify()
+            self.root.lift()
+            self.root.focus_force()
+        except tk.TclError:
+            return False
+        if not path:
+            return False
+        if not self.confirm_replace(_("Otevřený projekt")):
+            return False
+        if self.open_project(path):
+            self._project_file = (self.prj.get("guid"), str(path))
+            return True
+        return False
+
     def open_project(self, path: str | Path) -> bool:
         try:
-            d = json.loads(read_text_any(Path(path)))
+            d = parse_json(read_text_any(Path(path)))
             if not isinstance(d, dict):
                 raise ValueError(_("soubor neobsahuje objekt návrhu"))
             old = (self.prj, self.ai)
@@ -1144,6 +1246,13 @@ class App:
 
     def close(self) -> None:
         self._commit_focused()            # před _closing: obsluha pole ještě smí volat jádro
+        wiz = getattr(self, "_import_wiz", None)
+        if wiz is not None:               # otevřený průvodce importem: vložený text uložit (M4)
+            try:
+                if wiz.win.winfo_exists():
+                    wiz.persist()
+            except Exception:  # noqa: BLE001 — zavření okna nesmí selhat
+                self._log(traceback.format_exc())
         self._closing = True              # pracovní proces ruší výpočty, okno už nic nedokreslí
         try:
             self.settings["geometry"] = self.root.geometry()

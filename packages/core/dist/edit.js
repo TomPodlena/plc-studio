@@ -12,11 +12,12 @@
  * - GUID a adresy (připnutí v sestavě hardwaru) se nemění; schválení se zneplatní samo otiskem.
  */
 import { tr, N_, withLang, LANGS } from "./i18n.js";
-import { PLAT, CLS, ACTS_FOR, DO_ROLES, devById, devSignals, syncIO, autoAddr, hasRange, maxRecord, validateProject, nextName, sanitizeTag, parseRecordsChecked, oneLine, lineSafe, canonIoAddr, MIN_STEP_S, REAL_MAX, } from "./model.js";
+import { PLAT, CLS, ACTS_FOR, DO_ROLES, devById, devSignals, syncIO, autoAddr, hasRange, maxRecord, validateProject, nextName, sanitizeTag, parseRecordsChecked, limitsRangeProblem, oneLine, lineSafe, canonIoAddr, MIN_STEP_S, REAL_MAX, } from "./model.js";
 import { axisCfgOf, parseAxisPositionsChecked } from "./axis.js";
 import { AXIS_FIELDS } from "./axis_gen.js";
 import { canonAddr } from "./importers.js";
 import { hwPlatform } from "./hardware.js";
+import { reservedNameProblem, deviceGeneratedNames, instName } from "./names.js";
 const fail = (error) => ({ ok: false, error });
 const NAME_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
 /** Kanonické adresy (Siemens notace) podle směru — stejně jako `validateProject`. */
@@ -74,6 +75,12 @@ export function deviceNameProblem(prj, name, skipId) {
     const other = prj.devices.find(d => d.id !== skipId && d.name.toUpperCase() === name.toUpperCase());
     if (other)
         return tr("Označení {name} už má zařízení {other} — označení musí být jedinečné (velká a malá písmena se nerozlišují).", { name, other: other.name });
+    /* jména odvozená z označení (instM1, seqRun_M1, manRun_M1…) nesmí kolidovat s tagem jiného signálu */
+    const derived = new Set(Object.keys(CLS).flatMap(cls => deviceGeneratedNames({ name, cls })).map(n => n.toUpperCase()));
+    const inst = instName({ name }).toUpperCase() + "_";
+    const hit = prj.io.find(e => (derived.has(e.tag.toUpperCase()) || e.tag.toUpperCase().startsWith(inst)));
+    if (hit)
+        return tr("S označením {name} by generovaný program deklaroval jméno, které už má tag {tag} — změň tag nebo zvol jiné označení.", { name, tag: hit.tag });
     return null;
 }
 /** Nahradí označení `from` za `to` jako samostatné slovo klíče („drv:M1:dir“, „io:M1.fbk“, „STO_M1“). */
@@ -213,7 +220,7 @@ export function setDeviceRange(prj, devId, range) {
         return fail(tr("Zařízení {dev} nemá rozsah ani jednotku.", { dev: d.name }));
     const rmin = range.rmin === undefined ? d.rmin : Number(range.rmin);
     const rmax = range.rmax === undefined ? d.rmax : Number(range.rmax);
-    const problem = rangeProblem(rmin, rmax);
+    const problem = rangeProblem(rmin, rmax) || (d.cls === "AnalogIn" ? limitsRangeProblem(d, rmin, rmax) : null);
     if (problem)
         return fail(problem);
     const before = clone(d);
@@ -226,21 +233,39 @@ export function setDeviceRange(prj, devId, range) {
 }
 /* ------------------------------------------------------------------ kroky sekvence */
 const NUM_FIELDS = ["sp", "rec", "pos", "vel", "acc", "dec"];
-/** Krok jen se známými poli (výdrž bez zařízení = dev 0, přechod časem). */
-function cleanStep(s) {
-    const dev = Number(s.dev) || 0;
+/**
+ * Pole kroku, která akce zařízení používá (ostatní se zahodí — `normalizeProject` by je jinak měnil
+ * mezi uložením a načtením; forenzní test 2026-10-10, N13). Bez známého zařízení = všechna pole.
+ */
+function stepFields(cls, act) {
+    if (!cls)
+        return [...NUM_FIELDS, "rev", "posRef"];
+    if (cls === "Vfd")
+        return act === "start" ? ["sp", "rev"] : [];
+    if (cls === "PropValve")
+        return ["sp"];
+    if (cls === "PosDrive")
+        return act === "posRecord" ? ["rec"] : [];
+    if (cls === "Axis")
+        return act === "waitInPos" ? [] : ["pos", "posRef", "vel", "acc", "dec"];
+    return [];
+}
+/** Krok jen se známými poli (výdrž bez zařízení = dev 0, přechod časem); pole podle akce a třídy zařízení. */
+function cleanStep(s, prj) {
+    const dev = s.act === "wait" ? 0 : Number(s.dev) || 0;
     const out = dev ? { dev, act: s.act, cond: s.cond === "time" ? "time" : "fbk", timeS: Number(s.timeS) }
         : { dev: 0, act: "wait", cond: "time", timeS: Number(s.timeS) };
     if (!dev)
         return out;
+    const keep = new Set(stepFields(prj ? devById(prj, dev)?.cls : undefined, out.act));
     for (const k of NUM_FIELDS)
-        if (s[k] !== undefined && s[k] !== null && s[k] !== "")
+        if (keep.has(k) && s[k] !== undefined && s[k] !== null && s[k] !== "")
             out[k] = Number(s[k]);
     if (out.rec !== undefined)
         out.rec = Math.round(out.rec);
-    if (s.rev)
+    if (s.rev && keep.has("rev"))
         out.rev = true;
-    if (s.posRef)
+    if (s.posRef && keep.has("posRef"))
         out.posRef = oneLine(s.posRef);
     return out;
 }
@@ -250,7 +275,7 @@ function cleanStep(s) {
  * Ostatní (rozsahy, limity os, platformy) hlásí kontrola návrhu.
  */
 export function stepProblem(prj, step) {
-    const s = cleanStep(step);
+    const s = cleanStep(step, prj);
     if (!(Number.isFinite(s.timeS) && s.timeS > 0 && s.timeS <= 86400))
         return tr("Čas kroku musí být kladné číslo sekund (nejvýš 86 400 s = 24 h).");
     if (s.timeS < MIN_STEP_S)
@@ -265,6 +290,9 @@ export function stepProblem(prj, step) {
         return tr("Akce „{act}“ neplatí pro zařízení {dev} ({cls}).", { act: s.act, dev: d.name, cls: tr(CLS[d.cls].label) });
     if (d.cls === "DI" && s.cond !== "fbk")
         return tr("Krok čekání na vstup má vždy přechod na zpětné hlášení (vstup); čas je hlídací.");
+    /* E-stop patří do uvolnění (enable) — čekání na něj by se v kódu a simulaci rozešlo (N4) */
+    if (d.cls === "DI" && prj.program.estop === d.id)
+        return tr("Krok nesmí čekat na vstup E-stopu {dev} — E-stop patří do uvolnění stroje, ne do sekvence.", { dev: d.name });
     if (d.cls === "PosDrive" && s.act === "posRecord" && !(Number.isInteger(s.rec) && s.rec >= 1 && s.rec <= maxRecord(d)))
         return tr("Číslo záznamu {dev} musí být 1 až {max} (záznam 0 = referenční poloha, jede se na ni akcí home).", { dev: d.name, max: maxRecord(d) });
     for (const k of NUM_FIELDS)
@@ -284,15 +312,21 @@ export function stepProblem(prj, step) {
     return null;
 }
 const stepWhere = (i) => new Set([tr("krok {n}", { n: i + 1 })]);
-/** Uloží změněný krok `index` (stejná kontrola jako při přidání). */
+/**
+ * Uloží změněný krok `index` (stejná kontrola jako při přidání). Krok s akcí (`act`) = celý nový krok
+ * (formuláře posílají jen vyplněná pole); bez akce = částečná změna sloučená s původním krokem
+ * (např. jen `{ timeS }` nebo `{ dev }` — akce zůstane a kontrola řekne, jestli ke zařízení patří).
+ */
 export function updateStep(prj, index, step) {
     const seq = prj.program.seq;
     if (!(Number.isInteger(index) && index >= 0 && index < seq.length))
         return fail(tr("Krok nenalezen."));
+    if (step && step.act === undefined)
+        step = { ...seq[index], ...step };
     const problem = stepProblem(prj, step);
     if (problem)
         return fail(problem);
-    seq[index] = cleanStep(step);
+    seq[index] = cleanStep(step, prj);
     return { ok: true, index, issues: issuesFor(prj, stepWhere(index)) };
 }
 /** Vloží krok za krok `afterIndex` (−1 = na začátek, za poslední / mimo = na konec). */
@@ -302,7 +336,7 @@ export function insertStep(prj, afterIndex, step) {
         return fail(problem);
     const seq = prj.program.seq;
     const at = Number.isInteger(afterIndex) && afterIndex >= -1 && afterIndex < seq.length ? afterIndex + 1 : seq.length;
-    seq.splice(at, 0, cleanStep(step));
+    seq.splice(at, 0, cleanStep(step, prj));
     return { ok: true, index: at, issues: issuesFor(prj, stepWhere(at)) };
 }
 /** Zkopíruje krok `index` hned za něj. */
@@ -320,7 +354,12 @@ export function setIoTag(prj, key, tag) {
     if (!e)
         return fail(tr("Signál nenalezen."));
     const d = devById(prj, e.devId);
-    e.tag = oneLine(tag) || defaultTag({ name: d ? d.name : "IO" }, e.sig);
+    const t = oneLine(tag) || defaultTag({ name: d ? d.name : "IO" }, e.sig);
+    /* klíčové slovo / standardní blok / operand PLC / jméno, které program deklaruje sám = kód se nepřeloží */
+    const rp = reservedNameProblem(prj, t);
+    if (rp)
+        return fail(rp);
+    e.tag = t;
     return { ok: true, value: e.tag, issues: issuesFor(prj, new Set([e.tag, e.tag.toUpperCase()])) };
 }
 /** Změní komentář signálu (prázdný = výchozí podle zařízení). */
@@ -441,6 +480,11 @@ export function deviceParamsProblem(d, p) {
     const lo = val("limLo"), hi = val("limHi");
     if (("limLo" in p || "limHi" in p) && lo !== undefined && hi !== undefined && lo >= hi)
         return tr("Mez min musí být menší než mez max.");
+    if (("limLo" in p || "limHi" in p) && d.cls === "AnalogIn") {
+        const lp = limitsRangeProblem({ limLo: lo, limHi: hi }, Number(d.rmin), Number(d.rmax));
+        if (lp)
+            return lp;
+    }
     const n = (k) => (isSet(p[k]) ? p[k] : undefined);
     const ramp = n("rampS"), tol = n("tol"), tolT = n("tolTimeS"), bits = n("selBits"), travel = n("travelS");
     if (ramp !== undefined && ramp < 0)
@@ -738,15 +782,27 @@ export function applyAiProposal(prj, pr) {
     prj.program.estop = es && es.cls === "DI" ? es.id : "";
     prj.program.interlocks = [...new Set((pr.interlocks || []).map(dev)
             .filter((d) => !!d && d.cls === "DI" && d.id !== prj.program.estop).map(d => d.id))];
-    prj.program.seq = (pr.seq || []).flatMap((s) => {
+    const dropped = [];
+    prj.program.seq = (pr.seq || []).flatMap((s, i) => {
         if (!s || typeof s !== "object")
             return [];
         const act = AI_ACTS.includes(s.act) ? s.act : "wait";
-        const wait = act === "waitOn" || act === "waitOff";
         const d = dev(s.dev);
-        const devId = act !== "wait" && d && (!wait || d.cls === "DI") ? d.id : 0;
-        if (act !== "wait" && !devId)
+        if (act !== "wait" && !d) {
+            dropped.push(tr("Krok {n} návrhu ({act}) odkazuje na neznámé zařízení {dev} — vynechán.", { n: i + 1, act, dev: oneLine(String(s.dev ?? "")) }));
             return [];
+        }
+        /* akce musí patřit třídě zařízení (start u analogu = prázdný krok; N6), čekání ne na E-stop (N4) */
+        if (d && act !== "wait" && !(ACTS_FOR[d.cls] || []).includes(act)) {
+            dropped.push(tr("Krok {n} návrhu: akce „{act}“ neplatí pro zařízení {dev} ({cls}) — vynechán.", { n: i + 1, act, dev: d.name, cls: tr(CLS[d.cls].label) }));
+            return [];
+        }
+        if (d && act !== "wait" && d.id === prj.program.estop) {
+            dropped.push(tr("Krok {n} návrhu čeká na vstup E-stopu {dev} — E-stop patří do uvolnění stroje, krok vynechán.", { n: i + 1, dev: d.name }));
+            return [];
+        }
+        const wait = act === "waitOn" || act === "waitOff";
+        const devId = act !== "wait" && d ? d.id : 0;
         const cond = wait ? "fbk" : act === "wait" ? "time" : s.cond === "time" ? "time" : "fbk";
         const st = { dev: devId, act, cond, timeS: finite(s.timeS) ? s.timeS : 1 };
         if (finite(s.sp))
@@ -760,9 +816,9 @@ export function applyAiProposal(prj, pr) {
         for (const f of ["pos", "vel", "acc", "dec"])
             if (finite(s[f]))
                 st[f] = s[f];
-        return [st];
+        return [cleanStep(st, prj)];
     });
     if (finite(pr.takt) && pr.takt > 0)
         prj.meta.takt = pr.takt;
-    return { ok: true, renamed, issues: validateProject(prj).filter(i => i.level === "error") };
+    return { ok: true, renamed, dropped, issues: validateProject(prj).filter(i => i.level === "error") };
 }

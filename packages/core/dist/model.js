@@ -5,6 +5,7 @@ import { axisCfgOf } from "./axis.js";
 import { axisSupport, axisDialect } from "./axis_gen.js";
 import { CDS_PROFILE_PLAT, cdsProfile } from "./codesys_profiles.js";
 import { coarsestRaw } from "./raw_max.js";
+import { instName, reservedNameProblem, generatedNames } from "./names.js";
 export const PLAT = {
     siemens: { name: "Siemens SIMATIC", ide: "TIA Portal V17–V21", cpu: "S7-1200 / S7-1500", lang: "SCL", imp: N_("externí zdroje .scl + SimaticML XML (Openness) + TSV tagů") },
     rockwell: { name: "Rockwell Allen-Bradley", ide: "Studio 5000", cpu: "CompactLogix / ControlLogix", lang: "ST", imp: N_("ST rutiny + CSV import tagů / L5X") },
@@ -344,7 +345,8 @@ export function nextName(prj, cls) {
         n++;
     return pre + n;
 }
-export function instName(d) { return "inst" + d.name; }
+/** Instance bloku zařízení (`instM1`) — names.ts. */
+export { instName };
 /** Vstupní signál digitálního zařízení (DI: „in", jinak první signál). */
 function diSignal(prj, d) {
     const io = ioOf(prj, d);
@@ -583,10 +585,29 @@ export function canonIoAddr(a) {
 export const MIN_STEP_S = 0.01;
 /** Největší konečná hodnota REAL (IEEE 754 single, IEC 61131-3) — větší literál překladač odmítne. */
 export const REAL_MAX = 3.4028234663852886e38;
-const RESERVED = new Set([
-    "IF", "THEN", "ELSE", "CASE", "OF", "FOR", "WHILE", "DO", "NOT", "AND", "OR", "XOR",
-    "TRUE", "FALSE", "VAR", "END_VAR", "BOOL", "INT", "REAL", "WORD", "TIME", "RETURN",
-]);
+/**
+ * Meze analogového vstupu musí ležet v měřicím rozsahu ⟨rmin, rmax⟩ — mez mimo rozsah buď nikdy
+ * nesepne, nebo drží stroj trvale v poruše (mez min nad maximem rozsahu; forenzní test 2026-10-10, N8).
+ * `null` = v pořádku (i když rozsah není platný — ten hlásí jiná kontrola).
+ */
+export function limitsRangeProblem(d, rmin, rmax) {
+    if (!(Number.isFinite(rmin) && Number.isFinite(rmax) && rmin < rmax))
+        return null;
+    for (const v of [d.limLo, d.limHi])
+        if (Number.isFinite(v) && (v < rmin || v > rmax))
+            return tr("Meze měření musí ležet v měřicím rozsahu {min}–{max} — mez {v} leží mimo (stroj by byl trvale v poruše nebo by mez nikdy nesepnula).", { min: rmin, max: rmax, v: v });
+    return null;
+}
+/**
+ * Kontroly návrhu z modulů, které model.ts importovat nemůže (cyklus importů) — přihlašují se při načtení
+ * modulu: sim.ts = odhad nákladů ověření simulací (`verifyCost`, forenzní test 2026-10-10 N1). Klienti
+ * načítají celé jádro (index.ts), takže jsou přihlášené vždy.
+ */
+const validationHooks = [];
+export function registerValidationHook(fn) {
+    if (!validationHooks.includes(fn))
+        validationHooks.push(fn);
+}
 export function validateProject(prj) {
     const out = [];
     const names = new Map();
@@ -631,6 +652,11 @@ export function validateProject(prj) {
             out.push({ level: "error", where: d.name, msg: tr("Doba odchylky proporcionálního ventilu musí být kladná a nejvýš 3 276,7 s (počítá se v taktech 0,1 s v proměnné INT).") });
         if (d.cls === "AnalogIn" && Number.isFinite(d.limLo) && Number.isFinite(d.limHi) && d.limLo >= d.limHi)
             out.push({ level: "error", where: d.name, msg: tr("Mez min musí být menší než mez max — jinak je měření stále v poruše.") });
+        else if (d.cls === "AnalogIn") {
+            const lp = limitsRangeProblem(d, d.rmin, d.rmax);
+            if (lp)
+                out.push({ level: "error", where: d.name, msg: lp });
+        }
         if (d.cls === "AnalogOut" && Number.isFinite(d.setpoint) && Number.isFinite(d.rmin) && Number.isFinite(d.rmax) && d.rmin < d.rmax
             && (d.setpoint < d.rmin || d.setpoint > d.rmax))
             out.push({ level: "warn", where: d.name, msg: tr("Žádaná hodnota leží mimo rozsah výstupu.") });
@@ -717,15 +743,37 @@ export function validateProject(prj) {
     for (const [i, s] of prj.program.seq.entries()) {
         const d = devById(prj, s.dev);
         const where = tr("krok {n}", { n: i + 1 });
-        const newAct = s.act === "home" || s.act === "posRecord" || isSpAct(s.act) || isAxisAct(s.act);
-        if (!d)
+        if (s.act === "wait")
             continue;
-        if ((newAct || isMotionClass(d.cls) || d.cls === "Axis") && !ACTS_FOR[d.cls].includes(s.act))
+        if (!d) {
+            out.push({ level: "error", where, msg: tr("Krok {n} odkazuje na zařízení, které v projektu není.", { n: i + 1 }) });
+            continue;
+        }
+        /* akce, která třídě nepatří (start u analogu, open u motoru — import / AI / přímé API), dává prázdný krok
+           a nesmyslnou dokumentaci (forenzní test 2026-10-10, N6) */
+        if (!(ACTS_FOR[d.cls] || []).includes(s.act))
             out.push({ level: "error", where, msg: tr("Akce „{act}“ neplatí pro zařízení {dev} ({cls}).", { act: s.act, dev: d.name, cls: tr(CLS[d.cls].label) }) });
         else if (d.cls === "PosDrive" && s.act === "posRecord" && !(Number.isInteger(s.rec) && s.rec >= 1 && s.rec <= maxRecord(d)))
             out.push({ level: "error", where, msg: tr("Číslo záznamu {dev} musí být 1 až {max} (záznam 0 = referenční poloha, jede se na ni akcí home).", { dev: d.name, max: maxRecord(d) }) });
         else if ((d.cls === "Vfd" && s.act === "start" || d.cls === "PropValve") && Number.isFinite(s.sp) && d.rmin < d.rmax && (s.sp < d.rmin || s.sp > d.rmax))
             out.push({ level: "warn", where, msg: tr("Žádaná hodnota kroku leží mimo rozsah {dev} ({min}–{max} {unit}).", { dev: d.name, min: d.rmin, max: d.rmax, unit: d.unit || "" }) });
+    }
+    /* E-stop: jen digitální vstup (enable = AND vstupů; jiná třída dá nedeklarovanou instanci / chybný typ — N5)
+       a sekvence na něj nesmí čekat (simulace a kód by se rozešly v klidové hodnotě na konci cyklu — N4) */
+    {
+        const es = prj.program.estop === "" || prj.program.estop === undefined ? undefined : devById(prj, prj.program.estop);
+        if (es && es.cls !== "DI")
+            out.push({ level: "error", where: es.name, msg: tr("E-stop {dev} musí být digitální vstup (DI) — je to {cls}.", { dev: es.name, cls: tr(CLS[es.cls].label) }) });
+        for (const id of prj.program.interlocks || []) {
+            const d = devById(prj, id);
+            if (d && d.cls !== "DI")
+                out.push({ level: "error", where: d.name, msg: tr("Blokovací vstup {dev} musí být digitální vstup (DI) — je to {cls}.", { dev: d.name, cls: tr(CLS[d.cls].label) }) });
+        }
+        if (es)
+            prj.program.seq.forEach((s, i) => {
+                if (isDiWait(s) && s.dev === es.id)
+                    out.push({ level: "error", where: tr("krok {n}", { n: i + 1 }), msg: tr("Krok {n} čeká na vstup E-stopu {dev} — E-stop patří do uvolnění, sekvence na něj čekat nesmí.", { n: i + 1, dev: es.name }) });
+            });
     }
     out.push(...axisIssues(prj));
     /* FX5 (GX Works3): TON bere PT jen 0–32 767 ms → delší čas kroku generátor píše časovačem
@@ -747,6 +795,7 @@ export function validateProject(prj) {
     const ADDR_RE = { DI: /^%I\d+\.[0-7]$/, DO: /^%Q\d+\.[0-7]$/, AI: /^%IW\d+$/, AO: /^%QW\d+$/ };
     const tags = new Map();
     const addrs = new Map();
+    let gen;
     /* adresní prostor (test odolnosti 2026-10-08): kanonická adresa je bajtová (Siemens notace) — nad 65 535
        ji žádná platforma nemá (převody na %IX / X-Y / index slova by daly nesmysl) = chyba; Siemens má obraz
        procesu S7-1200 1 024 B (I0.0–I1023.7), S7-1500 32 KB — nad tím varování (adresa mimo sestavu se respektuje) */
@@ -779,9 +828,11 @@ export function validateProject(prj) {
         if ((prj.platforms || []).includes("rockwell") && e.tag.length > 40) {
             out.push({ level: "error", where: e.tag, msg: tr("Tag je delší než 40 znaků — Rockwell Logix ho nepřijme.") });
         }
-        if (RESERVED.has(e.tag.toUpperCase())) {
-            out.push({ level: "error", where: e.tag, msg: tr("Tag koliduje s klíčovým slovem IEC 61131-3.") });
-        }
+        /* klíčová slova a standardní bloky všech dialektů, operandy GX Works3, jména, která program deklaruje
+           sám (enable, seqStep, instM1, MAIN…) — names.ts; forenzní test 2026-10-10 N2 */
+        const rp = /^[A-Za-z_][A-Za-z0-9_]*$/.test(e.tag) ? reservedNameProblem(prj, e.tag, gen ??= generatedNames(prj)) : null;
+        if (rp)
+            out.push({ level: "error", where: e.tag, msg: rp });
         if ((e.dir === "AI" || e.dir === "AO")) {
             const m = e.addr.match(/^%[IQ]W(\d+)$/);
             if (m && (+m[1]) % 2 === 1)
@@ -801,6 +852,8 @@ export function validateProject(prj) {
     const num = String(prj.meta?.number ?? "").trim();
     if (num && !PROJECT_NUMBER_RE.test(num))
         out.push({ level: "warn", where: num, msg: tr("Číslo projektu nemá tvar RRNNNN (6 číslic: rok a pořadí, např. 260705) — použije se tak, jak je zapsané.") });
+    for (const h of validationHooks)
+        out.push(...h(prj));
     return out;
 }
 /** Číslo projektu „RRNNNN“: 6 číslic (rok a pořadí v roce; jiné řady zadává uživatel ručně). */

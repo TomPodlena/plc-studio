@@ -10,6 +10,7 @@ from tkinter import ttk
 from ..detail import DevicePanel
 from ..i18n import _
 from ..svgview import SvgView
+from ..widgets import trace
 from ..widgets import Table, card, link, note_box, save_file, save_many, wrap_label
 
 TAB_BLOCK, TAB_FLOW, TAB_WIRING, TAB_TERMS = range(4)
@@ -255,7 +256,7 @@ def render(app, parent) -> None:
     def show_sheet_index(index: int) -> None:
         var_sheet.set(titles[max(0, min(index, len(titles) - 1))])
 
-    var_sheet.trace_add("write", show_sheet)
+    trace(var_sheet, show_sheet, view_sheet)
     show_sheet()
 
     # ------------------------------------------------------------ svorkovnice
@@ -284,7 +285,7 @@ def render(app, parent) -> None:
                      ("kanal", _("Kanál"), 60, False), ("addr", _("Adresa"), 90, False),
                      ("tag", _("Tag"), 200, True), ("wire", _("Vodič"), 70, False),
                      ("dev", _("Zařízení"), 70, False), ("cmt", _("Komentář"), 360, True)],
-                height=12, editable=("tag", "addr", "cmt"), on_edit=term_edit,
+                height=8, editable=("tag", "addr", "cmt"), on_edit=term_edit,
                 edit_value=lambda iid, key: terms[iid]["rawAddr"] if key == "addr" and iid in terms else None)
     tbl.pack(fill="both", expand=True)
     for r in rows:

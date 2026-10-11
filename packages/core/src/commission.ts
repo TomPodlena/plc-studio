@@ -16,7 +16,7 @@ import { seqCond, manVarOf } from "./codegen.js";
 import { stepTitle, stepCondText, stepWatchdog, T_MOTOR_FBK, T_VALVE_TRAVEL, T_POS_ACK, T_POS_MOVE, T_AXIS_POWER, type SimFault } from "./sim.js";
 import { axisCfgOf, axisObjName } from "./axis.js";
 import { tr, N_, today, formatDateTime } from "./i18n.js";
-import { hwAddrText } from "./hardware.js";
+import { hwAddrText, withFrozenHw } from "./hardware.js";
 import { contentHash, registerApprovalProvider, approvalStamp, verifyDesign, verifyDesignCached, isVerified, APPROVAL_FILE, type ApprovalItem, type ApprovalOptions,
   approvalSummary, approvalStatus, type ApprovalSummary } from "./approval.js";
 
@@ -147,6 +147,10 @@ function ioStep(prj: Project, e: IoEntry, role: { estop: boolean; lock: boolean 
  * nespouští — bez spočítaného ověření pak fáze 8 chybí a doby jsou „—“ (jen náhled, ne pro otisk).
  */
 export function commissioningPlan(prj: Project, opts: ApprovalOptions = {}): CommissioningStep[] {
+  /* plán projekt nemění — sestava hardwaru jednou na platformu (hwAddrText pro každý signál; dřív O(N²)) */
+  return withFrozenHw(() => commissioningPlanImpl(prj, opts));
+}
+function commissioningPlanImpl(prj: Project, opts: ApprovalOptions): CommissioningStep[] {
   const out: CommissioningStep[] = [];
   const add = (s: CommissioningStep) => out.push(s);
   const mods = modules(prj);

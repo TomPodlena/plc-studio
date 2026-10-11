@@ -17,6 +17,7 @@ from .. import theme
 from ..bridge import Pending
 from ..i18n import N_, _
 from ..svgview import SvgView
+from ..widgets import trace
 from ..widgets import Table, link, note_box, save_file, scrolled_text, set_text, wrap_label
 
 SPEEDS = {"0,5×": 0.5, "1×": 1.0, "2×": 2.0, "5×": 5.0, "10×": 10.0}
@@ -78,7 +79,7 @@ def build(app, parent) -> None:
     var_speed = tk.StringVar(value=ui.get("sim_speed", "2×"))
     ttk.Combobox(bar, textvariable=var_speed, values=list(SPEEDS), state="readonly", width=5
                  ).pack(side="left", padx=(6, 0))
-    var_speed.trace_add("write", lambda *_a: ui.__setitem__("sim_speed", var_speed.get()))
+    trace(var_speed, lambda *_a: ui.__setitem__("sim_speed", var_speed.get()), bar)
 
     # model stroje — ukládá se do projektu, takže platí i pro protokol v dokumentaci;
     # stojí v řádku s časovou osou (v liště scénáře se v užším okně nevejde)
@@ -517,7 +518,7 @@ def build(app, parent) -> None:
 
     b_play.configure(command=lambda: pause() if st["playing"] else play())
     scale.configure(command=lambda v: (pause(), seek(float(v))))
-    var_sc.trace_add("write", load)
+    trace(var_sc, load, scale)
     load()
     seek(st["run"]["tEnd"])                     # výchozí pohled = výsledek scénáře
 

@@ -4,6 +4,7 @@ s úpravou buněk, textové pole s posuvníky a ukládání souborů."""
 from __future__ import annotations
 
 import time
+import unicodedata
 from pathlib import Path
 
 import tkinter as tk
@@ -12,6 +13,27 @@ from tkinter import font as tkfont
 
 from . import theme
 from .i18n import N_, _
+
+
+def trace(var: tk.Variable, fn, owner: tk.Misc, mode: str = "write") -> str:
+    """``var.trace_add(mode, fn)``, které se odregistruje se zničením widgetu ``owner``.
+
+    Tcl drží příkaz trasy → uzávěr ``fn`` → proměnnou (a vše, co zachytil: data kroku, starý strom
+    widgetů), takže by se ``Variable.__del__`` nikdy nezavolal a každé překreslení kroku by nechalo
+    v paměti příkazy Tcl i objekty (forenzní test H3: Program +1,6 MB na překreslení). ``owner`` =
+    widget, který zaniká s krokem (pole, rámec kroku)."""
+    cbname = var.trace_add(mode, fn)
+
+    def drop(event) -> None:
+        if str(event.widget) != str(owner):    # <Destroy> chodí i z potomků přes bindtags
+            return
+        try:
+            var.trace_remove(mode, cbname)
+        except (tk.TclError, ValueError):
+            pass
+
+    owner.bind("<Destroy>", drop, add="+")
+    return cbname
 
 
 def card(parent, num: str, title: str, *, expand: bool = True) -> ttk.Frame:
@@ -81,6 +103,117 @@ def scroll_area(parent) -> tuple[ttk.Frame, ttk.Frame]:
     outer.bind_wheel = bind_wheel
     outer.canvas = canvas            # testy (posun výřezu)
     return outer, inner
+
+
+class PageArea(ttk.Frame):
+    """Obsah kroku, který se při malém okně posouvá (forenzní test M1: na 1100×680 i 1240×820 byly
+    funkce pod okrajem okna — Revize / Firemní knihovna, tlačítka úprav kroku, panel řádku kusovníku).
+
+    Vnitřek ``inner`` má výšku aspoň jako výřez (roztahovací prvky ho dál vyplní jako dřív), a když
+    jeho přirozená výška (``reqheight``) je větší, dostane ji celou a ukáže se svislý posuvník.
+    Kolečko myši posouvá stránku nad prvky, které samy nerolují (tabulky, texty, plátna rolují samy);
+    vazba je jedna na celou aplikaci (``bind_all``), takže platí i pro prvky vzniklé později."""
+
+    SELF_SCROLL = (tk.Text, ttk.Treeview, tk.Listbox, tk.Canvas, ttk.Combobox, ttk.Scrollbar, ttk.Scale,
+                   tk.Scale, ttk.Spinbox)
+
+    def __init__(self, parent) -> None:
+        super().__init__(parent)
+        self.canvas = tk.Canvas(self, bg=theme.BG, highlightthickness=0, borderwidth=0)
+        self.bar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.bar.set)
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.inner = ttk.Frame(self.canvas)
+        self._win = self.canvas.create_window(0, 0, window=self.inner, anchor="nw")
+        self._job = None
+        self._last = None
+        self._scroll = False
+        self.inner.bind("<Configure>", self._schedule, add="+")
+        self.canvas.bind("<Configure>", self._schedule, add="+")
+        # vnitřek má pevnou výšku od plátna — změna jeho požadované výšky (nový obsah, zalomení)
+        # pak <Configure> nevyvolá; proto i levná pravidelná kontrola
+        self._poll_job = self.after(300, self._poll)
+
+    def _poll(self) -> None:
+        try:
+            if not self.winfo_exists():
+                return
+            key = (self.inner.winfo_reqheight(), self.canvas.winfo_width(), self.canvas.winfo_height())
+            if key != self._last:
+                self.layout()
+            self._poll_job = self.after(300, self._poll)
+        except tk.TclError:
+            pass
+
+    def _schedule(self, _e=None) -> None:
+        if self._job is None:
+            self._job = self.after_idle(self.layout)
+
+    def layout(self) -> None:
+        self._job = None
+        if not self.canvas.winfo_exists():
+            return
+        w, have = self.canvas.winfo_width(), self.canvas.winfo_height()
+        if w <= 1 or have <= 1:
+            return
+        need = self.inner.winfo_reqheight()
+        scroll = need > have + 1
+        if scroll != self._scroll:
+            self._scroll = scroll
+            if scroll:
+                self.bar.pack(side="right", fill="y", before=self.canvas)
+            else:
+                self.bar.pack_forget()
+            # žádné update_idletasks tady: vnořené zpracování <Configure> se zacyklilo (RecursionError
+            # v obsluze událostí); nová šířka plátna přijde vlastní událostí <Configure> → _schedule
+        h = max(need, have)
+        self.canvas.itemconfigure(self._win, width=w, height=h)
+        self.canvas.configure(scrollregion=(0, 0, w, h))
+        self._last = (need, w, have)
+        if not scroll:
+            self.canvas.yview_moveto(0)
+
+    def top(self) -> None:
+        """Na začátek stránky (nový krok)."""
+        self.canvas.yview_moveto(0)
+
+    def reset(self) -> None:
+        """Před vykreslením jiného kroku: výška jako výřez, bez posuvníku — nový obsah se rozvrhne
+        do viditelné plochy (panel, který se posune k editoru, nesmí počítat se starou výškou)."""
+        have = self.canvas.winfo_height()
+        if self._scroll:
+            self._scroll = False
+            self.bar.pack_forget()
+        if have > 1:
+            self.canvas.itemconfigure(self._win, height=have)
+            self.canvas.configure(scrollregion=(0, 0, self.canvas.winfo_width(), have))
+        self._last = None
+        self.canvas.yview_moveto(0)
+
+    def can_scroll(self) -> bool:
+        return self._scroll
+
+    def wheel(self, event) -> str | None:
+        """Obsluha kolečka (``bind_all``): jen nad touto stránkou a mimo prvky, které rolují samy."""
+        w = event.widget
+        if not isinstance(w, tk.Misc) or not self.can_scroll():
+            return None
+        try:
+            if w.winfo_toplevel() is not self.winfo_toplevel():
+                return None
+        except (KeyError, tk.TclError):
+            return None
+        page = str(self.canvas)
+        path = str(w)
+        if not (path == page or path.startswith(page + ".")):
+            return None
+        x = w
+        while x is not None and x is not self.canvas:
+            if isinstance(x, self.SELF_SCROLL):
+                return None
+            x = x.master
+        self.canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
+        return None
 
 
 class FlowFrame(ttk.Frame):
@@ -278,6 +411,56 @@ def set_text(txt: tk.Text, content: str) -> None:
     txt.configure(state=state)
 
 
+# šířky znaků podle písma (popis písma → znak → px): sdílené všemi tabulkami, platí celý běh
+_CHAR_W: dict[tuple, dict[str, int]] = {}
+_WIDE = "\0wide"
+
+
+class Measure:
+    """Šířka textu v px jako součet šířek znaků (měří se jednou za běh na znak).
+
+    ``font.measure`` stojí u latinky ≈ 0,3–0,8 ms, u čínštiny ≈ 5–17 ms na volání (záložní písmo
+    Windows) — tabulka se zkracováním s „…“ měřila každou buňku binárním hledáním (≈ 6 volání), takže
+    krok s velkou tabulkou zamrzl v čínštině až na desítky sekund (forenzní test H4 / M7 / M2). Součet
+    šířek znaků se s ``measure`` shoduje (GDI bez kerningu, ověřeno na latince, češtině, němčině
+    i čínštině); znaky plné šířky (CJK) mají jednu společnou šířku."""
+
+    def __init__(self, font: tkfont.Font, spec) -> None:
+        self.font = font
+        self.cw = _CHAR_W.setdefault(tuple(spec) if isinstance(spec, (tuple, list)) else (str(spec),), {})
+
+    def char(self, c: str) -> int:
+        w = self.cw.get(c)
+        if w is None:
+            if unicodedata.east_asian_width(c) in "WF":
+                w = self.cw.get(_WIDE)
+                if w is None:
+                    w = self.cw[_WIDE] = self.font.measure("中")
+            else:
+                w = self.font.measure(c)
+            self.cw[c] = w
+        return w
+
+    def width(self, text: str) -> int:
+        char = self.char
+        return sum(char(c) for c in text)
+
+    def clip(self, text: str, room: int) -> str:
+        """Nejdelší začátek textu, který se s „…“ vejde do ``room`` px (celý text, když se vejde)."""
+        if not text or self.width(text) <= room:
+            return text
+        ell = self.char("…")
+        acc = solid = lo = 0
+        for i, c in enumerate(text):
+            acc += self.char(c)
+            if not c.isspace():
+                solid = acc                          # šířka začátku bez mezer na konci (rstrip)
+            if solid + ell > room:
+                break
+            lo = i + 1
+        return text[:lo].rstrip() + "…"
+
+
 class Table(ttk.Frame):
     """``Treeview`` s posuvníkem a volitelnou úpravou buněk dvojklikem.
 
@@ -317,9 +500,15 @@ class Table(ttk.Frame):
         # roztahovací dělí zbytek místa
         head_font = tkfont.Font(font=theme.FONT_DIM)
         self._cell_font = tkfont.Font(font=theme.FONT_UI)
+        self._m_cell = Measure(self._cell_font, theme.FONT_UI)
+        self._m_head = Measure(head_font, theme.FONT_DIM)
+        self._head_font = head_font
+        self._shown: dict[str, dict[str, str]] = {}    # iid → {sloupec: zobrazený (zkrácený) text}
+        self._colw: dict[str, int] | None = None       # šířky sloupců při posledním přepočtu
+        self._fit_w: tuple | None = None               # šířky, pro které platí zkrácení všech řádků
         self._fixed: dict[str, int] = {}
         for key, title, width, stretch in columns:
-            width = max(width, head_font.measure(title) + 20)
+            width = max(width, self._m_head.width(title) + 20)
             self.tv.heading(key, text=title, anchor="w")
             self.tv.column(key, width=width, minwidth=40, stretch=stretch, anchor="w")
             if not stretch:
@@ -352,22 +541,37 @@ class Table(ttk.Frame):
         self._cancel_edit()
         self._hide_tip()
         self._full.clear()
+        self._shown.clear()
         self.tv.delete(*self.tv.get_children())
+
+    def _widths(self) -> dict[str, int]:
+        """Šířky sloupců (Tk se ptá jen při přepočtu, ne u každé buňky)."""
+        if self._colw is None:
+            self._colw = {k: int(self.tv.column(k, "width")) for k in ("#0", *self._keys)}
+        return self._colw
 
     def add(self, iid, values, tags=(), parent: str = "", text: str = "", open_: bool = True):
         for key, value in zip(self._keys, values):
             if key in self._fixed and value not in ("", None):
-                need = min(self._cell_font.measure(str(value)) + 16, 320)
+                need = min(self._m_cell.width(str(value)) + 16, 320)
                 if need > self._fixed[key]:
                     self._fixed[key] = need
                     self.tv.column(key, width=need)
-        out = self.tv.insert(parent, "end", iid=str(iid), values=values, tags=tags,
-                             text=text, open=open_)
-        if self._ellipsis:
-            full = {k: "" if v is None else str(v) for k, v in zip(self._keys, values)}
-            full["#0"] = text
-            self._full[out] = full
-            self._fit_row(out)
+                    if self._colw is not None:
+                        self._colw[key] = need
+        if not self._ellipsis:
+            return self.tv.insert(parent, "end", iid=str(iid), values=values, tags=tags,
+                                  text=text, open=open_)
+        # zkrácený text se spočítá před vložením (jedno volání Tk na řádek, žádné čtení buněk zpět)
+        full = {k: "" if v is None else str(v) for k, v in zip(self._keys, values)}
+        full["#0"] = text
+        widths = self._widths()
+        depth = self._depth(parent) if text else 0
+        shown = {k: self._m_cell.clip(v, self._room_w(widths, k, depth)) for k, v in full.items()}
+        out = self.tv.insert(parent, "end", iid=str(iid), values=[shown.get(k, "") for k in self._keys],
+                             tags=tags, text=shown["#0"], open=open_)
+        self._full[out] = full
+        self._shown[out] = shown
         return out
 
     def full(self, iid, key: str) -> str:
@@ -392,69 +596,68 @@ class Table(ttk.Frame):
 
     def _clip(self, text: str, room: int) -> str:
         """Nejdelší začátek textu, který se s „…“ vejde do ``room`` px."""
-        f = self._cell_font
-        if not text or f.measure(text) <= room:
-            return text
-        lo, hi = 0, len(text)
-        while lo < hi:
-            mid = (lo + hi + 1) // 2
-            if f.measure(text[:mid].rstrip() + "…") <= room:
-                lo = mid
-            else:
-                hi = mid - 1
-        return text[:lo].rstrip() + "…"
+        return self._m_cell.clip(text, room)
 
-    def _room(self, iid: str, key: str) -> int:
-        width = int(self.tv.column(key, "width"))
-        if key != "#0":
-            return width - 12
-        depth, p = 0, self.tv.parent(iid)
+    def _depth(self, parent: str) -> int:
+        """Úroveň řádku pod rodičem ``parent`` ("" = kořen → 0)."""
+        depth, p = 0, parent
         while p:
             depth, p = depth + 1, self.tv.parent(p)
-        return width - 20 * (depth + 1) - 10          # odsazení úrovně + značka rozbalení
+        return depth
+
+    @staticmethod
+    def _room_w(widths: dict[str, int], key: str, depth: int) -> int:
+        if key != "#0":
+            return widths.get(key, 0) - 12
+        return widths.get("#0", 0) - 20 * (depth + 1) - 10      # odsazení úrovně + značka rozbalení
+
+    def _room(self, iid: str, key: str) -> int:
+        depth = self._depth(self.tv.parent(iid)) if key == "#0" else 0
+        return self._room_w(self._widths(), key, depth)
 
     def _fit_row(self, iid: str) -> None:
         full = self._full.get(iid)
         if not full or not self.tv.exists(iid):
             return
+        widths = self._widths()
+        depth = self._depth(self.tv.parent(iid)) if full.get("#0") else 0
+        old = self._shown.setdefault(iid, {})
         for key, text in full.items():
-            shown = self._clip(text, self._room(iid, key))
+            shown = self._m_cell.clip(text, self._room_w(widths, key, depth))
+            if old.get(key) == shown:
+                continue                               # beze změny — Tk se neptá ani nezapisuje
+            old[key] = shown
             if key == "#0":
-                if self.tv.item(iid, "text") != shown:
-                    self.tv.item(iid, text=shown)
-            elif self.tv.set(iid, key) != shown:
+                self.tv.item(iid, text=shown)
+            else:
                 self.tv.set(iid, key, shown)
 
     def fit(self) -> None:
-        """Přepočítá zkrácení všech řádků i nadpisů (po změně šířky sloupců)."""
+        """Přepočítá zkrácení všech řádků i nadpisů (po změně šířky sloupců). Beze změny šířek
+        sloupců se řádky nepřepočítávají (nové řádky se zkracují už při vložení)."""
         self._fit_job = None
         if not self.tv.winfo_exists():
             return
-        for iid in list(self._full):
-            self._fit_row(iid)
+        self._colw = None
+        widths = self._widths()
+        key = tuple(sorted(widths.items()))
+        if key != self._fit_w:
+            self._fit_w = key
+            for iid in list(self._full):
+                self._fit_row(iid)
         self._fit_heads()
 
     def _fit_heads(self) -> None:
         """Nadpisy sloupců také s „…“ (Treeview je jinak usekne uprostřed slova). Nadpis, který
         mezitím přepsal volající (šipka řazení), se bere jako nový celý text."""
-        f = tkfont.Font(font=theme.FONT_DIM)
+        widths = self._widths()
         for key in ("#0", *self._keys):
             cur = str(self.tv.heading(key, "text"))
             full = self._heads.get(key)
             if not (full and cur.endswith("…") and full.startswith(cur[:-1].rstrip())):
                 full = cur
             self._heads[key] = full
-            room = int(self.tv.column(key, "width")) - 14
-            shown = full
-            if full and f.measure(full) > room:
-                lo, hi = 0, len(full)
-                while lo < hi:
-                    mid = (lo + hi + 1) // 2
-                    if f.measure(full[:mid].rstrip() + "…") <= room:
-                        lo = mid
-                    else:
-                        hi = mid - 1
-                shown = full[:lo].rstrip() + "…"
+            shown = self._m_head.clip(full, widths.get(key, 0) - 14)
             if shown != cur:
                 self.tv.heading(key, text=shown)
 
@@ -666,6 +869,15 @@ def file_prefix(app) -> str:
         return ""
 
 
+def _save_failed(app, exc: OSError) -> None:
+    """Chyba zápisu: dialog a stavový řádek (ne předchozí „Uloženo…“ — forenzní test L2)."""
+    try:
+        app.set_status("⚠ " + _("Uložení se nezdařilo"), keep=True)
+    except (AttributeError, tk.TclError):
+        pass
+    messagebox.showerror(_("Uložení se nezdařilo"), str(exc), parent=app.root)
+
+
 def save_file(app, name: str, body: str, sub: str | None = None) -> bool:
     """Dialog „Uložit jako" pro jeden soubor; vrací, zda se uložilo.
 
@@ -690,9 +902,11 @@ def save_file(app, name: str, body: str, sub: str | None = None) -> bool:
     if not path:
         return False
     try:
+        from .app import check_target
+        check_target(path)
         write_text(path, body)
     except OSError as exc:
-        messagebox.showerror(_("Uložení se nezdařilo"), str(exc), parent=app.root)
+        _save_failed(app, exc)
         return False
     app.settings["last_dir"] = str(Path(path).parent)
     app.set_status(_("Uloženo: {path}", path=path))
@@ -738,10 +952,12 @@ def save_many(app, files: list[tuple[str, str]], what: str | None = None,
             + "\n" + _("Přepsat je?"), parent=app.root):
         return False
     try:
+        from .app import check_target
         for name, body in files:
+            check_target(target / name)
             write_text(target / name, body)
     except OSError as exc:
-        messagebox.showerror(_("Uložení se nezdařilo"), str(exc), parent=app.root)
+        _save_failed(app, exc)
         return False
     app.settings["last_dir"] = str(target)
     app.set_status(_("Uloženo {n} souborů do {target}", n=len(files), target=target))

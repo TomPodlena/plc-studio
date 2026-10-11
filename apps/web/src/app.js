@@ -8,7 +8,7 @@ import { makeApprovalStep, approvalBadge, setApproverSource } from "./approval_s
 import { makeBizSteps } from "./biz_steps.js";
 import { approverNames } from "./biz_view.js";
 import { makeCommissionStep } from "./commission_step.js";
-import { $, normProject, normAi, setProjectHeader, rememberNumber } from "./util.js";
+import { $, normProject, normAi, setProjectHeader, rememberNumber, saveBytesUngated } from "./util.js";
 import { initProjectDir, suggestNumberAsync } from "./project_dir.js";
 import { makeGenTabs } from "./gen_tabs.js";
 import { emuGate } from "./emu_step.js";
@@ -59,7 +59,10 @@ function showSaveWarn() {
   w.hidden = false;
   w.innerHTML = "<b>" + tr("Projekt se neukládá!") + "</b> " + tr("Úložiště prohlížeče je plné nebo zakázané, takže změny po zavření či obnovení stránky ztratíš. Ulož si návrh hned tlačítkem Export návrhu (JSON) v kroku Projekt. Místo uvolníš zmenšením projektu — nejvíc zabírají staré revize (odeber je z exportovaného JSON a načti ho znovu) — nebo smazáním dat této stránky v prohlížeči až po exportu.");
 }
-/** Načte uložený stav; vrací true, pokud nějaký byl (i prázdný projekt — ten se ukázkou nepřepisuje). */
+/** Poškozený uložený stav z tohoto spuštění: text ke stažení zálohy (i když se ho do úložiště uložit nepodařilo). */
+let corrupt = null;
+/** Načte uložený stav; vrací true, pokud nějaký byl (i prázdný projekt — ten se ukázkou nepřepisuje).
+    Poškozený stav = jako první návštěva (prázdný projekt s navrženým číslem) + hláška se zálohou (jako desktop). */
 function load() {
   let s = null;
   try { s = localStorage.getItem(LS_KEY); } catch { /* bez úložiště */ }
@@ -75,9 +78,21 @@ function load() {
        Záloha pod vlastním klíčem (jen jedna, nejnovější); bez místa aspoň do konzole. */
     console.warn("load: poškozený uložený stav, záloha v " + LS_KEY + ".corrupt", e);
     S.prj = blankProject(); S.ai = { turns: [], last: null, draft: "" }; S.step = 0;
-    try { localStorage.setItem(LS_KEY + ".corrupt", s); } catch { console.warn("load: zálohu nelze uložit", s.slice(0, 2000)); }
+    let kept = false;
+    try { localStorage.setItem(LS_KEY + ".corrupt", s); kept = true; } catch { console.warn("load: zálohu nelze uložit", s.slice(0, 2000)); }
+    corrupt = { text: s, kept };
+    const exc = String(e && e.message || e).slice(0, 200);
+    S.notice = { step: 0, level: "err", corrupt: true, title: tr("Rozpracovaný návrh nejde načíst"), text: kept
+      ? tr("Uložený stav aplikace je poškozený ({exc}) — začínám s prázdným návrhem. Původní data jsou zálohovaná v úložišti prohlížeče; stáhni si je tlačítkem Stáhnout zálohu.", { exc })
+      : tr("Uložený stav aplikace je poškozený ({exc}) — začínám s prázdným návrhem. Zálohu se do úložiště prohlížeče nepodařilo uložit — stáhni si ji hned tlačítkem Stáhnout zálohu, po zavření stránky se ztratí.", { exc }) };
+    return false;
   }
   return true;
+}
+/** Záloha poškozeného stavu ke stažení (vlastní data uživatele — mimo licenční bránu výstupů). */
+function corruptBackupText() {
+  if (corrupt) return corrupt.text;
+  try { return localStorage.getItem(LS_KEY + ".corrupt"); } catch { return null; }
 }
 
 /* ---------------------------------------------------------------- jazyk
@@ -120,7 +135,8 @@ const navLabel = (i, done) => (done ? "✔ " : "") + (i + 1) + " · " + tr(STEPS
 
 /* Průvodce importem stávajícího zařízení (modální okno nad kroky; vstup z kroku Projekt a Zařízení). */
 let wizard = null;
-const steps = makeSteps({ S, save, render, openImport: () => wizard && wizard.open() });
+/* refresh: hlavička po úpravě bez překreslení kroku (řádek kusovníku) — odznaky schválení a revize */
+const steps = makeSteps({ S, save, render, openImport: () => wizard && wizard.open(), refresh: () => { showBadge(); biz.updateBadge(); scheduleBadge(); } });
 wizard = makeImportWizard({ S, save, render });
 const sctx = { S, save, render, showBadge };
 const safety = makeSafetyStep(sctx), approval = makeApprovalStep(sctx), commission = makeCommissionStep(sctx);
@@ -226,8 +242,21 @@ function render() {
   if (S.notice && S.notice.step !== S.step) S.notice = null;
   if (S.notice) {
     const n = document.createElement("div");
-    n.className = "notice " + S.notice.level; n.id = "notice"; n.setAttribute("role", "status");
-    n.textContent = S.notice.text;
+    n.className = "notice " + S.notice.level; n.id = "notice"; n.setAttribute("role", S.notice.level === "err" ? "alert" : "status");
+    if (S.notice.title) { const b = document.createElement("b"); b.textContent = S.notice.title; n.append(b, " "); }
+    n.append(S.notice.text);
+    if (S.notice.corrupt) {
+      /* poškozený uložený stav: záloha ke stažení (opravený JSON jde načíst v kroku Projekt) */
+      const row = document.createElement("div");
+      row.className = "row"; row.style.margin = "8px 0 0";
+      row.innerHTML = "<button class='small primary' id='bCorruptDl'>" + esc(tr("Stáhnout zálohu")) + "</button><button class='small' id='bCorruptHide'>" + esc(tr("Skrýt")) + "</button>";
+      row.querySelector("#bCorruptDl").addEventListener("click", () => {
+        const t = corruptBackupText();
+        if (t != null) saveBytesUngated("plcstudio.state.corrupt.json", t, "application/json");
+      });
+      row.querySelector("#bCorruptHide").addEventListener("click", () => { S.notice = null; n.remove(); });
+      n.appendChild(row);
+    }
     $("view").appendChild(n);
   }
   /* licence: pás nad kroky s výstupy (Generovat, Dokumentace, Kusovník) — nad limitem Free výrazně */
@@ -269,8 +298,18 @@ function toast(text, err = false) {
 function commitFocused() {
   const el = document.activeElement;
   if (!el || !/^(INPUT|TEXTAREA)$/.test(el.tagName) || /^(checkbox|radio|button|file)$/.test(el.type)) return;
-  if (el.value !== el.defaultValue) el.dispatchEvent(new Event("change", { bubbles: true }));
+  if (el.value !== el.defaultValue) {
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    if (el.isConnected) el.defaultValue = el.value;   // stejná hodnota se podruhé neukládá (visibilitychange + pagehide)
+  }
 }
+/* Zavření / obnovení karty, přepnutí jinam (mobil: karta na pozadí může být bez varování zahozena):
+   rozepsané pole uložit jako při opuštění pole — handlery jsou synchronní a save() zapíše do localStorage
+   hned (desktop totéž při zavření okna). */
+const flushFocused = () => { try { commitFocused(); } catch (e) { console.warn("commitFocused:", e); } };
+addEventListener("pagehide", flushFocused);
+addEventListener("beforeunload", flushFocused);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushFocused(); });
 const modalOpen = () => [...document.querySelectorAll("[aria-modal='true']")].some(m => m.getClientRects().length > 0);
 function gotoStep(step) { commitFocused(); S.step = step; save(); render(); }
 document.addEventListener("keydown", async e => {
@@ -322,10 +361,10 @@ const guard = (label, p, ms = 4000) => {
 };
 await guard("license", () => initLicense({ project: () => S.prj, onChange: () => render() }));
 /* kořenový adresář projektů (project_dir.js): handle z IndexedDB a stav oprávnění — bez dotazu */
-await guard("projectDir", () => initProjectDir());
+await guard("projectDir", () => initProjectDir(), 1500);   // plné / vadné úložiště: IndexedDB se nemusí ozvat — start nečeká déle
 if (!load()) {   // první návštěva: prázdný projekt (žádná ukázka) s navrženým číslem projektu
   S.prj = blankProject();
-  const num = await guard("number", () => suggestNumberAsync());     // ze složek kořene, bez přístupu z historie prohlížeče
+  const num = await guard("number", () => suggestNumberAsync(), 1500);     // ze složek kořene, bez přístupu z historie prohlížeče
   if (num) S.prj.meta.number = num;
 }
 render();

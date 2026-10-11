@@ -59,7 +59,7 @@ export function aiInstructions(prj) {
     + langNote;
 }
 
-/** Akce kroku, které návrh smí použít (zbytek → výdrž). */
+/** Akce kroku, které návrh smí použít (krok s jinou se nepřevezme — notes "act"). */
 const AI_ACTS = ["start", "stop", "open", "close", "wait", "waitOn", "waitOff", "home", "posRecord", "setPressure", "setFlow", "moveAbs", "moveRel", "velocity", "halt", "waitInPos"];
 /** Třídy zařízení, které akce kroku ovládá / na které čeká. */
 const ACT_CLS = { start: ["Motor", "Vfd"], stop: ["Motor", "Vfd"], open: ["Ventil"], close: ["Ventil"], waitOn: ["DI"], waitOff: ["DI"],
@@ -70,16 +70,40 @@ const AXIS_KEYS = ["vMax", "aMax", "dMax", "jerk", "vDef", "limNeg", "limPos", "
 /** Číslo z odpovědi, nebo undefined (null / "" / nesmysl = nezadáno). */
 const optNum = v => (v === null || v === undefined || v === "" || typeof v === "boolean" || !Number.isFinite(Number(v))) ? undefined : Number(v);
 
+/** Druhy upozornění k návrhu (`notes` z aiNorm — co se nepřevezme nebo upraví; text aiNotesText). */
+const NOTE_KINDS = ["dup", "cls", "act", "actDev", "time", "estop", "lock"];
+/** Upozornění z dřívější normalizace (uložený návrh) v bezpečném tvaru: jen známé druhy a jednoduché hodnoty. */
+const keepNotes = a => (Array.isArray(a) ? a : []).filter(x => x && typeof x === "object" && NOTE_KINDS.includes(x.kind))
+  .map(x => Object.fromEntries(Object.entries(x).filter(([, v]) => typeof v === "string" || (typeof v === "number" && Number.isFinite(v)))
+    .map(([k, v]) => [k, typeof v === "string" ? v.slice(0, 200) : v])));
+
+/**
+ * Odpověď AI → návrh pro převzetí (jádro `applyAiProposal`, web i desktop).
+ * Nic se nezahazuje ani nemění potichu (forenzní test 2026-10-10, N3 / N4) — `notes` = co se stalo:
+ *  - duplicitní označení se PŘEDÁ dál (jádro mu při převzetí přidělí další volné a vrátí `renamed`), `dup`;
+ *  - zařízení neznámé třídy se nepřevezme (`devices` jen se třídami CLS — náhled desktopu i webu je
+ *    kreslí podle CLS), `cls`;
+ *  - krok s neznámou akcí se nepřevezme (dřív tichá výdrž 3 s), `act`; krok na neexistující zařízení
+ *    nebo zařízení jiné třídy, `actDev`;
+ *  - neplatný čas kroku (≤ 0, nečíslo) dostane výchozí (3 s, čekání na vstup 10 s), krok nese `timeBad: true`
+ *    a `time` s původní hodnotou — uživatel ho zkontroluje v kroku Program;
+ *  - E-stop / blokování, které není DI návrhu, `estop` / `lock`.
+ * `notes` je pole objektů { kind, … } (jen řetězce a čísla); opakovaná normalizace uloženého návrhu je zachová.
+ */
 export function aiNorm(r) {
-  const out = { questions: [], devices: [], estop: "", interlocks: [], seq: [], takt: null, note: "" };
+  const out = { questions: [], devices: [], estop: "", interlocks: [], seq: [], takt: null, note: "", notes: [] };
   if (!r || typeof r !== "object") return out;
+  const notes = keepNotes(r.notes);
   out.questions = Array.isArray(r.questions) ? r.questions.map(String).slice(0, 3) : [];
   const names = new Set();
-  out.devices = (Array.isArray(r.devices) ? r.devices : []).filter(d => d && typeof d.cls === "string" && Object.prototype.hasOwnProperty.call(CLS, d.cls)).filter(d => {
-    // duplicitní označení: platí první výskyt (druhý by dal duplicitní tagy)
+  const rawDevs = (Array.isArray(r.devices) ? r.devices : []).filter(d => d && typeof d === "object");
+  for (const d of rawDevs) if (!(typeof d.cls === "string" && Object.prototype.hasOwnProperty.call(CLS, d.cls)))
+    notes.push({ kind: "cls", name: String(d.name || "").trim().slice(0, 80), cls: String(d.cls ?? "").slice(0, 40) });
+  out.devices = rawDevs.filter(d => typeof d.cls === "string" && Object.prototype.hasOwnProperty.call(CLS, d.cls)).filter(d => {
+    /* duplicitní označení (i jen velikostí písmen): předat jádru — přejmenuje ho a ohlásí (renamed) */
     const n = String(d.name || "").trim();
-    if (n && names.has(n)) return false;
-    names.add(n); return true;
+    if (n && names.has(n.toLowerCase())) notes.push({ kind: "dup", name: n });
+    names.add(n.toLowerCase()); return true;
   }).map(d => {
     const nd = {
       name: String(d.name || "").trim(), cls: d.cls, desc: String(d.desc || "").trim(),
@@ -125,14 +149,26 @@ export function aiNorm(r) {
   const clsOf = n => (out.devices.find(d => d.name === n) || {}).cls;
   // E-stop a blokování jen na digitální vstup
   out.estop = clsOf(String(r.estop || "")) === "DI" ? String(r.estop) : "";
-  out.interlocks = [...new Set((Array.isArray(r.interlocks) ? r.interlocks : []).map(String))].filter(n => n && n !== out.estop && clsOf(n) === "DI");
-  out.seq = (Array.isArray(r.seq) ? r.seq : []).filter(s => s && typeof s === "object").map(s => {
-    const act = AI_ACTS.includes(s.act) ? s.act : "wait";
+  if (r.estop && !out.estop) notes.push({ kind: "estop", name: String(r.estop).slice(0, 80) });
+  const locks = [...new Set((Array.isArray(r.interlocks) ? r.interlocks : []).map(String))];
+  out.interlocks = locks.filter(n => n && n !== out.estop && clsOf(n) === "DI");
+  for (const n of locks) if (n && n !== out.estop && clsOf(n) !== "DI") notes.push({ kind: "lock", name: n.slice(0, 80) });
+  const timeNotes = [];
+  out.seq = (Array.isArray(r.seq) ? r.seq : []).filter(s => s && typeof s === "object").flatMap((s, k) => {
+    const n = k + 1, devName = String(s.dev || "").slice(0, 80);
+    /* neznámá akce: krok se nepřevezme (dřív se tiše změnil na výdrž 3 s) */
+    if (!AI_ACTS.includes(s.act)) { notes.push({ kind: "act", n, act: String(s.act ?? "").slice(0, 40), dev: devName }); return []; }
+    const act = s.act;
+    /* akce musí patřit třídě zařízení (výdrž zařízení nemá) */
+    if (act !== "wait" && !(ACT_CLS[act] || []).includes(clsOf(devName))) { notes.push({ kind: "actDev", n, act, dev: devName }); return []; }
     const wait = act === "waitOn" || act === "waitOff";   // čekání na DI: přechod vždy zpětné hlášení
-    return {
-      dev: act === "wait" ? "" : String(s.dev || ""), act,
+    const tOk = Number(s.timeS) > 0 && Number.isFinite(Number(s.timeS));
+    const o = {
+      dev: act === "wait" ? "" : devName, act,
       cond: wait ? "fbk" : act === "wait" || s.cond === "time" ? "time" : "fbk",
-      timeS: Number(s.timeS) > 0 ? Number(s.timeS) : (wait ? 10 : 3),
+      timeS: tOk ? Number(s.timeS) : (wait ? 10 : 3),
+      /* neplatný čas od AI: výchozí hodnota, ale označená — náhled a souhrn převzetí ji ukážou */
+      ...(!tOk || s.timeBad === true ? { timeBad: true } : {}),
       ...(optNum(s.sp) !== undefined ? { sp: optNum(s.sp) } : {}),
       ...(Number.isInteger(Number(s.rec)) && Number(s.rec) >= 1 ? { rec: Number(s.rec) } : {}),
       ...(s.rev === true ? { rev: true } : {}),
@@ -143,11 +179,33 @@ export function aiNorm(r) {
       ...(optNum(s.acc) > 0 ? { acc: optNum(s.acc) } : {}),
       ...(optNum(s.dec) > 0 ? { dec: optNum(s.dec) } : {}),
     };
-  }).filter(s => s.act === "wait" || (ACT_CLS[s.act] || []).includes(clsOf(s.dev)));   // akce musí patřit třídě zařízení
+    if (!tOk && s.timeBad !== true) timeNotes.push({ o, value: String(s.timeS ?? "").slice(0, 40) });
+    return [o];
+  });
+  /* čísla kroků podle převzaté sekvence (= náhled a krok Program) */
+  for (const t of timeNotes) notes.push({ kind: "time", n: out.seq.indexOf(t.o) + 1, value: t.value, t: t.o.timeS });
   const takt = optNum(r.takt);
   out.takt = takt !== undefined && takt > 0 ? takt : null;
   out.note = String(r.note || "");
+  const seen = new Set();
+  out.notes = notes.filter(x => { const k = JSON.stringify(x); if (seen.has(k)) return false; seen.add(k); return true; });
   return out;
+}
+
+/** Upozornění k návrhu AI (`aiNorm(…).notes`) jako věty pro uživatele — náhled návrhu i souhrn převzetí
+ *  (web; desktop je může získat přes most stejně jako aiNorm). */
+export function aiNotesText(notes) {
+  return (Array.isArray(notes) ? notes : []).map(x => {
+    if (x.kind === "dup") return tr("{name}: označení je v návrhu vícekrát — další výskyt dostane při převzetí volné označení.", { name: x.name });
+    if (x.kind === "cls") return tr("{name}: neznámá třída „{cls}“ — zařízení se nepřevezme.", { name: x.name || "?", cls: x.cls });
+    if (x.kind === "act") return tr("Krok {n} od AI: neznámá akce „{act}“ ({dev}) — krok se nepřevezme; doplň ho ručně v kroku Program.", { n: x.n, act: x.act, dev: x.dev || "—" });
+    if (x.kind === "actDev") return tr("Krok {n} od AI: akce „{act}“ nepatří k zařízení {dev} (v návrhu není nebo je jiné třídy) — krok se nepřevezme.", { n: x.n, act: x.act, dev: x.dev || "—" });
+    if (x.kind === "time" && !x.value) return tr("Krok {n}: čas od AI chybí — dosazeno {t} s, zkontroluj ho v kroku Program.", { n: x.n, t: x.t });
+    if (x.kind === "time") return tr("Krok {n}: neplatný čas od AI ({value}) — dosazeno {t} s, zkontroluj ho v kroku Program.", { n: x.n, value: x.value || "—", t: x.t });
+    if (x.kind === "estop") return tr("E-stop {name} není digitální vstup návrhu — nepřevezme se.", { name: x.name });
+    if (x.kind === "lock") return tr("Blokování {name} není digitální vstup návrhu — nepřevezme se.", { name: x.name });
+    return "";
+  }).filter(Boolean);
 }
 
 /* Známé modely s popiskem (shodně s desktopem ai_client.KNOWN_MODELS); dostupné pro klíč

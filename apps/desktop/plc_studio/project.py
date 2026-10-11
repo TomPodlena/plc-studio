@@ -29,7 +29,7 @@ def parse_num(text: str) -> float | None:
     return v if math.isfinite(v) else None
 
 
-def normalize(prj, core_normalize) -> dict:
+def normalize(prj, core_normalize, biz_norm=None) -> dict:
     """Vrátí úplný projekt; ``ValueError`` s popisem, když se soubor použít nedá.
 
     ``core_normalize(raw)`` = jádro ``normalizeProject`` přes most (vyhodí výjimku, když vstup
@@ -47,11 +47,11 @@ def normalize(prj, core_normalize) -> dict:
         out["safety"] = safety
     else:
         out.pop("safety", None)
-    normalize_biz(prj, out)
+    normalize_biz(prj, out, biz_norm)
     return out
 
 
-def normalize_biz(prj: dict, out: dict) -> None:
+def normalize_biz(prj: dict, out: dict, biz_norm=None) -> None:
     """Revize, volby nabídky a kopie firemní knihovny: jen v tvaru, se kterým jádro počítá
     (podrobná kontrola je v ``biz_view.js`` / jádře; tady jen, aby rozbitý soubor neshodil kroky)."""
     revs = prj.get("revisions")
@@ -70,11 +70,24 @@ def normalize_biz(prj: dict, out: dict) -> None:
             out.pop("revisions", None)
     else:
         out.pop("revisions", None)
-    if not isinstance(prj.get("quote"), dict):
-        out.pop("quote", None)
+    # nabídka a kopie knihovny: jádro normalizeProject je nepřenáší — převzít z načteného souboru
+    # (forenzní test H1: po restartu / Otevřít projekt se ztrácely); ``biz_norm`` = web normQuote /
+    # normLibrary přes most (operace ``biz.norm``), bez mostu (testy) jen kontrola tvaru
+    quote = prj.get("quote") if isinstance(prj.get("quote"), dict) else None
     lib = prj.get("library")
-    if not (isinstance(lib, dict) and lib.get("format") == "plcdesk-library"):
-        out.pop("library", None)
+    lib = lib if isinstance(lib, dict) and lib.get("format") == "plcdesk-library" else None
+    if biz_norm is not None and (quote is not None or lib is not None):
+        try:
+            res = biz_norm({"quote": quote, "library": lib}) or {}
+            quote = res.get("quote") if isinstance(res.get("quote"), dict) else None
+            lib = res.get("library") if isinstance(res.get("library"), dict) else None
+        except Exception:  # noqa: BLE001 — chyba mostu: ponechat tvarově platná data
+            pass
+    for key, val in (("quote", quote), ("library", lib)):
+        if val is not None:
+            out[key] = val
+        else:
+            out.pop(key, None)
 
 
 _SF_NUM = ("dcIn", "dcOut", "b10dIn", "b10dOut", "mttfdIn", "mttfdOut", "demandS", "tStopMs",

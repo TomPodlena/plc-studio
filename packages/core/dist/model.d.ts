@@ -12,6 +12,7 @@ import type { CompanyLibrary } from "./library.js";
 import { type HwModule } from "./hardware.js";
 import { type AxisCfg } from "./axis.js";
 import { type CdsProfileKey } from "./codesys_profiles.js";
+import { instName } from "./names.js";
 export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics" | "wago" | "delta" | CdsProfileKey;
 /** Styl generovaného kódu: klasické FB (výchozí) nebo OOP (rozhraní, dědičnost) — viz codegen_oop.ts. */
 export type CodeStyle = "classic" | "oop";
@@ -339,7 +340,8 @@ export declare function escHtml(s: unknown): string;
 export declare function blankProject(): Project;
 export declare function devById(prj: Project, id: number | ""): Device | undefined;
 export declare function nextName(prj: Project, cls: DeviceClass): string;
-export declare function instName(d: Device): string;
+/** Instance bloku zařízení (`instM1`) — names.ts. */
+export { instName };
 /** Výraz role výstupu (proměnné strojního bloku přes `L`); `hasSeq` = projekt má sekvenci. */
 export declare function roleExpr(role: DoRole, hasSeq: boolean, L: (v: string) => string): string;
 /** Blokovací zařízení programu: existující DI, bez E-stopu, bez duplicit, v pořadí projektu. */
@@ -408,6 +410,15 @@ export declare function canonIoAddr(a: string): string;
 export declare const MIN_STEP_S = 0.01;
 /** Největší konečná hodnota REAL (IEEE 754 single, IEC 61131-3) — větší literál překladač odmítne. */
 export declare const REAL_MAX = 3.4028234663852886e+38;
+/**
+ * Meze analogového vstupu musí ležet v měřicím rozsahu ⟨rmin, rmax⟩ — mez mimo rozsah buď nikdy
+ * nesepne, nebo drží stroj trvale v poruše (mez min nad maximem rozsahu; forenzní test 2026-10-10, N8).
+ * `null` = v pořádku (i když rozsah není platný — ten hlásí jiná kontrola).
+ */
+export declare function limitsRangeProblem(d: Pick<Device, "limLo" | "limHi"> & {
+    name?: string;
+}, rmin: number, rmax: number): string | null;
+export declare function registerValidationHook(fn: (prj: Project) => ValidationIssue[]): void;
 export declare function validateProject(prj: Project): ValidationIssue[];
 /** Číslo projektu „RRNNNN“: 6 číslic (rok a pořadí v roce; jiné řady zadává uživatel ručně). */
 export declare const PROJECT_NUMBER_RE: RegExp;

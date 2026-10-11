@@ -27,8 +27,11 @@ test("příklady v samples/: generování a ověření bez chyb", () => {
 });
 
 test("samples/index.json (Příklady strojů ve webu) odpovídá složce samples/", async () => {
-  const { indexText } = await import("./samples_index.mjs");
+  const { indexText, namesText } = await import("./samples_index.mjs");
   const { readFileSync } = await import("node:fs");
   assert.equal(readFileSync(join(here, "..", "samples", "index.json"), "utf8"), indexText(),
     "po změně příkladů spusť node scripts/samples_index.mjs");
+  /* názvy příkladů jako klíče překladu (popisek seznamu v jazyce UI) */
+  assert.equal(readFileSync(join(here, "..", "apps", "web", "src", "sample_names.js"), "utf8").replace(/\r\n/g, "\n"), namesText(),
+    "po změně příkladů spusť node scripts/samples_index.mjs (a přelož nové názvy: scripts/i18n.py missing)");
 });

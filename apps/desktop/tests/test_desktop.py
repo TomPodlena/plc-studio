@@ -707,17 +707,26 @@ class GuiTest(unittest.TestCase):
             self.assertEqual(after["io"], before["io"])
             self.assertEqual(after["program"], before["program"])
 
-    def test_delete_unused_device_without_dialog(self):
-        """Zařízení, které program nepoužívá, se smaže bez dotazu."""
+    def test_delete_unused_device_asks_and_drops_its_approval(self):
+        """Zařízení mimo program se smaže až po potvrzení (forenzní test M3 — Delete bez dotazu
+        a bez zpět) a jeho záznam schválení nezůstane jako sirotek."""
         self.app.reset_project()
         self.goto(3)
         self.click("Přidat zařízení")
         d = self.app.prj["devices"][0]
+        self.app.prj["approvals"] = {"dev:" + d["name"]: {"state": "approved", "by": "T", "at": "2026-10-10",
+                                                          "hash": "x"}}
         self.table().select(d["id"])
         with mock.patch("tkinter.messagebox.askyesno", return_value=False) as ask:
             self.click("Odstranit vybrané")
-        ask.assert_not_called()
+        ask.assert_called_once()
+        self.assertIn("schválení", ask.call_args[0][1])
+        self.assertEqual(len(self.app.prj["devices"]), 1)
+        self.table().select(d["id"])
+        with mock.patch("tkinter.messagebox.askyesno", return_value=True):
+            self.click("Odstranit vybrané")
         self.assertEqual(self.app.prj["devices"], [])
+        self.assertNotIn("dev:" + d["name"], self.app.prj.get("approvals") or {})
 
     def test_devices_add_edit_delete(self):
         self.app.reset_project()
@@ -1211,7 +1220,8 @@ class GuiTest(unittest.TestCase):
         self.root.update()
         view = self.find(SvgView)[0]
 
-        def wait(cond, seconds=8.0):
+        def wait(cond, seconds=30.0):
+            # 30 s: pod zátěží CPU (souběžné běhy) se čas simulace posouvá pomaleji — forenzní test L11
             deadline = time.time() + seconds
             while not cond() and time.time() < deadline:
                 self.root.update()
@@ -1625,7 +1635,10 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(seq_text(), "sekvence: klid")
 
         self.click("▶ START cyklu")
-        wait(lambda: seq_text().startswith("krok 3/5"))
+        # čekat na celý stav kroku 3 (ne jen na text kroku — vstupy přijdou se zpožděním modelu stroje
+        # a pod zátěží CPU se jinak test trefil mezi dva scany; forenzní test L11)
+        wait(lambda: seq_text().startswith("krok 3/5") and wire("Y1_outOpen") == WIRE_OUT
+             and wire("Y1_fbkOpen") == WIRE_IN and wire("M1_fbkRunning") == WIRE_IN)
         self.assertEqual(wire("Y1_outOpen"), WIRE_OUT, "výstup z PLC svítí zeleně")
         self.assertEqual(wire("Y1_fbkOpen"), WIRE_IN, "vstup do PLC svítí modře")
         self.assertEqual(wire("M1_fbkRunning"), WIRE_IN)
@@ -1687,7 +1700,13 @@ class GuiTest(unittest.TestCase):
         last = dict(seq[-1])
         self.click("↑ Nahoru")                              # nově přidaný krok je vybraný
         self.assertEqual(self.app.prj["program"]["seq"][-2], last)
-        self.click("× Odstranit")
+        with mock.patch("tkinter.messagebox.askyesno", return_value=False) as ask:
+            self.click("× Odstranit")                       # smazání kroku jen po potvrzení
+        ask.assert_called_once()
+        self.assertIn(f"krok {n}:", ask.call_args[0][1])                # číslo vybraného kroku
+        self.assertEqual(len(self.app.prj["program"]["seq"]), n + 1)
+        with mock.patch("tkinter.messagebox.askyesno", return_value=True):
+            self.click("× Odstranit")
         self.assertEqual(len(self.app.prj["program"]["seq"]), n)
         self.assertNotIn(last, self.app.prj["program"]["seq"][n - 1:n])
 

@@ -43,7 +43,7 @@ def render(app, parent) -> None:
     main.rowconfigure(0, weight=1)
 
     # --- seznam souborů po skupinách ---
-    lst = Table(main, [], height=14, tree=True)
+    lst = Table(main, [], height=8, tree=True)
     lst.tv.heading("#0", text=_("Soubory projektu"), anchor="w")
     lst.tv.column("#0", width=290, stretch=False)
     lst.grid(row=0, column=0, sticky="ns", padx=(0, 12))
@@ -61,7 +61,7 @@ def render(app, parent) -> None:
     name_lbl = ttk.Label(bar, text="", style="Dim.TLabel", font=("Consolas", 9))
     hint = ttk.Label(right, text=_("Náhled výkresu — uloží se jako DXF pro EPLAN / AutoCAD / "
                                    "LibreCAD."), style="Dim.TLabel")
-    text_frm, text = scrolled_text(right, mono=True, readonly=True, height=14)
+    text_frm, text = scrolled_text(right, mono=True, readonly=True, height=8)
     view = SvgView(right)
 
     def cur() -> dict:

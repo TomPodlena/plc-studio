@@ -86,6 +86,7 @@ npx wrangler@4 d1 create plcdesk          # vypíše database_id
 npx wrangler@4 d1 execute plcdesk --remote --file=schema.sql
 npx wrangler@4 d1 execute plcdesk --remote --file=schema_admin.sql   # správa zákazníků (viz níže)
 npx wrangler@4 d1 execute plcdesk --remote --file=schema_beta.sql    # přihlášky beta testerů (viz níže)
+npx wrangler@4 d1 execute plcdesk --remote --file=schema_ratelimit.sql   # limit pokusů z IP (viz níže)
 ```
 
 ### A3. Ochrana formuláře Turnstile — zdarma
@@ -211,16 +212,26 @@ Postup po krocích:
   Webhook na `https://<web>/api/stripe/webhook` s událostmi `checkout.session.completed`,
   `invoice.paid`, `invoice.payment_failed`, `customer.subscription.deleted`;
   `npx wrangler@4 secret put STRIPE_WEBHOOK_SECRET`; `PAYMENT_PROVIDER = "stripe"`.
+  Verze API webhooku: Worker čte předplatné faktury z `invoice.parent.subscription_details.subscription`
+  (API `2025-03-31.basil` a novější) i ze staršího `invoice.subscription`. Při zakládání endpointu
+  verzi zafixovat (Workbench → Webhooks → endpoint → *API version*) a při jejím povýšení nejdřív
+  projít changelog Stripe a `node test/api.test.js` (oddíl „forenz N2“).
 
   **Paddle:** v Paddle (nejdřív sandbox) založit produkty a měsíční ceny Pro a Firma → `pri_…`
   do `payments.paddle_price_pro` / `paddle_price_firma`, *client-side token* do
   `payments.paddle_client_token` (token `test_…` = sandbox). Web otevře Paddle checkout overlay
-  a předá `customData` s tarifem a jazykem. *Notification destination* na
+  a předá `customData` **jen s jazykem** — custom_data plní prohlížeč, takže tarif určuje Worker
+  podle zaplacené ceny (`data.items[].price.id`) a e-mail bere ze zákazníka v Paddle (API).
+  Mapování ceny → tarif: tytéž `payments.paddle_price_*` ze `site.json` (Worker je čte při nasazení),
+  nebo proměnné `PADDLE_PRICE_PRO` / `PADDLE_PRICE_FIRMA` ve `wrangler.toml` (víc cen čárkou, např.
+  měsíční a roční). Neznámá cena = licence se nevydá (chyba v logu, vyřešit ručně ve správě).
+  *Notification destination* na
   `https://<web>/api/paddle/webhook` s událostmi `transaction.completed`,
   `subscription.activated`, `subscription.past_due`, `subscription.canceled`; její *secret key*
   → `npx wrangler@4 secret put PADDLE_WEBHOOK_SECRET`. Paddle ve webhooku neposílá e-mail
   zákazníka, proto také `npx wrangler@4 secret put PADDLE_API_KEY` (API klíč s právem číst
-  zákazníky). `PAYMENT_PROVIDER = "paddle"`.
+  zákazníky) — **povinné**: bez API klíče nebo bez mapování cen webhook vrací 503 (Paddle
+  událost zopakuje po doplnění). `PAYMENT_PROVIDER = "paddle"`.
 
   Oba webhooky ověřují podpis (HMAC-SHA256, okno 5 minut), každou událost zpracují jen jednou
   (tabulka `payment_events`) a na jedno předplatné vydají nejvýš jednu licenci. Při změně
@@ -371,7 +382,32 @@ Po revizi: doplnit údaje, datum účinnosti a štítek z šablony `templates/le
 | `RESEND_API_KEY` | B2 | v režimu `resend` formulář hlásí chybu (nic se tiše nezahodí) |
 | `STRIPE_WEBHOOK_SECRET` | B4, Stripe | webhook nepřijme nic (503) |
 | `PADDLE_WEBHOOK_SECRET` | B4, Paddle | webhook nepřijme nic (503) |
-| `PADDLE_API_KEY` | B4, Paddle | licence se nevydá, když Paddle nepošle e-mail zákazníka (chyba v logu) |
+| `PADDLE_API_KEY` | B4, Paddle | webhook nepřijme nic (503) — e-mail zákazníka se bere jen z Paddle API |
 
 Lokálně (`npx wrangler@4 dev --local`) jdou do souboru `.dev.vars` (je v `.gitignore`), např.
 `DEV_MODE=1`. Vývojový režim se zapíná jen výslovně, nikdy chybějícím klíčem.
+
+---
+
+## Ochrana veřejného API (forenzní test 2026-10-10)
+
+- **Tělo požadavku:** `/api/lead`, `/api/unlock`, `/api/license/activate`, `/api/license/check` a `/api/beta`
+  přijímají jen JSON objekt (`Content-Type: application/json`) do 16 kB — jinak 415 / 413 / 400 (i tělo `null`).
+- **Limit pokusů z jedné IP** (IPv6 jako prefix /64, `worker/ratelimit.js`): formulář ke stažení 5 / h,
+  odemčení projektu 5 / h, aktivace + kontroly licence 30 / h dohromady, beta přihláška 5 / h (`beta_attempts`).
+  Nad limitem 429 s `Retry-After: 3600`. Neplatný vstup (špatný e-mail, chybějící klíč) se nepočítá.
+  Ve vývojovém režimu (`DEV_MODE`) vypnuté. Migrace (jednou, idempotentní; **před nasazením Workeru** s touto
+  změnou — bez tabulky se limit vypne a chyba jde do logu, licence a formuláře fungují dál):
+  ```bash
+  npx wrangler@4 d1 execute plcdesk --remote --file=schema_ratelimit.sql
+  ```
+- **Počet míst licence** hlídá jediný příkaz `INSERT … SELECT … WHERE (počet ostatních aktivních) < seats`,
+  souběžné aktivace ho nepřekročí. Otisk počítače nad 200 znaků se uloží jako `sha256:<hex>`.
+- **`/api/license/check`** vrací vedle stavu licence pole `device`: `active` / `revoked` (uvolněno ve správě) /
+  `unknown`. Aplikace (web i desktop) uvolněný počítač při kontrole sama znovu neaktivuje; ruční vložení klíče
+  ho aktivuje, je-li volné místo (rozhodnutí, zda to má vyžadovat zásah provozovatele, zatím otevřené).
+- **E-mail** z formulářů nesmí obsahovat mezery, `< > " ' ( ) ; , \`, řídicí znaky ani začínat `= + - @`.
+  Past na boty bere chybějící nebo nečíselný čas vyplnění jako bota.
+- **HSTS** je nyní `max-age=31536000` (workers.dev je v preload seznamu prohlížečů). Po přechodu na vlastní
+  doménu doplnit `includeSubDomains; preload` (Worker `json()` v `worker/index.js`, `_headers` v `scripts/build.js`)
+  a doménu přihlásit na <https://hstspreload.org> — až budou všechny subdomény na HTTPS (preload se špatně vrací).

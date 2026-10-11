@@ -393,7 +393,7 @@ function checkout(html, lang) {
       e.preventDefault();
       Paddle.Checkout.open({
         items: [{ priceId: a.dataset.paddlePrice, quantity: 1 }],
-        customData: { plan: a.dataset.plan, locale: ${JSON.stringify(lang)} },
+        customData: { locale: ${JSON.stringify(lang)} },
         settings: { locale: ${JSON.stringify(lang)} }
       });
     });
