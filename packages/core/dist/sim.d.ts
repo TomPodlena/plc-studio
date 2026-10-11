@@ -414,8 +414,12 @@ export declare function lostFaultIo(prj: Project, d: Device): IoEntry | undefine
 export declare function seqEstimate(prj: Project, motorDelay: number, valveTravel: number): number;
 /** Nejdelší odhad cyklu [s], který ověření simulací ještě pustí (simuluje se po scanech 10 ms). */
 export declare const SIM_MAX_CYCLE_S: number;
-/** Nejvyšší odhad doby výpočtu ověření simulací [s] (verifyCost) — nad ním ověření neběží („neověřeno“). */
-export declare const VERIFY_MAX_COST_S = 75;
+/** Odhad doby výpočtu ověření [s] (verifyCost), od kterého validace upozorní na dlouhý běh — ověření ale proběhne
+    (na pozadí se Zrušit; rozhodnutí uživatele 2026-10-11: „upozornění na dlouhý čas a běh třeba hodinu je lepší než
+    vynechání kontroly“). */
+export declare const VERIFY_WARN_COST_S = 75;
+/** Pojistka [s]: nad tímto odhadem (2 h) ověření neběží („neověřeno“) — jen zjevně nesmyslné zadání. */
+export declare const VERIFY_MAX_COST_S = 7200;
 /**
  * Odhad nákladů ověření simulací (verifyProject / dokumentace / emulace běhu): simulovaný čas všech běhů
  * a doba výpočtu na referenční stanici. Počítá běžný cyklus (simuluje se několikrát: scénáře, druhý cyklus,

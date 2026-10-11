@@ -470,16 +470,25 @@ test("odolnost desktop F: revize s poškozeným zmrazeným obsahem — dokumenta
 /* ======================================================================================
  * forenz2: forenzní test jádra, kolo 2 (2026-10-10) — nálezy N1–N13 (apps/site/_shots/forenz2/core/ZPRAVA.md)
  * ====================================================================================== */
-test("forenz2 N1: ověření s odhadem výpočtu nad limitem neběží (neověřeno), validace to řekne, E-stop čekání blokuje", async () => {
+test("forenz2 N1: dlouhé ověření jen upozorní a proběhne, nad pojistkou 2 h neběží (neověřeno), E-stop čekání blokuje", async () => {
     setLang("cs");
-    const { verifyProject, simBlockers, verifyCost, VERIFY_MAX_COST_S } = await import("./sim.js");
+    const { verifyProject, simBlockers, verifyCost, VERIFY_WARN_COST_S, VERIFY_MAX_COST_S } = await import("./sim.js");
     const { emulateRun } = await import("./emu/index.js");
     const p = sampleSmall();
     assert.ok(verifyCost(p).seconds < 5 && !simBlockers(p).length);
     for (const s of p.program.seq)
         if (s.cond === "fbk")
             s.timeS = 80000; // hlídací časy 22 h: zamrzlé hlášení čeká celý čas
-    assert.ok(verifyCost(p).seconds > VERIFY_MAX_COST_S);
+    /* rozhodnutí uživatele 2026-10-11: dlouhý běh s upozorněním je lepší než vynechaná kontrola */
+    const c = verifyCost(p).seconds;
+    assert.ok(c > VERIFY_WARN_COST_S && c <= VERIFY_MAX_COST_S, "odhad " + c);
+    assert.deepEqual(simBlockers(p), []);
+    assert.ok(validateProject(p).some(i => i.level === "warn" && /Ověření simulací potrvá odhadem/.test(i.msg)));
+    /* pojistka: stejné kroky 40× za sebou → odhad nad 2 h */
+    const base = p.program.seq.slice();
+    for (let k = 0; k < 40; k++)
+        p.program.seq.push(...base.map(s => ({ ...s })));
+    assert.ok(verifyCost(p).seconds > VERIFY_MAX_COST_S, "odhad " + verifyCost(p).seconds);
     assert.ok(simBlockers(p).some(b => /odhad výpočtu ověření/.test(b)));
     assert.ok(validateProject(p).some(i => i.level === "warn" && /Ověření simulací by trvalo/.test(i.msg)));
     const t0 = Date.now();

@@ -638,8 +638,11 @@ python scripts/build_verification.py        # data/verification.json → verific
   E-stop (i `stepProblem`), akce musí patřit třídě (každý krok; `applyAiProposal` nepatřičné kroky vynechá do
   `dropped`), meze AnalogIn v ⟨rmin, rmax⟩ (`limitsRangeProblem`). Šablona knihovny projde parserem emulátoru
   (syntaktická chyba = error a vestavěný blok). **Náklady ověření:** `verifyCost` (simulovaný čas všech scénářů ×
-  cena scanu; kalibrace na vzorech, konzervativní) — nad `VERIFY_MAX_COST_S` (75 s) je to `simBlockers` (neověřeno)
-  a varování validace (`registerValidationHook` — model.ts sim.ts importovat nemůže). Kontrolní body sdílejí záznam
+  cena scanu; kalibrace na vzorech, konzervativní) — nad `VERIFY_WARN_COST_S` (75 s) jen varování validace s odhadem
+  v minutách a ověření **proběhne** (na pozadí se Zrušit; rozhodnutí uživatele 2026-10-11: dlouhý běh, klidně hodina,
+  je lepší než vynechaná kontrola), pojistka `VERIFY_MAX_COST_S` (2 h) = `simBlockers` (neověřeno) jen u zjevně
+  nesmyslného zadání (`registerValidationHook` — model.ts sim.ts importovat nemůže). Web bez Workeru (file://, CSP)
+  počítá synchronně — dlouhé ověření tam stránku zablokuje. Kontrolní body sdílejí záznam
   se zdrojem (`clone(true)`) a zpět v čase navazují z nejbližšího dřívějšího bodu. Krok: `cleanStep` nechá jen pole
   akce (Vfd start sp/rev, PropValve sp, posRecord rec, osa pos/posRef/vel/acc/dec), `updateStep` bez `act` = částečná
   změna. `withFrozenHw(fn)` (hardware.ts) = dávka bez změn projektu, sestava bez přepočtu podpisu (plán oživení).

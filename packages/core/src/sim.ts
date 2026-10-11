@@ -1251,8 +1251,12 @@ export function seqEstimate(prj: Project, motorDelay: number, valveTravel: numbe
 
 /** Nejdelší odhad cyklu [s], který ověření simulací ještě pustí (simuluje se po scanech 10 ms). */
 export const SIM_MAX_CYCLE_S = 2 * 86400;
-/** Nejvyšší odhad doby výpočtu ověření simulací [s] (verifyCost) — nad ním ověření neběží („neověřeno“). */
-export const VERIFY_MAX_COST_S = 75;
+/** Odhad doby výpočtu ověření [s] (verifyCost), od kterého validace upozorní na dlouhý běh — ověření ale proběhne
+    (na pozadí se Zrušit; rozhodnutí uživatele 2026-10-11: „upozornění na dlouhý čas a běh třeba hodinu je lepší než
+    vynechání kontroly“). */
+export const VERIFY_WARN_COST_S = 75;
+/** Pojistka [s]: nad tímto odhadem (2 h) ověření neběží („neověřeno“) — jen zjevně nesmyslné zadání. */
+export const VERIFY_MAX_COST_S = 7200;
 
 /**
  * Odhad nákladů ověření simulací (verifyProject / dokumentace / emulace běhu): simulovaný čas všech běhů
@@ -1325,7 +1329,9 @@ registerValidationHook((prj: Project): ValidationIssue[] => {
   const est = seqEstimate(prj, prj.sim?.motorDelay ?? 0.5, prj.sim?.valveTravel ?? 1.0);
   if (!(est <= SIM_MAX_CYCLE_S)) return [{ level: "warn", where: tr("ověření simulací"), msg: tr("Odhad cyklu {t} s je delší než 48 h — ověření simulací, dokumentace s ověřením a emulace běhu neproběhnou. Zkrať časy kroků.", { t: Math.round(est) }) }];
   const c = verifyCost(prj);
-  if (c.seconds <= VERIFY_MAX_COST_S) return [];
+  if (c.seconds <= VERIFY_WARN_COST_S) return [];
+  if (c.seconds <= VERIFY_MAX_COST_S)
+    return [{ level: "warn", where: tr("ověření simulací"), msg: tr("Ověření simulací potrvá odhadem {min} min (simulovaný čas {h} h) — poběží na pozadí a lze ho zrušit. Zkrácením hlídacích časů a výdrží kroků se zrychlí.", { min: Math.max(2, Math.round(c.seconds / 60)), h: Math.round(c.simS / 360) / 10 }) }];
   return [{ level: "warn", where: tr("ověření simulací"), msg: tr("Ověření simulací by trvalo odhadem {t} s (limit {max} s, simulovaný čas {h} h) — neproběhne a výstupy zůstanou neověřené. Zkrať hlídací časy a výdrže kroků, nebo rozděl projekt.", { t: Math.round(c.seconds), max: VERIFY_MAX_COST_S, h: Math.round(c.simS / 360) / 10 }) }];
 });
 

@@ -2602,6 +2602,7 @@ const d: Record<string, string> = {
   "Ověření simulací bez chyb s reálnými časy.": "使用实际时间的仿真验证无错误。",
   "Ověření simulací by trvalo odhadem {t} s (limit {max} s, simulovaný čas {h} h) — neproběhne a výstupy zůstanou neověřené. Zkrať hlídací časy a výdrže kroků, nebo rozděl projekt.": "仿真验证估计需要 {t} s（上限 {max} s，仿真时间 {h} h）— 将不会执行，输出保持未验证。请缩短步骤的监视时间和停留时间，或拆分项目。",
   "Ověření simulací neproběhlo — zadání by simulaci prodloužilo na hodiny až dny: {list}. Oprav je (kontrola návrhu je hlásí jako chyby) a ověření se spustí samo.": "未进行仿真验证 — 输入会使仿真延长到数小时甚至数天：{list}。请修正（设计检查将其报告为错误），验证将自动开始。",
+  "Ověření simulací potrvá odhadem {min} min (simulovaný čas {h} h) — poběží na pozadí a lze ho zrušit. Zkrácením hlídacích časů a výdrží kroků se zrychlí.": "仿真验证预计需要约 {min} 分钟（仿真时间 {h} 小时）——在后台运行，可随时取消。缩短步骤的监控时间和停留时间可加快验证。",
   "Ověřit": "检查",
   "Ověřit S = 1600·T + 1200 a rozměr rohože.": "验证 S = 1600·T + 1200 及地垫尺寸。",
   "Ověřit aktuální seznam harmonizovaných norem v Úředním věstníku EU.": "请在欧盟官方公报中核实现行协调标准清单。",

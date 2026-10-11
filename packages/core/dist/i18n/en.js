@@ -2602,6 +2602,7 @@ const d = {
     "Ověření simulací bez chyb s reálnými časy.": "Simulation verification without errors using the real times.",
     "Ověření simulací by trvalo odhadem {t} s (limit {max} s, simulovaný čas {h} h) — neproběhne a výstupy zůstanou neověřené. Zkrať hlídací časy a výdrže kroků, nebo rozděl projekt.": "Simulation verification would take an estimated {t} s (limit {max} s, simulated time {h} h) — it will not run and the outputs remain unverified. Shorten watchdog and dwell times of steps, or split the project.",
     "Ověření simulací neproběhlo — zadání by simulaci prodloužilo na hodiny až dny: {list}. Oprav je (kontrola návrhu je hlásí jako chyby) a ověření se spustí samo.": "Verification by simulation did not run — the input would stretch the simulation to hours or days: {list}. Fix them (the design check reports them as errors) and verification will start automatically.",
+    "Ověření simulací potrvá odhadem {min} min (simulovaný čas {h} h) — poběží na pozadí a lze ho zrušit. Zkrácením hlídacích časů a výdrží kroků se zrychlí.": "Simulation verification will take about {min} min (simulated time {h} h) — it runs in the background and can be cancelled. Shorter watchdog times and step dwell times make it faster.",
     "Ověřit": "Check",
     "Ověřit S = 1600·T + 1200 a rozměr rohože.": "Verify S = 1600·T + 1200 and the mat size.",
     "Ověřit aktuální seznam harmonizovaných norem v Úředním věstníku EU.": "Check the current list of harmonised standards in the Official Journal of the EU.",
