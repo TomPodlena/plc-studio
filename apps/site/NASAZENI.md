@@ -87,6 +87,7 @@ npx wrangler@4 d1 execute plcdesk --remote --file=schema.sql
 npx wrangler@4 d1 execute plcdesk --remote --file=schema_admin.sql   # správa zákazníků (viz níže)
 npx wrangler@4 d1 execute plcdesk --remote --file=schema_beta.sql    # přihlášky beta testerů (viz níže)
 npx wrangler@4 d1 execute plcdesk --remote --file=schema_ratelimit.sql   # limit pokusů z IP (viz níže)
+npx wrangler@4 d1 execute plcdesk --remote --file=schema_feedback.sql    # zpětná vazba z aplikace (viz níže)
 ```
 
 ### A3. Ochrana formuláře Turnstile — zdarma
@@ -284,6 +285,34 @@ Novou licenci s předvyplněným e-mailem a poznámkou — nic se nevystaví ani
 vyplnil a odkaz na přihlášku — e-mail ani jméno do kanbanu nejdou). Převzetí protokolu testera:
 `docs/verification/POSTUP_BETA.md`.
 
+### Zpětná vazba z aplikace (záložka Zpětná vazba)
+Tlačítko **Zpětná vazba** v hlavičce webové aplikace i desktopu posílá `POST /api/feedback` (`worker/feedback.js`):
+typ (chyba / námět / dotaz), text (max. 5000 znaků), volitelně e-mail pro odpověď (bez něj anonymně), kontext
+(verze, web / desktop, jazyk, krok, OS či prohlížeč stručně, tarif — nikdy licenční klíč ani otisk počítače)
+a jen na výslovné zaškrtnutí přiložený projekt (max. 512 kB, uloží se do D1 — R2 není). Ochrana místo Turnstile
+(desktop ho neumí): JSON do ~600 kB, hlavička `X-PLCdesk-Client: web|desktop` shodná s polem `client`, past na
+boty (skryté pole `web`), validace na serveru, nejvýš 10 zpráv z jedné IP za hodinu (`rate_attempts`, bucket
+`feedback`). **CORS jen pro tento endpoint** (`Access-Control-Allow-Origin: *` bez credentials, preflight
+`OPTIONS`, jen POST s `Content-Type` a `X-PLCdesk-Client`) — webová aplikace může běžet z jiného originu.
+Upozornění provozovateli jde přes `email.js` na `MAIL_OWNER` (volitelná proměnná), jinak `BETA_NOTIFY_TO`,
+jinak `MAIL_REPLY_TO` — jen typ, krok, verze a odkaz do správy, bez textu a e-mailu; při `MAIL_MODE = "direct"`
+se nic neposílá, selhání pošty zprávu neztratí.
+
+Migrace (jednou, před nasazením Workeru se zpětnou vazbou; idempotentní):
+```bash
+npx wrangler@4 d1 execute plcdesk --remote --file=schema_feedback.sql
+```
+Zakládá tabulku `feedback`. Bez ní endpoint i záložka končí chybou 500 (limit pokusů potřebuje
+`schema_ratelimit.sql`, který už běží).
+
+Správa `/sprava/#/feedback`: počty podle stavu (nová / přečtená / vyřízená / nebude řešeno) a typu, filtr,
+detail (text jen jako prostý text, otevřením nová → přečtená), stav a poznámka, stažení přiloženého projektu
+(`attachment`, `application/json`, `nosniff`), smazání projektu nebo celé zprávy (GDPR) s potvrzením. Audit
+`feedback_view` / `feedback_update` / `feedback_project` / `feedback_delete` jen se zkráceným id — bez textu,
+e-mailu a obsahu poznámky. Záznamy starší než 2 roky se mažou při načtení seznamu (Ochrana osobních údajů).
+Lokální test klientů proti `scripts/serve.js`: web `?feedbackSite=http://localhost:<port>`, desktop proměnná
+`PLCDESK_FEEDBACK_SITE` — obojí jen pro localhost.
+
 ### Obchodní kanban leadů (záložka Leady)
 `/sprava/#/leady`: sloupce **Prospekce → Nový → Kontaktován → Zkouší → Nabídka → Zákazník → Ztracen**
 (ztracené jsou sbalené). Karta = firma: segment (integrátor / strojírna / výrobce / jiné), město, zdroj,
@@ -394,7 +423,8 @@ Lokálně (`npx wrangler@4 dev --local`) jdou do souboru `.dev.vars` (je v `.git
 - **Tělo požadavku:** `/api/lead`, `/api/unlock`, `/api/license/activate`, `/api/license/check` a `/api/beta`
   přijímají jen JSON objekt (`Content-Type: application/json`) do 16 kB — jinak 415 / 413 / 400 (i tělo `null`).
 - **Limit pokusů z jedné IP** (IPv6 jako prefix /64, `worker/ratelimit.js`): formulář ke stažení 5 / h,
-  odemčení projektu 5 / h, aktivace + kontroly licence 30 / h dohromady, beta přihláška 5 / h (`beta_attempts`).
+  odemčení projektu 5 / h, aktivace + kontroly licence 30 / h dohromady, beta přihláška 5 / h (`beta_attempts`),
+  zpětná vazba z aplikace 10 / h (`/api/feedback`, tělo do ~600 kB kvůli přiloženému projektu).
   Nad limitem 429 s `Retry-After: 3600`. Neplatný vstup (špatný e-mail, chybějící klíč) se nepočítá.
   Ve vývojovém režimu (`DEV_MODE`) vypnuté. Migrace (jednou, idempotentní; **před nasazením Workeru** s touto
   změnou — bez tabulky se limit vypne a chyba jde do logu, licence a formuláře fungují dál):

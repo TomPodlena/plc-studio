@@ -596,6 +596,8 @@ class App:
         self._lic_btn = ttk.Button(head, text="", command=self.open_license)
         self._lic_btn.pack(side="right", padx=(8, 0))
         self.update_license_badge()
+        # zpětná vazba do správy webu (feedback.py)
+        ttk.Button(head, text=_("Zpětná vazba"), command=self.open_feedback).pack(side="right", padx=(8, 0))
         ttk.Button(head, text=_("Uložit projekt…"), command=self.save_project_dialog
                    ).pack(side="right", padx=(6, 0))
         ttk.Button(head, text=_("Otevřít projekt…"), command=self.open_project_dialog
@@ -658,6 +660,10 @@ class App:
     def open_license(self, **kw):
         from .license import LicenseDialog
         return LicenseDialog.open(self, **kw)
+
+    def open_feedback(self, **kw):
+        from .feedback import FeedbackDialog
+        return FeedbackDialog.open(self, **kw)
 
     def update_license_badge(self) -> None:
         from .license import badge_text

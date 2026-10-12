@@ -4,6 +4,7 @@ import {
   helpChapter, helpChapters, helpForStep, searchHelp, helpTour, helpSiteUrl, helpFold, HELP_UI, HELP_GROUPS,
   tr, escHtml as esc,
 } from "../../../packages/core/dist/index.js";
+import { openFeedback } from "./feedback.js";
 
 const CLIENT = "web";
 const TOUR_KEY = "plcstudio.tour";
@@ -147,7 +148,8 @@ let query = "";
 export function helpContentsHtml() {
   const chapters = helpChapters(undefined, CLIENT);
   let h = "<div class='helpsearch'><input type='search' id='helpQ' placeholder='" + esc(tr(HELP_UI.search)) + "' aria-label='" + esc(tr(HELP_UI.search)) + "' value='" + esc(query) + "' autocomplete='off'>"
-    + "<button type='button' class='small' id='helpTour'>" + esc(tr(HELP_UI.tourStart)) + "</button></div>"
+    + "<button type='button' class='small' id='helpTour'>" + esc(tr(HELP_UI.tourStart)) + "</button>"
+    + "<button type='button' class='small' id='helpFeedback'>" + esc(tr("Zpětná vazba")) + "</button></div>"
     + "<div id='helpResults' aria-live='polite'></div>"
     + "<h3>" + esc(tr(HELP_UI.contents)) + "</h3>";
   for (const g of Object.keys(HELP_GROUPS)) {
@@ -203,6 +205,7 @@ export function wireHelpContents(root, { focus, startTour, gotoStep }) {
     if (b && root.contains(b)) { e.preventDefault(); openCh(b.dataset.helpSee); }
   });
   root.querySelector("#helpTour").addEventListener("click", () => startTour());
+  root.querySelector("#helpFeedback").addEventListener("click", () => openFeedback());
   if (query) run();
   if (focus) setTimeout(() => openCh(focus), 0);
   void gotoStep;

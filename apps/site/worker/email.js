@@ -70,6 +70,18 @@ Jazyk: {locale}
 
 Detail a vyřízení ve správě: {url}
 `,
+    fb_notice_subject: "Nová zpětná vazba z aplikace ({kind})",
+    fb_notice_body: `Nová zpětná vazba z aplikace {app}.
+
+Typ: {kind}
+Klient: {client} {version}
+Krok: {step}
+Jazyk: {lang}
+Přiložený projekt: {project}
+E-mail pro odpověď: {email}
+
+Text a vyřízení ve správě: {url}
+`,
     un_subject: "Projekt odemčen",
     un_body: `Dobrý den,
 
@@ -290,4 +302,17 @@ export function sendBetaNotice(env, { to, id, platforms, ide, locale }) {
   const t = T.cs;
   const v = { ...common(env), platforms, ide, locale, url: `${env.PUBLIC_SITE}/sprava/#/beta/${encodeURIComponent(id)}` };
   return send(env, { to, subject: fill(t.beta_notice_subject, v), text: fill(t.beta_notice_body, v) });
+}
+
+// Zpetna vazba z aplikace: upozorneni provozovateli (cesky). Bez textu zpravy a bez e-mailu odesilatele -
+// jen typ, klient, verze, krok, jazyk, zda je prilozen projekt / adresa pro odpoved a odkaz do spravy.
+const FB_KINDS = { bug: "chyba", idea: "námět", question: "dotaz" };
+export function sendFeedbackNotice(env, { to, id, kind, client, version, step, lang, hasProject, hasEmail }) {
+  const t = T.cs;
+  const v = {
+    ...common(env), kind: FB_KINDS[kind] || kind, client, version: version || "", step: step || "—", lang: lang || "—",
+    project: hasProject ? "ano" : "ne", email: hasEmail ? "ano (ve správě)" : "ne (anonymně)",
+    url: `${env.PUBLIC_SITE}/sprava/#/feedback/${encodeURIComponent(id)}`,
+  };
+  return send(env, { to, subject: fill(t.fb_notice_subject, v), text: fill(t.fb_notice_body, v) });
 }

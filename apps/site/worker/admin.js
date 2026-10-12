@@ -25,6 +25,7 @@ import { out, enc, nowIso, isoAgo, clip, num, readJson, audit, likePattern, toCs
 import { BETA_ROUTES } from "./beta.js";
 import { CRM_ROUTES } from "./crm.js";
 import { DOC_ROUTES } from "./docs.js";
+import { FEEDBACK_ROUTES } from "./feedback.js";
 export { csvCell, toCsv, clientIp } from "./admin_util.js";
 
 export const ADMIN_COOKIE = "__Host-plcdesk_admin";
@@ -701,6 +702,8 @@ const ROUTES = {
   ...DOC_ROUTES,
   // prihlasky beta testeru (beta.js) - stejne prihlaseni, CSRF i audit
   ...BETA_ROUTES,
+  // zpetna vazba z aplikace (feedback.js) - stejne prihlaseni, CSRF i audit (bez textu a e-mailu)
+  ...FEEDBACK_ROUTES,
 };
 export const ADMIN_PATHS = [...new Set(Object.keys(ROUTES).map((r) => r.split(" ")[1]))];
 

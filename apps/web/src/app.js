@@ -15,6 +15,7 @@ import { emuGate } from "./emu_step.js";
 import { trn } from "./plural.js";
 import { initLicense, renderLicenseBadge, licenseBanner, openLicenseDialog } from "./license.js";
 import { makeHelpPanel, addStepHelpButton, startTour, tourSeen } from "./help_ui.js";
+import { initFeedback, openFeedback } from "./feedback.js";
 
 /* Bezpečnostní modul: položky ke schválení (nebezpečí, funkce, návrh, program), kroky validace
    v oživení, dokumenty 13/14, bezpečnostní program a položky kusovníku. */
@@ -215,6 +216,9 @@ function scheduleBadge() {
 }
 $("badgeApproval").addEventListener("click", () => { S.step = STEP_APPROVAL; save(); render(); });
 $("badgeLicense").addEventListener("click", () => openLicenseDialog());
+/* zpětná vazba (feedback.js): kontext = projekt a krok („8: Dokumentace“ — český název kroku, nepřekládá se) */
+initFeedback({ project: () => S.prj, step: () => (S.step === "help" ? "help: Nápověda" : (S.step + 1) + ": " + STEPS[S.step]) });
+$("badgeFeedback").addEventListener("click", () => openFeedback());
 
 /* Statické texty hlavičky a patičky (v index.html jsou česky jako výchozí). */
 function renderStatic() {
@@ -224,6 +228,7 @@ function renderStatic() {
   $("stepper").setAttribute("aria-label", tr("Kroky návrhu"));
   $("lang").setAttribute("aria-label", tr("Jazyk rozhraní"));
   $("badgeLicense").setAttribute("aria-label", tr("Licence a tarif"));
+  $("badgeFeedback").textContent = tr("Zpětná vazba");
   $("lang").value = getLang();
   $("btnPrev").textContent = "← " + tr("Zpět");
   $("btnNext").textContent = tr("Pokračovat") + " →";

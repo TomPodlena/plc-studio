@@ -254,6 +254,16 @@ button.licbadge.lic-paid{border-color:var(--ok);color:var(--ok);font-weight:600}
 button.licbadge.lic-warn{border-color:var(--warn);color:var(--warn)}
 .notice.licbanner{margin:0 0 12px}
 .modal .licdialog{width:min(680px,100%)}
+/* zpětná vazba (feedback.js): tlačítko v hlavičce a okno */
+button.fbbadge{border:1px solid var(--line);color:var(--muted);cursor:pointer;line-height:1.4}
+.modal .fbdialog{width:min(680px,100%)}
+.fbkinds{border:0;padding:0;margin:0 0 10px;display:flex;flex-wrap:wrap;gap:6px 18px}
+.fbkinds legend{font-weight:600;padding:0;margin-bottom:4px}
+.fbcount{text-align:right;margin:2px 0 10px}
+.fbattach{display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-weight:600}
+.fbpreview{margin:10px 0}
+.fbpreview summary{cursor:pointer;color:var(--muted);font-size:.84rem}
+#fbOut{margin-top:10px}
 .lictab{border-collapse:collapse;font-size:.84rem;margin:6px 0}
 .lictab th{text-align:left;color:var(--muted);font-weight:500;padding:2px 14px 2px 0}
 .lictab td{font-family:var(--font-mono);font-size:.78rem;overflow-wrap:anywhere}

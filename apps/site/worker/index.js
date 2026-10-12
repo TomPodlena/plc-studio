@@ -17,6 +17,7 @@
 //   POST /api/license/check     obcasna kontrola stavu, tolerantni
 //   POST /api/unlock            odemceni jednoho projektu nad limit
 //   POST /api/beta              prihlaska beta testera platforem ve stavu beta (beta.js; sprava #/beta)
+//   POST /api/feedback          zpetna vazba z aplikace (feedback.js; CORS *, OPTIONS preflight; sprava #/feedback)
 //   POST /api/stripe/webhook    platby Stripe   (jen pri PAYMENT_PROVIDER="stripe")
 //   POST /api/paddle/webhook    platby Paddle   (jen pri PAYMENT_PROVIDER="paddle")
 //   /api/admin/*                sprava zakazniku (admin.js): prihlaseni, prehled, zakaznici,
@@ -31,6 +32,7 @@ import { handleAdmin, securePage } from "./admin.js";
 import { handleStripeWebhook, handlePaddleWebhook } from "./payments.js";
 import { sendDownloadLink, sendUnlockConfirmation } from "./email.js";
 import { handleBetaApply } from "./beta.js";
+import { handleFeedback, handleFeedbackPreflight } from "./feedback.js";
 
 const LANGS = ["cs", "en", "de"];
 const MSG = {
@@ -359,6 +361,9 @@ const ROUTES = {
   "POST /api/license/check": handleCheck,
   "POST /api/unlock": handleUnlock,
   "POST /api/beta": handleBetaApply,
+  // zpetna vazba z aplikace: jediny endpoint s CORS (webova aplikace muze bezet z jineho originu)
+  "POST /api/feedback": handleFeedback,
+  "OPTIONS /api/feedback": handleFeedbackPreflight,
   "POST /api/stripe/webhook": handleStripeWebhook,
   "POST /api/paddle/webhook": handlePaddleWebhook,
 };
