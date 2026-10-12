@@ -261,8 +261,15 @@ class AlignTest(unittest.TestCase):
         self.app._key_step(self.ev(), -1)                        # před prvním krokem nic
         self.assertEqual(self.app.step, 0)
         self.goto(4)
-        self.app._key_help(self.ev())
-        self.assertEqual(self.app.step, "help")
+        self.app._key_help(self.ev())                            # F1 = panel nápovědy ke kroku (2026-10-12)
+        from plc_studio import helppanel
+        panel = helppanel.HelpPanel.current
+        self.assertIsNotNone(panel)
+        self.assertEqual(panel.cid, "io")
+        self.assertEqual(self.app.step, 4)
+        self.app._key_help(self.ev())                            # podruhé panel zavře
+        self.assertIsNone(helppanel.HelpPanel.current)
+        self.goto("help")
         self.app._key_step(self.ev(), -1)                        # z Nápovědy zpět do kroku
         self.assertEqual(self.app.step, 4)
         # v dialogovém okně zkratky nepracují

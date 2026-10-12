@@ -12,7 +12,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -348,6 +348,8 @@ function render(tpl, c, lang, key, out) {
     ),
   };
   for (const p of PAGES) blocks[`BLOCK.url_${p.key}`] = url(lang, p.out);
+  blocks["BLOCK.url_napoveda"] = url(lang, "napoveda");
+  blocks["BLOCK.help_label"] = esc(c._helpLabel || "");
   for (const [k, v] of Object.entries(blocks)) html = html.split(`{{${k}}}`).join(v);
 
   // texty mohou obsahovat {{site.*}} - proto vic pruchodu
@@ -356,6 +358,63 @@ function render(tpl, c, lang, key, out) {
   if (left) warn(`${where}: nenahrazeno ${[...new Set(left)].join(" ")}`);
   return html;
 }
+
+// ---------- napoveda (/napoveda/ + kapitola na stranku) ----------
+// Obsah je jen v jadre: packages/core/src/help.ts (kapitoly, preklady z katalogu jadra). Stejny text
+// ukazuje aplikace (web i desktop) v panelu ? a v kroku Napoveda; aplikace odkazuje "Otevrit na webu"
+// na /napoveda/<id>/ (helpSiteUrl). Build cte packages/core/dist (dist je commitnuty).
+const CORE_DIST = path.join(ROOT, "..", "..", "packages", "core", "dist", "index.js");
+const core = await import(pathToFileURL(CORE_DIST).href);
+const HELP_OUT = "napoveda";
+const hmd = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+function helpLabels(lang) {
+  return core.withLang(lang, () => Object.fromEntries(Object.entries(core.HELP_UI).map(([k, v]) => [k, core.tr(v)])));
+}
+function helpChapterBody(ch, L, lang, all) {
+  const only = (x) => (x.only ? ` <span class="help-only">${esc(x.only === "web" ? L.only_web : L.only_desktop)}</span>` : "");
+  const li = (x) => `<li>${hmd(x.text)}${only(x)}</li>`;
+  const faq = ch.id === "faq";
+  let h = "";
+  if (ch.steps.length) h += `<section class="legal-sec"><h2>${esc(L.steps)}</h2>${ch.id === "zkratky" ? `<ul class="ticks">${ch.steps.map(li).join("")}</ul>` : `<ol class="help-steps">${ch.steps.map(li).join("")}</ol>`}</section>`;
+  if (ch.tips.length) h += `<section class="legal-sec"><h2>${esc(L.tips)}</h2><ul class="ticks">${ch.tips.map(li).join("")}</ul></section>`;
+  if (ch.issues.length) h += `<section class="legal-sec"><h2>${esc(faq ? L.faq : L.issues)}</h2><dl class="help-issues">${ch.issues.map((x) => `<dt>${hmd(x.problem)}</dt><dd>${hmd(x.fix)}</dd>`).join("")}</dl></section>`;
+  if (ch.see.length) {
+    h += `<section class="legal-sec"><h2>${esc(L.see)}</h2><nav class="toc">${ch.see.map((id) => {
+      const c = all.find((x) => x.id === id);
+      return c ? `<a href="${url(lang, HELP_OUT + "/" + id)}">${esc(c.title)}</a>` : "";
+    }).join("")}</nav></section>`;
+  }
+  return h;
+}
+function helpPages(lang) {
+  const L = helpLabels(lang);
+  const all = core.helpChapters(lang);
+  const groups = core.withLang(lang, () => Object.fromEntries(Object.entries(core.HELP_GROUPS).map(([k, v]) => [k, core.tr(v)])));
+  const num = (c) => (typeof c.step === "number" ? `<span class="feature-n">${String(c.step + 1).padStart(2, "0")}</span>` : "");
+  const pages = [];
+  let idx = `<section class="page-head"><div class="wrap measure-wrap legal"><p class="eyebrow">${esc(L.webTitle)}</p><h1>${esc(L.webTitle)}</h1><p class="lead">${esc(L.webIntro)}</p>`;
+  for (const [g, gt] of Object.entries(groups)) {
+    const list = all.filter((c) => c.group === g);
+    if (!list.length) continue;
+    idx += `<section class="legal-sec"><h2>${esc(gt)}</h2><ul class="help-index">` +
+      list.map((c) => `<li><a href="${url(lang, HELP_OUT + "/" + c.id)}">${num(c)}<b>${esc(c.title)}</b></a>` +
+        (c.only ? ` <span class="help-only">${esc(c.only === "web" ? L.only_web : L.only_desktop)}</span>` : "") +
+        `<p>${hmd(c.summary)}</p></li>`).join("") + `</ul></section>`;
+  }
+  idx += `</div></section>`;
+  pages.push({ out: HELP_OUT, title: esc(L.webTitle), description: esc(L.webIntro), body: idx });
+  for (const c of all) {
+    const body = `<section class="page-head"><div class="wrap measure-wrap legal">` +
+      `<p class="eyebrow"><a href="${url(lang, HELP_OUT)}">${esc(L.webTitle)}</a></p>` +
+      `<h1>${esc(c.title)}</h1>` +
+      (c.only ? `<p><span class="help-only">${esc(c.only === "web" ? L.only_web : L.only_desktop)}</span></p>` : "") +
+      `<p class="lead">${hmd(c.summary)}</p>` + helpChapterBody(c, L, lang, all) +
+      `<p class="help-back"><a href="${url(lang, HELP_OUT)}">← ${esc(L.contents)}</a></p></div></section>`;
+    pages.push({ out: HELP_OUT + "/" + c.id, title: esc(`${c.title} — ${L.webTitle}`), description: esc(c.summary.replace(/\*\*/g, "")), body });
+  }
+  return { pages, label: core.withLang(lang, () => core.tr("Nápověda")) };
+}
+templates.help = "{{page.body}}";
 
 // ---------- objednavka (Stripe Payment Links / Paddle overlay checkout) ----------
 // Volba poskytovatele: site.json payments.provider (nebo PAYMENT_PROVIDER pri buildu);
@@ -428,6 +487,7 @@ for (const l of LANGS) {
 for (const l of LANGS) {
   // az po kontrole tvaru (neni v JSON)
   content[l].platformy.tiles = platformTiles(content[l]);
+  content[l]._helpLabel = core.withLang(l, () => core.tr("Nápověda"));   // odkaz v paticce (katalog jadra)
   betaContent(content[l], l);
 }
 
@@ -440,7 +500,14 @@ for (const lang of LANGS) {
     writePage(lang, p.out, html);
     urls.push(`${SITE_URL}${url(lang, p.out)}`);
   }
-  console.log(`Built ${lang}: ${PAGES.length} stranek`);
+  const help = helpPages(lang);
+  for (const hp of help.pages) {
+    c.napoveda = { title: hp.title, description: hp.description, body: hp.body };
+    writePage(lang, hp.out, render("help", c, lang, "napoveda", hp.out));
+    urls.push(`${SITE_URL}${url(lang, hp.out)}`);
+  }
+  delete c.napoveda;
+  console.log(`Built ${lang}: ${PAGES.length} stranek + napoveda ${help.pages.length}`);
 }
 // 404 (Worker ho vraci pro neznamou adresu - viz not_found_handling ve wrangler.toml)
 fs.writeFileSync(path.join(DIST, "404.html"), render("notfound", content.cs, "cs", "notfound", ""));

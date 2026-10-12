@@ -26,6 +26,15 @@ for (const lang of LANGS) {
     const url = `${lang === "cs" ? "" : "/" + lang}/${out(key) ? out(key) + "/" : ""}`;
     pages.push({ lang, key, url, id: `${lang}-${key}` });
   }
+  // napoveda (build z packages/core/src/help.ts): rozcestnik + kapitoly; v liste stranek neni, vede na ni paticka
+  const hdir = path.join(DIST, lang === "cs" ? "" : lang, "napoveda");
+  if (fs.existsSync(hdir)) {
+    const base = `${lang === "cs" ? "" : "/" + lang}/napoveda/`;
+    pages.push({ lang, key: "napoveda", url: base, id: `${lang}-napoveda` });
+    for (const d of fs.readdirSync(hdir, { withFileTypes: true })) {
+      if (d.isDirectory()) pages.push({ lang, key: "napoveda-" + d.name, url: base + d.name + "/", id: `${lang}-napoveda-${d.name}` });
+    }
+  }
 }
 const content = Object.fromEntries(LANGS.map((l) => [l, JSON.parse(fs.readFileSync(path.join(ROOT, "content", `${l}.json`), "utf-8"))]));
 const site = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "site.json"), "utf-8"));

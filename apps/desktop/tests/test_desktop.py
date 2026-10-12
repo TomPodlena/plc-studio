@@ -2564,7 +2564,7 @@ class GuiTest(unittest.TestCase):
         txt = self.find(tk.Text)[0]
         self.assertEqual(len(txt.tag_ranges("link")) // 2, 124)  # 59 + WAGO (4) + Delta AX (3) + další profily CODESYS (58)
         self.assertIn("Odkazy na dokumentaci platforem", txt.get("1.0", "end"))
-        self.assertIn("10. Kusovník", txt.get("1.0", "end"))
+        self.assertIn("10 · Kusovník", txt.get("1.0", "end"))   # kapitoly kroků z jádra (help.ts)
         first = txt.tag_ranges("link")[0]
         txt.see(first)
         self.root.update()

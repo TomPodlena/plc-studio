@@ -1082,6 +1082,7 @@
           "- Licence: e-mail, licenční klíč, tarif, anonymní otisk počítače, vámi zadaný popis počítače, časy aktivace a kontroly. Účel: vydání licence a hlídání počtu počítačů. Základ: plnění smlouvy.",
           "- Platby: od platební služby dostáváme e-mail, identifikátor předplatného a stav platby; platební údaje (karta) k nám nechodí. Účel: vystavení a správa licence, účetnictví. Základ: plnění smlouvy a právní povinnost (čl. 6 odst. 1 písm. c).",
           "- Komunikace: obsah e-mailů, které nám pošlete. Účel: odpověď a podpora. Základ: oprávněný zájem (čl. 6 odst. 1 písm. f).",
+          "- Zpětná vazba z aplikace: typ a text zprávy, technický kontext (verze aplikace, web nebo desktop, jazyk, krok aplikace, operační systém nebo prohlížeč stručně, tarif licence — nikdy licenční klíč ani otisk počítače), IP adresa pro omezení počtu zpráv a jen pokud je vyplníte nebo zaškrtnete: e-mail pro odpověď a přiložený projekt. Projekt může obsahovat údaje vašeho zákazníka — přikládejte ho jen tehdy, když to smíte. Účel: oprava chyb, podpora a vývoj aplikace. Základ: oprávněný zájem (čl. 6 odst. 1 písm. f).",
           "- Ochrana webu: IP adresa a technické údaje prohlížeče při ověření Turnstile a v provozních záznamech hostingu. Účel: ochrana formulářů před boty a bezpečnost služby. Základ: oprávněný zájem.",
           "- Správa zákazníků: k údajům výše má přístup jen provozovatel přes chráněnou správu zákazníků (přihlášení tokenem, případně přes Cloudflare Access) a může si k zákazníkovi zapsat poznámku pro podporu a správu licence. Každé zobrazení detailu zákazníka, každý zásah (vystavení, prodloužení či zrušení licence, uvolnění počítače, poznámka) a každý export se zapisuje do auditního záznamu (kdo, kdy, co). Neúspěšné pokusy o přihlášení se evidují s IP adresou a údajem o prohlížeči kvůli ochraně proti zneužití. Účel: správa licencí a zabezpečení údajů. Základ: plnění smlouvy a oprávněný zájem.",
           "- Obchodní kontakty (B2B): v interní evidenci obchodních příležitostí vedeme firmy, které by mohly {{site.brand}} využít — u firem z vlastního průzkumu jen veřejně dostupné firemní údaje (název, web, segment, město, země, odkaz na zdroj); jméno, telefon a e-mail kontaktní osoby doplňujeme jen ručně, když s firmou jednáme. Zahrnuje i zájemce z formuláře ke stažení (e-mail a stav: stažení, zkouška, licence), jen pro přehled, v jaké fázi vztah je (k marketingu tyto údaje nepoužíváme). Účel: péče o obchodní vztahy a nabídka produktu firmám. Základ: oprávněný zájem (čl. 6 odst. 1 písm. f). Proti tomuto zpracování můžete kdykoli vznést námitku na {{site.email}} — záznam pak smažeme a znovu ho nezaložíme. Obchodní sdělení e-mailem bez vašeho souhlasu neposíláme, pokud nejste náš zákazník.",
@@ -1092,7 +1093,7 @@
         "id": "projekty",
         "h": "Obsah projektů a funkce s umělou inteligencí",
         "body": [
-          "Projekty (popisy strojů, I/O, schémata, programy, dokumentace) zpracovává aplikace jen ve vašem počítači; na naše servery se nenahrávají.",
+          "Projekty (popisy strojů, I/O, schémata, programy, dokumentace) zpracovává aplikace jen ve vašem počítači; na naše servery se nenahrávají, ledaže nám projekt sami přiložíte ke zpětné vazbě z aplikace (zaškrtávátko, výchozí stav vypnuto).",
           "Výjimkou jsou volitelné funkce s umělou inteligencí: aplikace při nich odesílá zadaný text, podklady nebo obrázky přímo poskytovateli AI (Anthropic, PBC, USA) s vaším API klíčem. Toto zpracování se řídí smlouvou mezi vámi a poskytovatelem; my k odeslaným datům přístup nemáme. Funkce AI nemusíte používat."
         ]
       },
@@ -1116,7 +1117,8 @@
           "- Účetní a daňové doklady: 10 let podle zákona o DPH a účetních předpisů.",
           "- Provozní záznamy hostingu: podle nastavení poskytovatele, obvykle dny až týdny.",
           "- Správa zákazníků: auditní záznam 3 roky, záznamy o neúspěšných pokusech o přihlášení 30 dní, poznámky k zákazníkovi po dobu uchování jeho údajů.",
-          "- Obchodní kontakty: dokud trvá obchodní jednání, nejdéle 3 roky od posledního kontaktu; po námitce ihned."
+          "- Obchodní kontakty: dokud trvá obchodní jednání, nejdéle 3 roky od posledního kontaktu; po námitce ihned.",
+          "- Zpětná vazba z aplikace: nejdéle 2 roky od přijetí, přiložený projekt jen po dobu vyřízení zprávy; na žádost dříve."
         ]
       },
       {

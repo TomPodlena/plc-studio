@@ -1082,6 +1082,7 @@
           "- Lizenz: E-Mail, Lizenzschlüssel, Tarif, anonymer Fingerabdruck des Rechners, die von Ihnen eingegebene Rechnerbezeichnung, Zeitpunkte von Aktivierung und Prüfung. Zweck: Ausstellung der Lizenz und Kontrolle der Anzahl der Rechner. Grundlage: Vertragserfüllung.",
           "- Zahlungen: Vom Zahlungsdienst erhalten wir E-Mail, Abonnement-Kennung und Zahlungsstatus; Zahlungsdaten (Karte) erreichen uns nicht. Zweck: Ausstellung und Verwaltung der Lizenz, Buchhaltung. Grundlage: Vertragserfüllung und rechtliche Verpflichtung (Art. 6 Abs. 1 lit. c).",
           "- Kommunikation: Inhalt der E-Mails, die Sie uns senden. Zweck: Antwort und Support. Grundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f).",
+          "- Feedback aus der Anwendung: Art und Text der Nachricht, technischer Kontext (Version der Anwendung, Web oder Desktop, Sprache, Schritt der Anwendung, Betriebssystem oder Browser in Kurzform, Lizenztarif — nie der Lizenzschlüssel oder der Geräte-Fingerabdruck), IP-Adresse zur Begrenzung der Anzahl der Nachrichten und nur, wenn Sie sie ausfüllen oder ankreuzen: eine E-Mail-Adresse für die Antwort und das angehängte Projekt. Ein Projekt kann Daten Ihres Kunden enthalten — hängen Sie es nur an, wenn Sie dürfen. Zweck: Fehlerbehebung, Support und Weiterentwicklung der Anwendung. Grundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f).",
           "- Schutz der Website: IP-Adresse und technische Browserdaten bei der Turnstile-Prüfung und in Betriebsprotokollen des Hostings. Zweck: Schutz der Formulare vor Bots und Sicherheit des Dienstes. Grundlage: berechtigtes Interesse.",
           "- Kundenverwaltung: Zugriff auf die oben genannten Daten hat nur der Betreiber über die geschützte Kundenverwaltung (Anmeldung mit Token oder über Cloudflare Access); er kann dort zu einem Kunden eine Notiz für Support und Lizenzverwaltung anlegen. Jede Ansicht der Kundendetails, jeder Eingriff (Ausstellen, Verlängern oder Kündigen einer Lizenz, Freigeben eines Computers, Notiz) und jeder Export wird in einem Audit-Protokoll erfasst (wer, wann, was). Fehlgeschlagene Anmeldeversuche werden zum Schutz vor Missbrauch mit IP-Adresse und Browserangaben protokolliert. Zweck: Lizenzverwaltung und Datensicherheit. Grundlage: Vertragserfüllung und berechtigtes Interesse.",
           "- Geschäftskontakte (B2B): In einer internen Übersicht der Vertriebschancen führen wir Unternehmen, die {{site.brand}} nutzen könnten — bei Unternehmen aus eigener Recherche nur öffentlich zugängliche Firmendaten (Name, Website, Segment, Ort, Land, Link zur Quelle); Name, Telefon und E-Mail der Kontaktperson ergänzen wir nur manuell, wenn wir mit dem Unternehmen in Kontakt sind. Erfasst sind auch Interessenten aus dem Download-Formular (E-Mail und Status: Download, Test, Lizenz), nur als Übersicht, in welcher Phase die Beziehung ist (für Marketing nutzen wir diese Daten nicht). Zweck: Pflege von Geschäftsbeziehungen und Angebot des Produkts an Unternehmen. Grundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f). Sie können dieser Verarbeitung jederzeit unter {{site.email}} widersprechen — wir löschen den Eintrag dann und legen ihn nicht erneut an. Werbe-E-Mails senden wir ohne Ihre Einwilligung nicht, sofern Sie nicht unser Kunde sind.",
@@ -1092,7 +1093,7 @@
         "id": "projekty",
         "h": "Projektinhalte und KI-Funktionen",
         "body": [
-          "Projekte (Maschinenbeschreibungen, E/A, Schaltpläne, Programme, Dokumentation) verarbeitet die Anwendung nur auf Ihrem Rechner; sie werden nicht auf unsere Server hochgeladen.",
+          "Projekte (Maschinenbeschreibungen, E/A, Schaltpläne, Programme, Dokumentation) verarbeitet die Anwendung nur auf Ihrem Rechner; sie werden nicht auf unsere Server hochgeladen, es sei denn, Sie hängen ein Projekt selbst an ein Feedback aus der Anwendung an (Kontrollkästchen, standardmäßig aus).",
           "Ausnahme sind die optionalen KI-Funktionen: Bei ihrer Nutzung sendet die Anwendung den eingegebenen Text, Unterlagen oder Bilder mit Ihrem API-Schlüssel direkt an den KI-Anbieter (Anthropic, PBC, USA). Diese Verarbeitung richtet sich nach dem Vertrag zwischen Ihnen und dem Anbieter; wir haben keinen Zugriff auf die gesendeten Daten. Sie müssen die KI-Funktionen nicht nutzen."
         ]
       },
@@ -1116,7 +1117,8 @@
           "- Buchhaltungs- und Steuerbelege: 10 Jahre nach tschechischem Umsatzsteuer- und Buchhaltungsrecht.",
           "- Betriebsprotokolle des Hostings: nach Einstellung des Anbieters, meist Tage bis Wochen.",
           "- Kundenverwaltung: Audit-Protokoll 3 Jahre, fehlgeschlagene Anmeldeversuche 30 Tage, Notizen zum Kunden so lange, wie seine Daten aufbewahrt werden.",
-          "- Geschäftskontakte: solange Vertriebsgespräche laufen, höchstens 3 Jahre nach dem letzten Kontakt; nach einem Widerspruch sofort."
+          "- Geschäftskontakte: solange Vertriebsgespräche laufen, höchstens 3 Jahre nach dem letzten Kontakt; nach einem Widerspruch sofort.",
+          "- Feedback aus der Anwendung: höchstens 2 Jahre nach Eingang, ein angehängtes Projekt nur, solange die Nachricht bearbeitet wird; auf Wunsch früher."
         ]
       },
       {

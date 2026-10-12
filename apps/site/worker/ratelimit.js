@@ -4,6 +4,7 @@
 //   unlock   POST /api/unlock            5 / hodinu
 //   license  POST /api/license/activate  30 / hodinu dohromady (aktivace + kontroly; aplikace kontroluje
 //            POST /api/license/check     nejvys 1x denne, firma ma nejvys 5 mist -> rezerva i za NAT)
+//   feedback POST /api/feedback          10 / hodinu (zpetna vazba z aplikace, bez Turnstile - desktop ho neumi)
 //
 // Pokus se zapise PRED vyhodnocenim (soubezne pokusy se navzajem vidi), pak se spocita okno.
 // Zaznamy starsi nez den se mazou. IPv6 = prefix /64 (clientIp). Tabulka rate_attempts: schema_ratelimit.sql.
@@ -17,6 +18,7 @@ export const RATE_LIMITS = {
   lead: { max: 5, windowMs: 3600e3 },
   unlock: { max: 5, windowMs: 3600e3 },
   license: { max: 30, windowMs: 3600e3 },
+  feedback: { max: 10, windowMs: 3600e3 },
 };
 
 /** true = pokus je nad limitem (odpovedet 429). */

@@ -11,7 +11,7 @@ import { ADMIN_PATHS, _resetAccessCache } from "../worker/admin.js";
 
 const db = new DatabaseSync(":memory:");
 // schema.sql + migrace spravy zakazniku (schema_admin.sql) a beta testeru (schema_beta.sql) - stejne poradi jako pri nasazeni
-for (const f of ["../schema.sql", "../schema_admin.sql", "../schema_beta.sql", "../schema_ratelimit.sql"]) {
+for (const f of ["../schema.sql", "../schema_admin.sql", "../schema_beta.sql", "../schema_ratelimit.sql", "../schema_feedback.sql"]) {
   for (const stmt of readFileSync(new URL(f, import.meta.url), "utf8").split(";")) {
     if (stmt.replace(/--.*$/gm, "").trim()) db.exec(stmt + ";");
   }
@@ -687,7 +687,8 @@ await check("vsechny /api/admin/* bez prihlaseni -> 401 (no-store, DENY)", async
     ["GET", "/api/admin/crm"], ["GET", "/api/admin/crm/lead?id=x"], ["POST", "/api/admin/crm/lead"], ["POST", "/api/admin/crm/move"],
     ["POST", "/api/admin/crm/note"], ["POST", "/api/admin/crm/delete"], ["POST", "/api/admin/crm/import"], ["GET", "/api/admin/crm/export.csv"],
     ["GET", "/api/admin/docs"], ["GET", "/api/admin/doc?slug=plan"], ["POST", "/api/admin/doc"], ["POST", "/api/admin/doc/task"],
-    ["GET", "/api/admin/beta"], ["GET", "/api/admin/beta/app?id=x"], ["POST", "/api/admin/beta"], ["POST", "/api/admin/beta/crm"]];
+    ["GET", "/api/admin/beta"], ["GET", "/api/admin/beta/app?id=x"], ["POST", "/api/admin/beta"], ["POST", "/api/admin/beta/crm"],
+    ["GET", "/api/admin/feedback"], ["GET", "/api/admin/feedback/item?id=x"], ["POST", "/api/admin/feedback"], ["GET", "/api/admin/feedback/project?id=x"], ["POST", "/api/admin/feedback/delete"]];
   const covered = new Set(routes.map(([, p]) => p.split("?")[0]));
   for (const p of ADMIN_PATHS) if (!covered.has(p) && !/login|logout/.test(p)) throw new Error("netestovana cesta " + p);
   for (const [m, p] of routes) {
@@ -1800,6 +1801,221 @@ await check("presmerovani ke stazeni nese nosniff, no-referrer a HSTS", async ()
   const r = await call("GET", lead.download_url, undefined, {}, { ...env, RELEASES: undefined, DOWNLOAD_URL: "https://github.com/x/y/releases/download/v1/PLCdesk.zip" });
   eq(r.status, 302, "status");
   for (const h of ["x-content-type-options", "referrer-policy", "strict-transport-security"]) if (!r.headers.get(h)) throw new Error("chybi " + h);
+});
+
+// =====================================================================================
+console.log("\nzpetna vazba z aplikace: verejny prijem /api/feedback");
+const fbRows = () => db.prepare("SELECT * FROM feedback ORDER BY rowid").all();   // poradi vlozeni (stejny cas ms)
+const fbCount = () => count("SELECT COUNT(*) AS n FROM feedback");
+let fbIp = 0;
+// kazdy pozadavek z jine IP (limit pokusu se testuje zvlast); hlavicka klienta podle pole client
+const fb = (body, { e = env, ip = `192.0.2.${++fbIp}`, client = body && body.client, headers = {} } = {}) =>
+  call("POST", "/api/feedback", body, { "CF-Connecting-IP": ip, ...(client ? { "X-PLCdesk-Client": client } : {}), Origin: "http://localhost:8099", ...headers }, e);
+const fbOk = { kind: "bug", text: "Po prepnuti jazyka\nse prekryvaji sloupce.", client: "desktop", app_version: "0.2.2", lang: "cs", step: "10: Kusovník",
+  env: "Windows 11, Python 3.11, Tk 8.6", plan: "pro" };
+const corsOk = (r, what) => {
+  eq(r.headers.get("access-control-allow-origin"), "*", what + ": ACAO");
+  if (r.headers.get("access-control-allow-credentials")) throw new Error(what + ": credentials nesmi byt povolene");
+};
+const ownerEnv = { ...env, MAIL_OWNER: "provoz@mail.example.eu" };
+
+await check("OK anonymne (desktop) -> ulozeno new, kontext, ref, CORS; upozorneni provozovateli bez textu", async () => {
+  const before = sentMail.length;
+  const r = await fb(fbOk, { e: ownerEnv });
+  eq(r.status, 200, "status");
+  corsOk(r, "odpoved");
+  const d = await r.json();
+  eq(d.ok, true, "ok");
+  const row = fbRows().at(-1);
+  eq(d.ref, row.id.slice(0, 8), "ref");
+  eq([row.kind, row.text, row.email, row.client, row.app_version, row.lang, row.step, row.env, row.plan, row.has_project, row.project_json, row.status],
+    ["bug", "Po prepnuti jazyka\nse prekryvaji sloupce.", null, "desktop", "0.2.2", "cs", "10: Kusovník", "Windows 11, Python 3.11, Tk 8.6", "pro", 0, null, "new"], "radek");
+  eq(sentMail.length - before, 1, "jedno upozorneni (uzivateli nic)");
+  const m = sentMail.at(-1);
+  eq(m.to, ["provoz@mail.example.eu"], "adresat");
+  if (!m.text.includes(`/sprava/#/feedback/${row.id}`)) throw new Error("odkaz do spravy: " + m.text);
+  if (!m.text.includes("10: Kusovník") || !m.text.includes("0.2.2")) throw new Error("krok / verze: " + m.text);
+  if (/prekryvaji/.test(m.text + m.subject)) throw new Error("text zpravy v e-mailu");
+});
+await check("OK web s e-mailem (malymi pismeny); klic licence ani otisk se neulozi; neznamy tarif / jazyk = NULL", async () => {
+  const r = await fb({ ...fbOk, client: "web", email: "Tester@Firma-Example.cz", kind: "idea", key: "PLCD-AAAA-BBBB-CCCC-DDDD", device_hash: "abc", plan: "zlaty", lang: "xx" });
+  eq(r.status, 200, "status");
+  const row = fbRows().at(-1);
+  eq([row.email, row.client, row.kind, row.plan, row.lang], ["tester@firma-example.cz", "web", "idea", null, null], "radek");
+  if (JSON.stringify(row).includes("PLCD-") || JSON.stringify(row).includes("abc\"")) throw new Error("klic / otisk v DB");
+});
+await check("validace: typ, prazdny / dlouhy text, spatny e-mail -> 400 s polem, CORS i u chyby, nic se neulozi", async () => {
+  const n = fbCount();
+  for (const [body, field] of [[{ ...fbOk, kind: "spam" }, "kind"], [{ ...fbOk, text: "   " }, "text"], [{ ...fbOk, text: "x".repeat(5001) }, "text"],
+    [{ ...fbOk, text: 42 }, "text"], [{ ...fbOk, email: "a<b>@x.cz" }, "email"], [{ ...fbOk, email: "=cmd@x.cz" }, "email"], [{ ...fbOk, lang: "en", email: "neni-adresa" }, "email"]]) {
+    const r = await fb(body);
+    eq(r.status, 400, field + " status");
+    corsOk(r, field);
+    eq((await r.json()).field, field, "pole");
+  }
+  eq((await fb({ ...fbOk, text: "y".repeat(5000) })).status, 200, "5000 znaku projde");
+  eq(fbCount(), n + 1, "jen platny zaznam");
+});
+await check("hlavicka klienta: chybi / jina nez pole client / neznamy klient -> 400; jiny Content-Type 415 s CORS", async () => {
+  const n = fbCount();
+  eq((await fb(fbOk, { client: null })).status, 400, "bez hlavicky");
+  eq((await fb(fbOk, { client: "web" })).status, 400, "nesouhlasi");
+  eq((await fb({ ...fbOk, client: "curl" })).status, 400, "neznamy");
+  const r = await fb(JSON.stringify(fbOk), { client: "desktop", headers: { "Content-Type": "text/plain" } });
+  eq(r.status, 415, "content-type");
+  corsOk(r, "415");
+  eq(fbCount(), n, "nic");
+});
+await check("past na boty (skryte pole web) -> 200 jako cloveku, nic se neulozi ani neodesle", async () => {
+  const n = fbCount(), m = sentMail.length;
+  const r = await fb({ ...fbOk, web: "http://spam.example" }, { e: ownerEnv });
+  eq(r.status, 200, "status");
+  eq((await r.json()).ok, true, "ok");
+  eq([fbCount(), sentMail.length], [n, m], "nic");
+});
+await check("projekt: jen s attach_project === true; do 512 kB ulozen (velikost), vetsi 413, pole 400", async () => {
+  const prj = { meta: { name: "Pás", customer: "Zakaznik a.s." }, devices: [{ id: "M1", name: "M1", cls: "Motor" }] };
+  eq((await fb({ ...fbOk, project: prj })).status, 200, "bez zaskrtnuti");
+  let row = fbRows().at(-1);
+  eq([row.has_project, row.project_json], [0, null], "bez zaskrtnuti se neulozi");
+  eq((await fb({ ...fbOk, project: prj, attach_project: true })).status, 200, "se zaskrtnutim");
+  row = fbRows().at(-1);
+  eq([row.has_project, JSON.parse(row.project_json), row.project_size], [1, prj, Buffer.byteLength(JSON.stringify(prj))], "ulozen");
+  const n = fbCount();
+  const big = { meta: { name: "velky" }, blob: "x".repeat(512 * 1024) };
+  const r = await fb({ ...fbOk, project: big, attach_project: true });
+  eq(r.status, 413, "velky");
+  corsOk(r, "413");
+  eq((await r.json()).field, "project", "pole");
+  eq((await fb({ ...fbOk, project: [1, 2], attach_project: true })).status, 400, "pole misto objektu");
+  eq((await fb({ ...fbOk, project: { b: "z".repeat(700 * 1024) }, attach_project: true })).status, 413, "telo nad limit");
+  eq(fbCount(), n, "nic navic");
+});
+await check("limit z jedne IP: 10 / h, 11. -> 429 (Retry-After, CORS); neplatny vstup se nepocita", async () => {
+  const ip = "192.0.2.250";
+  for (let i = 0; i < 3; i++) eq((await fb({ ...fbOk, kind: "x" }, { ip })).status, 400, "neplatny " + i);
+  for (let i = 0; i < 10; i++) eq((await fb(fbOk, { ip })).status, 200, "pokus " + (i + 1));
+  const r = await fb(fbOk, { ip });
+  eq(r.status, 429, "11.");
+  eq(r.headers.get("retry-after"), "3600", "retry");
+  corsOk(r, "429");
+  eq((await fb(fbOk, { ip: "192.0.2.251" })).status, 200, "jina IP");
+});
+await check("CORS preflight OPTIONS -> 204, jen POST, hlavicky Content-Type a X-PLCdesk-Client, bez credentials; GET 405", async () => {
+  const r = await worker.fetch(new Request(SITE + "/api/feedback", { method: "OPTIONS", headers: {
+    Origin: "http://localhost:8099", "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type,x-plcdesk-client" } }), env);
+  eq(r.status, 204, "status");
+  corsOk(r, "preflight");
+  eq(r.headers.get("access-control-allow-methods"), "POST, OPTIONS", "metody");
+  const hd = r.headers.get("access-control-allow-headers").toLowerCase();
+  if (!hd.includes("content-type") || !hd.includes("x-plcdesk-client")) throw new Error("hlavicky " + hd);
+  eq((await call("GET", "/api/feedback")).status, 405, "GET");
+  // CORS jen tady: jine API hlavicku nema
+  const lic = await call("POST", "/api/license/check", { key: "X" }, { Origin: "http://localhost:8099" });
+  eq(lic.headers.get("access-control-allow-origin"), null, "licence bez CORS");
+});
+await check("posta selze (Resend bez MAIL_FROM) -> zaznam ulozen, 200; MAIL_MODE direct -> nic neodchazi", async () => {
+  const n = fbCount(), m = sentMail.length;
+  const err = console.error;
+  const logged = [];
+  console.error = (...a) => logged.push(a.join(" "));
+  try {
+    eq((await fb(fbOk, { e: { ...ownerEnv, MAIL_FROM: "" } })).status, 200, "status");
+  } finally { console.error = err; }
+  eq(fbCount(), n + 1, "ulozeno");
+  if (!logged.some((l) => /Feedback: upozorneni/.test(l))) throw new Error("chyba posty neni v logu");
+  eq((await fb(fbOk, { e: { ...ownerEnv, MAIL_MODE: "direct" } })).status, 200, "direct");
+  eq(sentMail.length, m, "zadny e-mail");
+});
+
+console.log("\nzpetna vazba z aplikace: sprava (seznam, detail, stav, projekt, smazani)");
+const F = withCookie(cookieOf(await adm("POST", "/api/admin/login", { token: "test-admin" })));
+const fbWithPrj = () => db.prepare("SELECT * FROM feedback WHERE has_project = 1 ORDER BY created_at DESC LIMIT 1").get();
+const fbAudit = () => db.prepare("SELECT * FROM admin_audit WHERE action LIKE 'feedback_%' ORDER BY id").all();
+await check("bez prihlaseni 401 (seznam, detail, zmena, projekt, smazani)", async () => {
+  const id = fbWithPrj().id;
+  eq((await adm("GET", "/api/admin/feedback")).status, 401, "seznam");
+  eq((await adm("GET", "/api/admin/feedback/item?id=" + id)).status, 401, "detail");
+  eq((await adm("POST", "/api/admin/feedback", { id, status: "done" })).status, 401, "zmena");
+  eq((await adm("GET", "/api/admin/feedback/project?id=" + id)).status, 401, "projekt");
+  eq((await adm("POST", "/api/admin/feedback/delete", { id })).status, 401, "smazani");
+  eq(fbWithPrj().id, id, "beze zmeny");
+});
+await check("seznam: pocty podle stavu a typu, filtr, ukazka textu bez e-mailu a projektu", async () => {
+  const r = await adm("GET", "/api/admin/feedback", undefined, F);
+  eq(r.status, 200, "status");
+  const d = await r.json();
+  eq(d.total, fbCount(), "celkem");
+  eq(d.counts.new, fbCount(), "vse nove");
+  eq(d.kind_counts.idea, count("SELECT COUNT(*) AS n FROM feedback WHERE kind = 'idea'"), "typ idea");
+  eq(d.states, ["new", "read", "done", "wontfix"], "stavy");
+  const it = d.items[0];
+  if ("email" in it || "project_json" in it || "text" in it) throw new Error("seznam nese e-mail / projekt / cely text");
+  if (it.snippet.length > 160) throw new Error("ukazka");
+  eq((await (await adm("GET", "/api/admin/feedback?kind=idea", undefined, F)).json()).total, d.kind_counts.idea, "filtr typu");
+  eq((await (await adm("GET", "/api/admin/feedback?status=done", undefined, F)).json()).total, 0, "filtr stavu");
+});
+await check("detail: cely text a e-mail, nova -> precteno, audit feedback_view jen se zkracenym id", async () => {
+  const row = db.prepare("SELECT * FROM feedback WHERE email IS NOT NULL LIMIT 1").get();
+  const r = await adm("GET", "/api/admin/feedback/item?id=" + row.id, undefined, F);
+  eq(r.status, 200, "status");
+  const d = (await r.json()).item;
+  eq([d.text, d.email, d.status], [row.text, row.email, "read"], "detail");
+  if ("project_json" in d) throw new Error("detail nese projekt");
+  eq(db.prepare("SELECT status FROM feedback WHERE id = ?").get(row.id).status, "read", "v DB");
+  const au = fbAudit().at(-1);
+  eq([au.action, au.target, au.detail], ["feedback_view", row.id.slice(0, 8), "new -> read"], "audit");
+  eq((await adm("GET", "/api/admin/feedback/item?id=neni", undefined, F)).status, 404, "neexistuje");
+  eq((await adm("GET", "/api/admin/feedback/item?id=" + encodeURIComponent("x' OR 1=1"), undefined, F)).status, 400, "spatne id");
+});
+await check("zmena stavu a poznamky: CSRF (Origin, X-Requested-With), validace, audit bez obsahu poznamky", async () => {
+  const id = fbWithPrj().id;
+  eq((await adm("POST", "/api/admin/feedback", { id, status: "done" }, { ...F, Origin: "https://utocnik.example" })).status, 403, "cizi Origin");
+  eq((await call("POST", "/api/admin/feedback", { id, status: "done" }, { ...F, Origin: SITE })).status, 403, "bez XRW");
+  eq((await adm("POST", "/api/admin/feedback", { id, status: "smazano" }, F)).status, 400, "spatny stav");
+  eq((await adm("POST", "/api/admin/feedback", { id, note: "<b>x</b>" }, F)).status, 400, "HTML v poznamce");
+  eq((await adm("POST", "/api/admin/feedback", { id }, F)).status, 400, "nic ke zmene");
+  const r = await adm("POST", "/api/admin/feedback", { id, status: "done", note: "Opraveno ve verzi 0.2.3, tajna poznamka" }, F);
+  eq(r.status, 200, "status");
+  const row = db.prepare("SELECT status, note FROM feedback WHERE id = ?").get(id);
+  eq([row.status, row.note], ["done", "Opraveno ve verzi 0.2.3, tajna poznamka"], "ulozeno");
+  const au = fbAudit().at(-1);
+  eq([au.action, au.target], ["feedback_update", id.slice(0, 8)], "audit");
+  if (!/new -> done/.test(au.detail) || /tajna/.test(au.detail)) throw new Error("detail auditu: " + au.detail);
+  eq((await (await adm("POST", "/api/admin/feedback", { id, status: "done" }, F)).json()).unchanged, true, "beze zmeny");
+});
+await check("stazeni projektu: attachment, application/json, nosniff, no-store; audit; bez projektu 404", async () => {
+  const row = fbWithPrj();
+  const r = await adm("GET", "/api/admin/feedback/project?id=" + row.id, undefined, F);
+  eq(r.status, 200, "status");
+  eq(r.headers.get("content-type"), "application/json; charset=utf-8", "typ");
+  eq(r.headers.get("content-disposition"), `attachment; filename="feedback-${row.id.slice(0, 8)}.plcstudio.json"`, "disposition");
+  eq([r.headers.get("x-content-type-options"), r.headers.get("cache-control")], ["nosniff", "no-store"], "hlavicky");
+  eq(await r.text(), row.project_json, "obsah");
+  eq(fbAudit().at(-1).action, "feedback_project", "audit");
+  const noPrj = db.prepare("SELECT id FROM feedback WHERE has_project = 0 LIMIT 1").get();
+  eq((await adm("GET", "/api/admin/feedback/project?id=" + noPrj.id, undefined, F)).status, 404, "bez projektu");
+});
+await check("smazani prilozeneho projektu (drop_project) a celeho zaznamu (GDPR): CSRF, audit bez textu", async () => {
+  const id = fbWithPrj().id;
+  eq((await adm("POST", "/api/admin/feedback", { id, drop_project: true }, F)).status, 200, "drop");
+  const row = db.prepare("SELECT has_project, project_json FROM feedback WHERE id = ?").get(id);
+  eq([row.has_project, row.project_json], [0, null], "projekt pryc");
+  eq((await adm("GET", "/api/admin/feedback/project?id=" + id, undefined, F)).status, 404, "uz neni");
+  eq((await adm("POST", "/api/admin/feedback/delete", { id }, { ...F, Origin: "https://utocnik.example" })).status, 403, "cizi Origin");
+  eq((await adm("POST", "/api/admin/feedback/delete", { id }, F)).status, 200, "smazano");
+  eq(db.prepare("SELECT COUNT(*) AS n FROM feedback WHERE id = ?").get(id).n, 0, "v DB");
+  eq((await adm("POST", "/api/admin/feedback/delete", { id }, F)).status, 404, "podruhe");
+  eq([fbAudit().at(-1).action, fbAudit().at(-1).target], ["feedback_delete", id.slice(0, 8)], "audit");
+  // audit spravy nikdy nenese text zpravy ani e-mail odesilatele
+  const all = JSON.stringify(fbAudit());
+  if (/prekryvaji|tester@firma-example|Zakaznik a\.s\./.test(all)) throw new Error("osobni udaje v auditu");
+});
+await check("uchovani: zaznam starsi nez 2 roky zmizi pri nacteni seznamu", async () => {
+  db.prepare(`INSERT INTO feedback (id, created_at, updated_at, kind, text, client, status) VALUES ('fb-old', ?, ?, 'idea', 'stare', 'web', 'done')`)
+    .run(new Date(Date.now() - 731 * 864e5).toISOString(), new Date().toISOString());
+  await adm("GET", "/api/admin/feedback", undefined, F);
+  eq(db.prepare("SELECT COUNT(*) AS n FROM feedback WHERE id = 'fb-old'").get().n, 0, "smazano");
 });
 
 console.log(`\n${pass} proslo, ${fail} selhalo`);

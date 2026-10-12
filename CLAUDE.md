@@ -25,7 +25,7 @@ Workflow: Projekt → AI návrh → Platformy → Zařízení (Import jako vedle
   adresa signálu s kontrolou; přidání / parametry / smazání zařízení s kontrolou hodnot `deviceParamsProblem`,
   použití zařízení `deviceUsage`, převzetí návrhu AI `applyAiProposal`, `renumberIo` / `fixIoTags`, `projectIsEmpty`
   pro potvrzení nahrazení — klienti web i desktop jen volají tyto funkce, logiku úprav nekopírují).
-  Zkratky obou klientů: Ctrl+S / Ctrl+O projekt, Alt+←/→ krok, F1 Nápověda.
+  Zkratky obou klientů: Ctrl+S / Ctrl+O projekt, Alt+←/→ krok, F1 nápověda ke kroku (panel; Esc zavře).
   Jádro musí běžet v prohlížeči i Node — žádné závislosti nepřidávat.
 - `apps/web` — aplikace: statické HTML + ES moduly nad `packages/core/dist` (bez bundleru,
   záměrně — budoucí přechod na Vite/React je OK, ale core zůstává oddělené).
@@ -70,6 +70,26 @@ node scripts/golden.mjs [--code] [--dump DIR]  # výstupy generátoru × referen
 node scripts/golden.mjs --add               # jen NOVÉ soubory do reference (nová platforma / styl kódu)
 python scripts/build_verification.py        # data/verification.json → verification_data.ts (viz Ověření platforem)
 ```
+
+## Nápověda (`help.ts`) — jediný zdroj obsahu
+
+- `packages/core/src/help.ts`: kapitoly (`HelpChapter`: id, skupina start / step / topic, `step` = index kroku
+  lišty, nadpis, shrnutí, postup, tipy, časté chyby a hlášky s opravou, `see` = odkazy na id, klíčová slova;
+  `only: "web" | "desktop"` u položky / kapitoly), `HELP_STEP_IDS` / `helpForStep`, `helpChapters(lang, client)`,
+  `searchHelp(query, lang, client)` (bez diakritiky, nadpis > klíčová slova > shrnutí > text, úryvek),
+  `helpTour` (úvodní průvodce, 7 zastavení), `HELP_UI` (popisky panelu / kroku / průvodce / webu),
+  `helpSiteUrl(id)` (= `licenseSiteUrl("napoveda")` + id). Texty `N_()` + `**tučně**`; test `help.test.ts`
+  (každý krok má kapitolu, odkazy, hledání cs / en / de / zh, překlady všech jazyků).
+- **Kdo ho čte:** web `apps/web/src/help_ui.js` (tlačítko ? v záhlaví první karty kroku, panel vpravo, F1 =
+  panel ke kroku, Esc zavře; krok Nápověda = hledání + kapitoly + „Škola PLC“ + odkazy platforem; průvodce
+  při první návštěvě, `localStorage` `plcstudio.tour`, `?tour=off`), desktop `plc_studio/helppanel.py`
+  (operace mostu `help` + `call searchHelp`; `widgets.CARD_HOOK` dá ? do záhlaví první karty kroku, panel =
+  nemodální Toplevel vedle okna, průvodce zvýrazní tlačítko kroku stylem `Tour.TButton`, `settings.json`
+  `tour`, jen při prvním spuštění bez `state.json`), web plcdesk `apps/site/scripts/build.js` (`/napoveda/`
+  + `/napoveda/<id>/` v cs / en / de z `packages/core/dist`, odkaz v patičce, sitemap, náhled `preview.js`).
+- **Pravidlo: nová nebo změněná funkce aplikace = aktualizovat kapitolu v `help.ts`** (popsat jen skutečné
+  chování, rozdíl web / desktop přes `only`), přeložit nové klíče (`i18n.py missing/merge`), build jádra,
+  build webu plcdesk. Nápověda výstupy generátoru nemění (golden).
 
 ## Mezivrstva generátoru (ir.ts) a referenční test
 

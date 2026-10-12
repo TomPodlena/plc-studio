@@ -141,6 +141,24 @@
       bt_lic_linked: "Klíč uložen k přihlášce beta testera.", bad_status: "Neznámý stav.", bad_note: "Poznámka je delší než 2000 znaků nebo obsahuje < >.",
       src_beta: "Beta test", ev_import_beta: "Z přihlášky beta testera",
       a_beta_view: "zobrazení přihlášky beta", a_beta_update: "vyřízení přihlášky beta", a_beta_crm: "karta z přihlášky beta",
+      // zpetna vazba z aplikace
+      nav_feedback: "Zpětná vazba", fb_h: "Zpětná vazba", fb_total: "{n} zpráva|{n} zprávy|{n} zpráv", fb_none: "Žádná zpětná vazba.",
+      fb_hint: "Zprávy z aplikace (tlačítko Zpětná vazba ve webu i desktopu). Text se zobrazuje jen jako prostý text. Do auditu jde jen zkrácené id, typ a změna stavu — text, e-mail ani poznámka ne. Záznamy starší než 2 roky se mažou samy.",
+      fb_kind: "Typ", fb_all_kinds: "Všechny typy", fk_bug: "Chyba", fk_idea: "Námět", fk_question: "Dotaz",
+      fb_all_states: "Všechny stavy", fs_new: "Nová", fs_read: "Přečtená", fs_done: "Vyřízená", fs_wontfix: "Nebude řešeno",
+      col_fb_text: "Text", col_fb_app: "Aplikace", col_fb_step: "Krok", col_fb_flags: "Přílohy",
+      fb_back: "← Zpětná vazba", fb_detail: "Zpráva", fb_text: "Text zprávy", fb_email: "E-mail pro odpověď", fb_anon: "anonymně (bez e-mailu)",
+      fb_client: "Aplikace", fb_version: "Verze", fb_lang: "Jazyk", fb_step: "Krok", fb_env: "Prostředí", fb_plan: "Tarif",
+      fb_created: "Přišla", fb_updated: "Změněno", fb_project: "Přiložený projekt", fb_no_project: "bez projektu",
+      fb_project_dl: "Stáhnout projekt ({k} kB)", fb_project_drop: "Smazat přiložený projekt",
+      fb_project_warn: "Projekt může obsahovat údaje zákazníka odesílatele. Stáhněte ho jen k vyřízení zprávy a po vyřízení ho smažte.",
+      fb_drop_h: "Smazat přiložený projekt?", fb_drop_p: "Projekt se z databáze nevratně odstraní; zpráva zůstane.", fb_drop_ok: "Smazat projekt", fb_dropped: "Přiložený projekt smazán.",
+      fb_reply: "Odpovědět e-mailem", fb_manage: "Vyřízení", fb_note: "Poznámka provozovatele (max. 2000 znaků, bez < >)",
+      fb_save: "Uložit", fb_saved: "Uloženo.", fb_unchanged: "Beze změny.",
+      fb_delete: "Smazat zprávu", fb_delete_h: "Smazat zprávu?", fb_delete_p: "Zpráva včetně e-mailu a přiloženého projektu se nevratně smaže (např. na žádost odesílatele podle GDPR).",
+      fb_delete_ok: "Smazat", fb_deleted: "Zpráva smazána.", fb_flag_email: "e-mail", fb_flag_project: "projekt",
+      a_feedback_view: "zobrazení zpětné vazby", a_feedback_update: "vyřízení zpětné vazby", a_feedback_project: "stažení projektu ze zpětné vazby",
+      a_feedback_delete: "smazání zpětné vazby",
     },
     en: {
       title: "Customer admin — PLCdesk", tag: "Admin", lang_label: "Language", nav_label: "Admin", logout: "Sign out",
@@ -273,6 +291,24 @@
       bt_lic_linked: "Key stored with the beta tester application.", bad_status: "Unknown status.", bad_note: "The note is longer than 2000 characters or contains < >.",
       src_beta: "Beta test", ev_import_beta: "From a beta tester application",
       a_beta_view: "beta application viewed", a_beta_update: "beta application handled", a_beta_crm: "card from beta application",
+      // feedback from the application
+      nav_feedback: "Feedback", fb_h: "Feedback", fb_total: "{n} message|{n} messages", fb_none: "No feedback.",
+      fb_hint: "Messages from the application (Feedback button in the web app and the desktop). The text is shown as plain text only. The audit stores only a short id, the type and the status change — not the text, e-mail or note. Records older than 2 years are deleted automatically.",
+      fb_kind: "Type", fb_all_kinds: "All types", fk_bug: "Bug", fk_idea: "Idea", fk_question: "Question",
+      fb_all_states: "All statuses", fs_new: "New", fs_read: "Read", fs_done: "Resolved", fs_wontfix: "Won't fix",
+      col_fb_text: "Text", col_fb_app: "Application", col_fb_step: "Step", col_fb_flags: "Attachments",
+      fb_back: "← Feedback", fb_detail: "Message", fb_text: "Message text", fb_email: "Reply e-mail", fb_anon: "anonymous (no e-mail)",
+      fb_client: "Application", fb_version: "Version", fb_lang: "Language", fb_step: "Step", fb_env: "Environment", fb_plan: "Plan",
+      fb_created: "Received", fb_updated: "Changed", fb_project: "Attached project", fb_no_project: "no project",
+      fb_project_dl: "Download project ({k} kB)", fb_project_drop: "Delete attached project",
+      fb_project_warn: "The project may contain the sender's customer data. Download it only to handle the message and delete it afterwards.",
+      fb_drop_h: "Delete the attached project?", fb_drop_p: "The project is permanently removed from the database; the message stays.", fb_drop_ok: "Delete project", fb_dropped: "Attached project deleted.",
+      fb_reply: "Reply by e-mail", fb_manage: "Handling", fb_note: "Operator note (max. 2000 characters, no < >)",
+      fb_save: "Save", fb_saved: "Saved.", fb_unchanged: "No change.",
+      fb_delete: "Delete message", fb_delete_h: "Delete the message?", fb_delete_p: "The message including the e-mail and attached project is permanently deleted (e.g. at the sender's GDPR request).",
+      fb_delete_ok: "Delete", fb_deleted: "Message deleted.", fb_flag_email: "e-mail", fb_flag_project: "project",
+      a_feedback_view: "feedback viewed", a_feedback_update: "feedback handled", a_feedback_project: "project from feedback downloaded",
+      a_feedback_delete: "feedback deleted",
     },
   };
   const STATES = ["active", "past_due", "expired", "canceled", "downloaded", "lead"];
@@ -479,7 +515,7 @@
     document.querySelectorAll("#nav a").forEach((a) => (a.dataset.view === navName ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
     const my = ++seq;
     view.replaceChildren(msg(t("loading")));
-    const render = { prehled: vOverview, zakaznici: vCustomers, zakaznik: vCustomer, nova: vNew, audit: vAudit, leady: vLeads, lead: vLead, dokumenty: vDocs, dokument: vDoc, beta: vBeta }[r.name] || vOverview;
+    const render = { prehled: vOverview, zakaznici: vCustomers, zakaznik: vCustomer, nova: vNew, audit: vAudit, leady: vLeads, lead: vLead, dokumenty: vDocs, dokument: vDoc, beta: vBeta, feedback: vFeedback }[r.name] || vOverview;
     const node = await render(r);
     if (my === seq && node) { view.replaceChildren(node); window.scrollTo(0, 0); }
   }
@@ -1238,6 +1274,121 @@
       h("div", { class: "adm-title" }, h("h1", { text: A.company || A.email }), h("div", { class: "adm-actions" }, bstamp(A.status))),
       flash,
       h("div", { class: "adm-grid2" }, info, h("div", {}, manage, lic, crm)));
+  }
+
+  // ------------------------------------------------------------ zpetna vazba z aplikace (#/feedback, #/feedback/<id>)
+  // Text zpravy je vstup kohokoli: jen textContent (h(... text)), zadne odkazy ani HTML; e-mail jen jako text + mailto.
+  const FB_STATES = ["new", "read", "done", "wontfix"];
+  const FB_KINDS = ["bug", "idea", "question"];
+  const fstamp = (st) => h("span", { class: `stamp st-f-${st}`, text: t("fs_" + st) });
+  const fkind = (k) => h("span", { class: `fb-kind fk-${k}`, text: t("fk_" + k) });
+
+  async function vFeedback(r) {
+    return r.arg ? vFeedbackItem(r) : vFeedbackList(r);
+  }
+
+  async function vFeedbackList(r) {
+    const status = FB_STATES.includes(r.params.get("status")) ? r.params.get("status") : "";
+    const kind = FB_KINDS.includes(r.params.get("kind")) ? r.params.get("kind") : "";
+    const page = Number(r.params.get("page")) || 1;
+    const qs = (extra) => new URLSearchParams(Object.fromEntries(Object.entries({ status, kind, ...extra }).filter(([, v]) => v)));
+    const res = await api("GET", `/api/admin/feedback?${new URLSearchParams({ status, kind, page })}`);
+    const selS = h("select", { name: "status" }, h("option", { value: "", text: t("fb_all_states") }), FB_STATES.map((s) => h("option", { value: s, text: t("fs_" + s), selected: s === status })));
+    const selK = h("select", { name: "kind" }, h("option", { value: "", text: t("fb_all_kinds") }), FB_KINDS.map((k) => h("option", { value: k, text: t("fk_" + k), selected: k === kind })));
+    const form = h("form", { class: "adm-filter", onsubmit: (e) => { e.preventDefault(); go(`#/feedback?${qs({ status: selS.value, kind: selK.value })}`); } },
+      h("label", { class: "adm-field narrow" }, h("span", { text: t("bt_status") }), selS),
+      h("label", { class: "adm-field narrow" }, h("span", { text: t("fb_kind") }), selK));
+    selS.addEventListener("change", () => form.requestSubmit());
+    selK.addEventListener("change", () => form.requestSubmit());
+    if (!res.ok) return h("div", {}, h("h1", { text: t("fb_h") }), form, msg(errText(res), "err"));
+    const d = res.data;
+    const pg = (p) => go(`#/feedback?${qs({ page: p })}`);
+    const card = (label, n, href, cur) => h("a", { class: `adm-card bt-card${cur ? " cur" : ""}`, href }, h("b", { text: String(n || 0) }), h("span", { text: label }));
+    return h("div", {},
+      h("div", { class: "adm-title" }, h("h1", { text: t("fb_h") }), h("span", { class: "adm-count", text: tn("fb_total", d.total) })),
+      h("p", { class: "adm-hint", text: t("fb_hint") }),
+      h("div", { class: "adm-cards" },
+        FB_STATES.map((s) => card(t("fs_" + s), d.counts[s], `#/feedback?${qs({ status: s })}`, s === status)),
+        FB_KINDS.map((k) => card(t("fk_" + k), d.kind_counts[k], `#/feedback?${qs({ kind: k })}`, k === kind))),
+      form,
+      table(
+        [{ label: t("col_created_at") }, { label: t("fb_kind") }, { label: t("col_fb_text") }, { label: t("col_fb_app") }, { label: t("col_fb_step") }, { label: t("col_fb_flags") }, { label: t("col_status") }],
+        d.items,
+        (f) => [fmtDT(f.created_at), fkind(f.kind),
+          h("a", { href: `#/feedback/${encodeURIComponent(f.id)}`, class: "fb-snip", text: f.snippet + (f.text_len > f.snippet.length ? "…" : "") }),
+          `${f.client} ${f.app_version || ""}`.trim(), f.step || "—",
+          [f.has_email ? t("fb_flag_email") : null, f.has_project ? t("fb_flag_project") : null].filter(Boolean).join(", ") || "—",
+          fstamp(f.status)],
+        { empty: t("fb_none"), onRow: (f) => go(`#/feedback/${encodeURIComponent(f.id)}`) }),
+      d.pages > 1 ? h("div", { class: "adm-pager" },
+        h("button", { class: "btn btn-ghost btn-sm", type: "button", disabled: d.page <= 1, onclick: () => pg(d.page - 1), text: t("prev") }),
+        h("span", { text: t("page", { p: d.page, n: d.pages }) }),
+        h("button", { class: "btn btn-ghost btn-sm", type: "button", disabled: d.page >= d.pages, onclick: () => pg(d.page + 1), text: t("next") })) : null);
+  }
+
+  async function vFeedbackItem(r) {
+    const res = await api("GET", `/api/admin/feedback/item?${new URLSearchParams({ id: r.arg })}`);
+    const back = h("a", { href: "#/feedback", class: "btn btn-ghost btn-sm", text: t("fb_back") });
+    if (!res.ok) return h("div", {}, h("div", { class: "adm-actions adm-back" }, back), msg(errText(res), "err"));
+    const F = res.data.item;
+    const flash = h("div", { class: "fb-flash", "aria-live": "polite" });
+    const say = (text, cls) => flash.replaceChildren(msg(text, cls));
+    const reload = async (text, cls) => { const node = await vFeedbackItem(r); view.replaceChildren(node); const f = node.querySelector(".fb-flash"); if (f && text) f.replaceChildren(msg(text, cls)); };
+
+    const dd = (label, value) => [h("dt", { text: label }), h("dd", {}, value == null || value === "" ? "—" : value)];
+    const info = panel(t("fb_detail"),
+      h("h3", { class: "fb-sub", text: t("fb_text") }),
+      h("pre", { class: "fb-text", text: F.text }),
+      h("dl", { class: "adm-dl" },
+        dd(t("fb_kind"), fkind(F.kind)),
+        dd(t("fb_email"), F.email ? h("span", { class: "adm-mono", text: F.email }) : t("fb_anon")),
+        dd(t("fb_client"), F.client), dd(t("fb_version"), F.app_version), dd(t("fb_lang"), F.lang),
+        dd(t("fb_step"), F.step), dd(t("fb_env"), F.env), dd(t("fb_plan"), F.plan ? planName(F.plan) : null),
+        dd(t("fb_created"), fmtDT(F.created_at)), dd(t("fb_updated"), fmtDT(F.updated_at))),
+      F.email ? h("div", { class: "adm-actions" }, h("a", { class: "btn btn-ghost btn-sm", href: `mailto:${F.email}`, text: t("fb_reply") })) : null);
+
+    // stav a poznamka
+    const sel = h("select", { name: "status" }, FB_STATES.map((s) => h("option", { value: s, text: t("fs_" + s), selected: s === F.status })));
+    const note = h("textarea", { name: "note", rows: 4, maxlength: 2000, spellcheck: "true" });
+    note.value = F.note || "";
+    const saveBtn = h("button", { class: "btn btn-sm", type: "submit", text: t("fb_save") });
+    const manage = panel(t("fb_manage"), h("form", { class: "adm-form", onsubmit: async (e) => {
+      e.preventDefault();
+      saveBtn.disabled = true;
+      const x = await api("POST", "/api/admin/feedback", { id: F.id, status: sel.value, note: note.value });
+      saveBtn.disabled = false;
+      if (!x.ok) return say(errText(x), "err");
+      await reload(x.data.unchanged ? t("fb_unchanged") : t("fb_saved"), "ok");
+    } },
+      h("label", { class: "adm-field" }, h("span", { text: t("bt_status") }), sel),
+      h("label", { class: "adm-field" }, h("span", { text: t("fb_note") }), note),
+      h("div", { class: "adm-actions" }, saveBtn)));
+
+    // prilozeny projekt: stazeni (attachment ze serveru) a smazani
+    const prj = panel(t("fb_project"), F.has_project
+      ? [h("p", { class: "adm-hint", text: t("fb_project_warn") }),
+        h("div", { class: "adm-actions" },
+          h("a", { class: "btn btn-sm", href: `/api/admin/feedback/project?${new URLSearchParams({ id: F.id })}`, download: "", text: t("fb_project_dl", { k: Math.max(1, Math.round((F.project_size || 0) / 1024)) }) }),
+          h("button", { class: "btn btn-ghost btn-sm", type: "button", text: t("fb_project_drop"), onclick: async () => {
+            if (!(await ask({ title: t("fb_drop_h"), text: t("fb_drop_p"), ok: t("fb_drop_ok"), danger: true }))) return;
+            const x = await api("POST", "/api/admin/feedback", { id: F.id, drop_project: true });
+            if (!x.ok) return say(errText(x), "err");
+            await reload(t("fb_dropped"), "ok");
+          } }))]
+      : h("p", { class: "adm-muted", text: t("fb_no_project") }));
+
+    const del = h("div", { class: "adm-actions" }, h("button", { class: "btn btn-sm btn-danger", type: "button", text: t("fb_delete"), onclick: async () => {
+      if (!(await ask({ title: t("fb_delete_h"), text: t("fb_delete_p"), ok: t("fb_delete_ok"), danger: true }))) return;
+      const x = await api("POST", "/api/admin/feedback/delete", { id: F.id });
+      if (!x.ok) return say(errText(x), "err");
+      go("#/feedback");
+    } }));
+
+    return h("div", {},
+      h("div", { class: "adm-actions adm-back" }, back),
+      h("div", { class: "adm-title" }, h("h1", { text: `${t("fk_" + F.kind)} · ${F.id.slice(0, 8)}` }), h("div", { class: "adm-actions" }, fstamp(F.status))),
+      flash,
+      h("div", { class: "adm-grid2" }, info, h("div", {}, manage, prj, panel(t("fb_delete"), h("p", { class: "adm-hint", text: t("fb_delete_p") }), del))));
   }
 
   // ------------------------------------------------------------ interni dokumenty (#/dokumenty, #/dokument/<slug>)

@@ -36,12 +36,21 @@ def trace(var: tk.Variable, fn, owner: tk.Misc, mode: str = "write") -> str:
     return cbname
 
 
+# Háček záhlaví první karty kroku (App._render): tlačítko ? nápovědy ke kroku (helppanel.step_help_button).
+# Zavolá se jednou — u první karty, kterou krok vytvoří — a pak se zruší.
+CARD_HOOK = None
+
+
 def card(parent, num: str, title: str, *, expand: bool = True) -> ttk.Frame:
     """Karta kroku: číslo + nadpis, pod ním tělo (vrací tělo)."""
+    global CARD_HOOK
     outer = ttk.Frame(parent)
     outer.pack(fill="both", expand=expand, pady=(0, 10))
     head = ttk.Frame(outer)
     head.pack(fill="x", pady=(0, 8))
+    if CARD_HOOK is not None:
+        hook, CARD_HOOK = CARD_HOOK, None
+        hook(head)
     ttk.Label(head, text=num, style="CardNum.TLabel").pack(side="left")
     ttk.Label(head, text=title, style="CardTitle.TLabel").pack(side="left", padx=(8, 0))
     body = ttk.Frame(outer)

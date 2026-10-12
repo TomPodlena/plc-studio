@@ -125,7 +125,31 @@ def _smoke(app: App, shots: Path | None) -> int:
         wiz.close()
         root.update()
 
+    def walk_help(label: str) -> None:
+        """Panel nápovědy ke každému kroku (F1) a úvodní průvodce po všech zastaveních."""
+        from . import helppanel
+        for step in range(len(STEPS)):
+            app.goto(step)
+            root.update()
+            app.wait_jobs()
+            app.toggle_step_help()
+            root.update()
+            panel = helppanel.HelpPanel.current
+            if shots and panel is not None and step in (0, 4):
+                root.after(250)
+                root.update()
+                grab_window(panel.win, shots / f"{label}_help_{step}.png")
+            helppanel.HelpPanel.close_current()
+        tour = app.start_tour()
+        for i in range(len(tour.stops)):
+            root.update()
+            if shots and i in (0, 3):
+                grab_window(tour.win, shots / f"{label}_tour_{i}.png")
+            tour.next()
+        root.update()
+
     walk("slozita")                 # výchozí stav = ukázka složité linky
+    walk_help("slozita")
     walk_import("slozita")
     app.load_sample("small")
     walk("mala")
@@ -209,6 +233,9 @@ def main(argv: list[str] | None = None) -> int:
     root.after(2000, lambda: updates.start_check(app))
     # licence: kontrola stavu na pozadí (nejvýš jednou denně, bez sítě beze změny) — ne v --smoke
     root.after(3000, lambda: app.lic.background_check())
+    # úvodní průvodce při prvním spuštění (settings.json „tour“; znovu z kroku Nápověda)
+    from . import helppanel
+    root.after(900, lambda: helppanel.maybe_start_tour(app))
     root.mainloop()
     return 0
 

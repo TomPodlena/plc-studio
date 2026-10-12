@@ -111,6 +111,22 @@ const OPS = {
     };
   },
 
+  /* Nápověda (help.ts) v jazyce `lang` pro desktop: kapitoly, průvodce, popisky UI, skupiny, kapitola
+     kroku a adresy na webu PLCdesk — jedna operace, desktop si ji drží v cache podle jazyka.
+     Hledání jde přes `call` (searchHelp). */
+  help({ lang } = {}) {
+    const l = core.isLang(lang) ? lang : core.getLang();   // jazyk procesu mostu se nemění
+    return core.withLang(l, () => ({
+      lang: l,
+      chapters: core.helpChapters(l, "desktop"),
+      tour: core.helpTour(l),
+      ui: Object.fromEntries(Object.entries(core.HELP_UI).map(([k, v]) => [k, core.tr(v)])),
+      groups: Object.fromEntries(Object.entries(core.HELP_GROUPS).map(([k, v]) => [k, core.tr(v)])),
+      stepIds: core.HELP_STEP_IDS,
+      site: Object.fromEntries(["", ...core.HELP_IDS].map(id => [id, core.helpSiteUrl(id || undefined, l)])),
+    }));
+  },
+
   /* Obecné volání funkce jádra. Vrací i argumenty — funkce jako syncIO nebo
      autoAddr projekt mění na místě a volající potřebuje změněný stav. */
   call({ fn, args = [] }) {

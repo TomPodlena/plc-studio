@@ -1,5 +1,5 @@
 /* PLCdesk — aplikační shell: stav, navigace, render, jazyk. */
-import { blankProject, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule, escHtml as esc, syncIO, isVerified } from "../../../packages/core/dist/index.js";
+import { blankProject, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule, escHtml as esc, syncIO, isVerified, helpForStep } from "../../../packages/core/dist/index.js";
 import { get as workerGet, peek as workerPeek, forget as workerForget, workerActive, pendingCard } from "./worker_client.js";
 import { makeSteps } from "./steps.js";
 import { makeImportWizard } from "./import_wizard.js";
@@ -14,6 +14,8 @@ import { makeGenTabs } from "./gen_tabs.js";
 import { emuGate } from "./emu_step.js";
 import { trn } from "./plural.js";
 import { initLicense, renderLicenseBadge, licenseBanner, openLicenseDialog } from "./license.js";
+import { makeHelpPanel, addStepHelpButton, startTour, tourSeen } from "./help_ui.js";
+import { initFeedback, openFeedback } from "./feedback.js";
 
 /* Bezpečnostní modul: položky ke schválení (nebezpečí, funkce, návrh, program), kroky validace
    v oživení, dokumenty 13/14, bezpečnostní program a položky kusovníku. */
@@ -136,7 +138,12 @@ const navLabel = (i, done) => (done ? "✔ " : "") + (i + 1) + " · " + tr(STEPS
 /* Průvodce importem stávajícího zařízení (modální okno nad kroky; vstup z kroku Projekt a Zařízení). */
 let wizard = null;
 /* refresh: hlavička po úpravě bez překreslení kroku (řádek kusovníku) — odznaky schválení a revize */
-const steps = makeSteps({ S, save, render, openImport: () => wizard && wizard.open(), refresh: () => { showBadge(); biz.updateBadge(); scheduleBadge(); } });
+/* Nápověda (help_ui.js): panel ke kroku (? v záhlaví kroku, F1), kapitola z panelu „Celá nápověda“ → krok Nápověda */
+let helpFocusId = null;
+const helpPanel = makeHelpPanel({ S, gotoStep: st => gotoStep(st), openFull: id => { helpFocusId = id; gotoStep("help"); } });
+const runTour = () => { helpPanel.close(false); startTour({ S }); };
+const steps = makeSteps({ S, save, render, openImport: () => wizard && wizard.open(), refresh: () => { showBadge(); biz.updateBadge(); scheduleBadge(); },
+  helpFocus: () => { const id = helpFocusId; helpFocusId = null; return id; }, startTour: runTour });
 wizard = makeImportWizard({ S, save, render });
 const sctx = { S, save, render, showBadge };
 const safety = makeSafetyStep(sctx), approval = makeApprovalStep(sctx), commission = makeCommissionStep(sctx);
@@ -209,6 +216,9 @@ function scheduleBadge() {
 }
 $("badgeApproval").addEventListener("click", () => { S.step = STEP_APPROVAL; save(); render(); });
 $("badgeLicense").addEventListener("click", () => openLicenseDialog());
+/* zpětná vazba (feedback.js): kontext = projekt a krok („8: Dokumentace“ — český název kroku, nepřekládá se) */
+initFeedback({ project: () => S.prj, step: () => (S.step === "help" ? "help: Nápověda" : (S.step + 1) + ": " + STEPS[S.step]) });
+$("badgeFeedback").addEventListener("click", () => openFeedback());
 
 /* Statické texty hlavičky a patičky (v index.html jsou česky jako výchozí). */
 function renderStatic() {
@@ -218,11 +228,13 @@ function renderStatic() {
   $("stepper").setAttribute("aria-label", tr("Kroky návrhu"));
   $("lang").setAttribute("aria-label", tr("Jazyk rozhraní"));
   $("badgeLicense").setAttribute("aria-label", tr("Licence a tarif"));
+  $("badgeFeedback").textContent = tr("Zpětná vazba");
   $("lang").value = getLang();
   $("btnPrev").textContent = "← " + tr("Zpět");
   $("btnNext").textContent = tr("Pokračovat") + " →";
 }
 
+let panelStep = null;   // krok, ke kterému patří otevřený panel nápovědy
 function render() {
   emuGate(S.prj);   // dokument 15 jen pro projekt, pro který emulace proběhla
   renderStatic();
@@ -263,7 +275,11 @@ function render() {
   if ([7, 8, 9].includes(S.step)) licenseBanner($("view"), S.prj);
   renderLicenseBadge($("badgeLicense"));
   /* chyba vykreslení kroku (neočekávaná data projektu) nesmí shodit zbytek aplikace — hláška místo prázdné stránky */
-  try { r($("view")); } catch (e) {
+  try {
+    r($("view"));
+    /* tlačítko ? v záhlaví kroku → panel nápovědy k tomuto kroku (jako F1) */
+    if (typeof S.step === "number") { const st = S.step; addStepHelpButton($("view"), st, b => helpPanel.open(helpForStep(st), b)); }
+  } catch (e) {
     console.error("render:", e);
     const n = document.createElement("div");
     n.className = "notice err"; n.setAttribute("role", "alert");
@@ -271,6 +287,9 @@ function render() {
     $("view").appendChild(n);
   }
   wizard.render();
+  /* otevřený panel nápovědy: po přechodu na jiný krok kapitola nového kroku, jinak jen nový jazyk */
+  if (helpPanel.isOpen()) { if (panelStep !== S.step) helpPanel.open(helpForStep(S.step)); else helpPanel.refresh(); }
+  panelStep = S.step;
   showBadge();
   biz.updateBadge();   // označení revize v hlavičce („B*“ = změněno od revize)
   scheduleBadge();
@@ -281,7 +300,8 @@ $("btnPrev").addEventListener("click", () => { if (typeof S.step === "number" &&
 $("btnNext").addEventListener("click", () => { if (typeof S.step === "number" && S.step < STEPS.length - 1) { S.step++; save(); render(); } });
 
 /* ---------------------------------------------------------------- klávesové zkratky
-   Ctrl+S uložit projekt, Ctrl+O otevřít projekt, Alt+← / Alt+→ předchozí / další krok, F1 Nápověda
+   Ctrl+S uložit projekt, Ctrl+O otevřít projekt, Alt+← / Alt+→ předchozí / další krok, F1 nápověda ke kroku
+   (panel; Esc ho zavře)
    (desktop totéž v app.py). Rozepsané pole se před akcí uloží (událost change, jako při opuštění pole);
    nad modálním oknem (import, licence) zkratky nepracují. */
 let lastNumStep = 0;          // krok, ze kterého se otevřela Nápověda (Alt+← z ní vrací zpět)
@@ -313,6 +333,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 const modalOpen = () => [...document.querySelectorAll("[aria-modal='true']")].some(m => m.getClientRects().length > 0);
 function gotoStep(step) { commitFocused(); S.step = step; save(); render(); }
 document.addEventListener("keydown", async e => {
+  if (e.key === "Escape" && !e.defaultPrevented && helpPanel.isOpen() && !modalOpen()) { helpPanel.close(); return; }
   if (e.defaultPrevented || e.isComposing || e.repeat && e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
   const ctrl = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -320,7 +341,7 @@ document.addEventListener("keydown", async e => {
   if (!ours) return;
   e.preventDefault();                 // prohlížeč: Uložit stránku, Otevřít soubor, Zpět / Vpřed, nápověda prohlížeče
   if (modalOpen()) return;
-  if (key === "F1") { if (S.step !== "help") gotoStep("help"); return; }
+  if (key === "F1") { commitFocused(); helpPanel.toggleForStep(S.step); return; }
   if (key === "ArrowLeft" || key === "ArrowRight") {
     const cur = typeof S.step === "number" ? S.step : null;
     if (cur === null) { if (key === "ArrowLeft") gotoStep(lastNumStep); return; }
@@ -362,9 +383,14 @@ const guard = (label, p, ms = 4000) => {
 await guard("license", () => initLicense({ project: () => S.prj, onChange: () => render() }));
 /* kořenový adresář projektů (project_dir.js): handle z IndexedDB a stav oprávnění — bez dotazu */
 await guard("projectDir", () => initProjectDir(), 1500);   // plné / vadné úložiště: IndexedDB se nemusí ozvat — start nečeká déle
+let firstVisit = false;
 if (!load()) {   // první návštěva: prázdný projekt (žádná ukázka) s navrženým číslem projektu
   S.prj = blankProject();
   const num = await guard("number", () => suggestNumberAsync(), 1500);     // ze složek kořene, bez přístupu z historie prohlížeče
   if (num) S.prj.meta.number = num;
+  firstVisit = !corrupt;
 }
 render();
+/* úvodní průvodce při první návštěvě (zapamatuje se v localStorage plcstudio.tour; ?tour=off ho vypne,
+   znovu ho spustí tlačítko v kroku Nápověda) */
+if (firstVisit && !tourSeen() && new URLSearchParams(location.search).get("tour") !== "off") setTimeout(runTour, 300);

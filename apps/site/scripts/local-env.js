@@ -13,8 +13,9 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export function sqliteD1(file = ":memory:") {
   const db = new DatabaseSync(file);
-  // schema.sql + migrace spravy zakazniku (schema_admin.sql) a beta testeru (schema_beta.sql), stejne poradi jako pri nasazeni
-  for (const f of ["schema.sql", "schema_admin.sql", "schema_beta.sql", "schema_ratelimit.sql"]) {
+  // schema.sql + migrace spravy zakazniku (schema_admin.sql), beta testeru (schema_beta.sql), limitu pokusu
+  // (schema_ratelimit.sql) a zpetne vazby (schema_feedback.sql), stejne poradi jako pri nasazeni
+  for (const f of ["schema.sql", "schema_admin.sql", "schema_beta.sql", "schema_ratelimit.sql", "schema_feedback.sql"]) {
     const schema = fs.readFileSync(path.join(ROOT, f), "utf-8");
     for (const stmt of schema.split(";")) if (stmt.replace(/--.*$/gm, "").trim()) db.exec(stmt + ";");
   }
@@ -124,6 +125,20 @@ export function seedDemo(db) {
   for (const [id, platforms, ide, ver, name, company, email, locale, status, note, d] of beta) {
     ins(`INSERT INTO beta_applications (id, created_at, updated_at, platforms, ide, ide_version, name, company, email, locale, consent_at, status, note)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, iso(d), iso(d), platforms, ide, ver, name, company, email, locale, iso(d), status, note);
+  }
+
+  // Zpetna vazba z aplikace (smyslena; jeden zaznam s prilozenym malym projektem)
+  const demoPrj = JSON.stringify({ meta: { name: "Ukázkový pás", number: "260001" }, devices: [{ id: "M1", name: "M1", cls: "Motor" }], seq: [] });
+  const fb = [
+    ["fb-1", "bug", "Po přepnutí do němčiny se v kroku Kusovník překrývají sloupce.\nOkno 1366 × 768, Windows 11.", "jana.novakova@strojirna-example.cz", "desktop", "0.2.2", "cs", "10: Kusovník", "Windows 11, Python 3.11, Tk 8.6", "firma", null, "new", null, -1],
+    ["fb-2", "idea", "Uvítal bych export I/O listu přímo do Excelu s barvami podle typu signálu.", null, "web", "0.2.2", "en", "5: I/O", "Edge 141, Windows", "free", null, "read", null, -3],
+    ["fb-3", "question", "Jde v PLCdesk nastavit vlastní číslování svorek?", "buyer@controls-example.com", "web", "0.2.1", "de", "6: Schéma", "Chrome 140, Linux", "pro", null, "done", "Odpovězeno e-mailem, odkaz na nápovědu.", -9],
+    ["fb-4", "bug", "Import L5X skončil chybou u projektu s osou.", null, "desktop", "0.2.2", "cs", "4: Zařízení", "Windows 10, Python 3.11, Tk 8.6", "trial", demoPrj, "new", null, 0],
+  ];
+  for (const [id, kind, text, email, client, ver, lang, step, envt, plan, prj, status, note, d] of fb) {
+    ins(`INSERT INTO feedback (id, created_at, updated_at, kind, text, email, client, app_version, lang, step, env, plan, has_project, project_json, project_size, status, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, iso(d), iso(d), kind, text, email, client, ver, lang, step, envt, plan,
+      prj ? 1 : 0, prj, prj ? Buffer.byteLength(prj) : null, status, note);
   }
 }
 
