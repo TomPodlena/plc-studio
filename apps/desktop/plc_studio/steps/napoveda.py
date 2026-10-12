@@ -1,11 +1,15 @@
-"""Nápověda — „Škola PLC" pro začátečníky (obsah shodný s webovou aplikací)."""
+"""Nápověda — hledání a kapitoly po krocích z jádra (help.ts, společné s webem a webem PLCdesk),
+pod nimi „Škola PLC" pro začátečníky, odkazy na platformy a kontrola aktualizací."""
 
 from __future__ import annotations
 
 import re
 import webbrowser
 
-from .. import theme
+import tkinter as tk
+from tkinter import ttk
+
+from .. import helppanel, theme
 from ..i18n import N_, _
 from ..updates import about_bar
 from ..widgets import card, scrolled_text
@@ -147,37 +151,6 @@ SECTIONS = [
         N_("• **Openness / L5X / PLCopen XML** — formáty pro strojovou výměnu projektů."),
         N_("• **PLCSIM, Logix Echo, GX Simulator…** — simulátory CPU."),
     ]),
-    (N_("Jak pracovat s PLCdesk"), [
-        N_("1. **Projekt** — pojmenuj; nebo otevři příklad stroje (Příklady strojů)."),
-        N_("2. **AI návrh** — popiš stroj, AI navrhne zařízení a sekvenci (API klíč v nastavení "
-           "kroku)."),
-        N_("3. **Platformy** — vyber cílové systémy."),
-        N_("4. **Zařízení** — dolaď sestavu; Import existujícího projektu je vedlejší volba dole."),
-        N_("5. **I/O** — tagy, adresy, NC; kontrola návrhu hlídá duplicity a přenositelnost tagů."),
-        N_("6. **Schéma** — klikací blokové schéma, funkční diagram cyklu, elektrické zapojení "
-           "(SVG/DXF), svorkovnice."),
-        N_("7. **Program** — E-stop a automatická sekvence; živá simulace s tlačítky, scénáře "
-           "a ověření programu."),
-        N_("8. **Generovat** — kód po platformách, README s postupem importu."),
-        N_("9. **Dokumentace** — FDS, FAT a spol. po souborech k uložení."),
-        N_("10. **Kusovník** — komponenty k poptávce: PLC a moduly, ke každému zařízení jeho "
-           "díly (jistič motoru, stykač, rozváděč, snímače…) a rozvaděč; značky, typy a "
-           "dodavatelé z katalogu, volba u řádku nebo celé kategorie, export CSV pro Excel."),
-        N_("11. **Bezpečnost** — nebezpečí a bezpečnostní funkce: PLr z grafu rizik, "
-           "architektura, komponenty a výpočet PL, bezpečná vzdálenost (ISO 13855), "
-           "schvalování přímo v kroku, bezpečnostní program a výkres okruhu."),
-        N_("12. **Schválení** — odpovědná osoba schvaluje položky návrhu jménem, datem "
-           "a poznámkou; návrhy ladění z ověření simulací."),
-        N_("13. **Oživení** — plán oživení po fázích, výsledky OK / Nevyhovuje / N/A "
-           "a protokol MD / CSV."),
-    ]),
-    (N_("Klávesové zkratky"), [
-        N_("• **Ctrl+S** — uložit projekt: otevřený nebo už uložený projekt do jeho souboru, jinak "
-           "dialog Uložit projekt. Rozepsané pole se nejdřív uloží."),
-        N_("• **Ctrl+O** — otevřít projekt ze souboru (neprázdný návrh se nejdřív zeptá)."),
-        N_("• **Alt+←** / **Alt+→** — předchozí / další krok."),
-        N_("• **F1** — tato nápověda."),
-    ]),
     (N_("Schvalování a oživení"), [
         N_("**Navrhovat vše, platí jen schválené.** PLCdesk navrhuje zařízení, I/O, "
            "program, ověření i plán oživení — za návrh ale odpovídá člověk. Každá položka "
@@ -241,19 +214,60 @@ def _insert_refs(app, txt) -> None:
 
 
 def render(app, parent) -> None:
-    body = card(parent, "?", _("Škola PLC — nápověda pro začátečníky"))
+    data = helppanel.help_data(app)
+    ui = data["ui"]
+    body = card(parent, "?", _("Nápověda"))
     about_bar(app, body)            # verze a volba kontroly aktualizací (updates.py)
+
+    # hledání + průvodce
+    row = ttk.Frame(body)
+    row.pack(fill="x", pady=(8, 4))
+    var = tk.StringVar(value=app.ui.get("help_query", ""))
+    ent = ttk.Entry(row, textvariable=var)
+    ent.pack(side="left", fill="x", expand=True)
+    ent._var = var                              # Tk proměnnou držet živou (GC)
+    ttk.Label(row, text="🔍", style="Dim.TLabel").pack(side="left", padx=(4, 0), before=ent)
+    ttk.Button(row, text=ui["tourStart"], command=app.start_tour).pack(side="left", padx=(10, 0))
+    body.help_entry = ent
+
     frm, txt = scrolled_text(body, height=10, bg=theme.BG, spacing1=2, spacing3=4)
+    res_frm, res = scrolled_text(body, height=7, bg=theme.FIELD, spacing1=2, spacing3=2)
     frm.pack(fill="both", expand=True)
-    txt.tag_configure("h", foreground=theme.PRIMARY, font=theme.FONT_CARD, spacing1=14, spacing3=6)
-    txt.tag_configure("p", lmargin1=4, lmargin2=4)
-    txt.tag_configure("li", lmargin1=16, lmargin2=30)
-    txt.tag_configure("b", font=theme.FONT_ACCENT)
+    for t in (txt, res):
+        helppanel.setup_tags(t)
     txt.tag_configure("plat", lmargin1=16, lmargin2=30, foreground=theme.FG)
     txt.tag_configure("dim", lmargin1=30, lmargin2=30, foreground=theme.DIM, font=theme.FONT_DIM)
+    body.help_text, body.help_results = txt, res
+
+    def goto_ch(cid: str) -> None:
+        idx = txt.index("ch_" + cid) if ("ch_" + cid) in txt.mark_names() else None
+        if idx:
+            txt.see("end")
+            txt.see(idx)
+            txt.yview(idx)
+
+    # obsah: skupiny a odkazy na kapitoly
+    txt.insert("end", ui["contents"] + "\n", ("h",))
+    chapters = data["chapters"]
+    for g, gtitle in data["groups"].items():
+        lst = [c for c in chapters if c["group"] == g]
+        if not lst:
+            continue
+        txt.insert("end", gtitle + ": ", ("p", "b"))
+        for i, c in enumerate(lst):
+            if i:
+                txt.insert("end", " · ", ("p",))
+            helppanel.insert_link(txt, c["title"], lambda s=c["id"]: goto_ch(s))
+        txt.insert("end", "\n", ("p",))
+    # kapitoly
+    for c in chapters:
+        txt.mark_set("ch_" + c["id"], "end-1c")
+        txt.mark_gravity("ch_" + c["id"], "left")
+        helppanel.insert_chapter(app, txt, c, goto_ch)
+    txt.insert("end", ui["school"] + "\n", ("h",))
 
     for title, paras in SECTIONS:
-        txt.insert("end", _(title) + "\n", ("h",))
+        txt.insert("end", _(title) + "\n", ("h4",))
         for line in paras:
             if line == "@platformy":
                 for pf in app.PLAT.values():
@@ -269,3 +283,77 @@ def render(app, parent) -> None:
             else:
                 _insert_rich(txt, _(line), "p")
     txt.configure(state="disabled")
+
+    # výsledky hledání (nad obsahem, jen při zadaném dotazu)
+    job = {"id": None}
+
+    def run_search() -> None:
+        job["id"] = None
+        q = var.get()
+        app.ui["help_query"] = q
+        res.configure(state="normal")
+        res.delete("1.0", "end")
+        if not q.strip():
+            res.configure(state="disabled")
+            res_frm.pack_forget()
+            return
+        hits = helppanel.search(app, q)
+        res.insert("end", ui["results"] + "\n", ("h4",))
+        if not hits:
+            res.insert("end", ui["noResults"] + "\n", ("p", "dim"))
+        words = [w for w in re.split(r"[\s,;]+", _fold(q)) if w]
+        for h in hits:
+            helppanel.insert_link(res, h["title"], lambda s=h["id"]: goto_ch(s))
+            res.insert("end", "\n", ("p",))
+            _insert_marked(res, h["snippet"], words)
+        res.configure(state="disabled")
+        if not res_frm.winfo_ismapped():
+            res_frm.pack(fill="x", before=frm, pady=(0, 6))
+        body.help_hits = hits
+
+    def schedule(*_a) -> None:
+        if job["id"] is not None:
+            ent.after_cancel(job["id"])
+        job["id"] = ent.after(200, run_search)
+
+    from ..widgets import trace
+    trace(var, schedule, ent)
+    body.help_search = run_search
+
+    def first_hit(_e=None):
+        hits = getattr(body, "help_hits", None)
+        if hits:
+            goto_ch(hits[0]["id"])
+        return "break"
+    ent.bind("<Return>", first_hit)
+    if var.get().strip():
+        run_search()
+    focus = app.ui.pop("help_focus", None)
+    if focus:
+        txt.after_idle(lambda: goto_ch(focus))
+    body.help_goto = goto_ch
+
+
+def _fold(s: str) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", s) if not unicodedata.combining(c)).lower()
+
+
+def _insert_marked(txt, text: str, words: list[str]) -> None:
+    """Úryvek s vyznačenými shodami (bez diakritiky)."""
+    f = _fold(text)
+    marks = []
+    for w in words:
+        k = f.find(w)
+        while k >= 0:
+            marks.append((k, k + len(w)))
+            k = f.find(w, k + len(w))
+    marks.sort()
+    i = 0
+    for a, b in marks:
+        if a < i:
+            continue
+        txt.insert("end", text[i:a], ("li", "dim"))
+        txt.insert("end", text[a:b], ("li", "dim", "mark"))
+        i = b
+    txt.insert("end", text[i:] + "\n", ("li", "dim"))

@@ -8,7 +8,7 @@ import {
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
   buildBom, bomOptions, bomPlatform, bomCsv, bomTableText, bomQtyInput, bomSuppliers, BOM_QTY_MAX, catKey, suppliersFor, CATALOG_DATE, PLATFORM_REFS,
   hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
-  verifyPackArchive, licenseSiteUrl, PLCDESK_VERSION,
+  verifyPackArchive, licenseSiteUrl, PLCDESK_VERSION, HELP_UI,
   renameDevice, setDeviceDesc, setDeviceOpts, setDeviceRange, deviceOpts,
   updateStep, insertStep, duplicateStep, setIoTag, setIoAddr, setIoCmt,
   addDevice, setDeviceParams, deviceUsage, deleteDevice, parseRecordsForm, parseAxisPositionsForm,
@@ -19,6 +19,7 @@ import { gateFor } from "./license.js";
 import { mountFolderControls, pickProjectText, suggestNumberAsync, saveProjectFile } from "./project_dir.js";
 import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, aiNotesText, seedFromProject, AI_EXAMPLE } from "./ai.js";
 import { trn } from "./plural.js";
+import { helpContentsHtml, wireHelpContents } from "./help_ui.js";
 import { get as workerGet, pendingCard } from "./worker_client.js";
 
 /** Šířka číselného pole konfigurace osy podle délky textu (číslice + rezerva na šipky pole). */
@@ -1510,9 +1511,12 @@ export function makeSteps(ctx) {
     const H = (t, b) => "<details class='help'><summary>" + t + "</summary><div class='body'>" + b + "</div></details>";
     const c = document.createElement("section");
     c.className = "card";
-    c.innerHTML = "<h2><span class='n'>?</span>" + tr("Škola PLC — nápověda pro začátečníky") + "</h2>"
+    c.innerHTML = "<h2><span class='n'>?</span>" + tr("Nápověda") + "</h2>"
       /* verze aplikace (jako desktop about_bar) — PLCDESK_VERSION z jádra = package.json = desktop __version__ */
       + "<p class='hint' id='helpVersion' style='margin-top:0'><b>" + esc(tr("PLCdesk verze {v}", { v: PLCDESK_VERSION })) + "</b></p>"
+      /* kapitoly po krocích a hledání — obsah z jádra (help.ts), společný s desktopem a webem plcdesk */
+      + helpContentsHtml()
+      + "<h3>" + esc(tr(HELP_UI.school)) + "</h3>"
       + H(tr("Co je PLC a jak funguje"), `
       <p>${tr("PLC (programovatelný logický automat) je průmyslový počítač, který řídí stroj: čte vstupy (tlačítka, snímače), vyhodnotí program a nastaví výstupy (stykače, ventily, signálky). Na rozdíl od běžného PC je stavěný na nepřetržitý provoz, rušení a teploty v rozvaděči.")}</p>
       <p>${tr(`<b>Scan cyklus</b>: <b>1)</b> načti vstupy, <b>2)</b> vykonej program odshora dolů, <b>3)</b> zapiš výstupy — opakuje se každých 1–10 ms. Program nikdy „nečeká" uvnitř; stav do dalšího cyklu musí být v proměnné.`)}</p>
@@ -1564,33 +1568,11 @@ export function makeSteps(ctx) {
         <li>${tr("<b>Openness / L5X / PLCopen XML</b> — formáty pro strojovou výměnu projektů.")}</li>
         <li>${tr("<b>PLCSIM, Logix Echo, GX Simulator…</b> — simulátory CPU.")}</li>
       </ul>`)
-      + H(tr("Jak pracovat s PLCdesk"), `
-      <ol style='padding-left:20px'>
-        <li>${tr("<b>Projekt</b> — pojmenuj; nebo otevři příklad stroje (Příklady strojů).")}</li>
-        <li>${tr("<b>AI návrh</b> — popiš stroj, AI navrhne zařízení a sekvenci (API klíč v nastavení kroku).")}</li>
-        <li>${tr("<b>Platformy</b> — vyber cílové systémy.")}</li>
-        <li>${tr("<b>Zařízení</b> — dolaď sestavu; Import existujícího projektu je vedlejší volba dole.")}</li>
-        <li>${tr("<b>I/O</b> — tagy, adresy, NC; kontrola návrhu hlídá duplicity a přenositelnost tagů.")}</li>
-        <li>${tr("<b>Schéma</b> — blokové schéma, elektrické zapojení (SVG/DXF), svorkovnice.")}</li>
-        <li>${tr("<b>Program</b> — E-stop a automatická sekvence.")}</li>
-        <li>${tr("<b>Generovat</b> — kód po platformách, README s postupem importu.")}</li>
-        <li>${tr("<b>Dokumentace</b> — FDS, FAT a spol. po souborech ke stažení.")}</li>
-        <li>${tr("<b>Kusovník</b> — komponenty k poptávce: výrobci, typy, objednací kódy a dodavatelé; CSV pro Excel.")}</li>
-        <li>${tr("<b>Bezpečnost</b> — nebezpečí a bezpečnostní funkce (PLr z grafu rizik, architektura, výpočet PL, bezpečná vzdálenost), schvalování, bezpečnostní program a výkres okruhu.")}</li>
-        <li>${tr("<b>Schválení</b> — odpovědná osoba schvaluje položky návrhu jménem, datem a poznámkou; návrhy ladění z ověření.")}</li>
-        <li>${tr("<b>Oživení</b> — plán oživení po fázích, výsledky kroků OK / Nevyhovuje / N/A a protokol (MD, CSV).")}</li>
-      </ol>`)
-      + H(tr("Klávesové zkratky"), `
-      <ul>
-        <li>${tr("<b>Ctrl+S</b> — uložit projekt: s vybraným kořenovým adresářem do projektové složky, jinak stažením souboru .plcstudio.json. Rozepsané pole se nejdřív uloží.")}</li>
-        <li>${tr("<b>Ctrl+O</b> — otevřít projekt ze souboru (neprázdný návrh se nejdřív zeptá).")}</li>
-        <li>${tr("<b>Alt+←</b> / <b>Alt+→</b> — předchozí / další krok.")}</li>
-        <li>${tr("<b>F1</b> — tato nápověda.")}</li>
-      </ul>`)
       + H(tr("Schvalování a oživení"), `
       <p>${tr("PLCdesk navrhuje, platí jen to, co odpovědná osoba schválí. Každá položka (zařízení, tabulka I/O, sekvence, E-stop a blokování, takt, výsledek ověření, bezpečnost, plán oživení) se schvaluje jménem, datem a poznámkou. Schválení platí pro obsah v okamžiku schválení — když se položka potom změní, ukáže se „změněno po schválení“ a je potřeba ji schválit znovu. Odznak v hlavičce ukazuje počet neschválených položek.")}</p>
       <p>${tr("Návrhy ladění (delší hlídací čas, meze měření, nesplněný takt…) se dají jedním klikem použít — tím se změní projekt, ale nic se neschválí. Oživení prochází stroj po fázích od rozvaděče po validaci bezpečnostních funkcí; ke každému kroku se zapíše výsledek, naměřená hodnota a kdo ho zapsal.")}</p>`);
     el.appendChild(c);
+    wireHelpContents(c, { focus: ctx.helpFocus ? ctx.helpFocus() : null, startTour: () => ctx.startTour && ctx.startTour() });
   }
 
   /** Druhy odkazů v pořadí, v jakém se v nápovědě ukazují. */

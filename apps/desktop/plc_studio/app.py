@@ -167,6 +167,8 @@ class App:
         self.prj: dict = self.core("blankProject")
         self.ai: dict = new_ai()
         self.step: int | str = 0
+        # první spuštění (ještě bez uloženého stavu) → úvodní průvodce (helppanel.maybe_start_tour)
+        self.first_run = not (self.home / "state.json").exists()
         self._load_state()
         # první spuštění / prázdný projekt: žádná ukázka, jen návrh čísla projektu (příklady strojů
         # jsou v kroku Projekt; load_sample zůstává pro testy a --smoke)
@@ -376,6 +378,10 @@ class App:
         if lang == self.lang or lang not in self.LANGS:
             return
         self._load_core(lang)
+        from . import helppanel                # panel a průvodce v původním jazyce zavřít
+        helppanel.HelpPanel.close_current()
+        if helppanel.Tour.current is not None:
+            helppanel.Tour.current.end(None)
         self.lic.recompute()                  # texty stavu licence v novém jazyce
         self.settings["lang"] = self.lang
         self.save_settings()
@@ -701,7 +707,8 @@ class App:
         self.render()
 
     # --- klávesové zkratky ------------------------------------------------------------
-    # Ctrl+S uložit projekt, Ctrl+O otevřít projekt, Alt+← / Alt+→ předchozí / další krok, F1 Nápověda
+    # Ctrl+S uložit projekt, Ctrl+O otevřít projekt, Alt+← / Alt+→ předchozí / další krok, F1 nápověda
+    # ke kroku (panel helppanel.HelpPanel, Esc ho zavře)
     # (web totéž v app.js). Rozepsané pole se před akcí uloží (FocusOut jako při opuštění pole);
     # v dialogových oknech (import, licence…) zkratky nepracují.
 
@@ -759,10 +766,23 @@ class App:
         return "break"
 
     def _key_help(self, event=None):
-        if (event is None or self._key_ok(event)) and self.step != "help":
+        """F1 = panel nápovědy k aktuálnímu kroku (podruhé ho zavře); krok Nápověda je v liště."""
+        if event is None or self._key_ok(event):
             self._commit_focused()
-            self.goto("help")
+            self.toggle_step_help()
         return "break"
+
+    def toggle_step_help(self):
+        from . import helppanel
+        try:
+            return helppanel.HelpPanel.toggle(self, helppanel.chapter_for_step(self, self.step))
+        except BridgeError as exc:
+            self.set_status(_("Jádro hlásí chybu: {exc}", exc=exc))
+            return None
+
+    def start_tour(self):
+        from . import helppanel
+        return helppanel.Tour.start(self)
 
     # --- odkazy mezi kroky -----------------------------------------------------------
     # Krok si cíl vyzvedne z ``self.ui`` při vykreslení (výběr řádku, záložka…).
@@ -890,6 +910,9 @@ class App:
                         else "StepDone.TButton" if done else "Step.TButton",
                         text=self._step_text(i, self._nav_level))
         self._help_btn.configure(style="StepOn.TButton" if self.step == "help" else "Step.TButton")
+        from .helppanel import Tour             # zvýraznění průvodce přežije překreslení lišty
+        if Tour.current is not None:
+            Tour.current.rehighlight()
         self._fit_nav()
 
     # --- odznak schválení ----------------------------------------------------------------
@@ -987,6 +1010,18 @@ class App:
             self._page.reset()
         renderer = render_help if self.step == "help" else RENDERERS[self.step]
         self._license_banner()
+        from . import helppanel, widgets
+        if num:                                    # tlačítko ? v záhlaví první karty kroku
+            step = self.step
+            widgets.CARD_HOOK = lambda head: helppanel.step_help_button(self, head, step)
+        # otevřený panel nápovědy: po přechodu na jiný krok kapitola nového kroku
+        panel = helppanel.HelpPanel.current
+        if panel is not None and panel.alive() and getattr(self, "_panel_step", None) != self.step:
+            try:
+                panel.show(helppanel.chapter_for_step(self, self.step))
+            except (BridgeError, tk.TclError):
+                pass
+        self._panel_step = self.step
         try:
             renderer(self, self.view)
         except Pending as p:
@@ -1009,6 +1044,8 @@ class App:
                       + _("Podrobnosti jsou v {path}. Ostatní kroky fungují dál — zkontroluj data návrhu.",
                           path=self.home / "plc_studio.log"),
                       style="Err.TLabel", justify="left").pack(anchor="w")
+        finally:
+            widgets.CARD_HOOK = None
         self.schedule_badge()
         from .steps import revize
         revize.update_badge(self, getattr(self, "_rev_lbl", None), before=self._titles)

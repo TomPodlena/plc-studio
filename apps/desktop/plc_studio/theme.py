@@ -171,6 +171,10 @@ def apply_styles(root: tk.Tk) -> ttk.Style:
                     bordercolor=ACCENT, lightcolor=ACCENT, darkcolor=ACCENT,
                     font=FONT_ACCENT, padding=(6, 5), width=0)
     style.map("StepOn.TButton", background=[("active", ACCENT)])
+    # tlačítko kroku zvýrazněné úvodním průvodcem (helppanel.Tour)
+    style.configure("Tour.TButton", background=WARN_BG, foreground=PRIMARY, bordercolor=WARN,
+                    lightcolor=WARN_BG, darkcolor=WARN_BG, font=FONT_ACCENT, padding=(6, 5), width=0)
+    style.map("Tour.TButton", background=[("active", WARN_BG)])
     # štítek aktivního filtru (klik = zrušit)
     style.configure("Chip.TButton", background=TREE_SEL, foreground=PRIMARY, bordercolor=BORDER,
                     lightcolor=TREE_SEL, darkcolor=TREE_SEL, font=FONT_DIM, padding=(6, 1))

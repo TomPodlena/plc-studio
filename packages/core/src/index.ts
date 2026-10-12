@@ -47,3 +47,4 @@ export * from "./edit.js";
 export * from "./project_meta.js";
 export * from "./project_folder.js";
 export * from "./project_norm.js";
+export * from "./help.js";

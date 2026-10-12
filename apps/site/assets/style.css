@@ -799,3 +799,16 @@ html.lb-open { overflow: hidden; }
   .site-head, .hero-bg, .dark-bg { display: none; }
   .rv { opacity: 1 !important; transform: none !important; }
 }
+
+/* ---------- napoveda (/napoveda/, obsah z packages/core/src/help.ts) ---------- */
+.help-index { list-style: none; padding: 0; display: grid; gap: 14px; }
+.help-index li a { display: inline-flex; gap: 10px; align-items: baseline; text-decoration: none; color: var(--ink); }
+.help-index li a:hover b { text-decoration: underline; }
+.help-index li a .feature-n { margin: 0; }
+.help-index p { margin: 4px 0 0; color: var(--muted); font-size: .95rem; }
+.help-steps { padding-left: 1.4em; display: grid; gap: 8px; }
+.help-issues dt { font-weight: 600; margin-top: 12px; }
+.help-issues dd { margin: 4px 0 0 0; color: var(--muted); }
+.help-only { font: 500 .7rem/1 var(--mono); padding: 3px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.help-back { margin-top: 28px; }
+.eyebrow a { color: inherit; text-decoration: none; }
