@@ -106,5 +106,65 @@
   "name": "Paletizační buňka PC-16 se třemi polohovacími osami",
   "devices": 16,
   "steps": 38
+ },
+ {
+  "file": "17_odberovy_manipulator_vstrikovaci_lis_OM-17.plcstudio.json",
+  "name": "Odběrový manipulátor výlisků OM-17 u vstřikovacího lisu (servoosa, Euromap 67)",
+  "devices": 17,
+  "steps": 27
+ },
+ {
+  "file": "18_susarna_doprava_granulatu_SG-18.plcstudio.json",
+  "name": "Sušárna granulátu s centrální dopravou SG-18",
+  "devices": 24,
+  "steps": 30
+ },
+ {
+  "file": "19_temperacni_jednotka_formy_TJ-19.plcstudio.json",
+  "name": "Temperační jednotka formy TJ-19 (voda do 140 °C, styl kódu OOP)",
+  "devices": 24,
+  "steps": 21
+ },
+ {
+  "file": "20_zkusebni_stanice_tesnosti_ZT-20.plcstudio.json",
+  "name": "Zkušební stanice těsnosti ZT-20 (tlakový spád, dvouruční ovládání)",
+  "devices": 18,
+  "steps": 21
+ },
+ {
+  "file": "21_sroubovaci_stanice_SS-21.plcstudio.json",
+  "name": "Šroubovací stanice SS-21 se dvěma polohovacími osami",
+  "devices": 18,
+  "steps": 45
+ },
+ {
+  "file": "22_etiketovaci_linka_EB-22.plcstudio.json",
+  "name": "Etiketovací a balicí linka EB-22 se servoaplikátorem",
+  "devices": 19,
+  "steps": 27
+ },
+ {
+  "file": "23_misici_davkovaci_linka_MD-23.plcstudio.json",
+  "name": "Mísicí a dávkovací linka kapalin MD-23 (receptura A + B + C, vážení)",
+  "devices": 30,
+  "steps": 37
+ },
+ {
+  "file": "24_svarovaci_bunka_SV-24.plcstudio.json",
+  "name": "Robotická svařovací buňka SV-24 (přípravek, odsávání, zámek dveří)",
+  "devices": 23,
+  "steps": 25
+ },
+ {
+  "file": "25_cerpaci_stanice_odpadnich_vod_CS-25.plcstudio.json",
+  "name": "Kanalizační čerpací stanice CS-25 se střídáním čerpadel (styl kódu OOP)",
+  "devices": 10,
+  "steps": 12
+ },
+ {
+  "file": "26_montazni_bunka_MB-26.plcstudio.json",
+  "name": "Montážní buňka MB-26 — lisování, šroubování, kontrola a značení (servoportál, 7 stanic)",
+  "devices": 55,
+  "steps": 94
  }
 ]

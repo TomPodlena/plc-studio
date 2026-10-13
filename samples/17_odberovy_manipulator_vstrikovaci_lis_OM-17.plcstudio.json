@@ -1,0 +1,466 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Odběrový manipulátor výlisků OM-17 u vstřikovacího lisu (servoosa, Euromap 67)",
+   "desc": "Lineární manipulátor nad vstřikovacím lisem odebírá z otevřené formy výlisek vakuovými přísavkami a vtokový zbytek pneumatickým chapadlem. Svislé rameno (osa Y) je servoosa se servomotorem s brzdou řízená po síti blokem FB_Axis nad bloky PLCopen Motion Control platformy, příčný pojezd (osa X) je elektrický polohovací pohon se záznamy řízený přes I/O. S lisem si manipulátor vyměňuje signály rozhraní Euromap 67 přes běžné I/O: z lisu čte „lis v automatu“ a „forma otevřena“, do lisu dává povolení vyhazovačů (zpět hlášení vyhazovače vpředu / vzadu) a povolení zavřít formu. Cyklus: referování os, rozběh pásu výlisků a drtiče vtoků, pojezd X nad formu; po otevření formy rameno sjede do dělicí roviny, přísavky nasají výlisek (snímač podtlaku), chapadlo sevře vtok a manipulátor povolí vyhazovače; po jejich návratu rameno vyjede a manipulátor povolí zavřít formu. Pojezd přejede nad drtič a chapadlo pustí vtok, pak nad dopravník, rameno sjede, přísavky výlisek odloží (snímač na pásu) a manipulátor se vrátí nad formu. Hlídání: porucha osy (pohon, chyba sledování, ztráta komunikace, limity), porucha a referování pojezdu, podtlak přísavek, polohy chapadla, chod pásu a drtiče, tlak vzduchu (mez min), hlídací časy kroků (forma neotevřena = porucha po 40 s). Ochrany: nouzové zastavení a ochranný kryt manipulátoru v blokování; bezpečnostní okruh lisu a manipulátoru (Euromap 67: nouzové zastavení a ochranná zařízení obousměrně, STO a SS1 servoměniče) řeší bezpečnostní technika.",
+   "takt": 30
+  },
+  "platforms": [
+   "siemens",
+   "beckhoff",
+   "codesys",
+   "omron",
+   "rockwell",
+   "festo"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "628511f2-be2e-4b1b-a0a7-51eec5eed34e"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Ochranný kryt manipulátoru zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "5a1532f5-e5c0-4e30-af11-609e23b9fb4a"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Lis v automatickém provozu (signál z lisu, Euromap 67)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "bda06f95-8c0f-423a-a097-935df64874da"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Forma otevřena (signál z lisu, Euromap 67)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "bfebf463-f6dd-4733-b053-22199f5f0fd3"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Výlisek odložen na dopravníku (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "d0f62a8a-a194-4dfd-8797-4781231db4df"
+   },
+   {
+    "id": 6,
+    "name": "M1",
+    "cls": "Axis",
+    "desc": "Osa Y — svislé rameno do formy (servo s brzdou)",
+    "opt": {},
+    "unit": "mm",
+    "rmin": 0,
+    "rmax": 0,
+    "axis": {
+     "vMax": 1500,
+     "aMax": 10000,
+     "dMax": 10000,
+     "jerk": 0,
+     "vDef": 1000,
+     "limNeg": -5,
+     "limPos": 805,
+     "homePos": 0,
+     "posTol": 0.1,
+     "followMax": 5,
+     "jogVel": 100,
+     "startPos": 0,
+     "drive": "servoměnič se STO a SS1, servomotor s brzdou (svislá osa)",
+     "positions": [
+      {
+       "name": "nahoře",
+       "pos": 0
+      },
+      {
+       "name": "odběr ve formě",
+       "pos": 720
+      },
+      {
+       "name": "odložení na dopravník",
+       "pos": 520
+      }
+     ]
+    },
+    "guid": "51f58b6b-2949-453b-8a78-1380c5118d5d"
+   },
+   {
+    "id": 7,
+    "name": "M2",
+    "cls": "PosDrive",
+    "desc": "Osa X — příčný pojezd ramene (polohovací pohon se záznamy)",
+    "opt": {
+     "ready": true,
+     "fault": true,
+     "rst": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 0,
+    "selBits": 2,
+    "travelS": 1.2,
+    "records": [
+     {
+      "no": 1,
+      "name": "nad formou",
+      "pos": 0
+     },
+     {
+      "no": 2,
+      "name": "nad dopravníkem výlisků",
+      "pos": 900
+     },
+     {
+      "no": 3,
+      "name": "nad drtičem vtoků",
+      "pos": 1250
+     }
+    ],
+    "guid": "69df1507-ae43-4a55-951a-23d9746dfec7"
+   },
+   {
+    "id": 8,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Vakuové přísavky výlisku — ejektor zapnout (snímač podtlaku)",
+    "opt": {
+     "fbkOpen": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "18be9078-5324-42e3-a9c6-df51379e553f"
+   },
+   {
+    "id": 9,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Chapadlo vtokového zbytku sevřít",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6474b6d4-b806-4a35-8263-7ec456217e15"
+   },
+   {
+    "id": 10,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Povolení vyhazovačů lisu (signál do lisu; hlášení vyhazovače vpředu / vzadu z lisu)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "04889d89-77d3-47ce-8efc-bdcfe4a33c29"
+   },
+   {
+    "id": 11,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Povolení zavřít formu (signál do lisu, Euromap 67)",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "437736cd-1e22-487e-b581-9250946bfe8c"
+   },
+   {
+    "id": 12,
+    "name": "M3",
+    "cls": "Motor",
+    "desc": "Pásový dopravník výlisků",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "133bf328-03d3-44cc-a803-7412ee8f0a61"
+   },
+   {
+    "id": 13,
+    "name": "M4",
+    "cls": "Motor",
+    "desc": "Drtič vtokových zbytků u lisu",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "14cc1ed7-13d2-4fb2-a692-b10f325003f6"
+   },
+   {
+    "id": 14,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Tlak vzduchu v rozvodu",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 5,
+    "guid": "636928d6-154f-4896-a08f-5f1ed570edcd"
+   },
+   {
+    "id": 15,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "bb6ffdf5-bb52-4f44-a677-2a88a9d23160"
+   },
+   {
+    "id": 16,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "c5f30fb1-750b-4215-b3a1-85be67a05afa"
+   },
+   {
+    "id": 17,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "86979d42-18b1-49e3-9c3c-56b6834a344e"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2
+   ],
+   "seq": [
+    {
+     "dev": 6,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 6
+    },
+    {
+     "dev": 7,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 12,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 3,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 40
+    },
+    {
+     "dev": 6,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "odběr ve formě"
+    },
+    {
+     "dev": 8,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 9,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 10,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 6,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "nahoře"
+    },
+    {
+     "dev": 11,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 4,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 11,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 7,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 3
+    },
+    {
+     "dev": 9,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 2
+    },
+    {
+     "dev": 6,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "odložení na dopravník"
+    },
+    {
+     "dev": 8,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 6,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "nahoře"
+    },
+    {
+     "dev": 5,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 7,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 13,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    }
+   ]
+  },
+  "nextId": 18,
+  "concept": null,
+  "guid": "fd908db7-7e11-47b6-a6c6-92eb37ac8c7a",
+  "moduleGuids": {
+   "S0.2": "8aac6af5-872c-4dbc-aefe-8838947955b7",
+   "S0.3": "d782dd96-f1e4-4561-bc5c-0064f1303a49",
+   "S0.4": "c1e9fc48-883b-42f7-9dcb-0e456b1c1179"
+  }
+ }
+}

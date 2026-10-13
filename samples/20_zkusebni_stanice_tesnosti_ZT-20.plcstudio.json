@@ -1,0 +1,394 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Zkušební stanice těsnosti ZT-20 (tlakový spád, dvouruční ovládání)",
+   "desc": "Poloautomatická stanice zkouší těsnost odlitku tělesa ventilu metodou tlakového spádu vzduchem 6 bar. Obsluha vloží díl do přípravku (snímač přítomnosti) a spustí cyklus dvouručním ovládáním (výstup bezpečnostního modulu). Dvě upínky díl upnou a těsnicí trn uzavře zkušební otvor. Uzavírací ventil odvzdušnění (bez proudu otevřený — při poruše, E-stopu a výpadku napájení se díl sám odvzdušní) se zavře, proporcionální regulátor nastaví zkušební tlak 6 bar (zpětná vazba tlaku) a plnicí ventil díl 3 s plní. Po uzavření plnicího ventilu a stabilizaci 2 s spustí PLC měření v přístroji těsnosti (měří pokles tlaku a hlásí dokončení); výsledek OK přichází ze samostatného výstupu přístroje. Díl NOK = hlášení OK nepřijde a hlídací čas kroku vyprší: porucha stroje, díl se odvzdušní a uvolní, obsluha ho po kvitaci odloží do boxu NOK. U dílu OK se díl odvzdušní, regulátor tlaku vrátí na 0, razidlo díl označí a upínky povolí; cyklus končí vyjmutím dílu. Měření: tlak v dílu (mez max 8 bar = porucha regulátoru), tlak vzduchu v rozvodu (mez min 5 bar). Hlídání: polohy upínek, trnu a razidla, odchylka regulátoru tlaku, stav přístroje těsnosti, hlídací časy kroků. Ochrany: nouzové zastavení a světelná závora pracovního prostoru v blokování; dvouruční ovládání vyhodnocuje bezpečnostní modul.",
+   "takt": 40
+  },
+  "platforms": [
+   "siemens",
+   "mitsubishi",
+   "omron",
+   "unitronics",
+   "rockwell",
+   "beckhoff"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "eed8e331-d2e0-4148-9dee-5825b70b9833"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Světelná závora pracovního prostoru volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "7f0af8ee-1e99-4abd-b3f4-c4212637f386"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Dvouruční ovládání — start uvolněn (výstup bezpečnostního modulu)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "2a5d03d2-6baf-4707-98d6-f0e1ede95891"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Díl vložen v přípravku (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "ebbb77a4-bc48-42d7-969e-b744e1d02871"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Výsledek zkoušky těsnosti OK (výstup přístroje těsnosti)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "070af782-bc89-4f67-a203-5998817ffbfc"
+   },
+   {
+    "id": 6,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Upínka dílu 1",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "73fdb801-7e96-42d8-91fe-46a9296755db"
+   },
+   {
+    "id": 7,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Upínka dílu 2",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "11cea747-74d5-46b9-9090-2f5c7b65fae8"
+   },
+   {
+    "id": 8,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Těsnicí trn zkušebního otvoru přisunout",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "c0102ea7-3114-4f14-a88c-4712f26bee95"
+   },
+   {
+    "id": 9,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Plnicí ventil zkušebního okruhu",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "a3e1ea0f-cb78-49fe-b2c0-ef1cacfb7704"
+   },
+   {
+    "id": 10,
+    "name": "Y5",
+    "cls": "Ventil",
+    "desc": "Uzavírací ventil odvzdušnění dílu (bez proudu otevřeno)",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "48f0ca72-d07d-44d1-b2c0-85993f7c3c04"
+   },
+   {
+    "id": 11,
+    "name": "Y6",
+    "cls": "PropValve",
+    "desc": "Proporcionální regulátor zkušebního tlaku (snímač tlaku na výstupu)",
+    "opt": {
+     "fbk": true
+    },
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "setpoint": 0,
+    "rampS": 1,
+    "tol": 0.2,
+    "tolTimeS": 1,
+    "guid": "a842749a-c270-4248-8712-7afee8afb84e"
+   },
+   {
+    "id": 12,
+    "name": "Y7",
+    "cls": "Ventil",
+    "desc": "Přístroj zkoušky těsnosti — start měření (hlášení měření dokončeno / přístroj připraven)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "147e1ec7-f516-4f48-8bbe-6777e40f329c"
+   },
+   {
+    "id": 13,
+    "name": "Y8",
+    "cls": "Ventil",
+    "desc": "Razidlo značení dobrého dílu",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "69d6b345-6a20-472d-88c4-0592b2d47fe8"
+   },
+   {
+    "id": 14,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Zkušební tlak v dílu (snímač tlaku)",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limHi": 8,
+    "guid": "b57889a2-cf1f-4eef-b7d9-ca28cd3fea3c"
+   },
+   {
+    "id": 15,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Tlak vzduchu v rozvodu",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 5,
+    "guid": "339e408e-19df-4dfc-ae6e-34b99bba630a"
+   },
+   {
+    "id": 16,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "7b45265c-a8c4-4be5-9ed0-0ebe4484c417"
+   },
+   {
+    "id": 17,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "5462e87f-2a12-4d07-a57c-5968352163aa"
+   },
+   {
+    "id": 18,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "e0b83c1a-e26b-45bc-845f-62a6a8487c3b"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2
+   ],
+   "seq": [
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 3,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 6,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.3
+    },
+    {
+     "dev": 11,
+     "act": "setPressure",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 6
+    },
+    {
+     "dev": 9,
+     "act": "open",
+     "cond": "time",
+     "timeS": 3
+    },
+    {
+     "dev": 9,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.3
+    },
+    {
+     "dev": "",
+     "act": "wait",
+     "cond": "time",
+     "timeS": 2
+    },
+    {
+     "dev": 12,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 12
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 2
+    },
+    {
+     "dev": 12,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "close",
+     "cond": "time",
+     "timeS": 2
+    },
+    {
+     "dev": 11,
+     "act": "setPressure",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 0
+    },
+    {
+     "dev": 13,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 6,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 4,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    }
+   ]
+  },
+  "nextId": 19,
+  "concept": null,
+  "guid": "25108ffd-a17c-4c60-925c-99fd9159d7f1",
+  "moduleGuids": {
+   "S0.2": "458d27ad-bbaf-4f2a-9f5c-caff2153f5b5",
+   "S0.3": "98797de6-355d-439a-98b3-082954b45174",
+   "S0.4": "30cc08db-8e67-437d-8706-f7e00370572f",
+   "S0.5": "90eb3c29-aeb4-4222-b5a4-37af10bc1450"
+  }
+ }
+}

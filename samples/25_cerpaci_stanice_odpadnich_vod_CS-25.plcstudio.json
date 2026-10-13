@@ -1,0 +1,229 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Kanalizační čerpací stanice CS-25 se střídáním čerpadel (styl kódu OOP)",
+   "desc": "Malá obecní čerpací stanice přečerpává odpadní vodu z jímky do výtlačného potrubí dvěma ponornými kalovými čerpadly 5,5 kW, která se pravidelně střídají (rovnoměrné opotřebení, každé čerpadlo se protočí). Výtlak každého čerpadla jistí zpětná kulová klapka (bez elektrického ovládání). Hladinu snímají dva plovákové spínače (zapínací a vypínací úroveň) a hydrostatický snímač hladiny. Cyklus = dvě čerpání: hladina stoupne přes vypínací a zapínací úroveň, čerpadlo 1 běží, dokud hladina neklesne pod vypínací úroveň, a zastaví; při dalším naplnění pracuje stejně čerpadlo 2. Měření s mezemi: hladina v jímce (mez max 4,2 m = havarijní hladina — maják a houkačka) a tlak ve výtlaku (mez max = ucpané potrubí nebo zavřené šoupátko). Hlídání: porucha (tepelná ochrana vinutí, vlhkost v motoru) a chod čerpadel, hlídací časy (naplnění jímky nejdéle 15 min — jinak porucha ucpaného přítoku, vyčerpání nejdéle 10 min). Ochrany: nouzové zastavení a poklop šachty v blokování. Program je generován ve stylu OOP (rozhraní I_Device, dědičnost bloků) pro platformy rodiny CODESYS."
+  },
+  "platforms": [
+   "codesys",
+   "wago",
+   "schneider",
+   "beckhoff",
+   "abb",
+   "weidmueller"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "4547ae21-7b5f-4f3a-88b9-1c0d8032196c"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Poklop šachty zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6ec5d72e-8364-4dc2-88e1-8785ce9f0049"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Hladina nad zapínací úrovní (plovákový spínač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "bd2e94ea-1f2a-4527-bce6-147c406149f3"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Hladina nad vypínací úrovní (plovákový spínač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "674129a3-29ff-430e-bb2b-04d108bfda4b"
+   },
+   {
+    "id": 5,
+    "name": "M1",
+    "cls": "Motor",
+    "desc": "Ponorné kalové čerpadlo 1 (5,5 kW)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "014e3f99-3ae8-4e77-af8d-ae13284727ea"
+   },
+   {
+    "id": 6,
+    "name": "M2",
+    "cls": "Motor",
+    "desc": "Ponorné kalové čerpadlo 2 (5,5 kW)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "17c71fe2-cff0-423a-8250-74fbe1475417"
+   },
+   {
+    "id": 7,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Hladina v jímce (hydrostatický snímač)",
+    "opt": {},
+    "unit": "m",
+    "rmin": 0,
+    "rmax": 5,
+    "limHi": 4.2,
+    "guid": "e7d70477-ead4-47b9-a376-3f4108b7ddf6"
+   },
+   {
+    "id": 8,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Tlak ve výtlačném potrubí",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limHi": 6,
+    "guid": "859199a1-6e71-4580-906f-71582d352e9d"
+   },
+   {
+    "id": 9,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Signálka zelená — čerpání běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "6801223a-220a-4106-8fdb-b3d7963c37e8"
+   },
+   {
+    "id": 10,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červený a houkačka — porucha, havarijní hladina",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "6156b92e-a2d0-4cbe-8441-5cb8a0214326"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2
+   ],
+   "seq": [
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 900
+    },
+    {
+     "dev": 3,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 900
+    },
+    {
+     "dev": 5,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 3,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 300
+    },
+    {
+     "dev": 4,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 600
+    },
+    {
+     "dev": 5,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 900
+    },
+    {
+     "dev": 3,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 900
+    },
+    {
+     "dev": 6,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 3,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 300
+    },
+    {
+     "dev": 4,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 600
+    },
+    {
+     "dev": 6,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 5
+    }
+   ]
+  },
+  "nextId": 11,
+  "concept": null,
+  "guid": "342a4be5-b5cf-4d77-8885-988afa9e974f",
+  "moduleGuids": {
+   "S0.2": "eb96d862-1522-4bd1-a142-2d3b8ecfe8a4",
+   "S0.3": "6acf236c-e873-47e3-aaa5-d06d9f93aa9e",
+   "S0.4": "0e89ef4d-5c4c-4640-85cc-9070a61eaa5d"
+  },
+  "codeStyle": "oop"
+ }
+}
