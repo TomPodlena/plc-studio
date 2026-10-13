@@ -40,7 +40,7 @@
     "soukromi": "Ochrana osobních údajů",
     "cta": "Stáhnout zdarma",
     "cookies": "Cookies",
-    "video": "Videoprůvodce"
+    "video": "Video"
   },
   "home": {
     "title": "{{site.brand}} — řízení stroje od zadání po schválenou dokumentaci",
@@ -284,7 +284,11 @@
     "end_title": "Zkuste to na stroji, který znáte",
     "end_body": "Vezměte menší stroj, který znáte nazpaměť. Za odpoledne uvidíte, jestli vám výstupy sedí.",
     "end_cta": "Stáhnout zdarma",
-    "video_link": "Videoprůvodce aplikací (asi 10 min)"
+    "video_link": "Videoprůvodce aplikací (asi 10 min)",
+    "video_eyebrow": "Videoprůvodce",
+    "video_title": "Podívejte se, jak {{site.brand}} funguje",
+    "video_lead": "Deset minut od zadání stroje po kód, dokumentaci, schválení a oživení — na skutečné aplikaci, s titulky.",
+    "video_more": "Kapitoly a další jazyky videa"
   },
   "funkce": {
     "title": "Funkce — {{site.brand}}",

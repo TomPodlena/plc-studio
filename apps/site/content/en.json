@@ -40,7 +40,7 @@
     "soukromi": "Privacy",
     "cta": "Download free",
     "cookies": "Cookies",
-    "video": "Video guide"
+    "video": "Video"
   },
   "home": {
     "title": "{{site.brand}} — machine control from specification to approved documentation",
@@ -284,7 +284,11 @@
     "end_title": "Try it on a machine you know",
     "end_body": "Take a smaller machine you know by heart. In an afternoon you will see whether the outputs suit you.",
     "end_cta": "Download free",
-    "video_link": "Video guide to the app (about 10 min)"
+    "video_link": "Video guide to the app (about 10 min)",
+    "video_eyebrow": "Video guide",
+    "video_title": "See how {{site.brand}} works",
+    "video_lead": "Ten minutes from the machine description to code, documentation, approval and commissioning — in the real application, with subtitles.",
+    "video_more": "Chapters and other video languages"
   },
   "funkce": {
     "title": "Features — {{site.brand}}",
