@@ -250,5 +250,7 @@ test("licence: firemní knihovna v generátoru jen ve Firmě, jinak vestavěné 
 test("licence: odkazy na web podle jazyka", () => {
   assert.equal(licenseSiteUrl("cenik", "cs"), "https://plcdesk.podlena-t.workers.dev/cenik/");
   assert.equal(licenseSiteUrl("cenik", "de"), "https://plcdesk.podlena-t.workers.dev/de/cenik/");
-  assert.equal(licenseSiteUrl("kontakt", "zh"), "https://plcdesk.podlena-t.workers.dev/en/kontakt/");
+  assert.equal(licenseSiteUrl("kontakt", "zh"), "https://plcdesk.podlena-t.workers.dev/zh/kontakt/");
+  assert.equal(licenseSiteUrl("kontakt", "es"), "https://plcdesk.podlena-t.workers.dev/en/kontakt/");
+  assert.equal(licenseSiteUrl("stazeni", "xx"), "https://plcdesk.podlena-t.workers.dev/en/stazeni/");
 });

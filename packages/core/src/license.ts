@@ -250,10 +250,13 @@ export function projectGate(prj: Project, ent: Entitlements, unlocks: Iterable<s
   return { io, limit: ent.ioLimit, unlocked, over, canExport: !over, canDxf: !over && ent.dxf, footer: ent.footer, library: ent.library, plan: ent.plan, reason: reasons.join(" ") };
 }
 
-/** Odkaz na stránku webu v jazyce UI (web má cs / en / de, ostatní anglicky). `page` = cenik | kontakt | stazeni. */
+/** Jazyky webu PLCdesk (apps/site LANGS): čeština na `/`, ostatní pod `/<jazyk>/`. */
+export const SITE_LANGS = ["cs", "en", "de", "zh"];
+
+/** Odkaz na stránku webu v jazyce UI (web má cs / en / de / zh, ostatní anglicky). `page` = cenik | kontakt | stazeni. */
 export function licenseSiteUrl(page: string, lang: string = getLang(), site: string = LICENSE_SITE): string {
   const s = (site || LICENSE_SITE).replace(/\/+$/, "");
-  return lang === "cs" ? s + "/" + page + "/" : s + "/" + (lang === "de" ? "de" : "en") + "/" + page + "/";
+  return lang === "cs" ? s + "/" + page + "/" : s + "/" + (SITE_LANGS.includes(lang) ? lang : "en") + "/" + page + "/";
 }
 
 /* ---------------------------------------------------------------- výstupy */

@@ -118,7 +118,9 @@ export declare function projectIoCount(prj: Project): number;
  * Nad limitem bez odemčení: náhled ano, stažení a uložení výstupů ne.
  */
 export declare function projectGate(prj: Project, ent: Entitlements, unlocks?: Iterable<string>): ProjectGate;
-/** Odkaz na stránku webu v jazyce UI (web má cs / en / de, ostatní anglicky). `page` = cenik | kontakt | stazeni. */
+/** Jazyky webu PLCdesk (apps/site LANGS): čeština na `/`, ostatní pod `/<jazyk>/`. */
+export declare const SITE_LANGS: string[];
+/** Odkaz na stránku webu v jazyce UI (web má cs / en / de / zh, ostatní anglicky). `page` = cenik | kontakt | stazeni. */
 export declare function licenseSiteUrl(page: string, lang?: string, site?: string): string;
 /** Druh souboru z pohledu licence: dokument (patička), DXF, projekt / knihovna (vždy volně), ostatní výstup. */
 export declare function licenseFileKind(name: string): "doc" | "readme" | "dxf" | "own" | "out";

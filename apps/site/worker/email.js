@@ -1,4 +1,4 @@
-// Transakcni e-maily (odkaz ke stazeni, licence, odemceni projektu) ve trech jazycich.
+// Transakcni e-maily (odkaz ke stazeni, licence, odemceni projektu) ve ctyrech jazycich (cs, en, de, zh).
 //
 // Odesila se pres Resend (HTTP API). Cloudflare Email Routing umi jen prichozi
 // preposilani. Resend posle cizim adresatum az z overene vlastni domeny - do te doby
@@ -228,10 +228,70 @@ Das gilt für dieses eine Projekt. Weitere Maschinen über {limit} E/A benötige
 {sig}
 {site}`,
   },
+  zh: {
+    dl_subject: "您的 {app} 下载链接",
+    dl_body: `您好，
+
+下载链接如下。应用程序无需安装：解压后即可运行，不需要管理员权限。
+
+{url}
+
+两条节省时间的建议：
+- 先从一台您了如指掌的较小机器开始，马上就能看出输出结果是否符合您的需要。
+- 如果您已有现成的项目，请先尝试导入，可以省去很多点击操作。
+
+如遇任何问题，请直接回复此邮件。
+
+{sig}
+{site}
+
+链接有效期为 7 天。除非您主动索取，我们不会再向您发送其他邮件。`,
+    lic_subject: "{app} {plan} 许可证",
+    lic_body: `您好，
+
+您的许可证已激活。请在应用程序中通过 帮助 → 许可证 → 输入许可证 填入。
+
+许可证密钥：{key}
+
+许可证文件（请复制整行，包括中间的点）：
+
+{file}
+
+许可证可离线使用。应用程序仅在首次输入时以及偶尔在后台需要联网。离线时不会锁定任何功能。
+
+需要发票或有任何疑问？请直接回复此邮件。
+
+{sig}
+{site}`,
+    beta_subject: "您的 {app} 测试版测试申请",
+    beta_body: `您好，
+
+感谢您申请参加 {app} 测试版测试。您报名验证以下平台：{platforms}（{ide}）。
+
+接下来的步骤：
+- 我们会亲自审阅您的申请，并回复到此邮箱，通常在两个工作日内。
+- 确认后，请下载应用程序，在“平台”步骤中保存“验证包”，在您的 IDE 中导入并编译，然后填写 PROTOKOL.md。
+- 申请获准时，我们会同时免费向您发送 90 天的 PLCdesk Pro 许可证。
+
+申请中的信息仅用于测试版测试。如果您改变主意，只需回复此邮件，我们将删除您的申请。
+
+{sig}
+{site}`,
+    un_subject: "项目已解锁",
+    un_body: `您好，
+
+我们已解锁您的项目。生成和导出功能均不再受规模限制{io}。只需在应用程序中关闭并重新打开该项目即可。
+
+此解锁仅适用于这一个项目。超过 {limit} 个 I/O 的其他机器需要 Pro 版。
+
+{sig}
+{site}`,
+  },
 };
 
 const fill = (s, v) => s.replace(/\{(\w+)\}/g, (m, k) => (k in v ? String(v[k]) : m));
-const lang = (l) => (T[l] ? l : "cs");
+// cs / en / de / zh; jiny jazyk = anglicky, bez jazyka = cesky (puvodni chovani)
+const lang = (l) => (typeof l === "string" && Object.hasOwn(T, l) ? l : l ? "en" : "cs");
 const prefix = (l) => (l === "cs" ? "" : `/${l}`);
 
 // Hlavicky nesmi obsahovat konec radku

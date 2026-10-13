@@ -11,7 +11,7 @@
 3. Zpracování: ořez na obsah, WebP ve dvou šířkách → assets/img/app/<krok>-<jazyk>[-800].webp
 
 Spuštění z apps/site (Python 3.11 s Pillow, Node 22+, Edge):
-    python scripts/app-shots.py                 # vše (cs, en, de)
+    python scripts/app-shots.py                 # vše (cs, en, de, zh)
     python scripts/app-shots.py --lang en       # jen jeden jazyk
     python scripts/app-shots.py --only ziva,schvaleni
     python scripts/app-shots.py --no-web        # bez webové aplikace
@@ -34,7 +34,7 @@ ROOT = Path(__file__).resolve().parent.parent            # apps/site
 REPO = ROOT.parent.parent
 DESKTOP = REPO / "apps" / "desktop"
 OUT = ROOT / "assets" / "img" / "app"
-LANGS = ["cs", "en", "de"]
+LANGS = ["cs", "en", "de", "zh"]
 CONTENT = {l: json.loads((ROOT / "content" / f"{l}.json").read_text(encoding="utf-8")) for l in LANGS}
 WIN_W, WIN_H = 1440, 900
 SIZES = (1440, 800)          # nativní šířka okna (bez zvětšování) + menší pro mobil / srcset

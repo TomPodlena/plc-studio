@@ -44,7 +44,7 @@ CHECK_EVERY_S = 24 * 3600
 TIMEOUT_S = 8
 FREE_IO_LIMIT = 64
 FILE_NAME = "license.json"
-LANG_SITE = {"cs": "", "de": "de/"}          # web má cs / en / de, ostatní anglicky
+LANG_SITE = {"cs": "", "de": "de/", "zh": "zh/"}   # web má cs / en / de / zh, ostatní anglicky
 
 
 # --------------------------------------------------------------------------- otisk počítače

@@ -33,7 +33,7 @@ webové verze), žádné fotobanky ani kreslené maketky. Přegenerují se po zm
 
 ```bash
 # z apps/site; Python 3.11 s Pillow, Node 22+, Edge, ffmpeg (jen pro animaci)
-python scripts/app-shots.py                    # vše: cs, en, de (≈ 15 min, okna se otevírají a zavírají sama)
+python scripts/app-shots.py                    # vše: cs, en, de, zh (≈ 20 min, okna se otevírají a zavírají sama)
 python scripts/app-shots.py --lang en --only ziva,schvaleni
 python scripts/app-shots.py --only ziva-anim   # jen animace živé simulace
 python scripts/app-shots.py --encode-only      # jen znovu převést uložené PNG (ořez, kvalita)
@@ -64,8 +64,8 @@ verzi přebalit `ffmpeg -i PLCdesk_pruvodce_<jazyk>.mp4 -map 0:v -map 0:a -c cop
 nahrát `gh release upload videopruvodce-1 plcdesk-pruvodce-<jazyk>.mp4 --clobber`, `.vtt` / `.jpg` / webovou `.mp4` (jen pro
 zjištění dostupných jazyků) do `C:/CLAUDE/plcdesk_video/web/`, build a nasazení.
 
-Stránka `/video/` (`/en/video/`, `/de/video/`) přehrává videoprůvodce aplikací v pěti jazycích nápovědy
-(cs, en, de, es, zh — web sám má jen cs / en / de, další jazyky videa jsou v přepínači). **Videa nejsou
+Stránka `/video/` (`/en/video/`, `/de/video/`, `/zh/video/`) přehrává videoprůvodce aplikací v pěti jazycích nápovědy
+(cs, en, de, es, zh — web sám má cs / en / de / zh, španělské video je v přepínači). **Videa nejsou
 v gitu** (5 × ~22 MB by nafouklo veřejné repo, `assets/video/` je v `.gitignore`) — build je bere z disku:
 
 - složka `PLCDESK_VIDEO_DIR`, jinak výchozí `C:/CLAUDE/plcdesk_video/web/`,
@@ -89,10 +89,18 @@ Nasazovat s videi **jen z počítače, kde videa jsou**: automatické nasazení 
 a každé nasazení nahrazuje celou sadu souborů — build tam proto skončí varováním a nasazení se zastaví
 (bez něj by z webu videa zmizela). Přehrávač stojí na Range požadavcích statických assetů Workers
 (lokálně je umí `serve.js`), titulky mají v `_headers` `Content-Type: text/vtt`. Jazyk videa v adrese:
-`/video/?v=es` (aplikace v nápovědě odkazuje `?v=<jazyk UI>`, es / zh přes `/en/video/`).
+`/video/?v=es` (aplikace v nápovědě odkazuje `?v=<jazyk UI>`, es přes `/en/video/`).
 Kontrola: `BASE=http://localhost:4173 node _shots/video/video_test.mjs` (lokální skript, `_shots/` není v gitu).
 
-Texty jsou jen v `content/{cs,en,de}.json` (čeština je zdroj pravdy, struktura shodná).
+Texty jsou jen v `content/{cs,en,de,zh}.json` (čeština je zdroj pravdy, struktura shodná).
+
+**Čínská verze (`/zh/`, zjednodušená čínština):** `<html lang="zh-CN">`, `hreflang="zh-Hans"` (písmo, ne region),
+přepínač jazyka „中文“, Turnstile `zh-cn` (vše v `build.js`: `HTML_LANG`, `HREFLANG`). Terminologie = katalog aplikace
+`packages/core/src/i18n/zh.ts` (názvy kroků, tlačítek). Vlastní písma webu nemají znaky CJK — CSS `:lang(zh)` přidá systémová
+písma (PingFang SC, Microsoft YaHei, Noto Sans SC), žádný webfont CJK se nestahuje. Obrázek s jazykem v názvu
+(`…-zh.webp`), který chybí, nahradí build anglickým (INFO, ne varování). Právní stránky v zh nesou v `ui.legal_draft`
+výhradu, že závazná je česká verze. Neznámá adresa pod `/en/`, `/de/`, `/zh/` vrací `404.html` toho jazyka.
+Worker: hlášky a e-maily cs / en / de / zh, jiný jazyk anglicky, bez jazyka česky.
 Název značky, adresa webu a kontakt jsou jen v `content/site.json`; v textech se píší jako `{{site.brand}}`.
 
 **Stav ověření platforem** je jen v `data/verification.json` (kořen repozitáře, sdílí ho jádro i aplikace).
@@ -100,7 +108,7 @@ Build z něj bere počet platforem (`{{site.platform_count}}` v textech — čí
 (nejnovější datum) a stav každého řádku tabulky na stránce Platformy. Řádek v `content/<jazyk>.json` nese
 `key` (platforma) nebo `members` (sloučený řádek, dlaždice se rozvinou po platformách). Platforma bez řádku,
 řádek bez platformy nebo jiný stav = varování buildu → nasazení se zastaví. Po ověření nové platformy proto
-upravit `data/verification.json` (+ protokol v `docs/verification/`) a řádek ve všech třech jazycích.
+upravit `data/verification.json` (+ protokol v `docs/verification/`) a řádek ve všech čtyřech jazycích.
 
 ---
 

@@ -59,8 +59,14 @@ const MSG = {
     kind: "Wählen Sie die Art des Feedbacks.", text: "Schreiben Sie den Feedback-Text (max. 5000 Zeichen).", email: "Geben Sie eine gültige E-Mail-Adresse ein oder lassen Sie das Feld leer.",
     client: "Ungültige Anfrage (Client).", project: "Das angehängte Projekt ist größer als 512 kB oder ungültig.", many: "Zu viele Nachrichten. Bitte versuchen Sie es in einer Stunde erneut.",
   },
+  zh: {
+    ok: "谢谢，您的反馈已发送。",
+    kind: "请选择反馈类型。", text: "请填写反馈内容（最多 5000 个字符）。", email: "请输入有效的电子邮件地址，或将此栏留空。",
+    client: "无效请求（客户端）。", project: "附加的项目大于 512 kB 或无效。", many: "消息过多。请一小时后再试。",
+  },
 };
-const loc = (l) => (l === "cs" || l === "de" ? l : l === "en" || l === "es" || l === "zh" ? "en" : "cs");
+// hlasky: cs / en / de / zh; jiny jazyk (es, neznamy) = anglicky, bez jazyka = cesky
+const loc = (l) => (l === "cs" || l === "de" || l === "en" || l === "zh" ? l : l ? "en" : "cs");
 
 /** Odpoved verejneho endpointu vzdy s hlavickami CORS (i chyby z readJson - prohlizec je jinak nepreda). */
 export function withCors(resp) {

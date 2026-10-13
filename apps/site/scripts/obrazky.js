@@ -3,7 +3,7 @@
 // (scripts/ukazka-pdf.js: sampleComplex + cast polozek schvalena smyslenou osobou):
 //   assets/img/ukazka-*.svg        skutecne vykresy (blokove schema, zapojeni modulu,
 //                                  bezpecnostni okruh, casovy a funkcni diagram)
-//   assets/img/doc-{cs,en,de}-0N.webp   nahledy stran ukazkove dokumentace (titulni strana,
+//   assets/img/doc-{cs,en,de,zh}-0N.webp   nahledy stran ukazkove dokumentace (titulni strana,
 //                                  protokol schvaleni, I/O list, bezpecnostni funkce)
 // Spusteni z apps/site: node scripts/obrazky.js        (headless Edge jen kvuli nahledum stran)
 
@@ -17,7 +17,9 @@ import { sampleProject, buildHtml, drawing } from "./ukazka-pdf.js";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CORE = path.join(ROOT, "..", "..", "packages", "core", "dist", "index.js");
 const IMG = path.join(ROOT, "assets", "img");
-const LANGS = ["cs", "en", "de"];
+// --lang zh (nebo cs,en): jen vybrane jazyky
+const LANG_ARG = process.argv.indexOf("--lang");
+const LANGS = LANG_ARG > 0 ? process.argv[LANG_ARG + 1].split(",") : ["cs", "en", "de", "zh"];
 const C = await import(pathToFileURL(CORE).href);
 
 // ---------- vykresy (cesky projekt; texty vykresu jsou latinkou) ----------
@@ -30,7 +32,8 @@ const DRAWINGS = [
   ["funkcni_diagram.svg", "ukazka-funkcni.svg"],
 ];
 C.setLang("cs");
-{
+// s --lang jen nahledy stran toho jazyka (vykresy jsou spolecne, ceske - nechat beze zmeny)
+if (LANG_ARG < 0) {
   const files = C.allProjectFiles(sampleProject({ approver: "-", approver_note: "" }));
   for (const [name, out] of DRAWINGS) {
     const f = files.find((x) => x.name === name);

@@ -11,6 +11,10 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(ROOT, "admin", "config.yml");
 const cs = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "cs.json"), "utf-8"));
 const site = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "site.json"), "utf-8"));
+// Jazyky = soubory content/<jazyk>.json v poradi webu (cestina prvni = vychozi), dalsi abecedne za nimi
+const ORDER = ["cs", "en", "de", "zh"];
+const LOCALES = fs.readdirSync(path.join(ROOT, "content")).map((f) => /^([a-z]{2})\.json$/.exec(f)?.[1]).filter(Boolean)
+  .sort((a, b) => ((ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99)) || a.localeCompare(b));
 
 // Popisky sekci v administraci (ostatni klice se ukazou tak, jak jsou v JSON)
 const LABELS = {
@@ -63,7 +67,7 @@ public_folder: /assets/img
 
 i18n:
   structure: multiple_files
-  locales: [cs, en, de]
+  locales: [${LOCALES.join(", ")}]
   default_locale: cs
 
 collections:

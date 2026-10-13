@@ -67,7 +67,7 @@
         <label for="beta-email">{{page.f_email}}</label>
         <input id="beta-email" name="email" type="email" maxlength="253" placeholder="{{page.f_placeholder}}" autocomplete="email" required>
         <label class="consent"><input type="checkbox" name="consent" required> <span>{{page.f_consent}} <a href="{{BLOCK.url_soukromi}}">{{nav.soukromi}}</a></span></label>
-        <div class="cf-turnstile" data-sitekey="{{BLOCK.turnstile_sitekey}}" data-language="{{meta.lang}}" data-size="flexible"></div>
+        <div class="cf-turnstile" data-sitekey="{{BLOCK.turnstile_sitekey}}" data-language="{{BLOCK.turnstile_lang}}" data-size="flexible"></div>
         <div><button class="btn" type="submit">{{page.f_submit}}</button></div>
         <p class="form-msg" role="status" aria-live="polite"></p>
         <p class="fine">{{page.f_note}} <a href="{{BLOCK.url_soukromi}}">{{nav.soukromi}}</a></p>

@@ -191,10 +191,12 @@ export function projectGate(prj, ent, unlocks = []) {
         reasons.push(tr("Projekt má {io} I/O, tarif Free povoluje {n}. Náhled funguje, stažení a ukládání výstupů ne — vlož licenci Pro nebo Firma, nebo si nech první projekt nad limit odemknout zdarma.", { io, n: ent.ioLimit }));
     return { io, limit: ent.ioLimit, unlocked, over, canExport: !over, canDxf: !over && ent.dxf, footer: ent.footer, library: ent.library, plan: ent.plan, reason: reasons.join(" ") };
 }
-/** Odkaz na stránku webu v jazyce UI (web má cs / en / de, ostatní anglicky). `page` = cenik | kontakt | stazeni. */
+/** Jazyky webu PLCdesk (apps/site LANGS): čeština na `/`, ostatní pod `/<jazyk>/`. */
+export const SITE_LANGS = ["cs", "en", "de", "zh"];
+/** Odkaz na stránku webu v jazyce UI (web má cs / en / de / zh, ostatní anglicky). `page` = cenik | kontakt | stazeni. */
 export function licenseSiteUrl(page, lang = getLang(), site = LICENSE_SITE) {
     const s = (site || LICENSE_SITE).replace(/\/+$/, "");
-    return lang === "cs" ? s + "/" + page + "/" : s + "/" + (lang === "de" ? "de" : "en") + "/" + page + "/";
+    return lang === "cs" ? s + "/" + page + "/" : s + "/" + (SITE_LANGS.includes(lang) ? lang : "en") + "/" + page + "/";
 }
 /* ---------------------------------------------------------------- výstupy */
 /** Druh souboru z pohledu licence: dokument (patička), DXF, projekt / knihovna (vždy volně), ostatní výstup. */

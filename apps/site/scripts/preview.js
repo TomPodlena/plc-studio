@@ -17,7 +17,8 @@ if (!fs.existsSync(DIST)) {
   process.exit(1);
 }
 
-const LANGS = ["cs", "en", "de"];
+const LANGS = ["cs", "en", "de", "zh"];
+const HTML_LANG = { zh: "zh-CN" };   // jako build.js (<html lang>)
 const KEYS = ["home", "funkce", "platformy", "cenik", "ukazka", "stazeni", "kontakt", "beta", "podminky", "soukromi", "cookies"];
 const out = (k) => (k === "home" ? "" : k);
 const pages = [];
@@ -91,7 +92,7 @@ for (const lang of LANGS) {
     .map((p) => `<section class="pv-page" id="pv-${p.id}" data-key="${p.key}" hidden>${rewrite(between(readPage(p.url), '<main id="main">', "</main>"), lang)}</section>`)
     .join("\n");
   blocks.push(
-    `<div class="pv-lang" data-lang="${lang}" lang="${lang}" hidden>\n` +
+    `<div class="pv-lang" data-lang="${lang}" lang="${HTML_LANG[lang] || lang}" hidden>\n` +
       `<header class="site-head">${rewrite(header, lang)}</header>\n<main>\n${sections}\n</main>\n` +
       `<footer class="site-foot">${rewrite(footer, lang)}</footer>\n</div>`
   );
@@ -150,6 +151,7 @@ ${blocks.join("\n")}
 var ASSETS = ${JSON.stringify(assetMap)};
 var PAGES = ${JSON.stringify(pages.map((p) => ({ id: p.id, lang: p.lang, key: p.key })))};
 var LANGS = ${JSON.stringify(LANGS)};
+var HTML_LANG = ${JSON.stringify(HTML_LANG)};
 var KEYS = ${JSON.stringify(KEYS)};
 var LABEL = ${JSON.stringify(LABEL)};
 
@@ -183,7 +185,7 @@ function goLang(l) {
   location.hash = "pv-" + (exists(l + "-" + k) ? l + "-" + k : l + "-home");
 }
 document.querySelectorAll(".langs a[hreflang]").forEach(function (a) {
-  a.addEventListener("click", function (e) { e.preventDefault(); goLang(a.getAttribute("hreflang")); });
+  a.addEventListener("click", function (e) { e.preventDefault(); goLang(a.getAttribute("hreflang").split("-")[0]); });
 });
 function build(lang) {
   bar.textContent = "";
@@ -207,12 +209,12 @@ function show(id) {
   if (!exists(id)) id = "cs-home";
   current = id;
   var lang = id.slice(0, 2), k = id.slice(3);
-  document.documentElement.lang = lang;
+  document.documentElement.lang = HTML_LANG[lang] || lang;
   document.querySelectorAll(".pv-lang").forEach(function (w) { w.hidden = w.dataset.lang !== lang; });
   document.querySelectorAll(".pv-page").forEach(function (s) { s.hidden = s.id !== "pv-" + id; });
   var vis = document.querySelector(".pv-lang:not([hidden])");
   vis.querySelectorAll(".langs a[hreflang]").forEach(function (a) {
-    if (a.getAttribute("hreflang") === lang) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
+    if (a.getAttribute("hreflang").split("-")[0] === lang) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
   });
   vis.querySelectorAll(".nav-links a").forEach(function (a) {
     if (a.getAttribute("href") === "#pv-" + id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");

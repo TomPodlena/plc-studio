@@ -842,3 +842,18 @@ html.lb-open { overflow: hidden; }
 .vid-files { list-style: none; padding: 0; margin: 10px 0 0; }
 .vid-files li { padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
 .vid-files .fine { margin: 0; }
+
+/* Zjednodusena cinstina (/zh/): vlastni pisma webu nemaji glyfy CJK -> zalozni systemova pisma
+   (zadny webfont CJK, velikost). Latinka zustava ve PD Sans / PD Mono, znaky CJK z pisma systemu.
+   Zalamovani CJK: mezi znaky (word-break normal), line-break strict = ne pred ，。、）; bez deleni slov
+   a bez zaporneho prostrkani (CJK pak splyva); trochu vetsi radkovani. */
+:lang(zh) {
+  --font: "PD Sans", system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", sans-serif;
+  --font-brand: "Barlow", "PD Sans", system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", sans-serif;
+  --mono: "PD Mono", ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", monospace;
+}
+html:lang(zh) body { line-height: 1.75; line-break: strict; word-break: normal; overflow-wrap: anywhere; }
+:lang(zh) h1, :lang(zh) h2, :lang(zh) h3 { letter-spacing: 0; hyphens: none; line-height: 1.3; }
+:lang(zh) .eyebrow, :lang(zh) .foot-col h2, :lang(zh) .ptable thead th, :lang(zh) .plan-badge,
+:lang(zh) .mock-table th, :lang(zh) .ptable td::before { letter-spacing: .04em; }
+:lang(zh) .quote, :lang(zh) .price, :lang(zh) .fact-n { letter-spacing: 0; }

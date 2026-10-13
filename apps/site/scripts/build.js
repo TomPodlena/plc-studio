@@ -18,7 +18,15 @@ import { execFileSync } from "node:child_process";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = path.join(ROOT, "dist");
 const TPL = path.join(ROOT, "templates");
-export const LANGS = ["cs", "en", "de"]; // cs = zdroj pravdy, servirovana na /
+export const LANGS = ["cs", "en", "de", "zh"]; // cs = zdroj pravdy, servirovana na /
+// Jazykove kody mimo cestu /<jazyk>/: <html lang>, hreflang (zjednodusena cinstina = zh-Hans - pisma,
+// ne regionu), popisek prepinace a jazyk widgetu Turnstile.
+export const HTML_LANG = { zh: "zh-CN" };
+export const HREFLANG = { zh: "zh-Hans" };
+const LANG_LABEL = { zh: "中文" };
+const TURNSTILE_LANG = { zh: "zh-cn" };
+const htmlLang = (l) => HTML_LANG[l] || l;
+const hreflangOf = (l) => HREFLANG[l] || l;
 
 const site = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "site.json"), "utf-8"));
 const SITE_URL = (process.env.SITE_URL || site.url).replace(/\/$/, "");
@@ -234,7 +242,7 @@ function checkPlatforms(c, lang) {
   }
   // natvrdo napsany pocet platforem (napr. "10 platforem") misto {{site.platform_count}}
   const raw = JSON.stringify(c);
-  for (const m of raw.matchAll(/(\d+)\s+(?:PLC[- ])?(?:SPS-)?(?:platfor|Plattform)/gi)) {
+  for (const m of raw.matchAll(/(\d+)(?:\s+(?:PLC[- ])?(?:SPS-)?(?:platfor|Plattform)|\s*个?\s*(?:PLC\s*)?平台)/gi)) {
     if (m[1] !== site.platform_count) warn(`${lang}: "${m[0]}" - pocet platforem pis jako {{site.platform_count}} (= ${site.platform_count})`);
   }
 }
@@ -408,7 +416,7 @@ function navBlock(c, lang, active) {
 function langSwitch(lang, out) {
   return LANGS.map((l) => {
     const cur = l === lang ? ' aria-current="true"' : "";
-    return `<a href="${url(l, out)}"${cur} hreflang="${l}" lang="${l}">${l.toUpperCase()}</a>`;
+    return `<a href="${url(l, out)}"${cur} hreflang="${hreflangOf(l)}" lang="${htmlLang(l)}">${LANG_LABEL[l] || l.toUpperCase()}</a>`;
   }).join("\n        ");
 }
 
@@ -428,7 +436,7 @@ function render(tpl, c, lang, key, out) {
     templates[`_${n}`] === undefined ? "" : `<div class="feature-spot">${templates[`_${n}`]}</div>`);
 
   const hreflang =
-    LANGS.map((l) => `<link rel="alternate" hreflang="${l}" href="${SITE_URL}${url(l, out)}">`).join("\n") +
+    LANGS.map((l) => `<link rel="alternate" hreflang="${hreflangOf(l)}" href="${SITE_URL}${url(l, out)}">`).join("\n") +
     `\n<link rel="alternate" hreflang="x-default" href="${SITE_URL}${url("cs", out)}">`;
 
   const blocks = {
@@ -442,6 +450,8 @@ function render(tpl, c, lang, key, out) {
     "BLOCK.langswitch": langSwitch(lang, out),
     "BLOCK.brand_logo": brandLogo(site.brand),
     "BLOCK.turnstile_sitekey": TURNSTILE_SITEKEY,
+    "BLOCK.turnstile_lang": TURNSTILE_LANG[lang] || lang,
+    "BLOCK.html_lang": htmlLang(lang),
     "BLOCK.year": String(new Date().getFullYear()),
     "BLOCK.checked_date": new Intl.DateTimeFormat(c.meta.locale.replace("_", "-"), { dateStyle: "long" }).format(
       new Date(site.platforms_checked + "T12:00:00Z")
@@ -456,7 +466,22 @@ function render(tpl, c, lang, key, out) {
   for (let i = 0; i < 3 && /\{\{[a-z]/.test(html); i++) html = fillVars(html, ctx, where);
   const left = html.match(/\{\{[^}]*\}\}/g);
   if (left) warn(`${where}: nenahrazeno ${[...new Set(left)].join(" ")}`);
-  return html;
+  return localAssets(html, lang);
+}
+
+// Obrazky podle jazyka (/assets/img/...-<jazyk>...): kdyz pro jazyk webu chybi (snimky aplikace
+// scripts/app-shots.py, nahledy stran ukazky scripts/obrazky.js), pouzije se anglicka verze. Jen jazyky
+// v ASSET_FALLBACK - cs / en / de musi mit vse (chybejici soubor = mrtvy odkaz = varovani).
+const ASSET_FALLBACK = new Set(["zh"]);
+const assetMissing = new Set();
+function localAssets(html, lang) {
+  if (!ASSET_FALLBACK.has(lang)) return html;
+  const re = new RegExp(`(/assets/img/[^"'\\s,]*?-)${lang}((?:-\\d+)?\\.(?:webp|mp4|png|jpg))`, "g");
+  return html.replace(re, (m, a, b) => {
+    if (fs.existsSync(path.join(ROOT, m))) return m;
+    assetMissing.add(m.replace(/^.*\//, ""));
+    return `${a}en${b}`;
+  });
 }
 
 // ---------- napoveda (/napoveda/ + kapitola na stranku) ----------
@@ -621,6 +646,14 @@ for (const lang of LANGS) {
 }
 // 404 (Worker ho vraci pro neznamou adresu - viz not_found_handling ve wrangler.toml)
 fs.writeFileSync(path.join(DIST, "404.html"), render("notfound", content.cs, "cs", "notfound", ""));
+// /<jazyk>/404.html: Workers Static Assets (not_found_handling = "404-page") vraci nejblizsi 404.html
+// smerem ke koreni - neznama adresa pod /en/, /de/, /zh/ tak dostane 404 ve svem jazyce
+for (const l of LANGS.filter((x) => x !== "cs")) {
+  fs.writeFileSync(path.join(DIST, l, "404.html"), render("notfound", content[l], l, "notfound", ""));
+}
+if (assetMissing.size) {
+  console.log(`  INFO ${assetMissing.size} obrazku bez jazykove verze -> anglicka verze: ${[...assetMissing].slice(0, 6).join(", ")}${assetMissing.size > 6 ? ", …" : ""}`);
+}
 
 fs.writeFileSync(
   path.join(DIST, "sitemap.xml"),

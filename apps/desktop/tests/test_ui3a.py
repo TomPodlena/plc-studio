@@ -123,7 +123,8 @@ class UpdatesTest(unittest.TestCase):
         self.assertTrue(updates.RELEASE_URL.startswith(updates.UPDATE_BASE))
         self.assertEqual(updates.download_page("cs"), updates.UPDATE_BASE + "/stazeni/")
         self.assertEqual(updates.download_page("de"), updates.UPDATE_BASE + "/de/stazeni/")
-        self.assertEqual(updates.download_page("zh"), updates.UPDATE_BASE + "/en/stazeni/")
+        self.assertEqual(updates.download_page("zh"), updates.UPDATE_BASE + "/zh/stazeni/")
+        self.assertEqual(updates.download_page("es"), updates.UPDATE_BASE + "/en/stazeni/")
 
     def test_latest_release_with_mocked_network(self):
         calls = []
