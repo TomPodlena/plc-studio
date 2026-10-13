@@ -64,7 +64,7 @@ export const PAGES = [
   { key: "soukromi", out: "soukromi", tpl: "legal" },
   { key: "cookies", out: "cookies", tpl: "legal" },
 ];
-const IN_MENU = ["funkce", "platformy", "cenik", "ukazka", "kontakt"];
+const IN_MENU = ["funkce", "video", "platformy", "cenik", "ukazka", "kontakt"];   // video v menu: uživatel 2026-10-13 „blbě se hledá“
 
 let warnings = 0;
 function warn(msg) {
@@ -360,12 +360,23 @@ function videoContent(c, lang, videos) {
     V.player_html = `<div class="box vid-pending"><h2>${esc(V.pending_title)}</h2><p>${esc(V.pending_body)}</p></div>`;
     V.chapters_html = "";
     V.files_html = "";
+    c.home.video_teaser_html = "";
     return;
   }
   const d = videoDefault(videos, lang);
   const btns = videos.map((v) =>
     `<a class="vid-lang" href="?v=${v.lang}" data-v="${v.lang}" data-src="${v.src}" data-vtt="${v.vtt}" data-poster="${v.poster}" ` +
     `data-label="${esc(v.name)}" lang="${v.lang}" aria-pressed="${v === d}">${esc(v.name)}</a>`).join("");
+  /* úvodní stránka: výrazná sekce s přehrávačem videa v jazyce stránky (kapitoly a další jazyky na /video/) */
+  const H = c.home;
+  H.video_teaser_html =
+    `<section class="sec sec-tight home-video" id="video"><div class="wrap">` +
+    `<p class="eyebrow">${esc(H.video_eyebrow)}</p><h2>${esc(H.video_title)}</h2><p class="lead measure">${esc(H.video_lead)}</p>` +
+    `<div class="vid-frame"><video controls preload="none" playsinline width="1920" height="1080" lang="${d.lang}"` +
+    (d.poster ? ` poster="${d.poster}"` : "") + ` aria-label="${esc(V.player_label)}"><source src="${d.src}" type="video/mp4">` +
+    (d.vtt ? `<track kind="subtitles" src="${d.vtt}" srclang="${d.lang}" label="${esc(d.name)}">` : "") +
+    `<p>${esc(V.no_video)} <a href="${d.src}">${esc(d.name)} (MP4)</a></p></video></div>` +
+    `<p class="cta-row"><a class="btn btn-ghost" href="${url(lang, "video")}">${esc(H.video_more)} →</a></p></div></section>`;
   V.player_html =
     `<div class="vid" data-video data-default="${d.lang}">` +
     `<div class="vid-langs" role="group" aria-label="${esc(V.langs_label)}"><span class="vid-langs-l">${esc(V.langs_label)}</span>${btns}</div>` +

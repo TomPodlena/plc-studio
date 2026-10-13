@@ -40,7 +40,7 @@
     "soukromi": "Datenschutz",
     "cta": "Kostenlos laden",
     "cookies": "Cookies",
-    "video": "Videoanleitung"
+    "video": "Video"
   },
   "home": {
     "title": "{{site.brand}} — Maschinensteuerung von der Aufgabenstellung bis zur freigegebenen Dokumentation",
@@ -284,7 +284,11 @@
     "end_title": "Probieren Sie es an einer Maschine, die Sie kennen",
     "end_body": "Nehmen Sie eine kleinere Maschine, die Sie gut kennen. An einem Nachmittag sehen Sie, ob die Ergebnisse passen.",
     "end_cta": "Kostenlos laden",
-    "video_link": "Videoanleitung zur Anwendung (ca. 10 Min.)"
+    "video_link": "Videoanleitung zur Anwendung (ca. 10 Min.)",
+    "video_eyebrow": "Videoanleitung",
+    "video_title": "So funktioniert {{site.brand}}",
+    "video_lead": "Zehn Minuten von der Maschinenbeschreibung bis zu Code, Dokumentation, Freigabe und Inbetriebnahme — in der echten Anwendung, mit Untertiteln.",
+    "video_more": "Kapitel und weitere Sprachen des Videos"
   },
   "funkce": {
     "title": "Funktionen — {{site.brand}}",

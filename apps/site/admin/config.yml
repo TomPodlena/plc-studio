@@ -529,6 +529,22 @@ collections:
                 label: "video_link"
                 i18n: true
                 widget: string
+              - name: "video_eyebrow"
+                label: "video_eyebrow"
+                i18n: true
+                widget: string
+              - name: "video_title"
+                label: "video_title"
+                i18n: true
+                widget: string
+              - name: "video_lead"
+                label: "video_lead"
+                i18n: true
+                widget: text
+              - name: "video_more"
+                label: "video_more"
+                i18n: true
+                widget: string
           - name: "funkce"
             label: "Funkce"
             i18n: true

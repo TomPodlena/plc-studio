@@ -40,7 +40,7 @@
     "soukromi": "个人数据保护",
     "cta": "免费下载",
     "cookies": "Cookies",
-    "video": "视频指南"
+    "video": "视频"
   },
   "home": {
     "title": "{{site.brand}} — 机器控制：从需求到已批准的文档",
@@ -284,7 +284,11 @@
     "end_title": "在您熟悉的机器上试一试",
     "end_body": "选一台您了如指掌的小型机器。一个下午就能看出输出是否符合您的要求。",
     "end_cta": "免费下载",
-    "video_link": "应用程序视频指南（约 10 分钟）"
+    "video_link": "应用程序视频指南（约 10 分钟）",
+    "video_eyebrow": "视频指南",
+    "video_title": "看看 {{site.brand}} 如何工作",
+    "video_lead": "十分钟，从机器描述到代码、文档、批准和调试——在真实应用程序中演示，附字幕。",
+    "video_more": "视频章节和其他语言"
   },
   "funkce": {
     "title": "功能 — {{site.brand}}",
