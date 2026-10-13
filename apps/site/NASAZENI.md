@@ -56,6 +56,14 @@ node scripts/iso.js                            # izometrické ilustrace -> templ
 
 ### Videoprůvodce (`/video/`)
 
+**Soubory MP4 se přehrávají z vydání na GitHubu** `videopruvodce-1` (https://github.com/TomPodlena/plc-studio/releases/tag/videopruvodce-1,
+předběžné, ne „latest“) — podporuje Range (přetočení na kapitolu), statické assety Workers Range neumí a mají limit 25 MiB.
+Adresu určuje `PLCDESK_VIDEO_BASE` (výchozí = to vydání; prázdná = MP4 do `dist/assets/video` jako dřív, jen pro lokální
+náhled). Titulky `.vtt` a náhledy `.jpg` jsou dál na webu (stopa titulků musí být ze stejného originu). Nové video: plnou
+verzi přebalit `ffmpeg -i PLCdesk_pruvodce_<jazyk>.mp4 -map 0:v -map 0:a -c copy -movflags +faststart plcdesk-pruvodce-<jazyk>.mp4`,
+nahrát `gh release upload videopruvodce-1 plcdesk-pruvodce-<jazyk>.mp4 --clobber`, `.vtt` / `.jpg` / webovou `.mp4` (jen pro
+zjištění dostupných jazyků) do `C:/CLAUDE/plcdesk_video/web/`, build a nasazení.
+
 Stránka `/video/` (`/en/video/`, `/de/video/`) přehrává videoprůvodce aplikací v pěti jazycích nápovědy
 (cs, en, de, es, zh — web sám má jen cs / en / de, další jazyky videa jsou v přepínači). **Videa nejsou
 v gitu** (5 × ~22 MB by nafouklo veřejné repo, `assets/video/` je v `.gitignore`) — build je bere z disku:

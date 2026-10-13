@@ -291,6 +291,10 @@ export const VIDEO_DIR = process.env.PLCDESK_VIDEO_DIR || "C:/CLAUDE/plcdesk_vid
 const SCENARIO_DIRS = [process.env.PLCDESK_SCENARIO_DIR, VIDEO_DIR, path.dirname(path.resolve(VIDEO_DIR))].filter(Boolean);
 const VIDEO_MAX = 25 * 1024 * 1024;
 const VIDEO_URL = "/assets/video";
+// Soubory MP4 se prehravaji z vydani na GitHubu (Range = pretaceni na kapitolu; staticke assety Workers
+// Range nepodporuji a maji limit 25 MiB). Titulky .vtt a nahledy zustavaji na webu (track musi byt ze
+// stejneho originu). Prazdne PLCDESK_VIDEO_BASE = MP4 jako dosud z dist/assets/video (lokalni nahled).
+export const VIDEO_BASE = process.env.PLCDESK_VIDEO_BASE ?? "https://github.com/TomPodlena/plc-studio/releases/download/videopruvodce-1";
 const vfile = (l, ext) => `plcdesk-pruvodce-${l}.${ext}`;
 
 function srtToVtt(srt) {
@@ -320,10 +324,15 @@ function collectVideos() {
     const mp4 = path.join(VIDEO_DIR, vfile(l, "mp4"));
     if (!fs.existsSync(mp4)) continue;
     const size = fs.statSync(mp4).size;
-    if (size >= VIDEO_MAX) { warn(`video ${mp4} ma ${(size / 1048576).toFixed(1)} MiB - limit statickeho souboru Workers je 25 MiB, vynechano`); continue; }
     fs.mkdirSync(dst, { recursive: true });
-    fs.copyFileSync(mp4, path.join(dst, vfile(l, "mp4")));
-    const v = { lang: l, name: VIDEO_NAMES[l], size, src: `${VIDEO_URL}/${vfile(l, "mp4")}`, vtt: "", poster: "", chapters: videoChapters(l) };
+    let src;
+    if (VIDEO_BASE) src = `${VIDEO_BASE}/${vfile(l, "mp4")}`;   // vydani na GitHubu (soubor nahrava provozovatel, viz NASAZENI.md)
+    else {
+      if (size >= VIDEO_MAX) { warn(`video ${mp4} ma ${(size / 1048576).toFixed(1)} MiB - limit statickeho souboru Workers je 25 MiB, vynechano`); continue; }
+      fs.copyFileSync(mp4, path.join(dst, vfile(l, "mp4")));
+      src = `${VIDEO_URL}/${vfile(l, "mp4")}`;
+    }
+    const v = { lang: l, name: VIDEO_NAMES[l], size, src, vtt: "", poster: "", chapters: videoChapters(l) };
     const vtt = path.join(VIDEO_DIR, vfile(l, "vtt")), srt = path.join(VIDEO_DIR, vfile(l, "srt"));
     if (fs.existsSync(vtt)) fs.copyFileSync(vtt, path.join(dst, vfile(l, "vtt")));
     else if (fs.existsSync(srt)) fs.writeFileSync(path.join(dst, vfile(l, "vtt")), srtToVtt(fs.readFileSync(srt, "utf-8")));
