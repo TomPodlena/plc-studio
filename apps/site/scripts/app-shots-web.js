@@ -3,7 +3,7 @@
 // Spusti maly staticky server nad korenem repozitare (web aplikace nacita packages/core/dist),
 // otevre aplikaci v headless Edge v kazdem jazyce (?lang=..., prazdne uloziste = ukazkova
 // linka LL-03) a nafoti zvolene kroky v okne 1440x900.
-// Spusteni: node scripts/app-shots-web.js <slozka-png> [cs en de]
+// Spusteni: node scripts/app-shots-web.js <slozka-png> [cs en de zh]
 
 import fs from "node:fs";
 import http from "node:http";
@@ -14,7 +14,7 @@ import { launch, sleep } from "./cdp.js";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO = path.join(ROOT, "..", "..");
 const OUT = path.resolve(process.argv[2] || path.join(ROOT, "_app_shots"));
-const LANGS = process.argv.slice(3).length ? process.argv.slice(3) : ["cs", "en", "de"];
+const LANGS = process.argv.slice(3).length ? process.argv.slice(3) : ["cs", "en", "de", "zh"];
 // klic snimku -> index kroku webove aplikace (0 = Projekt ... 5 = Schema, 7 = Generovat)
 const SHOTS = [["web-schema", 5]];
 const W = 1440, H = 900;

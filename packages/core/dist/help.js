@@ -728,7 +728,7 @@ function snippetOf(texts, words) {
     return t.length > 2 * R ? t.slice(0, 2 * R).trim() + "…" : t;
 }
 /* ---------------------------------------------------------------- web plcdesk */
-/** Adresa kapitoly na webu PLCdesk (/napoveda/<id>/; bez id rozcestník) v jazyce UI (web má cs / en / de). */
+/** Adresa kapitoly na webu PLCdesk (/napoveda/<id>/; bez id rozcestník) v jazyce UI (web má cs / en / de / zh). */
 export function helpSiteUrl(id, lang) {
     const base = licenseSiteUrl("napoveda", lang ?? getLang());
     return id && SRC.some(s => s.id === id) ? base + id + "/" : base;
@@ -737,7 +737,7 @@ export function helpSiteUrl(id, lang) {
 export const HELP_VIDEO_LANGS = ["cs", "en", "de", "es", "zh"];
 /**
  * Adresa videoprůvodce na webu PLCdesk s jazykem videa = jazyk UI: `/video/?v=cs`, `/en/video/?v=en`,
- * `/de/video/?v=de`; web nemá es / zh — ty vedou na anglickou stránku s videem `?v=es` / `?v=zh`.
+ * `/de/video/?v=de`, `/zh/video/?v=zh`; web nemá es — vede na anglickou stránku s videem `?v=es`.
  */
 export function helpVideoUrl(lang) {
     const l = lang ?? getLang();

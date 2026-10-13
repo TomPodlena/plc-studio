@@ -24,7 +24,7 @@ const now = () => new Date().toISOString();
 const plusDays = (d) => new Date(Date.now() + d * 864e5).toISOString();
 const validEmail = (s) => typeof s === "string" && s.length < 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
 const planOf = (p) => (p === "firma" ? "firma" : "pro");
-const LANGS = ["cs", "en", "de"];
+const LANGS = ["cs", "en", "de", "zh"];
 const langOf = (...c) => c.find((l) => LANGS.includes(l)) || "cs";
 
 async function hmacHex(secret, text) {

@@ -2018,5 +2018,73 @@ await check("uchovani: zaznam starsi nez 2 roky zmizi pri nacteni seznamu", asyn
   eq(db.prepare("SELECT COUNT(*) AS n FROM feedback WHERE id = 'fb-old'").get().n, 0, "smazano");
 });
 
+// =====================================================================================
+console.log("\ncinska verze webu (zh): hlasky a e-maily v zh, neznamy jazyk -> anglicky");
+const { sendLicense } = await import("../worker/email.js");
+const HAN = /[一-鿿]/;
+await check("lead zh: hlaska cinsky, e-mail cinsky s odkazem na /zh/stazeni/, v DB locale zh", async () => {
+  const bad = await (await call("POST", "/api/lead", { email: "x", locale: "zh", ...human })).json();
+  eq(bad.error, "请输入有效的电子邮件地址。", "hlaska");
+  const r = await call("POST", "/api/lead", { email: "zh-lead@example.cn", locale: "zh", ...human });
+  eq(r.status, 200, "status");
+  if (!HAN.test((await r.json()).message)) throw new Error("odpoved neni cinsky");
+  const m = sentMail.at(-1);
+  eq(m.to, ["zh-lead@example.cn"], "adresat");
+  if (!/下载链接/.test(m.subject) || !m.text.includes("https://plcdesk.ucet.workers.dev/zh/stazeni/?t=")) throw new Error(m.subject + " / " + m.text.slice(0, 120));
+  if (/[ěščřžýáíéůú]/i.test(m.subject + m.text)) throw new Error("cestina v cinskem e-mailu");
+  eq(db.prepare("SELECT locale FROM leads WHERE email = 'zh-lead@example.cn'").get().locale, "zh", "locale");
+});
+await check("lead neznamy jazyk (fr, es) -> anglicka hlaska i e-mail s /en/, v DB en; bez jazyka dal cesky", async () => {
+  for (const l of ["fr", "es"]) {
+    eq((await (await call("POST", "/api/lead", { email: "x", locale: l, ...human })).json()).error, "Please enter a valid e-mail address.", l);
+  }
+  await call("POST", "/api/lead", { email: "fr-lead@example.fr", locale: "fr", ...human });
+  const m = sentMail.at(-1);
+  if (!/download link/i.test(m.subject) || !m.text.includes("/en/stazeni/?t=")) throw new Error(m.subject);
+  eq(db.prepare("SELECT locale FROM leads WHERE email = 'fr-lead@example.fr'").get().locale, "en", "locale");
+  if (!/platnou/.test((await (await call("POST", "/api/lead", { email: "x", ...human })).json()).error)) throw new Error("bez jazyka ma byt cesky");
+});
+await check("beta zh: hlaska OK i chyba cinsky, potvrzeni cinsky, v DB zh; neznamy jazyk -> anglicky", async () => {
+  const e1 = await (await beta({ ...betaOk, email: "zh-beta@example.cn", platforms: [], locale: "zh" })).json();
+  eq(e1.error, "请至少选择一个平台。", "chyba");
+  const r = await beta({ ...betaOk, email: "zh-beta@example.cn", locale: "zh" });
+  eq(r.status, 200, "status");
+  eq((await r.json()).message, "谢谢，您的申请已发送。我们将通过电子邮件回复，通常在两个工作日内。", "ok");
+  const m = sentMail.at(-1);
+  eq(m.to, ["zh-beta@example.cn"], "adresat");
+  if (!/测试版/.test(m.subject) || !m.text.includes("验证包") || !m.text.includes("TIA Portal V19 Update 3")) throw new Error(m.subject + " / " + m.text.slice(0, 160));
+  eq(db.prepare("SELECT locale FROM beta_applications WHERE email = 'zh-beta@example.cn'").get().locale, "zh", "locale");
+  const fr = await (await beta({ ...betaOk, email: "fr-beta@example.fr", platforms: [], locale: "fr" })).json();
+  eq(fr.error, "Select at least one platform.", "neznamy jazyk");
+});
+await check("unlock zh: e-mail cinsky; druhy projekt 409 cinsky s odkazem na /zh/cenik/; licence zh: chyba cinsky", async () => {
+  const r = await call("POST", "/api/unlock", { email: "zh-unlock@example.cn", project_id: "zh-p1", io_count: 80, locale: "zh", turnstile: "human" });
+  eq(r.status, 200, "status");
+  const m = sentMail.at(-1);
+  if (!/项目已解锁/.test(m.subject) || !m.text.includes("(80 I/O)") || !m.text.includes("64 个 I/O")) throw new Error(m.subject + " / " + m.text);
+  const d = await (await call("POST", "/api/unlock", { email: "zh-unlock@example.cn", project_id: "zh-p2", locale: "zh", turnstile: "human" })).json();
+  if (!HAN.test(d.error)) throw new Error("409 neni cinsky: " + d.error);
+  eq(d.upgrade, "https://plcdesk.ucet.workers.dev/zh/cenik/", "odkaz na cenik");
+  eq((await (await call("POST", "/api/license/activate", { locale: "zh" })).json()).error, "缺少许可证密钥或计算机指纹。", "licence");
+  eq((await (await call("POST", "/api/license/activate", { locale: "es" })).json()).error, "Licence key or device fingerprint missing.", "es -> en");
+});
+await check("licencni e-mail zh (Nápověda → Licence → Vložit licenci jako v aplikaci); neznamy jazyk anglicky", async () => {
+  await sendLicense(env, { to: "zh-lic@example.cn", key: "PLCD-ZZZZ-ZZZZ-ZZZZ-ZZZZ", file: "abc.def", plan: "pro", locale: "zh" });
+  let m = sentMail.at(-1);
+  eq(m.subject, "PLCdesk Pro 许可证", "predmet");
+  if (!m.text.includes("帮助 → 许可证 → 输入许可证") || !m.text.includes("PLCD-ZZZZ-ZZZZ-ZZZZ-ZZZZ") || !m.text.includes("abc.def")) throw new Error(m.text);
+  await sendLicense(env, { to: "x-lic@example.fr", key: "K", file: "f", plan: "firma", locale: "fr" });
+  m = sentMail.at(-1);
+  eq(m.subject, "PLCdesk Firma licence", "anglicky predmet");
+  await sendLicense(env, { to: "proto@example.fr", key: "K", file: "f", plan: "pro", locale: "constructor" });
+  eq(sentMail.at(-1).subject, "PLCdesk Pro licence", "jazyk z prototypu objektu = anglicky");
+});
+await check("feedback zh: hlaska cinsky (OK i chyba); es a neznamy jazyk anglicky", async () => {
+  eq((await (await fb({ ...fbOk, lang: "zh" })).json()).message, "谢谢，您的反馈已发送。", "ok");
+  eq((await (await fb({ ...fbOk, lang: "zh", kind: "spam" })).json()).error, "请选择反馈类型。", "chyba");
+  eq((await (await fb({ ...fbOk, lang: "es" })).json()).message, "Thank you, your feedback has been sent.", "es");
+  eq((await (await fb({ ...fbOk, lang: "xx" })).json()).message, "Thank you, your feedback has been sent.", "xx");
+});
+
 console.log(`\n${pass} proslo, ${fail} selhalo`);
 process.exit(fail ? 1 : 0);

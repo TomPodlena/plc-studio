@@ -71,9 +71,9 @@ def is_newer(remote, local: str = __version__) -> bool:
 
 
 def download_page(lang: str, site: str = UPDATE_BASE) -> str:
-    """Stránka ke stažení v jazyce okna (web má cs / en / de; ostatní anglicky)."""
+    """Stránka ke stažení v jazyce okna (web má cs / en / de / zh; ostatní anglicky)."""
     site = (site or UPDATE_BASE).rstrip("/")
-    return site + "/stazeni/" if lang == "cs" else f"{site}/{lang if lang in ('en', 'de') else 'en'}/stazeni/"
+    return site + "/stazeni/" if lang == "cs" else f"{site}/{lang if lang in ('en', 'de', 'zh') else 'en'}/stazeni/"
 
 
 def fetch_json(url: str, timeout: float = TIMEOUT_S):

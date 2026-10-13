@@ -121,17 +121,18 @@ test("nápověda: všechny texty mají překlad ve všech jazycích (bez češti
 test("nápověda: adresa kapitoly na webu PLCdesk", () => {
   assert.equal(helpSiteUrl("kusovnik", "cs"), "https://plcdesk.podlena-t.workers.dev/napoveda/kusovnik/");
   assert.equal(helpSiteUrl("kusovnik", "de"), "https://plcdesk.podlena-t.workers.dev/de/napoveda/kusovnik/");
-  assert.equal(helpSiteUrl("kusovnik", "zh"), "https://plcdesk.podlena-t.workers.dev/en/napoveda/kusovnik/");
+  assert.equal(helpSiteUrl("kusovnik", "zh"), "https://plcdesk.podlena-t.workers.dev/zh/napoveda/kusovnik/");
+  assert.equal(helpSiteUrl("kusovnik", "es"), "https://plcdesk.podlena-t.workers.dev/en/napoveda/kusovnik/");
   assert.equal(helpSiteUrl(undefined, "cs"), "https://plcdesk.podlena-t.workers.dev/napoveda/");
   assert.equal(helpSiteUrl("neexistuje", "en"), "https://plcdesk.podlena-t.workers.dev/en/napoveda/");
 });
 
-test("nápověda: adresa videoprůvodce (jazyk videa = jazyk UI, es / zh na anglické stránce)", () => {
+test("nápověda: adresa videoprůvodce (jazyk videa = jazyk UI, es na anglické stránce)", () => {
   const S = "https://plcdesk.podlena-t.workers.dev";
   assert.equal(helpVideoUrl("cs"), S + "/video/?v=cs");
   assert.equal(helpVideoUrl("en"), S + "/en/video/?v=en");
   assert.equal(helpVideoUrl("de"), S + "/de/video/?v=de");
   assert.equal(helpVideoUrl("es"), S + "/en/video/?v=es");
-  assert.equal(helpVideoUrl("zh"), S + "/en/video/?v=zh");
+  assert.equal(helpVideoUrl("zh"), S + "/zh/video/?v=zh");
   for (const l of Object.keys(LANGS)) assert.ok(helpVideoUrl(l).endsWith("?v=" + l), l);
 });

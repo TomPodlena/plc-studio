@@ -14,7 +14,7 @@ import { launch, sleep } from "./cdp.js";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FILE = path.resolve(process.argv[2] || path.join(ROOT, "preview.html"));
 const BASE = process.env.BASE || "http://localhost:4173";
-const LANGS = ["cs", "en", "de"];
+const LANGS = ["cs", "en", "de", "zh"];
 // platformy ve stavu beta (stranka /beta a odkazy z tabulky platforem) - ze stejneho souboru jako build
 const BETA = Object.entries(JSON.parse(fs.readFileSync(path.join(ROOT, "..", "..", "data", "verification.json"), "utf-8")).platforms)
   .filter(([, v]) => v.state === "beta").map(([k]) => k);
@@ -95,8 +95,8 @@ try {
   console.log("\nnahled: prepinac jazyka drzi stranku");
   await js(`location.hash='#pv-cs-cenik'`);
   await sleep(120);
-  for (const l of ["en", "de", "cs"]) {
-    await js(`[...document.querySelectorAll('.pv-lang:not([hidden]) .langs a')].find(a=>a.getAttribute('hreflang')==='${l}').click()`);
+  for (const l of ["en", "de", "zh", "cs"]) {
+    await js(`[...document.querySelectorAll('.pv-lang:not([hidden]) .langs a')].find(a=>a.getAttribute('hreflang').split('-')[0]==='${l}').click()`);
     await sleep(150);
     check(`hlavicka ${l.toUpperCase()}`, await js(vis), `pv-${l}-cenik`);
   }

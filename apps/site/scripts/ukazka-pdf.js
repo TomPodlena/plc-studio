@@ -5,7 +5,7 @@
 // headless Edge (CDP Page.printToPDF) z nich slozi PDF s titulni stranou a patickou.
 //
 // Jadro jen cte z packages/core/dist (nic v nem nemeni). Spusteni z apps/site:
-//   node scripts/ukazka-pdf.js            -> assets/ukazka/ukazka-dokumentace-{cs,en,de}.pdf
+//   node scripts/ukazka-pdf.js            -> assets/ukazka/ukazka-dokumentace-{cs,en,de,zh}.pdf  (--lang zh = jen cinsky)
 //   node scripts/ukazka-pdf.js --html     -> navic necha mezivysledek HTML v docasne slozce
 // Obrazky na web (vykresy z jadra, nahledy stran) dela scripts/obrazky.js nad stejnym projektem.
 
@@ -18,7 +18,9 @@ import { launch } from "./cdp.js";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CORE = path.join(ROOT, "..", "..", "packages", "core", "dist", "index.js");
 const OUT = path.join(ROOT, "assets", "ukazka");
-const LANGS = ["cs", "en", "de"];
+// --lang zh (nebo cs,en): jen vybrane jazyky
+const LANG_ARG = process.argv.indexOf("--lang");
+const LANGS = LANG_ARG > 0 ? process.argv[LANG_ARG + 1].split(",") : ["cs", "en", "de", "zh"];
 const KEEP_HTML = process.argv.includes("--html");
 
 const C = await import(pathToFileURL(CORE).href);

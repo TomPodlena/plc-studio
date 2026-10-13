@@ -30,7 +30,7 @@ const ROW_NAMES = Object.fromEntries((CONTENT_CS.platformy?.rows || []).flatMap(
   Array.isArray(r.members) ? r.members.map((m) => [m.key, m.name]) : [[r.key, r.name]]));
 export const platformName = (k) => ROW_NAMES[k] || k;
 
-const LANGS = ["cs", "en", "de"];
+const LANGS = ["cs", "en", "de", "zh"];
 const ATTEMPT_WINDOW_MS = 3600e3;
 const MAX_ATTEMPTS = 5;
 const PAGE_SIZE = 50;
@@ -83,8 +83,24 @@ const MSG = {
     many: "Zu viele Versuche. Bitte versuchen Sie es in einer Stunde erneut.",
     bad: "Ungültige Anfrage.",
   },
+  zh: {
+    ok: "谢谢，您的申请已发送。我们将通过电子邮件回复，通常在两个工作日内。",
+    email: "请输入有效的电子邮件地址。",
+    platforms: "请至少选择一个平台。",
+    ide: "请填写开发环境（最多 100 个字符）。",
+    ide_version: "请填写开发环境的版本（最多 60 个字符）。",
+    name: "姓名过长（最多 120 个字符）。",
+    company: "公司名称过长（最多 200 个字符）。",
+    html: "文本不得包含字符 < 和 >。",
+    consent: "提交前需同意为测试目的处理您的数据。",
+    verify: "验证失败，请重试。",
+    closed: "表单暂时无法使用。请通过电子邮件联系我们。",
+    many: "尝试次数过多。请一小时后再试。",
+    bad: "无效请求。",
+  },
 };
-const loc = (l) => (LANGS.includes(l) ? l : "cs");
+// cs / en / de / zh; jiny jazyk = anglicky, bez jazyka = cesky (puvodni chovani)
+const loc = (l) => (LANGS.includes(l) ? l : l ? "en" : "cs");
 const fail = (locale, key, status = 400) => out({ error: MSG[loc(locale)][key], field: key }, status);
 const validEmail = (s) => typeof s === "string" && s.length < 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
 

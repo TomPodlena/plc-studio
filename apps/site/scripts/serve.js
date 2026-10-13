@@ -66,7 +66,12 @@ function staticResponse(urlPath, range) {
     file = path.join(file, "index.html");
   }
   if (!fs.existsSync(file)) {
-    return new Response(testSitekey(fs.readFileSync(path.join(DIST, "404.html"), "utf-8")), { status: 404, headers: { "Content-Type": TYPES[".html"] } });
+    // not_found_handling = "404-page": nejblizsi 404.html smerem ke koreni (/zh/... -> /zh/404.html)
+    let dir = path.dirname(file), nf = path.join(DIST, "404.html");
+    for (; dir.startsWith(DIST) && dir.length > DIST.length; dir = path.dirname(dir)) {
+      if (fs.existsSync(path.join(dir, "404.html"))) { nf = path.join(dir, "404.html"); break; }
+    }
+    return new Response(testSitekey(fs.readFileSync(nf, "utf-8")), { status: 404, headers: { "Content-Type": TYPES[".html"] } });
   }
   const type = TYPES[path.extname(file)] || "application/octet-stream";
   if (range && path.extname(file) !== ".html") {

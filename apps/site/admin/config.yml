@@ -17,7 +17,7 @@ public_folder: /assets/img
 
 i18n:
   structure: multiple_files
-  locales: [cs, en, de]
+  locales: [cs, en, de, zh]
   default_locale: cs
 
 collections:
@@ -1659,6 +1659,7 @@ collections:
           - { name: "pdf_cs", label: "pdf_cs", widget: string }
           - { name: "pdf_en", label: "pdf_en", widget: string }
           - { name: "pdf_de", label: "pdf_de", widget: string }
+          - { name: "pdf_zh", label: "pdf_zh", widget: string }
           - name: "operator"
             label: "operator"
             widget: object

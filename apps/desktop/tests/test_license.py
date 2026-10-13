@@ -133,7 +133,8 @@ class LicenseTest(unittest.TestCase):
     def test_site_urls(self):
         self.assertEqual(lic_mod.site_url("cenik", "cs"), "https://plcdesk.podlena-t.workers.dev/cenik/")
         self.assertEqual(lic_mod.site_url("kontakt", "de"), "https://plcdesk.podlena-t.workers.dev/de/kontakt/")
-        self.assertEqual(lic_mod.site_url("cenik", "zh"), "https://plcdesk.podlena-t.workers.dev/en/cenik/")
+        self.assertEqual(lic_mod.site_url("cenik", "zh"), "https://plcdesk.podlena-t.workers.dev/zh/cenik/")
+        self.assertEqual(lic_mod.site_url("cenik", "es"), "https://plcdesk.podlena-t.workers.dev/en/cenik/")
 
     # --- Free ----------------------------------------------------------------------------
 

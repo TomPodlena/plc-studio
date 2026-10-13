@@ -34,7 +34,7 @@ import { sendDownloadLink, sendUnlockConfirmation } from "./email.js";
 import { handleBetaApply } from "./beta.js";
 import { handleFeedback, handleFeedbackPreflight } from "./feedback.js";
 
-const LANGS = ["cs", "en", "de"];
+const LANGS = ["cs", "en", "de", "zh"];
 const MSG = {
   cs: {
     email: "Zadejte platnou e-mailovou adresu.",
@@ -93,8 +93,28 @@ const MSG = {
     server: "Auf dem Server ist ein Fehler aufgetreten.",
     many: "Zu viele Versuche. Bitte versuchen Sie es in einer Stunde erneut.",
   },
+  zh: {
+    email: "请输入有效的电子邮件地址。",
+    consent: "下载前需同意许可条款。",
+    verify: "验证失败，请重试。",
+    closed: "表单暂时无法使用。请通过电子邮件联系我们。",
+    sent: "下载链接已发送，请查收邮件。",
+    direct: "下载链接已准备好。",
+    bad_link: "链接无效。",
+    expired: "链接已过期。请重新申请。",
+    no_build: "下载文件暂不可用。",
+    missing: "缺少许可证密钥或计算机指纹。",
+    no_key: "未找到该许可证密钥。",
+    canceled: "许可证已取消。",
+    seats: "该许可证已在所有允许的计算机（{n} 台）上使用。请联系我们，我们将为您释放。",
+    unlock_missing: "缺少电子邮件或项目。",
+    unlock_used: "您已解锁过一个项目。超出限制的其他机器需要 Pro 版。",
+    server: "服务器发生错误。",
+    many: "尝试次数过多。请一小时后再试。",
+  },
 };
-const loc = (l) => (LANGS.includes(l) ? l : "cs");
+// cs / en / de / zh; jiny jazyk = anglicky, bez jazyka = cesky (puvodni chovani)
+const loc = (l) => (LANGS.includes(l) ? l : l ? "en" : "cs");
 const t = (l, k, v = {}) => MSG[loc(l)][k].replace(/\{(\w+)\}/g, (m, x) => v[x] ?? m);
 
 function json(data, status = 200, extra = {}) {
@@ -330,7 +350,7 @@ async function handleUnlock(req, env) {
 
   const already = await env.DB.prepare("SELECT COUNT(*) AS n FROM project_unlocks WHERE email = ?").bind(email).first();
   if ((already?.n ?? 0) >= 1) {
-    return json({ error: t(locale, "unlock_used"), upgrade: `${env.PUBLIC_SITE}/cenik/` }, 409);
+    return json({ error: t(locale, "unlock_used"), upgrade: `${env.PUBLIC_SITE}${locale === "cs" ? "" : "/" + locale}/cenik/` }, 409);
   }
 
   await env.DB.prepare(
