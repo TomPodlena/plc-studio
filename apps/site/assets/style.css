@@ -812,3 +812,33 @@ html.lb-open { overflow: hidden; }
 .help-only { font: 500 .7rem/1 var(--mono); padding: 3px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
 .help-back { margin-top: 28px; }
 .eyebrow a { color: inherit; text-decoration: none; }
+
+/* Videopruvodce (/video/): prehravac 16:9, prepinac jazyka videa, kapitoly; odkaz v hero a v napovede */
+.hero-video { margin-top: 14px; }
+.hero-video a { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; color: var(--accent); }
+.hero-video a:hover { text-decoration: underline; }
+.hero-video .ico { width: 20px; height: 20px; }
+.help-video { margin-top: 18px; }
+.vid-wrap { max-width: 1120px; }
+.vid-langs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+.vid-langs-l { font-size: .87rem; color: var(--muted); margin-right: 4px; }
+.vid-lang { display: inline-block; font-size: .9rem; padding: 6px 14px; border: 1px solid var(--line); border-radius: 99px; background: var(--card); color: var(--ink); text-decoration: none; transition: border-color .15s, box-shadow .15s; }
+.vid-lang:hover { border-color: var(--ink); box-shadow: var(--shadow-sm); }
+.vid-lang[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.vid-frame { border-radius: var(--radius-lg); overflow: hidden; background: var(--dark); box-shadow: var(--shadow); aspect-ratio: 16 / 9; }
+.vid-frame video { display: block; width: 100%; height: 100%; background: var(--dark); }
+.vid-pending { max-width: 720px; }
+.vid-ch { margin-bottom: 36px; }
+.vid-ch .fine { margin-top: 4px; }
+.vid-chapters { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 4px; }
+@media (min-width: 560px) { .vid-chapters { grid-template-columns: 1fr 1fr; column-gap: 16px; } }
+@media (min-width: 900px) { .vid-chapters { grid-template-columns: 1fr; } }
+.vid-chapters a { display: flex; gap: 12px; align-items: baseline; padding: 6px 10px; border-radius: var(--radius); text-decoration: none; color: var(--ink); border: 1px solid transparent; }
+.vid-chapters a:hover { background: var(--card); border-color: var(--line); }
+.vid-chapters a[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.vid-t { font: 500 .85rem/1.4 var(--mono); color: var(--accent); min-width: 3.2em; }
+.vid-dl { margin-top: 28px; }
+.vid-dl h2 { font-size: 1.2rem; }
+.vid-files { list-style: none; padding: 0; margin: 10px 0 0; }
+.vid-files li { padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
+.vid-files .fine { margin: 0; }

@@ -75,6 +75,7 @@ export declare const HELP_UI: {
     tourOf: string;
     school: string;
     goStep: string;
+    video: string;
     webTitle: string;
     webIntro: string;
 };
@@ -96,5 +97,12 @@ export interface HelpHit {
 export declare function searchHelp(query: string, lang?: string, client?: HelpClient, limit?: number): HelpHit[];
 /** Adresa kapitoly na webu PLCdesk (/napoveda/<id>/; bez id rozcestník) v jazyce UI (web má cs / en / de). */
 export declare function helpSiteUrl(id?: string, lang?: string): string;
+/** Jazyky, ve kterých existuje videoprůvodce (web /video/, přepínač jazyka videa `?v=`). */
+export declare const HELP_VIDEO_LANGS: string[];
+/**
+ * Adresa videoprůvodce na webu PLCdesk s jazykem videa = jazyk UI: `/video/?v=cs`, `/en/video/?v=en`,
+ * `/de/video/?v=de`; web nemá es / zh — ty vedou na anglickou stránku s videem `?v=es` / `?v=zh`.
+ */
+export declare function helpVideoUrl(lang?: string): string;
 /** Id všech kapitol (pro web a testy). */
 export declare const HELP_IDS: string[];

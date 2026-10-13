@@ -75,6 +75,8 @@ class HelpTest(unittest.TestCase):
                 self.assertNotEqual(x.get("only"), "web", c["id"])
         self.assertTrue(5 <= len(d["tour"]) <= 7)
         self.assertTrue(d["site"]["kusovnik"].endswith("/napoveda/kusovnik/"))
+        self.assertTrue(d["video"].endswith("/video/?v=cs"), d["video"])
+        self.assertEqual(d["ui"]["video"], "Videoprůvodce (asi 10 min)")
         hits = helppanel.search(self.app, "kusovnik")
         self.assertEqual(hits[0]["id"], "kusovnik")
 
@@ -179,6 +181,12 @@ class HelpTest(unittest.TestCase):
         self.assertNotEqual(str(self.app._step_btns[0].cget("style")), "Tour.TButton", "zvýraznění se vrátí")
         t.prev()
         self.assertEqual(t.i, 1)
+        self.assertFalse(t.video.winfo_ismapped(), "odkaz na video jen na konci průvodce")
+        while t.i < len(t.stops) - 1:
+            t.next()
+        self.root.update()
+        self.assertTrue(t.video.winfo_ismapped(), "poslední zastavení: odkaz na videoprůvodce")
+        self.assertTrue(t.video_url.endswith("/video/?v=cs"))
         while helppanel.Tour.current is not None:
             t.next()
         self.assertEqual(self.app.settings["tour"], "done")
@@ -188,6 +196,8 @@ class HelpTest(unittest.TestCase):
         self.assertIsNone(helppanel.Tour.current)
         # znovu z kroku Nápověda; Přeskočit
         self.goto("help")
+        self.assertTrue(any(isinstance(w, ttk.Button) and str(w.cget("text")) == "▶ Videoprůvodce (asi 10 min) ↗"
+                            for w in walk(self.app.view)), "tlačítko videoprůvodce v kroku Nápověda")
         btn = next(w for w in walk(self.app.view) if isinstance(w, ttk.Button) and str(w.cget("text")) == "Spustit průvodce")
         btn.invoke()
         self.root.update()

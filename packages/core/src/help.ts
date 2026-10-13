@@ -73,6 +73,7 @@ const SRC: Src[] = [
       N_("Hotový krok má v liště fajfku ✔. Kroky můžeš procházet v libovolném pořadí."),
       N_("Tlačítko **?** v záhlaví každého kroku (nebo klávesa **F1**) otevře nápovědu právě k tomu kroku; celá nápověda je pod tlačítkem **Nápověda** vpravo v liště kroků."),
       N_("PLCdesk navrhuje, ale za návrh odpovídá člověk — platí jen to, co odpovědná osoba schválí v kroku Schválení."),
+      N_("**Videoprůvodce** (asi 10 minut) ukáže celý postup na ukázkovém stroji od projektu po oživení — odkaz je v kroku **Nápověda** a na konci úvodního průvodce."),
     ],
     see: ["tour", "projekt", "ai", "zkratky", "faq"],
     keywords: N_("začátek, úvod, postup, workflow, kroky, jak začít, první projekt"),
@@ -708,6 +709,7 @@ export const HELP_UI = {
   tourOf: N_("{n} z {m}"),
   school: N_("Škola PLC — základy pro začátečníky"),
   goStep: N_("Přejít na krok"),
+  video: N_("Videoprůvodce (asi 10 min)"),
   webTitle: N_("Nápověda PLCdesk"),
   webIntro: N_("Návod k aplikaci PLCdesk po krocích návrhu: postup, tipy, časté chyby a jak je opravit. Stejný obsah najdeš v aplikaci pod tlačítkem ? u každého kroku nebo klávesou F1."),
 };
@@ -785,6 +787,18 @@ function snippetOf(texts: string[], words: string[]): string {
 export function helpSiteUrl(id?: string, lang?: string): string {
   const base = licenseSiteUrl("napoveda", lang ?? getLang());
   return id && SRC.some(s => s.id === id) ? base + id + "/" : base;
+}
+
+/** Jazyky, ve kterých existuje videoprůvodce (web /video/, přepínač jazyka videa `?v=`). */
+export const HELP_VIDEO_LANGS = ["cs", "en", "de", "es", "zh"];
+
+/**
+ * Adresa videoprůvodce na webu PLCdesk s jazykem videa = jazyk UI: `/video/?v=cs`, `/en/video/?v=en`,
+ * `/de/video/?v=de`; web nemá es / zh — ty vedou na anglickou stránku s videem `?v=es` / `?v=zh`.
+ */
+export function helpVideoUrl(lang?: string): string {
+  const l = lang ?? getLang();
+  return licenseSiteUrl("video", l) + "?v=" + (HELP_VIDEO_LANGS.includes(l) ? l : "en");
 }
 
 /** Id všech kapitol (pro web a testy). */

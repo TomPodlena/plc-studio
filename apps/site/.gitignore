@@ -4,3 +4,4 @@ _shots/
 .dev.vars
 node_modules/
 preview.html
+assets/video/

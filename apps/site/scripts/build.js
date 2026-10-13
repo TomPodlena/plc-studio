@@ -51,6 +51,7 @@ export const PAGES = [
   { key: "stazeni", out: "stazeni" },
   { key: "kontakt", out: "kontakt" },
   { key: "beta", out: "beta" },
+  { key: "video", out: "video" },
   { key: "podminky", out: "podminky", tpl: "legal" },
   { key: "soukromi", out: "soukromi", tpl: "legal" },
   { key: "cookies", out: "cookies", tpl: "legal" },
@@ -277,6 +278,96 @@ function betaContent(c, lang) {
     : "";
 }
 
+// ---------- videopruvodce (/video/) ----------
+// Videa NEJSOU v gitu (5 x ~22 MB by nafouklo verejne repo). Zdroj: PLCDESK_VIDEO_DIR, jinak
+// C:/CLAUDE/plcdesk_video/web/ se soubory plcdesk-pruvodce-<jazyk>.mp4 (+ .vtt titulky, .jpg nahled;
+// misto .vtt staci .srt, build ho prevede). Build zkopiruje do dist/assets/video/ jen to, co existuje
+// a vejde se do limitu statickeho souboru Workers (25 MiB). Kapitoly: scenar_<jazyk>.md (cestina i
+// scenar.md) v PLCDESK_SCENARIO_DIR, v adresari videi nebo o uroven vys; radky "## Nazev  (hh:mm:ss)".
+// Zadne video = stranka "video se pripravuje" + VAROVANI (nasazeni se zastavi - viz NASAZENI.md).
+export const VIDEO_LANGS = ["cs", "en", "de", "es", "zh"];
+const VIDEO_NAMES = { cs: "Čeština", en: "English", de: "Deutsch", es: "Español", zh: "中文" };
+export const VIDEO_DIR = process.env.PLCDESK_VIDEO_DIR || "C:/CLAUDE/plcdesk_video/web";
+const SCENARIO_DIRS = [process.env.PLCDESK_SCENARIO_DIR, VIDEO_DIR, path.dirname(path.resolve(VIDEO_DIR))].filter(Boolean);
+const VIDEO_MAX = 25 * 1024 * 1024;
+const VIDEO_URL = "/assets/video";
+const vfile = (l, ext) => `plcdesk-pruvodce-${l}.${ext}`;
+
+function srtToVtt(srt) {
+  return "WEBVTT\n\n" + srt.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").trim()
+    .replace(/(\d\d:\d\d:\d\d),(\d{3})/g, "$1.$2") + "\n";
+}
+function videoChapters(l) {
+  const names = l === "cs" ? ["scenar_cs.md", "scenar.md"] : [`scenar_${l}.md`];
+  for (const d of SCENARIO_DIRS) {
+    for (const n of names) {
+      const f = path.join(d, n);
+      if (!fs.existsSync(f)) continue;
+      const out = [];
+      for (const m of fs.readFileSync(f, "utf-8").matchAll(/^##\s+(.+?)\s+\((\d+):(\d\d):(\d\d)\)\s*$/gm)) {
+        out.push({ title: m[1].trim(), t: Number(m[2]) * 3600 + Number(m[3]) * 60 + Number(m[4]) });
+      }
+      if (out.length) return out;
+    }
+  }
+  return [];
+}
+// Najde videa a zkopiruje je do dist (vola se az po kopii assets/)
+function collectVideos() {
+  const found = [];
+  const dst = path.join(DIST, "assets", "video");
+  for (const l of VIDEO_LANGS) {
+    const mp4 = path.join(VIDEO_DIR, vfile(l, "mp4"));
+    if (!fs.existsSync(mp4)) continue;
+    const size = fs.statSync(mp4).size;
+    if (size >= VIDEO_MAX) { warn(`video ${mp4} ma ${(size / 1048576).toFixed(1)} MiB - limit statickeho souboru Workers je 25 MiB, vynechano`); continue; }
+    fs.mkdirSync(dst, { recursive: true });
+    fs.copyFileSync(mp4, path.join(dst, vfile(l, "mp4")));
+    const v = { lang: l, name: VIDEO_NAMES[l], size, src: `${VIDEO_URL}/${vfile(l, "mp4")}`, vtt: "", poster: "", chapters: videoChapters(l) };
+    const vtt = path.join(VIDEO_DIR, vfile(l, "vtt")), srt = path.join(VIDEO_DIR, vfile(l, "srt"));
+    if (fs.existsSync(vtt)) fs.copyFileSync(vtt, path.join(dst, vfile(l, "vtt")));
+    else if (fs.existsSync(srt)) fs.writeFileSync(path.join(dst, vfile(l, "vtt")), srtToVtt(fs.readFileSync(srt, "utf-8")));
+    if (fs.existsSync(path.join(dst, vfile(l, "vtt")))) v.vtt = `${VIDEO_URL}/${vfile(l, "vtt")}`;
+    const jpg = path.join(VIDEO_DIR, vfile(l, "jpg"));
+    if (fs.existsSync(jpg)) { fs.copyFileSync(jpg, path.join(dst, vfile(l, "jpg"))); v.poster = `${VIDEO_URL}/${vfile(l, "jpg")}`; }
+    found.push(v);
+  }
+  return found;
+}
+const mmss = (t) => `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+// Vychozi jazyk videa = jazyk stranky, jinak anglictina, cestina, prvni dostupny
+const videoDefault = (videos, lang) => (["" + lang, "en", "cs"].map((l) => videos.find((v) => v.lang === l)).find(Boolean) || videos[0]);
+function videoContent(c, lang, videos) {
+  const V = c.video;
+  if (!videos.length) {
+    V.player_html = `<div class="box vid-pending"><h2>${esc(V.pending_title)}</h2><p>${esc(V.pending_body)}</p></div>`;
+    V.chapters_html = "";
+    V.files_html = "";
+    return;
+  }
+  const d = videoDefault(videos, lang);
+  const btns = videos.map((v) =>
+    `<a class="vid-lang" href="?v=${v.lang}" data-v="${v.lang}" data-src="${v.src}" data-vtt="${v.vtt}" data-poster="${v.poster}" ` +
+    `data-label="${esc(v.name)}" lang="${v.lang}" aria-pressed="${v === d}">${esc(v.name)}</a>`).join("");
+  V.player_html =
+    `<div class="vid" data-video data-default="${d.lang}">` +
+    `<div class="vid-langs" role="group" aria-label="${esc(V.langs_label)}"><span class="vid-langs-l">${esc(V.langs_label)}</span>${btns}</div>` +
+    `<div class="vid-frame"><video controls preload="metadata" playsinline width="1920" height="1080" lang="${d.lang}"` +
+    (d.poster ? ` poster="${d.poster}"` : "") + ` aria-label="${esc(V.player_label)}">` +
+    `<source src="${d.src}" type="video/mp4">` +
+    (d.vtt ? `<track kind="subtitles" src="${d.vtt}" srclang="${d.lang}" label="${esc(d.name)}">` : "") +
+    `<p>${esc(V.no_video)} <a href="${d.src}">${esc(d.name)} (MP4)</a></p></video></div></div>` +
+    `<script src="/assets/video.js" defer></script>`;
+  V.chapters_html = videos.map((v) => !v.chapters.length ? `<div data-chapters="${v.lang}"${v === d ? "" : " hidden"}></div>` :
+    `<div class="vid-ch" data-chapters="${v.lang}"${v === d ? "" : " hidden"}><h2>${esc(V.chapters_title)}</h2>` +
+    `<p class="fine">${esc(V.chapters_hint)}</p><ol class="vid-chapters" lang="${v.lang}">` +
+    v.chapters.map((ch) => `<li><a href="${v.src}#t=${ch.t}" data-t="${ch.t}"><span class="vid-t">${mmss(ch.t)}</span><span>${esc(ch.title)}</span></a></li>`).join("") +
+    `</ol></div>`).join("");
+  V.files_html = `<h2>${esc(V.files_title)}</h2><p class="fine">${esc(V.files_note)}</p><ul class="vid-files">` +
+    videos.map((v) => `<li lang="${v.lang}"><a href="${v.src}" download>${esc(v.name)}</a> <span class="fine">MP4, ${(v.size / 1048576).toFixed(0)} MB</span>` +
+      (v.vtt ? ` · <a href="${v.vtt}" download>${esc(V.subtitles)} (VTT)</a>` : "") + `</li>`).join("") + `</ul>`;
+}
+
 // Dlazdice nad tabulkou: kazda platforma zvlast (slouceny radek se rozvine na sve cleny)
 function platformTiles(c) {
   return (c.platformy.rows || []).flatMap((r) =>
@@ -386,13 +477,14 @@ function helpChapterBody(ch, L, lang, all) {
   }
   return h;
 }
-function helpPages(lang) {
+function helpPages(lang, c) {
   const L = helpLabels(lang);
   const all = core.helpChapters(lang);
   const groups = core.withLang(lang, () => Object.fromEntries(Object.entries(core.HELP_GROUPS).map(([k, v]) => [k, core.tr(v)])));
   const num = (c) => (typeof c.step === "number" ? `<span class="feature-n">${String(c.step + 1).padStart(2, "0")}</span>` : "");
   const pages = [];
-  let idx = `<section class="page-head"><div class="wrap measure-wrap legal"><p class="eyebrow">${esc(L.webTitle)}</p><h1>${esc(L.webTitle)}</h1><p class="lead">${esc(L.webIntro)}</p>`;
+  let idx = `<section class="page-head"><div class="wrap measure-wrap legal"><p class="eyebrow">${esc(L.webTitle)}</p><h1>${esc(L.webTitle)}</h1><p class="lead">${esc(L.webIntro)}</p>` +
+    `<p class="help-video"><a class="btn btn-ghost btn-sm" href="${url(lang, "video")}">▶ ${esc(c.video.link)}</a></p>`;
   for (const [g, gt] of Object.entries(groups)) {
     const list = all.filter((c) => c.group === g);
     if (!list.length) continue;
@@ -484,11 +576,20 @@ for (const l of LANGS) {
   checkPlatforms(content[l], l);
   if (l !== "cs") sameShape(content.cs, content[l], "", l);
 }
+const VIDEOS = collectVideos();
+if (!VIDEOS.length) {
+  const msg = `videopruvodce: v ${VIDEO_DIR} neni zadne plcdesk-pruvodce-<jazyk>.mp4 - stranka /video/ ukaze "video se pripravuje" (PLCDESK_VIDEO_DIR, viz NASAZENI.md)`;
+  /* CI (GitHub Actions) videa nema — jen informace; nasazeni bez videi workflow preskoci (smazalo by je z webu) */
+  if (process.env.PLCDESK_VIDEO_OPTIONAL) console.log("  INFO " + msg); else warn(msg);
+} else {
+  console.log(`Video: ${VIDEOS.map((v) => `${v.lang} ${(v.size / 1048576).toFixed(1)} MiB${v.vtt ? " +vtt" : ""}${v.poster ? " +jpg" : ""}${v.chapters.length ? ` +${v.chapters.length} kapitol` : ""}`).join(", ")}`);
+}
 for (const l of LANGS) {
   // az po kontrole tvaru (neni v JSON)
   content[l].platformy.tiles = platformTiles(content[l]);
   content[l]._helpLabel = core.withLang(l, () => core.tr("Nápověda"));   // odkaz v paticce (katalog jadra)
   betaContent(content[l], l);
+  videoContent(content[l], l, VIDEOS);
 }
 
 const urls = [];
@@ -500,7 +601,7 @@ for (const lang of LANGS) {
     writePage(lang, p.out, html);
     urls.push(`${SITE_URL}${url(lang, p.out)}`);
   }
-  const help = helpPages(lang);
+  const help = helpPages(lang, c);
   for (const hp of help.pages) {
     c.napoveda = { title: hp.title, description: hp.description, body: hp.body };
     writePage(lang, hp.out, render("help", c, lang, "napoveda", hp.out));
@@ -531,6 +632,10 @@ fs.writeFileSync(path.join(DIST, "_headers"), [
   "  Referrer-Policy: strict-origin-when-cross-origin",
   "  Strict-Transport-Security: max-age=31536000",
   "  Permissions-Policy: camera=(), microphone=(), geolocation=()",
+  "",
+  // titulky videopruvodce: <track> s nosniff potrebuje text/vtt (Wrangler typ odvozuje z pripony, pro jistotu)
+  "/assets/video/*.vtt",
+  "  Content-Type: text/vtt; charset=utf-8",
   "",
 ].join("\n"));
 

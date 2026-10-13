@@ -26,6 +26,10 @@ for (const lang of LANGS) {
     const url = `${lang === "cs" ? "" : "/" + lang}/${out(key) ? out(key) + "/" : ""}`;
     pages.push({ lang, key, url, id: `${lang}-${key}` });
   }
+  // videopruvodce: stranka ano, video se do nahledu nevklada (~22 MB na jazyk) - vede na ostry web
+  if (fs.existsSync(path.join(DIST, lang === "cs" ? "" : lang, "video", "index.html"))) {
+    pages.push({ lang, key: "video", url: `${lang === "cs" ? "" : "/" + lang}/video/`, id: `${lang}-video` });
+  }
   // napoveda (build z packages/core/src/help.ts): rozcestnik + kapitoly; v liste stranek neni, vede na ni paticka
   const hdir = path.join(DIST, lang === "cs" ? "" : lang, "napoveda");
   if (fs.existsSync(hdir)) {
@@ -57,12 +61,14 @@ const urlToId = new Map(pages.map((p) => [p.url, p.id]));
 const dead = new Set();
 function rewrite(html, lang) {
   return html
+    .replace(/(src|href|poster|data-src|data-vtt|data-poster)="\/assets\/video\//g, `$1="${site.url.replace(/\/$/, "")}/assets/video/`)
+    .replace(/<script src="\/assets\/video\.js"[^>]*><\/script>/g, "")
     .replace(/ loading="lazy"/g, "") // skryte sekce by se jinak nikdy nenacetly
     // snimky aplikace: v nahledu jen mensi velikost (i pro lightbox), at soubor nebobtna
     // video: zdroj a plakat vlozit (skript nize je dosadi), ostatni <source> (srcset) zahodit
     .replace(/<source src="(\/assets\/[^"]+)" type="video\/mp4">/g, (m, u) => `<source data-asset-video="${key(u)}" type="video/mp4">`)
     .replace(/ poster="(\/assets\/[^"]+)"/g, (m, u) => ` data-asset-poster="${key(u)}"`)
-    .replace(/<source (?!data-asset-video)[^>]*>/g, "")
+    .replace(/<source (?!data-asset-video|src="https?:)[^>]*>/g, "")
     .replace(/(<a class="shot" href="\/assets\/img\/app\/[^"]+?)(\.webp")/g, "$1-800$2")
     .replace(/data-sitekey="[^"]*"/g, 'data-sitekey="1x00000000000000000000AA"') // nahled: testovaci klic Turnstile
     .replace(/src="(\/assets\/[^"]+)"/g, (m, u) => `src="${PIX}" data-asset="${key(u)}"`)

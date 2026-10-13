@@ -1,7 +1,7 @@
 /* PLCdesk — nápověda ve webové aplikaci: panel ke kroku (tlačítko ? a F1), obsah a hledání v kroku
    Nápověda, úvodní průvodce. Obsah je jen v jádře (packages/core/src/help.ts) — tady se jen vykresluje. */
 import {
-  helpChapter, helpChapters, helpForStep, searchHelp, helpTour, helpSiteUrl, helpFold, HELP_UI, HELP_GROUPS,
+  helpChapter, helpChapters, helpForStep, searchHelp, helpTour, helpSiteUrl, helpVideoUrl, helpFold, HELP_UI, HELP_GROUPS,
   tr, escHtml as esc,
 } from "../../../packages/core/dist/index.js";
 import { openFeedback } from "./feedback.js";
@@ -149,7 +149,8 @@ export function helpContentsHtml() {
   const chapters = helpChapters(undefined, CLIENT);
   let h = "<div class='helpsearch'><input type='search' id='helpQ' placeholder='" + esc(tr(HELP_UI.search)) + "' aria-label='" + esc(tr(HELP_UI.search)) + "' value='" + esc(query) + "' autocomplete='off'>"
     + "<button type='button' class='small' id='helpTour'>" + esc(tr(HELP_UI.tourStart)) + "</button>"
-    + "<button type='button' class='small' id='helpFeedback'>" + esc(tr("Zpětná vazba")) + "</button></div>"
+    + "<button type='button' class='small' id='helpFeedback'>" + esc(tr("Zpětná vazba")) + "</button>"
+    + "<a class='small btnlink' id='helpVideo' href='" + esc(helpVideoUrl()) + "' target='_blank' rel='noopener'>▶ " + esc(tr(HELP_UI.video)) + " ↗</a></div>"
     + "<div id='helpResults' aria-live='polite'></div>"
     + "<h3>" + esc(tr(HELP_UI.contents)) + "</h3>";
   for (const g of Object.keys(HELP_GROUPS)) {
@@ -231,6 +232,7 @@ export function startTour({ S } = {}) {
   ov.className = "tour";
   ov.innerHTML = "<div class='tourhole'></div><div class='tourcard' role='dialog' aria-modal='true' aria-labelledby='tourTitle' aria-describedby='tourText' tabindex='-1'>"
     + "<div class='tourprog' id='tourProg'></div><h3 id='tourTitle'></h3><p id='tourText'></p>"
+    + "<p class='tourvideo' id='tourVideo' hidden><a href='" + esc(helpVideoUrl()) + "' target='_blank' rel='noopener'>▶ " + esc(tr(HELP_UI.video)) + " ↗</a></p>"
     + "<div class='row'><button type='button' class='small' id='tourSkip'></button><span style='flex:1'></span>"
     + "<button type='button' class='small' id='tourPrev'></button><button type='button' class='small primary' id='tourNext'></button></div></div>";
   document.body.appendChild(ov);
@@ -273,6 +275,7 @@ export function startTour({ S } = {}) {
     prev.textContent = "← " + tr(HELP_UI.tourPrev);
     prev.disabled = i === 0;
     ov.querySelector("#tourNext").textContent = i === stops.length - 1 ? tr(HELP_UI.tourDone) : tr(HELP_UI.tourNext) + " →";
+    ov.querySelector("#tourVideo").hidden = i !== stops.length - 1;     // na konci průvodce odkaz na videoprůvodce
     ov.dataset.stop = s.id;
     place();
     ov.querySelector("#tourNext").focus();
@@ -291,7 +294,7 @@ export function startTour({ S } = {}) {
     else if (e.key === "ArrowRight" && !e.altKey) { e.preventDefault(); ov.querySelector("#tourNext").click(); }
     else if (e.key === "ArrowLeft" && !e.altKey) { e.preventDefault(); ov.querySelector("#tourPrev").click(); }
     else if (e.key === "Tab") {
-      const f = [...card.querySelectorAll("button:not([disabled])")];
+      const f = [...card.querySelectorAll("button:not([disabled]), a[href]:not([hidden] *)")];
       if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
       else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
     }

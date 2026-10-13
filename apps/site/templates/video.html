@@ -1,0 +1,35 @@
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">{{page.eyebrow}}</p>
+    <h1>{{page.h1}}</h1>
+    <p class="lead measure">{{page.lead}}</p>
+    <p class="fine">{{page.duration}}</p>
+  </div>
+</section>
+
+<section class="sec sec-tight">
+  <div class="wrap vid-wrap">
+    {{page.player_html}}
+  </div>
+</section>
+
+<section class="sec sec-tint sec-dots">
+  <div class="wrap split split-top">
+    <div>
+      {{page.chapters_html}}
+      <h2>{{page.covers_title}}</h2>
+      <ul class="ticks">{{page.covers|li}}</ul>
+    </div>
+    <div class="side">
+      <div class="box">
+        <h2>{{page.next_title}}</h2>
+        <p>{{page.next_body}}</p>
+        <div class="cta-row">
+          <a class="btn" href="{{BLOCK.url_stazeni}}">{{page.cta_download}}<svg class="ico ico-btn" aria-hidden="true"><use href="#i-download"/></svg></a>
+          <a class="btn btn-ghost" href="{{BLOCK.url_napoveda}}">{{page.cta_help}}</a>
+        </div>
+      </div>
+      <div class="vid-dl">{{page.files_html}}</div>
+    </div>
+  </div>
+</section>

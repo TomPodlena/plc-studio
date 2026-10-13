@@ -54,6 +54,36 @@ node scripts/iso.js                            # izometrické ilustrace -> templ
 - V šablonách: `{{.shot|shot}}` / `{{.|shotwide}}` (objekt `{key, path, alt, cap?}` v obsahu)
   vloží okno se snímkem, `<picture>`, rozměry čte build z WebP a odkaz otevře lightbox.
 
+### Videoprůvodce (`/video/`)
+
+Stránka `/video/` (`/en/video/`, `/de/video/`) přehrává videoprůvodce aplikací v pěti jazycích nápovědy
+(cs, en, de, es, zh — web sám má jen cs / en / de, další jazyky videa jsou v přepínači). **Videa nejsou
+v gitu** (5 × ~22 MB by nafouklo veřejné repo, `assets/video/` je v `.gitignore`) — build je bere z disku:
+
+- složka `PLCDESK_VIDEO_DIR`, jinak výchozí `C:/CLAUDE/plcdesk_video/web/`,
+- soubory `plcdesk-pruvodce-<jazyk>.mp4` (každý **pod 25 MiB** = limit statického souboru Workers, jinak
+  varování a soubor se vynechá), `.vtt` titulky (místo nich stačí `.srt`, build je převede) a `.jpg` náhled,
+- kapitoly ze scénáře `scenar_<jazyk>.md` (pro češtinu i `scenar.md`) v `PLCDESK_SCENARIO_DIR`, ve složce
+  videí nebo o úroveň výš (`C:/CLAUDE/plcdesk_video/`); řádky `## Název  (hh:mm:ss)`. Bez scénáře se kapitoly
+  pro ten jazyk neukážou.
+
+Build zkopíruje do `dist/assets/video/` jen existující soubory a stránka nabídne jen dostupné jazyky
+(výchozí = jazyk stránky, jinak angličtina, čeština). **Když žádné video není**, stránka ukáže „video se
+připravuje“ a build skončí **varováním → nasazení se zastaví**. Proto:
+
+```bash
+# z apps/site, videa v C:/CLAUDE/plcdesk_video/web/ (nebo jinde):
+PLCDESK_VIDEO_DIR=C:/CLAUDE/plcdesk_video/web node scripts/build.js    # musí skončit „0 varovani“
+PLCDESK_VIDEO_DIR=C:/CLAUDE/plcdesk_video/web npx wrangler@4 deploy
+```
+
+Nasazovat s videi **jen z počítače, kde videa jsou**: automatické nasazení z GitHubu (A7) videa nemá
+a každé nasazení nahrazuje celou sadu souborů — build tam proto skončí varováním a nasazení se zastaví
+(bez něj by z webu videa zmizela). Přehrávač stojí na Range požadavcích statických assetů Workers
+(lokálně je umí `serve.js`), titulky mají v `_headers` `Content-Type: text/vtt`. Jazyk videa v adrese:
+`/video/?v=es` (aplikace v nápovědě odkazuje `?v=<jazyk UI>`, es / zh přes `/en/video/`).
+Kontrola: `BASE=http://localhost:4173 node _shots/video/video_test.mjs` (lokální skript, `_shots/` není v gitu).
+
 Texty jsou jen v `content/{cs,en,de}.json` (čeština je zdroj pravdy, struktura shodná).
 Název značky, adresa webu a kontakt jsou jen v `content/site.json`; v textech se píší jako `{{site.brand}}`.
 

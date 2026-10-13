@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LANGS, catalog, setLang } from "./i18n.js";
-import { helpChapters, helpChapter, helpForStep, searchHelp, helpTour, helpSiteUrl, helpSourceTexts, helpFold, HELP_STEP_IDS, HELP_IDS, HELP_GROUPS, HELP_UI, } from "./help.js";
+import { helpChapters, helpChapter, helpForStep, searchHelp, helpTour, helpSiteUrl, helpVideoUrl, helpSourceTexts, helpFold, HELP_STEP_IDS, HELP_IDS, HELP_GROUPS, HELP_UI, } from "./help.js";
 const STEP_COUNT = 13; // Projekt … Oživení (lišta kroků webu i desktopu)
 test("nápověda: každý krok workflow má kapitolu se správným číslem kroku", () => {
     assert.equal(HELP_STEP_IDS.length, STEP_COUNT);
@@ -125,4 +125,14 @@ test("nápověda: adresa kapitoly na webu PLCdesk", () => {
     assert.equal(helpSiteUrl("kusovnik", "zh"), "https://plcdesk.podlena-t.workers.dev/en/napoveda/kusovnik/");
     assert.equal(helpSiteUrl(undefined, "cs"), "https://plcdesk.podlena-t.workers.dev/napoveda/");
     assert.equal(helpSiteUrl("neexistuje", "en"), "https://plcdesk.podlena-t.workers.dev/en/napoveda/");
+});
+test("nápověda: adresa videoprůvodce (jazyk videa = jazyk UI, es / zh na anglické stránce)", () => {
+    const S = "https://plcdesk.podlena-t.workers.dev";
+    assert.equal(helpVideoUrl("cs"), S + "/video/?v=cs");
+    assert.equal(helpVideoUrl("en"), S + "/en/video/?v=en");
+    assert.equal(helpVideoUrl("de"), S + "/de/video/?v=de");
+    assert.equal(helpVideoUrl("es"), S + "/en/video/?v=es");
+    assert.equal(helpVideoUrl("zh"), S + "/en/video/?v=zh");
+    for (const l of Object.keys(LANGS))
+        assert.ok(helpVideoUrl(l).endsWith("?v=" + l), l);
 });

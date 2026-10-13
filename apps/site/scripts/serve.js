@@ -16,7 +16,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = path.join(ROOT, "dist");
 const PORT = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a))) || 4173;
 // ASSETS jako na Cloudflare: Worker si jim bere /sprava (run_worker_first) a prida hlavicky
-const env = localEnv({ PUBLIC_SITE: `http://localhost:${PORT}`, ASSETS: { fetch: async (req) => staticResponse(new URL(req.url).pathname) } });
+const env = localEnv({ PUBLIC_SITE: `http://localhost:${PORT}`, ASSETS: { fetch: async (req) => staticResponse(new URL(req.url).pathname, req.headers.get("range")) } });
 if (process.argv.includes("--demo")) seedDemo(env.DB.db);
 
 const TYPES = {
@@ -28,6 +28,8 @@ const TYPES = {
   ".png": "image/png",
   ".webp": "image/webp",
   ".mp4": "video/mp4",
+  ".vtt": "text/vtt; charset=utf-8",
+  ".jpg": "image/jpeg",
   ".pdf": "application/pdf",
   ".xml": "application/xml; charset=utf-8",
   ".txt": "text/plain; charset=utf-8",
@@ -51,8 +53,9 @@ async function api(req, res) {
   await send(res, r);
 }
 
-// Staticky soubor z dist/ jako Response (html_handling auto-trailing-slash, 404 stranka)
-function staticResponse(urlPath) {
+// Staticky soubor z dist/ jako Response (html_handling auto-trailing-slash, 404 stranka).
+// Range (bytes=a-b, bytes=a-, bytes=-n) jako Workers Static Assets - prehravac videa pretaci po kouskach.
+function staticResponse(urlPath, range) {
   const clean = decodeURIComponent(urlPath.split("?")[0]);
   let file = path.join(DIST, clean);
   if (!file.startsWith(DIST)) return new Response("Forbidden", { status: 403 });
@@ -66,8 +69,22 @@ function staticResponse(urlPath) {
     return new Response(testSitekey(fs.readFileSync(path.join(DIST, "404.html"), "utf-8")), { status: 404, headers: { "Content-Type": TYPES[".html"] } });
   }
   const type = TYPES[path.extname(file)] || "application/octet-stream";
+  if (range && path.extname(file) !== ".html") {
+    const size = fs.statSync(file).size;
+    const m = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+    let start = -1, end = size - 1;
+    if (m && m[1] !== "") { start = Number(m[1]); if (m[2] !== "") end = Math.min(Number(m[2]), size - 1); }
+    else if (m && m[2] !== "") start = Math.max(0, size - Number(m[2]));
+    if (start < 0 || start > end || start >= size) {
+      return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${size}` } });
+    }
+    const buf = Buffer.alloc(end - start + 1);
+    const fd = fs.openSync(file, "r");
+    try { fs.readSync(fd, buf, 0, buf.length, start); } finally { fs.closeSync(fd); }
+    return new Response(buf, { status: 206, headers: { "Content-Type": type, "Accept-Ranges": "bytes", "Content-Range": `bytes ${start}-${end}/${size}` } });
+  }
   const body = path.extname(file) === ".html" ? testSitekey(fs.readFileSync(file, "utf-8")) : fs.readFileSync(file);
-  return new Response(body, { status: 200, headers: { "Content-Type": type } });
+  return new Response(body, { status: 200, headers: { "Content-Type": type, ...(path.extname(file) === ".html" ? {} : { "Accept-Ranges": "bytes" }) } });
 }
 
 async function send(res, r) {
@@ -82,7 +99,7 @@ http
       api(req, res).catch((e) => res.writeHead(500).end(String(e)));
       return;
     }
-    send(res, staticResponse(req.url)).catch((e) => res.writeHead(500).end(String(e)));
+    send(res, staticResponse(req.url, req.headers.range)).catch((e) => res.writeHead(500).end(String(e)));
   })
   .listen(PORT, () => console.log(`Nahled bezi na http://localhost:${PORT}/ (API ve vyvojovem rezimu)` +
     (env.ADMIN_TOKEN ? `, sprava http://localhost:${PORT}/sprava/` : "")));

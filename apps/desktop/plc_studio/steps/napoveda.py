@@ -229,6 +229,9 @@ def render(app, parent) -> None:
     ttk.Label(row, text="🔍", style="Dim.TLabel").pack(side="left", padx=(4, 0), before=ent)
     ttk.Button(row, text=ui["tourStart"], command=app.start_tour).pack(side="left", padx=(10, 0))
     ttk.Button(row, text=_("Zpětná vazba"), command=app.open_feedback).pack(side="left", padx=(6, 0))
+    if data.get("video"):           # videoprůvodce na webu PLCdesk (jazyk videa = jazyk UI)
+        ttk.Button(row, text="▶ " + ui["video"] + " ↗",
+                   command=lambda u=data["video"]: webbrowser.open(u)).pack(side="left", padx=(6, 0))
     body.help_entry = ent
 
     frm, txt = scrolled_text(body, height=10, bg=theme.BG, spacing1=2, spacing3=4)
