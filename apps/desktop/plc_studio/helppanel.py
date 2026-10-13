@@ -304,6 +304,10 @@ class Tour:
         self.title.pack(anchor="w", pady=(4, 6))
         self.text = ttk.Label(frm, text="", justify="left", anchor="w", wraplength=int(380 * s))
         self.text.pack(fill="x")
+        # na konci průvodce odkaz na videoprůvodce (web PLCdesk)
+        self.video_url = data.get("video") or ""
+        self.video = ttk.Label(frm, text="▶ " + self.ui.get("video", "") + " ↗", style="Link.TLabel", cursor="hand2")
+        self.video.bind("<Button-1>", lambda _e: webbrowser.open(self.video_url))
         row = ttk.Frame(frm)
         row.pack(fill="x", pady=(14, 0))
         self.b_skip = ttk.Button(row, text=self.ui["tourSkip"], command=lambda: self.end("skipped"))
@@ -352,6 +356,10 @@ class Tour:
         self.text.configure(text=st["text"])
         self.b_prev.state(["disabled"] if self.i == 0 else ["!disabled"])
         self.b_next.configure(text=self.ui["tourDone"] if self.i == n - 1 else self.ui["tourNext"] + " →")
+        if self.video_url and self.i == n - 1:
+            self.video.pack(anchor="w", pady=(8, 0), after=self.text)
+        else:
+            self.video.pack_forget()
         self._unhighlight()
         w = self.target()
         win = self.win

@@ -39,7 +39,8 @@
     "podminky": "Podmínky užití",
     "soukromi": "Ochrana osobních údajů",
     "cta": "Stáhnout zdarma",
-    "cookies": "Cookies"
+    "cookies": "Cookies",
+    "video": "Videoprůvodce"
   },
   "home": {
     "title": "{{site.brand}} — řízení stroje od zadání po schválenou dokumentaci",
@@ -282,7 +283,8 @@
     },
     "end_title": "Zkuste to na stroji, který znáte",
     "end_body": "Vezměte menší stroj, který znáte nazpaměť. Za odpoledne uvidíte, jestli vám výstupy sedí.",
-    "end_cta": "Stáhnout zdarma"
+    "end_cta": "Stáhnout zdarma",
+    "video_link": "Videoprůvodce aplikací (asi 10 min)"
   },
   "funkce": {
     "title": "Funkce — {{site.brand}}",
@@ -948,6 +950,42 @@
       "Jedna platforma znamená několik vzorových strojů: import, překlad a zápis hlášení.",
       "Nic nemusíte opravovat. Když import nebo překlad neprojde, je to přesně nález, který hledáme."
     ]
+  },
+  "video": {
+    "title": "Videoprůvodce — {{site.brand}}",
+    "description": "Desetiminutové video: návrh řízení stroje v {{site.brand}} od projektu po oživení. Česky, anglicky, německy, španělsky a čínsky, s titulky a kapitolami.",
+    "eyebrow": "Videoprůvodce",
+    "h1": "{{site.brand}} od zadání po oživení za deset minut",
+    "lead": "Video provede celým návrhem na ukázkové podávací a lisovací stanici PS-11 — krok za krokem tak, jak ho uvidíte v aplikaci: projekt, AI návrh, platformy, zařízení, I/O, schéma, program a živá simulace, generování kódu, dokumentace, kusovník, bezpečnost, schválení, oživení, nápověda a zpětná vazba.",
+    "duration": "Délka asi 10 minut · ukázky z desktopové aplikace pro Windows, webová verze má stejný postup.",
+    "link": "Videoprůvodce (asi 10 min)",
+    "player_label": "Videoprůvodce {{site.brand}}",
+    "langs_label": "Jazyk videa",
+    "chapters_title": "Kapitoly",
+    "chapters_hint": "Klikněte na kapitolu a video se na ni přetočí.",
+    "covers_title": "Co ve videu uvidíte",
+    "covers": [
+      "Projekt, číslo projektu a hotové příklady strojů",
+      "AI návrh sestavy zařízení s vlastním API klíčem",
+      "Platformy PLC a stav ověření jejich výstupů",
+      "Zařízení, I/O a sestava hardwaru s adresami",
+      "Blokové schéma, zapojení I/O a svorkovnice",
+      "Program, sekvence a živá simulace stroje",
+      "Generování kódu, HMI a emulace kódu",
+      "Dokumentace, kusovník a nabídka",
+      "Bezpečnostní funkce, schválení a plán oživení",
+      "Projektová složka, nápověda a zpětná vazba"
+    ],
+    "subtitles": "Titulky",
+    "no_video": "Váš prohlížeč video nepřehraje. Stáhněte si ho:",
+    "files_title": "Video ke stažení",
+    "files_note": "Soubory MP4 s titulky WebVTT, každý jazyk zvlášť.",
+    "pending_title": "Video se připravuje",
+    "pending_body": "Videoprůvodce tu bude brzy. Do té doby vás aplikací provede nápověda a úvodní průvodce, který se ukáže při prvním spuštění.",
+    "next_title": "Vyzkoušejte to sami",
+    "next_body": "Aplikace je zdarma pro projekty do {{site.free_io_limit}} I/O. Nápověda v aplikaci i na webu popisuje každý krok podrobně.",
+    "cta_download": "Stáhnout zdarma",
+    "cta_help": "Nápověda"
   },
   "podminky": {
     "title": "Obchodní a licenční podmínky — {{site.brand}}",

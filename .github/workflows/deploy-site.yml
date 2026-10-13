@@ -49,9 +49,15 @@ jobs:
         run: node test/api.test.js
       - name: Build (musi skoncit 0 varovani)
         run: node scripts/build.js
+        env:
+          # videopruvodce neni v gitu (apps/site/NASAZENI.md, sekce Videopruvodce) - na CI jen informace
+          PLCDESK_VIDEO_OPTIONAL: "1"
       - name: Nasazeni na Cloudflare Workers
         if: env.HAS_TOKEN == 'true'
-        run: npx --yes wrangler@4 deploy
+        # nasazeni nahrazuje celou sadu souboru - bez videi by je z webu smazalo; nasazuje se z pracovni stanice
+        run: |
+          if [ ! -d dist/assets/video ]; then echo "Videa v buildu nejsou - nasazeni z CI preskoceno (nasazuj z pracovni stanice, viz NASAZENI.md)."; exit 0; fi
+          npx --yes wrangler@4 deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

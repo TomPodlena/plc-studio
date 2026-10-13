@@ -187,6 +187,10 @@ collections:
                 label: "cookies"
                 i18n: true
                 widget: string
+              - name: "video"
+                label: "Videoprůvodce"
+                i18n: true
+                widget: string
           - name: "home"
             label: "Úvod"
             i18n: true
@@ -519,6 +523,10 @@ collections:
                 widget: string
               - name: "end_cta"
                 label: "end_cta"
+                i18n: true
+                widget: string
+              - name: "video_link"
+                label: "video_link"
                 i18n: true
                 widget: string
           - name: "funkce"
@@ -1327,6 +1335,104 @@ collections:
                 label: "side"
                 i18n: true
                 widget: list
+          - name: "video"
+            label: "Videoprůvodce"
+            i18n: true
+            widget: object
+            collapsed: true
+            fields:
+              - name: "title"
+                label: "title"
+                i18n: true
+                widget: string
+              - name: "description"
+                label: "description"
+                i18n: true
+                widget: text
+              - name: "eyebrow"
+                label: "eyebrow"
+                i18n: true
+                widget: string
+              - name: "h1"
+                label: "h1"
+                i18n: true
+                widget: string
+              - name: "lead"
+                label: "lead"
+                i18n: true
+                widget: text
+              - name: "duration"
+                label: "duration"
+                i18n: true
+                widget: text
+              - name: "link"
+                label: "link"
+                i18n: true
+                widget: string
+              - name: "player_label"
+                label: "player_label"
+                i18n: true
+                widget: string
+              - name: "langs_label"
+                label: "langs_label"
+                i18n: true
+                widget: string
+              - name: "chapters_title"
+                label: "chapters_title"
+                i18n: true
+                widget: string
+              - name: "chapters_hint"
+                label: "chapters_hint"
+                i18n: true
+                widget: string
+              - name: "covers_title"
+                label: "covers_title"
+                i18n: true
+                widget: string
+              - name: "covers"
+                label: "covers"
+                i18n: true
+                widget: list
+              - name: "subtitles"
+                label: "subtitles"
+                i18n: true
+                widget: string
+              - name: "no_video"
+                label: "no_video"
+                i18n: true
+                widget: string
+              - name: "files_title"
+                label: "files_title"
+                i18n: true
+                widget: string
+              - name: "files_note"
+                label: "files_note"
+                i18n: true
+                widget: string
+              - name: "pending_title"
+                label: "pending_title"
+                i18n: true
+                widget: string
+              - name: "pending_body"
+                label: "pending_body"
+                i18n: true
+                widget: text
+              - name: "next_title"
+                label: "next_title"
+                i18n: true
+                widget: string
+              - name: "next_body"
+                label: "next_body"
+                i18n: true
+                widget: text
+              - name: "cta_download"
+                label: "cta_download"
+                i18n: true
+                widget: string
+              - name: "cta_help"
+                label: "cta_help"
+                i18n: true
+                widget: string
           - name: "podminky"
             label: "Podmínky užití"
             i18n: true

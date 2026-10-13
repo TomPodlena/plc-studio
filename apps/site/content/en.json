@@ -39,7 +39,8 @@
     "podminky": "Terms of use",
     "soukromi": "Privacy",
     "cta": "Download free",
-    "cookies": "Cookies"
+    "cookies": "Cookies",
+    "video": "Video guide"
   },
   "home": {
     "title": "{{site.brand}} — machine control from specification to approved documentation",
@@ -282,7 +283,8 @@
     },
     "end_title": "Try it on a machine you know",
     "end_body": "Take a smaller machine you know by heart. In an afternoon you will see whether the outputs suit you.",
-    "end_cta": "Download free"
+    "end_cta": "Download free",
+    "video_link": "Video guide to the app (about 10 min)"
   },
   "funkce": {
     "title": "Features — {{site.brand}}",
@@ -948,6 +950,42 @@
       "One platform means several sample machines: import, compile and note the messages.",
       "You do not have to fix anything. If import or compilation fails, that is exactly the finding we are looking for."
     ]
+  },
+  "video": {
+    "title": "Video guide — {{site.brand}}",
+    "description": "A ten-minute video: designing machine control in {{site.brand}} from project to commissioning. In English, Czech, German, Spanish and Chinese, with subtitles and chapters.",
+    "eyebrow": "Video guide",
+    "h1": "{{site.brand}} from brief to commissioning in ten minutes",
+    "lead": "The video walks through a complete design of the sample feed and press station PS-11, step by step as you will see it in the app: project, AI design, platforms, devices, I/O, schematics, program and live simulation, code generation, documentation, bill of materials, safety, approval, commissioning, help and feedback.",
+    "duration": "About 10 minutes · recorded in the Windows desktop app; the web version follows the same steps.",
+    "link": "Video guide (about 10 min)",
+    "player_label": "{{site.brand}} video guide",
+    "langs_label": "Video language",
+    "chapters_title": "Chapters",
+    "chapters_hint": "Click a chapter to jump to it in the video.",
+    "covers_title": "What the video shows",
+    "covers": [
+      "Project, project number and ready-made sample machines",
+      "AI design of the device set with your own API key",
+      "PLC platforms and how their outputs are verified",
+      "Devices, I/O and the hardware layout with addresses",
+      "Block diagram, I/O wiring and terminal strips",
+      "Program, sequence and live machine simulation",
+      "Code generation, HMI and code emulation",
+      "Documentation, bill of materials and quotation",
+      "Safety functions, approval and commissioning plan",
+      "Project folder, help and feedback"
+    ],
+    "subtitles": "Subtitles",
+    "no_video": "Your browser cannot play the video. Download it:",
+    "files_title": "Download the video",
+    "files_note": "MP4 files with WebVTT subtitles, one per language.",
+    "pending_title": "The video is in preparation",
+    "pending_body": "The video guide will be here soon. Until then, the help and the introductory tour shown on first start will guide you through the app.",
+    "next_title": "Try it yourself",
+    "next_body": "The app is free for projects up to {{site.free_io_limit}} I/O. The help in the app and on the web describes every step in detail.",
+    "cta_download": "Download free",
+    "cta_help": "Help"
   },
   "podminky": {
     "title": "Terms of sale and licence — {{site.brand}}",

@@ -124,6 +124,7 @@ const OPS = {
       groups: Object.fromEntries(Object.entries(core.HELP_GROUPS).map(([k, v]) => [k, core.tr(v)])),
       stepIds: core.HELP_STEP_IDS,
       site: Object.fromEntries(["", ...core.HELP_IDS].map(id => [id, core.helpSiteUrl(id || undefined, l)])),
+      video: core.helpVideoUrl(l),
     }));
   },
 

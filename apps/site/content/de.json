@@ -39,7 +39,8 @@
     "podminky": "Nutzungsbedingungen",
     "soukromi": "Datenschutz",
     "cta": "Kostenlos laden",
-    "cookies": "Cookies"
+    "cookies": "Cookies",
+    "video": "Videoanleitung"
   },
   "home": {
     "title": "{{site.brand}} — Maschinensteuerung von der Aufgabenstellung bis zur freigegebenen Dokumentation",
@@ -282,7 +283,8 @@
     },
     "end_title": "Probieren Sie es an einer Maschine, die Sie kennen",
     "end_body": "Nehmen Sie eine kleinere Maschine, die Sie gut kennen. An einem Nachmittag sehen Sie, ob die Ergebnisse passen.",
-    "end_cta": "Kostenlos laden"
+    "end_cta": "Kostenlos laden",
+    "video_link": "Videoanleitung zur Anwendung (ca. 10 Min.)"
   },
   "funkce": {
     "title": "Funktionen — {{site.brand}}",
@@ -948,6 +950,42 @@
       "Eine Plattform bedeutet mehrere Beispielmaschinen: Import, Übersetzen und Meldungen notieren.",
       "Sie müssen nichts reparieren. Wenn Import oder Übersetzen scheitern, ist genau das der Befund, den wir suchen."
     ]
+  },
+  "video": {
+    "title": "Videoanleitung — {{site.brand}}",
+    "description": "Ein zehnminütiges Video: Maschinensteuerung in {{site.brand}} vom Projekt bis zur Inbetriebnahme. Auf Deutsch, Englisch, Tschechisch, Spanisch und Chinesisch, mit Untertiteln und Kapiteln.",
+    "eyebrow": "Videoanleitung",
+    "h1": "{{site.brand}} von der Aufgabe bis zur Inbetriebnahme in zehn Minuten",
+    "lead": "Das Video führt durch einen vollständigen Entwurf der Beispiel-Zuführ- und Pressstation PS-11, Schritt für Schritt so, wie Sie ihn in der Anwendung sehen: Projekt, KI-Entwurf, Plattformen, Geräte, E/A, Schaltpläne, Programm und Live-Simulation, Codegenerierung, Dokumentation, Stückliste, Sicherheit, Freigabe, Inbetriebnahme, Hilfe und Feedback.",
+    "duration": "Dauer ca. 10 Minuten · aufgenommen in der Desktop-Anwendung für Windows; die Webversion hat denselben Ablauf.",
+    "link": "Videoanleitung (ca. 10 Min.)",
+    "player_label": "Videoanleitung {{site.brand}}",
+    "langs_label": "Sprache des Videos",
+    "chapters_title": "Kapitel",
+    "chapters_hint": "Klicken Sie auf ein Kapitel, um im Video dorthin zu springen.",
+    "covers_title": "Was das Video zeigt",
+    "covers": [
+      "Projekt, Projektnummer und fertige Beispielmaschinen",
+      "KI-Entwurf der Geräte mit eigenem API-Schlüssel",
+      "SPS-Plattformen und wie ihre Ausgaben geprüft sind",
+      "Geräte, E/A und Hardware-Aufbau mit Adressen",
+      "Blockschaltbild, E/A-Verdrahtung und Klemmleisten",
+      "Programm, Schrittkette und Live-Simulation der Maschine",
+      "Codegenerierung, HMI und Code-Emulation",
+      "Dokumentation, Stückliste und Angebot",
+      "Sicherheitsfunktionen, Freigabe und Inbetriebnahmeplan",
+      "Projektordner, Hilfe und Feedback"
+    ],
+    "subtitles": "Untertitel",
+    "no_video": "Ihr Browser kann das Video nicht abspielen. Laden Sie es herunter:",
+    "files_title": "Video herunterladen",
+    "files_note": "MP4-Dateien mit WebVTT-Untertiteln, je Sprache eine Datei.",
+    "pending_title": "Das Video ist in Vorbereitung",
+    "pending_body": "Die Videoanleitung erscheint hier in Kürze. Bis dahin führen Sie die Hilfe und die Einführungstour beim ersten Start durch die Anwendung.",
+    "next_title": "Probieren Sie es selbst",
+    "next_body": "Die Anwendung ist für Projekte bis {{site.free_io_limit}} E/A kostenlos. Die Hilfe in der Anwendung und im Web beschreibt jeden Schritt ausführlich.",
+    "cta_download": "Kostenlos laden",
+    "cta_help": "Hilfe"
   },
   "podminky": {
     "title": "Geschäfts- und Lizenzbedingungen — {{site.brand}}",
