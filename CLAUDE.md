@@ -245,6 +245,24 @@ python scripts/build_verification.py        # data/verification.json → verific
   zdroje, ceny se neuvádějí; české popisy jsou klíče překladu (N_). Po přegenerování build jádra,
   `i18n.py missing/merge`, testy. Desktop: krok `steps/kusovnik.py` + operace mostu `bom`, `refs`.
 
+## Export pro CAD (`cad.ts`)
+
+- `cadManifest(prj, opts?)` / `cadManifestJson(prj)` → `PLCdesk_CAD.json`, formát `plcdesk-cad` verze 1 — závazné
+  schéma `C:\CLAUDE\plcdesk_freecad\MANIFEST_SCHEMA.md` (každý klíč vždy, prázdné "" / null; nové pole = verze 2,
+  schéma neměnit samostatně — čte ho FreeCAD i FreeCAD PLM). Díly = VŠECHNY řádky `buildBom` (id = `BomLine.id`,
+  `device` = jméno zařízení z `devId`), `location` / `mount` z tabulky `CAD_PLACEMENT` (jediné místo; test hlídá každou
+  kategorii katalogu, `CAT_LABEL` i řádků modulu bezpečnosti; neznámá kategorie knihovny = field / none), `plc.stations`
+  = `hwLayout` (hlava = CPU / hlava stanice, I/O karty v pořadí slotů → řádek skupiny `bomTag:cat`; vestavěné I/O jsou
+  v CPU, BusAdapter / BaseUnit / server modul jen jako díl se stanicí), `terminals` = kanálové skupiny výkresů (X1…),
+  `relations` z modelu (jistič → stykač → motor, jistič → měnič → motor, řadič → osa, servoměnič → servomotor,
+  rozváděč → válec `actuates`, snímač → válec `senses`, výstupní modul PLC → akční člen `controls`). Bez geometrie.
+- NENÍ v `docFiles` / `genFor` (golden beze změny). Klienti: tlačítko „Export pro CAD (FreeCAD)“ v kroku Kusovník
+  (web `downloadFile` s předponou čísla, desktop operace mostu `cad` + `save_file` hint `cad`); projektová složka
+  `09_Exporty/CAD` (`projectBundle(prj, { cad: true })` — volba, výchozí sada beze změny; klienti ji zapínají).
+  Licence: manifest = data projektu jako `.plcstudio.json` → `licenseFileKind` „own“ (bez brány i nad limitem).
+  Modely z CADu (.FCStd / .step / .stp) patří do `02_Vykresy/3D` (`PROJECT_DIRS.model3d`; PLCdesk je zatím nevyrábí).
+  Testy `cad.test.ts` (28 vzorů + sampleSmall / Complex, s modulem bezpečnosti i bez).
+
 ## Sestava hardwaru (hardware.ts)
 
 - **Jediný zdroj pravdy o modulech.** `hwLayout(prj, plat)` → stanice (CPU s lokálním rackem, vzdálené

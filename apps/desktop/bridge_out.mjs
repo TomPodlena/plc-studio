@@ -93,7 +93,7 @@ export const OUT_OPS = {
   datadir({ prj, gate = null }) {
     emuGate(prj);
     core.syncIO(prj);
-    const b = core.projectBundle(prj, { gate });
+    const b = core.projectBundle(prj, { gate, cad: true });   // + 09_Exporty/CAD/PLCdesk_CAD.json
     const files = [], bins = [];
     for (const f of b.files) {
       if (f.blocked) (f.path.endsWith(".xlsx") ? bins : files).push({ path: f.path, blocked: f.blocked });

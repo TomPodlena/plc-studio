@@ -6,7 +6,7 @@ import {
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
   tr, N_, getLang, DO_ROLES, stepTitle, projectFileName, projectFolderName, projectNumberProblem,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
-  buildBom, bomOptions, bomPlatform, bomCsv, bomTableText, bomQtyInput, bomSuppliers, BOM_QTY_MAX, catKey, suppliersFor, CATALOG_DATE, PLATFORM_REFS,
+  buildBom, bomOptions, bomPlatform, bomCsv, bomTableText, bomQtyInput, bomSuppliers, BOM_QTY_MAX, cadManifestJson, CAD_FILE, catKey, suppliersFor, CATALOG_DATE, PLATFORM_REFS,
   hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
   verifyPackArchive, licenseSiteUrl, PLCDESK_VERSION, HELP_UI,
   renameDevice, setDeviceDesc, setDeviceOpts, setDeviceRange, deviceOpts,
@@ -1361,6 +1361,7 @@ export function makeSteps(ctx) {
     <div class="row">
       <button class="small primary" id="bBomCsv">${tr("Stáhnout CSV")}</button>
       <button class="small" id="bBomTsv">${tr("Kopírovat jako tabulku")}</button>
+      <button class="small" id="bBomCad" title="${esc(tr("PLCdesk_CAD.json: díly kusovníku s označením a objednacím kódem, umístění (rozvaděč / stroj), sestava PLC v pořadí slotů, svorkovnice a vazby mezi díly — podklad pro stavbu rozvaděče a polních prvků ve FreeCADu. Bez geometrie."))}">${tr("Export pro CAD (FreeCAD)")}</button>
       <button class="small danger" id="bBomReset">${tr("Obnovit výchozí volby")}</button>
       <span class="hint" style="margin:0">${tr("CSV se středníky pro Excel; tabulku vložíš do Excelu nebo e-mailu. Množství 0 řádek vyřadí z CSV a dokumentace (zůstane šedě v přehledu); prázdné pole vrátí množství z návrhu.")}</span>
     </div>
@@ -1494,6 +1495,9 @@ export function makeSteps(ctx) {
       if (inp) inp.focus();
     }
     c.querySelector("#bBomCsv").addEventListener("click", () => downloadFile(projectFileName(p, "_kusovnik.csv"), bomCsv(p)));
+    /* manifest pro CAD = data projektu jako .plcstudio.json → licence ho nezamyká (license.ts licenseFileKind „own“);
+       jméno dostane předponu čísla projektu jako ostatní stažené soubory */
+    c.querySelector("#bBomCad").addEventListener("click", () => downloadFile(CAD_FILE, cadManifestJson(p)));
     c.querySelector("#bBomTsv").addEventListener("click", () => {
       copyText(bomTableText(p), c.querySelector("#bBomTsv"));
     });

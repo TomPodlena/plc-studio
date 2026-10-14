@@ -90,7 +90,7 @@ const DOCS_KNOWN = new Set(["00_prehled_dokumentace.md", "01_funkcni_specifikace
 const DIR_RE = new RegExp("^(" + [
   PROJECT_DIRS.docs, PROJECT_DIRS.svg, PROJECT_DIRS.dxf, PROJECT_DIRS.code + "/[A-Za-z0-9_-]+", PROJECT_DIRS.hmi,
   PROJECT_DIRS.safety, PROJECT_DIRS.bom, PROJECT_DIRS.commission, PROJECT_DIRS.approval,
-  PROJECT_DIRS.exports, PROJECT_DIRS.eplan, PROJECT_DIRS.internal,
+  PROJECT_DIRS.exports, PROJECT_DIRS.eplan, PROJECT_DIRS.cad, PROJECT_DIRS.model3d, PROJECT_DIRS.internal,
 ].join("|") + ")/[^/]+$");
 
 function fullProject(file: string, oop = false): Project {

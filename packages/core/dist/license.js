@@ -204,6 +204,10 @@ export function licenseFileKind(name) {
     const n = String(name || "").toLowerCase();
     if (n.endsWith(".plcstudio.json") || n.endsWith(".plcdesk-library.json"))
         return "own";
+    /* manifest pro CAD (cad.ts) = data projektu (díly kusovníku, sestava PLC, vazby) jako .plcstudio.json,
+       ne výstup generátoru — licence ho neblokuje (ani nad limitem I/O) a nemění */
+    if (/(^|[_/\\])plcdesk_cad\.json$/.test(n))
+        return "own";
     if (n.endsWith(".dxf"))
         return "dxf";
     /* README platforem i dílčí README s příponou názvu (README_EPLAN.txt, hmi_siemens_README_HMI.txt) */

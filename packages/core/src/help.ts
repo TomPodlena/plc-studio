@@ -312,6 +312,7 @@ const SRC: Src[] = [
       N_("U řádku nebo celé kategorie vyber výrobce a typ z katalogu, případně zadej vlastní."),
       N_("Uprav množství, objednací kód a dodavatele; množství 0 řádek vyřadí z CSV a dokumentace."),
       N_("Stáhni / ulož CSV pro Excel nebo zkopíruj tabulku."),
+      N_("**Export pro CAD (FreeCAD)** uloží PLCdesk_CAD.json: všechny díly kusovníku s označením, objednacím kódem a umístěním (rozvaděč / stroj, DIN lišta / montážní deska / rack PLC), sestavu PLC v pořadí slotů, svorkovnice a vazby (jistič → stykač → motor, rozváděč → válec, snímač → válec, výstup PLC → akční člen). Geometrii nenese — podklad pro stavbu rozvaděče a polních prvků v CADu; v projektové složce leží v 09_Exporty/CAD."),
     ],
     tips: [
       N_("Objednací kódy jsou jen ověřené (se zdrojem); ceny katalog neuvádí."),

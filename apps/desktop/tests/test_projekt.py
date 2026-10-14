@@ -6,6 +6,7 @@ Spuštění (z apps/desktop):  python -m unittest tests.test_projekt -v
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import sys
@@ -213,6 +214,8 @@ class ProjektStepTest(unittest.TestCase):
         self.assertIn("**Číslo projektu:** 260705", fds.read_text(encoding="utf-8"))
         self.assertTrue(list((root / "02_Vykresy" / "SVG").glob("260705_*.svg")))
         self.assertTrue((root / "06_Kusovnik" / "260705_09_kusovnik.csv").exists())
+        cad = root / "09_Exporty" / "CAD" / "260705_PLCdesk_CAD.json"   # manifest pro CAD (core cad.ts)
+        self.assertEqual(json.loads(cad.read_text(encoding="utf-8"))["format"], "plcdesk-cad")
         self.assertTrue((root / "07_Oziveni_a_FAT" / "260705_05_testovaci_protokol_FAT.md").exists())
         self.assertTrue((root / "08_Schvaleni_a_revize" / "260705_11_schvaleni.md").exists())
         self.assertTrue((root / "04_HMI" / "260705_hmi_siemens.xlsx").exists())

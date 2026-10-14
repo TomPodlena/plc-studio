@@ -13,6 +13,7 @@ export * from "./docs.js";
 export * from "./samples.js";
 export * from "./catalog.js";
 export * from "./bom.js";
+export * from "./cad.js";
 export * from "./plcopen.js";
 export * from "./iec61131_10.js";
 export * from "./concept.js";

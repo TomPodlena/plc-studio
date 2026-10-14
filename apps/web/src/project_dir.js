@@ -141,7 +141,7 @@ export async function writeProjectFolder(prj, projectText, { confirmOverwrite, o
   if (!hasRoot()) throw new Error("no root");
   onProgress && onProgress(0, 0, "prepare");
   await tick();                                    // ať se průběh vykreslí (výpočet sady je synchronní)
-  const b = projectBundle(prj, { gate: gateFor(prj), projectText });
+  const b = projectBundle(prj, { gate: gateFor(prj), projectText, cad: true });   // + 09_Exporty/CAD/PLCdesk_CAD.json
   const files = b.files.filter(f => !f.blocked && (f.body !== undefined || f.data));
   /* existující soubory: jen když projektová složka už je */
   let pdir = await D.root.getDirectoryHandle(b.folder).catch(() => null);

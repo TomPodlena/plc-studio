@@ -2497,6 +2497,20 @@ class GuiTest(unittest.TestCase):
         self.assertTrue(saved["name"].endswith("_kusovnik.csv"))
         self.assertEqual(len(saved["body"].strip().splitlines()), len(rows) + 1)
         self.assertIn("Vlastní s.r.o.", saved["body"])
+        # export pro CAD (PLCdesk_CAD.json, core cadManifestJson): všechny řádky kusovníku, podsložka „cad“
+        cad = {}
+        with mock.patch("plc_studio.steps.kusovnik.save_file",
+                        side_effect=lambda app, name, body, sub=None: cad.update(name=name, body=body, sub=sub)):
+            self.click("Export pro CAD (FreeCAD)")
+        self.assertEqual(cad["name"], "PLCdesk_CAD.json")
+        self.assertEqual(cad["sub"], "cad")
+        man = json.loads(cad["body"])
+        self.assertEqual((man["format"], man["version"], man["platform"]), ("plcdesk-cad", 1, "rockwell"))
+        self.assertEqual(len(man["parts"]), len(self.app.bridge.request("bom", prj=self.app.prj)["lines"]))
+        self.assertIn("Vlastní s.r.o.", [p["brand"] for p in man["parts"] if p["id"] == "-K1:contactor"])
+        self.assertTrue(cad["body"].startswith('{\n  "format": "plcdesk-cad"'))
+        place = self.app.bridge.request("folder.place", prj={"meta": {}}, name="PLCdesk_CAD.json", hint="cad")
+        self.assertEqual(place["dir"], "09_Exporty/CAD")
         # neplatné volby v souboru projektu se odfiltrují
         clean = self.app.core("normalizeProject", {"devices": [], "bom": {
             "plat": "x", "lines": {"a": {"qty": -1, "brand": 5}}}})

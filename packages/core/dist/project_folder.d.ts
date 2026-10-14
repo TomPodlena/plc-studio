@@ -8,6 +8,7 @@
  * ├─ <číslo>_<Název>.plcstudio.json
  * ├─ 01_Dokumentace\         FDS, I/O list, svorkovnice, alarmy, návod, SW dokumentace, ověření, koncept, emulace…
  * ├─ 02_Vykresy\SVG\ a DXF\  listy zapojení, blokové schéma, schéma stroje, diagramy, bezpečnostní okruh
+ * ├─ 02_Vykresy\3D\         modely z CADu (FreeCAD .FCStd, STEP) — PLCdesk je zatím nevyrábí, jen zařazuje
  * ├─ 03_Program_PLC\<Platforma>\ (kód + README), 03_Program_PLC\Bezpecnostni_program\
  * ├─ 04_HMI\                 webové HMI, náhledy, dokument HMI, exporty výrobců (hmi_<platforma>_…)
  * ├─ 05_Bezpecnost\          bezpečnostní funkce, plán validace, SISTEMA (.ssm, předpis CSV, porovnání)
@@ -15,7 +16,8 @@
  * ├─ 07_Oziveni_a_FAT\       FAT, plán a protokol oživení
  * ├─ 08_Schvaleni_a_revize\  schválení, revize a změny
  * ├─ 09_Exporty\EPLAN\       AutomationML a seznamy pro EPLAN (ostatní výměnné formáty do 09_Exporty)
- * └─ 99_Interni\             nabídka (nepředávat zákazníkovi)
+ * ├─ 09_Exporty\CAD\         PLCdesk_CAD.json — díly, sestava PLC, svorky a vazby pro CAD (cad.ts)
+ * └─ 99_Interni\            nabídka (nepředávat zákazníkovi)
  * ```
  *
  * Názvy podsložek jsou cesty na disku — stejné v každém jazyce. Kód platformy, EPLAN a SISTEMA mají
@@ -35,6 +37,8 @@ export declare const PROJECT_DIRS: {
     readonly drawings: "02_Vykresy";
     readonly svg: "02_Vykresy/SVG";
     readonly dxf: "02_Vykresy/DXF";
+    /** modely z CADu (FreeCAD .FCStd, STEP) — vstup od nástrojů CAD, PLCdesk je nevyrábí */
+    readonly model3d: "02_Vykresy/3D";
     readonly code: "03_Program_PLC";
     readonly safetyCode: "03_Program_PLC/Bezpecnostni_program";
     readonly hmi: "04_HMI";
@@ -44,6 +48,7 @@ export declare const PROJECT_DIRS: {
     readonly approval: "08_Schvaleni_a_revize";
     readonly exports: "09_Exporty";
     readonly eplan: "09_Exporty/EPLAN";
+    readonly cad: "09_Exporty/CAD";
     readonly internal: "99_Interni";
 };
 export type ProjectDirKind = keyof typeof PROJECT_DIRS;
@@ -117,6 +122,7 @@ export interface ProjectBundle {
 export declare function projectBundle(prj: Project, opts?: {
     gate?: ProjectGate | null;
     projectText?: string;
+    cad?: boolean;
 }): ProjectBundle;
 /** ZIP projektové složky (kořen archivu = složka projektu); zamčené soubory v něm nejsou. */
 export declare function projectZip(b: ProjectBundle): Uint8Array;
