@@ -38,7 +38,7 @@ DIR_LABELS = {
     "01_Dokumentace": N_("dokumentace"), "02_Vykresy": N_("výkresy"), "03_Program_PLC": N_("kód PLC"),
     "04_HMI": N_("HMI"), "05_Bezpecnost": N_("bezpečnost"), "06_Kusovnik": N_("kusovník"),
     "07_Oziveni_a_FAT": N_("oživení a FAT"), "08_Schvaleni_a_revize": N_("schválení a revize"),
-    "09_Exporty": N_("exporty (EPLAN)"), "99_Interni": N_("interní — nepředávat zákazníkovi"),
+    "09_Exporty": N_("exporty (EPLAN, CAD)"), "99_Interni": N_("interní — nepředávat zákazníkovi"),
 }
 
 

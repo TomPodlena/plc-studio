@@ -8,6 +8,7 @@
  * ├─ <číslo>_<Název>.plcstudio.json
  * ├─ 01_Dokumentace\         FDS, I/O list, svorkovnice, alarmy, návod, SW dokumentace, ověření, koncept, emulace…
  * ├─ 02_Vykresy\SVG\ a DXF\  listy zapojení, blokové schéma, schéma stroje, diagramy, bezpečnostní okruh
+ * ├─ 02_Vykresy\3D\         modely z CADu (FreeCAD .FCStd, STEP) — PLCdesk je zatím nevyrábí, jen zařazuje
  * ├─ 03_Program_PLC\<Platforma>\ (kód + README), 03_Program_PLC\Bezpecnostni_program\
  * ├─ 04_HMI\                 webové HMI, náhledy, dokument HMI, exporty výrobců (hmi_<platforma>_…)
  * ├─ 05_Bezpecnost\          bezpečnostní funkce, plán validace, SISTEMA (.ssm, předpis CSV, porovnání)
@@ -15,7 +16,8 @@
  * ├─ 07_Oziveni_a_FAT\       FAT, plán a protokol oživení
  * ├─ 08_Schvaleni_a_revize\  schválení, revize a změny
  * ├─ 09_Exporty\EPLAN\       AutomationML a seznamy pro EPLAN (ostatní výměnné formáty do 09_Exporty)
- * └─ 99_Interni\             nabídka (nepředávat zákazníkovi)
+ * ├─ 09_Exporty\CAD\         PLCdesk_CAD.json — díly, sestava PLC, svorky a vazby pro CAD (cad.ts)
+ * └─ 99_Interni\            nabídka (nepředávat zákazníkovi)
  * ```
  *
  * Názvy podsložek jsou cesty na disku — stejné v každém jazyce. Kód platformy, EPLAN a SISTEMA mají
@@ -43,6 +45,7 @@ import { HMI_DOC_FILE, hmiModuleRegistered } from "./hmi_docs.js";
 import { buildHmi } from "./hmi.js";
 import { hmiSiemensWorkbook } from "./hmi_export.js";
 import { zipStored } from "./hmi_xlsx.js";
+import { cadManifestJson, CAD_FILE } from "./cad.js";
 
 /** Podsložky projektové složky (stejné názvy v každém jazyce — cesty na disku). */
 export const PROJECT_DIRS = {
@@ -50,6 +53,8 @@ export const PROJECT_DIRS = {
   drawings: "02_Vykresy",
   svg: "02_Vykresy/SVG",
   dxf: "02_Vykresy/DXF",
+  /** modely z CADu (FreeCAD .FCStd, STEP) — vstup od nástrojů CAD, PLCdesk je nevyrábí */
+  model3d: "02_Vykresy/3D",
   code: "03_Program_PLC",
   safetyCode: "03_Program_PLC/Bezpecnostni_program",
   hmi: "04_HMI",
@@ -59,6 +64,7 @@ export const PROJECT_DIRS = {
   approval: "08_Schvaleni_a_revize",
   exports: "09_Exporty",
   eplan: "09_Exporty/EPLAN",
+  cad: "09_Exporty/CAD",
   internal: "99_Interni",
 } as const;
 export type ProjectDirKind = keyof typeof PROJECT_DIRS;
@@ -92,6 +98,8 @@ function docKind(name: string): ProjectDirKind | null {
 export function projectFileFolder(name: string, hint = ""): string {
   const h = String(hint || "");
   const ext = (String(name).split(".").pop() || "").toLowerCase();
+  if (h === "cad" || /(^|_)PLCdesk_CAD\.json$/i.test(String(name))) return PROJECT_DIRS.cad;
+  if (h === "3d" || ext === "fcstd" || ext === "step" || ext === "stp") return PROJECT_DIRS.model3d;
   if (h === "kod/safety") return PROJECT_DIRS.safetyCode;
   if (h.startsWith("kod/")) return PROJECT_DIRS.code + "/" + platformFolderName(h.slice(4));
   if (h === "vykresy") return ext === "dxf" ? PROJECT_DIRS.dxf : PROJECT_DIRS.svg;
@@ -230,7 +238,7 @@ export interface ProjectBundle {
  * Siemens (.xlsx, když je HMI přihlášené) a soubor projektu `projectText` (projekt se ukládá vždy).
  * `gate` = brána projektu (license.ts `projectGate`; null = bez licence).
  */
-export function projectBundle(prj: Project, opts: { gate?: ProjectGate | null; projectText?: string } = {}): ProjectBundle {
+export function projectBundle(prj: Project, opts: { gate?: ProjectGate | null; projectText?: string; cad?: boolean } = {}): ProjectBundle {
   const gate = opts.gate || null;
   const files: BundleFile[] = projectFolderFiles(prj, gate).map(f => {
     if (!gate) return { path: f.path, body: f.body };
@@ -241,6 +249,9 @@ export function projectBundle(prj: Project, opts: { gate?: ProjectGate | null; p
     const path = projectFileFolder("hmi_siemens.xlsx", "hmi") + "/hmi_siemens.xlsx";
     files.push(gate && gate.over ? { path, blocked: gate.reason } : { path, data: hmiSiemensWorkbook(prj, buildHmi(prj)) });
   }
+  /* manifest pro CAD (09_Exporty/CAD) jen na volbu `cad` — výchozí sada (a testy) beze změny. Je to data
+     projektu (díly kusovníku, sestava PLC, vazby) jako .plcstudio.json → licence ho neblokuje ani nad limitem. */
+  if (opts.cad) files.push({ path: PROJECT_DIRS.cad + "/" + CAD_FILE, body: cadManifestJson(prj) });
   const folder = projectFolderName(prj);
   const projectFile = folder + ".plcstudio.json";
   const out = prefixProjectFiles(files, projectRef(prj).number);

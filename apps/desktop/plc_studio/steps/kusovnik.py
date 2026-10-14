@@ -17,6 +17,14 @@ from ..widgets import Table, card, note_box, save_file, wrap_label
 CUSTOM = "custom"
 
 
+def export_cad(app) -> bool:
+    """„Export pro CAD (FreeCAD)“: PLCdesk_CAD.json z jádra (core cadManifestJson, operace mostu ``cad``)
+    do 09_Exporty/CAD projektové složky. Bez licenční brány — manifest je data projektu jako
+    .plcstudio.json (díly kusovníku, sestava PLC, vazby), ne výstup generátoru (core licenseFileKind)."""
+    r = app.bridge.request("cad", prj=app.prj)
+    return save_file(app, r["name"], r["json"], "cad")
+
+
 def _cfg(app) -> dict:
     return app.prj.setdefault("bom", {})
 
@@ -94,6 +102,8 @@ def render(app, parent) -> None:
                command=lambda: save_file(app, fname, data["csv"], "kusovnik")).pack(side="left")
     # tabulka ke kopírování z jádra (bomTableText) — stejné sloupce a řádky jako web a CSV
     ttk.Button(bar, text=_("Kopírovat jako tabulku"), command=lambda: app.copy(data["tsv"])
+               ).pack(side="left", padx=(6, 0))
+    ttk.Button(bar, text=_("Export pro CAD (FreeCAD)"), command=lambda: export_cad(app)
                ).pack(side="left", padx=(6, 0))
 
     def reset() -> None:

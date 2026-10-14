@@ -169,7 +169,7 @@ export async function downloadProjectZip(prj, projectText, btn) {
   if (btn) { btn.disabled = true; btn.textContent = tr("Připravuji ZIP…"); }
   await new Promise(r => setTimeout(r, 30));          // ať se stav tlačítka vykreslí (výpočet je synchronní)
   try {
-    const b = projectBundle(prj, { gate: gateFor(prj), projectText });
+    const b = projectBundle(prj, { gate: gateFor(prj), projectText, cad: true });   // + 09_Exporty/CAD/PLCdesk_CAD.json
     const bytes = projectZip(b);
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));

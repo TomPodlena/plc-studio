@@ -162,6 +162,12 @@ const OPS = {
       csv: core.bomCsv(prj), tsv: core.bomTableText(prj), qtyMax: core.BOM_QTY_MAX };
   },
 
+  /* Export pro CAD (cad.ts): PLCdesk_CAD.json — díly kusovníku, sestava PLC, svorky, vazby. Rychlá operace
+     (hlavní proces). Licence ho nezamyká: data projektu jako .plcstudio.json (license.ts licenseFileKind). */
+  cad({ prj }) {
+    return { name: core.CAD_FILE, json: core.cadManifestJson(prj) };
+  },
+
   /* Balík k ověření pro beta testery (verify_pack.ts): ZIP v base64 + název souboru. Není to export
      projektu uživatele (pevné vzory) — licenční brána se na něj nevztahuje. Asynchronní (SHA-256). */
   async verifypack({ plat, version = null, commit = null }) {
