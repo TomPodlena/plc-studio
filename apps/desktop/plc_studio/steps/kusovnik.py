@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import tkinter as tk
 import webbrowser
-from tkinter import ttk
+from tkinter import filedialog, messagebox, ttk
 
+from .. import theme
 from ..i18n import _
-from ..widgets import Table, card, note_box, save_file, wrap_label
+from ..widgets import Table, card, note_box, read_text_file, save_file, scroll_area, wrap_label
 
 CUSTOM = "custom"
 
@@ -23,6 +24,168 @@ def export_cad(app) -> bool:
     .plcstudio.json (díly kusovníku, sestava PLC, vazby), ne výstup generátoru (core licenseFileKind)."""
     r = app.bridge.request("cad", prj=app.prj)
     return save_file(app, r["name"], r["json"], "cad")
+
+
+SEV_COLOR = {"error": "ERR", "warn": "WARN", "info": "DIM"}
+STATE_COLOR = {"usable": "OK", "stale": "WARN", "invalid": "ERR"}
+
+
+def read_cad_feedback(app, path) -> dict:
+    """Načte PLCdesk_CAD_feedback.json a nechá ho ověřit jádrem (operace mostu ``cadfb``):
+    ``{"errors": [...]}`` nebo ``{"errors": [], "fb": …, "review": …}``."""
+    try:
+        text = read_text_file(path)
+    except OSError as exc:
+        return {"errors": [str(exc)]}
+    return app.bridge.request("cadfb", prj=app.prj, text=text)
+
+
+def apply_cad_feedback(app, fb: dict, decisions: dict[str, str], by: str) -> dict:
+    """Použije rozhodnutí (``{id: "acc" | "acc#n" | "rej"}``) — jádro změní jen ``prj.bom.lines``
+    a zapíše historii ``prj.bom.cadFeedback`` (applyCadFeedback). Vrací ``{"res", "review"}``."""
+    accepted = [i if v == "acc" else i + v[3:] for i, v in decisions.items() if v.startswith("acc")]
+    rejected = [i for i, v in decisions.items() if v == "rej"]
+    r = app.bridge.request("cadfbApply", prj=app.prj, fb=fb, accepted=accepted, rejected=rejected, by=by)
+    app.prj = r["prj"]
+    app.save()
+    return r
+
+
+def load_cad_feedback(app) -> None:
+    """Tlačítko „Načíst zpětnou vazbu z CAD…“: výběr souboru, kontrola a okno s položkami k rozhodnutí."""
+    from pathlib import Path
+    path = filedialog.askopenfilename(
+        parent=app.root, title=_("Načíst zpětnou vazbu z CAD"), initialdir=app.settings.get("last_dir") or None,
+        filetypes=[(_("Zpětná vazba z CAD (JSON)"), "*.json"), (_("Všechny soubory"), "*.*")])
+    if not path:
+        return
+    app.settings["last_dir"] = str(Path(path).parent)
+    r = read_cad_feedback(app, path)
+    if r["errors"]:
+        messagebox.showerror(_("Soubor nejde použít:"), "\n".join("• " + e for e in r["errors"][:20]), parent=app.root)
+        return
+    app.cadfb_dialog = CadFeedbackDialog(app, Path(path).name, r["fb"], r["review"])   # odkaz pro testy
+
+
+class CadFeedbackDialog:
+    """Okno zpětné vazby z CAD: položky (závažnost, zpráva, naměřeno / požadováno, dotčené řádky,
+    navržená změna, alternativy) a volba Přijmout / Alternativa / Odmítnout po položkách. Nic se
+    nemění samo — teprve „Použít rozhodnutí“ (jádro applyCadFeedback), pak kusovník překreslí."""
+
+    def __init__(self, app, name: str, fb: dict, review: dict) -> None:
+        from .schvaleni import approver
+        self.app, self.fb, self.name = app, fb, name
+        self.vars: dict[str, tk.StringVar] = {}
+        self.msg: tuple[str, str] | None = None
+        win = self.win = tk.Toplevel(app.root)
+        win.title(_("Zpětná vazba z CAD") + " — " + name)
+        win.transient(app.root)
+        win.geometry("900x640")
+        self.by = tk.StringVar(value=approver(app))
+        foot = ttk.Frame(win, padding=(12, 8))
+        foot.pack(side="bottom", fill="x")
+        ttk.Label(foot, text=_("Rozhodl")).pack(side="left")
+        ttk.Entry(foot, textvariable=self.by, width=24).pack(side="left", padx=(6, 12))
+        self.b_apply = ttk.Button(foot, text=_("Použít rozhodnutí"), style="Accent.TButton", command=self.apply)
+        self.b_apply.pack(side="left")
+        ttk.Button(foot, text=_("Zavřít"), command=win.destroy).pack(side="left", padx=(6, 0))
+        self.body = ttk.Frame(win)
+        self.body.pack(fill="both", expand=True)
+        self.show(review)
+
+    def show(self, review: dict) -> None:
+        self.review = review
+        for w in self.body.winfo_children():
+            w.destroy()
+        self.vars.clear()
+        outer, inner = scroll_area(self.body)
+        outer.pack(fill="both", expand=True, padx=12, pady=(10, 0))
+        fb = self.fb
+        if self.msg:
+            tk.Label(inner, text=self.msg[1], bg=theme.BG, fg=getattr(theme, self.msg[0]), font=theme.FONT_UI,
+                     anchor="w", justify="left", wraplength=840).pack(fill="x", pady=(0, 6))
+        wrap_label(inner, _("Nástroj {tool}, vytvořeno {created}. PLCdesk je zdroj pravdy kusovníku — návrhy z 3D "
+                            "přijmi nebo odmítni po položkách, nic se nemění samo.",
+                            tool=fb.get("tool") or "—", created=fb.get("created") or "—"))
+        for w in review["warnings"]:
+            note_box(inner, w, warn=True, pady=(4, 0))
+        c = review["counts"]
+        ttk.Label(inner, text=_("použitelné {n}", n=c["usable"]) + " · " + _("zastaralé {n}", n=c["stale"]) + " · "
+                  + _("neplatné {n}", n=c["invalid"]), style="Dim.TLabel").pack(anchor="w", pady=(4, 4))
+        if not review["items"]:
+            wrap_label(inner, _("Zpětná vazba neobsahuje žádnou položku."))
+        for it in review["items"]:
+            box = ttk.Frame(inner, padding=(0, 6))
+            box.pack(fill="x")
+            ttk.Separator(box).pack(fill="x", pady=(0, 4))
+            head = tk.Label(box, text="[" + it["sevText"] + "] " + it["message"], bg=theme.BG, anchor="w", justify="left",
+                            fg=getattr(theme, SEV_COLOR.get(it["severity"], "FG")), font=theme.FONT_UI + ("bold",),
+                            wraplength=840)
+            head.pack(fill="x")
+            ttk.Label(box, text=it["kindText"] + " · " + it["id"], style="Dim.TLabel").pack(anchor="w")
+            if it["measuredText"]:
+                wrap_label(box, _("Naměřeno: {t}", t=it["measuredText"]))
+            if it["requiredText"]:
+                wrap_label(box, _("Požadováno: {t}", t=it["requiredText"]))
+            if it["partsText"]:
+                wrap_label(box, _("Dotčené řádky: {list}", list=it["partsText"]))
+            state = it["stateText"]
+            if it.get("decided"):
+                state += " · " + (_("dříve přijato") if it["decided"] == "accepted" else _("dříve odmítnuto"))
+            if it["applied"]:
+                state += " · " + _("návrh už je v kusovníku")
+            tk.Label(box, text=state, bg=theme.BG, fg=getattr(theme, STATE_COLOR[it["state"]]), font=theme.FONT_UI,
+                     anchor="w").pack(fill="x")
+            if it.get("info"):
+                wrap_label(box, it["info"])
+            if it["state"] == "invalid":
+                wrap_label(box, _("Položku nejde použít — oprav ji v CAD a exportuj zpětnou vazbu znovu."))
+                continue
+            var = tk.StringVar(value="-")   # „-“ = nerozhodnuto (prázdné by tk kreslilo jako napůl zvolené)
+            self.vars[it["id"]] = var
+            if it.get("proposal"):
+                first = _("Přijmout návrh") + " — " + it["partId"] + ": " + it["proposalText"] + "\n" + it["proposal"]["why"]
+            else:
+                first = _("Přijmout (vzít na vědomí)") + " — " + _("bez změny kusovníku")
+            def radio(text: str, value: str, var=var) -> None:
+                # tk.Radiobutton: dlouhé zdůvodnění (URL zdroje) se zalomí — ttk varianta zalamovat neumí
+                tk.Radiobutton(box, text=text, value=value, variable=var, bg=theme.BG, activebackground=theme.BG,
+                               fg=theme.FG, font=theme.FONT_UI, anchor="w", justify="left", wraplength=820,
+                               highlightthickness=0, borderwidth=0,
+                               ).pack(anchor="w", fill="x", pady=1)
+            radio(first, "acc")
+            for n, (alt, txt) in enumerate(zip(it["alternatives"], it["altTexts"])):
+                radio(_("Alternativa {n}", n=n + 1) + " — " + txt + "\n" + alt["why"], "acc#" + str(n))
+            radio(_("Odmítnout"), "rej")
+        outer.bind_wheel()
+
+    def decisions(self) -> dict[str, str]:
+        return {k: v.get() for k, v in self.vars.items() if v.get() not in ("", "-")}
+
+    def apply(self) -> None:
+        dec = self.decisions()
+        who = self.by.get().strip()
+        if not dec:
+            self.msg = ("WARN", _("Nejdřív u položek zvol Přijmout nebo Odmítnout."))
+            return self.show(self.review)
+        if not who:
+            messagebox.showwarning(_("Zpětná vazba z CAD"), _("Zadej, kdo rozhodl (jméno se zapíše do historie kusovníku)."),
+                                   parent=self.win)
+            return
+        self.app.settings["approver"] = who
+        r = apply_cad_feedback(self.app, self.fb, dec, who)
+        res = r["res"]
+        n = {"a": len(res["applied"]) + len(res["acknowledged"]), "r": len(res["rejected"])}
+        text = (_("Kusovník upraven (přijato {a}, odmítnuto {r}). Exportuj znovu pro CAD (tlačítko Export pro CAD), "
+                  "aby 3D model vycházel z opraveného kusovníku.", **n) if res["bomChanged"]
+                else _("Rozhodnutí zapsána (přijato {a}, odmítnuto {r}); kusovník beze změny.", **n))
+        if res["skipped"]:
+            text += " " + _("Nepoužito: {list}", list=", ".join(s["id"] + " (" + s["why"] + ")" for s in res["skipped"]))
+        self.msg = ("WARN" if res["skipped"] else "OK", text)
+        self.app.set_status(text)
+        self.app.render()
+        if self.win.winfo_exists():
+            self.show(r["review"])
 
 
 def _cfg(app) -> dict:
@@ -104,6 +267,8 @@ def render(app, parent) -> None:
     ttk.Button(bar, text=_("Kopírovat jako tabulku"), command=lambda: app.copy(data["tsv"])
                ).pack(side="left", padx=(6, 0))
     ttk.Button(bar, text=_("Export pro CAD (FreeCAD)"), command=lambda: export_cad(app)
+               ).pack(side="left", padx=(6, 0))
+    ttk.Button(bar, text=_("Načíst zpětnou vazbu z CAD…"), command=lambda: load_cad_feedback(app)
                ).pack(side="left", padx=(6, 0))
 
     def reset() -> None:

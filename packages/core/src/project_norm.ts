@@ -127,6 +127,18 @@ export function normalizeProject(raw: unknown): Project {
       }
       if (Object.keys(ls).length) b.lines = ls;
     }
+    /* historie zpětné vazby z CAD: jen záznamy s textovými poli a platným rozhodnutím */
+    if (Array.isArray(raw.bom.cadFeedback)) {
+      const F = ["id", "manifest", "created", "tool", "at", "by", "kind", "severity", "message", "partId", "change"] as const;
+      const recs = raw.bom.cadFeedback.filter((r: unknown): r is Record<string, unknown> => isObj(r)
+        && (r.decision === "accepted" || r.decision === "rejected") && str(r.id) && !!r.id)
+        .map((r: Record<string, unknown>) => {
+          const o: Record<string, string> = {};
+          for (const f of F) o[f] = str(r[f]) ? r[f] as string : "";
+          return { ...o, decision: r.decision } as NonNullable<BomCfg["cadFeedback"]>[number];
+        });
+      if (recs.length) b.cadFeedback = recs;
+    }
     if (Object.keys(b).length) p.bom = b;
   }
 

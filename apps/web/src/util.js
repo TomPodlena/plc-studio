@@ -206,3 +206,12 @@ export function rememberNumber(n) {
 export function suggestNumber(extra = []) {
   return nextProjectNumber([...usedNumbers(), ...extra]);
 }
+
+/** Text souboru: UTF-8 (i s BOM), UTF-16 s BOM, jinak Windows-1250 (český Excel) — jako desktop. */
+export async function readFileText(file, maxBytes = 0) {
+  if (maxBytes && file.size > maxBytes) throw new Error(tr("Soubor je příliš velký ({mb} MB, nejvýš {max} MB).", { mb: (file.size / 1e6).toFixed(1), max: Math.round(maxBytes / 1e6) }));
+  const buf = new Uint8Array(await file.arrayBuffer());
+  if ((buf[0] === 0xFF && buf[1] === 0xFE) || (buf[0] === 0xFE && buf[1] === 0xFF)) return new TextDecoder(buf[0] === 0xFF ? "utf-16le" : "utf-16be").decode(buf);
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(buf).replace(/^﻿/, ""); }
+  catch { return new TextDecoder("windows-1250").decode(buf); }
+}

@@ -210,6 +210,26 @@ export interface BomCfg {
     plat?: PlatformKey;
     brand?: Record<string, string>;
     lines?: Record<string, BomLineCfg>;
+    /** rozhodnutí o zpětné vazbě z CAD (`cad_feedback.ts` `applyCadFeedback`) — historie, kusovník mění jen `lines` */
+    cadFeedback?: CadFeedbackRecord[];
+}
+/**
+ * Záznam rozhodnutí o položce zpětné vazby z CAD (PLCdesk_CAD_feedback.json): kdo, kdy, přijato / odmítnuto,
+ * zpráva z CAD a provedená změna řádku kusovníku (text). Otisk manifestu + `created` souboru identifikují zdroj.
+ */
+export interface CadFeedbackRecord {
+    id: string;
+    manifest: string;
+    created: string;
+    tool: string;
+    at: string;
+    by: string;
+    decision: "accepted" | "rejected";
+    kind: string;
+    severity: string;
+    message: string;
+    partId: string;
+    change: string;
 }
 /**
  * Kanálová skupina modulu (modul × směr) ze sestavy hardware.ts — jeden list zapojení a jedna

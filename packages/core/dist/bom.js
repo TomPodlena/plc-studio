@@ -13,7 +13,7 @@
  * stavba zařízení v CADu.
  */
 import { tr, N_ } from "./i18n.js";
-import { PLAT, interlockDevs, devRef, maxRecord, ioOf, } from "./model.js";
+import { PLAT, interlockDevs, devRef, maxRecord, ioOf, modules, } from "./model.js";
 import { CAT_LABEL, brandsFor, catKey, suppliersFor, brandOptId, SUPPLIERS } from "./catalog.js";
 import { hwLayout, hwPlatform, HW_DIRS } from "./hardware.js";
 import { axisCfgOf, axisObjName } from "./axis.js";
@@ -236,7 +236,11 @@ export function buildBom(prj) {
     add("-Q0", "main_switch", 1, tr("Hlavní vypínač rozvaděče"));
     add("-F1", "mcb", 2, tr("Jištění zdroje 24 V a řízení"));
     add("-T1", "power_supply_24v", 1, tr("Napájení PLC, snímačů a ventilů"), { note: tr("dimenzovat podle odběru") });
-    add("-X1", "terminal_block", Math.ceil(prj.io.length * 1.2) + 10, tr("Svorky I/O a napájení"));
+    /* svorky = svorkovnice výkresů X1…Xn (kanálová skupina = list zapojení = `svorkyCSV`, jedna svorka na kanál),
+       jeden řádek na svorkovnici — stejné počty jako `terminals` manifestu pro CAD (dřív odhad I/O × 1,2 + 10,
+       který s výkresy ani se 3D nesouhlasil; zpětná vazba z CAD 2026-10-14). Svorky napájení a rezervu
+       výkresy neobsahují — doplní projektant (poznámka řádku), kusovník je nevymýšlí. */
+    modules(prj).forEach((m, i) => add("-X" + (i + 1), "terminal_block", m.ch.length, tr("Svorkovnice X{n} ({mod}) podle výkresu zapojení", { n: i + 1, mod: m.dir + m.idx }), i === 0 ? { note: tr("svorky napájení 24 V / 0 V / PE a rezervu doplní projektant") } : {}));
     add("-W1xx", "cable_sensor", sensors, tr("Připojení snímačů"));
     add("+1", "cabinet", 1, tr("Rozvaděč stroje"), { note: tr("velikost podle počtu modulů a stykačů") });
     /* --- řádky dalších modulů (bezpečnostní funkce…) */
@@ -379,5 +383,27 @@ export function bomMd(prj) {
     ];
     if (lines.some(l => l.safety))
         out.push("⚠ " + tr("Volba a zapojení podle posouzení rizik (EN ISO 13849) — návrh k revizi."), "");
+    const fbMd = cadFeedbackMd(prj);
+    if (fbMd)
+        out.push(fbMd);
     return out.join("\n");
+}
+/**
+ * Oddíl kusovníku (Markdown) s rozhodnutími o zpětné vazbě z CAD (`cad_feedback.ts`, historie
+ * `prj.bom.cadFeedback`); bez historie prázdný — výstup beze změny (golden).
+ */
+export function cadFeedbackMd(prj) {
+    const h = prj.bom?.cadFeedback || [];
+    if (!h.length)
+        return "";
+    const esc = (s) => String(s ?? "").replace(/\|/g, "/").replace(/[\r\n]+/g, " ");
+    return [
+        "## " + tr("Změny ze zpětné vazby CAD"), "",
+        tr("Neshody nalezené ve 3D modelu; PLCdesk je zdroj pravdy kusovníku — návrhy přijal nebo odmítl uživatel."), "",
+        "| " + [tr("Kdy"), tr("Kdo"), tr("Rozhodnutí"), tr("Položka"), tr("Zpráva z CAD"), tr("Změna")].join(" | ") + " |",
+        "|---|---|---|---|---|---|",
+        ...h.map(r => "| " + [r.at.slice(0, 10), r.by || "—", r.decision === "accepted" ? tr("přijato") : tr("odmítnuto"),
+            r.partId || "—", r.message, r.change || "—"].map(esc).join(" | ") + " |"),
+        "",
+    ].join("\n");
 }

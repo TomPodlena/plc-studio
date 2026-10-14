@@ -214,8 +214,11 @@
         { "brand": "Endress+Hauser", "series": ["Liquiphant FTL31/33", "Micropilot FMR"], "typical": "Liquiphant FTL31 — vibrační limitní spínač kapalin, IO-Link",
           "orderCode": "FTL31-AA4N3AAWBJ", "src": "https://viola.cz/produkt/211284-endress-hauser-ftl31-aa4n3aawbj-vibracni-limitni-hladinovy-spinac-liquiphant-ftl31", "priceLevel": "střední",
           "suppliers": ["Endress+Hauser Czech (e-direct.endress.com/cz)", "Viola.cz", "MaR Systems"], "note": "" },
-        { "brand": "VEGA", "series": ["VEGASWING 61", "VEGAPULS C 21"], "typical": "VEGASWING 61 — vibrační spínač kapalin; VEGAPULS C 21 — radar 4–20 mA",
+        { "brand": "VEGA", "series": ["VEGASWING 61"], "typical": "VEGASWING 61 — vibrační spínač kapalin",
           "src": "https://www.vega.com/en-us/products/product-catalog/switching/vibration/vegaswing-61", "priceLevel": "střední",
+          "suppliers": ["Level Instruments CZ – Level Expert (výhradní zastoupení VEGA)", "Viola.cz"], "note": "Kód se skládá konfigurátorem." },
+        { "brand": "VEGA", "series": ["VEGAPULS C 21"], "typical": "VEGAPULS C 21 — radarový snímač hladiny 4–20 mA",
+          "priceLevel": "střední",
           "suppliers": ["Level Instruments CZ – Level Expert (výhradní zastoupení VEGA)", "Viola.cz"], "note": "Kód se skládá konfigurátorem. Viola.cz má např. VEGAPULS C 11 (PSC11GB)." }
       ]
     },

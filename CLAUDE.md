@@ -263,6 +263,33 @@ python scripts/build_verification.py        # data/verification.json → verific
   Modely z CADu (.FCStd / .step / .stp) patří do `02_Vykresy/3D` (`PROJECT_DIRS.model3d`; PLCdesk je zatím nevyrábí).
   Testy `cad.test.ts` (28 vzorů + sampleSmall / Complex, s modulem bezpečnosti i bez).
 
+### Zpětná vazba z CAD (`cad_feedback.ts`)
+
+- **Pravidlo uživatele:** neshody nalezené ve 3D se neopravují v CADu — vrací se do PLCdesk (zdroj pravdy kusovníku)
+  a uživatel návrhy přijme / odmítne po položkách; nic automaticky. Formát `PLCdesk_CAD_feedback.json`
+  (`plcdesk-cad-feedback` v1) je závazný: `C:\CLAUDE\plcdesk_freecad\FEEDBACK_SCHEMA.md` (neměnit samostatně).
+- `parseCadFeedback(text)` → `{ fb | null, errors }` (validace podle schématu, chyby s cestou `issues[2].severity`,
+  `measured.source` povinný — jen doložená fakta). `cadFeedbackReview(prj, fb)` → položky (závažnost, zpráva,
+  naměřeno / požadováno, dotčené řádky, návrh + alternativy převedené na volbu `prj.bom.lines[id]` — shoda
+  s katalogem = výběr položky `brand: brandOptId`, jinak vlastní typ / kód / množství; u `cabinet_too_small`
+  nejmenší větší skříň z katalogu podle `dims` a `required.min` (hloubka / šířka / výška / plocha desky, vnější
+  rozměr — užitný ověř v CAD), stav `usable` / `stale` (otisk `manifest.sha256` ≠ `cadManifestSha256` v žádném
+  jazyce UI — jen varování) / `invalid` (partId v kusovníku chybí nebo jiný `prj.guid` — nelze přijmout)).
+  `applyCadFeedback(prj, fb, přijaté["id" | "id#n"], kdo, { rejected })` mění JEN `prj.bom.lines` (žádný paralelní
+  stav) a zapíše historii `prj.bom.cadFeedback` (id, otisk, created, kdo, kdy, přijato / odmítnuto, změna) —
+  kusovník, oddíl „Změny ze zpětné vazby CAD“ v `09_kusovnik.md` (`cadFeedbackMd`, jen s historií) i další export
+  manifestu se přepočítají samy. Idempotentní (totéž rozhodnutí podruhé nic nepřidá; skříň, která požadavek už
+  splňuje, se znovu nenavrhuje). SHA-256 synchronně v jádře (`sha256Text`). `normalizeProject` historii zachová.
+- UI: tlačítko „Načíst zpětnou vazbu z CAD…“ v kroku Kusovník — web panel pod tlačítky (`steps.js` `cadFbHtml`,
+  čtení `util.js readFileText`), desktop okno `kusovnik.py` `CadFeedbackDialog` (operace mostu `cadfb`,
+  `cadfbApply`); jméno „Rozhodl“ = jméno schvalovatele (web `plcstudio.approver`, desktop `settings.approver`).
+  Po použití hláška „Exportuj znovu pro CAD“. Testy `cad_feedback.test.ts`.
+- **Opravy kusovníku odhalené ve 3D (2026-10-14):** svorky = jeden řádek `-X<n>:terminal_block` na svorkovnici
+  výkresu (počet = kanály skupiny = `svorkyCSV` = `terminals` manifestu; dřív odhad I/O × 1,2 + 10, napájecí svorky
+  a rezervu doplní projektant — poznámka u -X1); typ v katalogu = jedna položka (alternativy jako samostatné záznamy
+  téže značky — Siemens V20 / G120C, 3RA23, VEGA, KSB; test hlídá vzor „…; Typ —“); `dims` (mm + URL) u skříní
+  (Rittal AX 500×500×210 … 1000×1400×300, Schneider S3D) a měničů Siemens.
+
 ## Sestava hardwaru (hardware.ts)
 
 - **Jediný zdroj pravdy o modulech.** `hwLayout(prj, plat)` → stanice (CPU s lokálním rackem, vzdálené

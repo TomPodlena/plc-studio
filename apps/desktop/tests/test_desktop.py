@@ -2495,7 +2495,9 @@ class GuiTest(unittest.TestCase):
                         side_effect=lambda app, name, body, *_a: saved.update(name=name, body=body)):
             self.click("Uložit CSV…")
         self.assertTrue(saved["name"].endswith("_kusovnik.csv"))
-        self.assertEqual(len(saved["body"].strip().splitlines()), len(rows) + 1)
+        # řádky CSV = kusovník nové platformy (svorkovnice X1…Xn podle sestavy hardwaru platformy)
+        now = [ln for ln in self.app.bridge.request("bom", prj=self.app.prj)["lines"] if not ln.get("excluded")]
+        self.assertEqual(len(saved["body"].strip().splitlines()), len(now) + 1)
         self.assertIn("Vlastní s.r.o.", saved["body"])
         # export pro CAD (PLCdesk_CAD.json, core cadManifestJson): všechny řádky kusovníku, podsložka „cad“
         cad = {}
@@ -2517,6 +2519,58 @@ class GuiTest(unittest.TestCase):
         self.assertNotIn("bom", clean)
         self.click("Obnovit výchozí volby")
         self.assertEqual(self.app.prj.get("bom"), {"plat": "rockwell"})
+
+    def test_cad_feedback(self):
+        """Zpětná vazba z CAD (core cad_feedback.ts, operace mostu cadfb / cadfbApply): okno s položkami,
+        přijetí návrhu větší skříně a odmítnutí změní jen prj.bom.lines + historii; chybný soubor = hláška."""
+        import hashlib
+        import tempfile
+        from plc_studio.steps import kusovnik
+        self.app.load_sample("small")
+        self.goto(9)
+        man = self.app.bridge.request("cad", prj=self.app.prj)["json"]
+        fb = {"format": "plcdesk-cad-feedback", "version": 1, "project": {"guid": self.app.prj["guid"]},
+              "manifest": {"sha256": hashlib.sha256(man.encode("utf-8")).hexdigest()},
+              "created": "2026-10-14T12:00:00Z", "tool": "test", "issues": [
+                  {"id": "cab", "kind": "cabinet_too_small", "severity": "error", "parts": ["+1:cabinet"],
+                   "measured": {"what": "hloubka", "value": 226, "unit": "mm", "source": "model"},
+                   "required": {"what": "hloubka skříně (užitná)", "min": 246, "unit": "mm", "basis": "226 + 20"},
+                   "message": "Měnič se nevejde."},
+                  {"id": "qx", "kind": "qty_mismatch", "severity": "warn", "parts": ["-X1:terminal_block"],
+                   "message": "Svorek je víc.", "suggestion": {"partId": "-X1:terminal_block", "line": {"qty": 99}}},
+                  {"id": "bad", "kind": "other", "severity": "info", "parts": ["-A0:cabinet"], "message": "?"}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            good = Path(tmp) / "PLCdesk_CAD_feedback.json"
+            good.write_text(json.dumps(fb, ensure_ascii=False), encoding="utf-8")
+            bad = Path(tmp) / "bad.json"
+            bad.write_text('{"format": "plcdesk-cad-feedback", "version": 1, "issues": 5}', encoding="utf-8")
+            with mock.patch.object(kusovnik.filedialog, "askopenfilename", return_value=str(bad)), \
+                    mock.patch.object(kusovnik.messagebox, "showerror") as err:
+                self.click("Načíst zpětnou vazbu z CAD…")
+            err.assert_called_once()
+            self.assertIn("manifest.sha256", err.call_args[0][1])
+            with mock.patch.object(kusovnik.filedialog, "askopenfilename", return_value=str(good)):
+                self.click("Načíst zpětnou vazbu z CAD…")
+        dlg = self.app.cadfb_dialog
+        self.assertEqual(set(dlg.vars), {"cab", "qx"}, "neplatná položka nemá volbu")
+        texts = [str(w.cget("text")) for w in walk(dlg.win) if isinstance(w, tk.Radiobutton)]
+        self.assertTrue(any("1057.000" in t for t in texts), "návrh větší skříně z katalogu")
+        self.assertTrue(any(t.startswith("Alternativa 1") for t in texts))
+        dlg.vars["cab"].set("acc")
+        dlg.vars["qx"].set("rej")
+        dlg.by.set("Tester")
+        dlg.apply()
+        self.root.update()
+        bom = self.app.prj["bom"]
+        self.assertEqual(bom["lines"]["+1:cabinet"], {"brand": "Rittal · 1057.000"})
+        self.assertNotIn("-X1:terminal_block", bom["lines"], "odmítnuté nic nemění")
+        self.assertEqual([(r["id"], r["decision"], r["by"]) for r in bom["cadFeedback"]],
+                         [("cab", "accepted", "Tester"), ("qx", "rejected", "Tester")])
+        self.assertIn("Exportuj znovu pro CAD", dlg.msg[1])
+        self.assertEqual(self.app.settings["approver"], "Tester")
+        lines = self.app.bridge.request("bom", prj=self.app.prj)["lines"]
+        self.assertEqual(next(ln for ln in lines if ln["id"] == "+1:cabinet")["orderCode"], "1057.000")
+        dlg.win.destroy()
 
     def test_bill_of_materials_sort_and_filter_by_columns(self):
         self.app.load_sample("complex")
