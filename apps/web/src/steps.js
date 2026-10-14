@@ -6,7 +6,8 @@ import {
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
   tr, N_, getLang, DO_ROLES, stepTitle, projectFileName, projectFolderName, projectNumberProblem,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
-  buildBom, bomOptions, bomPlatform, bomCsv, bomTableText, bomQtyInput, bomSuppliers, BOM_QTY_MAX, cadManifestJson, CAD_FILE, catKey, suppliersFor, CATALOG_DATE, PLATFORM_REFS,
+  buildBom, bomOptions, bomPlatform, bomCsv, bomTableText, bomQtyInput, bomSuppliers, BOM_QTY_MAX, cadManifestJson, CAD_FILE,
+  parseCadFeedback, cadFeedbackReview, applyCadFeedback, cadFbProposalText, CAD_FEEDBACK_KIND_LABEL, CAD_FEEDBACK_SEVERITY_LABEL, catKey, suppliersFor, CATALOG_DATE, PLATFORM_REFS,
   hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
   verifyPackArchive, licenseSiteUrl, PLCDESK_VERSION, HELP_UI,
   renameDevice, setDeviceDesc, setDeviceOpts, setDeviceRange, deviceOpts,
@@ -14,7 +15,8 @@ import {
   addDevice, setDeviceParams, deviceUsage, deleteDevice, parseRecordsForm, parseAxisPositionsForm,
   renumberIo, fixIoTags, projectIsEmpty, applyAiProposal, DEVICE_PARAM_LABEL, setSimModel, SIM_MODEL_DEFAULT, SIM_MODEL_RANGE,
 } from "../../../packages/core/dist/index.js";
-import { $, card, copyText, downloadFile, downloadFiles, downloadProjectZip, saveBytesUngated, normProject, normAi, setProjectHeader, prefixedName, pageLimit, moreHtml, wireMore } from "./util.js";
+import { $, card, copyText, downloadFile, downloadFiles, downloadProjectZip, saveBytesUngated, normProject, normAi, setProjectHeader, prefixedName, pageLimit, moreHtml, wireMore, readFileText } from "./util.js";
+import { approverName, setApproverName } from "./approval_step.js";
 import { gateFor } from "./license.js";
 import { mountFolderControls, pickProjectText, suggestNumberAsync, saveProjectFile } from "./project_dir.js";
 import { aiSettings, saveAiSettings, aiCall, aiListModels, AI_MODELS, AI_DEFAULT_MODEL, extractJson, aiNorm, aiNotesText, seedFromProject, AI_EXAMPLE } from "./ai.js";
@@ -1270,6 +1272,90 @@ export function makeSteps(ctx) {
     ["brand", N_("Výrobce")], ["type", N_("Typ")], ["orderCode", N_("Objednací kód")], ["supplier", N_("Dodavatel")], ["note", N_("Poznámka")]];
   /** Hláška poslední úpravy kusovníku (neplatné množství) — ukáže se při dalším vykreslení. */
   let bomMsg = null;
+  /** Načtená zpětná vazba z CAD (cad_feedback.ts): { name, fb, errors, dec: {id: "acc" | "acc#n" | "rej"}, msg } */
+  let bomFb = null;
+  const FB_MAX_BYTES = 5e6;
+  /** Panel zpětné vazby z CAD: položky k rozhodnutí (návrh, alternativy, Přijmout / Odmítnout) — jádro dělá vše. */
+  function cadFbHtml(p) {
+    if (!bomFb) return "";
+    let h = "<div class='cadfb' id='bomFbPanel'><h3>" + esc(tr("Zpětná vazba z CAD")) + " <span class='hint' style='margin:0;font-weight:400'>" + esc(bomFb.name) + "</span></h3>";
+    if (bomFb.msg) h += "<div class='notice " + esc(bomFb.msg.level) + "' role='status' style='margin:6px 0'>" + esc(bomFb.msg.text) + "</div>";
+    const close = "<button class='small' id='bFbClose'>" + esc(tr("Zavřít")) + "</button>";
+    if (bomFb.errors.length)
+      return h + "<div class='notice err'><b>" + esc(tr("Soubor nejde použít:")) + "</b><ul class='plain'>" + bomFb.errors.map(e => "<li>" + esc(e) + "</li>").join("") + "</ul></div><div class='row'>" + close + "</div></div>";
+    const fb = bomFb.fb, rv = cadFeedbackReview(p, fb);
+    h += "<p class='hint' style='max-width:90ch'>" + esc(tr("Nástroj {tool}, vytvořeno {created}. PLCdesk je zdroj pravdy kusovníku — návrhy z 3D přijmi nebo odmítni po položkách, nic se nemění samo.", { tool: fb.tool || "—", created: fb.created || "—" })) + "</p>";
+    for (const w of rv.warnings) h += "<div class='notice warn' style='margin:6px 0'>" + esc(w) + "</div>";
+    h += "<div class='stats'><span class='stat st-ok'>" + esc(tr("použitelné {n}", { n: rv.counts.usable })) + "</span><span class='stat st-stale'>" + esc(tr("zastaralé {n}", { n: rv.counts.stale }))
+      + "</span><span class='stat st-rej'>" + esc(tr("neplatné {n}", { n: rv.counts.invalid })) + "</span></div>";
+    if (!rv.items.length) h += "<p class='hint'>" + esc(tr("Zpětná vazba neobsahuje žádnou položku.")) + "</p>";
+    const tone = { error: "rej", warn: "stale", info: "wait" };
+    rv.items.forEach((it, i) => {
+      const dec = bomFb.dec[it.id] || "";
+      const radio = (val, label) => "<label class='f' style='flex-direction:row;gap:6px;align-items:flex-start;font-weight:400'><input type='radio' name='fb_" + i + "' data-fbid='" + esc(it.id) + "' value='" + esc(val) + "'" + (dec === val ? " checked" : "") + ">" + label + "</label>";
+      h += "<div class='fbitem' data-fbitem='" + esc(it.id) + "' style='border-top:1px solid var(--line);padding:8px 0'>"
+        + "<div><span class='st st-" + tone[it.severity] + "'>" + esc(tr(CAD_FEEDBACK_SEVERITY_LABEL[it.severity])) + "</span> <b>" + esc(it.message) + "</b> <span class='hint' style='margin:0'>· " + esc(tr(CAD_FEEDBACK_KIND_LABEL[it.kind])) + " · " + esc(it.id) + "</span></div>"
+        + (it.measuredText ? "<div class='apsum'>" + esc(tr("Naměřeno: {t}", { t: it.measuredText })) + "</div>" : "")
+        + (it.requiredText ? "<div class='apsum'>" + esc(tr("Požadováno: {t}", { t: it.requiredText })) + "</div>" : "")
+        + (it.parts.length ? "<div class='apsum'>" + esc(tr("Dotčené řádky: {list}", { list: it.parts.map(x => x.known ? x.tag + " " + x.item + " (" + [x.brand, x.type].filter(Boolean).join(" ") + ", " + tr("{n} ks", { n: x.qty }) + ")" : x.id + " ?").join("; ") })) + "</div>" : "")
+        + "<div class='apsum'><span class='st st-" + (it.state === "usable" ? "ok" : it.state === "stale" ? "stale" : "rej") + "'>" + esc(it.stateText) + "</span>"
+        + (it.decided ? " · " + esc(it.decided === "accepted" ? tr("dříve přijato") : tr("dříve odmítnuto")) : "")
+        + (it.applied ? " · " + esc(tr("návrh už je v kusovníku")) : "") + "</div>"
+        + (it.info ? "<div class='apsum'>" + esc(it.info) + "</div>" : "");
+      if (it.state === "invalid") h += "<p class='hint' style='margin:4px 0 0'>" + esc(tr("Položku nejde použít — oprav ji v CAD a exportuj zpětnou vazbu znovu.")) + "</p>";
+      else {
+        h += "<div style='margin-top:4px'>";
+        h += it.proposal ? radio("acc", "<span><b>" + esc(tr("Přijmout návrh")) + "</b> — " + esc(it.partId) + ": " + esc(cadFbProposalText(it.proposal)) + "<br><span class='hint' style='margin:0'>" + esc(it.proposal.why) + "</span></span>")
+          : radio("acc", "<span><b>" + esc(tr("Přijmout (vzít na vědomí)")) + "</b> — " + esc(tr("bez změny kusovníku")) + "</span>");
+        it.alternatives.forEach((a, n) => { h += radio("acc#" + n, "<span>" + esc(tr("Alternativa {n}", { n: n + 1 })) + " — " + esc(cadFbProposalText(a)) + "<br><span class='hint' style='margin:0'>" + esc(a.why) + "</span></span>"); });
+        h += radio("rej", "<span><b>" + esc(tr("Odmítnout")) + "</b></span>") + "</div>";
+      }
+      h += "</div>";
+    });
+    h += "<div class='row' style='margin-top:8px'><label class='f' style='flex-direction:row;gap:8px;align-items:center'>" + esc(tr("Rozhodl")) + " <input id='bFbBy' value='" + esc(bomFb.by ?? approverName()) + "' style='width:22ch'></label>"
+      + "<button class='small primary' id='bFbApply'>" + esc(tr("Použít rozhodnutí")) + "</button>" + close + "</div></div>";
+    return h;
+  }
+  function wireCadFb(c, p, rerender) {
+    const file = c.querySelector("#bomFbFile");
+    file.addEventListener("change", async e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      let text = "";
+      try { text = await readFileText(f, FB_MAX_BYTES); }
+      catch (err) { bomFb = { name: f.name, fb: null, errors: [String(err && err.message || err)], dec: {}, msg: null }; rerender(); return; }
+      const r = parseCadFeedback(text);
+      bomFb = { name: f.name, fb: r.fb, errors: r.errors, dec: {}, msg: null };
+      rerender();
+      const panel = document.getElementById("bomFbPanel");
+      if (panel) panel.scrollIntoView({ block: "start" });
+    });
+    const panel = c.querySelector("#bomFbPanel");
+    if (!panel) return;
+    panel.querySelector("#bFbClose").addEventListener("click", () => { bomFb = null; rerender(); });
+    panel.querySelectorAll("input[type=radio][data-fbid]").forEach(r => r.addEventListener("change", () => { bomFb.dec[r.dataset.fbid] = r.value; }));
+    const by = panel.querySelector("#bFbBy");
+    if (by) by.addEventListener("input", () => { bomFb.by = by.value; });
+    const apply = panel.querySelector("#bFbApply");
+    if (apply) apply.addEventListener("click", () => {
+      const who = (by.value || "").trim();
+      const dec = Object.entries(bomFb.dec);
+      if (!dec.length) { bomFb.msg = { level: "warn", text: tr("Nejdřív u položek zvol Přijmout nebo Odmítnout.") }; rerender(); return; }
+      if (!who) { bomFb.msg = { level: "err", text: tr("Zadej, kdo rozhodl (jméno se zapíše do historie kusovníku).") }; rerender(); return; }
+      setApproverName(who);
+      const accepted = dec.filter(([, v]) => v.startsWith("acc")).map(([id, v]) => v === "acc" ? id : id + v.slice(3));
+      const rejected = dec.filter(([, v]) => v === "rej").map(([id]) => id);
+      const res = applyCadFeedback(p, bomFb.fb, accepted, who, { rejected });
+      save();
+      const n = { a: res.applied.length + res.acknowledged.length, r: res.rejected.length };
+      bomFb.msg = res.bomChanged
+        ? { level: "ok", text: tr("Kusovník upraven (přijato {a}, odmítnuto {r}). Exportuj znovu pro CAD (tlačítko Export pro CAD), aby 3D model vycházel z opraveného kusovníku.", n) }
+        : { level: "ok", text: tr("Rozhodnutí zapsána (přijato {a}, odmítnuto {r}); kusovník beze změny.", n) };
+      if (res.skipped.length) bomFb.msg = { level: "warn", text: bomFb.msg.text + " " + tr("Nepoužito: {list}", { list: res.skipped.map(s => s.id + " (" + s.why + ")").join(", ") }) };
+      bomFb.dec = {};
+      rerender();
+    });
+  }
   function rBom(el) {
     const p = prj();
     syncIO(p);
@@ -1362,9 +1448,11 @@ export function makeSteps(ctx) {
       <button class="small primary" id="bBomCsv">${tr("Stáhnout CSV")}</button>
       <button class="small" id="bBomTsv">${tr("Kopírovat jako tabulku")}</button>
       <button class="small" id="bBomCad" title="${esc(tr("PLCdesk_CAD.json: díly kusovníku s označením a objednacím kódem, umístění (rozvaděč / stroj), sestava PLC v pořadí slotů, svorkovnice a vazby mezi díly — podklad pro stavbu rozvaděče a polních prvků ve FreeCADu. Bez geometrie."))}">${tr("Export pro CAD (FreeCAD)")}</button>
+      <label class="small filebtn" title="${esc(tr("PLCdesk_CAD_feedback.json z kontroly 3D modelu (FreeCAD): neshody kusovníku (malá skříň, množství, typ…) s návrhy změn — přijmeš nebo odmítneš je po položkách."))}"><input type="file" id="bomFbFile" accept=".json,application/json" hidden><span class="button small">${tr("Načíst zpětnou vazbu z CAD…")}</span></label>
       <button class="small danger" id="bBomReset">${tr("Obnovit výchozí volby")}</button>
       <span class="hint" style="margin:0">${tr("CSV se středníky pro Excel; tabulku vložíš do Excelu nebo e-mailu. Množství 0 řádek vyřadí z CSV a dokumentace (zůstane šedě v přehledu); prázdné pole vrátí množství z návrhu.")}</span>
     </div>
+    ${cadFbHtml(p)}
     <h3>${tr("Dodavatelé v kusovníku")}</h3>
     <p class="hint">${tr("Dodavatelé použití v řádcích kusovníku — koho poptat a kolik položek. Další dodavatele kategorie nabízí výběr u řádku.")}</p>
     <div id="bomSup">${supHtml()}</div>`);
@@ -1501,6 +1589,7 @@ export function makeSteps(ctx) {
     c.querySelector("#bBomTsv").addEventListener("click", () => {
       copyText(bomTableText(p), c.querySelector("#bBomTsv"));
     });
+    wireCadFb(c, p, rerender);
     c.querySelector("#bBomReset").addEventListener("click", () => {
       p.bom = cfg.plat ? { plat: cfg.plat } : {};
       bomCustomEdit.clear();

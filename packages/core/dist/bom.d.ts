@@ -107,3 +107,8 @@ export interface BomSupplierRow {
 export declare function bomSuppliers(prj: Project): BomSupplierRow[];
 /** Kusovník do dokumentace (Markdown). */
 export declare function bomMd(prj: Project): string;
+/**
+ * Oddíl kusovníku (Markdown) s rozhodnutími o zpětné vazbě z CAD (`cad_feedback.ts`, historie
+ * `prj.bom.cadFeedback`); bez historie prázdný — výstup beze změny (golden).
+ */
+export declare function cadFeedbackMd(prj: Project): string;

@@ -12,20 +12,15 @@ import {
   quoteView, importPrices, setQuote, quoteFiles,
   libraryView, loadLibrary, saveLibrary, libraryTemplate, attachToProject, detachLibrary, libraryDeviceTypes, addFromLibrary,
 } from "./biz_view.js";
-import { card, downloadFile, $ } from "./util.js";
+import { card, downloadFile, $, readFileText } from "./util.js";
 import { approverName } from "./approval_step.js";
 
 const LIB_KEY = "plcstudio.library";        // načtená firemní knihovna (nastavení prohlížeče)
 const STEP_PROJECT = 0, STEP_DEV = 3, STEP_APPROVAL = 11, STEP_COMMISSION = 12;
 const CURRENCIES = ["CZK", "EUR", "USD", "GBP", "CHF", "PLN", "HUF", "CNY"];
 
-/** Text souboru: UTF-8 (i s BOM), UTF-16 s BOM, jinak Windows-1250 (český Excel) — jako desktop. */
-export async function readFileText(file) {
-  const buf = new Uint8Array(await file.arrayBuffer());
-  if ((buf[0] === 0xFF && buf[1] === 0xFE) || (buf[0] === 0xFE && buf[1] === 0xFF)) return new TextDecoder(buf[0] === 0xFF ? "utf-16le" : "utf-16be").decode(buf);
-  try { return new TextDecoder("utf-8", { fatal: true }).decode(buf).replace(/^﻿/, ""); }
-  catch { return new TextDecoder("windows-1250").decode(buf); }
-}
+/* čtení textu souboru je společné (util.js) — export zůstává kvůli dřívějším importům */
+export { readFileText };
 
 const chip = (tone, text) => "<span class='st st-" + tone + "'>" + esc(text) + "</span>";
 /** Číslo do pole: desetinná čárka v jazycích, které ji používají (pole přijímá čárku i tečku). */

@@ -68,7 +68,7 @@ test("párování: objednací kód, typ + značka, kategorie; nepárované v unp
     assert.equal(by("-B1:pressure_transmitter").match, "type");
     assert.equal(by("-B1:pressure_transmitter").unitPrice, 4210);
     assert.equal(by("-X1:terminal_block").match, "cat");
-    assert.equal(by("-X1:terminal_block").total, round2(24 * 18.9));
+    assert.equal(by("-X1:terminal_block").total, round2(6 * 18.9), "svorkovnice X1 výkresu = 6 svorek");
     assert.equal(by("-H1:pilot_light").match, "cat");
     const v = by("-Y1:valve_solenoid");
     assert.equal(v.match, "code");

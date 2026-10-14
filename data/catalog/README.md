@@ -22,3 +22,7 @@ Soubory podle oblasti: `pohony.json`, `pneu.json`, `snimace.json`, `plc.json`. T
 - Bezpečnostní komponenty jsou jen HW položky; volba a zapojení podle posouzení rizik
   (EN ISO 13849), návrh k revizi.
 - Pořadí značek v kategorii = výchozí volba (první).
+- `typical` = JEDNA konkrétní položka. Alternativy (jiná řada, jiný kód) jsou samostatné záznamy téže značky —
+  nabídnou se jako volba v kusovníku; neslepovat „A …; B …“ do jednoho typu (test `cad_feedback.test.ts`).
+- `dims` (volitelné): vnější rozměry v mm `{ "w", "h", "d", "plateW", "plateH", "src" }` se zdrojem (URL) —
+  u skříní a měničů; zpětná vazba z CAD podle nich nabízí větší skříň. Rozměr bez zdroje se nevkládá.

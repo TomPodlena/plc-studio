@@ -277,8 +277,12 @@ const SRC = [
             N_("Uprav množství, objednací kód a dodavatele; množství 0 řádek vyřadí z CSV a dokumentace."),
             N_("Stáhni / ulož CSV pro Excel nebo zkopíruj tabulku."),
             N_("**Export pro CAD (FreeCAD)** uloží PLCdesk_CAD.json: všechny díly kusovníku s označením, objednacím kódem a umístěním (rozvaděč / stroj, DIN lišta / montážní deska / rack PLC), sestavu PLC v pořadí slotů, svorkovnice a vazby (jistič → stykač → motor, rozváděč → válec, snímač → válec, výstup PLC → akční člen). Geometrii nenese — podklad pro stavbu rozvaděče a polních prvků v CADu; v projektové složce leží v 09_Exporty/CAD."),
+            N_("**Načíst zpětnou vazbu z CAD…** načte PLCdesk_CAD_feedback.json z kontroly 3D modelu: neshody (malá skříň, nesedí množství, nejednoznačný typ…) s naměřenou a požadovanou hodnotou a návrhem změny řádku. U každé položky zvol **Přijmout návrh**, alternativu, nebo **Odmítnout**; **Použít rozhodnutí** změní jen tvé volby kusovníku a zapíše historii (kdo, kdy, co) do kusovníku a 09_kusovnik.md. Pak **exportuj znovu pro CAD**."),
         ],
         tips: [
+            N_("Neshody nalezené ve 3D se neopravují v CADu — PLCdesk je zdroj pravdy kusovníku; nic se nezmění bez tvého rozhodnutí."),
+            N_("U malé skříně nabídne PLCdesk nejmenší větší skříň z katalogu podle rozměrů (vnější rozměr se zdrojem; užitný ověř v CAD)."),
+            N_("Svorky v kusovníku = svorkovnice výkresů X1…Xn (jedna svorka na kanál); svorky napájení a rezervu doplní projektant."),
             N_("Objednací kódy jsou jen ověřené (se zdrojem); ceny katalog neuvádí."),
             N_("Bezpečnostní prvky jsou v kusovníku jen jako hardware s výhradou „návrh k revizi“."),
             N_("**Obnovit výchozí volby** zahodí tvé volby značek a řádků."),
@@ -286,6 +290,8 @@ const SRC = [
         ],
         issues: [
             { problem: N_("„… nevejde se“ (sestava hardwaru)"), fix: N_("Signály se nevejdou do CPU a dostupných modulů platformy — zvol větší CPU v kusovníku, nebo jinou platformu.") },
+            { problem: N_("„zastaralé — export pro CAD se od kontroly změnil“"), fix: N_("Kusovník se po exportu změnil; návrhy jdou použít, ale posuď je pečlivě. Po použití exportuj znovu pro CAD a nech 3D zkontrolovat znovu.") },
+            { problem: N_("„neplatné — v kusovníku chybí …“"), fix: N_("Zpětná vazba odkazuje na řádek, který kusovník nemá (jiný projekt nebo starý export) — oprav ji v CAD a exportuj znovu.") },
         ],
         see: ["nabidka", "platformy", "io"],
         keywords: N_("kusovník, BOM, komponenty, objednací kód, dodavatel, výrobce, CSV, Excel, poptávka, CPU, moduly"),

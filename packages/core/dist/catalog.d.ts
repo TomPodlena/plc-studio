@@ -41,6 +41,18 @@ export interface CatalogBrand {
     note?: string;
     /** hardwarová data pro sestavu (moduly, CPU, hlavy vzdálených I/O) */
     hw?: CatalogHw;
+    /** vnější rozměry v mm se zdrojem (skříně, měniče); skříň i montážní desku (`plateW` × `plateH`) —
+     *  zpětná vazba z CAD podle nich nabízí větší skříň (`cad_feedback.ts`) */
+    dims?: CatalogDims;
+}
+/** Rozměry položky katalogu v mm (vnější š × v × h; u skříně i montážní deska), `src` = URL zdroje. */
+export interface CatalogDims {
+    w: number;
+    h: number;
+    d: number;
+    plateW?: number;
+    plateH?: number;
+    src: string;
 }
 /** Identifikace volby z katalogu (značka + kód / řada) — hodnota v `prj.bom.brand` / `lines[].brand`. */
 export declare function brandOptId(b: CatalogBrand): string;

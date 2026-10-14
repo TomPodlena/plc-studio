@@ -1,0 +1,259 @@
+/**
+ * Zpětná vazba z CAD (cad_feedback.ts, formát plcdesk-cad-feedback v1 podle FEEDBACK_SCHEMA.md):
+ * validace, otisk manifestu (zastaralé), neplatné partId / jiný projekt, přijetí / odmítnutí / alternativa,
+ * změna kusovníku i manifestu, historie a 09_kusovnik.md, idempotence, vzor 11 „skříň mělká pro -TA1“
+ * → větší skříň z katalogu. K tomu opravy kusovníku odhalené ve 3D: svorky = svorkovnice výkresů,
+ * typ katalogu bez slepených alternativ, rozměry skříní a měničů v katalogu.
+ */
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { type Project } from "./model.js";
+import { buildBom, bomMd, bomCsv } from "./bom.js";
+import { CATALOG, brandsFor } from "./catalog.js";
+import { cadManifest, cadManifestJson } from "./cad.js";
+import {
+  parseCadFeedback, cadFeedbackReview, applyCadFeedback, sha256Text, cadManifestSha256, cadFbProposalText,
+  CAD_FEEDBACK_KINDS, CAD_FEEDBACK_KIND_LABEL, type CadFeedback,
+} from "./cad_feedback.js";
+import { normalizeProject } from "./project_norm.js";
+import { svorkyCSV } from "./docs.js";
+import { setLang, LANGS, type Lang } from "./i18n.js";
+import { sampleSmall } from "./samples.js";
+import { sampleNames, loadSampleFile } from "./exp_util.test.js";
+
+const S11 = "11_podavaci_lisovaci_stanice_PS-11.plcstudio.json";
+const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o));
+
+/** Zpětná vazba podle příkladu ze schématu: skříň mělká pro měnič -TA1 (vzor 11). */
+function fb11(prj: Project, over: Partial<CadFeedback> = {}): CadFeedback {
+  return {
+    format: "plcdesk-cad-feedback", version: 1, project: { guid: prj.guid || "" },
+    manifest: { sha256: cadManifestSha256(prj) }, created: "2026-10-14T12:00:00Z", tool: "plcdesk_freecad 0.1",
+    issues: [
+      {
+        id: "fit-cabinet-depth-1", kind: "cabinet_too_small", severity: "error", parts: ["+1:cabinet", "-TA1:vfd"],
+        measured: { what: "hloubka", value: 226, unit: "mm", source: "model 3Dfindit V20 / G120C datasheet" },
+        required: { what: "hloubka skříně (užitná)", min: 246, unit: "mm", basis: "226 mm + 20 mm rezerva (rozvadec-3d)" },
+        message: "Měnič -TA1 (226 mm) se nevejde do skříně +1 (užitná hloubka 190 mm).",
+      },
+      {
+        id: "qty-x1", kind: "qty_mismatch", severity: "warn", parts: ["-X1:terminal_block"],
+        message: "Na svorkovnici X1 je v modelu 10 svorek (8 I/O + 2 napájení).",
+        suggestion: { partId: "-X1:terminal_block", line: { qty: 10, note: "2 svorky napájení podle 3D" } },
+      },
+      {
+        id: "code-ta1", kind: "ambiguous_type", severity: "info", parts: ["-TA1:vfd"],
+        message: "Pro PROFINET zvaž G120C.",
+        suggestion: { partId: "-TA1:vfd", line: { orderCode: "6SL3210-1KE12-3UF2" },
+          alternatives: [{ type: "Vlastní měnič XY", orderCode: "XY-1", brand: "Firma XY", why: "sklad" }] },
+      },
+    ],
+    ...over,
+  };
+}
+
+test("validace: chybějící a chybné položky → srozumitelné chyby s cestou", () => {
+  assert.match(parseCadFeedback("{").errors[0], /JSON/);
+  assert.match(parseCadFeedback('{"format":"plcdesk-cad","version":1}').errors[0], /plcdesk-cad-feedback/);
+  assert.match(parseCadFeedback('{"format":"plcdesk-cad-feedback","version":2}').errors[0], /verze/);
+  const p = loadSampleFile(S11);
+  const bad = clone(fb11(p)) as any;
+  bad.manifest.sha256 = "abc";
+  bad.issues[0].severity = "fatal";
+  bad.issues[0].measured.source = "";
+  bad.issues[1].id = "fit-cabinet-depth-1";
+  bad.issues[2].suggestion.line.qty = -1;
+  bad.issues.push({ id: "x", kind: "nevim", severity: "info", parts: "a", message: "" });
+  const r = parseCadFeedback(JSON.stringify(bad));
+  assert.equal(r.fb, null);
+  const all = r.errors.join("\n");
+  for (const want of ["manifest.sha256", "issues[0].severity", "issues[0].measured.source", "issues[1].id",
+    "issues[2].suggestion.line.qty", "issues[3].kind", "issues[3].parts", "issues[3].message"])
+    assert.ok(all.includes(want), "chybí chyba " + want + "\n" + all);
+  /* platný soubor (s BOM, neznámý klíč navíc) projde */
+  const ok = parseCadFeedback("﻿" + JSON.stringify({ ...fb11(p), extra: 1 }));
+  assert.deepEqual(ok.errors, []);
+  assert.equal(ok.fb!.issues.length, 3);
+  assert.deepEqual(Object.keys(CAD_FEEDBACK_KIND_LABEL).sort(), [...CAD_FEEDBACK_KINDS].sort());
+});
+
+test("SHA-256: shoda se známými vektory a s otiskem souboru manifestu", async () => {
+  assert.equal(sha256Text(""), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+  assert.equal(sha256Text("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+  const { createHash } = await import("node:crypto");
+  const txt = cadManifestJson(loadSampleFile(S11));
+  assert.equal(sha256Text(txt), createHash("sha256").update(txt, "utf8").digest("hex"));
+  const long = "ř".repeat(1000) + "x".repeat(57);
+  assert.equal(sha256Text(long), createHash("sha256").update(long, "utf8").digest("hex"));
+});
+
+test("vzor 11: skříň mělká pro -TA1 → nejmenší větší skříň z katalogu, přijetí změní kusovník i manifest", () => {
+  const p = loadSampleFile(S11);
+  const fb = parseCadFeedback(JSON.stringify(fb11(p))).fb!;
+  const rv = cadFeedbackReview(p, fb);
+  assert.equal(rv.projectMatch, true);
+  assert.equal(rv.stale, false);
+  assert.deepEqual(rv.counts, { usable: 3, stale: 0, invalid: 0 });
+  assert.equal(rv.items[0].severity, "error", "chyby první");
+  const cab = rv.items.find(i => i.id === "fit-cabinet-depth-1")!;
+  assert.equal(cab.partId, "+1:cabinet");
+  assert.ok(cab.proposal, "návrh skříně z katalogu");
+  assert.equal(cab.proposal!.source, "catalog");
+  assert.equal(cab.proposal!.orderCode, "1057.000", "nejmenší Rittal AX s hloubkou ≥ 246 mm (500×700×250)");
+  assert.ok(cab.alternatives.length >= 1 && cab.alternatives.every(a => a.source === "catalog"));
+  const cabs = brandsFor("cabinet", buildBom(p).plat);
+  for (const a of [cab.proposal!, ...cab.alternatives]) {
+    const b = cabs.find(x => x.orderCode === a.orderCode)!;
+    assert.ok(b.dims && b.dims.d >= 246 && /^https?:\/\//.test(b.dims.src), a.orderCode);
+    assert.match(a.why, /246/);
+  }
+  assert.match(cab.measuredText, /226 mm/);
+  assert.match(cab.requiredText, /≥ 246/);
+  /* G120C je v katalogu → výběr položky katalogu (brand = optId), alternativa mimo katalog = vlastní typ */
+  const ta = rv.items.find(i => i.id === "code-ta1")!;
+  assert.deepEqual(ta.proposal!.cfg, { brand: "Siemens · 6SL3210-1KE12-3UF2" });
+  assert.equal(ta.alternatives[0].optId, "");
+  assert.deepEqual(ta.alternatives[0].cfg, { brand: "Firma XY", supplier: "", type: "Vlastní měnič XY", orderCode: "XY-1" });
+  assert.match(cadFbProposalText(ta.proposal!), /G120C/);
+
+  const before = cadManifestJson(p);
+  const res = applyCadFeedback(p, fb, ["fit-cabinet-depth-1", "qty-x1"], "Jan Novák", { rejected: ["code-ta1"], at: "2026-10-14T13:00:00Z" });
+  assert.deepEqual(res.applied, ["fit-cabinet-depth-1", "qty-x1"]);
+  assert.deepEqual(res.rejected, ["code-ta1"]);
+  assert.equal(res.bomChanged, true);
+  assert.deepEqual(p.bom!.lines!["+1:cabinet"], { brand: "Rittal · 1057.000" });
+  assert.deepEqual(p.bom!.lines!["-X1:terminal_block"], { qty: 10, note: "2 svorky napájení podle 3D" });
+  assert.equal(p.bom!.lines!["-TA1:vfd"], undefined, "odmítnuté nic nemění");
+  const bom = buildBom(p).lines;
+  assert.equal(bom.find(l => l.id === "+1:cabinet")!.orderCode, "1057.000");
+  assert.equal(bom.find(l => l.id === "-X1:terminal_block")!.qty, 10);
+  /* manifest pro CAD = nový kusovník */
+  const m = cadManifest(p);
+  assert.equal(m.parts.find(x => x.id === "+1:cabinet")!.orderCode, "1057.000");
+  assert.notEqual(cadManifestJson(p), before);
+  /* historie v projektu a v dokumentaci */
+  const h = p.bom!.cadFeedback!;
+  assert.deepEqual(h.map(r => [r.id, r.decision, r.by]), [["fit-cabinet-depth-1", "accepted", "Jan Novák"], ["qty-x1", "accepted", "Jan Novák"], ["code-ta1", "rejected", "Jan Novák"]]);
+  assert.match(h[0].change, /1050\.000.*→.*1057\.000/);
+  const md = bomMd(p);
+  assert.match(md, /Změny ze zpětné vazby CAD/);
+  assert.match(md, /Jan Novák/);
+  assert.ok(!bomCsv(p).includes("Jan Novák"), "CSV kusovníku jen řádky");
+  /* po použití je zpětná vazba zastaralá (manifest se změnil), položky jsou použité */
+  const rv2 = cadFeedbackReview(p, fb);
+  assert.equal(rv2.stale, true);
+  assert.ok(rv2.warnings.length);
+  const cab2 = rv2.items.find(i => i.id === "fit-cabinet-depth-1")!;
+  assert.equal(cab2.state, "stale");
+  assert.equal(cab2.applied, true);
+  assert.equal(cab2.decided, "accepted");
+  assert.match(cab2.info, /splňuje/);
+  /* normalizace projektu historii zachová */
+  const n = normalizeProject(JSON.parse(JSON.stringify(p)));
+  assert.deepEqual(n.bom!.cadFeedback, h);
+});
+
+test("idempotence: totéž rozhodnutí podruhé kusovník ani historii nezmění", () => {
+  const p = loadSampleFile(S11);
+  const fb = parseCadFeedback(JSON.stringify(fb11(p))).fb!;
+  applyCadFeedback(p, fb, ["fit-cabinet-depth-1", "qty-x1", "code-ta1#0"], "A", { at: "2026-10-14T13:00:00Z" });
+  const snap = clone(p.bom);
+  const res = applyCadFeedback(p, fb, ["fit-cabinet-depth-1", "qty-x1", "code-ta1#0"], "A", { at: "2026-10-14T14:00:00Z" });
+  assert.equal(res.bomChanged, false);
+  assert.deepEqual(p.bom, snap);
+  assert.equal(buildBom(p).lines.find(l => l.id === "-TA1:vfd")!.type, "Vlastní měnič XY");
+  assert.equal(buildBom(p).lines.find(l => l.id === "-TA1:vfd")!.brand, "Firma XY");
+  /* změna rozhodnutí (odmítnout) se zapíše, kusovník zůstane (odmítnutí nic nevrací) */
+  applyCadFeedback(p, fb, [], "B", { rejected: ["code-ta1"], at: "2026-10-14T15:00:00Z" });
+  assert.equal(p.bom!.cadFeedback!.length, 4);
+  assert.equal(cadFeedbackReview(p, fb).items.find(i => i.id === "code-ta1")!.decided, "rejected");
+});
+
+test("zastaralý otisk, neplatné partId a jiný projekt", () => {
+  const p = loadSampleFile(S11);
+  const stale = parseCadFeedback(JSON.stringify(fb11(p, { manifest: { sha256: "0".repeat(64) } }))).fb!;
+  const rv = cadFeedbackReview(p, stale);
+  assert.equal(rv.stale, true);
+  assert.ok(rv.items.every(i => i.state === "stale"));
+  /* zastaralé jde přijmout (jen varování) */
+  assert.equal(applyCadFeedback(clone(p), stale, ["qty-x1"], "A").applied.length, 1);
+
+  const f = fb11(p);
+  f.issues[0].parts = ["-A0:cabinet", "-TA1:vfd"];
+  const inv = parseCadFeedback(JSON.stringify(f)).fb!;
+  const it = cadFeedbackReview(p, inv).items.find(i => i.id === "fit-cabinet-depth-1")!;
+  assert.equal(it.state, "invalid");
+  assert.match(it.stateText, /-A0:cabinet/);
+  const q = clone(p);
+  const res = applyCadFeedback(q, inv, ["fit-cabinet-depth-1"], "A");
+  assert.equal(res.skipped[0].id, "fit-cabinet-depth-1");
+  assert.equal(q.bom?.lines?.["+1:cabinet"], undefined);
+  assert.ok(!(q.bom?.cadFeedback || []).some(r => r.id === "fit-cabinet-depth-1"), "neplatné se nezapisuje");
+
+  const other = parseCadFeedback(JSON.stringify(fb11(p, { project: { guid: "11111111-2222-4333-8444-555555555555" } }))).fb!;
+  const rvo = cadFeedbackReview(p, other);
+  assert.equal(rvo.projectMatch, false);
+  assert.ok(rvo.items.every(i => i.state === "invalid"));
+  const r2 = clone(p);
+  assert.equal(applyCadFeedback(r2, other, ["qty-x1"], "A").skipped.length, 1);
+  assert.equal(r2.bom?.lines, undefined);
+});
+
+test("otisk manifestu nezávisí na jazyku UI při exportu", () => {
+  const p = loadSampleFile(S11);
+  setLang("cs");
+  const fb = parseCadFeedback(JSON.stringify(fb11(p))).fb!;
+  try {
+    for (const l of Object.keys(LANGS) as Lang[]) { setLang(l); assert.equal(cadFeedbackReview(p, fb).stale, false, l); }
+  } finally { setLang("cs"); }
+});
+
+test("bez zpětné vazby beze změny: bomMd bez oddílu, prázdná historie se neukládá", () => {
+  const p = sampleSmall();
+  assert.ok(!bomMd(p).includes("zpětné vazby CAD"));
+  const fb = parseCadFeedback(JSON.stringify({ ...fb11(p), issues: [] })).fb!;
+  const res = applyCadFeedback(p, fb, [], "A");
+  assert.equal(res.bomChanged, false);
+  assert.equal(p.bom?.cadFeedback, undefined);
+});
+
+test("oprava (a): svorky v kusovníku = svorkovnice výkresů X1…Xn (všechny vzory)", () => {
+  for (const n of sampleNames()) {
+    const p = loadSampleFile(n);
+    const bom = buildBom(p).lines.filter(l => l.cat === "terminal_block");
+    const strips = new Map<string, number>();
+    for (const row of svorkyCSV(p).split("\n").slice(1)) {
+      const s = row.split(";")[0].split(":")[0];
+      strips.set(s, (strips.get(s) || 0) + 1);
+    }
+    assert.deepEqual(bom.map(l => [l.tag.slice(1), l.qty]), [...strips], n);
+    const m = cadManifest(p);
+    assert.deepEqual(m.terminals.map(t => ["-" + t.strip + ":terminal_block", t.count]),
+      m.parts.filter(x => x.category === "terminal_block").map(x => [x.id, x.qty]), n);
+  }
+});
+
+test("oprava (b): typ katalogu nese jednu položku — alternativy jsou samostatné volby", () => {
+  /* dřív „V20 …; G120C PN …“ v jednom typu (zjištěno ve 3D) — stejný vzor hlídat v celém katalogu */
+  const glued = /;\s*[A-Z0-9][\w./-]*(?: [\w./-]+){0,3} — /;
+  for (const old of ["V20 6SL3210-5BE17-5UV0 — 0,75 kW; G120C PN 6SL3210-1KE12-3UF2 — 0,75 kW", "3RM1001-1AA04 — přímý; 3RA2317-8XB30-1BB4 — reverzační",
+    "VEGASWING 61 — spínač; VEGAPULS C 21 — radar", "Etanorm / Etabloc — čerpadlo; Movitec — vertikální"]) assert.ok(glued.test(old), old);
+  for (const [cat, brands] of Object.entries(CATALOG)) for (const b of brands)
+    assert.ok(!(b.typical && glued.test(b.typical)), cat + " / " + b.brand + ": " + b.typical);
+  const vfd = brandsFor("vfd", "siemens").filter(b => b.brand === "Siemens");
+  assert.deepEqual(vfd.map(b => b.orderCode), ["6SL3210-5BE17-5UV0", "6SL3210-1KE12-3UF2"]);
+  const p = loadSampleFile(S11);
+  const ta = buildBom(p).lines.find(l => l.id === "-TA1:vfd")!;
+  assert.ok(!ta.type.includes(";"), ta.type);
+  assert.match(ta.type, /^V20 /, "výchozí = první položka katalogu značky platformy");
+});
+
+test("oprava (c): rozměry skříní a měničů v katalogu se zdrojem", () => {
+  const cabs = (CATALOG as Record<string, any[]>).cabinet.filter(b => b.dims);
+  assert.ok(cabs.length >= 8, "skříně s rozměry");
+  for (const b of [...cabs, ...(CATALOG as Record<string, any[]>).vfd.filter(x => x.dims)]) {
+    assert.ok(b.dims.w > 0 && b.dims.h > 0 && b.dims.d > 0, b.orderCode);
+    assert.match(b.dims.src, /^https:\/\//, b.orderCode);
+  }
+  assert.ok((CATALOG as Record<string, any[]>).vfd.some(b => b.dims), "měnič s rozměry");
+});

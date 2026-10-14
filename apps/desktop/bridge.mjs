@@ -92,6 +92,22 @@ const EDIT_FNS = new Set(["renameDevice", "setDeviceDesc", "setDeviceOpts", "set
 /** Do kolika zařízení se ověření simulací pro odznak spočítá hned (zlomek sekundy). */
 const BADGE_LIVE_DEVICES = 30;
 
+/** Přehled zpětné vazby z CAD pro okno desktopu: položky + přeložené popisy a texty návrhů (jádro). */
+function cadfbReviewOut(prj, fb) {
+  const rv = core.cadFeedbackReview(prj, fb);
+  return {
+    ...rv,
+    items: rv.items.map(it => ({
+      ...it,
+      kindText: core.tr(core.CAD_FEEDBACK_KIND_LABEL[it.kind]),
+      sevText: core.tr(core.CAD_FEEDBACK_SEVERITY_LABEL[it.severity]),
+      proposalText: it.proposal ? core.cadFbProposalText(it.proposal) : "",
+      altTexts: it.alternatives.map(a => core.cadFbProposalText(a)),
+      partsText: it.parts.map(x => x.known ? x.tag + " " + x.item + " (" + [x.brand, x.type].filter(Boolean).join(" ") + ", " + core.tr("{n} ks", { n: x.qty }) + ")" : x.id + " ?").join("; "),
+    })),
+  };
+}
+
 const OPS = {
   /* Konstanty jádra v jazyce `lang` (výchozí čeština) a katalog překladů pro okno.
      Jazyk je stav procesu mostu: platí pro všechny další operace (dokumentace, hlášení
@@ -166,6 +182,20 @@ const OPS = {
      (hlavní proces). Licence ho nezamyká: data projektu jako .plcstudio.json (license.ts licenseFileKind). */
   cad({ prj }) {
     return { name: core.CAD_FILE, json: core.cadManifestJson(prj) };
+  },
+
+  /* Zpětná vazba z CAD (cad_feedback.ts): načtení + validace podle schématu a položky k rozhodnutí
+     (návrhy už převedené na volby kusovníku). Texty druhů / závažností / návrhů přeložené z jádra —
+     okno desktopu je jen zobrazuje. Rychlá operace (hlavní proces). */
+  cadfb({ prj, text }) {
+    const r = core.parseCadFeedback(text);
+    if (!r.fb) return { errors: r.errors };
+    return { errors: [], fb: r.fb, review: cadfbReviewOut(prj, r.fb) };
+  },
+  /* Použití rozhodnutí: mění jen prj.bom.lines + historie prj.bom.cadFeedback (applyCadFeedback). */
+  cadfbApply({ prj, fb, accepted = [], rejected = [], by = "" }) {
+    const res = core.applyCadFeedback(prj, fb, accepted, by, { rejected });
+    return { prj, res, review: cadfbReviewOut(prj, fb) };
   },
 
   /* Balík k ověření pro beta testery (verify_pack.ts): ZIP v base64 + název souboru. Není to export

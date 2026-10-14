@@ -71,6 +71,11 @@ def load() -> tuple[dict, list, list[str]]:
                         problems.append(f"{f.name}: {key}/{b['brand']}: modul bez hw.ch / hw.bus — sestava ho nepoužije")
                     elif hw.get("hwSrc") and not str(hw["hwSrc"]).startswith("http"):
                         problems.append(f"{f.name}: {key}/{b['brand']}: hw.hwSrc není URL")
+                dims = b.get("dims")
+                if dims is not None and not (isinstance(dims, dict) and str(dims.get("src", "")).startswith("http")
+                                             and all(isinstance(dims.get(k), (int, float)) and dims[k] > 0 for k in ("w", "h", "d"))):
+                    problems.append(f"{f.name}: {key}/{b['brand']}: dims bez w / h / d > 0 nebo bez URL zdroje — vynechány")
+                    b = {k: v for k, v in b.items() if k != "dims"}
                 if b.get("orderCode") and not str(b.get("src", "")).startswith("http"):
                     problems.append(f"{f.name}: {key}/{b['brand']}: kód bez zdroje — vynechán")
                     b = {k: v for k, v in b.items() if k != "orderCode"}
@@ -95,6 +100,9 @@ def brand_ts(b: dict) -> str:
     if b.get("priceLevel") in ("nízká", "střední", "vysoká"):
         parts.append(f"priceLevel: {json.dumps(b['priceLevel'], ensure_ascii=False)}")
     parts.append("suppliers: [" + ", ".join(lit(str(x)) for x in b.get("suppliers") or []) + "]")
+    if b.get("dims"):
+        # rozměry v mm se zdrojem (zpětná vazba z CAD: volba větší skříně) — technické hodnoty, nepřekládají se
+        parts.append("dims: " + json.dumps(b["dims"], ensure_ascii=False, sort_keys=True))
     if b.get("hw"):
         # hardwarová data sestavy (hardware.ts) — technické hodnoty, nepřekládají se
         parts.append("hw: " + json.dumps(b["hw"], ensure_ascii=False, sort_keys=True))

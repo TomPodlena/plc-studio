@@ -136,6 +136,20 @@ export function normalizeProject(raw) {
             if (Object.keys(ls).length)
                 b.lines = ls;
         }
+        /* historie zpětné vazby z CAD: jen záznamy s textovými poli a platným rozhodnutím */
+        if (Array.isArray(raw.bom.cadFeedback)) {
+            const F = ["id", "manifest", "created", "tool", "at", "by", "kind", "severity", "message", "partId", "change"];
+            const recs = raw.bom.cadFeedback.filter((r) => isObj(r)
+                && (r.decision === "accepted" || r.decision === "rejected") && str(r.id) && !!r.id)
+                .map((r) => {
+                const o = {};
+                for (const f of F)
+                    o[f] = str(r[f]) ? r[f] : "";
+                return { ...o, decision: r.decision };
+            });
+            if (recs.length)
+                b.cadFeedback = recs;
+        }
         if (Object.keys(b).length)
             p.bom = b;
     }
