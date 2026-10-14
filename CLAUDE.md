@@ -314,7 +314,7 @@ python scripts/build_verification.py        # data/verification.json → verific
 
 ## Příklady a ověření simulací
 
-- `samples/*.plcstudio.json` — 18 příkladových strojů od pásu se 6 zařízeními po výrobní halu se 125
+- `samples/*.plcstudio.json` — 28 příkladových strojů od pásu se 6 zařízeními po výrobní halu se 125
   zařízeními a 120 kroky (formát = uložený projekt desktopu / export webu). Vzory s pohony:
   11 PS-11 (pás na měniči, osa se záznamy, lisovací tlak VPPM), 12 PM-12 (servoosa, fáze 2b),
   13 TD-13 třídicí linka (3 měniče rozjezd / plíživá / stop, reverzní příčný pás výhybky, pneumatická
@@ -324,7 +324,19 @@ python scripts/build_verification.py        # data/verification.json → verific
   stanice (odvíječ a navíječ na měničích, tanečník, dávkovací čerpadlo, proporcionální ventil průtoku,
   polohovací pohon nože se záznamy), 16 PC-16 paletizační buňka (3 polohovací pohony se záznamy
   a referováním, vakuový úchop, dopravník na měniči). 13–16 bez servoosy = všechny platformy
-  (desktop `--smoke` je prochází). Každý musí projít
+  (desktop `--smoke` je prochází). Vzory 17–26 (2026-10-13; nálezy aplikace z jejich forenzní kontroly
+  v `apps/site/_shots/priklady/ZPRAVA.md`, mimo git): 17 OM-17 odběrový manipulátor u vstřikovacího lisu (servoosa Y +
+  polohovací pojezd X, rozhraní Euromap 67 přes I/O, vakuum, vtok do drtiče), 18 SG-18 sušárna granulátu
+  s centrální dopravou (ventilátor na měniči, topení, rosný bod, sací zásobníky, časovače FX5 nad 32,7 s),
+  19 TJ-19 temperační jednotka formy (**OOP**, čerpadlo na měniči, chlazení proporcionálním ventilem, AO žádaná
+  teploty), 20 ZT-20 zkouška těsnosti (proporcionální regulátor tlaku, přístroj OK/NOK, dvouruční ovládání,
+  ventil odvzdušnění bez proudu otevřený), 21 SS-21 šroubovací stanice (2 polohovací pohony se záznamy, jednotka
+  šroubováku, role AUTO), 22 EB-22 etiketovací linka (2 měniče, servoosa aplikátoru s pomalým dotlakem),
+  23 MD-23 mísicí a dávkovací linka (váhový terminál, hrubé / jemné dávkování, proporcionální dávkování,
+  pára, oplach), 24 SV-24 svařovací buňka (robot jen přes I/O, 4 upínky, odsávání, zámek dveří), 25 CS-25
+  kanalizační čerpací stanice (**OOP**, 10 zařízení, střídání čerpadel), 26 MB-26 montážní buňka (55 zařízení,
+  94 kroků, 7 stanic: palety na měniči, lis s proporcionálním tlakem, šroubování, servoportál, kamera, laser).
+  Vzory s osou (17, 22, 26) jen platformy s osou; `--smoke` je neprochází (ověřeny harnessem). Každý musí projít
   `check_samples.mjs`: validace, kód pro všechny platformy (párování IF/CASE/FB, ASCII u Unitronics
   a DXF, deklarované identifikátory), dokumentace, ověření bez nálezu `error` a matice bez ✖.
 - `verifyProject()`: běžný cyklus, poruchové scénáře, **kontrola konceptu** (vstupy, které program

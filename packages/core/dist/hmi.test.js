@@ -30,8 +30,13 @@ function asciiContent(p) {
         d.desc = stripDia(d.desc || "");
         d.unit = stripDia(d.unit || "");
         for (const r of d.records || [])
-            r.name = stripDia(r.name || "");
-    } // i názvy záznamů pohonu (obsah projektu)
+            r.name = stripDia(r.name || ""); // i názvy záznamů pohonu (obsah projektu)
+        for (const x of d.axis?.positions || [])
+            x.name = stripDia(x.name || "");
+    } // i pojmenované polohy osy (vzory 17, 22, 26)
+    for (const s of q.program.seq)
+        if (s.posRef)
+            s.posRef = stripDia(s.posRef);
     for (const e of q.io)
         e.cmt = stripDia(e.cmt || "");
     q.concept = null;
@@ -157,6 +162,9 @@ test("HMI: všechny příklady × platformy × jazyky — tagy v programu, alarm
     assert.ok(names.length >= 12, "příklady v samples/");
     for (const name of names) {
         const orig = loadSample(name);
+        /* vzory se stylem OOP (19, 25): deklarace čte parser klasického výstupu — tady klasika; cesty HMI
+           u OOP (instM1.Fault…) hlídá codegen_oop.test.ts */
+        delete orig.codeStyle;
         /* servoosa: platformy bez podpory osy kód negenerují (jen README) — HMI pro ně nemá program */
         const PL = ALL.filter(pl => !axisBlocked(orig, pl));
         orig.platforms = PL;

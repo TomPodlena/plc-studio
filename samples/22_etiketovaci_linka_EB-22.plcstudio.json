@@ -1,0 +1,477 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Etiketovací a balicí linka EB-22 se servoaplikátorem",
+   "desc": "Linka označuje expediční krabice etiketou s čárovým kódem a ověřuje ji čtečkou. Vstupní a etiketovací dopravník běží na frekvenčních měničích, odváděcí válečkový dopravník na stykači. Aplikátor tiskne a podává etiketu na přítlačnou desku s podtlakem; desku nese svislá servoosa (servoměnič se servomotorem s brzdou, ozubený řemen) řízená po síti blokem FB_Axis. Cyklus: referování osy, deska nahoru, rozběh odváděcího dopravníku, vysunutí dorazu a rozběh vstupního dopravníku (40 Hz); krabice ze vstupu přejede na etiketovací dopravník (30 Hz) až k dorazu (reflexní snímač), oba dopravníky zastaví a boční lišta krabici vystředí. Tiskárna vytiskne a podá etiketu, deska ji nasaje (snímač podtlaku), osa rychle sjede nad krabici a pomalu (100 mm/s) dotlačí etiketu, podtlak se vypne a osa vyjede. Čtečka ověří kód, lišta a doraz se uvolní a etiketovací dopravník předá krabici na odváděcí dopravník (snímač předání). Hlídání: porucha osy (pohon, chyba sledování, ztráta komunikace, limity), porucha a nepřipravenost měničů, polohy dorazu a lišty, podtlak desky, tiskárna, kód nepřečten = porucha (hlídací čas), tlak vzduchu (mez min). Ochrany: nouzové zastavení, kryt aplikátoru a světelná závora výstupu linky v blokování; STO servoměniče a měničů řeší bezpečnostní technika.",
+   "takt": 25
+  },
+  "platforms": [
+   "siemens",
+   "beckhoff",
+   "codesys",
+   "omron",
+   "rockwell",
+   "delta"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "5713a4fa-74ca-4ca1-ba67-cde81fb8eabc"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Kryt aplikátoru etiket zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "ad33157e-b776-4d58-81d2-07179c6c104c"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Světelná závora výstupu linky volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "291db468-c976-43eb-875a-c37aa13936af"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Krabice na vstupním dopravníku (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "10fc3835-e557-4e87-a399-ddbabd8ec1b8"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Krabice v poloze etiketování u dorazu (reflexní snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "5a6717f1-a529-4d5e-a7e0-ed7a37db86d1"
+   },
+   {
+    "id": 6,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Kód na etiketě přečten a ověřen (čtečka kódů OK)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "a1f119bd-7b79-4044-805c-c25d683a72a9"
+   },
+   {
+    "id": 7,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "Krabice předána na odváděcí dopravník (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "69a0d76d-5a6b-4911-ab71-da77dde2bac8"
+   },
+   {
+    "id": 8,
+    "name": "M1",
+    "cls": "Vfd",
+    "desc": "Vstupní pásový dopravník — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 40,
+    "rampS": 1,
+    "guid": "138130a4-0745-4a1f-be6e-045d1efac1ce"
+   },
+   {
+    "id": 9,
+    "name": "M2",
+    "cls": "Vfd",
+    "desc": "Dopravník etiketovací stanice — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 30,
+    "rampS": 1,
+    "guid": "bdd7b0fd-5688-4f3b-b151-7469a4ad4237"
+   },
+   {
+    "id": 10,
+    "name": "M3",
+    "cls": "Axis",
+    "desc": "Osa Z aplikátoru — zdvih přítlačné desky (servo, ozubený řemen)",
+    "opt": {},
+    "unit": "mm",
+    "rmin": 0,
+    "rmax": 0,
+    "axis": {
+     "vMax": 1000,
+     "aMax": 8000,
+     "dMax": 8000,
+     "jerk": 0,
+     "vDef": 600,
+     "limNeg": -2,
+     "limPos": 402,
+     "homePos": 0,
+     "posTol": 0.1,
+     "followMax": 3,
+     "jogVel": 50,
+     "startPos": 10,
+     "drive": "servoměnič se STO, servomotor s brzdou (svislá osa)",
+     "positions": [
+      {
+       "name": "nahoře",
+       "pos": 10
+      },
+      {
+       "name": "nad krabicí",
+       "pos": 230
+      },
+      {
+       "name": "přítlak na krabici",
+       "pos": 262
+      }
+     ]
+    },
+    "guid": "ffb95dbe-2112-412e-ba7d-190ee51ec714"
+   },
+   {
+    "id": 11,
+    "name": "M4",
+    "cls": "Motor",
+    "desc": "Odváděcí válečkový dopravník",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "e297ce3b-4734-4afe-96b3-54bfcbbcb0e6"
+   },
+   {
+    "id": 12,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Doraz krabice v etiketovací stanici vysunout",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "c1942aef-dc2a-40bf-b29c-a71b96fff871"
+   },
+   {
+    "id": 13,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Boční vystředění krabice",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "fbe1bb09-6b91-4080-8182-9c97e3842b97"
+   },
+   {
+    "id": 14,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Podtlak přítlačné desky aplikátoru (snímač podtlaku)",
+    "opt": {
+     "fbkOpen": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "e8da49fc-81c6-4ccc-bbd9-5dcb8b30f791"
+   },
+   {
+    "id": 15,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Tiskárna etiket — tisk a podání etikety (hlášení etiketa podána / tiskárna připravena)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "c7f76184-f39a-4477-a52f-52f55e9c4d8f"
+   },
+   {
+    "id": 16,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Tlak vzduchu v rozvodu",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 5,
+    "guid": "391ed717-e993-4d27-bfb1-6d8db7ab7f22"
+   },
+   {
+    "id": 17,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "6f7c1f02-970c-4c8d-9146-c2c5db0ff923"
+   },
+   {
+    "id": 18,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "8a7d1b1b-75df-4a83-8f15-f0240208a72f"
+   },
+   {
+    "id": 19,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "73abc39b-7a4a-49a7-af54-ffa964bdd18d"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2,
+    3
+   ],
+   "seq": [
+    {
+     "dev": 10,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 6
+    },
+    {
+     "dev": 10,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "nahoře"
+    },
+    {
+     "dev": 11,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 40
+    },
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 9,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 30
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 9,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 8,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 13,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 15,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 6
+    },
+    {
+     "dev": 14,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 15,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "nad krabicí"
+    },
+    {
+     "dev": 10,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "přítlak na krabici",
+     "vel": 100
+    },
+    {
+     "dev": 14,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.3
+    },
+    {
+     "dev": 10,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "nahoře"
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 9,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 30
+    },
+    {
+     "dev": 5,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 7,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 9,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 7,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 11,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    }
+   ]
+  },
+  "nextId": 20,
+  "concept": null,
+  "guid": "9ca9a26f-76fb-4d1b-946e-2efed1854dd2",
+  "moduleGuids": {
+   "S0.2": "58c7e679-c752-44cf-8546-b24d3aa721a2",
+   "S0.3": "fb8e2fa2-d29d-4a03-a1b9-2d0a6fb048da",
+   "S0.4": "fca0c55c-3e1f-4bf5-a3c0-6a05269602f7",
+   "S0.5": "cc0ea802-50f4-4c00-b60c-7f6805820cca"
+  }
+ }
+}

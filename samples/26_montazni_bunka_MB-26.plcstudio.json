@@ -1,0 +1,1359 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Montážní buňka MB-26 — lisování, šroubování, kontrola a značení (servoportál, 7 stanic)",
+   "desc": "Buňka montuje víko ložiskového domku: do odlitku zalisuje ložisko, přišroubuje víko dvěma šrouby, díl zkontroluje kamerou, laserem označí a odloží na výstupní pás. Díly obíhají na paletách po okružním pásovém dopravníku na frekvenčním měniči; každou stanici tvoří stoper palety (uvolnit = zasunout, koncáky) a snímač palety. St10 nakládání: RFID čtecí hlava identifikuje paletu, obsluha založí odlitek, ložisko a víko a potvrdí tlačítkem Hotovo. St20 lisování: zdvihací a středicí jednotka zvedne paletu, ofuk očistí ložisko v lisovací hlavě (snímač ložiska), proporcionální regulátor nastaví tlak lisovacího válce 6 bar (zpětná vazba tlaku), válec zalisuje ložisko s výdrží 1 s; lisovací síla a hloubka zalisování se hlídají mezemi. St30 šroubování: osa X šroubovací hlavy je polohovací pohon se záznamy přes I/O, šroubovací jednotka (moment + úhel) hlásí dokončení a výsledek OK; podavač vyfoukne šroub do hlavy. St40 přenos: servoportál (osa X, servoměnič po síti, blok FB_Axis) se zdvihem a chapadlem přenese díl z palety do kontrolního hnízda. St50 kontrola: upínka hnízda, kruhové LED osvětlení a kamerový systém (hlášení dokončeno / připraven, výsledek OK). St60 značení: odsávací hubice se přisune, laser pod krytem označí díl kódem DataMatrix a čtečka kód ověří. St70 výstup: portál díl přenese na výstupní pás (snímač volného místa a dílu), prázdná paleta se vrátí do nakládací stanice. V ukázce prochází stanicemi jeden díl postupně (zjednodušeno — ve skutečnosti pracují stanice souběžně, každá s vlastní sekvencí). Hlídání: porucha a nepřipravenost měniče, pohonu a osy (chyba sledování, ztráta komunikace, limity), polohy válců, odchylka regulátoru tlaku, stav šroubovací jednotky, kamery a laseru, tlak vzduchu (mez min), teplota v rozvaděči (mez max), napětí zdroje 24 V DC (meze ±10 %), hlídací časy kroků (NOK = porucha); poruchu hlásí maják a houkačka. Ochrany: nouzové zastavení, dvoje dveře buňky se zámky, světelná závora nakládací stanice a kryt laseru v blokování (STO pohonů, bezpečnostní okruh laseru a měniče řeší bezpečnostní technika).",
+   "takt": 150
+  },
+  "platforms": [
+   "siemens",
+   "beckhoff",
+   "codesys",
+   "omron",
+   "rockwell",
+   "wago",
+   "delta",
+   "festo"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "03147842-7f5e-4ba2-9e95-142912dc5939"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Dveře buňky strana A zavřeny a zamčeny (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "c9c9d8a2-1472-4e46-99d4-8fefdd29d479"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Dveře buňky strana B zavřeny a zamčeny (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "cd549266-399a-4dd5-a8b4-6d9e78ef2a81"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Světelná závora nakládací stanice volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "e1a73751-67dc-4981-bbc3-a9a10fd0b7ea"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Kryt laserového značení zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "38f8c8c6-db12-47e1-9f5d-00436d124eef"
+   },
+   {
+    "id": 6,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "St10: paleta v nakládací stanici (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "c6b5941b-76a3-43cc-b20f-19d1f149c434"
+   },
+   {
+    "id": 7,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "St10: díly založeny — tlačítko Hotovo (obsluha)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "3bf89d60-6842-48c2-a02e-15c39e5e7d92"
+   },
+   {
+    "id": 8,
+    "name": "S8",
+    "cls": "DI",
+    "desc": "St20: paleta v lisovací stanici (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "23ef4cf1-22aa-4b6a-ba8c-88dd48ccd267"
+   },
+   {
+    "id": 9,
+    "name": "S9",
+    "cls": "DI",
+    "desc": "St30: paleta ve šroubovací stanici (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6341450b-5a0f-4b26-b23b-22506834b903"
+   },
+   {
+    "id": 10,
+    "name": "S10",
+    "cls": "DI",
+    "desc": "St30: šroub v podávací hlavě (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "e281ddf0-29fb-4423-91ee-67148b252d9b"
+   },
+   {
+    "id": 11,
+    "name": "S11",
+    "cls": "DI",
+    "desc": "St30: utahování OK (řídicí jednotka šroubováku)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "af907a91-9303-4c5d-b57a-d45bd129fd5f"
+   },
+   {
+    "id": 12,
+    "name": "S12",
+    "cls": "DI",
+    "desc": "St40: paleta ve stanici portálu (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "b7108ffb-9bd4-44c9-a739-ba5cf4e22a21"
+   },
+   {
+    "id": 13,
+    "name": "S13",
+    "cls": "DI",
+    "desc": "St50: kontrola kamerou OK (kamerový systém)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "978d07bf-0007-43f4-996d-862390aadb84"
+   },
+   {
+    "id": 14,
+    "name": "S14",
+    "cls": "DI",
+    "desc": "St50: díl v kontrolním hnízdě (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "f97778f9-853d-4e47-a38f-79d3f1422422"
+   },
+   {
+    "id": 15,
+    "name": "S15",
+    "cls": "DI",
+    "desc": "St20: ložisko v lisovací hlavě (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6d2e585c-742b-41a8-94ef-28ec637cbafc"
+   },
+   {
+    "id": 16,
+    "name": "S16",
+    "cls": "DI",
+    "desc": "St70: díl na výstupním pásu (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "226b9eff-a401-4044-89bd-6fcfe460b3fe"
+   },
+   {
+    "id": 17,
+    "name": "S17",
+    "cls": "DI",
+    "desc": "St70: výstupní pás má volné místo (optický snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "ac33dba7-ee8d-4eb0-8953-5aec5b18d55a"
+   },
+   {
+    "id": 18,
+    "name": "S18",
+    "cls": "DI",
+    "desc": "St10: paleta identifikována (RFID čtecí hlava)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "b891616e-0f48-47d9-acc7-4f449241b77c"
+   },
+   {
+    "id": 19,
+    "name": "S19",
+    "cls": "DI",
+    "desc": "St60: kód DataMatrix po značení ověřen (čtečka kódů)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "d106b6d4-b271-4dd3-86ee-8fd4c52eb11e"
+   },
+   {
+    "id": 20,
+    "name": "M1",
+    "cls": "Vfd",
+    "desc": "Okružní pásový dopravník palet — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 40,
+    "rampS": 1.5,
+    "guid": "d0569f0f-6711-4026-b385-28ee56b81d52"
+   },
+   {
+    "id": 21,
+    "name": "M2",
+    "cls": "PosDrive",
+    "desc": "St30: osa X šroubovací hlavy (polohovací pohon se záznamy)",
+    "opt": {
+     "ready": true,
+     "fault": true,
+     "rst": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 0,
+    "selBits": 2,
+    "travelS": 0.7,
+    "records": [
+     {
+      "no": 1,
+      "name": "šroub 1",
+      "pos": 30
+     },
+     {
+      "no": 2,
+      "name": "šroub 2",
+      "pos": 110
+     },
+     {
+      "no": 3,
+      "name": "parkovací poloha",
+      "pos": 0
+     }
+    ],
+    "guid": "3265b253-2db0-4825-8ac3-f8dcb4151ea4"
+   },
+   {
+    "id": 22,
+    "name": "M3",
+    "cls": "Axis",
+    "desc": "St40: osa X servoportálu (servo, ozubený řemen)",
+    "opt": {},
+    "unit": "mm",
+    "rmin": 0,
+    "rmax": 0,
+    "axis": {
+     "vMax": 1200,
+     "aMax": 6000,
+     "dMax": 6000,
+     "jerk": 0,
+     "vDef": 800,
+     "limNeg": -5,
+     "limPos": 1205,
+     "homePos": 0,
+     "posTol": 0.1,
+     "followMax": 5,
+     "jogVel": 80,
+     "startPos": 50,
+     "drive": "servoměnič se STO a SS1, synchronní servomotor",
+     "positions": [
+      {
+       "name": "paleta",
+       "pos": 50
+      },
+      {
+       "name": "kontrolní hnízdo",
+       "pos": 650
+      },
+      {
+       "name": "výstupní pás",
+       "pos": 1150
+      }
+     ]
+    },
+    "guid": "b894750a-7139-44d8-906f-05d0eb511353"
+   },
+   {
+    "id": 23,
+    "name": "M4",
+    "cls": "Motor",
+    "desc": "St60: odsávání zplodin laserového značení",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "905d4702-c243-4750-b01d-571f8c08136c"
+   },
+   {
+    "id": 24,
+    "name": "M5",
+    "cls": "Motor",
+    "desc": "St70: výstupní pás hotových dílů",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "e00b4b19-a8da-4136-8304-58977b9a0315"
+   },
+   {
+    "id": 25,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "St10: stoper nakládací stanice — uvolnit paletu",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "0be556fd-edfc-458b-a05f-ae899d276fa2"
+   },
+   {
+    "id": 26,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "St20: stoper lisovací stanice — uvolnit paletu",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "4b2bd8d9-91e9-49fa-9eba-3bb9dd8f7726"
+   },
+   {
+    "id": 27,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "St20: zdvihací a středicí jednotka palety",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "935988e9-d1d6-4755-973e-d64700dc007a"
+   },
+   {
+    "id": 28,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "St20: lisovací válec ložiska (koncáky)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6678076b-6d7d-449a-93e8-1061a1f0f153"
+   },
+   {
+    "id": 29,
+    "name": "Y5",
+    "cls": "PropValve",
+    "desc": "St20: proporcionální regulátor tlaku lisovacího válce (snímač tlaku)",
+    "opt": {
+     "fbk": true
+    },
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "setpoint": 0,
+    "rampS": 1,
+    "tol": 0.25,
+    "tolTimeS": 0.3,
+    "guid": "9e11d110-d33c-494a-a8e7-f36679ff2cfb"
+   },
+   {
+    "id": 30,
+    "name": "Y6",
+    "cls": "Ventil",
+    "desc": "St30: stoper šroubovací stanice — uvolnit paletu",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "699666f4-5658-42e7-9479-bed06bc06574"
+   },
+   {
+    "id": 31,
+    "name": "Y7",
+    "cls": "Ventil",
+    "desc": "St30: zdvih palety ve šroubovací stanici",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "2ed41fce-d17f-40f4-96d7-2b4e0c22a5e2"
+   },
+   {
+    "id": 32,
+    "name": "Y8",
+    "cls": "Ventil",
+    "desc": "St30: zdvih šroubovací hlavy dolů",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "cf904e67-15a7-4eb1-8231-5e53085c07b9"
+   },
+   {
+    "id": 33,
+    "name": "Y9",
+    "cls": "Ventil",
+    "desc": "St30: šroubovací jednotka — start utahování (hlášení dokončeno / připravena)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "dbb4344e-42bf-47de-a5c2-80e4167f249d"
+   },
+   {
+    "id": 34,
+    "name": "Y10",
+    "cls": "Ventil",
+    "desc": "St30: podavač šroubů — vyfouknutí šroubu do hlavy",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "5402c483-f2e4-40b7-a850-94f5e1057073"
+   },
+   {
+    "id": 35,
+    "name": "Y11",
+    "cls": "Ventil",
+    "desc": "St40: zdvih chapadla portálu dolů",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "2e4db1a8-91cc-4f45-a944-0968134ac8c2"
+   },
+   {
+    "id": 36,
+    "name": "Y12",
+    "cls": "Ventil",
+    "desc": "St40: chapadlo portálu sevřít",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6f2ef6a8-2be0-49fa-89ca-316a59b68bf7"
+   },
+   {
+    "id": 37,
+    "name": "Y13",
+    "cls": "Ventil",
+    "desc": "St40: stoper stanice portálu — uvolnit paletu",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "b696df7d-ed7d-464a-963c-804668a57b22"
+   },
+   {
+    "id": 38,
+    "name": "Y14",
+    "cls": "Ventil",
+    "desc": "St50: kamerový systém — spuštění kontroly (hlášení dokončeno / připraven)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "094ddf2c-2584-48b0-9310-5142392ffa7c"
+   },
+   {
+    "id": 39,
+    "name": "Y15",
+    "cls": "Ventil",
+    "desc": "St50: upínka kontrolního hnízda",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "5224e944-1d11-41b8-98c5-d1ade986493c"
+   },
+   {
+    "id": 40,
+    "name": "Y16",
+    "cls": "Ventil",
+    "desc": "St60: laserový značicí systém — značení (hlášení dokončeno / laser připraven)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "00187880-25ed-464a-9259-f91f1ee72e7d"
+   },
+   {
+    "id": 41,
+    "name": "Y17",
+    "cls": "Ventil",
+    "desc": "St20: ofuk ložiska před lisováním",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "b0a5408a-bb12-4cd8-8e59-ae6412d2aa1c"
+   },
+   {
+    "id": 42,
+    "name": "Y18",
+    "cls": "Ventil",
+    "desc": "St50: kruhové LED osvětlení kamery",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "7c40c4f7-653d-4758-a3b4-5b06ad197b1b"
+   },
+   {
+    "id": 43,
+    "name": "Y19",
+    "cls": "Ventil",
+    "desc": "St60: odsávací hubice laseru přisunout",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "1eaaa8cc-7747-45d4-87a1-751372697a14"
+   },
+   {
+    "id": 44,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "St20: lisovací síla (tenzometrický snímač)",
+    "opt": {},
+    "unit": "kN",
+    "rmin": 0,
+    "rmax": 25,
+    "limHi": 20,
+    "guid": "ad1d947d-3034-4db8-b5f2-e826a23def94"
+   },
+   {
+    "id": 45,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "St20: hloubka zalisování ložiska (lineární snímač)",
+    "opt": {},
+    "unit": "mm",
+    "rmin": 0,
+    "rmax": 50,
+    "limHi": 45,
+    "guid": "20cfd3d2-536a-4231-bdee-d2da26fab658"
+   },
+   {
+    "id": 46,
+    "name": "B3",
+    "cls": "AnalogIn",
+    "desc": "Tlak vzduchu v rozvodu",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 5,
+    "guid": "bb50a29a-db49-4ccd-af6f-cd2e044bf30b"
+   },
+   {
+    "id": 47,
+    "name": "B4",
+    "cls": "AnalogIn",
+    "desc": "Teplota v rozvaděči buňky",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 80,
+    "limHi": 45,
+    "guid": "a9655213-fe3b-40fa-8e1d-c859939de12e"
+   },
+   {
+    "id": 48,
+    "name": "B5",
+    "cls": "AnalogIn",
+    "desc": "Napětí zdroje 24 V DC buňky",
+    "opt": {},
+    "unit": "V",
+    "rmin": 0,
+    "rmax": 30,
+    "limLo": 21.6,
+    "limHi": 28.8,
+    "guid": "1f496a5f-36cb-44e3-a902-7b493aaec519"
+   },
+   {
+    "id": 49,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "64e28dee-3903-4e55-9fbb-e75958a37d16"
+   },
+   {
+    "id": 50,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "f13d9e71-3818-4de7-bf0c-a1329430c545"
+   },
+   {
+    "id": 51,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "6503c9cb-488e-4c0e-8584-c03755d7050f"
+   },
+   {
+    "id": 52,
+    "name": "H4",
+    "cls": "DO",
+    "desc": "Zámek dveří strana A — zamknout",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "lock",
+    "guid": "7f8baf37-b927-4721-87ad-43efd8960572"
+   },
+   {
+    "id": 53,
+    "name": "H5",
+    "cls": "DO",
+    "desc": "Zámek dveří strana B — zamknout",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "lock",
+    "guid": "134de3cc-9e5e-4405-ade0-d237ff7e78cf"
+   },
+   {
+    "id": 54,
+    "name": "H6",
+    "cls": "DO",
+    "desc": "Signálka AUTO — režim automat",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "auto",
+    "guid": "cdb5d173-0633-4fc9-93a8-577432470351"
+   },
+   {
+    "id": 55,
+    "name": "H7",
+    "cls": "DO",
+    "desc": "Houkačka — porucha buňky",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "1c956a37-a679-4f57-9def-acfa3e1ba920"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2,
+    3,
+    4,
+    5
+   ],
+   "seq": [
+    {
+     "dev": 22,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 6
+    },
+    {
+     "dev": 22,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "paleta"
+    },
+    {
+     "dev": 21,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 24,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 20,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 40
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 18,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 120
+    },
+    {
+     "dev": 25,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 6,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 25,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 15
+    },
+    {
+     "dev": 27,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 15,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 41,
+     "act": "open",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 41,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 29,
+     "act": "setPressure",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 6
+    },
+    {
+     "dev": 28,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": "",
+     "act": "wait",
+     "cond": "time",
+     "timeS": 1
+    },
+    {
+     "dev": 28,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 29,
+     "act": "setPressure",
+     "cond": "fbk",
+     "timeS": 4,
+     "sp": 0
+    },
+    {
+     "dev": 27,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 26,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 26,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 9,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 15
+    },
+    {
+     "dev": 31,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 21,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 34,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.4
+    },
+    {
+     "dev": 10,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 34,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 32,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 33,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 10,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 2
+    },
+    {
+     "dev": 33,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 32,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 21,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 2
+    },
+    {
+     "dev": 34,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.4
+    },
+    {
+     "dev": 10,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 34,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 32,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 33,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 10,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 2
+    },
+    {
+     "dev": 33,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 32,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 21,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 3
+    },
+    {
+     "dev": 31,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 30,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 9,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 30,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 15
+    },
+    {
+     "dev": 35,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 36,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 35,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 22,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "kontrolní hnízdo"
+    },
+    {
+     "dev": 35,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 36,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 35,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 14,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 39,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 42,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 38,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 13,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 2
+    },
+    {
+     "dev": 38,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 42,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 43,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 23,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 40,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 15
+    },
+    {
+     "dev": 40,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 19,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 23,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 43,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 39,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 35,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 36,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 35,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 14,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 22,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "výstupní pás"
+    },
+    {
+     "dev": 17,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 35,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 36,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 35,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 16,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 22,
+     "act": "moveAbs",
+     "cond": "fbk",
+     "timeS": 3,
+     "posRef": "paleta"
+    },
+    {
+     "dev": 16,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 15
+    },
+    {
+     "dev": 37,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 5
+    },
+    {
+     "dev": 37,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 20,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 24,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    }
+   ]
+  },
+  "nextId": 56,
+  "concept": null,
+  "guid": "151ccd5f-2a13-49ad-977f-b242821a1ad3",
+  "moduleGuids": {
+   "S0.2": "f2e1408e-65a0-4acb-a660-162164095ab2",
+   "S0.3": "aa9b2358-b20b-4ef8-a731-6b5286b5f188",
+   "S0.4": "0127228d-e074-4dce-ab90-3ca835b45047",
+   "S0.5": "a7994070-4209-474f-b204-31761e3a1be3",
+   "S0.6": "032ce8f3-412d-4ede-a08c-7ed2ee525c24",
+   "S0.7": "92d94a17-9362-448d-9f0a-b082ce5ac805",
+   "S0.8": "1fe8ac21-d33b-4f71-ab9c-119dffbd1db9"
+  }
+ }
+}

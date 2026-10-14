@@ -1,0 +1,515 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Sušárna granulátu s centrální dopravou SG-18",
+   "desc": "Sušárna vysouší granulát technického plastu (PA6, PBT) suchým vzduchem a centrální vakuová doprava ho rozváží do sacích zásobníků dvou vstřikovacích lisů. Cyklus = jedna dávka: dmychadlo centrální dopravy přes sací klapku naplní sušicí zásobník z oktabinu (kapacitní snímač plnosti), ofuk filtru dmychadla vyčistí filtr. Ventilátor sušicího vzduchu na frekvenčním měniči (45 Hz) a topení 9 kW se zapnou; regulátor sušárny hlídá teplotu sušicího vzduchu a dobu sušení podle materiálu a po jejím splnění dá signál „granulát vysušen“; doprava začne až při rosném bodu pod −30 °C (hlídač rosného bodu). Na požadavek sacího zásobníku lisu 1 (hladina pod minimem) se otevře materiálová klapka větve 1 a dmychadlo dopravuje, dokud zásobník nehlásí plno; po ofuku filtru totéž pro lis 2. Na konci dávky se vypne topení a ventilátor 30 s dobíhá, aby ochladil topné spirály. Měření: teplota sušicího vzduchu na vstupu (mez max = přehřátí), teplota granulátu na výstupu (mez max), rosný bod (mez min = přerušený signál 4–20 mA), podtlak v sacím potrubí (mez max = ucpaný filtr nebo potrubí). Hlídání: porucha a nepřipravenost měniče, proudové relé topení, chod dmychadla, polohy klapek, hlídací časy kroků (ohřev a sušení nejdéle 40 min, doprava do zásobníku 30 s). Ochrany: nouzové zastavení, dvířka a víko sušicího zásobníku a bezpečnostní termostat topení v blokování."
+  },
+  "platforms": [
+   "siemens",
+   "rockwell",
+   "mitsubishi",
+   "omron",
+   "unitronics",
+   "schneider",
+   "codesys",
+   "delta"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "ee970cfc-4f69-43c8-a08b-bbac59ba6017"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Dvířka a víko sušicího zásobníku zavřena (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6d47f7c5-588e-479e-9f8d-e3c84f7ff280"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Bezpečnostní termostat topení v pořádku (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "c60d8643-d023-4232-9a56-4f1665abcce2"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Sušicí zásobník plný (kapacitní snímač hladiny)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "4fcc3af6-e360-4e38-9a02-4eb288fef387"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Granulát vysušen — teplota a doba sušení splněny (regulátor sušárny)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "4225a23c-ffb1-4eb6-8537-be5b4e42f80c"
+   },
+   {
+    "id": 6,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Rosný bod sušicího vzduchu pod −30 °C (hlídač rosného bodu)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "bc41c655-32fb-4f74-92ce-2f410c2de20d"
+   },
+   {
+    "id": 7,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "Sací zásobník lisu 1 — požadavek materiálu (hladina pod minimem)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "129d753d-044a-460d-beba-9adeed4921ae"
+   },
+   {
+    "id": 8,
+    "name": "S8",
+    "cls": "DI",
+    "desc": "Sací zásobník lisu 1 plný (kapacitní snímač hladiny)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "db490b6e-edcc-4fd5-9664-4dbfb786b1d1"
+   },
+   {
+    "id": 9,
+    "name": "S9",
+    "cls": "DI",
+    "desc": "Sací zásobník lisu 2 — požadavek materiálu (hladina pod minimem)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "797e0799-1585-48b4-b687-b59f21bf70b8"
+   },
+   {
+    "id": 10,
+    "name": "S10",
+    "cls": "DI",
+    "desc": "Sací zásobník lisu 2 plný (kapacitní snímač hladiny)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "99514819-3031-49cb-9f14-eaa9dd3ae792"
+   },
+   {
+    "id": 11,
+    "name": "M1",
+    "cls": "Vfd",
+    "desc": "Ventilátor sušicího vzduchu — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 45,
+    "rampS": 3,
+    "guid": "c88ae026-4f00-4dcb-b992-1c0406a0aa73"
+   },
+   {
+    "id": 12,
+    "name": "M2",
+    "cls": "Motor",
+    "desc": "Topení sušicího vzduchu 9 kW — stykač (hlášení proudového relé)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "46cc0a39-8c1c-47e1-8043-2e5f15990f4e"
+   },
+   {
+    "id": 13,
+    "name": "M3",
+    "cls": "Motor",
+    "desc": "Vakuové dmychadlo centrální dopravy",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "e8ef0560-6ec9-423f-a636-ce503fde00c0"
+   },
+   {
+    "id": 14,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Sací klapka plnění sušárny z oktabinu (koncáky)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "66d8874b-b25d-4d8b-b4df-68539f2749d3"
+   },
+   {
+    "id": 15,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Materiálová klapka dopravy k lisu 1 (koncáky)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "c9d93cb5-4f37-4bc0-936b-158e0af8abb9"
+   },
+   {
+    "id": 16,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Materiálová klapka dopravy k lisu 2 (koncáky)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "e77e380b-f742-48c1-9a42-b0ed1bbe349a"
+   },
+   {
+    "id": 17,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Ofuk filtru dmychadla (impuls stlačeného vzduchu)",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "b9ce0c1f-5d1e-4f89-a301-5488ce8be098"
+   },
+   {
+    "id": 18,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Teplota sušicího vzduchu na vstupu do zásobníku",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 200,
+    "limHi": 100,
+    "guid": "c672848e-c9ad-4cdd-8227-26eb3741f496"
+   },
+   {
+    "id": 19,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Teplota granulátu na výstupu ze sušicího zásobníku",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 200,
+    "limHi": 95,
+    "guid": "cdde2e79-46e4-4f96-b760-21e7f82425a8"
+   },
+   {
+    "id": 20,
+    "name": "B3",
+    "cls": "AnalogIn",
+    "desc": "Rosný bod sušicího vzduchu",
+    "opt": {},
+    "unit": "°C",
+    "rmin": -80,
+    "rmax": 20,
+    "limLo": -78,
+    "guid": "e13eb710-a109-4a03-a62f-8b00cbccb793"
+   },
+   {
+    "id": 21,
+    "name": "B4",
+    "cls": "AnalogIn",
+    "desc": "Podtlak v sacím potrubí centrální dopravy",
+    "opt": {},
+    "unit": "kPa",
+    "rmin": 0,
+    "rmax": 50,
+    "limHi": 40,
+    "guid": "a410de92-06d6-473f-9aee-c2523342150e"
+   },
+   {
+    "id": 22,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "0d0b0825-6dfc-4ff7-a086-8dbfb1bddee3"
+   },
+   {
+    "id": 23,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "903d7521-ca38-409b-9da2-a020c5125cf6"
+   },
+   {
+    "id": 24,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "d5df9940-79ae-4ae8-a253-6984969abeb8"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2,
+    3
+   ],
+   "seq": [
+    {
+     "dev": 13,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 14,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 90
+    },
+    {
+     "dev": 14,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 17,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 17,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 13,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 11,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 8,
+     "sp": 45
+    },
+    {
+     "dev": 12,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 2400
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 600
+    },
+    {
+     "dev": 7,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 13,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 15,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 7,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 15,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 17,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 17,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 9,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 16,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 9,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 16,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 17,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 17,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 13,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 12,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": "",
+     "act": "wait",
+     "cond": "time",
+     "timeS": 30
+    },
+    {
+     "dev": 11,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    }
+   ]
+  },
+  "nextId": 25,
+  "concept": null,
+  "guid": "ff782144-643d-4bbd-950e-f8337600d915",
+  "moduleGuids": {
+   "S0.2": "137e9342-4049-4308-8580-dfc2ec1e1ba1",
+   "S0.3": "4b558ad0-daab-46df-abc5-1cd4d0171f67",
+   "S0.4": "1412b612-4edb-4e97-b893-93f093ece729",
+   "S0.5": "e2ea8593-5eaf-43f5-bd4b-a461dc6178e7"
+  }
+ }
+}

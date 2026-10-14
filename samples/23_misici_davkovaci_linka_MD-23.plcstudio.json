@@ -1,0 +1,653 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Mísicí a dávkovací linka kapalin MD-23 (receptura A + B + C, vážení)",
+   "desc": "Linka připravuje dávku 1 500 kg kapalného prostředku ze tří složek podle receptury a předává ji do přijímací nádrže plnicí linky. Mísicí nádrž stojí na tenzometrických snímačích; navážky vyhodnocuje váhový terminál (předvolby receptury) a PLC dostává jejich dosažení jako digitální signály. Receptura v krocích: složka A čerpadlem přes kulový kohout do navážky A; rozběh míchadla na měniči (20 Hz); složka B hrubě (DN50) a jemně (DN15) do navážky B; složka C přes rychlouzavírací ventil a proporcionální ventil s průtokoměrem 12 l/min do navážky C (po dosažení navážky se nejdřív zavře rychlouzavírací ventil, pak se žádaná průtoku vrátí na 0). Pak míchadlo 40 Hz, ohřev párou do duplikátoru na teplotu dávky (regulátor hlásí dosažení) a homogenizace 30 s. Když přijímací nádrž hlásí volno, otevře se výpust a přečerpávací čerpadlo dávku přečerpá až do signálu prázdné nádrže (vibrační hladinový snímač); míchadlo při vyprazdňování zpomalí na 15 Hz. Nakonec se výpust zavře, sprchová hlavice nádrž opláchne a oplach odteče do kanalizace. Měření: hmotnost obsahu (mez max 1 850 kg = přeplnění), teplota dávky (mez max 85 °C), hladiny zásobníků složek A a B (mez min = zásobník prázdný). Hlídání: porucha a nepřipravenost měniče, chod čerpadel, polohy kohoutů, odchylka průtoku složky C, hlídací časy kroků (navážka nedosažena = porucha). Ochrany: nouzové zastavení, víko mísicí nádrže a snímač kapaliny v havarijní jímce v blokování.",
+   "takt": 600
+  },
+  "platforms": [
+   "siemens",
+   "rockwell",
+   "beckhoff",
+   "codesys",
+   "mitsubishi",
+   "schneider",
+   "omron",
+   "unitronics",
+   "wago",
+   "delta"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "1f1a1c75-1466-4f18-81d1-da182edfe2b4"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Víko mísicí nádrže zavřeno (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "21466c11-f2dd-434c-aab9-62c7e2cf7463"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Havarijní jímka pod nádrží suchá (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "4d2ee1ca-7281-4030-9194-3d164dac42d6"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Navážka složky A dosažena (váhový terminál)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "d736bc9f-9134-43ba-b1c2-bfe483eb8ea8"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Navážka složky B — hrubé dávkování ukončeno (váhový terminál)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "d3c8e4b2-f5bf-4453-993e-222727158801"
+   },
+   {
+    "id": 6,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Navážka složky B dosažena (váhový terminál)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "0a042c1c-0ee6-4d25-88eb-587e9d24530e"
+   },
+   {
+    "id": 7,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "Navážka složky C dosažena (váhový terminál)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "e0769988-6b86-4d85-847c-eebf7229cffc"
+   },
+   {
+    "id": 8,
+    "name": "S8",
+    "cls": "DI",
+    "desc": "Teplota dávky dosažena (regulátor ohřevu)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "a179e123-2ada-4304-a88c-719739347501"
+   },
+   {
+    "id": 9,
+    "name": "S9",
+    "cls": "DI",
+    "desc": "Přijímací nádrž plnicí linky — volno pro dávku (hladina pod max)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "4ac98fd2-05fc-424d-9476-fa791c55e60b"
+   },
+   {
+    "id": 10,
+    "name": "S10",
+    "cls": "DI",
+    "desc": "Mísicí nádrž prázdná (vibrační hladinový snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "ab6c181a-9e0f-4596-aef8-447f7408cb55"
+   },
+   {
+    "id": 11,
+    "name": "M1",
+    "cls": "Vfd",
+    "desc": "Míchadlo mísicí nádrže — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true,
+     "act": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 35,
+    "rampS": 3,
+    "guid": "1e2768c1-a4e1-4496-be45-295559057433"
+   },
+   {
+    "id": 12,
+    "name": "M2",
+    "cls": "Motor",
+    "desc": "Čerpadlo složky A",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "390086fa-554c-41cb-a0ac-783bfbe6461d"
+   },
+   {
+    "id": 13,
+    "name": "M3",
+    "cls": "Motor",
+    "desc": "Čerpadlo složky B",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "de576d9e-f319-45dc-af21-6e0d0dba814d"
+   },
+   {
+    "id": 14,
+    "name": "M4",
+    "cls": "Motor",
+    "desc": "Přečerpávací čerpadlo hotové dávky",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "4deba523-fbf0-471c-afa8-44479a40fdc5"
+   },
+   {
+    "id": 15,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Kohout složky A — kulový kohout s pohonem a koncáky",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "3080c870-5e68-4216-aac5-2a1f717aa90c"
+   },
+   {
+    "id": 16,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Kohout složky B — hrubé dávkování (kulový kohout DN50)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "4e564fdd-785f-4ef0-8713-5d23babda989"
+   },
+   {
+    "id": 17,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Kohout složky B — jemné dávkování (kulový kohout DN15)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "8746ce86-8520-4752-a8ce-f20f16bdc226"
+   },
+   {
+    "id": 18,
+    "name": "Y4",
+    "cls": "PropValve",
+    "desc": "Proporcionální ventil dávkování složky C (průtokoměr)",
+    "opt": {
+     "fbk": true
+    },
+    "unit": "l/min",
+    "rmin": 0,
+    "rmax": 40,
+    "setpoint": 0,
+    "rampS": 2,
+    "tol": 1.2,
+    "tolTimeS": 0.3,
+    "guid": "ab63a1bb-2e45-4a04-a473-541e0f8cc098"
+   },
+   {
+    "id": 19,
+    "name": "Y5",
+    "cls": "Ventil",
+    "desc": "Parní ventil duplikátoru — ohřev dávky",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "76c8524b-bbe9-4df3-88cd-216d976b645f"
+   },
+   {
+    "id": 20,
+    "name": "Y6",
+    "cls": "Ventil",
+    "desc": "Výpustný kohout mísicí nádrže (kulový kohout s koncáky)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "5ab9a8c1-6a91-40af-958b-b885605c4e24"
+   },
+   {
+    "id": 21,
+    "name": "Y7",
+    "cls": "Ventil",
+    "desc": "Ventil oplachové vody — sprchová hlavice",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "23415ba7-a748-4528-8fb1-e04b126afeac"
+   },
+   {
+    "id": 22,
+    "name": "Y8",
+    "cls": "Ventil",
+    "desc": "Kohout vypouštění oplachu do kanalizace (kulový kohout s koncáky)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "d59c268b-5ccb-4bac-8cb9-a3201e3196ae"
+   },
+   {
+    "id": 23,
+    "name": "Y9",
+    "cls": "Ventil",
+    "desc": "Rychlouzavírací ventil složky C (koncáky)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "dd6442df-7123-43c3-a79d-7e090ab6d652"
+   },
+   {
+    "id": 24,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Hmotnost obsahu mísicí nádrže (tenzometrické snímače)",
+    "opt": {},
+    "unit": "kg",
+    "rmin": 0,
+    "rmax": 2000,
+    "limHi": 1850,
+    "guid": "ff807a62-fa80-4d00-aef9-5dec233628db"
+   },
+   {
+    "id": 25,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Teplota dávky v mísicí nádrži",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 100,
+    "limHi": 85,
+    "guid": "c7c26a5a-cdad-4165-9b3e-ecd5a0abbc63"
+   },
+   {
+    "id": 26,
+    "name": "B3",
+    "cls": "AnalogIn",
+    "desc": "Hladina v zásobníku složky A",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "limLo": 5,
+    "guid": "84bede17-29b4-4d6e-9d4f-02437cf5b85a"
+   },
+   {
+    "id": 27,
+    "name": "B4",
+    "cls": "AnalogIn",
+    "desc": "Hladina v zásobníku složky B",
+    "opt": {},
+    "unit": "%",
+    "rmin": 0,
+    "rmax": 100,
+    "limLo": 5,
+    "guid": "41b8e786-8ae3-4e6a-8104-6c4605fd74f7"
+   },
+   {
+    "id": 28,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "e6966463-0a57-4337-a1bb-c2c0f2266670"
+   },
+   {
+    "id": 29,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "af88d765-0e89-48cf-b68a-a0d690b8ccd5"
+   },
+   {
+    "id": 30,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "344e1a79-ca3b-4242-9f49-939dfd2f56c4"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2,
+    3
+   ],
+   "seq": [
+    {
+     "dev": 15,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 12,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 180
+    },
+    {
+     "dev": 12,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 15,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 11,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 6,
+     "sp": 20
+    },
+    {
+     "dev": 16,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 13,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 180
+    },
+    {
+     "dev": 16,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 17,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 13,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 17,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 23,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 18,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 12
+    },
+    {
+     "dev": 7,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 180
+    },
+    {
+     "dev": 23,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 18,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 0
+    },
+    {
+     "dev": 11,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 6,
+     "sp": 40
+    },
+    {
+     "dev": 19,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 8,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 900
+    },
+    {
+     "dev": 19,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": "",
+     "act": "wait",
+     "cond": "time",
+     "timeS": 30
+    },
+    {
+     "dev": 11,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 6,
+     "sp": 15
+    },
+    {
+     "dev": 9,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 300
+    },
+    {
+     "dev": 20,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 14,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 300
+    },
+    {
+     "dev": 11,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 14,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 20,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 21,
+     "act": "open",
+     "cond": "time",
+     "timeS": 5
+    },
+    {
+     "dev": 21,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.3
+    },
+    {
+     "dev": 22,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": "",
+     "act": "wait",
+     "cond": "time",
+     "timeS": 15
+    },
+    {
+     "dev": 22,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    }
+   ]
+  },
+  "nextId": 31,
+  "concept": null,
+  "guid": "afb04b95-bd1e-4dd7-affe-1fd775327e84",
+  "moduleGuids": {
+   "S0.2": "32a994cf-01e5-462d-ad97-9ed6a31b5937",
+   "S0.3": "95070980-3d0a-4daa-84a6-7e1a6b7f2feb",
+   "S0.4": "3c57543b-ccf4-48d6-8a82-cdf0ce03aa55",
+   "S0.5": "8bc0f93f-7b61-4884-9cd8-7f83a3587c38",
+   "S0.6": "40780792-4090-4ecb-9e04-eac7834ae0dc"
+  }
+ }
+}

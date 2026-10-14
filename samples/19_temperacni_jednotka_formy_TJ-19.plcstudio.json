@@ -1,0 +1,468 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Temperační jednotka formy TJ-19 (voda do 140 °C, styl kódu OOP)",
+   "desc": "Tlaková temperační jednotka udržuje teplotu vstřikovací formy vodou do 140 °C. Oběhové čerpadlo na frekvenčním měniči, topení 9 kW se stykačem a nepřímé chlazení výměníkem, jehož průtok chladicí vody nastavuje proporcionální ventil se zpětnou vazbou průtokoměru. Žádanou teplotu dostává regulátor topení z PLC analogovým výstupem. Cyklus = jedno nasazení formy: doplnění vody do expanzní nádrže (plovák), otevření přívodu do formy, rozběh čerpadla na 25 Hz s odvzdušněním okruhu, kontrola průtoku formou (průtokový spínač), provozní otáčky 45 Hz, ohřev na žádanou teplotu (regulátor hlásí dosažení, nejdéle 15 min) a výdrž 60 s na prohřátí nástroje; jednotka pak temperuje, dokud lis nebo obsluha nedá požadavek vychlazení (hlídání 50 min). Vychlazení: topení vypnout, chladicí ventil na 25 l/min, po poklesu vratné vody pod 45 °C (komparátor) se zavře přívod do formy (čerpadlo dobíhá přes obtok), chlazení se zavře, čerpadlo zastaví a forma se vyfoukne stlačeným vzduchem (voda se vytlačí zpátečkou do nádrže) — formu lze bezpečně odpojit. Měření: teplota výstupu (mez max 145 °C, min 5 °C), teplota zpátečky (mez max), tlak v okruhu (mez max 6,5 bar), průtok formou (mez max = únik nebo prasklá hadice). Hlídání: porucha a nepřipravenost měniče, proudové relé topení, odchylka průtoku chladicí vody, kulový kohout přívodu, hlídací časy kroků. Ochrany: nouzové zastavení, kryt jednotky, minimální hladina v expanzní nádrži a bezpečnostní termostat topení v blokování. Program je generován ve stylu OOP (rozhraní I_Device, dědičnost bloků) pro platformy rodiny CODESYS."
+  },
+  "platforms": [
+   "codesys",
+   "beckhoff",
+   "wago",
+   "schneider",
+   "eaton",
+   "lenze"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "1e2b933b-030c-4aa3-97da-cfada1730d80"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Kryt temperační jednotky zavřen (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "85d3c2ff-b18a-41a1-90e9-f0b7ed7c0abd"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Hladina vody v expanzní nádrži nad minimem (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "f8e5a179-1962-4af4-a2e3-0ba9c0029f87"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Bezpečnostní termostat topení v pořádku (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "e1154f75-e901-49fc-b8fe-c90374276a5e"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Expanzní nádrž plná (plovákový snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "d2cb0829-b2cc-46e0-a523-d6f48f4a6580"
+   },
+   {
+    "id": 6,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Průtok okruhem formy přítomen (průtokový spínač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "c102e859-ea46-42c8-adfb-4f392c12d5d0"
+   },
+   {
+    "id": 7,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "Teplota výstupu na žádané hodnotě (regulátor topení)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "12a93b04-615b-479e-a1dc-dc483cc74684"
+   },
+   {
+    "id": 8,
+    "name": "S8",
+    "cls": "DI",
+    "desc": "Požadavek vychlazení a vyprázdnění formy (tlačítko / signál z lisu)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "cc818696-4498-435a-b9e4-be3cdffaefd3"
+   },
+   {
+    "id": 9,
+    "name": "S9",
+    "cls": "DI",
+    "desc": "Teplota vratné vody pod 45 °C — formu lze odpojit (komparátor)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "2b1d97a8-b63b-4ef3-8619-7f5d3aa56488"
+   },
+   {
+    "id": 10,
+    "name": "M1",
+    "cls": "Vfd",
+    "desc": "Oběhové čerpadlo okruhu formy — frekvenční měnič",
+    "opt": {
+     "fbk": true,
+     "ready": true,
+     "fault": true
+    },
+    "unit": "Hz",
+    "rmin": 0,
+    "rmax": 50,
+    "setpoint": 45,
+    "rampS": 2,
+    "guid": "11b86727-0198-4796-bdab-9e8f7daec67b"
+   },
+   {
+    "id": 11,
+    "name": "M2",
+    "cls": "Motor",
+    "desc": "Topení 9 kW — stykač (hlášení proudového relé, tepelná ochrana)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "f87d9c2b-5694-4ae8-928d-166250d3d3d5"
+   },
+   {
+    "id": 12,
+    "name": "Y1",
+    "cls": "PropValve",
+    "desc": "Proporcionální ventil chladicí vody výměníku (průtokoměr)",
+    "opt": {
+     "fbk": true
+    },
+    "unit": "l/min",
+    "rmin": 0,
+    "rmax": 30,
+    "setpoint": 0,
+    "rampS": 2,
+    "tol": 1.5,
+    "tolTimeS": 0.3,
+    "guid": "40e7c572-e70b-4617-8f85-54a07e7e48d3"
+   },
+   {
+    "id": 13,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Ventil doplňování vody do expanzní nádrže",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "7f329968-fc59-4970-90de-88edad41f607"
+   },
+   {
+    "id": 14,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Odvzdušňovací ventil okruhu",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "98531df5-0bf0-4650-aeb5-59a20610edc5"
+   },
+   {
+    "id": 15,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Ventil vyfouknutí formy stlačeným vzduchem",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "fead0ae3-fd5d-443f-8019-635d1a9ef2fc"
+   },
+   {
+    "id": 16,
+    "name": "Y5",
+    "cls": "Ventil",
+    "desc": "Uzavírací ventil přívodu do formy (kulový kohout s koncáky)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "7aa1b1a4-057c-4eaf-b27d-77bc8aeda9fb"
+   },
+   {
+    "id": 17,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Teplota výstupní vody do formy",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 160,
+    "limHi": 145,
+    "limLo": 5,
+    "guid": "25df0891-2337-4816-8ac5-322d89cb7c12"
+   },
+   {
+    "id": 18,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Teplota vratné vody z formy",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 160,
+    "limHi": 150,
+    "guid": "30011da6-651f-4bc8-b2b4-454fc1f0b38b"
+   },
+   {
+    "id": 19,
+    "name": "B3",
+    "cls": "AnalogIn",
+    "desc": "Tlak v okruhu formy",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limHi": 6.5,
+    "guid": "523a1a4e-04df-4028-a8a7-61e7d50a7912"
+   },
+   {
+    "id": 20,
+    "name": "B4",
+    "cls": "AnalogIn",
+    "desc": "Průtok okruhem formy (vírový průtokoměr)",
+    "opt": {},
+    "unit": "l/min",
+    "rmin": 0,
+    "rmax": 60,
+    "limHi": 55,
+    "guid": "e07b4cbf-0494-4046-bf6d-3aa243b9db81"
+   },
+   {
+    "id": 21,
+    "name": "U1",
+    "cls": "AnalogOut",
+    "desc": "Žádaná teplota pro regulátor topení (analogový výstup)",
+    "opt": {},
+    "unit": "°C",
+    "rmin": 0,
+    "rmax": 160,
+    "setpoint": 90,
+    "guid": "73a426f5-2e3d-4627-a527-0719d0b539d4"
+   },
+   {
+    "id": 22,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "c0be8622-c5b2-4345-acbb-981a34250c82"
+   },
+   {
+    "id": 23,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "4cbfdbdb-7a58-4812-ab32-d399cbb0261c"
+   },
+   {
+    "id": 24,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "a64fbe09-9ad0-4905-9127-06a4c393f542"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2,
+    3,
+    4
+   ],
+   "seq": [
+    {
+     "dev": 13,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.3
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 13,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.3
+    },
+    {
+     "dev": 16,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 10,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 6,
+     "sp": 25
+    },
+    {
+     "dev": 14,
+     "act": "open",
+     "cond": "time",
+     "timeS": 5
+    },
+    {
+     "dev": 14,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.3
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 10,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 6,
+     "sp": 45
+    },
+    {
+     "dev": 11,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 900
+    },
+    {
+     "dev": "",
+     "act": "wait",
+     "cond": "time",
+     "timeS": 60
+    },
+    {
+     "dev": 8,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3000
+    },
+    {
+     "dev": 11,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 25
+    },
+    {
+     "dev": 9,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 900
+    },
+    {
+     "dev": 16,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 12,
+     "act": "setFlow",
+     "cond": "fbk",
+     "timeS": 5,
+     "sp": 0
+    },
+    {
+     "dev": 10,
+     "act": "stop",
+     "cond": "time",
+     "timeS": 0.5
+    },
+    {
+     "dev": 15,
+     "act": "open",
+     "cond": "time",
+     "timeS": 15
+    },
+    {
+     "dev": 15,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.3
+    }
+   ]
+  },
+  "nextId": 25,
+  "concept": null,
+  "guid": "aeb92c48-eb07-4b87-8f0c-238073c5b502",
+  "moduleGuids": {
+   "S0.2": "035f81d4-b97d-4ebf-9db7-bbf209e1cba4",
+   "S0.3": "b6c6393e-7458-42e7-b386-445565dda96f",
+   "S0.4": "eb6853be-53a8-4a3a-ad6a-41cb60b3ab5c",
+   "S0.5": "15ccc727-2284-414c-a15c-78500640c24f",
+   "S0.6": "1af7ad92-a2a6-4d1c-8b79-9fcabeb1b1ab"
+  },
+  "codeStyle": "oop"
+ }
+}

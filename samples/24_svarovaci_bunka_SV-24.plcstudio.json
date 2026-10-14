@@ -1,0 +1,472 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Robotická svařovací buňka SV-24 (přípravek, odsávání, zámek dveří)",
+   "desc": "Buňka svařuje konzolu s trubkou rámu MIG robotem. Svařovací přípravek má čtyři pneumatické upínky a středicí kolík; robot je k PLC připojen jen signály rozhraní přes I/O (robot v automatu a připraven, start svařovacího programu, program dokončen, robot v domovské poloze) — dráhy a svařovací parametry žijí v řídicím systému robota. Obsluha založí oba díly (snímače), vyjde z buňky a stiskne Start; zámek dveří buňky se během cyklu zamkne. Středicí kolík a upínky díly upnou, rozběhne se ventilátor filtrační jednotky odsávání a otevře se klapka odsávání nad přípravkem (tlakový spínač filtru hlásí průtok). Po hlášení připravenosti robota PLC spustí svařovací program; svařovací zdroj hlásí „svar v pořádku“ (proud a napětí v toleranci), robot dokončí program a vrátí se domů. Odsávání 10 s dobíhá, klapka se zavře, ventilátor stojí; upínky a kolík povolí a cyklus končí vyjmutím svařence. Svar NOK = hlášení nepřijde, hlídací čas vyprší a stroj přejde do poruchy. Měření: podtlak v odsávacím potrubí (mez max = ucpaný filtr), tlak vzduchu (mez min). Hlídání: polohy upínek a kolíku, robot (program, domovská poloha), chod ventilátoru, klapka, hlídací časy kroků. Ochrany: nouzové zastavení, dveře buňky se zámkem a světelná závora nakládacího místa v blokování; bezpečnost robota (bezpečnostní okruh, ochranné zastavení) řeší bezpečnostní technika.",
+   "takt": 90
+  },
+  "platforms": [
+   "siemens",
+   "rockwell",
+   "omron",
+   "mitsubishi",
+   "beckhoff",
+   "codesys"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "3fa366b9-a9a0-4165-9d53-d2d249778e6a"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Dveře buňky zavřeny a zamčeny (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "38038fa5-2fd1-4080-8da2-83b279481450"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Světelná závora nakládacího místa volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "f30a5309-683b-4f9e-8c9e-e559c7322c02"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Konzola založena v přípravku (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6d901d86-a097-4c56-974e-7be1d7721ec0"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Trubka založena v přípravku (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "e0e1ffad-af95-46a6-aed0-cdafe4dae4bb"
+   },
+   {
+    "id": 6,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Tlačítko Start cyklu (pult obsluhy mimo buňku)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "a641bad3-3c62-4b1c-a768-3983eabef45c"
+   },
+   {
+    "id": 7,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "Robot v automatu a připraven (signál z robota)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "0bebfa21-fbb9-4b79-8918-bcacc31b3a04"
+   },
+   {
+    "id": 8,
+    "name": "S8",
+    "cls": "DI",
+    "desc": "Průtok odsávání v pořádku (tlakový spínač filtru)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "06810a4e-f25d-44b9-aad4-f8d5afdf7778"
+   },
+   {
+    "id": 9,
+    "name": "S9",
+    "cls": "DI",
+    "desc": "Svar v pořádku — proud a napětí v toleranci (svařovací zdroj)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "c044618b-e2f2-4b7c-8c73-a2c67a698004"
+   },
+   {
+    "id": 10,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Upínka 1 — konzola",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "af27056e-4732-4e32-bf04-0df2b6eacc1b"
+   },
+   {
+    "id": 11,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Upínka 2 — konzola",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "93b0eb02-bc95-4c4e-a706-6edf5330b145"
+   },
+   {
+    "id": 12,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Upínka 3 — trubka",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "f5a06486-f4e7-4911-b819-452388e36396"
+   },
+   {
+    "id": 13,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Upínka 4 — trubka",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "107eea52-ef4b-4c89-b4d5-09dff06d1f5e"
+   },
+   {
+    "id": 14,
+    "name": "Y5",
+    "cls": "Ventil",
+    "desc": "Středicí kolík přípravku",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "857bcd9f-d409-456a-ac98-e87dfc90c7d4"
+   },
+   {
+    "id": 15,
+    "name": "Y6",
+    "cls": "Ventil",
+    "desc": "Robot — svařovací program (start; hlášení program dokončen / robot v domovské poloze)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6eedfd0e-56d7-4301-9ecf-960667639212"
+   },
+   {
+    "id": 16,
+    "name": "Y7",
+    "cls": "Ventil",
+    "desc": "Klapka odsávání nad přípravkem (koncáky)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "a35167bb-316d-4331-858c-4eb40f9e8df5"
+   },
+   {
+    "id": 17,
+    "name": "M1",
+    "cls": "Motor",
+    "desc": "Ventilátor odsávání svařovacích dýmů (filtrační jednotka)",
+    "opt": {
+     "fbk": true,
+     "fault": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "29146679-6649-4fe6-ae78-4fdc0e5ec0e8"
+   },
+   {
+    "id": 18,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Podtlak v odsávacím potrubí",
+    "opt": {},
+    "unit": "Pa",
+    "rmin": 0,
+    "rmax": 3000,
+    "limHi": 2500,
+    "guid": "d9746595-01a1-4e3d-8dbf-49c7638a213b"
+   },
+   {
+    "id": 19,
+    "name": "B2",
+    "cls": "AnalogIn",
+    "desc": "Tlak vzduchu v rozvodu",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 5,
+    "guid": "f401263c-736c-4536-9e4e-06ce1eaa07f7"
+   },
+   {
+    "id": 20,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "f9c4228a-f098-44e1-b242-98a90bf5e305"
+   },
+   {
+    "id": 21,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "6ddb2405-c612-4e20-bb53-f4583d799eb0"
+   },
+   {
+    "id": 22,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "3aee04bb-ab41-4a7d-96d8-ee1ce4337e82"
+   },
+   {
+    "id": 23,
+    "name": "H4",
+    "cls": "DO",
+    "desc": "Zámek dveří buňky — zamknout",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "lock",
+    "guid": "13d1d3a7-cca6-49d8-b95e-60160817638e"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2,
+    3
+   ],
+   "seq": [
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 14,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 13,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 17,
+     "act": "start",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 16,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 7,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 10
+    },
+    {
+     "dev": 15,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 9,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 15,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 15
+    },
+    {
+     "dev": "",
+     "act": "wait",
+     "cond": "time",
+     "timeS": 10
+    },
+    {
+     "dev": 16,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 17,
+     "act": "stop",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 13,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 14,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 4,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 60
+    },
+    {
+     "dev": 5,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 60
+    }
+   ]
+  },
+  "nextId": 24,
+  "concept": null,
+  "guid": "d5bf049d-167c-42f4-99c3-df05cfdfef15",
+  "moduleGuids": {
+   "S0.2": "c1e735d7-d62b-4e40-a069-10a4e74ed1de",
+   "S0.3": "0a99ee68-4b5d-4776-86d3-7f69fe0fad5b",
+   "S0.4": "081da906-0bbc-4557-ad6c-93c3f7fe1835",
+   "S0.5": "db964a16-d046-47c3-bf55-25fdc91bac76"
+  }
+ }
+}

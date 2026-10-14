@@ -1,0 +1,584 @@
+{
+ "prj": {
+  "meta": {
+   "name": "Šroubovací stanice SS-21 se dvěma polohovacími osami",
+   "desc": "Stanice zašroubuje tři šrouby M6 do krytu převodovky. Šroubovací hlavu nese křížový stůl ze dvou elektrických polohovacích pohonů se záznamy řízených přes I/O (osa X: záznamy šroub 1–3 a výměna dílu, osa Y: řada A, řada B a parkovací poloha); šroubovák s řídicí jednotkou (program utahování moment + úhel) je připojen přes I/O: PLC dává start, jednotka hlásí dokončení, připravenost a výsledek OK. Obsluha založí díl do nosiče (snímač) a stiskne Start; upínka díl upne a osy se referují. Pro každý šroub: osy najedou na záznam, podavač vyfoukne šroub hadicí do hlavy (snímač šroubu), hlava sjede, šroubovák utahuje, šroub z hlavy zmizí a jednotka hlásí OK; po ukončení startu výsledek zhasne a hlava vyjede. Šroub NOK = výsledek OK nepřijde, hlídací čas vyprší a stroj přejde do poruchy (díl se opraví ručně). Na konci osy odjedou do polohy pro výměnu dílu, upínka povolí a cyklus končí vyjmutím dílu. Hlídání: porucha, nepřipravenost a referování pohonů, podání šroubu, polohy zdvihu hlavy a upínky, stav šroubovací jednotky, tlak vzduchu (mez min), hlídací časy kroků. Ochrany: nouzové zastavení, kryty stanice a světelná závora vstupu do pracovního prostoru v blokování (STO pohonů řeší bezpečnostní technika). Signálka AUTO ukazuje režim automat.",
+   "takt": 45
+  },
+  "platforms": [
+   "siemens",
+   "beckhoff",
+   "codesys",
+   "mitsubishi",
+   "schneider",
+   "omron",
+   "unitronics",
+   "wago"
+  ],
+  "devices": [
+   {
+    "id": 1,
+    "name": "S1",
+    "cls": "DI",
+    "desc": "Nouzové zastavení (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "585136e6-5a08-489b-841c-4db857e4c9ff"
+   },
+   {
+    "id": 2,
+    "name": "S2",
+    "cls": "DI",
+    "desc": "Světelná závora vstupu do pracovního prostoru volná (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "3f082836-dac0-4be1-9e97-a54d63d1107c"
+   },
+   {
+    "id": 3,
+    "name": "S3",
+    "cls": "DI",
+    "desc": "Kryty stanice zavřeny (NC)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "096a08cf-25d4-4333-a4c6-1cf05ad8a21a"
+   },
+   {
+    "id": 4,
+    "name": "S4",
+    "cls": "DI",
+    "desc": "Díl založen v nosiči (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "6399f718-668b-41d8-ac07-31d6a331830a"
+   },
+   {
+    "id": 5,
+    "name": "S5",
+    "cls": "DI",
+    "desc": "Tlačítko Start cyklu (pult obsluhy)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "2995f34d-a30f-4a67-afb9-c70f1ef23ba8"
+   },
+   {
+    "id": 6,
+    "name": "S6",
+    "cls": "DI",
+    "desc": "Šroub v podávací hlavě (indukční snímač)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "582c2f34-30a4-4898-a2cb-f14b18f2a7bb"
+   },
+   {
+    "id": 7,
+    "name": "S7",
+    "cls": "DI",
+    "desc": "Utahování OK — moment a úhel v toleranci (řídicí jednotka šroubováku)",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "2f9e3ba2-5ee9-4bba-85d3-a1f6a6f02473"
+   },
+   {
+    "id": 8,
+    "name": "M1",
+    "cls": "PosDrive",
+    "desc": "Osa X šroubovací hlavy (polohovací pohon se záznamy)",
+    "opt": {
+     "ready": true,
+     "fault": true,
+     "rst": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 0,
+    "selBits": 3,
+    "travelS": 0.8,
+    "records": [
+     {
+      "no": 1,
+      "name": "šroub 1",
+      "pos": 40
+     },
+     {
+      "no": 2,
+      "name": "šroub 2",
+      "pos": 160
+     },
+     {
+      "no": 3,
+      "name": "šroub 3",
+      "pos": 280
+     },
+     {
+      "no": 4,
+      "name": "výměna dílu",
+      "pos": 320
+     }
+    ],
+    "guid": "312bd28b-3788-4d34-b150-5d44fbe2534d"
+   },
+   {
+    "id": 9,
+    "name": "M2",
+    "cls": "PosDrive",
+    "desc": "Osa Y šroubovací hlavy (polohovací pohon se záznamy)",
+    "opt": {
+     "ready": true,
+     "fault": true,
+     "rst": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 0,
+    "selBits": 2,
+    "travelS": 0.6,
+    "records": [
+     {
+      "no": 1,
+      "name": "řada A",
+      "pos": 25
+     },
+     {
+      "no": 2,
+      "name": "řada B",
+      "pos": 95
+     },
+     {
+      "no": 3,
+      "name": "parkovací poloha",
+      "pos": 140
+     }
+    ],
+    "guid": "217c0b03-4a54-4a06-92ba-8361baba0c65"
+   },
+   {
+    "id": 10,
+    "name": "Y1",
+    "cls": "Ventil",
+    "desc": "Zdvih šroubovací hlavy dolů",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "9fad0cd5-f9da-43db-b658-2da81ed4d58e"
+   },
+   {
+    "id": 11,
+    "name": "Y2",
+    "cls": "Ventil",
+    "desc": "Šroubovací jednotka — start utahování (hlášení dokončeno / jednotka připravena)",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "b1689083-913d-49a7-aab7-aac0aff6475b"
+   },
+   {
+    "id": 12,
+    "name": "Y3",
+    "cls": "Ventil",
+    "desc": "Podavač šroubů — vyfouknutí šroubu do hlavy",
+    "opt": {
+     "fbkOpen": false
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "122587e7-471b-458f-bc21-dd2e034c1068"
+   },
+   {
+    "id": 13,
+    "name": "Y4",
+    "cls": "Ventil",
+    "desc": "Upínka dílu v nosiči",
+    "opt": {
+     "fbkOpen": true,
+     "fbkClosed": true
+    },
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "guid": "d2fd2f8a-d71b-4486-ad04-780a68791633"
+   },
+   {
+    "id": 14,
+    "name": "B1",
+    "cls": "AnalogIn",
+    "desc": "Tlak vzduchu v rozvodu",
+    "opt": {},
+    "unit": "bar",
+    "rmin": 0,
+    "rmax": 10,
+    "limLo": 5,
+    "guid": "5a7681db-69ea-408b-af1a-1831ad61e057"
+   },
+   {
+    "id": 15,
+    "name": "H1",
+    "cls": "DO",
+    "desc": "Maják zelená — cyklus běží",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "run",
+    "guid": "deba9b9d-cc26-447e-ae55-f1763889970b"
+   },
+   {
+    "id": 16,
+    "name": "H2",
+    "cls": "DO",
+    "desc": "Maják červená — porucha",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "fault",
+    "guid": "0233f3b7-03f8-4224-9e80-9dea0c87bd5a"
+   },
+   {
+    "id": 17,
+    "name": "H3",
+    "cls": "DO",
+    "desc": "Maják žlutá — připraveno ke startu",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "ready",
+    "guid": "4d05fe5d-4cff-42de-b491-95ccb4d4fcaa"
+   },
+   {
+    "id": 18,
+    "name": "H4",
+    "cls": "DO",
+    "desc": "Signálka AUTO — režim automat",
+    "opt": {},
+    "unit": "",
+    "rmin": 0,
+    "rmax": 100,
+    "role": "auto",
+    "guid": "c570ace0-5a1f-4f2f-931c-ca996289cdac"
+   }
+  ],
+  "io": [],
+  "program": {
+   "modes": true,
+   "estop": 1,
+   "interlocks": [
+    2,
+    3
+   ],
+   "seq": [
+    {
+     "dev": 4,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 5,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 30
+    },
+    {
+     "dev": 13,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 9,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 8,
+     "act": "home",
+     "cond": "fbk",
+     "timeS": 4
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 9,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 12,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.4
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 10,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 6,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 2
+    },
+    {
+     "dev": 11,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 2
+    },
+    {
+     "dev": 9,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 2
+    },
+    {
+     "dev": 12,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.4
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 10,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 6,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 2
+    },
+    {
+     "dev": 11,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 3
+    },
+    {
+     "dev": 9,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 1
+    },
+    {
+     "dev": 12,
+     "act": "open",
+     "cond": "time",
+     "timeS": 0.4
+    },
+    {
+     "dev": 6,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 12,
+     "act": "close",
+     "cond": "time",
+     "timeS": 0.2
+    },
+    {
+     "dev": 10,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 11,
+     "act": "open",
+     "cond": "fbk",
+     "timeS": 8
+    },
+    {
+     "dev": 6,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "waitOn",
+     "cond": "fbk",
+     "timeS": 2
+    },
+    {
+     "dev": 11,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 7,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 10,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 8,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 4
+    },
+    {
+     "dev": 9,
+     "act": "posRecord",
+     "cond": "fbk",
+     "timeS": 4,
+     "rec": 3
+    },
+    {
+     "dev": 13,
+     "act": "close",
+     "cond": "fbk",
+     "timeS": 3
+    },
+    {
+     "dev": 4,
+     "act": "waitOff",
+     "cond": "fbk",
+     "timeS": 30
+    }
+   ]
+  },
+  "nextId": 19,
+  "concept": null,
+  "guid": "3d0bbc59-cb67-4eb7-8540-d2f3dd8ac5af",
+  "moduleGuids": {
+   "S0.2": "a4f37852-e8ff-432f-b3cd-df90bfc19a24",
+   "S0.3": "ca4f844a-8ae4-4dfe-a95c-f618a184cb2a",
+   "S0.4": "1829577d-014b-49bd-8c68-96ba8e7021b2",
+   "S0.5": "c516698c-d3c3-4917-bd0e-ffc4041540f9"
+  }
+ }
+}
