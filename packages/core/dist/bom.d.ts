@@ -1,4 +1,4 @@
-import { PlatformKey, Project } from "./model.js";
+import { Device, PlatformKey, Project } from "./model.js";
 import { CatalogBrand, brandOptId } from "./catalog.js";
 export { brandOptId };
 export interface BomLine {
@@ -41,6 +41,8 @@ export interface Bom {
     plat: PlatformKey;
     lines: BomLine[];
 }
+/** Je zařízení (DI / DO / Ventil) jen signál rozhraní k jinému stroji? */
+export declare function bomIsInterface(d: Device): boolean;
 /** Nabídka katalogu pro řádek kusovníku (kategorie + platforma). */
 export declare function bomOptions(cat: string, plat: PlatformKey): Array<{
     id: string;

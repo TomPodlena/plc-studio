@@ -235,7 +235,21 @@ python scripts/build_verification.py        # data/verification.json → verific
   Unitronics: HMI v CPU, kombinovaný AI/AO modul), ke každému zařízení jeho díly
   (motor → `-Q` jistič motoru + `-K` stykač, válec → rozváděč + válec + snímače polohy, analog podle
   jednotky a popisu…), rozvaděč. Bezpečnostní prvky jen jako HW řádek `safety` s výhradou
-  „EN ISO 13849, návrh k revizi" — **žádná bezpečnostní logika**. Výstupy `bomCsv` (středník, BOM
+  „EN ISO 13849, návrh k revizi" — **žádná bezpečnostní logika**.
+  **Díly podle popisu zařízení** (2026-10-15, nálezy funkčního rozboru nad manifestem CAD v2; klíčová slova JEN z obsahu
+  projektu — `Device.desc` v jazyce vzniku, cs + en + de —, nikdy z přeloženého UI; regexy v `bom.ts`): **rozhraní
+  k jinému stroji** (`bomIsInterface`: „euromap“, „rozhraní“ / interface / Schnittstelle, handshake, „signál z / do / od /
+  pro …“, signal from / to, Signal von / an / zum …, popis začíná „Robot“, „z / do robota“, from / to robot, vom / zum
+  Roboter; samotné „povolení“ ne) → DI bez fyzického dílu, Ventil / DO = `interface_relay` (bezpotenciálový kontakt),
+  hlášení ventilu = kontakt druhého stroje, a jeden řádek `-XG1:machine_interface` se seznamem signálů (EUROMAP → poznámka
+  k normě; bez kódu — typ doplní projektant); E-stop, blokování a tlačítka mají přednost. Ventil: hydraulika → **vakuum**
+  (vakuu / vakuov / podtlak / ejektor / přísav / vacuum / suction / Sauger) = rozváděč + `vacuum_ejector` + `suction_cup`
+  + `vacuum_switch` (místo „koncových poloh“) → **chapadlo** (chapad / úchop / gripper / Greifer) = rozváděč + `gripper`
+  + `cylinder_switch` → procesní armatura → válec. **Pohyb** (zdvih / pojezd / posuv / otoč / dolů / nahoru / lift /
+  stroke / Hub / heben / schwenk…) má přednost před vakuem i chapadlem — „zdvih chapadla“ je válec. Nové kategorie
+  (gripper, vacuum_ejector, suction_cup, vacuum_switch, machine_interface) zatím bez položek katalogu (kód jen s URL
+  zdroje). Kabely M12 jen ke skutečným snímačům (ne k signálům rozhraní). Volba uživatele v `prj.bom.lines` má dál
+  přednost. Testy `bom.test.ts`. Výstupy `bomCsv` (středník, BOM
   pro český Excel), `bomMd`; v dokumentaci `09_kusovnik.md/.csv`.
 - Volby uživatele `prj.bom` = `{ plat, brand: {catKey: optId|vlastní}, lines: {id: {brand, type,
   orderCode, supplier, qty, note}} }`; `BomLine.id` (označení + kategorie) je stabilní — naváže na

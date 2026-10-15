@@ -55,6 +55,8 @@ export const CAD_PLACEMENT = {
     cabinet: { location: "cabinet", mount: "none" },
     /* kabely — mezi rozvaděčem a strojem, nemontují se */
     cable_sensor: { location: "field", mount: "none" },
+    /* konektor rozhraní k jinému stroji (lis, robot): na rozvaděči / stroji, s kabelem k druhému stroji */
+    machine_interface: { location: "field", mount: "field" },
     cable_power: { location: "field", mount: "none" },
     /* stroj: pohony */
     motor: { location: "field", mount: "field" },
@@ -67,6 +69,10 @@ export const CAD_PLACEMENT = {
     valve_terminal: { location: "field", mount: "field" },
     cylinder: { location: "field", mount: "field" },
     cylinder_switch: { location: "field", mount: "field" },
+    gripper: { location: "field", mount: "field" },
+    vacuum_ejector: { location: "field", mount: "field" },
+    suction_cup: { location: "field", mount: "field" },
+    vacuum_switch: { location: "field", mount: "field" },
     air_prep: { location: "field", mount: "field" },
     hydraulic_valve: { location: "field", mount: "field" },
     hydraulic_unit: { location: "field", mount: "field" },
@@ -255,15 +261,22 @@ export function cadManifest(prj0, opts = {}) {
             rel(pick(ls, "servo_drive"), pick(ls, "servo_motor"), "feeds");
         }
         else if (d.cls === "Ventil") {
-            const v = pick(ls, "valve_solenoid", "hydraulic_valve", "process_valve"), cyl = pick(ls, "cylinder");
+            const v = pick(ls, "valve_solenoid", "hydraulic_valve", "process_valve"), cyl = pick(ls, "cylinder", "gripper");
             rel(v, cyl, "actuates");
             const sw = pick(ls, "cylinder_switch");
             if (sw)
                 rel(sw, cyl, "senses");
+            /* vakuový úchop: rozváděč → ejektor → přísavky, spínač podtlaku hlídá ejektor */
+            const ej = pick(ls, "vacuum_ejector");
+            rel(v, ej, "actuates");
+            rel(ej, pick(ls, "suction_cup"), "actuates");
+            const vs = pick(ls, "vacuum_switch");
+            if (vs)
+                rel(vs, ej, "senses");
             const ls2 = pick(ls, "limit_switch");
             if (ls2)
                 rel(ls2, pick(ls, "process_valve", "hydraulic_valve", "valve_solenoid"), "senses");
-            driven.set(d.id, v);
+            driven.set(d.id, v || pick(ls, "interface_relay"));
         }
         else if (d.cls === "PropValve" || d.cls === "AnalogOut" || d.cls === "DO") {
             driven.set(d.id, main);

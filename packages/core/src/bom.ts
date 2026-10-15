@@ -90,6 +90,7 @@ function diCat(prj: Project, d: Device, locks: Set<number>): string {
   if (prj.program.estop === d.id) return "estop_button";
   if (locks.has(d.id)) return has(t, /závor|mříž|curtain|lichtgitter|barrera|clona/) ? "light_curtain" : "safety_switch";
   if (has(t, /tlačítk|start|kvit|button|taster|pulsador|přepína|selector/)) return "pushbutton";
+  if (bomIsInterface(d)) return "";   // kontakt druhého stroje: jen pin konektoru rozhraní (řádek machine_interface)
   if (has(t, /hladin|kapacit|level|capacit/)) return "sensor_capacitive";
   if (has(t, /optick|reflex|závor|fotobu|optical|light|licht|óptic/)) return "sensor_optical";
   if (has(t, /koncák|koncov|limit|endschalter|final de carrera/)) return "limit_switch";
@@ -99,19 +100,60 @@ function diCat(prj: Project, d: Device, locks: Set<number>): string {
 function doCat(d: Device): string {
   const t = d.desc || "";
   if (d.role === "lock" || has(t, /zámek|zámk|lock|zuhalt|bloqueo/)) return "safety_switch";
+  if (bomIsInterface(d)) return "interface_relay";
   if (has(t, /houkačk|siréna|horn|hupe|bocina|sirene/)) return "horn";
   if (has(t, /maják|věž|beacon|signalsäule|baliza|signálka.*(zelen|červen|žlut)/)) return "beacon";
   if (has(t, /signálk|kontrolk|pilot|leuchtmelder|piloto|indikac/)) return "pilot_light";
   return "interface_relay";
 }
 
-function valveCats(d: Device): string[] {
-  const t = d.desc || "";
-  if (has(t, /hydraul/)) return ["hydraulic_valve"];
-  if (has(t, /přísav|vakuu|vacuum|sauger|ventosa/)) return ["valve_solenoid"];
-  if (has(t, /šoupát|klapk|kohout|uzávěr|potrubí|armatur|damper|klappe|schieber|válvula de proceso/)) return ["process_valve"];
-  return ["valve_solenoid", "cylinder"];
+/**
+ * Signálová výměna s jiným strojem (lis, robot, nadřazená linka) — zařízení projektu je kontakt rozhraní,
+ * ne fyzický snímač ani akční člen. Pozná se JEN z obsahu projektu (popis zařízení je v jazyce, ve kterém
+ * projekt vznikl), nikdy z přeloženého textu UI. Klíčová slova (malými písmeny):
+ *   cs: „euromap“, „rozhraní“, „signál z / ze / do / od / pro / k …“, popis začíná „Robot“, „z / od / do robota“;
+ *   en: „euromap“, „interface“, „handshake“, „signal from / to …“, „from / to (the) robot“;
+ *   de: „euromap“, „Schnittstelle“, „Handshake“, „Signal von / vom / an / zum / zur …“, „vom / zum Roboter“, začíná „Roboter“.
+ * Samotné „povolení“ / „enable“ záměrně ne — bývá i vnitřní povel stroje (povolení měniče).
+ */
+const IFACE_RE = /euromap|rozhraní|schnittstelle|\binterface\b|handshake|sign[aá]l[uy]? (z|ze|do|od|pro|k|ke) |\bsignal (from|to|von|vom|an|zum|zur|zu) |^robot(er)?\b|(z|ze|od|do) robota|(from|to) (the )?robot|(vom|zum|an den) roboter/;
+/** Je zařízení (DI / DO / Ventil) jen signál rozhraní k jinému stroji? */
+export function bomIsInterface(d: Device): boolean {
+  return (d.cls === "DI" || d.cls === "DO" || d.cls === "Ventil") && IFACE_RE.test((d.desc || "").toLowerCase());
 }
+/** Pohyb nesoucí chapadlo / přísavky (zdvih, pojezd, otočení…) — to je válec, ne chapadlo ani ejektor. */
+const MOTION_RE = /zdvih|pojezd|posuv|přesuv|výsuv|vysun|zasun|otoč|dolů|nahoru|zved|\blift|stroke|travel|slide|rotat|\braise|\blower|\bhub\b|heben|senk|verfahr|schwenk|dreh/;
+/** Vakuový úchop (ejektor, přísavky, podtlak). */
+const VACUUM_RE = /vakuu|vakuov|podtlak|ejektor|přísav|vacuum|suction|ejector|sauger|ventosa/;
+/** Pneumatické chapadlo (sevřít / uvolnit). */
+const GRIPPER_RE = /chapad|úchop|uchop|gripper|\bgrip|greifer|pinza/;
+
+type ValveKind = "interface" | "hydraulic" | "vacuum" | "gripper" | "process" | "cylinder";
+function valveKind(d: Device): ValveKind {
+  const t = (d.desc || "").toLowerCase();
+  if (bomIsInterface(d)) return "interface";
+  if (/hydraul/.test(t)) return "hydraulic";
+  const motion = MOTION_RE.test(t);
+  if (!motion && VACUUM_RE.test(t)) return "vacuum";
+  if (!motion && GRIPPER_RE.test(t)) return "gripper";
+  if (has(t, /šoupát|klapk|kohout|uzávěr|potrubí|armatur|damper|klappe|schieber|válvula de proceso/)) return "process";
+  return "cylinder";
+}
+/** Poznámky řádků dílů ventilu (klíče překladu). */
+const VALVE_NOTE: Record<string, string> = {
+  interface_relay: N_("bezpotenciálový kontakt do druhého stroje (signál rozhraní, ne akční člen)"),
+  vacuum_ejector: N_("typ doplní projektant; ejektor může mít vlastní ventil a spínač podtlaku (pak rozváděč a spínač vypustit)"),
+  suction_cup: N_("počet, průměr a tvar přísavek podle dílu — typ doplní projektant"),
+  gripper: N_("paralelní chapadlo; síla a zdvih čelistí podle dílu — typ doplní projektant"),
+};
+const VALVE_CATS: Record<ValveKind, string[]> = {
+  interface: ["interface_relay"],
+  hydraulic: ["hydraulic_valve"],
+  vacuum: ["valve_solenoid", "vacuum_ejector", "suction_cup"],
+  gripper: ["valve_solenoid", "gripper"],
+  process: ["process_valve"],
+  cylinder: ["valve_solenoid", "cylinder"],
+};
 
 function motorCat(d: Device): string {
   const t = d.desc || "";
@@ -227,11 +269,14 @@ export function buildBom(prj: Project): Bom {
       add("-Q" + n, "motor_protection", 1, tr("Jištění {dev}", { dev: d.name }), { devId: d.id, note: d.opt?.fault ? tr("pomocný kontakt = vstup poruchy") : "" });
       add("-K" + n, "contactor", 1, tr("Spínání {dev}", { dev: d.name }), { devId: d.id, note: d.opt?.fbk !== false ? tr("pomocný kontakt = zpětné hlášení běhu") : "" });
     } else if (d.cls === "Ventil") {
-      const cats = valveCats(d);
-      for (const c of cats) add(t, c, 1, desc, { devId: d.id });
+      const kind = valveKind(d);
       const sw = (d.opt?.fbkOpen !== false ? 1 : 0) + (d.opt?.fbkClosed ? 1 : 0);
-      if (cats.includes("cylinder")) add(t, "cylinder_switch", sw, tr("Poloha {dev}", { dev: d.name }), { devId: d.id });
-      else if (sw) add(t, "limit_switch", sw, tr("Koncové polohy {dev}", { dev: d.name }), { devId: d.id, note: tr("u procesní armatury často součástí pohonu") });
+      for (const c of VALVE_CATS[kind]) add(t, c, 1, desc, { devId: d.id, note: VALVE_NOTE[c] ? tr(VALVE_NOTE[c]) : "" });
+      /* hlášení: snímače polohy válce / chapadla, spínač podtlaku, u armatury koncové spínače;
+         u rozhraní je hlášení kontakt druhého stroje (pin konektoru rozhraní) */
+      if (kind === "cylinder" || kind === "gripper") add(t, "cylinder_switch", sw, tr("Poloha {dev}", { dev: d.name }), { devId: d.id });
+      else if (kind === "vacuum") add(t, "vacuum_switch", sw ? 1 : 0, tr("Hlášení podtlaku {dev}", { dev: d.name }), { devId: d.id, note: tr("typ doplní projektant") });
+      else if (kind !== "interface" && sw) add(t, "limit_switch", sw, tr("Koncové polohy {dev}", { dev: d.name }), { devId: d.id, note: tr("u procesní armatury často součástí pohonu") });
     } else if (d.cls === "AnalogIn") {
       add(t, analogCat(d), 1, desc + (d.unit ? " [" + d.unit + "]" : "") + " " + d.rmin + "–" + d.rmax, { devId: d.id });
     } else if (d.cls === "AnalogOut") {
@@ -259,17 +304,25 @@ export function buildBom(prj: Project): Bom {
         note: ioOf(prj, d).rawAct ? tr("žádaná 0–10 V / 4–20 mA, analogový výstup skutečné hodnoty") : tr("žádaná 0–10 V / 4–20 mA") });
     } else if (d.cls === "DI") {
       const c = diCat(prj, d, locks);
+      if (!c) continue;
       const safety = c === "estop_button" || c === "light_curtain" || c === "safety_switch";
       add(t, c, 1, desc, { devId: d.id, safety, note: safety ? safetyNote : "" });
     } else if (d.cls === "DO") {
       const c = doCat(d);
-      add(t, c, 1, desc, { devId: d.id, safety: c === "safety_switch", note: c === "safety_switch" ? safetyNote : "" });
+      add(t, c, 1, desc, { devId: d.id, safety: c === "safety_switch", note: c === "safety_switch" ? safetyNote
+        : bomIsInterface(d) ? tr(VALVE_NOTE.interface_relay) : "" });
     }
   }
+  /* rozhraní k jinému stroji (lis, robot…): jeden konektor s kabelem pro všechny signály výměny */
+  const iface = prj.devices.filter(d => bomIsInterface(d) && (d.cls !== "DI" || diCat(prj, d, locks) === ""));
+  if (iface.length) add("-XG1", "machine_interface", 1, tr("Rozhraní k jinému stroji: {list}", { list: iface.map(d => d.name).join(", ") }), {
+    note: iface.some(d => /euromap/i.test(d.desc || ""))
+      ? tr("EUROMAP: konektor a kabel podle normy rozhraní, výstupy do druhého stroje bezpotenciálovými kontakty (vazební relé) — typ doplní projektant")
+      : tr("konektor, kabel a přiřazení pinů podle dokumentace druhého stroje — typ doplní projektant") });
 
   /* --- rozvaděč */
-  const sensors = prj.devices.filter(d => d.cls === "DI" || d.cls === "AnalogIn").length
-    + prj.devices.filter(d => d.cls === "Ventil").reduce((a, d) => a + (d.opt?.fbkOpen !== false ? 1 : 0) + (d.opt?.fbkClosed ? 1 : 0), 0)
+  const sensors = prj.devices.filter(d => (d.cls === "DI" && diCat(prj, d, locks) !== "") || d.cls === "AnalogIn").length
+    + prj.devices.filter(d => d.cls === "Ventil" && !bomIsInterface(d)).reduce((a, d) => a + (d.opt?.fbkOpen !== false ? 1 : 0) + (d.opt?.fbkClosed ? 1 : 0), 0)
     + prj.devices.filter(d => d.cls === "PropValve" || d.cls === "PosDrive").length;   // kabel M12 k ventilu, I/O kabel k řadiči pohonu
   const safetyDevs = (prj.program.estop ? 1 : 0) + locks.size;
   if (safetyDevs) add("-K0", "safety_relay", 1, tr("Vyhodnocení E-stopu a blokování"), { safety: true, note: safetyNote });

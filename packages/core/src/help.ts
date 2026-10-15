@@ -321,6 +321,7 @@ const SRC: Src[] = [
       N_("U dílu s ukončenou výrobou nebo dílu, který nelze objednat (stav u výrobce se zdrojem), nabídne PLCdesk nástupce z CAD a jiné položky katalogu téže kategorie — vhodnost náhrady posuď sám."),
       N_("Změna bezpečnostního dílu v kusovníku (E-stop, spínač krytu, bezpečnostní relé…) je v revizi bezpečnostní změna, ne kosmetická."),
       N_("Svorky v kusovníku = svorkovnice výkresů X1…Xn (jedna svorka na kanál); svorky napájení a rezervu doplní projektant."),
+      N_("Díly zařízení se volí i podle popisu: signál z / do jiného stroje (EUROMAP, „signál z lisu“, robot) = konektor rozhraní a vazební relé, ne snímač ani válec; vakuum / přísavky = ejektor, přísavky a spínač podtlaku; chapadlo = paralelní chapadlo (zdvih chapadla zůstává válec). Jiný díl zvol u řádku."),
       N_("Objednací kódy jsou jen ověřené (se zdrojem); ceny katalog neuvádí."),
       N_("Bezpečnostní prvky jsou v kusovníku jen jako hardware s výhradou „návrh k revizi“."),
       N_("**Obnovit výchozí volby** zahodí tvé volby značek a řádků."),
