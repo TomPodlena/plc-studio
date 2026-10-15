@@ -19,6 +19,21 @@ import { hwLayout, hwPlatform, HW_DIRS } from "./hardware.js";
 import { axisCfgOf, axisObjName } from "./axis.js";
 import { axisDialect, AXIS_NET } from "./axis_gen.js";
 export { brandOptId };
+/** Kategorie kusovníku, které jsou bezpečnostními prvky samy o sobě (bez ohledu na zařízení). */
+export const BOM_SAFETY_CATS = new Set(["safety_relay", "safety_controller", "contactor_mirror",
+    "safety_valve", "two_hand_station", "light_curtain", "safety_switch", "estop_button"]);
+/**
+ * Je řádek kusovníku bezpečnostní díl? Řádek podle posouzení rizik (`BomLine.safety`), bezpečnostní kategorie
+ * (`BOM_SAFETY_CATS`) nebo díl zařízení E-stopu / blokování programu. Sdílí export pro CAD (`parts[].safety`)
+ * a klasifikace změn revize (změna takového řádku = bezpečnostní změna).
+ */
+export function bomLineIsSafety(prj, l) {
+    if (l.safety || BOM_SAFETY_CATS.has(l.cat))
+        return true;
+    if (l.devId === undefined)
+        return false;
+    return l.devId === prj.program?.estop || interlockDevs(prj).some(d => d.id === l.devId);
+}
 const has = (s, re) => re.test(s.toLowerCase());
 /** Kategorie snímače analogové veličiny podle jednotky a popisu. */
 function analogCat(d) {

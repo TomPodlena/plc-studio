@@ -19,7 +19,7 @@ import type { Project, BomLineCfg, CadFeedbackRecord, PlatformKey } from "./mode
 import { stripDia } from "./model.js";
 import { buildBom, type BomLine } from "./bom.js";
 import { brandsFor, brandOptId, type CatalogBrand } from "./catalog.js";
-import { cadManifestJson } from "./cad.js";
+import { cadManifestJson, cadProject } from "./cad.js";
 import { tr, N_, getLang, setLang, LANGS, type Lang } from "./i18n.js";
 
 export const CAD_FEEDBACK_FORMAT = "plcdesk-cad-feedback";
@@ -28,7 +28,9 @@ export const CAD_FEEDBACK_VERSION = 1;
 export const CAD_FEEDBACK_FILE = "PLCdesk_CAD_feedback.json";
 
 export const CAD_FEEDBACK_KINDS = ["cabinet_too_small", "part_not_fitting", "qty_mismatch", "ambiguous_type",
-  "missing_order_code", "model_mismatch", "other"] as const;
+  "missing_order_code", "model_mismatch", "part_obsolete", "part_not_orderable", "other"] as const;
+/** Druhy o stavu dílu u výrobce (ukončená výroba / nelze objednat): musí nést doložený stav `vendorStatus`. */
+export const CAD_FEEDBACK_VENDOR_KINDS: readonly CadFeedbackKind[] = ["part_obsolete", "part_not_orderable"];
 export type CadFeedbackKind = typeof CAD_FEEDBACK_KINDS[number];
 export type CadFeedbackSeverity = "error" | "warn" | "info";
 
@@ -36,9 +38,12 @@ export interface CadFeedbackMeasured { what: string; value: number; unit: string
 export interface CadFeedbackRequired { what: string; min?: number; max?: number; value?: number; unit: string; basis: string; }
 export interface CadFeedbackLine { type?: string; orderCode?: string; brand?: string; supplier?: string; qty?: number; note?: string; }
 export interface CadFeedbackAlt { type?: string; orderCode?: string; brand?: string; why?: string; }
+/** Stav dílu u výrobce (např. Siemens PM400 / PM500) se zdrojem — u `part_obsolete` / `part_not_orderable` povinný. */
+export interface CadFeedbackVendorStatus { code: string; date?: string; source: string; }
 export interface CadFeedbackIssue {
   id: string; kind: CadFeedbackKind; severity: CadFeedbackSeverity; parts: string[];
   measured?: CadFeedbackMeasured; required?: CadFeedbackRequired; message: string;
+  vendorStatus?: CadFeedbackVendorStatus;
   suggestion?: { partId: string; line?: CadFeedbackLine; alternatives?: CadFeedbackAlt[] };
 }
 export interface CadFeedback {
@@ -175,6 +180,18 @@ export function parseCadFeedback(text: string): { fb: CadFeedback | null; errors
         if (r.basis !== undefined) need(isStr(r.basis), p + ".required.basis", T_STR);
       }
     }
+    if (it.vendorStatus !== undefined) {
+      const v = it.vendorStatus;
+      if (!isObj(v)) need(false, p + ".vendorStatus", tr("není objekt"));
+      else {
+        need(isStr(v.code) && !!v.code.trim(), p + ".vendorStatus.code", T_TEXT);
+        if (v.date !== undefined) need(isStr(v.date), p + ".vendorStatus.date", T_STR);
+        need(isStr(v.source) && !!v.source.trim(), p + ".vendorStatus.source", tr("chybí zdroj — zpětná vazba nese jen měřená / doložená fakta"));
+      }
+    } else if ((CAD_FEEDBACK_VENDOR_KINDS as readonly unknown[]).includes(it.kind))
+      need(false, p + ".vendorStatus", tr("chybí stav u výrobce se zdrojem (code, source) — povinný u druhů part_obsolete a part_not_orderable"));
+    if ((CAD_FEEDBACK_VENDOR_KINDS as readonly unknown[]).includes(it.kind))
+      need(Array.isArray(it.parts) && it.parts.length > 0, p + ".parts", tr("chybí díl, kterého se stav u výrobce týká"));
     if (it.suggestion !== undefined) {
       const s = it.suggestion;
       if (!isObj(s)) need(false, p + ".suggestion", tr("není objekt"));
@@ -202,6 +219,7 @@ export function parseCadFeedback(text: string): { fb: CadFeedback | null; errors
       issues.push({
         id: it.id, kind: it.kind, severity: it.severity, parts: [...it.parts], message: it.message,
         ...(isObj(it.measured) ? { measured: { what: it.measured.what, value: it.measured.value, unit: it.measured.unit, source: it.measured.source } } : {}),
+        ...(isObj(it.vendorStatus) ? { vendorStatus: { code: it.vendorStatus.code, ...(isStr(it.vendorStatus.date) ? { date: it.vendorStatus.date } : {}), source: it.vendorStatus.source } } : {}),
         ...(isObj(it.required) ? { required: { ...pick(it.required, ["min", "max", "value"]), what: it.required.what, unit: it.required.unit, basis: isStr(it.required.basis) ? it.required.basis : "" } } : {}),
         ...(isObj(s) ? { suggestion: {
           partId: s.partId,
@@ -379,7 +397,8 @@ const numText = (v: number) => String(Math.round(v * 100) / 100);
  * se od exportu manifestu změnil (lze přijmout, s varováním); jinak `usable`.
  */
 export function cadFeedbackReview(prj: Project, fb: CadFeedback): CadFbReview {
-  const bom = buildBom(prj);
+  /* řádky jako v manifestu (synchronizovaná I/O — karty PLC, svorky); volby uživatele čte z `prj` */
+  const bom = buildBom(cadProject(prj));
   const plat = bom.plat;
   const byId = new Map(bom.lines.map(l => [l.id, l]));
   const projectMatch = !!fb.project.guid && fb.project.guid === (prj.guid || "");
@@ -411,6 +430,16 @@ export function cadFeedbackReview(prj: Project, fb: CadFeedback): CadFbReview {
         proposal = cadProposal(prj, plat, l, it.suggestion.line, tr("Návrh z CAD"));
       for (const a of it.suggestion?.alternatives || [])
         if (a.type || a.orderCode) alternatives.push(cadProposal(prj, plat, l, { type: a.type, orderCode: a.orderCode, brand: a.brand }, a.why || tr("Alternativa z CAD")));
+      /* ukončená výroba / nelze objednat: náhrada z katalogu téže kategorie (jen jako alternativa — vhodnost
+         náhrady posoudí člověk; navržený nástupce z CAD je hlavní návrh) */
+      if ((CAD_FEEDBACK_VENDOR_KINDS as readonly string[]).includes(it.kind)) {
+        const bad = new Set([codeNorm(l.orderCode), ...it.parts.map(id => codeNorm(byId.get(id)?.orderCode))].filter(Boolean));
+        const taken = (b: CatalogBrand) => [proposal, ...alternatives].some(p => p && p.optId === brandOptId(b));
+        const cands = brandsFor(l.cat, plat).filter(b => b.orderCode && !bad.has(codeNorm(b.orderCode)) && brandOptId(b) !== l.optId && !taken(b));
+        cands.sort((a, b) => +(a.brand !== l.brand) - +(b.brand !== l.brand));
+        for (const b of cands.slice(0, 3))
+          alternatives.push(catalogProposal(prj, l, b, tr("Katalog PLCdesk: jiná položka kategorie „{cat}“ (zdroj {src}) — náhradu ověř (rozměry, zapojení, parametry).", { cat: l.item, src: b.src || "—" }), "catalog"));
+      }
       if (l.cat === "cabinet") {
         const cc = cabinetCandidates(prj, plat, l, it.required);
         info = cc.ok;
@@ -429,7 +458,8 @@ export function cadFeedbackReview(prj: Project, fb: CadFeedback): CadFbReview {
     return {
       id: it.id, kind: it.kind, severity: it.severity, message: it.message,
       ...(m ? { measured: m } : {}), ...(r ? { required: r } : {}),
-      measuredText: m ? m.what + ": " + numText(m.value) + " " + m.unit + " (" + m.source + ")" : "",
+      measuredText: [m ? m.what + ": " + numText(m.value) + " " + m.unit + " (" + m.source + ")" : "",
+        it.vendorStatus ? tr("stav u výrobce: {code}", { code: it.vendorStatus.code }) + (it.vendorStatus.date ? ", " + it.vendorStatus.date : "") + " (" + it.vendorStatus.source + ")" : ""].filter(Boolean).join("; "),
       requiredText: r ? (r.what + ": " + rng + " " + r.unit).trim() + (r.basis ? " (" + r.basis + ")" : "") : "",
       parts, partId: l ? partId : "", state, stateText,
       ...(proposal ? { proposal } : {}), alternatives,
@@ -521,6 +551,7 @@ export function applyCadFeedback(prj: Project, fb: CadFeedback, accepted: string
 export const CAD_FEEDBACK_KIND_LABEL: Record<CadFeedbackKind, string> = {
   cabinet_too_small: N_("skříň je malá"), part_not_fitting: N_("díl se nevejde"), qty_mismatch: N_("nesedí množství"),
   ambiguous_type: N_("nejednoznačný typ"), missing_order_code: N_("chybí objednací kód"), model_mismatch: N_("model nesedí s kusovníkem"),
+  part_obsolete: N_("výroba dílu ukončena"), part_not_orderable: N_("díl nelze objednat"),
   other: N_("jiné"),
 };
 export const CAD_FEEDBACK_SEVERITY_LABEL: Record<CadFeedbackSeverity, string> = {

@@ -20,7 +20,9 @@ export declare const CAD_FEEDBACK_FORMAT = "plcdesk-cad-feedback";
 export declare const CAD_FEEDBACK_VERSION = 1;
 /** Obvyklé jméno souboru zpětné vazby (nástroje CAD ho tak ukládají). */
 export declare const CAD_FEEDBACK_FILE = "PLCdesk_CAD_feedback.json";
-export declare const CAD_FEEDBACK_KINDS: readonly ["cabinet_too_small", "part_not_fitting", "qty_mismatch", "ambiguous_type", "missing_order_code", "model_mismatch", "other"];
+export declare const CAD_FEEDBACK_KINDS: readonly ["cabinet_too_small", "part_not_fitting", "qty_mismatch", "ambiguous_type", "missing_order_code", "model_mismatch", "part_obsolete", "part_not_orderable", "other"];
+/** Druhy o stavu dílu u výrobce (ukončená výroba / nelze objednat): musí nést doložený stav `vendorStatus`. */
+export declare const CAD_FEEDBACK_VENDOR_KINDS: readonly CadFeedbackKind[];
 export type CadFeedbackKind = typeof CAD_FEEDBACK_KINDS[number];
 export type CadFeedbackSeverity = "error" | "warn" | "info";
 export interface CadFeedbackMeasured {
@@ -51,6 +53,12 @@ export interface CadFeedbackAlt {
     brand?: string;
     why?: string;
 }
+/** Stav dílu u výrobce (např. Siemens PM400 / PM500) se zdrojem — u `part_obsolete` / `part_not_orderable` povinný. */
+export interface CadFeedbackVendorStatus {
+    code: string;
+    date?: string;
+    source: string;
+}
 export interface CadFeedbackIssue {
     id: string;
     kind: CadFeedbackKind;
@@ -59,6 +67,7 @@ export interface CadFeedbackIssue {
     measured?: CadFeedbackMeasured;
     required?: CadFeedbackRequired;
     message: string;
+    vendorStatus?: CadFeedbackVendorStatus;
     suggestion?: {
         partId: string;
         line?: CadFeedbackLine;
