@@ -1,9 +1,15 @@
-import { modules } from "./model.js";
-import { buildBom } from "./bom.js";
+import { modules, syncIO, hasRange, interlockDevs } from "./model.js";
+import { buildBom, bomLineIsSafety } from "./bom.js";
+import { isGuid, derivedGuid } from "./guid.js";
+import { axisCfgOf } from "./axis.js";
+import { stepTitle } from "./sim.js";
+import { proposeSafety, safetyModuleRegistered } from "./safety.js";
+import { latestRevision, revisionContent } from "./revision.js";
+import { canonicalJson, fnv1a64 } from "./approval.js";
 import { hwLayout, HW_DIRS } from "./hardware.js";
 import { PLCDESK_VERSION } from "./verify_pack.js";
 export const CAD_FORMAT = "plcdesk-cad";
-export const CAD_VERSION = 1;
+export const CAD_VERSION = 2;
 /** Jméno souboru manifestu (klienti přidají předponu čísla projektu jako u ostatních souborů). */
 export const CAD_FILE = "PLCdesk_CAD.json";
 /**
@@ -92,33 +98,92 @@ export const CAD_PLACEMENT = {
 /** Kategorie mimo tabulku (vlastní typ firemní knihovny): na stroji, bez montáže — konstruktér rozhodne. */
 const CAD_UNKNOWN = { location: "field", mount: "none" };
 export const cadPlacement = (cat) => CAD_PLACEMENT[cat] || CAD_UNKNOWN;
+/**
+ * Pracovní kopie projektu pro export: I/O synchronizované se zařízeními (`syncIO` — příklady a starší
+ * projekty ukládají `io: []`, bez nich by manifest neměl I/O karty, svorky ani vazby „controls“).
+ * Vstupní projekt se NEMĚNÍ (kopie zařízení, I/O, GUID modulů a značky adres; ostatní se jen čte).
+ * GUID, které kopie při synchronizaci případně vytvoří, export nepoužije — čte jen GUID vstupu.
+ */
+export function cadProject(prj) {
+    const c = {
+        ...prj,
+        devices: (prj.devices || []).map(d => JSON.parse(JSON.stringify(d))),
+        io: (prj.io || []).map(e => ({ ...e })),
+        program: prj.program,
+        ...(prj.moduleGuids ? { moduleGuids: { ...prj.moduleGuids } } : {}),
+        ...(prj.hw ? { hw: { ...prj.hw } } : {}),
+    };
+    syncIO(c);
+    return c;
+}
 /** Druh modulu podle obsazených směrů kanálů („DI“, „AI+AO“…). */
 const modKind = (m) => HW_DIRS.filter(d => (m.ch[d] || 0) > 0).join("+") || m.cat.replace(/^plc_/, "").toUpperCase();
 const modChannels = (m) => HW_DIRS.reduce((s, d) => s + (m.ch[d] || 0), 0);
+const numOrNull = (v) => typeof v === "number" && Number.isFinite(v) ? v : null;
 /**
  * Manifest pro CAD z projektu. `opts.generator` přepíše text generátoru (výchozí „PLCdesk <verze>“).
- * Popisy dílů (`label`) jsou v aktuálním jazyce (`setLang`), obsah projektu se nepřekládá.
+ * Popisy dílů (`label`) a titulky kroků jsou v aktuálním jazyce (`setLang`), obsah projektu se nepřekládá.
+ * Počítá se nad `cadProject(prj)` (synchronizovaná I/O); vstupní projekt se nemění.
  */
-export function cadManifest(prj, opts = {}) {
+export function cadManifest(prj0, opts = {}) {
+    const prj = cadProject(prj0);
     const bom = buildBom(prj);
     const plat = bom.plat;
     const L = hwLayout(prj, plat);
     const lines = bom.lines;
     const byId = new Map(lines.map(l => [l.id, l]));
     const devOf = new Map(prj.devices.map(d => [d.id, d]));
+    /* GUID jen ze vstupu (export je nikdy nevytváří): projekt, zařízení, karty a hlavy (`moduleGuids`,
+       v kopii případně převedené ze starších klíčů DI1… — hodnoty ale musí pocházet ze vstupu) */
+    const prjGuid = isGuid(prj0.guid) ? prj0.guid : null;
+    const devGuid = new Map();
+    for (const d of prj0.devices || [])
+        if (isGuid(d.guid))
+            devGuid.set(d.id, d.guid);
+    const inGuids = new Set(Object.values(prj0.moduleGuids || {}).filter(isGuid).map(g => g.toLowerCase()));
+    const modGuid = (m) => {
+        const g = prj.moduleGuids?.[m.key];
+        return isGuid(g) && inGuids.has(g.toLowerCase()) ? g : null;
+    };
     /* PLC: řádek kusovníku každého modulu (označení skupiny + kategorie; vestavěné I/O = CPU) */
     const partOfModule = (m) => {
         const id = m.builtin ? "-A1:plc_cpu" : m.bomTag + ":" + m.cat;
         return byId.has(id) ? id : "";
     };
     const firstPos = new Map();
+    const instancesOf = new Map();
     for (const m of L.modules) {
         const id = partOfModule(m);
         if (id && !firstPos.has(id))
             firstPos.set(id, { station: m.station, slot: m.slot });
+        /* fyzické kusy s vlastní identitou: I/O karty a hlavy vzdálených stanic */
+        if (id && ((m.kind === "io" && !m.builtin) || m.kind === "head")) {
+            if (!instancesOf.has(id))
+                instancesOf.set(id, []);
+            instancesOf.get(id).push({ guid: modGuid(m), station: m.station, slot: m.slot });
+        }
     }
     /* BaseUnit / BusAdapter nesou jen stanici (řádek s označením hlavy) */
     const stationOfTag = new Map(L.stations.filter(s => s.remote).map(s => [s.head.dt, s.no]));
+    /* GUID řádku (deterministicky, bez nového stavu v projektu): řádek zařízení z `Device.guid` a kategorie
+       (+ pořadí, má-li zařízení víc řádků téže kategorie), karty PLC z GUID projektu, kategorie a stanice,
+       ostatní (CPU, skříň, zdroj, svorky…) z GUID projektu a id řádku */
+    const catSeen = new Map();
+    const lineGuid = (l, station) => {
+        if (l.devId !== undefined) {
+            const dg = devGuid.get(l.devId);
+            if (!dg)
+                return null;
+            const k = l.devId + ":" + l.cat, n = (catSeen.get(k) || 0) + 1;
+            catSeen.set(k, n);
+            return derivedGuid(dg, "bom:" + l.cat + (n > 1 ? ":" + n : ""));
+        }
+        if (!prjGuid)
+            return null;
+        if (/^plc_(di|do|ai|ao)$/.test(l.cat) && station !== null)
+            return derivedGuid(prjGuid, "bom:" + l.cat + ":" + station);
+        return derivedGuid(prjGuid, "bom:" + l.id);
+    };
     const parts = lines.map(l => {
         const pl = cadPlacement(l.cat);
         const pos = firstPos.get(l.id);
@@ -132,16 +197,21 @@ export function cadManifest(prj, opts = {}) {
             device: dev ? dev.name : null,
             station: st, slot: pos ? pos.slot : null,
             sourceUrl: l.src || "",
+            guid: lineGuid(l, st),
+            deviceGuid: l.devId !== undefined ? devGuid.get(l.devId) ?? null : null,
+            safety: bomLineIsSafety(prj, l),
+            instances: instancesOf.get(l.id) || [],
         };
     });
     /* sestava PLC: hlava (CPU / hlava vzdálené stanice) a I/O moduly v pořadí slotů; vestavěné I/O jsou
        součástí CPU, příslušenství (BusAdapter, server modul, BaseUnit) nese jen řádek kusovníku se stanicí */
     const stations = L.stations.map(s => ({
         index: s.no,
+        guid: prjGuid ? derivedGuid(prjGuid, "cad:station:" + s.no) : null,
         kind: s.remote ? "remote" : "local",
         head: partOfModule(s.head),
         modules: s.modules.filter(m => m.kind === "io" && !m.builtin).slice().sort((a, b) => a.slot - b.slot)
-            .map(m => ({ slot: m.slot, partId: partOfModule(m), kind: modKind(m), channels: modChannels(m) })),
+            .map(m => ({ slot: m.slot, partId: partOfModule(m), guid: modGuid(m), kind: modKind(m), channels: modChannels(m) })),
     }));
     /* svorkovnice = kanálové skupiny výkresů (X1, X2 … jako svorkyCSV / listy zapojení) */
     const terminals = modules(prj).map((m, i) => ({ strip: "X" + (i + 1), count: m.ch.length }));
@@ -208,13 +278,74 @@ export function cadManifest(prj, opts = {}) {
             continue;
         rel(partOfModule(ch.mod), driven.get(e.devId), "controls");
     }
-    const meta = prj.meta || {};
+    /* ---- zadání pro hrubý 3D koncept: jen to, co projekt nese (nic se nedopočítává ani nevymýšlí) */
+    const devices = prj.devices.map(d => {
+        const ax = d.cls === "Axis" ? axisCfgOf(d) : null;
+        return {
+            name: d.name, guid: devGuid.get(d.id) ?? null, cls: d.cls, desc: d.desc || "",
+            role: d.cls === "DO" && d.role ? d.role : null, unit: d.unit || "",
+            range: hasRange(d.cls) ? { min: d.rmin, max: d.rmax } : null,
+            limits: d.cls === "AnalogIn" ? { lo: numOrNull(d.limLo), hi: numOrNull(d.limHi) } : null,
+            setpoint: numOrNull(d.setpoint),
+            options: Object.keys(d.opt || {}).filter(k => d.opt[k] === true).sort(),
+            rampS: numOrNull(d.rampS), tol: numOrNull(d.tol), tolTimeS: numOrNull(d.tolTimeS),
+            selBits: d.cls === "PosDrive" ? numOrNull(d.selBits) : null,
+            records: (Array.isArray(d.records) ? d.records : []).map(r => ({ no: r.no, name: r.name || "", pos: numOrNull(r.pos), vel: numOrNull(r.vel) })),
+            travelS: numOrNull(d.travelS),
+            axis: ax ? {
+                vMax: ax.vMax, aMax: ax.aMax, dMax: ax.dMax, jerk: ax.jerk, vDef: ax.vDef,
+                limNeg: numOrNull(ax.limNeg), limPos: numOrNull(ax.limPos), homePos: ax.homePos,
+                posTol: ax.posTol, followMax: ax.followMax, jogVel: ax.jogVel, startPos: ax.startPos,
+                drive: ax.drive || "", positions: ax.positions.map(p => ({ name: p.name, pos: p.pos })),
+            } : null,
+            libType: d.libType || null,
+            signals: prj.io.filter(e => e.devId === d.id).map(e => ({ sig: e.sig, dir: e.dir, tag: e.tag })),
+            parts: lines.filter(l => l.devId === d.id).map(l => l.id),
+        };
+    });
+    const sequence = (prj.program?.seq || []).map((s, i) => {
+        const d = s.act === "wait" ? undefined : devOf.get(s.dev);
+        return {
+            no: i + 1, device: d ? d.name : null, deviceGuid: d ? devGuid.get(d.id) ?? null : null,
+            act: s.act, cond: s.cond, timeS: s.timeS,
+            sp: numOrNull(s.sp), rev: typeof s.rev === "boolean" ? s.rev : null, rec: numOrNull(s.rec),
+            pos: numOrNull(s.pos), posRef: s.posRef || null, vel: numOrNull(s.vel), acc: numOrNull(s.acc), dec: numOrNull(s.dec),
+            title: stepTitle(prj, s),
+        };
+    });
+    const devRef = (d) => ({ device: d.name, guid: devGuid.get(d.id) ?? null });
+    const esId = prj.program?.estop;
+    const es = typeof esId === "number" ? devOf.get(esId) : undefined;
+    let functions = null;
+    if (safetyModuleRegistered()) {
+        functions = proposeSafety(prj).fns.map(f => ({
+            id: f.id, ref: f.ref, kind: f.kind, title: f.title, off: !!f.off,
+            plr: f.risk?.plr ?? null, pl: f.design?.pl ?? null, category: f.design?.cat != null ? String(f.design.cat) : null,
+            stopCategory: f.stopCat, inputs: [...f.inputs], actuators: [...f.acts], safeState: f.safeState || "", missing: [...f.missing],
+        }));
+    }
+    /* revize PLCdesk (poslední) se stavem schválení — PLM podle ní hlídá vydání (MANIFEST_SCHEMA v2) */
+    const rev = latestRevision(prj0);
+    const revision = rev ? {
+        id: rev.id, date: rev.date, by: rev.by, hash: rev.hash,
+        approved: rev.approved ? { valid: rev.approved.valid, required: rev.approved.required } : null,
+        current: fnv1a64(canonicalJson(revisionContent(prj0))) === rev.hash,
+    } : null;
+    const meta = prj0.meta || {};
     return {
         format: CAD_FORMAT,
         version: CAD_VERSION,
         generator: opts.generator ?? "PLCdesk " + PLCDESK_VERSION,
-        project: { guid: prj.guid || "", name: meta.name || "", number: meta.number || "", customer: meta.customer || "" },
+        project: { guid: prj0.guid || "", name: meta.name || "", number: meta.number || "", customer: meta.customer || "", revision },
         platform: plat,
+        brief: {
+            desc: meta.desc || "", takt: numOrNull(meta.takt), startDate: meta.startDate || "",
+            modes: !!prj.program?.modes, platforms: [...(prj.platforms || [])],
+            concept: prj0.concept ? JSON.parse(JSON.stringify(prj0.concept)) : null,
+        },
+        devices,
+        sequence,
+        safety: { estop: es ? devRef(es) : null, interlocks: interlockDevs(prj).map(devRef), functions },
         parts,
         plc: { stations },
         terminals,

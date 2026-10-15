@@ -29,6 +29,14 @@ export interface BomLine {
     /** uživatel nastavil množství 0 — řádek zůstává v přehledu, do CSV / dokumentu nejde */
     excluded?: boolean;
 }
+/** Kategorie kusovníku, které jsou bezpečnostními prvky samy o sobě (bez ohledu na zařízení). */
+export declare const BOM_SAFETY_CATS: ReadonlySet<string>;
+/**
+ * Je řádek kusovníku bezpečnostní díl? Řádek podle posouzení rizik (`BomLine.safety`), bezpečnostní kategorie
+ * (`BOM_SAFETY_CATS`) nebo díl zařízení E-stopu / blokování programu. Sdílí export pro CAD (`parts[].safety`)
+ * a klasifikace změn revize (změna takového řádku = bezpečnostní změna).
+ */
+export declare function bomLineIsSafety(prj: Project, l: Pick<BomLine, "safety" | "cat" | "devId">): boolean;
 export interface Bom {
     plat: PlatformKey;
     lines: BomLine[];

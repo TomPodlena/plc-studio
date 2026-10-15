@@ -247,9 +247,21 @@ python scripts/build_verification.py        # data/verification.json → verific
 
 ## Export pro CAD (`cad.ts`)
 
-- `cadManifest(prj, opts?)` / `cadManifestJson(prj)` → `PLCdesk_CAD.json`, formát `plcdesk-cad` verze 1 — závazné
-  schéma `C:\CLAUDE\plcdesk_freecad\MANIFEST_SCHEMA.md` (každý klíč vždy, prázdné "" / null; nové pole = verze 2,
-  schéma neměnit samostatně — čte ho FreeCAD i FreeCAD PLM). Díly = VŠECHNY řádky `buildBom` (id = `BomLine.id`,
+- `cadManifest(prj, opts?)` / `cadManifestJson(prj)` → `PLCdesk_CAD.json`, formát `plcdesk-cad` **verze 2** (2026-10-15;
+  nadmnožina v1) — schéma `C:\CLAUDE\plcdesk_freecad\MANIFEST_SCHEMA.md` (každý klíč vždy, prázdné "" / null / [];
+  nové pole = nová verze, schéma neměnit samostatně — čte ho FreeCAD i FreeCAD PLM; návrh v2 čeká v
+  `.claude/plcdesk_freecad_staging/schema_v2/` na odsouhlasení). **Počítá se nad `cadProject(prj)`** = kopie se `syncIO`
+  (příklady ukládají `io: []` — bez toho manifest neměl I/O karty, svorky ani vazby `controls`); vstup se nemění, GUID
+  jen čte ze vstupu (co kopie při synchronizaci vytvoří, export nepoužije → null). Totéž platí pro web, most desktopu
+  (`cad`), `projectBundle` i `cadFeedbackReview` (řádky jako v manifestu). v2 navíc: `project.revision` (poslední revize:
+  id, datum, kdo, otisk, `approved {valid, required}` z `approvalsAt`, `current` = obsah = revize), `parts[].guid`
+  (`derivedGuid(Device.guid, "bom:"+kat[+":"+n])`, karty `derivedGuid(prj.guid, "bom:"+kat+":"+stanice)`, ostatní
+  `derivedGuid(prj.guid, "bom:"+id)` — přežije přejmenování), `deviceGuid`, `safety` (`bomLineIsSafety`: `BomLine.safety`,
+  `BOM_SAFETY_CATS`, díl E-stopu / blokování), `instances` (kusy karet a hlav z `moduleGuids`), `guid` stanic a modulů,
+  a ZADÁNÍ pro hrubý 3D koncept: `brief` (popis, takt, datum, režimy, platformy, `concept`), `devices[]` (třída, rozsah,
+  meze, žádaná, volby, rampa, tolerance, záznamy, `travelS`, `axisCfgOf`, signály, řádky), `sequence[]` (kroky s parametry,
+  `stepTitle`), `safety` (E-stop, blokování, `proposeSafety` souhrn jen s modulem bezpečnosti, jinak null). Nic se
+  nevymýšlí — jen data projektu. Díly = VŠECHNY řádky `buildBom` (id = `BomLine.id`,
   `device` = jméno zařízení z `devId`), `location` / `mount` z tabulky `CAD_PLACEMENT` (jediné místo; test hlídá každou
   kategorii katalogu, `CAT_LABEL` i řádků modulu bezpečnosti; neznámá kategorie knihovny = field / none), `plc.stations`
   = `hwLayout` (hlava = CPU / hlava stanice, I/O karty v pořadí slotů → řádek skupiny `bomTag:cat`; vestavěné I/O jsou
@@ -261,7 +273,10 @@ python scripts/build_verification.py        # data/verification.json → verific
   `09_Exporty/CAD` (`projectBundle(prj, { cad: true })` — volba, výchozí sada beze změny; klienti ji zapínají).
   Licence: manifest = data projektu jako `.plcstudio.json` → `licenseFileKind` „own“ (bez brány i nad limitem).
   Modely z CADu (.FCStd / .step / .stp) patří do `02_Vykresy/3D` (`PROJECT_DIRS.model3d`; PLCdesk je zatím nevyrábí).
-  Testy `cad.test.ts` (28 vzorů + sampleSmall / Complex, s modulem bezpečnosti i bez).
+  Testy `cad.test.ts` (28 vzorů tak, jak jsou uložené (`io: []`) + sampleSmall / Complex, s modulem bezpečnosti
+  i bez; klíče v2 vždy, vstup beze změny, GUID stabilní při přejmenování, bez GUID ve vstupu null, revize, determinismus).
+- Revize: změna řádku kusovníku bezpečnostního dílu (`bomLineIsSafety` v kterémkoli stavu) nebo značky bezpečnostní
+  kategorie = třída **bezpečnostní** (`revision.ts` rawDiff), ostatní kusovník kosmetická.
 
 ### Zpětná vazba z CAD (`cad_feedback.ts`)
 
@@ -269,7 +284,9 @@ python scripts/build_verification.py        # data/verification.json → verific
   a uživatel návrhy přijme / odmítne po položkách; nic automaticky. Formát `PLCdesk_CAD_feedback.json`
   (`plcdesk-cad-feedback` v1) je závazný: `C:\CLAUDE\plcdesk_freecad\FEEDBACK_SCHEMA.md` (neměnit samostatně).
 - `parseCadFeedback(text)` → `{ fb | null, errors }` (validace podle schématu, chyby s cestou `issues[2].severity`,
-  `measured.source` povinný — jen doložená fakta). `cadFeedbackReview(prj, fb)` → položky (závažnost, zpráva,
+  `measured.source` povinný — jen doložená fakta; druhy `part_obsolete` / `part_not_orderable` (2026-10-15, doplněk v1)
+  musí nést `vendorStatus {code, date?, source}` a aspoň jeden díl — přehled nabídne nástupce z CAD a až 3 jiné položky
+  katalogu téže kategorie jen jako alternativy). `cadFeedbackReview(prj, fb)` → položky (závažnost, zpráva,
   naměřeno / požadováno, dotčené řádky, návrh + alternativy převedené na volbu `prj.bom.lines[id]` — shoda
   s katalogem = výběr položky `brand: brandOptId`, jinak vlastní typ / kód / množství; u `cabinet_too_small`
   nejmenší větší skříň z katalogu podle `dims` a `required.min` (hloubka / šířka / výška / plocha desky, vnější

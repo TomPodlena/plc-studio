@@ -31,6 +31,7 @@ import { stepTitle } from "./sim.js";
 import { axisCfgOf } from "./axis.js";
 import { registerDocProvider } from "./docs.js";
 import { setSheetRevision } from "./drawing.js";
+import { buildBom, bomLineIsSafety, BOM_SAFETY_CATS } from "./bom.js";
 /** Části projektu, které revize zachycuje (bez revizí, schválení, výsledků oživení a stavu UI). */
 const CONTENT_KEYS = ["meta", "platforms", "devices", "io", "program", "nextId", "sim", "bom", "concept", "safety", "library"];
 /** Kanonický obsah projektu pro revizi a porovnání (hluboká kopie, seřazené klíče, bez `undefined`). */
@@ -497,21 +498,37 @@ function rawDiff(x, y) {
             }
         }
     }
-    /* kusovník (volby uživatele) */
+    /* kusovník (volby uživatele); změna bezpečnostního dílu (`bomLineIsSafety` v kterémkoli stavu — řádek podle
+       posouzení rizik, bezpečnostní kategorie, díl E-stopu / blokování) je bezpečnostní změna, ostatní kosmetická */
     const bx = x.bom || {}, by = y.bom || {};
+    let safeIds = null, safeCats = null;
+    const loadSafe = () => {
+        if (safeIds)
+            return;
+        safeIds = new Set();
+        safeCats = new Set();
+        for (const p of [x, y])
+            for (const l of buildBom(p).lines)
+                if (bomLineIsSafety(p, l)) {
+                    safeIds.add(l.id);
+                    safeCats.add(l.cat);
+                }
+    };
+    const lineFloor = (id) => { loadSafe(); return safeIds.has(id) ? "safety" : "cosmetic"; };
+    const catFloor = (c) => { loadSafe(); const k = c.split("@")[0]; return safeCats.has(k) || BOM_SAFETY_CATS.has(k) ? "safety" : "cosmetic"; };
     if ((bx.plat ?? null) !== (by.plat ?? null))
         push({ area: "bom", op: "change", field: "plat", before: bx.plat ?? null, after: by.plat ?? null, a: { ref: "bom.plat" }, b: { ref: "bom.plat" }, floor: "cosmetic", cand: [], devs: [], tags: [] });
     for (const c of uniq([...Object.keys(by.brand || {}), ...Object.keys(bx.brand || {})])) {
         const a = bx.brand?.[c] ?? null, b = by.brand?.[c] ?? null;
         if (a !== b)
-            push({ area: "bom", op: "change", field: "brand." + c, before: a, after: b, a: { ref: "bom.brand." + c }, b: { ref: "bom.brand." + c }, floor: "cosmetic", cand: [], devs: [], tags: [] });
+            push({ area: "bom", op: "change", field: "brand." + c, before: a, after: b, a: { ref: "bom.brand." + c }, b: { ref: "bom.brand." + c }, floor: catFloor(c), cand: [], devs: [], tags: [] });
     }
     for (const id of uniq([...Object.keys(by.lines || {}), ...Object.keys(bx.lines || {})])) {
         const a = (bx.lines?.[id] || {}), b = (by.lines?.[id] || {});
         for (const f of uniq([...Object.keys(b), ...Object.keys(a)])) {
             if (same(a[f] ?? null, b[f] ?? null))
                 continue;
-            push({ area: "bom", op: "change", field: "line." + id + "." + f, before: a[f] ?? null, after: b[f] ?? null, a: { ref: "bom.line." + id }, b: { ref: "bom.line." + id }, floor: "cosmetic", cand: [], devs: [], tags: [] });
+            push({ area: "bom", op: "change", field: "line." + id + "." + f, before: a[f] ?? null, after: b[f] ?? null, a: { ref: "bom.line." + id }, b: { ref: "bom.line." + id }, floor: lineFloor(id), cand: [], devs: [], tags: [] });
         }
     }
     /* firemní knihovna (šablony bloků mění generovaný kód) */
@@ -931,7 +948,7 @@ export function changesMd(prj, opts = {}) {
         L.push(tr("**Klasifikace:** {cls} — {n} změn ({c} kosmetických, {f} funkčních, {s} bezpečnostních)", {
             cls: changeClassLabel(diff.cls), n: diff.changes.length, c: diff.counts.cosmetic, f: diff.counts.functional, s: diff.counts.safety,
         }), "");
-        L.push(tr("Kosmetická změna (popis, komentář, kusovník) schválení nezneplatní. Funkční změna mění logiku, signály nebo časy programu. Bezpečnostní změna se dotýká bezpečnostních funkcí nebo jejich vstupů a výstupů."), "");
+        L.push(tr("Kosmetická změna (popis, komentář, kusovník mimo bezpečnostní díly) schválení nezneplatní. Funkční změna mění logiku, signály nebo časy programu. Bezpečnostní změna se dotýká bezpečnostních funkcí, jejich vstupů a výstupů nebo bezpečnostních dílů kusovníku."), "");
     }
     if (!diff.empty) {
         L.push("## " + tr("3. Změny"), "", tr("| # | Oblast | Změna | Klasifikace | Dotčená schválení |"), "|---|---|---|---|---|");

@@ -2507,8 +2507,16 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(cad["name"], "PLCdesk_CAD.json")
         self.assertEqual(cad["sub"], "cad")
         man = json.loads(cad["body"])
-        self.assertEqual((man["format"], man["version"], man["platform"]), ("plcdesk-cad", 1, "rockwell"))
+        self.assertEqual((man["format"], man["version"], man["platform"]), ("plcdesk-cad", 2, "rockwell"))
         self.assertEqual(len(man["parts"]), len(self.app.bridge.request("bom", prj=self.app.prj)["lines"]))
+        # v2: I/O karty a svorky (nad synchronizovanými I/O), zadání a GUID zařízení
+        self.assertTrue(man["terminals"] and sum(t["count"] for t in man["terminals"]) > 0)
+        self.assertEqual([d["name"] for d in man["devices"]], [d["name"] for d in self.app.prj["devices"]])
+        self.assertEqual(len(man["sequence"]), len(self.app.prj["program"]["seq"]))
+        for k in ("brief", "safety"):
+            self.assertIn(k, man)
+        self.assertIn("revision", man["project"])
+        self.assertTrue(all("guid" in p and "safety" in p and "instances" in p for p in man["parts"]))
         self.assertIn("Vlastní s.r.o.", [p["brand"] for p in man["parts"] if p["id"] == "-K1:contactor"])
         self.assertTrue(cad["body"].startswith('{\n  "format": "plcdesk-cad"'))
         place = self.app.bridge.request("folder.place", prj={"meta": {}}, name="PLCdesk_CAD.json", hint="cad")

@@ -52,6 +52,21 @@ export interface BomLine {
   excluded?: boolean;
 }
 
+/** Kategorie kusovníku, které jsou bezpečnostními prvky samy o sobě (bez ohledu na zařízení). */
+export const BOM_SAFETY_CATS: ReadonlySet<string> = new Set(["safety_relay", "safety_controller", "contactor_mirror",
+  "safety_valve", "two_hand_station", "light_curtain", "safety_switch", "estop_button"]);
+
+/**
+ * Je řádek kusovníku bezpečnostní díl? Řádek podle posouzení rizik (`BomLine.safety`), bezpečnostní kategorie
+ * (`BOM_SAFETY_CATS`) nebo díl zařízení E-stopu / blokování programu. Sdílí export pro CAD (`parts[].safety`)
+ * a klasifikace změn revize (změna takového řádku = bezpečnostní změna).
+ */
+export function bomLineIsSafety(prj: Project, l: Pick<BomLine, "safety" | "cat" | "devId">): boolean {
+  if (l.safety || BOM_SAFETY_CATS.has(l.cat)) return true;
+  if (l.devId === undefined) return false;
+  return l.devId === prj.program?.estop || interlockDevs(prj).some(d => d.id === l.devId);
+}
+
 export interface Bom {
   plat: PlatformKey;
   lines: BomLine[];

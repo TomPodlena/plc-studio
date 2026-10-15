@@ -257,3 +257,56 @@ test("oprava (c): rozměry skříní a měničů v katalogu se zdrojem", () => {
   }
   assert.ok((CATALOG as Record<string, any[]>).vfd.some(b => b.dims), "měnič s rozměry");
 });
+
+test("druhy part_obsolete / part_not_orderable: stav u výrobce povinný, náhrada jen jako návrh", () => {
+  const p = loadSampleFile(S11);
+  const ta = buildBom(p).lines.find(l => l.cat === "vfd")!;
+  const base = fb11(p);
+  const obsolete: CadFeedback = { ...base, issues: [
+    { id: "eol-ta1", kind: "part_obsolete", severity: "warn", parts: [ta.id], message: "Výrobce oznámil ukončení výroby.",
+      vendorStatus: { code: "PM400", date: "2026-10-01", source: "https://example.com/pm400" },
+      suggestion: { partId: ta.id, alternatives: [{ type: "Nástupce XY", orderCode: "XY-2", brand: "Firma XY", why: "nástupce dle výrobce" }] } },
+    { id: "no-ta1", kind: "part_not_orderable", severity: "error", parts: [ta.id], message: "Kód nelze objednat.",
+      vendorStatus: { code: "PM500", source: "https://example.com/pm500" } },
+  ] };
+  /* validace: bez stavu u výrobce / bez dílu / bez zdroje = chyba */
+  const bad = clone(obsolete) as any;
+  delete bad.issues[0].vendorStatus;
+  bad.issues[1].vendorStatus.source = "";
+  bad.issues[1].parts = [];
+  const errs = parseCadFeedback(JSON.stringify(bad)).errors.join("\n");
+  for (const want of ["issues[0].vendorStatus", "issues[1].vendorStatus.source", "issues[1].parts"]) assert.ok(errs.includes(want), want + "\n" + errs);
+  const r = parseCadFeedback(JSON.stringify(obsolete));
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(r.fb!.issues[0].vendorStatus, { code: "PM400", date: "2026-10-01", source: "https://example.com/pm400" });
+  /* přehled: nic automaticky, alternativy z CAD i z katalogu téže kategorie (bez současného kódu) */
+  const rev = cadFeedbackReview(p, r.fb!);
+  const it = rev.items.find(i => i.id === "eol-ta1")!, it2 = rev.items.find(i => i.id === "no-ta1")!;
+  assert.equal(it.state, "usable");
+  assert.equal(it.partId, ta.id);
+  assert.equal(it.proposal, undefined, "bez návrhu z CAD žádný hlavní návrh");
+  assert.equal(it.alternatives[0].source, "cad");
+  assert.equal(it.alternatives[0].orderCode, "XY-2");
+  assert.ok(it.alternatives.slice(1).every(a => a.source === "catalog" && a.orderCode && a.orderCode !== ta.orderCode));
+  assert.ok(it2.alternatives.length > 0 && it2.alternatives.every(a => a.source === "catalog"));
+  assert.match(it.measuredText, /PM400/);
+  assert.equal(it.applied, false);
+  /* bez rozhodnutí se kusovník nemění; přijetí alternativy změní jen řádek */
+  const lines0 = JSON.stringify(p.bom?.lines ?? null);
+  applyCadFeedback(p, r.fb!, [], "Test", { rejected: [] });
+  assert.equal(JSON.stringify(p.bom?.lines ?? null), lines0);
+  const res = applyCadFeedback(p, r.fb!, ["eol-ta1#0"], "Test");
+  assert.deepEqual(res.applied, ["eol-ta1#0"]);
+  assert.equal(buildBom(p).lines.find(l => l.id === ta.id)!.orderCode, "XY-2");
+  assert.ok(CAD_FEEDBACK_KIND_LABEL.part_obsolete && CAD_FEEDBACK_KIND_LABEL.part_not_orderable);
+});
+
+test("zpětná vazba na manifest jiné verze (v1) = zastaralá, ne chyba; karty PLC známé i u io: []", () => {
+  const p = loadSampleFile(S11);
+  const v1 = sha256Text(JSON.stringify({ format: "plcdesk-cad", version: 1, parts: [] }, null, 2) + "\n");
+  const r = cadFeedbackReview(p, fb11(p, { manifest: { sha256: v1 } }));
+  assert.equal(r.stale, true);
+  assert.ok(r.items.every(i => i.state === "stale"));
+  const q = cadFeedbackReview(p, fb11(p, { issues: [{ id: "di", kind: "qty_mismatch", severity: "info", parts: ["-A2:plc_di"], message: "x" }] }));
+  assert.equal(q.items[0].state, "usable");
+});
