@@ -309,7 +309,7 @@ const SRC: Src[] = [
     summary: N_("Komponenty k poptávce s označením podle IEC 81346: PLC a moduly ze sestavy hardwaru, ke každému zařízení jeho díly (jistič motoru, stykač, rozváděč, snímače…) a rozvaděč. Značky, typy, objednací kódy a dodavatelé z katalogu."),
     steps: [
       N_("Zvol **Platformu řízení** — určí CPU a moduly sestavy hardwaru."),
-      N_("**Rezerva I/O** (volitelně): procento obsazených kanálů nebo minimum volných kanálů DI / DO / AI / AO. PLCdesk pak zvolí CPU a karty tak, aby rezerva zbyla; vedle vidíš volné kanály sestavy. Prázdné = bez rezervy."),
+      N_("**Rezerva I/O** (volitelně): procento obsazených kanálů nebo minimum volných kanálů DI / DO / AI / AO. PLCdesk pak zvolí CPU a karty tak, aby rezerva zbyla (jen v lokálním racku — kvůli rezervě nepřidá vzdálenou stanici); vedle vidíš volné kanály sestavy. Nový projekt začíná s rezervou 20 %; dřívější projekty, příklady a import stávajícího stroje jsou bez rezervy. Prázdné = bez rezervy."),
       N_("U řádku nebo celé kategorie vyber výrobce a typ z katalogu, případně zadej vlastní."),
       N_("Uprav množství, objednací kód a dodavatele; množství 0 řádek vyřadí z CSV a dokumentace."),
       N_("Stáhni / ulož CSV pro Excel nebo zkopíruj tabulku."),

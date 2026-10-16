@@ -373,6 +373,14 @@ export declare const xmlEsc: typeof esc;
 /** HTML klientů: escapuje i apostrof — web vkládá hodnoty i do atributů v apostrofech (value='…'); test odolnosti 2026-10-08. */
 export declare function escHtml(s: unknown): string;
 export declare function blankProject(): Project;
+/** Výchozí rezerva I/O NOVÉHO projektu v % obsazených kanálů (rozhodnutí uživatele 2026-10-16). */
+export declare const NEW_PROJECT_IO_RESERVE_PCT = 20;
+/**
+ * Nový projekt uživatele (tlačítko Nový projekt, první spuštění, prázdný start po poškozeném stavu): `blankProject`
+ * + výchozí rezerva I/O 20 %. `blankProject` zůstává bez rezervy — staví z něj normalizace načtených projektů,
+ * vzory, import stávajícího stroje (skutečný hardware) a testy; existující projekty se nemigrují.
+ */
+export declare function newProject(): Project;
 export declare function devById(prj: Project, id: number | ""): Device | undefined;
 export declare function nextName(prj: Project, cls: DeviceClass): string;
 /** Instance bloku zařízení (`instM1`) — names.ts. */

@@ -4,7 +4,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { syncIO, modules, validateProject, addrFor, nativeAddr, ensureGuids, PLAT, type Project, type PlatformKey, type Dir } from "./model.js";
+import { syncIO, modules, validateProject, addrFor, nativeAddr, ensureGuids, PLAT, blankProject, newProject, NEW_PROJECT_IO_RESERVE_PCT, type Project, type PlatformKey, type Dir } from "./model.js";
 import { hwLayout, hwAddr, hwAssign, hwPlatform, HW_VER, HW_DIRS, lxSpecOf, hwFreeChannels, ioReserveOf, ioReserveFor, ioReserveText, type HwLayout } from "./hardware.js";
 import { buildBom } from "./bom.js";
 import { svorkyCSV, docIOcsv } from "./docs.js";
@@ -15,6 +15,7 @@ import { genFor } from "./codegen.js";
 import { lxIoMap } from "./logix.js";
 import { sampleSmall, sampleComplex } from "./samples.js";
 import { sampleNames, loadSampleFile } from "./exp_util.test.js";
+import { normalizeProject } from "./project_norm.js";
 
 const PLATS = Object.keys(PLAT) as PlatformKey[];
 const clone = (p: Project): Project => JSON.parse(JSON.stringify(p));
@@ -236,6 +237,45 @@ test("rezerva I/O: výchozí beze změny, rezerva přidá kartu / větší CPU, 
   assert.equal(w.length, 1);
   assert.equal(w[0].level, "warn");
   assert.deepEqual(validateProject(fx).filter(i => i.level === "error"), []);
+});
+
+test("rezerva I/O nikdy nepřidá vzdálenou stanici; nový projekt má výchozí rezervu 20 %, ostatní bez rezervy", () => {
+  const small = loadSampleFile("01_pasovy_dopravnik_vyhazovac.plcstudio.json");
+  small.devices.push({ id: 900, name: "S99", cls: "DI", desc: "", opt: {}, unit: "", rmin: 0, rmax: 100 } as any);
+  syncIO(small);
+  /* zvolené 1212C (8 DI + 6 karet × 16 = 104 DI) a rezerva 120 DI: bez ET 200SP, varování s větším CPU */
+  const p = clone(small);
+  p.bom = { ...(p.bom || {}), lines: { "-A1:plc_cpu": { brand: "Siemens · 6ES7212-1AG50-0XB0" } }, ioReserve: { DI: 120 } };
+  const L = hwLayout(p, "siemens");
+  assert.equal(L.stations.length, 1, "rezerva nepřidá vzdálenou stanici");
+  assert.equal(L.modules.filter(m => m.kind === "io" && !m.builtin).length, 0, "plán jako bez rezervy");
+  const w = validateProject(p).filter(i => /Rezerva I\/O nesplněna/.test(i.msg));
+  assert.equal(w.length, 1);
+  assert.equal(w[0].level, "warn");
+  assert.match(w[0].msg, /6ES7214-1AH50-0XB0/, "návrh většího CPU téže řady");
+  /* automatické CPU: rezerva se vejde lokálně do 1214C → 1214C s kartami, bez vzdálené stanice */
+  const q = clone(small); q.bom = { ioReserve: { DI: 120 } };
+  const Lq = hwLayout(q, "siemens");
+  assert.equal(Lq.cpu.opt?.orderCode, "6ES7214-1AH50-0XB0");
+  assert.equal(Lq.stations.length, 1);
+  assert.ok(hwFreeChannels(Lq).DI.free >= 120);
+  /* nesplnitelná ani lokálně: sestava bez rezervy, žádná ET 200SP */
+  const r = clone(small); r.bom = { ioReserve: { DI: 300 } };
+  const Lr = hwLayout(r, "siemens");
+  assert.equal(Lr.stations.length, 1);
+  assert.equal(Lr.cpu.opt?.orderCode, "6ES7212-1AG50-0XB0");
+  assert.match(validateProject(r).find(i => /Rezerva I\/O nesplněna/.test(i.msg))!.msg, /žádné/);
+  /* skutečné signály dál smějí do vzdálené stanice (vzor 10), rezerva tam karty přidat smí, stanici ne */
+  const big = loadSampleFile("10_vyrobni_hala_linka_rozdelovacu.plcstudio.json");
+  const nb = hwLayout(big, "siemens").stations.length;
+  const big2 = clone(big); big2.bom = { ...(big2.bom || {}), ioReserve: { pct: 20 } };
+  assert.ok(hwLayout(big2, "siemens").stations.length <= nb);
+  /* výchozí rezerva jen u nového projektu */
+  assert.deepEqual(newProject().bom, { ioReserve: { pct: NEW_PROJECT_IO_RESERVE_PCT } });
+  assert.equal(NEW_PROJECT_IO_RESERVE_PCT, 20);
+  assert.equal(blankProject().bom, undefined, "blankProject (normalizace, vzory, import) bez rezervy");
+  assert.equal(normalizeProject({ meta: { name: "x" }, devices: [], io: [] }).bom, undefined, "načtený projekt se nemigruje");
+  assert.ok(sampleNames().every(n => !loadSampleFile(n).bom?.ioReserve), "vzory bez rezervy");
 });
 
 test("validateProject: projekt se do platformy nevejde → chyba", () => {

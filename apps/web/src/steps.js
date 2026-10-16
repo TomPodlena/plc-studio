@@ -1,7 +1,7 @@
 /* Renderery kroků workflow. ctx = { S, save, render } — stav vlastní app.js.
    Texty pro uživatele jdou přes tr() (český text = klíč překladu); struktura HTML zůstává mimo klíče. */
 import {
-  PLAT, CLS, escHtml as esc, blankProject, devById, nextName, syncIO, autoAddr, modules, wireNo,
+  PLAT, CLS, escHtml as esc, newProject, devById, nextName, syncIO, autoAddr, modules, wireNo,
   validateProject, sanitizeTag, genFor, allProjectFiles, licensedGen, licensedProjectFiles,
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
   tr, N_, getLang, DO_ROLES, stepTitle, projectFileName, projectFolderName, projectNumberProblem,
@@ -174,7 +174,7 @@ export function makeSteps(ctx) {
     c.querySelector("#bReset").addEventListener("click", async () => {
       if (!replaceOk()) return;
       const n = await suggestNumberAsync([p.meta.number]);      // ze složek kořene, bez něj z historie prohlížeče
-      S.prj = blankProject(); if (n) S.prj.meta.number = n; S.ai = { turns: [], last: null, draft: "" }; save(); render();
+      S.prj = newProject(); if (n) S.prj.meta.number = n; S.ai = { turns: [], last: null, draft: "" }; save(); render();
     });
     /* Otevřít projekt…: soubor .plcstudio.json (z kořene projektů / odkudkoli; bez API <input type=file>) */
     c.querySelector("#bOpen").addEventListener("click", () => openProject(msg => alertRow(c, msg)));

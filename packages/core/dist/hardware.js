@@ -359,20 +359,34 @@ function build(prj, plat) {
     let cpuOpt = asked.opt, autoCpu = false;
     if (!cpuOpt && !asked.custom) {
         autoCpu = true;
+        /* s rezervou nejdřív CPU, do kterého se lokálně vejdou signály i rezerva; jinak jako bez rezervy */
+        if (reserve)
+            cpuOpt = cpuHw.find(o => localFits(c, o, want).fits);
         let best;
-        for (const o of cpuHw) {
-            const f = localFits(c, o, want);
-            if (f.fits) {
-                cpuOpt = o;
-                break;
+        if (!cpuOpt)
+            for (const o of cpuHw) {
+                const f = localFits(c, o, need);
+                if (f.fits) {
+                    cpuOpt = o;
+                    break;
+                }
+                if (!best || f.cap > best.cap)
+                    best = { o, cap: f.cap };
             }
-            if (!best || f.cap > best.cap)
-                best = { o, cap: f.cap };
-        }
         if (!cpuOpt)
             cpuOpt = best?.o || cpuAll[0];
     }
-    const p = plan(c, cpuOpt, asked.custom, want);
+    /* rezerva NIKDY nepřidá vzdálenou stanici (rozhodnutí uživatele 2026-10-16): když by plán se rezervou potřeboval
+       víc stanic než plán jen pro signály, platí plán bez rezervy (validace pak hlásí nesplněnou rezervu) */
+    const runPlan = (n) => { const cc = { ...c, issues: [] }; return { r: plan(cc, cpuOpt, asked.custom, n), iss: cc.issues }; };
+    let pr = runPlan(want);
+    if (reserve) {
+        const base = runPlan(need);
+        if (pr.r.stations.length > base.r.stations.length)
+            pr = base;
+    }
+    const p = pr.r;
+    issues.push(...pr.iss);
     if (asked.custom)
         issues.push({ level: "info", where: "-A1", msg: tr("Vlastní CPU {cpu} není v katalogu — vestavěné I/O a limit modulů neznám, moduly navrženy bez omezení racku.", { cpu: asked.custom }) });
     /* označení modulů: skupina -A<typ> / -A<10s+typ>, víc karet ve skupině = .1, .2 … */
@@ -457,11 +471,16 @@ function build(prj, plat) {
     /* rezerva I/O: nesplněná = varování; bez nastavené rezervy jen informace o plně obsazeném směru */
     if (!overflow.length) {
         const fr = hwFreeChannels(L);
+        let bigger;
         for (const d of HW_DIRS) {
             const r = ioReserveFor(reserve, d, need[d]);
             const where = PLAT[plat].name + " " + d;
-            if (r > 0 && fr[d].free < r)
-                issues.push({ level: "warn", where, msg: tr("Rezerva I/O nesplněna: {dir} volné {free} z požadovaných {want} kanálů (obsazeno {used}/{cap}). Do sestavy {plat} se víc modulů nevejde — zvol větší CPU, jinou platformu nebo menší rezervu.", { dir: d, free: fr[d].free, want: r, used: fr[d].used, cap: fr[d].cap, plat: PLAT[plat].name }) });
+            if (r > 0 && fr[d].free < r) {
+                /* větší CPU téže řady, do kterého se signály i rezerva vejdou lokálně (návrh, volí uživatel v kusovníku) */
+                bigger ??= cpuAll.filter(o => o.hw && o !== cpuOpt && o.hw.family === cpuOpt?.hw?.family && localFits(c, o, want).fits)
+                    .map(o => o.orderCode || brandOptId(o)).join(", ");
+                issues.push({ level: "warn", where, msg: tr("Rezerva I/O nesplněna: {dir} volné {free} z požadovaných {want} kanálů (obsazeno {used}/{cap}). Do lokálního racku {plat} se víc modulů nevejde a kvůli rezervě se vzdálená stanice nepřidává — zvol větší CPU (v katalogu: {cpus}), jinou platformu nebo menší rezervu.", { dir: d, free: fr[d].free, want: r, used: fr[d].used, cap: fr[d].cap, plat: PLAT[plat].name, cpus: bigger || tr("žádné") }) });
+            }
             else if (!reserve && need[d] > 0 && fr[d].free === 0)
                 issues.push({ level: "info", where, msg: tr("Kanály {dir} jsou obsazené všechny ({used}/{cap}) — bez rezervy pro rozšíření. Rezervu I/O lze nastavit v kroku Kusovník.", { dir: d, used: fr[d].used, cap: fr[d].cap }) });
         }

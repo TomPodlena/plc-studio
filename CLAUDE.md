@@ -379,7 +379,15 @@ python scripts/build_verification.py        # data/verification.json → verific
   I/O) = `warn` „Rezerva I/O nesplněna“, bez nastavené rezervy plně obsazený směr = `info` (where „<platforma> DI“).
   **Výchozí = bez rezervy → sestava i všechny výstupy beze změny (golden)**; hodnotu volí uživatel (web i desktop
   krok Kusovník: pole „Rezerva I/O“ s volnými kanály `hwFreeChannels`, most `bom` vrací `reserve` / `free`).
-  Připnuté adresy zůstávají (nová karta jen přidá kanály). Výchozí hodnotu rezervy uživatel zatím nezvolil.
+  Připnuté adresy zůstávají (nová karta jen přidá kanály). **Rezerva NIKDY nepřidá vzdálenou stanici** (rozhodnutí
+  uživatele 2026-10-16): auto CPU nejdřív to, kam se signály + rezerva vejdou lokálně, jinak výběr jako bez rezervy;
+  plán s rezervou, který by měl víc stanic než plán jen pro signály, se zahodí (sestava jako bez rezervy) a `warn`
+  „Rezerva I/O nesplněna…“ nabídne větší CPU téže řady, kam se rezerva vejde lokálně. Karty navíc do vzdálené stanice,
+  kterou si vynutily skutečné signály, rezerva přidat smí. **Výchozí rezerva 20 % jen u NOVÉHO projektu**
+  (`newProject()` = `blankProject` + `bom.ioReserve {pct: NEW_PROJECT_IO_RESERVE_PCT}`; web Nový projekt / první
+  návštěva / poškozený stav, desktop start / `reset_project` / poškozený stav). `blankProject` zůstává bez rezervy
+  (normalizace načtených projektů, vzory, golden, testy) a **import stávajícího stroje (`inferProject`, průvodce
+  importu) je bez rezervy** — hardware už existuje; `applyAiProposal` rezervu nemění; nic se nemigruje.
 - Testy `hardware.test.ts`: 13 příkladů × 10 platforem — signál právě na jednom kanálu, bez kolize
   adres, kanály = katalog, limity racků, kusovník = sestava, výkresy / svorkovnice / EPLAN shodné,
   validateEplan bez chyb; pravidla Siemens / FX5 / Rockwell / Omron / Unitronics, „nevejde se“,
