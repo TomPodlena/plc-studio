@@ -306,7 +306,7 @@ python scripts/build_verification.py        # data/verification.json → verific
   nejmenší větší skříň z katalogu podle `dims` a `required.min` (hloubka / šířka / výška / plocha desky, vnější
   rozměr — užitný ověř v CAD), stav `usable` / `stale` (otisk `manifest.sha256` ≠ `cadManifestSha256` v žádném
   jazyce UI — jen varování) / `invalid` (partId v kusovníku chybí nebo jiný `prj.guid` — nelze přijmout)).
-  `applyCadFeedback(prj, fb, přijaté["id" | "id#n"], kdo, { rejected })` mění JEN `prj.bom.lines` (žádný paralelní
+  `applyCadFeedback(prj, fb, přijaté["id" | "id#n"], kdo, { rejected })` mění JEN `prj.bom.lines` (+ `prj.bom.ioReserve` u `plc_io_capacity`) (žádný paralelní
   stav) a zapíše historii `prj.bom.cadFeedback` (id, otisk, created, kdo, kdy, přijato / odmítnuto, změna) —
   kusovník, oddíl „Změny ze zpětné vazby CAD“ v `09_kusovnik.md` (`cadFeedbackMd`, jen s historií) i další export
   manifestu se přepočítají samy. Idempotentní (totéž rozhodnutí podruhé nic nepřidá; skříň, která požadavek už
@@ -315,6 +315,16 @@ python scripts/build_verification.py        # data/verification.json → verific
   čtení `util.js readFileText`), desktop okno `kusovnik.py` `CadFeedbackDialog` (operace mostu `cadfb`,
   `cadfbApply`); jméno „Rozhodl“ = jméno schvalovatele (web `plcstudio.approver`, desktop `settings.approver`).
   Po použití hláška „Exportuj znovu pro CAD“. Testy `cad_feedback.test.ts`.
+- **Málo kanálů I/O PLC (`plc_io_capacity`, doplněk v1 2026-10-16; podnět stroj 01 — DI 8/8 po -S4):** směr DI / DO /
+  AI / AO povinný v `measured.what` nebo `required.what` (velkými písmeny, samostatné slovo — české „do“ se nesplete),
+  volitelné `measured.capacity`, `required.min` = volné kanály (`ch`) nebo % obsazených (`%`), bez required 1 volný.
+  `cadFeedbackReview` přepočítá stav podle `hwLayout(cadProject(prj))` (`hwFreeChannels`), cílový řádek = CPU
+  (`-A1:plc_cpu`); návrhy ověřené na kopii (rezerva zbude, nic se nepřelije): hlavní = rezerva I/O (`reserveOnly`,
+  `reserve` → `prj.bom.ioReserve`, PLCdesk přidá kartu / zvolí CPU), alternativy = větší CPU téže `hw.family` (≤ 3,
+  řádek CPU + táž rezerva), návrh řádku z CAD dostane rezervu také. Splněno = `applied`, žádný návrh. **`applyCadFeedback`
+  tedy mění `prj.bom.lines` a `prj.bom.ioReserve`** (obojí volby kusovníku) a po změně hardwaru doplní GUID nových
+  modulů (`fillGuids` nad sestavou synchronizovaných I/O — manifest nese GUID karty hned). Schéma: doplněk v
+  `.claude/plcdesk_freecad_staging/schema_v2/FEEDBACK_SCHEMA.md` (čeká na přenos do `C:\CLAUDE\plcdesk_freecad`).
 - **Opravy kusovníku odhalené ve 3D (2026-10-14):** svorky = jeden řádek `-X<n>:terminal_block` na svorkovnici
   výkresu (počet = kanály skupiny = `svorkyCSV` = `terminals` manifestu; dřív odhad I/O × 1,2 + 10, napájecí svorky
   a rezervu doplní projektant — poznámka u -X1); typ v katalogu = jedna položka (alternativy jako samostatné záznamy
@@ -362,6 +372,14 @@ python scripts/build_verification.py        # data/verification.json → verific
   `normProject` značku zachovává.
 - **GUID modulů:** klíč `S<stanice>.<slot>` v `prj.moduleGuids` (karty a hlavy); vestavěné I/O, CPU,
   BusAdapter a server odvozeně. Dřívější klíče `DI1…` převede `fillGuids` (n-tá karta téhož směru).
+- **Rezerva I/O** (2026-10-16): `prj.bom.ioReserve = { pct?, DI?, DO?, AI?, AO? }` (`IoReserve`, model.ts) — % obsazených
+  kanálů každého použitého směru (nahoru) a / nebo minimum volných kanálů směru; platí větší (`ioReserveFor`,
+  čištění `ioReserveOf`: % ≤ 100, kanály celé 0–1000; `normalizeProject` zachová, revize = kosmetická změna kusovníku).
+  `build` volí CPU (`localFits`) i karty (`plan`) pro signály + rezervu; nesplnitelná rezerva (rack plný, bez vzdálených
+  I/O) = `warn` „Rezerva I/O nesplněna“, bez nastavené rezervy plně obsazený směr = `info` (where „<platforma> DI“).
+  **Výchozí = bez rezervy → sestava i všechny výstupy beze změny (golden)**; hodnotu volí uživatel (web i desktop
+  krok Kusovník: pole „Rezerva I/O“ s volnými kanály `hwFreeChannels`, most `bom` vrací `reserve` / `free`).
+  Připnuté adresy zůstávají (nová karta jen přidá kanály). Výchozí hodnotu rezervy uživatel zatím nezvolil.
 - Testy `hardware.test.ts`: 13 příkladů × 10 platforem — signál právě na jednom kanálu, bez kolize
   adres, kanály = katalog, limity racků, kusovník = sestava, výkresy / svorkovnice / EPLAN shodné,
   validateEplan bez chyb; pravidla Siemens / FX5 / Rockwell / Omron / Unitronics, „nevejde se“,

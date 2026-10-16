@@ -27,7 +27,7 @@
  * (import ze skutečného stroje, ruční zápis), se respektuje — kód ji použije, signál dostane volný kanál
  * ve výkresech a validace upozorní (`foreign`).
  */
-import type { Project, IoEntry, IoModule, Dir, PlatformKey } from "./model.js";
+import type { Project, IoEntry, IoModule, Dir, PlatformKey, IoReserve } from "./model.js";
 import { type CatalogBrand } from "./catalog.js";
 /** Verze pravidel sestavy — změna přidělí adresy starších projektů znovu (viz `prj.hw`). */
 export declare const HW_VER = 1;
@@ -116,6 +116,18 @@ export declare function driveNet(plat: PlatformKey): string;
 export declare function hwPlatform(prj: Project): PlatformKey;
 /** Id řádku kusovníku (označení skupiny + kategorie) — volby uživatele `prj.bom.lines`. */
 export declare const hwLineId: (tag: string, cat: string) => string;
+/** Rezerva I/O projektu (`prj.bom.ioReserve`) očištěná: procento 0–100, kanály celá čísla 0–1000; bez rezervy undefined. */
+export declare function ioReserveOf(prj: Project): IoReserve | undefined;
+/** Počet volných kanálů, které má sestava ponechat pro směr (podle počtu obsazených `used`). */
+export declare function ioReserveFor(r: IoReserve | undefined, d: Dir, used: number): number;
+/** Rezerva pro lidi: „20 % obsazených, DI ≥ 2“ (prázdné = bez rezervy). */
+export declare function ioReserveText(r: IoReserve | undefined): string;
+/** Volné kanály sestavy podle směru: kapacita modulů (vč. vestavěných I/O) a obsazené kanály. */
+export declare function hwFreeChannels(L: HwLayout): Record<Dir, {
+    used: number;
+    cap: number;
+    free: number;
+}>;
 /** Spustí `fn` s cachí sestavy bez kontroly podpisu — jen pro výpočty, které projekt nemění. */
 export declare function withFrozenHw<T>(fn: () => T): T;
 /** Sestava hardwaru pro platformu (výchozí = platforma hardwaru projektu). Výsledek je cachovaný. */

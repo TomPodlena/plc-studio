@@ -210,8 +210,23 @@ export interface BomCfg {
     plat?: PlatformKey;
     brand?: Record<string, string>;
     lines?: Record<string, BomLineCfg>;
-    /** rozhodnutí o zpětné vazbě z CAD (`cad_feedback.ts` `applyCadFeedback`) — historie, kusovník mění jen `lines` */
+    /** rozhodnutí o zpětné vazbě z CAD (`cad_feedback.ts` `applyCadFeedback`) — historie; kusovník mění jen `lines`
+     *  a `ioReserve` */
     cadFeedback?: CadFeedbackRecord[];
+    /** rezerva I/O sestavy (`hardware.ts`): volné kanály, které musí v sestavě zbýt; bez ní = bez rezervy (výchozí) */
+    ioReserve?: IoReserve;
+}
+/**
+ * Rezerva I/O: `pct` = procento obsazených kanálů každého použitého směru (zaokrouhleno nahoru), `DI` / `DO` /
+ * `AI` / `AO` = minimum volných kanálů směru (i nepoužitého). Platí větší z obou. `hwLayout` podle ní volí CPU
+ * a karty; nesplnitelná rezerva = varování validace.
+ */
+export interface IoReserve {
+    pct?: number;
+    DI?: number;
+    DO?: number;
+    AI?: number;
+    AO?: number;
 }
 /**
  * Záznam rozhodnutí o položce zpětné vazby z CAD (PLCdesk_CAD_feedback.json): kdo, kdy, přijato / odmítnuto,

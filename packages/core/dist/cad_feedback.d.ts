@@ -13,23 +13,30 @@
  *   - `applyCadFeedback(prj, fb, přijaté, kdo)` změní JEN `prj.bom.lines` (žádný paralelní stav) a zapíše
  *     historii `prj.bom.cadFeedback` — kusovník, `09_kusovnik.*` (oddíl změn z CAD) i další export manifestu
  *     se tím přepočítají samy. Opakované použití téže zpětné vazby nic nezdvojí (idempotence).
+ * Druh `plc_io_capacity` (doplněk 2026-10-16): málo kanálů I/O PLC (obsazeno / kapacita směru). Přehled přepočítá
+ * stav podle sestavy `hwLayout` a nabídne převoditelné volby: rezervu I/O `prj.bom.ioReserve` (PLCdesk pak přidá kartu
+ * nebo zvolí větší CPU) a jako alternativy větší CPU téže rodiny z katalogu (řádek `-A1:plc_cpu` + táž rezerva).
+ * Každý návrh se před nabídnutím ověří na kopii projektu (rezerva musí v nové sestavě zbýt). `applyCadFeedback` proto
+ * mění `prj.bom.lines` a `prj.bom.ioReserve` — obojí jsou volby kusovníku, nic jiného.
  * Bez zpětné vazby se výstupy nemění (golden).
  */
-import type { Project, BomLineCfg } from "./model.js";
+import type { Project, BomLineCfg, IoReserve } from "./model.js";
 export declare const CAD_FEEDBACK_FORMAT = "plcdesk-cad-feedback";
 export declare const CAD_FEEDBACK_VERSION = 1;
 /** Obvyklé jméno souboru zpětné vazby (nástroje CAD ho tak ukládají). */
 export declare const CAD_FEEDBACK_FILE = "PLCdesk_CAD_feedback.json";
-export declare const CAD_FEEDBACK_KINDS: readonly ["cabinet_too_small", "part_not_fitting", "qty_mismatch", "ambiguous_type", "missing_order_code", "model_mismatch", "part_obsolete", "part_not_orderable", "other"];
+export declare const CAD_FEEDBACK_KINDS: readonly ["cabinet_too_small", "part_not_fitting", "qty_mismatch", "ambiguous_type", "missing_order_code", "model_mismatch", "part_obsolete", "part_not_orderable", "plc_io_capacity", "other"];
 /** Druhy o stavu dílu u výrobce (ukončená výroba / nelze objednat): musí nést doložený stav `vendorStatus`. */
 export declare const CAD_FEEDBACK_VENDOR_KINDS: readonly CadFeedbackKind[];
 export type CadFeedbackKind = typeof CAD_FEEDBACK_KINDS[number];
 export type CadFeedbackSeverity = "error" | "warn" | "info";
+/** `capacity` (volitelné, doplněk 2026-10-16) = kapacita, ke které se `value` vztahuje (u `plc_io_capacity` kanály směru). */
 export interface CadFeedbackMeasured {
     what: string;
     value: number;
     unit: string;
     source: string;
+    capacity?: number;
 }
 export interface CadFeedbackRequired {
     what: string;
@@ -113,6 +120,10 @@ export interface CadFbProposal {
     why: string;
     /** nová volba řádku (nahradí `prj.bom.lines[partId]`) */
     cfg: BomLineCfg;
+    /** nová rezerva I/O sestavy (`prj.bom.ioReserve`) — u `plc_io_capacity` */
+    reserve?: IoReserve;
+    /** návrh mění jen rezervu I/O (řádek kusovníku beze změny; karty / CPU zvolí `hwLayout`) */
+    reserveOnly?: boolean;
 }
 export interface CadFbPart {
     id: string;

@@ -13,13 +13,20 @@
  *   - `applyCadFeedback(prj, fb, přijaté, kdo)` změní JEN `prj.bom.lines` (žádný paralelní stav) a zapíše
  *     historii `prj.bom.cadFeedback` — kusovník, `09_kusovnik.*` (oddíl změn z CAD) i další export manifestu
  *     se tím přepočítají samy. Opakované použití téže zpětné vazby nic nezdvojí (idempotence).
+ * Druh `plc_io_capacity` (doplněk 2026-10-16): málo kanálů I/O PLC (obsazeno / kapacita směru). Přehled přepočítá
+ * stav podle sestavy `hwLayout` a nabídne převoditelné volby: rezervu I/O `prj.bom.ioReserve` (PLCdesk pak přidá kartu
+ * nebo zvolí větší CPU) a jako alternativy větší CPU téže rodiny z katalogu (řádek `-A1:plc_cpu` + táž rezerva).
+ * Každý návrh se před nabídnutím ověří na kopii projektu (rezerva musí v nové sestavě zbýt). `applyCadFeedback` proto
+ * mění `prj.bom.lines` a `prj.bom.ioReserve` — obojí jsou volby kusovníku, nic jiného.
  * Bez zpětné vazby se výstupy nemění (golden).
  */
-import type { Project, BomLineCfg, CadFeedbackRecord, PlatformKey } from "./model.js";
+import type { Project, BomLineCfg, CadFeedbackRecord, PlatformKey, Dir, IoReserve } from "./model.js";
 import { stripDia } from "./model.js";
 import { buildBom, type BomLine } from "./bom.js";
 import { brandsFor, brandOptId, type CatalogBrand } from "./catalog.js";
 import { cadManifestJson, cadProject } from "./cad.js";
+import { fillGuids } from "./guid.js";
+import { hwLayout, hwFreeChannels, ioReserveOf, ioReserveText, hwLineId, hwTypeText, HW_DIRS, type HwLayout } from "./hardware.js";
 import { tr, N_, getLang, setLang, LANGS, type Lang } from "./i18n.js";
 
 export const CAD_FEEDBACK_FORMAT = "plcdesk-cad-feedback";
@@ -28,13 +35,14 @@ export const CAD_FEEDBACK_VERSION = 1;
 export const CAD_FEEDBACK_FILE = "PLCdesk_CAD_feedback.json";
 
 export const CAD_FEEDBACK_KINDS = ["cabinet_too_small", "part_not_fitting", "qty_mismatch", "ambiguous_type",
-  "missing_order_code", "model_mismatch", "part_obsolete", "part_not_orderable", "other"] as const;
+  "missing_order_code", "model_mismatch", "part_obsolete", "part_not_orderable", "plc_io_capacity", "other"] as const;
 /** Druhy o stavu dílu u výrobce (ukončená výroba / nelze objednat): musí nést doložený stav `vendorStatus`. */
 export const CAD_FEEDBACK_VENDOR_KINDS: readonly CadFeedbackKind[] = ["part_obsolete", "part_not_orderable"];
 export type CadFeedbackKind = typeof CAD_FEEDBACK_KINDS[number];
 export type CadFeedbackSeverity = "error" | "warn" | "info";
 
-export interface CadFeedbackMeasured { what: string; value: number; unit: string; source: string; }
+/** `capacity` (volitelné, doplněk 2026-10-16) = kapacita, ke které se `value` vztahuje (u `plc_io_capacity` kanály směru). */
+export interface CadFeedbackMeasured { what: string; value: number; unit: string; source: string; capacity?: number; }
 export interface CadFeedbackRequired { what: string; min?: number; max?: number; value?: number; unit: string; basis: string; }
 export interface CadFeedbackLine { type?: string; orderCode?: string; brand?: string; supplier?: string; qty?: number; note?: string; }
 export interface CadFeedbackAlt { type?: string; orderCode?: string; brand?: string; why?: string; }
@@ -168,6 +176,7 @@ export function parseCadFeedback(text: string): { fb: CadFeedback | null; errors
         need(isNum(m.value), p + ".measured.value", T_NUM);
         need(isStr(m.unit), p + ".measured.unit", T_STR);
         need(isStr(m.source) && !!m.source.trim(), p + ".measured.source", tr("chybí zdroj — zpětná vazba nese jen měřená / doložená fakta"));
+        if (m.capacity !== undefined) need(isNum(m.capacity), p + ".measured.capacity", T_NUM);
       }
     }
     if (it.required !== undefined) {
@@ -192,6 +201,8 @@ export function parseCadFeedback(text: string): { fb: CadFeedback | null; errors
       need(false, p + ".vendorStatus", tr("chybí stav u výrobce se zdrojem (code, source) — povinný u druhů part_obsolete a part_not_orderable"));
     if ((CAD_FEEDBACK_VENDOR_KINDS as readonly unknown[]).includes(it.kind))
       need(Array.isArray(it.parts) && it.parts.length > 0, p + ".parts", tr("chybí díl, kterého se stav u výrobce týká"));
+    if (it.kind === "plc_io_capacity")
+      need(!!ioDirOf(it), p + ".measured.what", tr("chybí směr I/O (DI, DO, AI nebo AO) v measured.what nebo required.what — povinný u druhu plc_io_capacity"));
     if (it.suggestion !== undefined) {
       const s = it.suggestion;
       if (!isObj(s)) need(false, p + ".suggestion", tr("není objekt"));
@@ -218,7 +229,7 @@ export function parseCadFeedback(text: string): { fb: CadFeedback | null; errors
       const s = it.suggestion;
       issues.push({
         id: it.id, kind: it.kind, severity: it.severity, parts: [...it.parts], message: it.message,
-        ...(isObj(it.measured) ? { measured: { what: it.measured.what, value: it.measured.value, unit: it.measured.unit, source: it.measured.source } } : {}),
+        ...(isObj(it.measured) ? { measured: { what: it.measured.what, value: it.measured.value, unit: it.measured.unit, source: it.measured.source, ...(isNum(it.measured.capacity) ? { capacity: it.measured.capacity } : {}) } } : {}),
         ...(isObj(it.vendorStatus) ? { vendorStatus: { code: it.vendorStatus.code, ...(isStr(it.vendorStatus.date) ? { date: it.vendorStatus.date } : {}), source: it.vendorStatus.source } } : {}),
         ...(isObj(it.required) ? { required: { ...pick(it.required, ["min", "max", "value"]), what: it.required.what, unit: it.required.unit, basis: isStr(it.required.basis) ? it.required.basis : "" } } : {}),
         ...(isObj(s) ? { suggestion: {
@@ -235,6 +246,18 @@ export function parseCadFeedback(text: string): { fb: CadFeedback | null; errors
       manifest: { sha256: raw.manifest.sha256.toLowerCase() }, created: raw.created, tool: raw.tool, issues },
     errors: [],
   };
+}
+/**
+ * Směr I/O položky `plc_io_capacity` — DI / DO / AI / AO z `measured.what`, jinak z `required.what` (velkými písmeny,
+ * samostatné slovo: české „do“ se nesplete).
+ */
+function ioDirOf(it: { measured?: unknown; required?: unknown }): Dir | "" {
+  for (const o of [it.measured, it.required]) {
+    const w = isObj(o) && isStr(o.what) ? o.what : "";
+    const m = /(?:^|[^A-Za-z])(DI|DO|AI|AO)(?![A-Za-z])/.exec(w);
+    if (m) return m[1] as Dir;
+  }
+  return "";
 }
 function pick(o: Record<string, any>, keys: string[]): any {
   const r: Record<string, unknown> = {};
@@ -256,6 +279,10 @@ export interface CadFbProposal {
   why: string;
   /** nová volba řádku (nahradí `prj.bom.lines[partId]`) */
   cfg: BomLineCfg;
+  /** nová rezerva I/O sestavy (`prj.bom.ioReserve`) — u `plc_io_capacity` */
+  reserve?: IoReserve;
+  /** návrh mění jen rezervu I/O (řádek kusovníku beze změny; karty / CPU zvolí `hwLayout`) */
+  reserveOnly?: boolean;
 }
 export interface CadFbPart { id: string; known: boolean; tag: string; item: string; brand: string; type: string; orderCode: string; qty: number; }
 export interface CadFbItem {
@@ -385,6 +412,89 @@ function cabinetCandidates(prj: Project, plat: PlatformKey, l: BomLine, req: Cad
   }), "catalog")) };
 }
 
+/* ------------------------------------------------------------------ málo kanálů I/O PLC (plc_io_capacity) */
+
+/** Požadovaný počet volných kanálů: `required.min` v kanálech, v % obsazených (`unit` „%“); bez požadavku 1. */
+function ioWantFree(r: CadFeedbackRequired | undefined, used: number): number {
+  if (r && isNum(r.min) && r.min > 0) {
+    if (String(r.unit || "").trim() === "%") return Math.max(1, Math.ceil(used * r.min / 100 - 1e-9));
+    return Math.ceil(r.min);
+  }
+  return 1;
+}
+const resKey = (r: IoReserve | undefined) => JSON.stringify([r?.pct || 0, ...HW_DIRS.map(d => r?.[d] || 0)]);
+const modCode = (m: { opt?: CatalogBrand; custom?: string }) => m.opt?.orderCode || m.custom || "—";
+const modSig = (m: HwLayout["modules"][number]) => m.key + "|" + m.kind + "|" + modCode(m);
+const layoutSig = (L: HwLayout) => L.modules.map(modSig).join(",");
+/** Co se v sestavě změní (pro lidi): jiné CPU, přidané moduly. */
+function layoutChange(a: HwLayout, b: HwLayout): string {
+  const out: string[] = [];
+  if (modCode(a.cpu) !== modCode(b.cpu)) out.push(tr("CPU {new} místo {old}", { new: modCode(b.cpu), old: modCode(a.cpu) }));
+  const had = new Set(a.modules.filter(m => m.kind !== "cpu" && !m.builtin).map(modSig));
+  for (const m of b.modules) if (m.kind !== "cpu" && !m.builtin && !had.has(modSig(m)))
+    out.push(tr("navíc {dt} {type} ({code})", { dt: m.dt, type: hwTypeText(m), code: modCode(m) }));
+  return out.join(", ") || tr("bez změny modulů");
+}
+
+/**
+ * Návrhy k položce `plc_io_capacity`: stav podle sestavy PLCdesk (ne jen podle CAD), rezerva I/O (hlavní návrh —
+ * PLCdesk přidá kartu / zvolí CPU) a větší CPU téže rodiny z katalogu (alternativy, řádek CPU + táž rezerva).
+ * Každý návrh je ověřený na kopii projektu: v nové sestavě zbude požadovaný počet volných kanálů a nic se nepřelije.
+ */
+function ioCapacityProposals(prj: Project, cp: Project, cpuLine: BomLine | undefined, it: CadFeedbackIssue, cad: CadFbProposal | undefined):
+  { info: string; ok: boolean; proposal?: CadFbProposal; alternatives: CadFbProposal[] } {
+  const d = ioDirOf(it) as Dir;
+  const L = hwLayout(cp);
+  const fr = hwFreeChannels(L)[d];
+  const want = ioWantFree(it.required, fr.used);
+  const now = tr("PLCdesk: {dir} obsazeno {used}/{cap}, volné {free}; požadováno volných aspoň {want}.", { dir: d, used: fr.used, cap: fr.cap, free: fr.free, want });
+  if (fr.free >= want) return { ok: true, info: now + " " + tr("Sestava požadovanou rezervu už má."), alternatives: [], ...(cad ? { proposal: cad } : {}) };
+  const cur = ioReserveOf(prj) || {};
+  const reserve: IoReserve = { ...cur, [d]: Math.max(cur[d] || 0, want) };
+  const cpuId = cpuLine?.id || hwLineId("-A1", "plc_cpu");
+  const trial = (line?: BomLineCfg) => {
+    const bom = { ...(cp.bom || {}), ioReserve: reserve, ...(line ? { lines: { ...(cp.bom?.lines || {}), [cpuId]: line } } : {}) };
+    const L2 = hwLayout({ ...cp, bom });
+    const f2 = hwFreeChannels(L2)[d];
+    return { L2, f2, ok: !L2.overflow.length && f2.free >= want };
+  };
+  const res = (t: { L2: HwLayout; f2: { free: number; cap: number } }) =>
+    tr("{change}; {dir} volné {free}/{cap}", { change: layoutChange(L, t.L2), dir: d, free: t.f2.free, cap: t.f2.cap });
+  const out: CadFbProposal[] = [];
+  const seen = new Set<string>();
+  if (cad) {
+    const t = trial(cad.cfg);
+    out.push({ ...cad, reserve, why: cad.why + " — " + (t.ok ? res(t) : tr("rezervu {dir} nesplní", { dir: d })) });
+    seen.add(layoutSig(t.L2));
+  }
+  const t0 = trial();
+  if (t0.ok && !seen.has(layoutSig(t0.L2))) {
+    seen.add(layoutSig(t0.L2));
+    out.push({
+      source: "catalog", brand: "", type: tr("Rezerva I/O: {r}", { r: ioReserveText(reserve) }), orderCode: "", qty: cpuLine?.qty ?? 1, optId: "",
+      why: tr("PLCdesk ponechá v sestavě aspoň {n} volných kanálů {dir} i při dalších změnách projektu: {res}.", { n: want, dir: d, res: res(t0) }),
+      cfg: lineCfgOf(prj, cpuId), reserve, reserveOnly: true,
+    });
+  }
+  if (cpuLine) {
+    const fam = L.cpu.opt?.hw?.family;
+    const curId = L.cpu.opt ? brandOptId(L.cpu.opt) : "";
+    let n = 0;
+    for (const b of brandsFor("plc_cpu", L.plat)) {
+      if (n >= 3) break;
+      if (!b.hw || brandOptId(b) === curId || (fam && b.hw.family !== fam)) continue;
+      const p = catalogProposal(prj, cpuLine, b, "", "catalog");
+      const t = trial(p.cfg);
+      if (!t.ok || seen.has(layoutSig(t.L2))) continue;
+      seen.add(layoutSig(t.L2)); n++;
+      out.push({ ...p, reserve, why: tr("Katalog PLCdesk: větší CPU téže řady (zdroj {src}) + rezerva I/O: {res}.", { src: b.src || "—", res: res(t) }) });
+    }
+  }
+  if (!out.length) return { ok: false, info: now + " " + tr("V katalogu PLCdesk není sestava této platformy, která by rezervu splnila — zvol jinou platformu nebo vlastní CPU / modul."), alternatives: [] };
+  const [proposal, ...alternatives] = out;
+  return { ok: false, info: now, proposal, alternatives };
+}
+
 const sameCfg = (a: BomLineCfg | undefined, b: BomLineCfg) => {
   const ks = ["brand", "type", "orderCode", "supplier", "qty", "note"] as const;
   return ks.every(k => (a?.[k] ?? undefined) === (b[k] ?? undefined));
@@ -398,7 +508,8 @@ const numText = (v: number) => String(Math.round(v * 100) / 100);
  */
 export function cadFeedbackReview(prj: Project, fb: CadFeedback): CadFbReview {
   /* řádky jako v manifestu (synchronizovaná I/O — karty PLC, svorky); volby uživatele čte z `prj` */
-  const bom = buildBom(cadProject(prj));
+  const cp = cadProject(prj);
+  const bom = buildBom(cp);
   const plat = bom.plat;
   const byId = new Map(bom.lines.map(l => [l.id, l]));
   const projectMatch = !!fb.project.guid && fb.project.guid === (prj.guid || "");
@@ -418,12 +529,15 @@ export function cadFeedbackReview(prj: Project, fb: CadFeedback): CadFbReview {
     let partId = it.suggestion?.partId || "";
     if (!partId && it.kind === "cabinet_too_small")
       partId = it.parts.find(id => byId.get(id)?.cat === "cabinet") || bom.lines.find(l => l.cat === "cabinet")?.id || "";
+    /* málo kanálů I/O: cílem je řádek CPU (volba CPU; rezervu nese projekt) */
+    if (it.kind === "plc_io_capacity") partId = bom.lines.find(x => x.cat === "plc_cpu")?.id || partId || it.parts[0] || "";
     if (!partId && it.kind !== "other" && it.parts.length === 1) partId = it.parts[0];
     const unknown = [...it.parts, ...(it.suggestion?.partId ? [it.suggestion.partId] : [])].filter(id => !byId.has(id));
     const l = partId ? byId.get(partId) : undefined;
 
     let proposal: CadFbProposal | undefined;
     let info = "";
+    let appliedIo: boolean | undefined;
     const alternatives: CadFbProposal[] = [];
     if (l && projectMatch && !unknown.length) {
       if (it.suggestion?.line && Object.keys(it.suggestion.line).length)
@@ -447,6 +561,13 @@ export function cadFeedbackReview(prj: Project, fb: CadFeedback): CadFbReview {
         if (!proposal && cat.length) proposal = cat.shift();
         alternatives.push(...cat);
       }
+      if (it.kind === "plc_io_capacity") {
+        const io = ioCapacityProposals(prj, cp, l.cat === "plc_cpu" ? l : undefined, it, proposal);
+        info = io.info; appliedIo = io.ok;
+        proposal = io.proposal;
+        const rest = alternatives.filter(a => !io.alternatives.some(b => b.optId && b.optId === a.optId));
+        alternatives.splice(0, alternatives.length, ...io.alternatives, ...rest);
+      }
     }
     const state: CadFbState = !projectMatch || unknown.length ? "invalid" : stale ? "stale" : "usable";
     const stateText = !projectMatch ? tr("neplatné — jiný projekt")
@@ -463,7 +584,7 @@ export function cadFeedbackReview(prj: Project, fb: CadFeedback): CadFbReview {
       requiredText: r ? (r.what + ": " + rng + " " + r.unit).trim() + (r.basis ? " (" + r.basis + ")" : "") : "",
       parts, partId: l ? partId : "", state, stateText,
       ...(proposal ? { proposal } : {}), alternatives,
-      applied: proposal ? sameCfg(prj.bom?.lines?.[partId], proposal.cfg) : !!info, info,
+      applied: appliedIo ?? (proposal ? sameCfg(prj.bom?.lines?.[partId], proposal.cfg) : !!info), info,
       ...(last ? { decided: last.decision } : {}),
     };
   });
@@ -520,20 +641,30 @@ export function applyCadFeedback(prj: Project, fb: CadFeedback, accepted: string
   const fmt = (p: { brand: string; type: string; orderCode: string; qty: number }) =>
     [p.brand, p.type, p.type.includes(p.orderCode) ? "" : p.orderCode].filter(Boolean).join(" ") + " (" + tr("{n} ks", { n: p.qty }) + ")";
 
+  let hwChanged = false;
   for (const it of review.items) {
     if (acc.has(it.id)) {
       if (it.state === "invalid") { res.skipped.push({ id: it.id, why: it.stateText }); continue; }
       const n = acc.get(it.id)!;
       const p = n < 0 ? it.proposal : it.alternatives[n];
+      /* alternativa po použití zmizí (požadavek už splněn) — totéž rozhodnutí podruhé = jen potvrzení */
+      if (n >= 0 && !p && it.applied) { record(it, "accepted", ""); res.acknowledged.push(it.id); continue; }
       if (n >= 0 && !p) { res.skipped.push({ id: it.id + "#" + n, why: tr("alternativa {n} neexistuje", { n }) }); continue; }
       if (!p) { record(it, "accepted", ""); res.acknowledged.push(it.id); continue; }
       const part = it.parts.find(x => x.id === it.partId) || { brand: "", type: "", orderCode: "", qty: 0 };
       const lines = (bomCfg.lines ||= {});
-      const change = it.partId + ": " + fmt(part) + " → " + fmt(p);
-      if (sameCfg(lines[it.partId], p.cfg)) { record(it, "accepted", change); res.acknowledged.push(it.id); continue; }
-      const cfg: BomLineCfg = {};
-      for (const [k, v] of Object.entries(p.cfg)) if (v !== undefined && v !== "" || k === "supplier" && v === "") (cfg as any)[k] = v;
-      if (Object.keys(cfg).length) lines[it.partId] = cfg; else delete lines[it.partId];
+      const change = [p.reserveOnly ? "" : it.partId + ": " + fmt(part) + " → " + fmt(p),
+        p.reserve ? tr("rezerva I/O: {r}", { r: ioReserveText(p.reserve) }) : ""].filter(Boolean).join("; ");
+      const lineSame = !!p.reserveOnly || sameCfg(lines[it.partId], p.cfg);
+      const resSame = !p.reserve || resKey(ioReserveOf(prj)) === resKey(p.reserve);
+      if (lineSame && resSame) { record(it, "accepted", change); res.acknowledged.push(it.id); continue; }
+      if (!lineSame) {
+        const cfg: BomLineCfg = {};
+        for (const [k, v] of Object.entries(p.cfg)) if (v !== undefined && v !== "" || k === "supplier" && v === "") (cfg as any)[k] = v;
+        if (Object.keys(cfg).length) lines[it.partId] = cfg; else delete lines[it.partId];
+      }
+      if (!resSame) bomCfg.ioReserve = { ...p.reserve! };
+      if (!resSame || (!lineSame && /:plc_/.test(it.partId))) hwChanged = true;
       record(it, "accepted", change);
       res.applied.push(n < 0 ? it.id : it.id + "#" + n);
       res.bomChanged = true;
@@ -544,6 +675,8 @@ export function applyCadFeedback(prj: Project, fb: CadFeedback, accepted: string
   }
   if (!hist.length) delete bomCfg.cadFeedback;
   if (bomCfg.lines && !Object.keys(bomCfg.lines).length) delete bomCfg.lines;
+  /* jiné CPU / nová karta: GUID nových modulů hned (sestava nad synchronizovanými I/O jako manifest) — export je negeneruje */
+  if (hwChanged) fillGuids(prj, hwLayout(cadProject(prj)).modules);
   return res;
 }
 
@@ -552,6 +685,7 @@ export const CAD_FEEDBACK_KIND_LABEL: Record<CadFeedbackKind, string> = {
   cabinet_too_small: N_("skříň je malá"), part_not_fitting: N_("díl se nevejde"), qty_mismatch: N_("nesedí množství"),
   ambiguous_type: N_("nejednoznačný typ"), missing_order_code: N_("chybí objednací kód"), model_mismatch: N_("model nesedí s kusovníkem"),
   part_obsolete: N_("výroba dílu ukončena"), part_not_orderable: N_("díl nelze objednat"),
+  plc_io_capacity: N_("málo kanálů I/O PLC"),
   other: N_("jiné"),
 };
 export const CAD_FEEDBACK_SEVERITY_LABEL: Record<CadFeedbackSeverity, string> = {
@@ -560,6 +694,8 @@ export const CAD_FEEDBACK_SEVERITY_LABEL: Record<CadFeedbackSeverity, string> = 
 
 /** Text návrhu pro zobrazení: značka, typ, kód (není-li v typu), množství. */
 export function cadFbProposalText(p: CadFbProposal): string {
+  if (p.reserveOnly) return p.type;
   return [p.brand, p.type, p.orderCode && !p.type.includes(p.orderCode) ? p.orderCode : ""].filter(Boolean).join(" · ")
-    + " · " + tr("{n} ks", { n: p.qty });
+    + " · " + tr("{n} ks", { n: p.qty })
+    + (p.reserve ? " · " + tr("rezerva I/O: {r}", { r: ioReserveText(p.reserve) }) : "");
 }

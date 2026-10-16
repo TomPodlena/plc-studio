@@ -40,6 +40,58 @@ function resolve(opts, all, asked) {
     const known = all.some(o => brandOptId(o) === asked || o.brand === asked);
     return known ? { asked } : { custom: asked, asked };
 }
+/* ================================================================ rezerva I/O */
+const RESERVE_MAX_CH = 1000;
+/** Rezerva I/O projektu (`prj.bom.ioReserve`) očištěná: procento 0–100, kanály celá čísla 0–1000; bez rezervy undefined. */
+export function ioReserveOf(prj) {
+    const r = prj.bom?.ioReserve;
+    if (!r || typeof r !== "object")
+        return undefined;
+    const out = {};
+    const pct = Number(r.pct);
+    if (Number.isFinite(pct) && pct > 0)
+        out.pct = Math.min(100, pct);
+    for (const d of HW_DIRS) {
+        const n = Number(r[d]);
+        if (Number.isFinite(n) && n > 0)
+            out[d] = Math.min(RESERVE_MAX_CH, Math.ceil(n));
+    }
+    return Object.keys(out).length ? out : undefined;
+}
+/** Počet volných kanálů, které má sestava ponechat pro směr (podle počtu obsazených `used`). */
+export function ioReserveFor(r, d, used) {
+    if (!r)
+        return 0;
+    const byPct = used > 0 && r.pct ? Math.ceil(used * r.pct / 100 - 1e-9) : 0;
+    return Math.max(byPct, r[d] || 0);
+}
+/** Rezerva pro lidi: „20 % obsazených, DI ≥ 2“ (prázdné = bez rezervy). */
+export function ioReserveText(r) {
+    if (!r)
+        return "";
+    const out = [];
+    if (r.pct)
+        out.push(tr("{n} % obsazených", { n: r.pct }));
+    for (const d of HW_DIRS)
+        if (r[d])
+            out.push(tr("{dir} ≥ {n} volných", { dir: d, n: r[d] }));
+    return out.join(", ");
+}
+/** Volné kanály sestavy podle směru: kapacita modulů (vč. vestavěných I/O) a obsazené kanály. */
+export function hwFreeChannels(L) {
+    const out = {};
+    for (const d of HW_DIRS)
+        out[d] = { used: 0, cap: 0, free: 0 };
+    for (const m of L.modules)
+        for (const k of m.channels) {
+            out[k.dir].cap++;
+            if (k.io)
+                out[k.dir].used++;
+        }
+    for (const d of HW_DIRS)
+        out[d].free = out[d].cap - out[d].used;
+    return out;
+}
 const N = (x) => (typeof x === "number" && Number.isFinite(x) ? x : 0);
 const chOf = (o) => (o?.hw?.ch || {});
 function mkModule(p) {
@@ -237,7 +289,7 @@ const cache = new WeakMap();
 function signature(prj, plat) {
     const b = prj.bom || {};
     const lines = b.lines ? Object.entries(b.lines).filter(([k]) => /:plc_/.test(k)).map(([k, v]) => k + "=" + (v?.brand ?? "")) : [];
-    return JSON.stringify([plat, hwPlatform(prj), prj.hw || null, b.brand || null, lines, prj.moduleGuids || null,
+    return JSON.stringify([plat, hwPlatform(prj), prj.hw || null, b.brand || null, lines, ioReserveOf(prj) || null, prj.moduleGuids || null,
         prj.io.map(e => e.key + "|" + e.dir + "|" + (e.addr || "")), prj.devices.filter(d => d.cls === "Axis").map(d => d.name)]);
 }
 /* Dávka bez změn projektu (`withFrozenHw`): sestava se v ní ověří podpisem jen jednou — podpis (JSON přes všechna
@@ -295,6 +347,11 @@ function build(prj, plat) {
     for (const e of prj.io)
         if (need[e.dir] !== undefined)
             need[e.dir]++;
+    /* rezerva I/O (`prj.bom.ioReserve`): CPU a karty se volí pro signály + volné kanály; bez rezervy beze změny */
+    const reserve = ioReserveOf(prj);
+    const want = { ...need };
+    for (const d of HW_DIRS)
+        want[d] += ioReserveFor(reserve, d, need[d]);
     /* CPU: volba uživatele, jinak první, do kterého se I/O vejdou lokálně, jinak největší lokální kapacita */
     const cpuAll = brandsFor("plc_cpu", plat);
     const cpuHw = cpuAll.filter(o => o.hw && o.hw.auto !== false);
@@ -304,7 +361,7 @@ function build(prj, plat) {
         autoCpu = true;
         let best;
         for (const o of cpuHw) {
-            const f = localFits(c, o, need);
+            const f = localFits(c, o, want);
             if (f.fits) {
                 cpuOpt = o;
                 break;
@@ -315,7 +372,7 @@ function build(prj, plat) {
         if (!cpuOpt)
             cpuOpt = best?.o || cpuAll[0];
     }
-    const p = plan(c, cpuOpt, asked.custom, need);
+    const p = plan(c, cpuOpt, asked.custom, want);
     if (asked.custom)
         issues.push({ level: "info", where: "-A1", msg: tr("Vlastní CPU {cpu} není v katalogu — vestavěné I/O a limit modulů neznám, moduly navrženy bez omezení racku.", { cpu: asked.custom }) });
     /* označení modulů: skupina -A<typ> / -A<10s+typ>, víc karet ve skupině = .1, .2 … */
@@ -396,7 +453,20 @@ function build(prj, plat) {
         issues.push({ level: "error", where: PLAT[plat].name, msg: tr("Projekt se do platformy {plat} nevejde: {n} signálů bez kanálu ({dirs}). CPU {cpu} pojme {max} modulů a katalog nemá pro tuto platformu vzdálené I/O — zvol větší CPU nebo jinou platformu.", { plat: PLAT[plat].name, n: overflow.length, dirs: by, cpu: p.cpu.opt?.orderCode || p.cpu.custom || "—", max: Object.values(cpuOpt?.hw?.slots || {}).reduce((s, n) => s + N(n), 0) }) });
     }
     const drives = prj.devices.filter(d => d.cls === "Axis").map(d => ({ dev: d.name, dt: "-TA" + (d.name.replace(/^\D+/, "") || d.name), net: driveNet(plat) }));
-    return { plat, hwPlat, scheme, cpu: p.cpu, stations, modules, groups: groupsOf(modules), ch, overflow, issues, autoCpu, drives };
+    const L = { plat, hwPlat, scheme, cpu: p.cpu, stations, modules, groups: groupsOf(modules), ch, overflow, issues, autoCpu, drives };
+    /* rezerva I/O: nesplněná = varování; bez nastavené rezervy jen informace o plně obsazeném směru */
+    if (!overflow.length) {
+        const fr = hwFreeChannels(L);
+        for (const d of HW_DIRS) {
+            const r = ioReserveFor(reserve, d, need[d]);
+            const where = PLAT[plat].name + " " + d;
+            if (r > 0 && fr[d].free < r)
+                issues.push({ level: "warn", where, msg: tr("Rezerva I/O nesplněna: {dir} volné {free} z požadovaných {want} kanálů (obsazeno {used}/{cap}). Do sestavy {plat} se víc modulů nevejde — zvol větší CPU, jinou platformu nebo menší rezervu.", { dir: d, free: fr[d].free, want: r, used: fr[d].used, cap: fr[d].cap, plat: PLAT[plat].name }) });
+            else if (!reserve && need[d] > 0 && fr[d].free === 0)
+                issues.push({ level: "info", where, msg: tr("Kanály {dir} jsou obsazené všechny ({used}/{cap}) — bez rezervy pro rozšíření. Rezervu I/O lze nastavit v kroku Kusovník.", { dir: d, used: fr[d].used, cap: fr[d].cap }) });
+        }
+    }
+    return L;
 }
 /** Kanálové skupiny (modul × směr) s obsazenými kanály — pořadí = svorkovnice X1, X2 … */
 function groupsOf(modules) {

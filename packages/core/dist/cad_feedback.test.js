@@ -7,6 +7,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { syncIO, validateProject } from "./model.js";
 import { buildBom, bomMd, bomCsv } from "./bom.js";
 import { CATALOG, brandsFor } from "./catalog.js";
 import { cadManifest, cadManifestJson } from "./cad.js";
@@ -296,4 +297,96 @@ test("zpětná vazba na manifest jiné verze (v1) = zastaralá, ne chyba; karty 
     assert.ok(r.items.every(i => i.state === "stale"));
     const q = cadFeedbackReview(p, fb11(p, { issues: [{ id: "di", kind: "qty_mismatch", severity: "info", parts: ["-A2:plc_di"], message: "x" }] }));
     assert.equal(q.items[0].state, "usable");
+});
+/* ------------------------------------------------------------ málo kanálů I/O PLC (plc_io_capacity, doplněk 2026-10-16) */
+const S01 = "01_pasovy_dopravnik_vyhazovac.plcstudio.json";
+/** Vzor 01 (1212C G2, 7 DI) + jeden DI navíc = 8/8 vestavěných DI, jako stroj 01 po přidání -S4. */
+function fullDi() {
+    const p = loadSampleFile(S01);
+    p.devices.push({ id: 900, name: "S99", cls: "DI", desc: "spínač navíc", opt: {}, unit: "", rmin: 0, rmax: 100 });
+    syncIO(p);
+    return p;
+}
+function fbIo(prj, over = {}) {
+    return {
+        format: "plcdesk-cad-feedback", version: 1, project: { guid: prj.guid || "" },
+        manifest: { sha256: cadManifestSha256(prj) }, created: "2026-10-16T12:00:00Z", tool: "rozvadec-3d test",
+        issues: [{
+                id: "plc-di", kind: "plc_io_capacity", severity: "warn", parts: ["-A1:plc_cpu"],
+                measured: { what: "DI obsazeno", value: 8, capacity: 8, unit: "ch", source: "manifest devices[].signals, CPU 1212C G2 8 DI" },
+                message: "Obsazeno 8 z 8 DI — bez rezervy.", ...over,
+            }],
+    };
+}
+test("plc_io_capacity: validace směru a kapacity", () => {
+    const p = fullDi();
+    const ok = parseCadFeedback(JSON.stringify(fbIo(p)));
+    assert.deepEqual(ok.errors, []);
+    assert.equal(ok.fb.issues[0].measured.capacity, 8);
+    const noDir = parseCadFeedback(JSON.stringify(fbIo(p, { measured: { what: "vstupy do PLC", value: 8, unit: "ch", source: "x" } })));
+    assert.ok(noDir.errors.some(e => /issues\[0\]\.measured\.what/.test(e)), "bez směru DI/DO/AI/AO = chyba (české „do“ se nepočítá)");
+    const badCap = parseCadFeedback(JSON.stringify(fbIo(p, { measured: { what: "DI", value: 8, capacity: "8", unit: "ch", source: "x" } })));
+    assert.ok(badCap.errors.some(e => /measured\.capacity/.test(e)));
+    assert.ok(CAD_FEEDBACK_KINDS.includes("plc_io_capacity") && !!CAD_FEEDBACK_KIND_LABEL.plc_io_capacity);
+});
+test("plc_io_capacity: stroj s DI 8/8 → rezerva (karta SM) nebo větší CPU, přijetí změní sestavu i manifest", () => {
+    const base = fullDi();
+    assert.ok(validateProject(base).some(i => i.level === "info" && /DI/.test(i.msg) && /8\/8/.test(i.msg)), "plně obsazený směr = informace");
+    const fb = fbIo(base, { required: { what: "volné DI", min: 2, unit: "ch", basis: "rezerva pro rozšíření" } });
+    const rv = cadFeedbackReview(base, fb);
+    const it = rv.items[0];
+    assert.equal(it.state, "usable");
+    assert.equal(it.partId, "-A1:plc_cpu");
+    assert.match(it.info, /DI.*8\/8/);
+    assert.ok(it.proposal?.reserveOnly && it.proposal.reserve?.DI === 2, "hlavní návrh = rezerva DI ≥ 2");
+    assert.match(it.proposal.why, /6ES7221-1BH50-0XB0/, "PLCdesk přidá kartu SM 1221 G2");
+    const cpu = it.alternatives.find(a => a.orderCode === "6ES7214-1AH50-0XB0");
+    assert.ok(cpu && cpu.reserve?.DI === 2 && cpu.cfg.brand === cpu.optId, "alternativa = CPU 1214C G2 + rezerva");
+    assert.ok(it.alternatives.every(a => !/6ES7511/.test(a.orderCode)), "jen CPU téže řady");
+    assert.match(cadFbProposalText(cpu), /rezerva I\/O: DI ≥ 2/);
+    /* hlavní návrh: rezerva → karta SM, GUID karty, manifest, validace čistá */
+    const p = clone(base);
+    const res = applyCadFeedback(p, fb, ["plc-di"], "Tester", { at: "2026-10-16T13:00:00Z" });
+    assert.deepEqual(res.applied, ["plc-di"]);
+    assert.deepEqual(p.bom.ioReserve, { DI: 2 });
+    assert.equal(p.bom.lines?.["-A1:plc_cpu"], undefined, "řádek CPU beze změny");
+    const m = cadManifest(p);
+    const st = m.plc.stations[0];
+    assert.equal(st.modules.length, 1);
+    assert.equal(st.modules[0].partId, "-A2:plc_di");
+    assert.match(String(st.modules[0].guid), /^[0-9a-f-]{36}$/, "nová karta má GUID hned");
+    assert.ok(m.parts.some((x) => x.id === "-A2:plc_di" && x.orderCode === "6ES7221-1BH50-0XB0"));
+    assert.deepEqual(validateProject(p).filter(i => / DI$/.test(i.where)), [], "bez nálezu k DI");
+    assert.equal(p.bom.cadFeedback.at(-1).change, "rezerva I/O: DI ≥ 2 volných");
+    /* znovu: požadavek splněn, nic dalšího, historie se nezdvojí */
+    const again = cadFeedbackReview(p, fb).items[0];
+    assert.ok(again.applied && !again.proposal && /už má/.test(again.info));
+    const n = p.bom.cadFeedback.length;
+    const r2 = applyCadFeedback(p, fb, ["plc-di"], "Tester");
+    assert.equal(r2.bomChanged, false);
+    assert.equal(p.bom.cadFeedback.length, n);
+    /* normalizace projektu rezervu zachová */
+    assert.deepEqual(normalizeProject(clone(p)).bom?.ioReserve, { DI: 2 });
+    /* alternativa: větší CPU (bez karty) */
+    const q = clone(base);
+    const k = it.alternatives.indexOf(cpu);
+    applyCadFeedback(q, fb, ["plc-di#" + k], "Tester");
+    assert.equal(q.bom.lines["-A1:plc_cpu"].brand, cpu.optId);
+    assert.deepEqual(q.bom.ioReserve, { DI: 2 });
+    const mq = cadManifest(q);
+    assert.ok(mq.parts.some((x) => x.id === "-A1:plc_cpu" && x.orderCode === "6ES7214-1AH50-0XB0"));
+    assert.equal(mq.plc.stations[0].modules.length, 0);
+    assert.equal(applyCadFeedback(q, fb, ["plc-di#" + k], "Tester").bomChanged, false, "alternativa podruhé = jen potvrzení");
+});
+test("plc_io_capacity: rezerva v %, už splněná rezerva a odmítnutí", () => {
+    const base = fullDi();
+    const pct = cadFeedbackReview(base, fbIo(base, { required: { what: "rezerva DI", min: 50, unit: "%", basis: "zvyklost" } })).items[0];
+    assert.equal(pct.proposal?.reserve?.DI, 4, "50 % z 8 obsazených = 4 volné");
+    const small = loadSampleFile(S01);
+    const ok = cadFeedbackReview(small, fbIo(small)).items[0];
+    assert.ok(ok.applied && !ok.proposal && /už má/.test(ok.info), "7/8 DI a požadavek 1 volný = splněno");
+    const p = clone(base);
+    const r = applyCadFeedback(p, fbIo(p), [], "Tester", { rejected: ["plc-di"] });
+    assert.deepEqual(r.rejected, ["plc-di"]);
+    assert.equal(p.bom?.ioReserve, undefined);
 });

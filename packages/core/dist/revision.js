@@ -523,6 +523,9 @@ function rawDiff(x, y) {
         if (a !== b)
             push({ area: "bom", op: "change", field: "brand." + c, before: a, after: b, a: { ref: "bom.brand." + c }, b: { ref: "bom.brand." + c }, floor: catFloor(c), cand: [], devs: [], tags: [] });
     }
+    /* rezerva I/O sestavy: mění výběr CPU / karet (kusovník), ne program — kosmetická */
+    if (!same(bx.ioReserve ?? null, by.ioReserve ?? null))
+        push({ area: "bom", op: "change", field: "ioReserve", before: bx.ioReserve ?? null, after: by.ioReserve ?? null, a: { ref: "bom.ioReserve" }, b: { ref: "bom.ioReserve" }, floor: "cosmetic", cand: [], devs: [], tags: [] });
     for (const id of uniq([...Object.keys(by.lines || {}), ...Object.keys(bx.lines || {})])) {
         const a = (bx.lines?.[id] || {}), b = (by.lines?.[id] || {});
         for (const f of uniq([...Object.keys(b), ...Object.keys(a)])) {
