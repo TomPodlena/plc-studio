@@ -150,6 +150,18 @@ export function normalizeProject(raw) {
             if (recs.length)
                 b.cadFeedback = recs;
         }
+        /* rezerva I/O sestavy (hardware.ts): jen kladná čísla, procento ≤ 100 */
+        if (isObj(raw.bom.ioReserve)) {
+            const r = {};
+            const num = (v) => typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0;
+            if (num(raw.bom.ioReserve.pct))
+                r.pct = Math.min(100, num(raw.bom.ioReserve.pct));
+            for (const d of ["DI", "DO", "AI", "AO"])
+                if (num(raw.bom.ioReserve[d]))
+                    r[d] = Math.min(1000, Math.ceil(num(raw.bom.ioReserve[d])));
+            if (Object.keys(r).length)
+                b.ioReserve = r;
+        }
         if (Object.keys(b).length)
             p.bom = b;
     }

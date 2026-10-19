@@ -2580,6 +2580,56 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(next(ln for ln in lines if ln["id"] == "+1:cabinet")["orderCode"], "1057.000")
         dlg.win.destroy()
 
+    def test_io_reserve_and_cad_feedback_io_capacity(self):
+        """Rezerva I/O (core hardware.ts, prj.bom.ioReserve) v kroku Kusovník a zpětná vazba z CAD
+        plc_io_capacity: návrh rezervy bez cílového řádku, přijetí nastaví rezervu → sestava má volné kanály."""
+        import hashlib
+        import tempfile
+        from plc_studio.steps import kusovnik
+        self.app.load_sample("small")
+        self.goto(9)
+        data = self.app.bridge.request("bom", prj=self.app.prj)
+        di = data["free"]["DI"]
+        self.assertEqual(data["reserve"], {})
+        want = di["free"] + 3
+        # pole „Rezerva I/O“: DI ≥ want → PLCdesk přidá kartu, volné kanály ≥ want
+        ent = next(e for e in self.find(ttk.Entry) if any(
+            isinstance(s, ttk.Label) and s.cget("text") == "DI ≥" for s in e.master.winfo_children()))
+        row = ent.master
+        entries = [w for w in row.winfo_children() if isinstance(w, ttk.Entry)]
+        self.assertEqual(len(entries), 5, "% + DI / DO / AI / AO")
+        entries[1].delete(0, "end")
+        entries[1].insert(0, str(want))
+        self.key(entries[1], "<Return>")
+        self.assertEqual(self.app.prj["bom"]["ioReserve"], {"DI": want})
+        self.assertGreaterEqual(self.app.bridge.request("bom", prj=self.app.prj)["free"]["DI"]["free"], want)
+        kusovnik.set_reserve(self.app, "DI", "")
+        self.assertNotIn("ioReserve", self.app.prj.get("bom") or {})
+        # zpětná vazba z CAD: málo DI → návrh rezervy, přijetí ji nastaví
+        man = self.app.bridge.request("cad", prj=self.app.prj)["json"]
+        fb = {"format": "plcdesk-cad-feedback", "version": 1, "project": {"guid": self.app.prj["guid"]},
+              "manifest": {"sha256": hashlib.sha256(man.encode("utf-8")).hexdigest()},
+              "created": "2026-10-16T12:00:00Z", "tool": "test", "issues": [
+                  {"id": "io", "kind": "plc_io_capacity", "severity": "warn", "parts": ["-A1:plc_cpu"],
+                   "measured": {"what": "DI", "value": di["used"], "capacity": di["cap"], "unit": "ch", "source": "manifest"},
+                   "required": {"what": "volné DI", "min": want, "unit": "ch", "basis": "rozšíření"},
+                   "message": "Málo DI."}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            good = Path(tmp) / "PLCdesk_CAD_feedback.json"
+            good.write_text(json.dumps(fb, ensure_ascii=False), encoding="utf-8")
+            with mock.patch.object(kusovnik.filedialog, "askopenfilename", return_value=str(good)):
+                self.click("Načíst zpětnou vazbu z CAD…")
+        dlg = self.app.cadfb_dialog
+        texts = [str(w.cget("text")) for w in walk(dlg.win) if isinstance(w, tk.Radiobutton)]
+        self.assertTrue(any(t.startswith("Přijmout návrh — Rezerva I/O: DI ≥ " + str(want)) for t in texts), texts)
+        dlg.vars["io"].set("acc")
+        dlg.by.set("Tester")
+        dlg.apply()
+        self.root.update()
+        self.assertEqual(self.app.prj["bom"]["ioReserve"], {"DI": want})
+        self.assertGreaterEqual(self.app.bridge.request("bom", prj=self.app.prj)["free"]["DI"]["free"], want)
+        dlg.win.destroy()
+
     def test_bill_of_materials_sort_and_filter_by_columns(self):
         self.app.load_sample("complex")
         self.goto(9)

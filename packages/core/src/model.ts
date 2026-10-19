@@ -202,9 +202,19 @@ export interface BomCfg {
   plat?: PlatformKey;
   brand?: Record<string, string>;
   lines?: Record<string, BomLineCfg>;
-  /** rozhodnutí o zpětné vazbě z CAD (`cad_feedback.ts` `applyCadFeedback`) — historie, kusovník mění jen `lines` */
+  /** rozhodnutí o zpětné vazbě z CAD (`cad_feedback.ts` `applyCadFeedback`) — historie; kusovník mění jen `lines`
+   *  a `ioReserve` */
   cadFeedback?: CadFeedbackRecord[];
+  /** rezerva I/O sestavy (`hardware.ts`): volné kanály, které musí v sestavě zbýt; bez ní = bez rezervy (výchozí) */
+  ioReserve?: IoReserve;
 }
+
+/**
+ * Rezerva I/O: `pct` = procento obsazených kanálů každého použitého směru (zaokrouhleno nahoru), `DI` / `DO` /
+ * `AI` / `AO` = minimum volných kanálů směru (i nepoužitého). Platí větší z obou. `hwLayout` podle ní volí CPU
+ * a karty; nesplnitelná rezerva = varování validace.
+ */
+export interface IoReserve { pct?: number; DI?: number; DO?: number; AI?: number; AO?: number; }
 
 /**
  * Záznam rozhodnutí o položce zpětné vazby z CAD (PLCdesk_CAD_feedback.json): kdo, kdy, přijato / odmítnuto,
@@ -543,6 +553,19 @@ export function blankProject(): Project {
     concept: null,
     guid: newGuid(),
   };
+}
+
+/** Výchozí rezerva I/O NOVÉHO projektu v % obsazených kanálů (rozhodnutí uživatele 2026-10-16). */
+export const NEW_PROJECT_IO_RESERVE_PCT = 20;
+/**
+ * Nový projekt uživatele (tlačítko Nový projekt, první spuštění, prázdný start po poškozeném stavu): `blankProject`
+ * + výchozí rezerva I/O 20 %. `blankProject` zůstává bez rezervy — staví z něj normalizace načtených projektů,
+ * vzory, import stávajícího stroje (skutečný hardware) a testy; existující projekty se nemigrují.
+ */
+export function newProject(): Project {
+  const p = blankProject();
+  p.bom = { ioReserve: { pct: NEW_PROJECT_IO_RESERVE_PCT } };
+  return p;
 }
 
 export function devById(prj: Project, id: number | ""): Device | undefined {

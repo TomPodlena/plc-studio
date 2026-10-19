@@ -1,14 +1,14 @@
 /* Renderery kroků workflow. ctx = { S, save, render } — stav vlastní app.js.
    Texty pro uživatele jdou přes tr() (český text = klíč překladu); struktura HTML zůstává mimo klíče. */
 import {
-  PLAT, CLS, escHtml as esc, blankProject, devById, nextName, syncIO, autoAddr, modules, wireNo,
+  PLAT, CLS, escHtml as esc, newProject, devById, nextName, syncIO, autoAddr, modules, wireNo,
   validateProject, sanitizeTag, genFor, allProjectFiles, licensedGen, licensedProjectFiles,
   svgBlock, sheetSVG, sheetDXF, svorkyCSV,
   tr, N_, getLang, DO_ROLES, stepTitle, projectFileName, projectFolderName, projectNumberProblem,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
   buildBom, bomOptions, bomPlatform, bomCsv, bomTableText, bomQtyInput, bomSuppliers, BOM_QTY_MAX, cadManifestJson, CAD_FILE,
   parseCadFeedback, cadFeedbackReview, applyCadFeedback, cadFbProposalText, CAD_FEEDBACK_KIND_LABEL, CAD_FEEDBACK_SEVERITY_LABEL, catKey, suppliersFor, CATALOG_DATE, PLATFORM_REFS,
-  hwAddrText, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
+  hwAddrText, hwLayout, hwFreeChannels, ioReserveOf, HW_DIRS, AXIS_FIELDS, axisCfgOf, axisPositionsText, parseAxisPositions, axisSupport, hasAxis, verificationInfo,
   verifyPackArchive, licenseSiteUrl, PLCDESK_VERSION, HELP_UI,
   renameDevice, setDeviceDesc, setDeviceOpts, setDeviceRange, deviceOpts,
   updateStep, insertStep, duplicateStep, setIoTag, setIoAddr, setIoCmt,
@@ -174,7 +174,7 @@ export function makeSteps(ctx) {
     c.querySelector("#bReset").addEventListener("click", async () => {
       if (!replaceOk()) return;
       const n = await suggestNumberAsync([p.meta.number]);      // ze složek kořene, bez něj z historie prohlížeče
-      S.prj = blankProject(); if (n) S.prj.meta.number = n; S.ai = { turns: [], last: null, draft: "" }; save(); render();
+      S.prj = newProject(); if (n) S.prj.meta.number = n; S.ai = { turns: [], last: null, draft: "" }; save(); render();
     });
     /* Otevřít projekt…: soubor .plcstudio.json (z kořene projektů / odkudkoli; bez API <input type=file>) */
     c.querySelector("#bOpen").addEventListener("click", () => openProject(msg => alertRow(c, msg)));
@@ -1305,7 +1305,7 @@ export function makeSteps(ctx) {
       if (it.state === "invalid") h += "<p class='hint' style='margin:4px 0 0'>" + esc(tr("Položku nejde použít — oprav ji v CAD a exportuj zpětnou vazbu znovu.")) + "</p>";
       else {
         h += "<div style='margin-top:4px'>";
-        h += it.proposal ? radio("acc", "<span><b>" + esc(tr("Přijmout návrh")) + "</b> — " + esc(it.partId) + ": " + esc(cadFbProposalText(it.proposal)) + "<br><span class='hint' style='margin:0'>" + esc(it.proposal.why) + "</span></span>")
+        h += it.proposal ? radio("acc", "<span><b>" + esc(tr("Přijmout návrh")) + "</b> — " + (it.proposal.reserveOnly ? "" : esc(it.partId) + ": ") + esc(cadFbProposalText(it.proposal)) + "<br><span class='hint' style='margin:0'>" + esc(it.proposal.why) + "</span></span>")
           : radio("acc", "<span><b>" + esc(tr("Přijmout (vzít na vědomí)")) + "</b> — " + esc(tr("bez změny kusovníku")) + "</span>");
         it.alternatives.forEach((a, n) => { h += radio("acc#" + n, "<span>" + esc(tr("Alternativa {n}", { n: n + 1 })) + " — " + esc(cadFbProposalText(a)) + "<br><span class='hint' style='margin:0'>" + esc(a.why) + "</span></span>"); });
         h += radio("rej", "<span><b>" + esc(tr("Odmítnout")) + "</b></span>") + "</div>";
@@ -1428,6 +1428,15 @@ export function makeSteps(ctx) {
           esc(s.kind || (s.custom ? tr("vlastní") : "—")) + "</td><td style='font-size:.78rem'>" + esc(s.rows) + "</td></tr>").join("");
       return used.length ? "<div class='tablewrap'><table><thead><tr><th>" + tr("Dodavatel") + "</th><th>" + tr("Web") + "</th><th>" + tr("Druh") + "</th><th>" + tr("Řádků") + "</th></tr></thead><tbody>" + supRows + "</tbody></table></div>" : "<p class='hint'>" + tr("Žádný dodavatel není vybrán.") + "</p>";
     };
+    /* rezerva I/O sestavy (hardware.ts): procento obsazených + minimum volných kanálů na směr; stav podle sestavy */
+    const reserveHtml = () => {
+      const r = ioReserveOf(p) || {}, fr = hwFreeChannels(hwLayout(p));
+      const num = (k, v, w, title) => "<input type='number' min='0' step='1' data-res='" + k + "' value='" + esc(v || "") + "' placeholder='0' style='width:" + w + "' title='" + esc(title) + "' aria-label='" + esc(title) + "'>";
+      return "<div class='row' style='margin-top:4px'><span class='f' style='flex-direction:row;gap:8px;align-items:center'>" + esc(tr("Rezerva I/O")) + " "
+        + num("pct", r.pct, "64px", tr("Rezerva v % obsazených kanálů každého použitého směru")) + " %"
+        + HW_DIRS.map(d => " <label style='display:inline-flex;gap:4px;align-items:center'>" + d + " ≥ " + num(d, r[d], "56px", tr("Minimum volných kanálů {dir}", { dir: d })) + "</label>").join("") + "</span>"
+        + "<span class='hint' style='margin:0'>" + esc(tr("Volné kanály: {list}. PLCdesk podle rezervy zvolí CPU a karty; prázdné = bez rezervy.", { list: HW_DIRS.filter(d => fr[d].cap).map(d => d + " " + fr[d].free + "/" + fr[d].cap).join(", ") || "—" })) + "</span></div>";
+    };
     const msg = bomMsg; bomMsg = null;
     const c = card(el, "10", tr("Kusovník"), intro + (msg ? "<p class='warnbox' role='alert'>" + esc(msg) + "</p>" : "") + `
     <div class="row" style="margin-top:4px">
@@ -1436,6 +1445,7 @@ export function makeSteps(ctx) {
       </label>
       <span class="hint" style="margin:0">${tr("★ = platforma zvolená v projektu. Podle platformy se vybere CPU a I/O moduly.")}</span>
     </div>
+    ${reserveHtml()}
     <div class="stats" id="bomStats">${statsHtml()}</div>
     <div class="row" style="margin:6px 0 2px"><span class="hint" style="margin:0" id="bomShown"></span>
       <button class="small" id="bBomFltClear" ${Object.keys(bomView.filters).length ? "" : "hidden"}>${tr("Zrušit filtry")}</button>
@@ -1458,6 +1468,12 @@ export function makeSteps(ctx) {
     <div id="bomSup">${supHtml()}</div>`);
 
     c.querySelector("#bomPlat").addEventListener("change", e => { cfg.plat = e.target.value; commit(); });
+    c.querySelectorAll("input[data-res]").forEach(inp => inp.addEventListener("change", () => {
+      const r = { ...(cfg.ioReserve || {}) }, v = Number(inp.value);
+      if (Number.isFinite(v) && v > 0) r[inp.dataset.res] = inp.dataset.res === "pct" ? Math.min(100, v) : Math.ceil(v); else delete r[inp.dataset.res];
+      if (Object.keys(r).length) cfg.ioReserve = r; else delete cfg.ioReserve;
+      commit();
+    }));
     /* řazení: klik na záhlaví */
     c.querySelectorAll("th[data-sort]").forEach(th => th.addEventListener("click", () => {
       const k = th.dataset.sort, s = bomView.sort;

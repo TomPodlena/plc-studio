@@ -309,6 +309,7 @@ const SRC: Src[] = [
     summary: N_("Komponenty k poptávce s označením podle IEC 81346: PLC a moduly ze sestavy hardwaru, ke každému zařízení jeho díly (jistič motoru, stykač, rozváděč, snímače…) a rozvaděč. Značky, typy, objednací kódy a dodavatelé z katalogu."),
     steps: [
       N_("Zvol **Platformu řízení** — určí CPU a moduly sestavy hardwaru."),
+      N_("**Rezerva I/O** (volitelně): procento obsazených kanálů nebo minimum volných kanálů DI / DO / AI / AO. PLCdesk pak zvolí CPU a karty tak, aby rezerva zbyla (jen v lokálním racku — kvůli rezervě nepřidá vzdálenou stanici); vedle vidíš volné kanály sestavy. Nový projekt začíná s rezervou 20 %; dřívější projekty, příklady a import stávajícího stroje jsou bez rezervy. Prázdné = bez rezervy."),
       N_("U řádku nebo celé kategorie vyber výrobce a typ z katalogu, případně zadej vlastní."),
       N_("Uprav množství, objednací kód a dodavatele; množství 0 řádek vyřadí z CSV a dokumentace."),
       N_("Stáhni / ulož CSV pro Excel nebo zkopíruj tabulku."),
@@ -319,6 +320,7 @@ const SRC: Src[] = [
       N_("Neshody nalezené ve 3D se neopravují v CADu — PLCdesk je zdroj pravdy kusovníku; nic se nezmění bez tvého rozhodnutí."),
       N_("U malé skříně nabídne PLCdesk nejmenší větší skříň z katalogu podle rozměrů (vnější rozměr se zdrojem; užitný ověř v CAD)."),
       N_("U dílu s ukončenou výrobou nebo dílu, který nelze objednat (stav u výrobce se zdrojem), nabídne PLCdesk nástupce z CAD a jiné položky katalogu téže kategorie — vhodnost náhrady posuď sám."),
+      N_("U položky **málo kanálů I/O PLC** (např. obsazeno 8 z 8 DI) PLCdesk přepočítá stav podle své sestavy a nabídne rezervu I/O (přidá kartu) nebo větší CPU téže řady — každý návrh je předem ověřený, že rezerva zbude. Po přijetí exportuj znovu pro CAD: manifest ponese novou kartu nebo CPU."),
       N_("Změna bezpečnostního dílu v kusovníku (E-stop, spínač krytu, bezpečnostní relé…) je v revizi bezpečnostní změna, ne kosmetická."),
       N_("Svorky v kusovníku = svorkovnice výkresů X1…Xn (jedna svorka na kanál); svorky napájení a rezervu doplní projektant."),
       N_("Díly zařízení se volí i podle popisu: signál z / do jiného stroje (EUROMAP, „signál z lisu“, robot) = konektor rozhraní a vazební relé, ne snímač ani válec; vakuum / přísavky = ejektor, přísavky a spínač podtlaku; chapadlo = paralelní chapadlo (zdvih chapadla zůstává válec). Jiný díl zvol u řádku."),
@@ -329,11 +331,12 @@ const SRC: Src[] = [
     ],
     issues: [
       { problem: N_("„… nevejde se“ (sestava hardwaru)"), fix: N_("Signály se nevejdou do CPU a dostupných modulů platformy — zvol větší CPU v kusovníku, nebo jinou platformu.") },
+      { problem: N_("„Kanály DI jsou obsazené všechny …“ / „Rezerva I/O nesplněna …“"), fix: N_("Plně obsazený směr je jen informace — pro rozšíření nastav Rezervu I/O. Nesplněná rezerva: do sestavy se víc modulů nevejde — zvol větší CPU, jinou platformu nebo menší rezervu.") },
       { problem: N_("„zastaralé — export pro CAD se od kontroly změnil“"), fix: N_("Kusovník se po exportu změnil; návrhy jdou použít, ale posuď je pečlivě. Po použití exportuj znovu pro CAD a nech 3D zkontrolovat znovu.") },
       { problem: N_("„neplatné — v kusovníku chybí …“"), fix: N_("Zpětná vazba odkazuje na řádek, který kusovník nemá (jiný projekt nebo starý export) — oprav ji v CAD a exportuj znovu.") },
     ],
     see: ["nabidka", "platformy", "io"],
-    keywords: N_("kusovník, BOM, komponenty, objednací kód, dodavatel, výrobce, CSV, Excel, poptávka, CPU, moduly"),
+    keywords: N_("kusovník, BOM, komponenty, objednací kód, dodavatel, výrobce, CSV, Excel, poptávka, CPU, moduly, rezerva I/O, volné kanály"),
   },
   {
     id: "nabidka", group: "step", step: 9, title: N_("Nabídka"),

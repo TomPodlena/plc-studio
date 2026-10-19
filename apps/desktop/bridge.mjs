@@ -175,7 +175,9 @@ const OPS = {
     };
     return { plat: b.plat, lines: b.lines.map(l => ({ ...l, key: core.catKey(l.cat, b.plat), supOpts: supOpts(l) })), options,
       suppliers: core.bomSuppliers(prj), date: core.CATALOG_DATE,
-      csv: core.bomCsv(prj), tsv: core.bomTableText(prj), qtyMax: core.BOM_QTY_MAX };
+      csv: core.bomCsv(prj), tsv: core.bomTableText(prj), qtyMax: core.BOM_QTY_MAX,
+      /* rezerva I/O sestavy (hardware.ts) a volné kanály podle směru — pole „Rezerva I/O“ (jako web) */
+      reserve: core.ioReserveOf(prj) || {}, free: core.hwFreeChannels(core.hwLayout(prj)) };
   },
 
   /* Export pro CAD (cad.ts): PLCdesk_CAD.json — díly kusovníku, sestava PLC, svorky, vazby. Rychlá operace

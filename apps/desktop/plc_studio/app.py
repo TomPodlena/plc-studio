@@ -164,7 +164,7 @@ class App:
         # licence (license.py): ověření uloženého licenčního souboru jádrem — síť až na pozadí
         self.lic = signed_license(self)
 
-        self.prj: dict = self.core("blankProject")
+        self.prj: dict = self.core("newProject")   # nový projekt = výchozí rezerva I/O 20 %
         self.ai: dict = new_ai()
         self.step: int | str = 0
         # první spuštění (ještě bez uloženého stavu) → úvodní průvodce (helppanel.maybe_start_tour)
@@ -478,7 +478,7 @@ class App:
             self.set_project(d.get("prj") or {}, d.get("ai"))
         except Exception as exc:  # noqa: BLE001 — poškozený stav nesmí zabránit startu
             # nečitelný / poškozený stav: odložit jako state.json.corrupt, začít prázdně a říct to
-            self.prj, self.ai = self.core("blankProject"), new_ai()
+            self.prj, self.ai = self.core("newProject"), new_ai()
             bak = self._backup_corrupt("state.json")
             self._log(traceback.format_exc())
             self._startup_notes.append((_("Rozpracovaný návrh nejde načíst"), _(
@@ -1146,7 +1146,7 @@ class App:
             self.render()
 
     def reset_project(self) -> None:
-        self.prj = self.core("blankProject")
+        self.prj = self.core("newProject")
         self.ai = new_ai()
         self._suggest_number()
         self.save()
