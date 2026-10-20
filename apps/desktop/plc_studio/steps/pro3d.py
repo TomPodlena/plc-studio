@@ -29,12 +29,22 @@ def _key(app) -> str:
 
 
 def default_folder(app) -> Path | None:
-    from ..datadir import project_dir
+    """Složka 3D stroje bez zadávání: 02_Vykresy/3D vedle otevřeného souboru projektu, jinak
+    v projektové složce, jinak pracovní složka aplikace ``<home>/pro3d/<číslo>_<Název>/02_Vykresy/3D``."""
+    from ..datadir import folder_name, project_dir
+    pf = getattr(app, "_project_file", None)
+    if isinstance(pf, tuple) and len(pf) == 2 and pf[0] == app.prj.get("guid") and pf[1]:
+        side = Path(pf[1]).parent / "02_Vykresy" / "3D"
+        if side.is_dir():
+            return side
     try:
         pdir = project_dir(app)
     except Exception:  # noqa: BLE001 — bez kořene projektů
         pdir = None
-    return pdir / "02_Vykresy" / "3D" if pdir is not None else None
+    if pdir is not None:
+        return pdir / "02_Vykresy" / "3D"
+    home = getattr(app, "home", None)
+    return Path(home) / "pro3d" / folder_name(app) / "02_Vykresy" / "3D" if home else None
 
 
 def machine_folder(app) -> Path | None:
