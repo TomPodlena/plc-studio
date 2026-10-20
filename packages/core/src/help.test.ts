@@ -136,3 +136,15 @@ test("nápověda: adresa videoprůvodce (jazyk videa = jazyk UI, es na anglické
   assert.equal(helpVideoUrl("zh"), S + "/zh/video/?v=zh");
   for (const l of Object.keys(LANGS)) assert.ok(helpVideoUrl(l).endsWith("?v=" + l), l);
 });
+
+test("nápověda: kapitola náhledu PLCdesk PRO jen na vyžádání a jen v desktopu", () => {
+  assert.equal(helpChapter("pro3d", "cs", "desktop"), null);
+  assert.ok(!helpChapters("cs").some(c => c.id === "pro3d"), "web plcdesk ji nevidí");
+  assert.ok(!HELP_IDS.includes("pro3d"));
+  const ch = helpChapter("pro3d", "cs", "desktop", true);
+  assert.ok(ch && ch.only === "desktop" && ch.steps.length >= 3);
+  assert.equal(helpChapter("pro3d", "cs", "web", true), null);
+  assert.ok(helpChapters("cs", "desktop", true).some(c => c.id === "pro3d"));
+  assert.ok(!searchHelp("FreeCAD agent", "cs", "desktop").some(h => h.id === "pro3d"));
+  assert.ok(searchHelp("FreeCAD agent", "cs", "desktop", 20, true).some(h => h.id === "pro3d"));
+});

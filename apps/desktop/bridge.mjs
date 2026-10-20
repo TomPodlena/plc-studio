@@ -130,11 +130,11 @@ const OPS = {
   /* Nápověda (help.ts) v jazyce `lang` pro desktop: kapitoly, průvodce, popisky UI, skupiny, kapitola
      kroku a adresy na webu PLCdesk — jedna operace, desktop si ji drží v cache podle jazyka.
      Hledání jde přes `call` (searchHelp). */
-  help({ lang } = {}) {
+  help({ lang, preview = false } = {}) {
     const l = core.isLang(lang) ? lang : core.getLang();   // jazyk procesu mostu se nemění
     return core.withLang(l, () => ({
       lang: l,
-      chapters: core.helpChapters(l, "desktop"),
+      chapters: core.helpChapters(l, "desktop", !!preview),   // preview = kapitoly náhledu PLCdesk PRO
       tour: core.helpTour(l),
       ui: Object.fromEntries(Object.entries(core.HELP_UI).map(([k, v]) => [k, core.tr(v)])),
       groups: Object.fromEntries(Object.entries(core.HELP_GROUPS).map(([k, v]) => [k, core.tr(v)])),

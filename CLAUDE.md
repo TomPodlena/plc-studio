@@ -331,6 +331,25 @@ python scripts/build_verification.py        # data/verification.json → verific
   téže značky — Siemens V20 / G120C, 3RA23, VEGA, KSB; test hlídá vzor „…; Typ —“); `dims` (mm + URL) u skříní
   (Rittal AX 500×500×210 … 1000×1400×300, Schneider S3D) a měničů Siemens.
 
+## PLCdesk PRO — 3D agent (prototyp)
+
+- **Jen desktop, jen náhled:** krok „3D agent (PRO)“ (`steps/pro3d.py`, id kroku `"pro"` jako `"help"` — čísla ostatních
+  kroků se nemění, v liště za Kusovníkem) se ukáže jen při `settings.json` `pro_preview: true` nebo `PLCDESK_PRO=1`
+  (`App.pro_enabled`); jinak se PLCdesk nemění. **TODO: licence PRO** (nárok `cad3d` / `product: "pro"`) místo náhledu.
+- `plc_studio/pro_agent.py`: Claude Code CLI headless — `claude -p --output-format stream-json --verbose --permission-mode
+  acceptEdits --allowedTools <role> --append-system-prompt <pravidla role> --add-dir ~/.claude/skills [--model] [--max-budget-usd]`,
+  pokyn na stdin, cwd = složka stroje (výchozí `<projektová složka>/02_Vykresy/3D`, volba `settings.pro3d_dirs[guid]`).
+  Role Stavitel / Kontrolor K5 (bez Edit, píše KONTROLA_K5_*.md) / Koncept; pravidla (vlastní slot FreeCADu `plcdesk-pro`,
+  App::Part + App::Link, zástupné oranžově, povolené kolize, nic ve vzduchu, prohlédnout snímky, PLCdesk = zdroj pravdy kusovníku
+  → zpětná vazba, bez skriptů na 3Dfindit, bezpečnost ke schválení, hotovo až po K5 jinou rolí) česky jako prompt AI návrháře.
+  Běh ve vlákně → fronta → `after` (Tk jen hlavní vlákno), `parse_event` = stream-json → řádky logu (+ cena / tokeny z `result`),
+  Zastavit = `taskkill /T` jen nad vlastním PID (i při zavření okna). **Spuštění = placené → vždy dialog souhlasu.**
+  Otevřít ve FreeCADu = `run_fc.ps1 gui-start / gui-run` skillu freecad-instance (slot `plcdesk-pro`, limit 4 h).
+- Nápověda: kapitola `pro3d` s `preview: true` (help.ts) — `helpChapters` / `helpChapter` / `searchHelp` ji vrací jen
+  s `preview` (most `help` `preview`, desktop jen se zapnutým náhledem), web plcdesk ani `HELP_IDS` ji nemají.
+  Testy `apps/desktop/tests/test_pro_agent.py` (bez volání CLI). Zbývá: licence PRO, interaktivní náhled 3D, užší oprávnění CLI
+  (dnes `Bash` / `PowerShell` bez omezení příkazů).
+
 ## Sestava hardwaru (hardware.ts)
 
 - **Jediný zdroj pravdy o modulech.** `hwLayout(prj, plat)` → stanice (CPU s lokálním rackem, vzdálené

@@ -42,6 +42,9 @@ interface Src {
   id: string; group: HelpGroup; step?: number; title: string; summary: string;
   steps?: (string | HelpText)[]; tips?: (string | HelpText)[]; issues?: HelpIssue[];
   see?: string[]; keywords: string; only?: HelpClient;
+  /** Náhled funkce, kterou běžná aplikace nemá (PLCdesk PRO): jen na výslovné vyžádání (`preview`),
+   *  web plcdesk ani běžný klient ji nevidí. */
+  preview?: true;
 }
 
 const web = (text: string): HelpText => ({ text, only: "web" });
@@ -339,6 +342,28 @@ const SRC: Src[] = [
     keywords: N_("kusovník, BOM, komponenty, objednací kód, dodavatel, výrobce, CSV, Excel, poptávka, CPU, moduly, rezerva I/O, volné kanály"),
   },
   {
+    id: "pro3d", group: "topic", only: "desktop", preview: true, title: N_("3D agent (PRO)"),
+    summary: N_("Náhled funkce PLCdesk PRO: krok za Kusovníkem, ve kterém zadáš pokyn AI agentovi (Claude Code), a ten ve složce 3D stroje staví nebo kontroluje model ve FreeCADu. Krok se ukáže jen se zapnutým náhledem PRO; licence PRO zatím není."),
+    steps: [
+      N_("Zapni náhled: v settings.json ve složce stavu aplikace nastav **pro_preview: true** (nebo proměnnou prostředí PLCDESK_PRO=1) a aplikaci spusť znovu. V liště kroků přibude za Kusovníkem **3D agent (PRO)**."),
+      N_("**Složka 3D stroje**: výchozí je 02_Vykresy/3D v projektové složce; **Vybrat…** zvolí jinou (pamatuje se pro projekt). Krok ukáže verdikt poslední kontroly KONTROLA_K5_*.md, začátek STAV*.md, modely FCStd a náhledy posledních snímků PNG (klik = otevřít)."),
+      N_("Zvol **roli**: Stavitel (staví a upravuje model), Kontrolor K5 (jen kontroluje a píše KONTROLA_K5_*.md, model nemění) nebo Koncept (hrubý koncept z obálek)."),
+      N_("Napiš **pokyn** a klikni **Spustit**. Aplikace se zeptá, zda spotřebovat kredity tvého tarifu Claude; pak spustí Claude Code na pozadí ve složce stroje a průběh (text, použité nástroje, výsledky, nakonec cena a tokeny) píše do logu."),
+      N_("**Zastavit** ukončí jen proces agenta spuštěný z PLCdesk (i jeho podřízené procesy). **Otevřít ve FreeCADu** otevře vybraný model ve vlastní instanci FreeCADu (slot plcdesk-pro), cizí okna FreeCADu zůstanou. **Načíst zpětnou vazbu z CAD…** je totéž okno jako v Kusovníku."),
+    ],
+    tips: [
+      N_("Agent dostává pravidla práce (vlastní instance FreeCADu, App::Part a App::Link, zástupné díly oranžově, povolené kolize jen šroub × díra a matice × drážka, nic ve vzduchu, prohlédnout snímky, PLCdesk = zdroj pravdy kusovníku, bezpečnost jen ke schválení). Hotovo je až po kontrole K5 jinou rolí."),
+      N_("Neshody kusovníku agent nevyřeší ve 3D potichu — zapíše je jako zpětnou vazbu; tu načteš a rozhodneš v PLCdesk."),
+      N_("Volitelný limit ceny (USD) se předá Claude Code; bez něj běží agent do konce úlohy nebo do Zastavit."),
+    ],
+    issues: [
+      { problem: N_("„Claude Code nenalezen“"), fix: N_("Nainstaluj Claude Code a přihlas se (claude.exe v PATH nebo v %USERPROFILE%/.local/bin), nebo nastav cestu proměnnou PLCDESK_CLAUDE.") },
+      { problem: N_("„FreeCAD 1.1 nenalezen“"), fix: N_("Nainstaluj FreeCAD 1.1 (výchozí cesta v Programs) a spouštěč vlastní instance run_fc.ps1; bez něj tlačítko Otevřít ve FreeCADu nefunguje, agent může běžet.") },
+    ],
+    see: ["kusovnik"],
+    keywords: N_("PRO, 3D, agent, AI, Claude Code, FreeCAD, model, stavitel, kontrola K5, koncept, snímky"),
+  },
+  {
     id: "nabidka", group: "step", step: 9, title: N_("Nabídka"),
     summary: N_("Interní podklad pro nabídku: kusovník oceněný podle tvého ceníku a odhad hodin práce z projektu × tvoje sazby. Ceny se nikdy nevymýšlí — bez ceníku, sazby nebo kurzu zůstane cena prázdná."),
     steps: [
@@ -630,6 +655,7 @@ export function helpForStep(step: unknown): string {
 }
 
 const keep = (only: HelpClient | undefined, client?: HelpClient) => !only || !client || only === client;
+const shown = (s: Src, client?: HelpClient, preview = false) => keep(s.only, client) && (!s.preview || preview);
 const asText = (x: string | HelpText): HelpText => (typeof x === "string" ? { text: x } : x);
 
 function build(s: Src, client?: HelpClient): HelpChapter {
@@ -639,7 +665,7 @@ function build(s: Src, client?: HelpClient): HelpChapter {
     steps: (s.steps || []).map(asText).filter(x => keep(x.only, client)).map(t),
     tips: (s.tips || []).map(asText).filter(x => keep(x.only, client)).map(t),
     issues: (s.issues || []).filter(x => keep(x.only, client)).map(x => ({ problem: tr(x.problem), fix: tr(x.fix), ...(x.only ? { only: x.only } : {}) })),
-    see: (s.see || []).filter(id => { const o = SRC.find(c => c.id === id); return !!o && keep(o.only, client); }),
+    see: (s.see || []).filter(id => { const o = SRC.find(c => c.id === id); return !!o && shown(o, client); }),
     keywords: tr(s.keywords).split(/[,，、]/).map(k => k.trim()).filter(Boolean),
   };
   if (s.step !== undefined) ch.step = s.step;
@@ -647,15 +673,16 @@ function build(s: Src, client?: HelpClient): HelpChapter {
   return ch;
 }
 
-/** Všechny kapitoly v jazyce `lang` (výchozí = nastavený); `client` vynechá položky jiného klienta. */
-export function helpChapters(lang?: string, client?: HelpClient): HelpChapter[] {
-  return withLang(lang ?? getLang(), () => SRC.filter(s => keep(s.only, client)).map(s => build(s, client)));
+/** Všechny kapitoly v jazyce `lang` (výchozí = nastavený); `client` vynechá položky jiného klienta,
+ *  `preview` přidá kapitoly náhledu (PLCdesk PRO — jen desktop se zapnutým náhledem). */
+export function helpChapters(lang?: string, client?: HelpClient, preview = false): HelpChapter[] {
+  return withLang(lang ?? getLang(), () => SRC.filter(s => shown(s, client, preview)).map(s => build(s, client)));
 }
 
 /** Jedna kapitola (nebo null). */
-export function helpChapter(id: string, lang?: string, client?: HelpClient): HelpChapter | null {
+export function helpChapter(id: string, lang?: string, client?: HelpClient, preview = false): HelpChapter | null {
   const s = SRC.find(c => c.id === id);
-  if (!s || !keep(s.only, client)) return null;
+  if (!s || !shown(s, client, preview)) return null;
   return withLang(lang ?? getLang(), () => build(s, client));
 }
 
@@ -750,11 +777,11 @@ const strip = (s: string) => s.replace(/\*\*/g, "");
  * v kapitole (AND). Váha: nadpis 10, klíčová slova 6, shrnutí 3, ostatní text 1 (na slovo).
  * Hledá v jazyce `lang`; mimo češtinu i v českých klíčových slovech (nižší váha).
  */
-export function searchHelp(query: string, lang?: string, client?: HelpClient, limit = 20): HelpHit[] {
+export function searchHelp(query: string, lang?: string, client?: HelpClient, limit = 20, preview = false): HelpHit[] {
   const words = helpFold(query).split(/[\s,;]+/).map(w => w.trim()).filter(w => w.length >= 2 || /[^\x00-\x7f]/.test(w));
   if (!words.length) return [];
   const l = lang ?? getLang();
-  const chapters = helpChapters(l, client);
+  const chapters = helpChapters(l, client, preview);
   const csKw = l === "cs" ? null : new Map(SRC.map(s => [s.id, helpFold(s.keywords)]));
   const hits: HelpHit[] = [];
   for (const ch of chapters) {
@@ -814,5 +841,5 @@ export function helpVideoUrl(lang?: string): string {
   return licenseSiteUrl("video", l) + "?v=" + (HELP_VIDEO_LANGS.includes(l) ? l : "en");
 }
 
-/** Id všech kapitol (pro web a testy). */
-export const HELP_IDS: string[] = SRC.map(s => s.id);
+/** Id všech kapitol (pro web a testy; bez kapitol náhledu — ty web nemá). */
+export const HELP_IDS: string[] = SRC.filter(s => !s.preview).map(s => s.id);
