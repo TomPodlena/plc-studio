@@ -242,8 +242,12 @@ def render(app, parent) -> None:
 
     # --- log ---
     logc = card(parent, "LOG", _("Průběh"))
+    bar = ttk.Progressbar(logc, mode="determinate", maximum=100)
+    bar.pack(fill="x", pady=(0, 4))
+    app._pro_bar = bar
     status = ttk.Label(logc, text=_status_text(run), style="Dim.TLabel")
     status.pack(anchor="w")
+    _update_bar(bar, run)
     lfrm, log = scrolled_text(logc, height=14, readonly=True)
     lfrm.pack(fill="both", expand=True, pady=(4, 0))
     for k, c in LOG_TAGS.items():
@@ -257,17 +261,46 @@ def render(app, parent) -> None:
             _poll(app, run, log, status)
 
 
+def _update_bar(bar, run) -> None:
+    """Ukazatel průběhu: krok k/N z řádků agenta „PRŮBĚH k/N“, bez plánu neurčitý pruh, po konci plný / prázdný."""
+    try:
+        k, n, _lbl = getattr(run, "step", (0, 0, "")) if run is not None else (0, 0, "")
+        if run is not None and run.state == "running" and not n:
+            if str(bar.cget("mode")) != "indeterminate":
+                bar.configure(mode="indeterminate")
+                bar.start(15)
+            return
+        if str(bar.cget("mode")) == "indeterminate":
+            bar.stop()
+            bar.configure(mode="determinate")
+        if run is None:
+            bar.configure(value=0)
+        elif run.state == "done":
+            bar.configure(value=100)
+        else:
+            bar.configure(value=round(100 * min(k, n) / n) if n else 0)
+    except tk.TclError:
+        pass
+
+
 def _status_text(run) -> str:
     if run is None:
         return _("Agent neběží.")
     if run.state == "running":
-        return _("Agent běží (PID {pid})…", pid=getattr(run.proc, "pid", "?"))
+        k, n, lbl = getattr(run, "step", (0, 0, ""))
+        mins, secs = divmod(int(run.elapsed()) if hasattr(run, "elapsed") else 0, 60)
+        head = (_("Krok {k}/{n}: {label}", k=k, n=n, label=lbl) if n
+                else _("Agent připravuje plán…"))
+        tail = _("{m}:{s} · akcí {tools}", m=mins, s=f"{secs:02d}", tools=getattr(run, "tools", 0))
+        last = getattr(run, "last", "")
+        return head + " · " + tail + ((" · " + _("poslední: {what}", what=last[:80])) if last else "")
     return {"done": _("Agent skončil."), "stopped": _("Agent zastaven."),
             "failed": _("Agent skončil s chybou.")}.get(run.state, "")
 
 
 def _append(log: tk.Text, items) -> None:
-    prefix = {"tool": "▸ ", "result": "   ", "error": "✖ ", "info": "· ", "done": "✔ ", "text": ""}
+    prefix = {"tool": "▸ ", "result": "   ", "error": "✖ ", "info": "· ", "done": "✔ ", "text": "",
+              "progress": "◆ "}
     log.configure(state="normal")
     for kind, text in items:
         if kind == "end":
@@ -291,6 +324,9 @@ def _poll(app, run, log: tk.Text, status) -> None:
         app.render()                                  # konec běhu: tlačítka a stav znovu
         return
     status.configure(text=_status_text(run))
+    bar = getattr(app, "_pro_bar", None)
+    if bar is not None:
+        _update_bar(bar, run)
     app.root.after(250, lambda: _poll(app, run, log, status))
 
 

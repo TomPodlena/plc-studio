@@ -90,6 +90,21 @@ class CommandTest(unittest.TestCase):
         self.assertEqual(pa.parse_event(json.dumps({"type": "result", "subtype": "error_max_turns",
                                                     "is_error": True}))[0][0], "done")
 
+    def test_progress(self):
+        ev = {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": "Začínám.\nPRŮBĚH 2/5: rám postaven\nDál kryty."},
+            {"type": "tool_use", "name": "Read", "input": {"file_path": "STAV.md"}}]}}
+        items = pa.parse_event(json.dumps(ev, ensure_ascii=False))
+        self.assertIn(("progress", "2/5 rám postaven"), items)
+        run = pa.AgentRun(["x"], "p", ".")
+        for it in items:
+            run.queue.put(it)
+        run.drain()
+        self.assertEqual(run.step, (2, 5, "rám postaven"))
+        self.assertEqual(run.tools, 1)
+        self.assertNotIn("progress", [k for k, _t in run.lines])
+        self.assertIn("PRŮBĚH", pa.system_prompt("builder"))
+
     def test_machine_state(self):
         d = Path(tempfile.mkdtemp(prefix="pro_stroj_"))
         (d / "ram").mkdir()

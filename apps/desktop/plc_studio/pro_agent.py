@@ -27,6 +27,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 from .i18n import N_, _
@@ -53,6 +54,8 @@ Závazná pravidla (porušení = práce se vrací):
 9. Bezpečnostní prvky a funkce jen jako návrh ke schválení odpovědnou osobou, nikdy jako hotové řešení.
 10. Hotovo je až po kontrole K5 JINOU rolí (Kontrolor K5); do té doby výsledek označ jako „ke kontrole“.
 11. Stav práce průběžně zapisuj do STAV.md (co je hotové, co zbývá, otevřené otázky na uživatele).
+12. Průběh pro ukazatel v aplikaci: hned na začátku vypiš samostatný řádek „PRŮBĚH 0/N: plán“ (N = počet kroků tvého plánu)
+   a po dokončení každého kroku řádek „PRŮBĚH k/N: <co je hotové>“ (N smíš upravit, když se plán změní).
 Skilly k použití podle potřeby: {skills}."""
 
 ROLE_RULES = {
@@ -231,6 +234,9 @@ def _tool_arg(name: str, inp: dict) -> str:
     return _short(inp, 120) if inp else ""
 
 
+PROGRESS_RE = re.compile(r"^\s*PR[ŮU]B[ĚE]H\s+(\d+)\s*/\s*(\d+)\s*:?\s*(.*)$", re.MULTILINE | re.IGNORECASE)
+
+
 def parse_event(line: str) -> list[tuple[str, str]]:
     """Jedna řádka stream-json → seznam (druh, text) pro log: ``info``, ``text``, ``tool``, ``result``,
     ``error``, ``done``. Neznámé / neplatné řádky se ukážou jako ``info`` (nic se nezahodí potichu)."""
@@ -259,7 +265,10 @@ def parse_event(line: str) -> list[tuple[str, str]]:
                 continue
             ct = c.get("type")
             if ct == "text" and t == "assistant" and str(c.get("text", "")).strip():
-                out.append(("text", str(c["text"]).strip()))
+                txt = str(c["text"]).strip()
+                out.extend(("progress", f"{m.group(1)}/{m.group(2)} {m.group(3).strip()}")
+                           for m in PROGRESS_RE.finditer(txt))
+                out.append(("text", txt))
             elif ct == "tool_use":
                 name = str(c.get("name") or "?")
                 arg = _tool_arg(name, c.get("input") or {})
@@ -320,6 +329,11 @@ class AgentRun:
         self.proc: subprocess.Popen | None = None
         self.state = "new"                    # new / running / done / stopped / failed
         self._thread: threading.Thread | None = None
+        # průběh pro ukazatel: krok k/N z řádků „PRŮBĚH k/N: …“, počet akcí, poslední akce, začátek běhu
+        self.step = (0, 0, "")
+        self.tools = 0
+        self.last = ""
+        self.t0: float | None = None
 
     def start(self, popen=subprocess.Popen) -> None:
         kw = {}
@@ -331,6 +345,7 @@ class AgentRun:
         self.proc = popen(self.cmd, cwd=self.cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT, encoding="utf-8", errors="replace", bufsize=1, **kw)
         self.state = "running"
+        self.t0 = time.monotonic()
         self._thread = threading.Thread(target=self._pump, daemon=True)
         self._thread.start()
 
@@ -361,8 +376,19 @@ class AgentRun:
                 new.append(self.queue.get_nowait())
             except queue.Empty:
                 break
-        self.lines.extend(x for x in new if x[0] != "end")
+        for kind, text in new:
+            if kind == "progress":
+                m = re.match(r"(\d+)/(\d+)\s*(.*)", text)
+                if m:
+                    self.step = (int(m.group(1)), int(m.group(2)), m.group(3))
+            elif kind == "tool":
+                self.tools += 1
+                self.last = text
+        self.lines.extend(x for x in new if x[0] not in ("end", "progress"))
         return new
+
+    def elapsed(self) -> float:
+        return time.monotonic() - self.t0 if self.t0 is not None else 0.0
 
     def running(self) -> bool:
         return self.state == "running" and self.proc is not None and self.proc.poll() is None
