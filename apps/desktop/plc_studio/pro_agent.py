@@ -128,8 +128,22 @@ def deny_tools() -> list[str]:
     return list(DENY_TOOLS) + [f"{t}(/{'/' if not d.startswith('/') else ''}{d}/**)" for d in ro for t in ("Edit", "Write")]
 
 
+# model a limit kol podle role (rozhodnutí uživatele 2026-10-21: koncept Opus, stavba a kontrola Sonnet; nastavitelné
+# v kroku per projekt, v pipeline.json a z CLI). Seznam známých modelů = ``ai_client.KNOWN_MODELS`` (shodně s AI návrhářem
+# a webem ``AI_MODELS``), jinak vlastní ID.
+ROLE_MODELS = {"concept": "claude-opus-5-5", "builder": "claude-sonnet-5-5", "k5": "claude-sonnet-5-5"}
+ROLE_TURNS = {"concept": 60, "builder": 60, "k5": 40}
+
+
+def known_models() -> dict:
+    """{ID: popis s relativní cenou} — tentýž seznam jako AI návrhář (``ai_client.KNOWN_MODELS``)."""
+    from .ai_client import KNOWN_MODELS
+    return dict(KNOWN_MODELS)
+
+
 def build_command(exe: str | Path, role: str, *, model: str = "", budget: float | None = None,
-                  add_dirs: list[str | Path] | None = None, extra_system: str = "") -> list[str]:
+                  add_dirs: list[str | Path] | None = None, extra_system: str = "",
+                  max_turns: int | None = None) -> list[str]:
     """Příkaz Claude Code CLI (headless). Pokyn jde na stdin (``-p`` bez argumentu) — dlouhý text by
     přetekl příkazovou řádku Windows. Oprávnění zúžená: ``--tools`` = jen nástroje role, Bash / PowerShell
     jen povolené prefixy, zákazy ``--disallowedTools``, bez serverů MCP (``--strict-mcp-config``)."""
@@ -144,6 +158,8 @@ def build_command(exe: str | Path, role: str, *, model: str = "", budget: float 
         cmd += ["--add-dir", str(d)]
     if model.strip():
         cmd += ["--model", model.strip()]
+    if max_turns:
+        cmd += ["--max-turns", str(int(max_turns))]
     if budget is not None and budget > 0:
         cmd += ["--max-budget-usd", f"{budget:g}"]
     return cmd

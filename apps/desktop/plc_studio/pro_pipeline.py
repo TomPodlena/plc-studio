@@ -18,7 +18,12 @@ běhu agenta v ``logy/``, na konci ``PREHLED.md``. Běh agentů obstarává ``ru
 
 Dávka bez GUI:
     python -m plc_studio.pro_pipeline --sample <projekt.plcstudio.json> --out <složka> [--from-phase X]
-        [--max-rounds 3] [--test-safety] [--no-ai] [--model M] [--budget USD]
+        [--max-rounds 3] [--test-safety] [--no-ai] [--model-concept M] [--model-build M] [--model-check M]
+        [--turns-concept N] [--turns-build N] [--turns-check N] [--model M (všechny role)] [--budget USD]
+
+Kontroly modelu dělá KÓD (``pro3d_tools``: kolize, souvislost, otvory ISO 13857, kusovník, zástupné díly, STEP, snímky);
+stavitel je spouští před odevzdáním, kontrolor K5 nezávisle a verdikt o ně opírá — SCHVÁLENO s chybou v
+``<část>/k5_kolo<N>/kontroly.json`` postup sám zneplatní.
 """
 
 from __future__ import annotations
@@ -120,16 +125,46 @@ otvory krytů ISO 13857. PLM (C:\\CLAUDE\\freecad_plm, registr ve složce stroje
 Ulož {sub}/Celek.FCStd, snímky do {sub}/snimky/, zprávu {sub}/CELEK.md (struktura, kontroly, PLM, ODHADY, otevřené body).""",
 }
 
+TOOLS_DIR = Path(__file__).resolve().parent / "pro3d_tools"
+TOOLS_SLOT = {"builder": "pro3d-stavitel", "concept": "pro3d-stavitel", "k5": "pro3d-k5"}
+
+
+def tools_cmd(role: str = "builder") -> str:
+    """Příkaz kontrol kódem pro pokyn agenta (prefix ``powershell`` = povolený příkaz Bash / PowerShell)."""
+    return (f'powershell -NoProfile -ExecutionPolicy Bypass -File "{TOOLS_DIR / "pro3d.ps1"}"'
+            f" <kontrola> <model.FCStd> --slot {TOOLS_SLOT.get(role, 'pro3d-kontroly')}")
+
+
+BUILD_CHECKS = """Kontroly KÓDEM (povinné, nepiš na ně vlastní měřicí skripty): po každé stavbě / úpravě modelu spusť
+  {cmd}   (kontrola = vse, výstup: --out {sub})
+a všechny CHYBY z {sub}/KONTROLY.md (kontroly.json) oprav PŘED odevzdáním — kontrolu opakuj, dokud není „Stav: OK“;
+varování vypořádej ve zprávě. Kontroly: kolize (povolené jen šroub × díra / závit, matice × drážka), souvislost (podlaha,
+díly bez spoje, volná čela profilů), otvory (voxely + měření e / Sr, ISO 13857 tab. 4), kusovník × PLCdesk_CAD.json,
+zástupné díly, STEP. Snímky: kontrola = snimky, --out {sub}/snimky --prefix <název> [--detail "díl;díl"].
+Konvence modelu, které kontroly čtou: vlastnost Konstrukce_Typ (sroub / matice / podlozka / profil / patka / kryt /
+vypln / zona / pomocny / kabel / hadice / dil), nebezpečné zóny jako tělesa Zona_* (Konstrukce_Typ = zona), druhé
+polohy pohyblivých dílů Konstrukce_Pohyb = JSON {"nazev": …, "posun": [x, y, z]} nebo {"nazev": …, "otoc": {"osa":
+[…], "bod": […], "uhel": …}}, zástupné díly PLCdesk_ModelStatus = placeholder + barva 255,140,0, díly kusovníku
+PLCdesk_Id / PLCdesk_Instance (= řádek manifestu)."""
+
+K5_CHECKS = """Postup kontroly:
+1. NEJDŘÍV nezávisle spusť kontroly kódem nad každým modelem části (výsledky stavitele nepřebírej):
+   {cmd}   (kontrola = vse, výstup: --out {sub}/k5_kolo{round})
+   Čísla převezmi z {sub}/k5_kolo{round}/kontroly.json (souhrn, chyby a varování s polohou, SHA-256 modelu).
+2. Ručně (AI) posuď JEN to, co skripty neumí: soulad se zadáním, konceptem a manifestem (funkce, rozměry, umístění),
+   vyrobitelnost, montovatelnost a servis, bezpečnostní koncepci (kryty, zóny, přístup — čísla otvorů má skript),
+   označené ODHADY a sepsanou zpětnou vazbu; udělej 2–4 snímky (kontrola = snimky, --prefix k5_kolo{round}) a prohlédni je.
+3. Verdikt opři o kontroly.json: jakákoli chyba nebo stav SELHALO = VRÁCENO (povinný bod s polohou z kontroly);
+   varování posuď. Postup PLCdesk verdikt SCHVÁLENO s chybou v kontroly.json sám zneplatní."""
+
 FIX_PROMPT = """Toto je kolo {round} téže části. Kontrola K5 ji VRÁTILA: {last_k5}.
 Přednostně vyřeš všechny povinné body z tohoto protokolu (nic nevynechej, nic nepřidávej navíc), uprav model a zprávu
 a v ní doplň oddíl „Kolo {round}“ s vypořádáním každého bodu."""
 
 K5_PROMPT = """Kontrola K5 části „{label}“ (složka {sub}/), kolo {round}. Model NEMĚNÍŠ a nic neopravuješ.
 Kontroluj proti ZADÁNÍ a MANIFESTU (PLCdesk_CAD.json, ROZBOR.md, KUSOVNIK.csv, u stavby i schválený koncept), ne proti
-zprávě stavitele — tvrzení stavitele si ověř sám (měřením v modelu, vlastními snímky do {sub}/snimky/k5_kolo{round}_*).
-Body: průniky hmot (kromě povolených), nic ve vzduchu, App::Part / App::Link a vypočtená umístění, zástupné díly oranžově
-s vlastností, rozměry a hmotnosti, kusovník 3D × PLCdesk, bezpečné vzdálenosti krytů (ISO 13857 měřením), ODHADY
-označené a vypsané, zpětná vazba sepsaná (ne opravená ve 3D).
+zprávě stavitele — tvrzení stavitele si ověř sám.
+{checks}
 Na začátku i na konci spočítej SHA-256 všech *.FCStd ve složce stroje a uveď je v protokolu (musí se shodovat).
 Protokol zapiš do {k5file}: první řádek nadpis, pak řádek „## Verdikt: **SCHVÁLENO**“ nebo „## Verdikt: **VRÁCENO**“,
 očíslované povinné body (jen u VRÁCENO) a výhrady."""
@@ -151,6 +186,29 @@ def k5_file(folder: Path, unit: str, rnd: int) -> Path:
     return folder / u["sub"] / f"KONTROLA_K5_{u['subject']}_kolo{rnd}.md"
 
 
+def k5_checks(folder: Path, unit: str, rnd: int) -> dict | None:
+    """Souhrn kontrol kódem, které spustil kontrolor (``<část>/k5_kolo<N>/**/kontroly.json``): nejhorší stav ze všech
+    modelů části (SELHALO > CHYBY > OK), počty a soubor; None = kontrolor kontroly nespustil."""
+    base = folder / UNIT[unit]["sub"] / f"k5_kolo{rnd}"
+    files = sorted(base.rglob("kontroly.json")) if base.is_dir() else []
+    if not files:
+        return None
+    rank = {"OK": 0, "CHYBY": 1, "SELHALO": 2}
+    out = {"stav": "OK", "chyby": 0, "varovani": 0, "file": files[0].relative_to(folder).as_posix(), "modely": []}
+    for f in files:
+        try:
+            s = (json.loads(f.read_text(encoding="utf-8")).get("souhrn") or {})
+        except (OSError, ValueError):
+            s = {"stav": "SELHALO"}
+        st = s.get("stav") if s.get("stav") in rank else "SELHALO"
+        if rank[st] > rank[out["stav"]]:
+            out["stav"], out["file"] = st, f.relative_to(folder).as_posix()
+        out["chyby"] += int(s.get("chyby") or 0)
+        out["varovani"] += int(s.get("varovani") or 0)
+        out["modely"].append(f.relative_to(folder).as_posix())
+    return out
+
+
 def feedback_file(unit: str) -> str:
     return f"PLCdesk_CAD_feedback_{UNIT[unit]['subject']}.json"
 
@@ -167,6 +225,7 @@ def builder_prompt(folder: Path, unit: str, rnd: int, template: str = "", extra:
     head = [f"Projekt PLCdesk: {project}" if project else "", f"Složka 3D stroje: {folder}",
             f"Část: {u['label']} (podsložka {u['sub']}/), kolo {rnd}"]
     body = fill(template.strip() or default_prompt(unit), sub=u["sub"], round=rnd)
+    body += "\n\n" + fill(BUILD_CHECKS, cmd=tools_cmd("builder"), sub=u["sub"])
     if rnd > 1:
         prev = k5_file(folder, unit, rnd - 1)
         body += "\n\n" + fill(FIX_PROMPT, round=rnd, last_k5=prev.relative_to(folder).as_posix())
@@ -181,7 +240,8 @@ def builder_prompt(folder: Path, unit: str, rnd: int, template: str = "", extra:
 def k5_prompt(folder: Path, unit: str, rnd: int, project: str = "", test_safety: bool = False) -> str:
     u = UNIT[unit]
     head = [f"Projekt PLCdesk: {project}" if project else "", f"Složka 3D stroje: {folder}"]
-    body = fill(K5_PROMPT, label=u["label"], sub=u["sub"], round=rnd,
+    checks = fill(K5_CHECKS, cmd=tools_cmd("k5"), sub=u["sub"], round=rnd)
+    body = fill(K5_PROMPT, label=u["label"], sub=u["sub"], round=rnd, checks=checks,
                 k5file=k5_file(folder, unit, rnd).relative_to(folder).as_posix())
     if test_safety:
         body += "\n\n" + TEST_RULE
@@ -300,15 +360,16 @@ def _usage(result: dict | None) -> dict:
 
 def agent_runner(*, model: str = "", budget: float | None = None, exe=None):
     """Výchozí ``runner`` = Claude Code CLI (``pro_agent.AgentRun``), čeká na konec ve volajícím vlákně a průběžně
-    zapisuje log. Vrací funkci ``run(pipe, role, prompt, extra_system, log_path) → dict``."""
+    zapisuje log. Model a limit kol podle role z ``pipe.model_for`` / ``pipe.turns_for`` (``model`` = jeden pro všechny
+    role, starší volba). Vrací funkci ``run(pipe, role, prompt, extra_system, log_path) → dict``."""
 
     def run(pipe: "Pipeline", role: str, prompt: str, extra_system: str, log_path: Path) -> dict:
         claude = exe or pro_agent.find_claude()
+        m = model.strip() or pipe.model_for(role)
+        turns = pipe.turns_for(role)
         if claude is None:
-            return {"state": "failed", "error": _("Claude Code nenalezen.")}
-        fc = pro_agent.find_freecad()
-        dirs = [pro_agent.SKILLS_DIR, pro_agent.PLM_DIR] + ([fc.parent.parent] if fc else [])
-        cmd = pro_agent.build_command(claude, role, model=model, budget=budget, add_dirs=dirs, extra_system=extra_system)
+            return {"state": "failed", "error": _("Claude Code nenalezen."), "model": m}
+        cmd = pipe.command(claude, role, extra_system, model=m, budget=budget)
         ar = pro_agent.AgentRun(cmd, prompt, pipe.folder, role=role)
         pipe.current = ar
         try:
@@ -316,7 +377,8 @@ def agent_runner(*, model: str = "", budget: float | None = None, exe=None):
         except OSError as exc:
             return {"state": "failed", "error": str(exc)}
         with open(log_path, "w", encoding="utf-8") as fh:
-            fh.write(f"# {role}\n# {_dt.datetime.now():%Y-%m-%d %H:%M:%S}\n\n## Pokyn\n{prompt}\n\n## Průběh\n")
+            fh.write(f"# {role}\n# {_dt.datetime.now():%Y-%m-%d %H:%M:%S}\n# model {m}, limit kol {turns}\n\n"
+                     f"## Pokyn\n{prompt}\n\n## Průběh\n")
             done = False
             while not done:
                 for kind, text in ar.drain():
@@ -328,7 +390,7 @@ def agent_runner(*, model: str = "", budget: float | None = None, exe=None):
                 if pipe.stop_requested and ar.running():
                     ar.stop()
                 time.sleep(0.2)
-        return {"state": ar.state, **_usage(ar.result), "secs": round(ar.elapsed())}
+        return {"state": ar.state, **_usage(ar.result), "secs": round(ar.elapsed()), "model": m, "maxTurns": turns}
 
     return run
 
@@ -351,6 +413,7 @@ def _sha_models(folder: Path) -> dict:
 
 def blank_state(project: str = "", max_rounds: int = MAX_ROUNDS, test_safety: bool = False) -> dict:
     return {"version": 1, "project": project, "maxRounds": max_rounds, "testSafety": test_safety,
+            "models": dict(pro_agent.ROLE_MODELS), "maxTurns": dict(pro_agent.ROLE_TURNS),
             "status": "new", "created": _now(), "updated": _now(), "inputs": [],
             "units": {k: {"state": "waiting", "rounds": []} for k in UNIT_KEYS}}
 
@@ -410,7 +473,7 @@ class Pipeline:
 
     def __init__(self, folder: str | Path, prj: dict, *, max_rounds: int = MAX_ROUNDS, test_safety: bool = False,
                  prompts: dict | None = None, extras: dict | None = None, runner=None, ai: bool = True,
-                 inputs_fn=None, log=None) -> None:
+                 inputs_fn=None, log=None, models: dict | None = None, turns: dict | None = None) -> None:
         self.folder = Path(folder)
         self.prj = prj
         self.project = str((prj.get("meta") or {}).get("name") or "")
@@ -429,6 +492,26 @@ class Pipeline:
         self.state = load_state(self.folder) or blank_state(self.project, self.max_rounds, self.test_safety)
         self.state["maxRounds"] = self.max_rounds
         self.state["testSafety"] = self.test_safety
+        # model a limit kol podle role: výchozí < pipeline.json < volba (krok / CLI)
+        st_m = self.state.get("models") if isinstance(self.state.get("models"), dict) else {}
+        st_t = self.state.get("maxTurns") if isinstance(self.state.get("maxTurns"), dict) else {}
+        self.state["models"] = {r: str((models or {}).get(r) or st_m.get(r) or d).strip()
+                                for r, d in pro_agent.ROLE_MODELS.items()}
+        self.state["maxTurns"] = {r: max(1, int((turns or {}).get(r) or st_t.get(r) or d))
+                                  for r, d in pro_agent.ROLE_TURNS.items()}
+
+    def model_for(self, role: str) -> str:
+        return self.state["models"].get(role) or pro_agent.ROLE_MODELS.get(role, "")
+
+    def turns_for(self, role: str) -> int:
+        return int(self.state["maxTurns"].get(role) or pro_agent.ROLE_TURNS.get(role, 60))
+
+    def command(self, exe, role: str, extra_system: str, *, model: str | None = None, budget: float | None = None) -> list:
+        """Příkaz CLI pro roli: model a limit kol role, pracovní složky skilly, PLM, FreeCAD a nástroje kontrol."""
+        fc = pro_agent.find_freecad()
+        dirs = [pro_agent.SKILLS_DIR, pro_agent.PLM_DIR, TOOLS_DIR] + ([fc.parent.parent] if fc else [])
+        return pro_agent.build_command(exe, role, model=model if model is not None else self.model_for(role), budget=budget,
+                                       add_dirs=dirs, extra_system=extra_system, max_turns=self.turns_for(role))
 
     # --- pomocné ---
     def log(self, text: str) -> None:
@@ -539,6 +622,8 @@ class Pipeline:
         res.setdefault("secs", round(time.monotonic() - t0))
         res["log"] = path.relative_to(self.folder).as_posix()
         res["role"] = role
+        res.setdefault("model", self.model_for(role))
+        res.setdefault("maxTurns", self.turns_for(role))
         if self.stop_requested and res.get("state") not in ("failed",):
             res["state"] = "stopped"
         return res
@@ -588,6 +673,15 @@ class Pipeline:
                 r["k5Modified"] = changed
                 self.log(_("Kontrolor změnil model ({files}) — verdikt neplatí.", files=", ".join(changed)))
                 kind = ""
+            chk = k5_checks(self.folder, key, n)
+            r["checks"] = chk
+            if kind == "ok" and chk and chk.get("stav") != "OK":
+                self.log(_("Kontroly kódem K5 ({file}): {state} — verdikt SCHVÁLENO neplatí.", file=chk["file"],
+                           state=chk.get("stav")))
+                kind = "back"
+                r["k5ChecksOverride"] = chk.get("stav")
+            elif chk is None:
+                self.log(_("Kontrolor nespustil kontroly kódem (kontroly.json chybí)."))
             r["verdict"] = kind or "none"
             r["verdictText"] = pro_agent.verdict_text(text)
             self.log(_("{part}, kolo {n}: verdikt {v}.", part=_(UNIT[key]["label"]), n=n,
@@ -602,6 +696,7 @@ class Pipeline:
 # --- přehled -------------------------------------------------------------------------------------------------------
 
 _ODHAD = re.compile(r"\bODHAD\b")
+_ROLE_CS = {"concept": "Koncept", "builder": "Stavitel", "k5": "Kontrolor K5"}
 
 
 def collect_estimates(folder: Path, limit: int = 60) -> list[str]:
@@ -651,10 +746,29 @@ def write_summary(folder: str | Path, st: dict) -> Path:
         L += ["## Vstupy z PLCdesk", ""] + [f"- [{f}]({f})" for f in st["inputs"] if "/" not in f] + \
              ([f"- program: {sum(1 for f in st['inputs'] if f.startswith('program/'))} souborů v `program/`"]
               if any(f.startswith("program/") for f in st["inputs"]) else []) + [""]
-    logs = [(r.get(s) or {}).get("log") for k in UNIT_KEYS for r in st["units"][k].get("rounds") or [] for s in ("builder", "k5")]
-    logs = [x for x in logs if x]
-    if logs:
-        L += ["## Logy agentů", ""] + [f"- [{x}]({x})" for x in logs] + [""]
+    ms, mt = st.get("models") or {}, st.get("maxTurns") or {}
+    if ms:
+        L += ["Modely: " + ", ".join(f"{_ROLE_CS.get(r, r)} `{ms.get(r)}` (limit {mt.get(r, '?')} kol)"
+                                    for r in ("concept", "builder", "k5")), ""]
+    runs = [(k, r, x) for k in UNIT_KEYS for r in st["units"][k].get("rounds") or []
+            for x in (r.get("builder"), r.get("k5")) if x]
+    if runs:
+        L += ["## Běhy agentů (skutečná cena z Claude Code)", "",
+              "| Krok | Kolo | Role | Model | Stav | Kol / limit | Cena USD | Tokeny vstup / výstup | s | Log |",
+              "|---|---|---|---|---|---|---|---|---|---|"]
+        for k, r, x in runs:
+            lg = x.get("log") or ""
+            L.append(f"| {UNIT[k]['label']} | {r.get('n')} | {_ROLE_CS.get(x.get('role'), x.get('role') or '?')} | "
+                     f"`{x.get('model') or '?'}` | {x.get('state') or '?'} | {x.get('turns', 0)} / {x.get('maxTurns', '?')} | "
+                     f"{float(x.get('cost') or 0):.2f} | {int(x.get('tin') or 0)} / {int(x.get('tout') or 0)} | "
+                     f"{x.get('secs', '')} | {f'[log]({lg})' if lg else '—'} |")
+        L.append("")
+    chk = [f"- {UNIT[k]['label']} kolo {r['n']}: kontroly kódem K5 {r['checks']['stav']} (chyby {r['checks']['chyby']}, "
+           f"varování {r['checks']['varovani']}) — [{r['checks']['file']}]({r['checks']['file']})"
+           + (" — verdikt SCHVÁLENO zneplatněn" if r.get("k5ChecksOverride") else "")
+           for k in UNIT_KEYS for r in st["units"][k].get("rounds") or [] if r.get("checks")]
+    if chk:
+        L += ["## Kontroly kódem (pro3d_tools)", ""] + chk + [""]
     warn = [f"- {UNIT[k]['label']} kolo {r['n']}: kontrolor změnil {', '.join(r['k5Modified'])} — verdikt neplatí"
             for k in UNIT_KEYS for r in st["units"][k].get("rounds") or [] if r.get("k5Modified")]
     if warn:
@@ -684,9 +798,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--max-rounds", type=int, default=MAX_ROUNDS)
     ap.add_argument("--test-safety", action="store_true", help="TEST: bezpečnostní prvky považovat za schválené")
     ap.add_argument("--no-ai", action="store_true", help="jen vstupy z PLCdesk, agenti se nespustí")
-    ap.add_argument("--model", default="")
+    ap.add_argument("--model", default="", help="jeden model pro všechny role (přebije --model-*)")
+    ap.add_argument("--model-concept", default="", help=f"model role Koncept (výchozí {pro_agent.ROLE_MODELS['concept']})")
+    ap.add_argument("--model-build", default="", help=f"model role Stavitel (výchozí {pro_agent.ROLE_MODELS['builder']})")
+    ap.add_argument("--model-check", default="", help=f"model role Kontrolor K5 (výchozí {pro_agent.ROLE_MODELS['k5']})")
+    ap.add_argument("--turns-concept", type=int, default=0, help=f"limit kol Koncept (výchozí {pro_agent.ROLE_TURNS['concept']})")
+    ap.add_argument("--turns-build", type=int, default=0, help=f"limit kol Stavitel (výchozí {pro_agent.ROLE_TURNS['builder']})")
+    ap.add_argument("--turns-check", type=int, default=0, help=f"limit kol Kontrolor (výchozí {pro_agent.ROLE_TURNS['k5']})")
     ap.add_argument("--budget", type=float, default=None, help="limit ceny jednoho běhu agenta (USD)")
     a = ap.parse_args(argv)
+    models = {"concept": a.model_concept, "builder": a.model_build, "k5": a.model_check}
+    turns = {"concept": a.turns_concept, "builder": a.turns_build, "k5": a.turns_check}
     try:
         sys.stdout.reconfigure(encoding="utf-8")
     except (AttributeError, ValueError):
@@ -697,7 +819,8 @@ def main(argv: list[str] | None = None) -> int:
         print("Claude Code nenalezen (PLCDESK_CLAUDE / PATH).", file=sys.stderr)
         return 2
     pipe = Pipeline(a.out, prj, max_rounds=a.max_rounds, test_safety=a.test_safety, ai=not a.no_ai,
-                    runner=None if a.no_ai else agent_runner(model=a.model, budget=a.budget), log=print)
+                    runner=None if a.no_ai else agent_runner(model=a.model, budget=a.budget), log=print,
+                    models=models, turns=turns)
     status = pipe.run(a.from_phase)
     print(f"PREHLED: {Path(a.out) / SUMMARY_FILE}")
     return 0 if status in ("done", "noai") else 1

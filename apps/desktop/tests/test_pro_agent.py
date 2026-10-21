@@ -230,6 +230,12 @@ class StepTest(unittest.TestCase):
                 self.assertIsNone(pro3d.start_pipeline(app, None, confirm=lambda: False))
             self.assertIsNone(getattr(app, "pro_pipe", None))
             self.assertEqual(set(app.pro_phase_labels), {"inputs", "concept", "build"})
+            # model podle role: výchozí koncept Opus / stavba a kontrola Sonnet, volba se uloží pro projekt
+            self.assertEqual({r: v.get() for r, v in app.pro_role_vars.items()},
+                             {"concept": "claude-opus-5-5", "builder": "claude-sonnet-5-5", "k5": "claude-sonnet-5-5"})
+            app.pro_role_vars["k5"].set("claude-haiku-4-5-20251001")
+            self.assertEqual(pro3d.save_models(app)["k5"], "claude-haiku-4-5-20251001")
+            self.assertEqual(pro3d.role_models(app)["k5"], "claude-haiku-4-5-20251001")
             # celý postup s podvrženým agentem (bez AI): K5 vše schválí → pruh fází „schváleno“
             from plc_studio import pro_pipeline as pp
 
@@ -245,6 +251,9 @@ class StepTest(unittest.TestCase):
             pipe = pro3d.start_pipeline(app, None, confirm=lambda: True, runner=runner, thread=False)
             self.assertEqual(pipe.state["status"], "done")
             self.assertTrue(pipe.state["testSafety"])
+            self.assertEqual(pipe.model_for("k5"), "claude-haiku-4-5-20251001")
+            app.settings.pop("pro_models", None)
+            pro3d._per_project(app, "pro3d_models").clear()
             app.ui["pro_open"] = ["frame"]
             app.render()
             self.root.update()

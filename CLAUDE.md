@@ -380,6 +380,25 @@ python scripts/build_verification.py        # data/verification.json → verific
   s `preview` (most `help` `preview`, desktop jen se zapnutým náhledem), web plcdesk ani `HELP_IDS` ji nemají.
   Testy `apps/desktop/tests/test_pro_agent.py` a `test_pro_pipeline.py` (bez volání AI: vstupy na vzoru 01, automat kol, navázání,
   zastavení, K5 mění model, PREHLED.md, CLI `--no-ai`). Zbývá: licence PRO, interaktivní náhled 3D, ověřit vzory oprávnění naostro.
+- **Cena (2026-10-21):** model a limit kol PODLE ROLE — `pro_agent.ROLE_MODELS` (koncept `claude-opus-5-5`, stavitel a kontrolor
+  `claude-sonnet-5-5`), `ROLE_TURNS` (60 / 60 / 40, CLI `--max-turns`); priorita výchozí < `pipeline.json` (`models`,
+  `maxTurns`) < volba (krok: Combobox každé role = `ai_client.KNOWN_MODELS` s poznámkou o relativní ceně + vlastní ID,
+  `settings.pro3d_models[guid]`, výchozí `settings.pro_models`; CLI `--model-concept / --model-build / --model-check`,
+  `--turns-*`, `--model` = všechny role). `PREHLED.md` tabulka Běhy agentů: model, kola / limit, skutečná cena a tokeny.
+- **Zásada: co jde kódem, ne AI.** Kontroly modelu = `plc_studio/pro3d_tools/` (`pro3d.ps1 <kontrola> <FCStd>` → `run.py`;
+  Python FreeCADu má numpy / scipy; FreeCAD jen vlastní instance `run_fc.ps1`, model se jen čte, nic z `plc_studio`
+  neimportuje): `fc_scan.py` (headless: průchod App::Part / App::Link / externí dokumenty, kolize s kalibrací známým průnikem,
+  povolené jen šroub × souosá díra / závit, matice × drážka profilu, skryté průniky mřížkou, polohy `Konstrukce_Pohyb`;
+  souvislost — graf dotyků k podlaze, díly bez spoje, volná čela profilů; otvory — teselace → `voxel.py` (5 / 4 / 3 mm,
+  cesta k zónám `Zona_*`, ucpání celého otvoru a hledání dalšího) → změření e (d1 + paprsek, délka napříč → štěrbina /
+  čtverec) a Sr v modelu → ISO 13857 tab. 4 (`rules.ISO13857_TAB4`, zdroj skill ramy-a-kryty); kusovník `PLCdesk_Id` ×
+  manifest; STEP export + zpětné načtení), `run.check_stav` (zástupné díly z GuiDocument.xml bez FreeCADu), `fc_shots.py`
+  (GUI: iso ×2, půdorys, čelo, výřezy). `vse` → `kontroly.json` + `KONTROLY.md` (≤ 40 řádků), kód 0 / 1 chyby / 2 selhalo.
+  Konvence modelu v `rules.py` (`Konstrukce_Typ`, `Konstrukce_Pohyb`, `Konstrukce_Zona`). Stavitel je spouští před
+  odevzdáním (`BUILD_CHECKS`), kontrolor K5 nezávisle do `<část>/k5_kolo<N>/` a AI posuzuje jen soulad se zadáním,
+  vyrobitelnost, montáž, bezpečnostní koncepci (`K5_CHECKS`); `k5_checks` — SCHVÁLENO s chybou / SELHALO postup zneplatní.
+  Testy `test_pro3d_tools.py` (pravidla, barvy, voxely, syntetický model ve FreeCADu `pro3d_synth_build.py`).
+  Kandidáti na další deterministické generátory (AI jen koncept, nestandardní mechanika a posouzení) — `.claude/plcdesk_pro/NAVRH_PLCdesk_PRO.md`.
 
 ## Sestava hardwaru (hardware.ts)
 

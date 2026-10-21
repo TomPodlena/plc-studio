@@ -207,5 +207,93 @@ class InputsTest(unittest.TestCase):
         self.assertEqual(st["units"]["inputs"]["state"], "done")
 
 
+class ModelsAndChecksTest(unittest.TestCase):
+    """Model a limit kol podle role, kontroly kódem v pokynech, K5 verdikt × kontroly.json, přehled."""
+
+    def test_defaults_command_and_persist(self):
+        from plc_studio import pro_agent as pa
+        d = tmpdir()
+        p = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=FakeRunner({}))
+        self.assertEqual(p.model_for("concept"), "claude-opus-5-5")
+        self.assertEqual(p.model_for("builder"), "claude-sonnet-5-5")
+        self.assertEqual(p.model_for("k5"), "claude-sonnet-5-5")
+        self.assertEqual((p.turns_for("builder"), p.turns_for("k5"), p.turns_for("concept")), (60, 40, 60))
+        cmd = p.command("C:/x/claude.exe", "k5", "extra")
+        self.assertEqual(cmd[cmd.index("--model") + 1], "claude-sonnet-5-5")
+        self.assertEqual(cmd[cmd.index("--max-turns") + 1], "40")
+        self.assertIn(str(pp.TOOLS_DIR), [cmd[i + 1] for i, x in enumerate(cmd) if x == "--add-dir"])
+        self.assertIn("Bash(powershell *)", cmd[cmd.index("--allowedTools") + 1])
+        p2 = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=FakeRunner({}),
+                         models={"builder": "claude-haiku-4-5-20251001"}, turns={"k5": 25})
+        p2.save()
+        p3 = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=FakeRunner({}))    # navázání z pipeline.json
+        self.assertEqual(p3.model_for("builder"), "claude-haiku-4-5-20251001")
+        self.assertEqual(p3.turns_for("k5"), 25)
+        self.assertEqual(p3.model_for("concept"), "claude-opus-5-5")
+        self.assertIn("claude-opus-5-5", pa.known_models())
+
+    def test_prompts_run_tools(self):
+        d = Path("C:/stroj")
+        b = pp.builder_prompt(d, "frame", 1)
+        self.assertIn("pro3d.ps1", b)
+        self.assertIn("--out ram", b)
+        self.assertIn("Konstrukce_Typ", b)
+        k = pp.k5_prompt(d, "frame", 2)
+        self.assertIn("--out ram/k5_kolo2", k)
+        self.assertIn("pro3d-k5", k)
+        self.assertIn("SELHALO = VRÁCENO", k)
+
+    def test_k5_approved_with_failed_checks_is_returned(self):
+        class R(FakeRunner):
+            def __call__(self, pipe, role, prompt, extra, log_path):
+                res = super().__call__(pipe, role, prompt, extra, log_path)
+                unit, _r, rnd = self.calls[-1]
+                if role == "k5":
+                    out = pipe.folder / pp.UNIT[unit]["sub"] / f"k5_kolo{rnd}"
+                    out.mkdir(parents=True, exist_ok=True)
+                    st = "CHYBY" if (unit, rnd) == ("concept", 1) else "OK"
+                    (out / "kontroly.json").write_text(json.dumps({"souhrn": {"stav": st, "chyby": int(st != "OK"),
+                                                                              "varovani": 0}}), encoding="utf-8")
+                return dict(res, model=pipe.model_for(role), maxTurns=pipe.turns_for(role))
+
+        d = tmpdir()
+        p = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=R({}))
+        self.assertEqual(p.run(), "done")
+        rc = p.state["units"]["concept"]["rounds"]
+        self.assertEqual([r["verdict"] for r in rc], ["back", "ok"])
+        self.assertEqual(rc[0]["k5ChecksOverride"], "CHYBY")
+        self.assertEqual(rc[0]["checks"]["file"], "koncept/k5_kolo1/kontroly.json")
+        summ = (d / pp.SUMMARY_FILE).read_text(encoding="utf-8")
+        self.assertIn("`claude-opus-5-5`", summ)
+        self.assertIn("`claude-sonnet-5-5`", summ)
+        self.assertIn("Běhy agentů", summ)
+        self.assertIn("verdikt SCHVÁLENO zneplatněn", summ)
+        self.assertIn("2 / 60", summ)
+
+    def test_cli_models(self):
+        seen = {}
+        orig = pp.Pipeline
+
+        class P(orig):
+            def __init__(self, *a, **kw):
+                super().__init__(*a, **kw)
+                seen.update(self.state["models"], turns=self.state["maxTurns"])
+
+            def run(self, from_unit=None):
+                return "noai"
+
+        pp.Pipeline = P
+        try:
+            with redirect_stdout(io.StringIO()):
+                pp.main(["--sample", str(SAMPLE01), "--out", str(tmpdir()), "--no-ai", "--model-build", "claude-opus-5-5",
+                         "--turns-check", "30"])
+        finally:
+            pp.Pipeline = orig
+        self.assertEqual(seen["builder"], "claude-opus-5-5")
+        self.assertEqual(seen["concept"], "claude-opus-5-5")
+        self.assertEqual(seen["k5"], "claude-sonnet-5-5")
+        self.assertEqual(seen["turns"]["k5"], 30)
+
+
 if __name__ == "__main__":
     unittest.main()

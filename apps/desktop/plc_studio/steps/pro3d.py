@@ -83,8 +83,59 @@ def busy(app) -> bool:
     return t is not None and t.is_alive()
 
 
+MODEL_ROLES = tuple((r, dict(pro_agent.ROLES)[r]) for r in ("concept", "builder", "k5"))   # popisky N_ v pro_agent
+
+
+def role_models(app) -> dict:
+    """Model každé role: volba projektu (``settings.pro3d_models``), jinak výchozí z nastavení (``pro_models``),
+    jinak ``pro_agent.ROLE_MODELS`` (koncept Opus, stavba a kontrola Sonnet)."""
+    glob = app.settings.get("pro_models") if isinstance(app.settings.get("pro_models"), dict) else {}
+    own = _per_project(app, "pro3d_models")
+    return {r: str(own.get(r) or glob.get(r) or d) for r, d in pro_agent.ROLE_MODELS.items()}
+
+
+def save_models(app) -> dict:
+    """Uloží volbu modelů z polí kroku pro projekt i jako výchozí; vrací {role: model}."""
+    vars_ = getattr(app, "pro_role_vars", {}) or {}
+    models = {r: (v.get().split(" ")[0].strip() or pro_agent.ROLE_MODELS[r]) for r, v in vars_.items()}
+    if models:
+        _per_project(app, "pro3d_models").update(models)
+        app.settings["pro_models"] = dict(models)
+    return models or role_models(app)
+
+
+def _model_rows(app, parent) -> None:
+    """Model pro každou roli: známé modely (shodně s AI návrhářem) + vlastní ID, poznámka o relativní ceně."""
+    known = pro_agent.known_models()
+    cur = role_models(app)
+    row = ttk.Frame(parent)
+    row.pack(fill="x", pady=(8, 0))
+    ttk.Label(row, text=_("Model AI podle role")).grid(row=0, column=0, columnspan=3, sticky="w")
+    app.pro_role_vars = {}
+    for i, (role, label) in enumerate(MODEL_ROLES, 1):
+        ttk.Label(row, text=_(label)).grid(row=i, column=0, sticky="w", padx=(0, 8))
+        var = tk.StringVar(value=cur[role])
+        app.pro_role_vars[role] = var
+        cb = ttk.Combobox(row, textvariable=var, values=list(known), width=max(26, max(len(k) for k in known) + 2))
+        cb.grid(row=i, column=1, sticky="w", pady=1)
+        note = ttk.Label(row, style="Dim.TLabel")
+        note.grid(row=i, column=2, sticky="w", padx=(8, 0))
+
+        def upd(_e=None, v=var, n=note):
+            desc = known.get(v.get().strip())
+            n.configure(text=_(desc) if desc else _("vlastní ID modelu — cenu ukáže přehled po běhu"))
+
+        upd()
+        cb.bind("<<ComboboxSelected>>", upd)
+        cb.bind("<KeyRelease>", upd)
+        tooltip(cb, _("Limit kol agenta: {n} (pipeline.json, maxTurns). Skutečnou cenu každého běhu zapíše PREHLED.md.",
+                      n=pro_agent.ROLE_TURNS[role]))
+    wrap_label(parent, _("Kontroly modelu (kolize, souvislost, otvory, kusovník, zástupné díly, STEP) počítá kód — agent je "
+                         "jen spouští a posuzuje, co kód neumí."), pady=(4, 0))
+
+
 def start_pipeline(app, from_unit: str | None = None, *, confirm=None, runner=None, thread: bool = True,
-                   model: str = "", budget: float | None = None) -> pro_pipeline.Pipeline | None:
+                   model: str = "", budget: float | None = None, models: dict | None = None) -> pro_pipeline.Pipeline | None:
     """Spustí automatický postup (``from_unit`` = od kroku znovu, jinak navázání od posledního hotového kroku)
     po potvrzení — agenti spotřebují kredity tarifu Claude. Postup běží ve vlákně; vrací ``Pipeline`` nebo None."""
     folder = machine_folder(app)
@@ -103,7 +154,8 @@ def start_pipeline(app, from_unit: str | None = None, *, confirm=None, runner=No
     pipe = pro_pipeline.Pipeline(
         folder, json.loads(json.dumps(app.prj)), test_safety=bool(app.ui.get("pro_test")),
         prompts=dict(_per_project(app, "pro3d_prompts")), extras=dict(_per_project(app, "pro3d_extra")),
-        runner=runner or pro_pipeline.agent_runner(model=model, budget=budget))
+        runner=runner or pro_pipeline.agent_runner(model=model, budget=budget),
+        models=models or role_models(app))
     app.pro_pipe = pipe
     if thread:
         app.pro_thread = threading.Thread(target=pipe.run, args=(from_unit,), daemon=True)
@@ -198,14 +250,11 @@ def render(app, parent) -> None:
                               command=lambda: app.ui.__setitem__("pro_test", tvar.get()))
     cb_test.pack(side="left")
     tooltip(cb_test, _("Jen pro zkoušku postupu: výstupy pak nesou „{mark}“.", mark=pro_pipeline.TEST_MARK))
-    ttk.Label(opts, text=_("Model (volitelně)")).pack(side="left", padx=(18, 0))
-    mvar = tk.StringVar(value=app.settings.get("pro_model") or "")
-    app.pro_model_var = mvar
-    ttk.Entry(opts, textvariable=mvar, width=18).pack(side="left", padx=(6, 14))
-    ttk.Label(opts, text=_("Limit ceny USD na běh agenta (volitelně)")).pack(side="left")
+    ttk.Label(opts, text=_("Limit ceny USD na běh agenta (volitelně)")).pack(side="left", padx=(18, 0))
     bvar = tk.StringVar(value=app.ui.get("pro_budget") or "")
     app.pro_budget_var = bvar
     ttk.Entry(opts, textvariable=bvar, width=8).pack(side="left", padx=(6, 0))
+    _model_rows(app, body)
 
     btns = ttk.Frame(body)
     btns.pack(fill="x", pady=(8, 0))
@@ -220,8 +269,8 @@ def render(app, parent) -> None:
             messagebox.showerror(_("Spustit 3D agenta"), _("Limit ceny musí být číslo (USD)."), parent=app.root)
             return
         app.ui["pro_budget"] = bvar.get()
-        app.settings["pro_model"] = mvar.get().strip()
-        if start_pipeline(app, from_unit, model=mvar.get(), budget=budget):
+        models = save_models(app)
+        if start_pipeline(app, from_unit, budget=budget, models=models):
             app.render()
 
     def from_sel() -> str:
