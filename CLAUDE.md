@@ -337,18 +337,49 @@ python scripts/build_verification.py        # data/verification.json → verific
   kroků se nemění, v liště za Kusovníkem) se ukáže jen při `settings.json` `pro_preview: true` nebo `PLCDESK_PRO=1`
   (`App.pro_enabled`); jinak se PLCdesk nemění. **TODO: licence PRO** (nárok `cad3d` / `product: "pro"`) místo náhledu.
 - `plc_studio/pro_agent.py`: Claude Code CLI headless — `claude -p --output-format stream-json --verbose --permission-mode
-  acceptEdits --allowedTools <role> --append-system-prompt <pravidla role> --add-dir ~/.claude/skills [--model] [--max-budget-usd]`,
-  pokyn na stdin, cwd = složka stroje (výchozí `<projektová složka>/02_Vykresy/3D`, volba `settings.pro3d_dirs[guid]`).
+  acceptEdits --strict-mcp-config --tools <nástroje role> --allowedTools <role> --disallowedTools <zákazy>
+  --append-system-prompt <pravidla role + pravidla postupu> --add-dir … [--model] [--max-budget-usd]`, pokyn na stdin,
+  cwd = složka stroje (výchozí `<projektová složka>/02_Vykresy/3D`, volba `settings.pro3d_dirs[guid]`).
+  **Oprávnění zúžená** (2026-10-21): `--tools` = jen Read / Write / Edit / Glob / Grep / Skill / Bash / PowerShell (K5 bez Edit),
+  Bash / PowerShell jen s prefixem `SHELL_ALLOW` (`Bash(python *)`, `PowerShell(powershell *)`… — powershell, pwsh, python, py,
+  node, freecadcmd), zákazy `DENY_TOOLS` (web, Agent, rm / del / taskkill / Remove-Item / Stop-Process / curl…, Edit / Write do
+  skillů a PLM `//C:/…/**`), bez MCP; zápis souborů CLI v acceptEdits omezí na pracovní složky = složka stroje + `--add-dir`
+  (`~/.claude/skills`, `C:\CLAUDE\freecad_plm`, instalace FreeCADu). Omezení: prefix hlídá jen začátek příkazu (python / powershell
+  smí spustit cokoli dalšího), vzory zatím neověřené naostro (běh agenta stojí kredity).
   Role Stavitel / Kontrolor K5 (bez Edit, píše KONTROLA_K5_*.md) / Koncept; pravidla (vlastní slot FreeCADu `plcdesk-pro`,
   App::Part + App::Link, zástupné oranžově, povolené kolize, nic ve vzduchu, prohlédnout snímky, PLCdesk = zdroj pravdy kusovníku
   → zpětná vazba, bez skriptů na 3Dfindit, bezpečnost ke schválení, hotovo až po K5 jinou rolí) česky jako prompt AI návrháře.
-  Běh ve vlákně → fronta → `after` (Tk jen hlavní vlákno), `parse_event` = stream-json → řádky logu (+ cena / tokeny z `result`),
+  `parse_event` = stream-json → řádky logu, `AgentRun.result` = událost `result` (cena / tokeny),
   Zastavit = `taskkill /T` jen nad vlastním PID (i při zavření okna). **Spuštění = placené → vždy dialog souhlasu.**
   Otevřít ve FreeCADu = `run_fc.ps1 gui-start / gui-run` skillu freecad-instance (slot `plcdesk-pro`, limit 4 h).
+- **Automatický postup** `plc_studio/pro_pipeline.py` (stavový automat bez Tk; schváleno uživatelem 2026-10-21): fáze
+  ① Vstupy z PLCdesk (BEZ AI, vlastní `CoreBridge`: `normalizeProject` → `projekt.plcstudio.json`, `PLCdesk_CAD.json`
+  (cadManifestJson), `KUSOVNIK.csv` (bomCsv), `program/<hwPlatform>/` (genFor) + `PROGRAM.md` (emulateCompile + emulateRunMany),
+  `ROZBOR.md` (`~/.claude/skills/automatizacni-technika/scripts/rozbor_zadani.py`), `STAV.md` jen když chybí) → ② Koncept →
+  ③ Stavba po částech (`UNITS`: rozvaděč `rozvadec/`, rám a kryty `ram/`, moduly `moduly/`, celek + PLM `celek/`). Každá AI
+  část: stavitel (1. kolo konceptu role Koncept) → K5 → protokol `<podsložka>/KONTROLA_K5_<předmět>_kolo<N>.md` (`parse_verdict`
+  = `verdict_text` + `verdict_kind`; chybí / nečitelný = jako VRÁCENO), nejvýš `max_rounds` (3) kol; **neschválený koncept
+  postup zastaví** (status `rejected`), neschválená část stavby se zapíše a pokračuje se. SHA-256 všech FCStd před / po K5 —
+  kontrolor, který model změní, má verdikt neplatný (`k5Modified`). Pravidla postupu `PIPELINE_RULES` (ODHAD místo otázek,
+  zpětná vazba `PLCdesk_CAD_feedback_<předmět>.json` jen sepsat — v automatu se NEPOUŽIJE, `plm scan` 1× za kolo, šetřit paměť,
+  ISO 13857 měřením, oranžová RGB 255,140,0 + vlastnost…), šablony `DEFAULT_PROMPTS` (bez specifik stroje 01, `{sub}`),
+  `FIX_PROMPT` (kolo > 1 → body poslední K5), `K5_PROMPT` (proti zadání a manifestu, ne proti zprávě stavitele, nic neopravovat),
+  TEST (`test_safety`) = pravidlo M + `TEST_MARK` „TEST – schválení předpokládáno“ v pokynech a PREHLED.md. Stav `pipeline.json`
+  (navázání od posledního hotového kroku i uprostřed kola — hotový stavitel → jen K5; `run(from_unit)` = krok a další znovu,
+  stará kola do `history`), logy `logy/NN_<krok>_kolo<N>_<role>.log`, `PREHLED.md` (`write_summary`: tabulka fází / kol /
+  verdiktů, cena a tokeny, vstupy, logy, ODHADY z *.md, zpětná vazba, snímky). `runner` = `agent_runner()` (AgentRun, frontu
+  vybírá vlákno postupu) nebo podvržený v testech. **CLI** `python -m plc_studio.pro_pipeline --sample <.plcstudio.json>
+  --out <složka> [--from-phase X] [--max-rounds 3] [--test-safety] [--no-ai] [--model] [--budget]` (výstup průběhu na stdout).
+- Krok (`steps/pro3d.py`): pruh fází ①②③ se stavem (`phase_state` / `state_label`: čeká / běží / kontrola K5, kolo n /
+  schváleno / neschváleno / zastaveno), Spustit celý postup / Spustit od fáze… (Combobox kroků) / Zastavit, TEST, model a limit
+  ceny na běh, celkový ukazatel (`progress`, `overall_text` fáze × kolo × role) + ukazatel běžícího agenta (PRŮBĚH k/N), Pokyny
+  fází (rozbalitelná šablona `settings.pro3d_prompts[guid][krok]`, doplňující pokyn `settings.pro3d_extra[guid][krok]`), Přehled
+  postupu, Otevřít ve FreeCADu, zpětná vazba z CAD. Postup ve vlákně (`app.pro_pipe` / `app.pro_thread`), `_poll` přes `after`
+  jen čte `pipe.events` / `run.lines` a při změně stavu překreslí krok; zavření okna postup zastaví.
 - Nápověda: kapitola `pro3d` s `preview: true` (help.ts) — `helpChapters` / `helpChapter` / `searchHelp` ji vrací jen
   s `preview` (most `help` `preview`, desktop jen se zapnutým náhledem), web plcdesk ani `HELP_IDS` ji nemají.
-  Testy `apps/desktop/tests/test_pro_agent.py` (bez volání CLI). Zbývá: licence PRO, interaktivní náhled 3D, užší oprávnění CLI
-  (dnes `Bash` / `PowerShell` bez omezení příkazů).
+  Testy `apps/desktop/tests/test_pro_agent.py` a `test_pro_pipeline.py` (bez volání AI: vstupy na vzoru 01, automat kol, navázání,
+  zastavení, K5 mění model, PREHLED.md, CLI `--no-ai`). Zbývá: licence PRO, interaktivní náhled 3D, ověřit vzory oprávnění naostro.
 
 ## Sestava hardwaru (hardware.ts)
 

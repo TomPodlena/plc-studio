@@ -1318,10 +1318,10 @@ class App:
                     wiz.persist()
             except Exception:  # noqa: BLE001 — zavření okna nesmí selhat
                 self._log(traceback.format_exc())
-        run = getattr(self, "pro_run", None)  # běžící 3D agent (PRO) nesmí přežít okno a dál čerpat tarif
-        if run is not None:
+        pipe = getattr(self, "pro_pipe", None)  # běžící postup 3D agenta (PRO) nesmí přežít okno a dál čerpat tarif
+        if pipe is not None:
             try:
-                run.stop()
+                pipe.stop()
             except Exception:  # noqa: BLE001 — zavření okna nesmí selhat
                 self._log(traceback.format_exc())
         self._closing = True              # pracovní proces ruší výpočty, okno už nic nedokreslí

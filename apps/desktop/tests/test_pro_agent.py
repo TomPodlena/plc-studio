@@ -55,6 +55,17 @@ class CommandTest(unittest.TestCase):
         self.assertNotIn("--max-budget-usd", cmd)
         self.assertNotIn("--add-dir", cmd)
         self.assertNotIn("Edit", cmd[cmd.index("--allowedTools") + 1].split(","), "kontrolor model neupravuje")
+        # zúžená oprávnění: jen nástroje role, shell jen s povoleným prefixem, zákazy, bez MCP
+        self.assertNotIn("Edit", cmd[cmd.index("--tools") + 1].split(","))
+        allow = cmd[cmd.index("--allowedTools") + 1].split(",")
+        self.assertIn("Bash(python *)", allow)
+        self.assertIn("PowerShell(powershell *)", allow)
+        self.assertNotIn("Bash", allow, "Bash jen s prefixem")
+        deny = cmd[cmd.index("--disallowedTools") + 1].split(",")
+        self.assertIn("WebFetch", deny)
+        self.assertTrue(any(d.startswith("Edit(//") and "skills" in d for d in deny))
+        self.assertIn("--strict-mcp-config", cmd)
+        self.assertTrue(pa.build_command("claude", "k5", add_dirs=[], extra_system="NAVIC")[-1].endswith("NAVIC"))
 
     def test_roles(self):
         self.assertEqual({k for k, _l in pa.ROLES}, set(pa.ROLE_RULES))
@@ -216,8 +227,31 @@ class StepTest(unittest.TestCase):
             self.assertIsNotNone(helppanel.chapter(app, "pro3d"))
             # Spustit bez potvrzení nic nespustí (placené jen se souhlasem)
             with mock.patch.object(pa, "find_claude", return_value=Path(sys.executable)):
-                self.assertIsNone(pro3d.start_agent(app, "builder", "x", confirm=lambda: False))
-            self.assertIsNone(getattr(app, "pro_run", None))
+                self.assertIsNone(pro3d.start_pipeline(app, None, confirm=lambda: False))
+            self.assertIsNone(getattr(app, "pro_pipe", None))
+            self.assertEqual(set(app.pro_phase_labels), {"inputs", "concept", "build"})
+            # celý postup s podvrženým agentem (bez AI): K5 vše schválí → pruh fází „schváleno“
+            from plc_studio import pro_pipeline as pp
+
+            def runner(pipe, role, prompt, extra, log_path):
+                unit = next(k for k in pp.AI_UNITS if f"_{k}_kolo" in log_path.name)
+                if role == "k5":
+                    f = pp.k5_file(pipe.folder, unit, 1)
+                    f.parent.mkdir(parents=True, exist_ok=True)
+                    f.write_text("## Verdikt: **SCHVÁLENO**\n", encoding="utf-8")
+                return {"state": "done"}
+
+            app.ui["pro_test"] = True
+            pipe = pro3d.start_pipeline(app, None, confirm=lambda: True, runner=runner, thread=False)
+            self.assertEqual(pipe.state["status"], "done")
+            self.assertTrue(pipe.state["testSafety"])
+            app.ui["pro_open"] = ["frame"]
+            app.render()
+            self.root.update()
+            self.assertEqual(app.pro_phase_labels["build"].cget("text"), pp.state_label("approved"))
+            self.assertIn("frame", app.pro_prompt_texts)
+            self.assertTrue((d / "PLCdesk_CAD.json").is_file())
+            app.ui.pop("pro_test", None)
         finally:
             app.settings.pop("pro_preview", None)
             app.goto(0)

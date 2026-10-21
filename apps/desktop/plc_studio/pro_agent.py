@@ -101,14 +101,45 @@ def build_prompt(role: str, instruction: str, folder: str | Path, project: str =
     return "\n".join(x for x in head if x) + "\n\nPokyn uživatele:\n" + text
 
 
+PLM_DIR = Path(os.environ.get("PLCDESK_PLM") or r"C:\CLAUDE\freecad_plm")
+# příkazy, které agent smí spustit nástrojem Bash / PowerShell (prefix příkazu — CLI ``--allowedTools "Bash(python *)"``)
+SHELL_ALLOW = ("powershell", "pwsh", "python", "py", "node", "freecadcmd")
+# nástroje, které agent nedostane vůbec / zakázané vzory (zákaz se uplatní, i když vzor CLI nepozná — povolení ne)
+DENY_TOOLS = ("WebFetch", "WebSearch", "Agent", "NotebookEdit", "Bash(rm *)", "Bash(del *)", "Bash(git push *)",
+              "Bash(curl *)", "Bash(wget *)", "PowerShell(Remove-Item *)", "PowerShell(Stop-Process *)",
+              "PowerShell(Invoke-WebRequest *)", "Bash(taskkill *)", "PowerShell(taskkill *)")
+
+
+def allowed_tools(role: str, shells: tuple[str, ...] = SHELL_ALLOW) -> list[str]:
+    """Povolené nástroje role pro ``--allowedTools``: soubory bez omezení cesty (zápis CLI v režimu acceptEdits
+    omezí na pracovní složky = složka stroje + ``--add-dir``), Bash / PowerShell jen s prefixem z ``shells``."""
+    out: list[str] = []
+    for t in ROLE_TOOLS[role]:
+        if t in ("Bash", "PowerShell"):
+            out += [f"{t}({c} *)" for c in shells]
+        else:
+            out.append(t)
+    return out
+
+
+def deny_tools() -> list[str]:
+    """Zakázané vzory: síť, mazání, zabíjení procesů, zápis do skillů a do PLM (jen čtení / spouštění CLI)."""
+    ro = [str(SKILLS_DIR).replace("\\", "/"), str(PLM_DIR).replace("\\", "/")]
+    return list(DENY_TOOLS) + [f"{t}(/{'/' if not d.startswith('/') else ''}{d}/**)" for d in ro for t in ("Edit", "Write")]
+
+
 def build_command(exe: str | Path, role: str, *, model: str = "", budget: float | None = None,
-                  add_dirs: list[str | Path] | None = None) -> list[str]:
+                  add_dirs: list[str | Path] | None = None, extra_system: str = "") -> list[str]:
     """Příkaz Claude Code CLI (headless). Pokyn jde na stdin (``-p`` bez argumentu) — dlouhý text by
-    přetekl příkazovou řádku Windows."""
+    přetekl příkazovou řádku Windows. Oprávnění zúžená: ``--tools`` = jen nástroje role, Bash / PowerShell
+    jen povolené prefixy, zákazy ``--disallowedTools``, bez serverů MCP (``--strict-mcp-config``)."""
+    tools = ROLE_TOOLS[role]
     cmd = [str(exe), "-p", "--output-format", "stream-json", "--verbose",
-           "--permission-mode", "acceptEdits",
-           "--allowedTools", ",".join(ROLE_TOOLS[role]),
-           "--append-system-prompt", system_prompt(role)]
+           "--permission-mode", "acceptEdits", "--strict-mcp-config",
+           "--tools", ",".join(tools),
+           "--allowedTools", ",".join(allowed_tools(role)),
+           "--disallowedTools", ",".join(deny_tools()),
+           "--append-system-prompt", system_prompt(role) + (("\n\n" + extra_system) if extra_system else "")]
     for d in add_dirs if add_dirs is not None else [SKILLS_DIR]:
         cmd += ["--add-dir", str(d)]
     if model.strip():
@@ -149,7 +180,7 @@ def find_run_fc() -> Path | None:
 
 # --- stav stroje ----------------------------------------------------------------------------------------
 
-_VERDICT = re.compile(r"^#+\s*Verdikt\s*:?\s*(.+)$", re.IGNORECASE | re.MULTILINE)
+_VERDICT = re.compile(r"^[#*\s]*Verdikt\s*:?\s*(.+)$", re.IGNORECASE | re.MULTILINE)
 
 
 def _walk(folder: Path, depth: int = 4, limit: int = 20000):
@@ -191,8 +222,7 @@ def machine_state(folder: str | Path, shots: int = 6) -> dict:
     if k5:
         p = max(k5)[1]
         out["verdictFile"] = str(p)
-        m = _VERDICT.search(_read(p))
-        out["verdict"] = m.group(1).replace("**", "").strip() if m else ""
+        out["verdict"] = verdict_text(_read(p))
     if stav:
         p = max(stav)[1]
         out["stavFile"] = str(p)
@@ -200,6 +230,12 @@ def machine_state(folder: str | Path, shots: int = 6) -> dict:
     out["models"] = [str(p) for _t, p in sorted(models, reverse=True)]
     out["shots"] = [str(p) for _t, p in sorted(pngs, reverse=True)[:shots]]
     return out
+
+
+def verdict_text(text: str) -> str:
+    """Text verdiktu z protokolu K5 (řádek „## Verdikt: **SCHVÁLENO**“ i „**Verdikt: VRÁCENO**“), jinak ""."""
+    m = _VERDICT.search(text or "")
+    return m.group(1).replace("**", "").strip(" .:—-") if m else ""
 
 
 def verdict_kind(verdict: str) -> str:
@@ -334,6 +370,7 @@ class AgentRun:
         self.tools = 0
         self.last = ""
         self.t0: float | None = None
+        self.result: dict | None = None       # poslední událost ``result`` stream-json (cena, tokeny)
 
     def start(self, popen=subprocess.Popen) -> None:
         kw = {}
@@ -356,6 +393,13 @@ class AgentRun:
                 p.stdin.write(self.prompt)
                 p.stdin.close()
             for raw in p.stdout:
+                if '"result"' in raw:
+                    try:
+                        ev = json.loads(raw)
+                        if isinstance(ev, dict) and ev.get("type") == "result":
+                            self.result = ev          # cena a tokeny pro přehled postupu
+                    except ValueError:
+                        pass
                 for item in parse_event(raw):
                     self.queue.put(item)
             code = p.wait()

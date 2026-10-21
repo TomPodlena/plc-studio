@@ -1,27 +1,32 @@
 """Krok „3D agent (PRO)“ — náhled PLCdesk PRO (jen se zapnutým ``pro_preview``, viz ``App.pro_enabled``).
 
-Složka 3D stroje, stav (verdikt poslední kontroly K5, STAV.md, modely FCStd, poslední snímky), pokyn a role
-agenta, Spustit / Zastavit / Otevřít ve FreeCADu / Načíst zpětnou vazbu z CAD a log průběhu. Logika běhu
-je v ``plc_studio/pro_agent.py``; běh agenta přežije překreslení kroku (``app.pro_run``), log se dokresluje
-z fronty přes ``after`` (Tk jen z hlavního vlákna).
+Automatický postup (``plc_studio/pro_pipeline.py``): pruh fází ① Vstupy z PLCdesk → ② Koncept → ③ Stavba se stavem
+každé fáze, Spustit celý postup / Spustit od fáze… / Zastavit, zaškrtávátko TEST (bezpečnost považovat za schválenou),
+rozbalitelné výchozí pokyny fází (šablony, uložené per projekt) s doplňujícím pokynem, celkový ukazatel (fáze × kolo)
+a ukazatel běžícího agenta (PRŮBĚH k/N). Stav složky stroje (verdikt K5, STAV.md, FCStd, snímky), Otevřít ve FreeCADu
+a zpětná vazba z CAD jako dřív. Postup běží ve vlákně (``app.pro_pipe`` / ``app.pro_thread``), Tk jen z hlavního
+vlákna: log a stav se dokreslují přes ``after`` ze stavu postupu.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import os
+import threading
 from pathlib import Path
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from .. import pro_agent, theme
+from .. import pro_agent, pro_pipeline, theme
 from ..i18n import _
 from ..widgets import card, note_box, scrolled_text, tooltip, wrap_label
 
 THUMB = 200          # nejdelší strana náhledu snímku (px)
 LOG_TAGS = {"text": theme.FG, "tool": theme.PRIMARY, "result": theme.DIM, "error": theme.ERR,
             "info": theme.DIM, "done": theme.PRIMARY}
+PHASE_NUM = "①②③"
 
 
 def _key(app) -> str:
@@ -62,39 +67,58 @@ def set_folder(app, path: str) -> None:
     app.save_settings()
 
 
-def start_agent(app, role: str, instruction: str, *, model: str = "", budget: float | None = None,
-                confirm=None, popen=None) -> pro_agent.AgentRun | None:
-    """Spustí agenta po potvrzení (spotřebuje kredity tarifu Claude). Vrací běh nebo None."""
-    exe = pro_agent.find_claude()
+def _per_project(app, name: str) -> dict:
+    """Slovník ``settings[name][klíč projektu]`` (upravené výchozí pokyny / doplňující pokyny fází)."""
+    allp = app.settings.get(name)
+    if not isinstance(allp, dict):
+        allp = app.settings[name] = {}
+    cur = allp.get(_key(app))
+    if not isinstance(cur, dict):
+        cur = allp[_key(app)] = {}
+    return cur
+
+
+def busy(app) -> bool:
+    t = getattr(app, "pro_thread", None)
+    return t is not None and t.is_alive()
+
+
+def start_pipeline(app, from_unit: str | None = None, *, confirm=None, runner=None, thread: bool = True,
+                   model: str = "", budget: float | None = None) -> pro_pipeline.Pipeline | None:
+    """Spustí automatický postup (``from_unit`` = od kroku znovu, jinak navázání od posledního hotového kroku)
+    po potvrzení — agenti spotřebují kredity tarifu Claude. Postup běží ve vlákně; vrací ``Pipeline`` nebo None."""
     folder = machine_folder(app)
-    if exe is None or folder is None:
+    if folder is None or busy(app):
         return None
-    run = getattr(app, "pro_run", None)
-    if run is not None and run.running():
+    if runner is None and pro_agent.find_claude() is None:
         return None
     ask = confirm or (lambda: messagebox.askyesno(
         _("Spustit 3D agenta"),
-        _("Agent poběží přes Claude Code a spotřebuje kredity tvého tarifu Claude. Pokračovat?"),
+        _("Postup spouští agenty přes Claude Code a spotřebuje kredity tvého tarifu Claude "
+          "(každá část až {n} kol stavitel + kontrolor). Pokračovat?", n=pro_pipeline.MAX_ROUNDS),
         parent=app.root))
     if not ask():
         return None
     folder.mkdir(parents=True, exist_ok=True)
-    name = (app.prj.get("meta") or {}).get("name") or ""
-    run = pro_agent.AgentRun(pro_agent.build_command(exe, role, model=model, budget=budget),
-                             pro_agent.build_prompt(role, instruction, folder, name), folder, role=role)
-    try:
-        run.start(**({"popen": popen} if popen else {}))
-    except OSError as exc:
-        messagebox.showerror(_("Spustit 3D agenta"), _("Agenta nejde spustit: {exc}", exc=exc), parent=app.root)
-        return None
-    app.pro_run = run
-    return run
+    pipe = pro_pipeline.Pipeline(
+        folder, json.loads(json.dumps(app.prj)), test_safety=bool(app.ui.get("pro_test")),
+        prompts=dict(_per_project(app, "pro3d_prompts")), extras=dict(_per_project(app, "pro3d_extra")),
+        runner=runner or pro_pipeline.agent_runner(model=model, budget=budget))
+    app.pro_pipe = pipe
+    if thread:
+        app.pro_thread = threading.Thread(target=pipe.run, args=(from_unit,), daemon=True)
+        app.pro_thread.start()
+    else:
+        app.pro_thread = None
+        pipe.run(from_unit)
+    return pipe
 
 
 def render(app, parent) -> None:
     head = card(parent, "3D", _("3D agent (PRO)"), expand=False)
-    note_box(head, _("Náhled PLCdesk PRO: AI agent (Claude Code) staví a kontroluje 3D model stroje ve FreeCADu podle "
-                     "tvého pokynu. Kusovník zůstává v PLCdesk — neshody se vracejí jako zpětná vazba z CAD."),
+    note_box(head, _("Náhled PLCdesk PRO: AI agenti (Claude Code) postaví a zkontrolují 3D model stroje ve FreeCADu "
+                     "automatickým postupem — vstupy z PLCdesk, koncept, stavba po částech; každou část kontroluje "
+                     "jiná role (K5). Kusovník zůstává v PLCdesk — neshody se vracejí jako zpětná vazba z CAD."),
              pady=(0, 6))
     exe, fc = pro_agent.find_claude(), pro_agent.find_freecad()
     if exe is None:
@@ -141,40 +165,55 @@ def render(app, parent) -> None:
     app.pro_state = st
     _state_view(app, head, folder, st)
 
-    # --- pokyn ---
-    body = card(parent, "AI", _("Pokyn pro agenta"), expand=False)
-    roles = ttk.Frame(body)
-    roles.pack(fill="x")
-    ttk.Label(roles, text=_("Role")).pack(side="left", padx=(0, 8))
-    role = tk.StringVar(value=app.ui.get("pro_role") or "builder")
-    app.pro_role_var = role
-    for key, label in pro_agent.ROLES:
-        rb = ttk.Radiobutton(roles, text=_(label), value=key, variable=role,
-                             command=lambda: app.ui.__setitem__("pro_role", role.get()))
-        rb.pack(side="left", padx=(0, 10))
-        tooltip(rb, _(pro_agent.ROLE_TIPS[key]))
-    frm, txt = scrolled_text(body, height=5)
-    frm.pack(fill="x", pady=(6, 0))
-    txt.insert("1.0", app.ui.get("pro_text") or "")
-    app.pro_text = txt
-    txt.bind("<KeyRelease>", lambda _e: app.ui.__setitem__("pro_text", txt.get("1.0", "end-1c")))
+    # --- postup ---
+    body = card(parent, "AI", _("Automatický postup"), expand=False)
+    pipe = getattr(app, "pro_pipe", None)
+    running = busy(app)
+    pst = (pipe.state if pipe is not None and folder is not None and Path(pipe.folder) == folder else None) or \
+        (pro_pipeline.load_state(folder) if folder is not None else None) or pro_pipeline.blank_state()
+    app.pro_pstate = pst
+    strip = ttk.Frame(body)
+    strip.pack(fill="x")
+    app.pro_phase_labels = {}
+    for i, (ph, label) in enumerate(pro_pipeline.PHASES):
+        state, rnd = pro_pipeline.phase_state(pst, ph)
+        cell = ttk.Frame(strip, padding=(0, 0, 22, 0))
+        cell.pack(side="left")
+        ttk.Label(cell, text=PHASE_NUM[i] + " " + _(label)).pack(anchor="w")
+        style = {"approved": "Ok.TLabel", "done": "Ok.TLabel", "rejected": "Err.TLabel",
+                 "failed": "Err.TLabel"}.get(state, "Dim.TLabel")
+        lbl = ttk.Label(cell, text=pro_pipeline.state_label(state, rnd), style=style)
+        lbl.pack(anchor="w")
+        app.pro_phase_labels[ph] = lbl
+        if i < len(pro_pipeline.PHASES) - 1:
+            ttk.Label(strip, text="→", style="Dim.TLabel").pack(side="left", padx=(0, 22))
+    if pst.get("testSafety"):
+        ttk.Label(body, text=pro_pipeline.TEST_MARK, style="Err.TLabel").pack(anchor="w", pady=(4, 0))
+
     opts = ttk.Frame(body)
-    opts.pack(fill="x", pady=(6, 0))
-    ttk.Label(opts, text=_("Model (volitelně)")).pack(side="left")
+    opts.pack(fill="x", pady=(8, 0))
+    tvar = tk.BooleanVar(value=bool(app.ui.get("pro_test")))
+    app.pro_test_var = tvar
+    cb_test = ttk.Checkbutton(opts, text=_("TEST: bezpečnostní prvky považovat za schválené"), variable=tvar,
+                              command=lambda: app.ui.__setitem__("pro_test", tvar.get()))
+    cb_test.pack(side="left")
+    tooltip(cb_test, _("Jen pro zkoušku postupu: výstupy pak nesou „{mark}“.", mark=pro_pipeline.TEST_MARK))
+    ttk.Label(opts, text=_("Model (volitelně)")).pack(side="left", padx=(18, 0))
     mvar = tk.StringVar(value=app.settings.get("pro_model") or "")
     app.pro_model_var = mvar
-    ttk.Entry(opts, textvariable=mvar, width=22).pack(side="left", padx=(6, 14))
-    ttk.Label(opts, text=_("Limit ceny USD (volitelně)")).pack(side="left")
+    ttk.Entry(opts, textvariable=mvar, width=18).pack(side="left", padx=(6, 14))
+    ttk.Label(opts, text=_("Limit ceny USD na běh agenta (volitelně)")).pack(side="left")
     bvar = tk.StringVar(value=app.ui.get("pro_budget") or "")
     app.pro_budget_var = bvar
     ttk.Entry(opts, textvariable=bvar, width=8).pack(side="left", padx=(6, 0))
 
     btns = ttk.Frame(body)
     btns.pack(fill="x", pady=(8, 0))
-    run = getattr(app, "pro_run", None)
-    busy = run is not None and run.running()
+    units = [(k, _(pro_pipeline.UNIT[k]["label"])) for k in pro_pipeline.UNIT_KEYS]
+    fvar = tk.StringVar(value=dict(units).get(app.ui.get("pro_from") or "concept") or units[1][1])
+    app.pro_from_var = fvar
 
-    def do_start() -> None:
+    def go(from_unit: str | None) -> None:
         try:
             budget = float(bvar.get().replace(",", ".")) if bvar.get().strip() else None
         except ValueError:
@@ -182,32 +221,52 @@ def render(app, parent) -> None:
             return
         app.ui["pro_budget"] = bvar.get()
         app.settings["pro_model"] = mvar.get().strip()
-        if start_agent(app, role.get(), txt.get("1.0", "end-1c"), model=mvar.get(), budget=budget):
+        if start_pipeline(app, from_unit, model=mvar.get(), budget=budget):
             app.render()
+
+    def from_sel() -> str:
+        k = next((k for k, lbl in units if lbl == fvar.get()), "concept")
+        app.ui["pro_from"] = k
+        return k
+
+    b_all = ttk.Button(btns, text=_("Spustit celý postup"), style="Accent.TButton", command=lambda: go(None))
+    b_all.pack(side="left")
+    tooltip(b_all, _("Naváže od posledního hotového kroku (pipeline.json ve složce stroje)."))
+    b_from = ttk.Button(btns, text=_("Spustit od fáze…"), command=lambda: go(from_sel()))
+    b_from.pack(side="left", padx=(6, 0))
+    tooltip(b_from, _("Zvolený krok a všechny další znovu (předchozí kola zůstanou v historii pipeline.json)."))
+    ttk.Combobox(btns, textvariable=fvar, state="readonly", width=max(24, max(len(lbl) for _k, lbl in units) + 2),
+                 values=[lbl for _k, lbl in units]).pack(side="left", padx=(6, 0))
 
     def do_stop() -> None:
-        r = getattr(app, "pro_run", None)
-        if r is not None:
-            r.stop()
-            app.render()
+        p = getattr(app, "pro_pipe", None)
+        if p is not None:
+            p.stop()
+            app.set_status(_("Zastavuji postup (jen vlastní proces agenta)…"), keep=True)
 
-    b_start = ttk.Button(btns, text=_("Spustit"), style="Accent.TButton", command=do_start)
-    b_start.pack(side="left")
-    if busy or exe is None or folder is None:
-        b_start.state(["disabled"])
     b_stop = ttk.Button(btns, text=_("Zastavit"), command=do_stop)
     b_stop.pack(side="left", padx=(6, 0))
-    if not busy:
+    for b in (b_all, b_from):
+        if running or exe is None or folder is None:
+            b.state(["disabled"])
+    if not running:
         b_stop.state(["disabled"])
-    app.pro_buttons = {"start": b_start, "stop": b_stop}
+    app.pro_buttons = {"all": b_all, "from": b_from, "stop": b_stop}
+
+    obar = ttk.Progressbar(body, mode="determinate", maximum=100, value=round(100 * pro_pipeline.progress(pst)))
+    obar.pack(fill="x", pady=(8, 0))
+    app._pro_obar = obar
+    ostatus = ttk.Label(body, text=overall_text(pst), style="Dim.TLabel")
+    ostatus.pack(anchor="w")
 
     models = st.get("models") or []
+    row2 = ttk.Frame(body)
+    row2.pack(fill="x", pady=(8, 0))
     sel = tk.StringVar(value=Path(models[0]).name if models else "")
     app.pro_model_sel = sel
     if models:
-        cb = ttk.Combobox(btns, textvariable=sel, state="readonly", width=34,
-                          values=[Path(m).name for m in models])
-        cb.pack(side="left", padx=(18, 6))
+        ttk.Combobox(row2, textvariable=sel, state="readonly", width=34, values=[Path(m).name for m in models]
+                     ).pack(side="left", padx=(0, 6))
 
     def do_open() -> None:
         name = sel.get()
@@ -227,21 +286,27 @@ def render(app, parent) -> None:
         if pro_agent.open_in_freecad(path, done) is None:
             app.set_status(_("Spouštěč FreeCADu (run_fc.ps1) nenalezen."), keep=True)
 
-    b_fc = ttk.Button(btns, text=_("Otevřít ve FreeCADu"), command=do_open)
+    b_fc = ttk.Button(row2, text=_("Otevřít ve FreeCADu"), command=do_open)
     b_fc.pack(side="left")
     if not models or pro_agent.find_run_fc() is None:
         b_fc.state(["disabled"])
     tooltip(b_fc, _("Vlastní instance FreeCADu (slot {slot}); po 4 h se sama zavře — ukládej průběžně.",
                     slot=pro_agent.FC_SLOT))
+    if folder is not None and (folder / pro_pipeline.SUMMARY_FILE).is_file():
+        ttk.Button(row2, text=_("Přehled postupu"),
+                   command=lambda: _open_file(str(folder / pro_pipeline.SUMMARY_FILE))).pack(side="left", padx=(6, 0))
 
     def do_fb() -> None:
         from .kusovnik import load_cad_feedback
         load_cad_feedback(app)
 
-    ttk.Button(btns, text=_("Načíst zpětnou vazbu z CAD…"), command=do_fb).pack(side="right")
+    ttk.Button(row2, text=_("Načíst zpětnou vazbu z CAD…"), command=do_fb).pack(side="right")
+
+    _prompts_view(app, parent, running)
 
     # --- log ---
     logc = card(parent, "LOG", _("Průběh"))
+    run = pipe.current if pipe is not None and running else None
     bar = ttk.Progressbar(logc, mode="determinate", maximum=100)
     bar.pack(fill="x", pady=(0, 4))
     app._pro_bar = bar
@@ -253,16 +318,105 @@ def render(app, parent) -> None:
     for k, c in LOG_TAGS.items():
         log.tag_configure(k, foreground=c)
     log.tag_configure("tool", foreground=theme.PRIMARY, font=theme.FONT_ACCENT)
+    log.tag_configure("phase", foreground=theme.PRIMARY, font=theme.FONT_ACCENT)
     app.pro_log = log
-    if run is not None:
-        run.drain()
-        _append(log, run.lines)
-        if run.running():
-            _poll(app, run, log, status)
+    if pipe is not None:
+        seen = {"ev": len(pipe.events), "run": run, "n": 0}
+        _append(log, [("phase", e) for e in pipe.events])
+        if run is not None:
+            seen["n"] = len(run.lines)
+            _append(log, list(run.lines))
+        if running:
+            app.root.after(300, lambda: _poll(app, pipe, log, status, ostatus, seen, _snapshot(pipe)))
+
+
+def _snapshot(pipe) -> tuple:
+    st = pipe.state
+    return (st.get("status"),) + tuple((st["units"][k]["state"], len(st["units"][k].get("rounds") or []))
+                                       for k in pro_pipeline.UNIT_KEYS)
+
+
+def overall_text(st: dict) -> str:
+    """Celkový ukazatel: fáze × kolo běžícího kroku, jinak stav postupu."""
+    for k in pro_pipeline.UNIT_KEYS:
+        u = st["units"][k]
+        if u["state"] in ("running", "review"):
+            pi = [p for p, _l in pro_pipeline.PHASES].index(pro_pipeline.UNIT[k]["phase"]) + 1
+            if k == "inputs":
+                return _("Fáze {p}/3 · {part}", p=pi, part=_(pro_pipeline.UNIT[k]["label"]))
+            role = _("Kontrolor K5") if u["state"] == "review" else _("Stavitel")
+            return _("Fáze {p}/3 · {part} · kolo {n}/{m} · {role}", p=pi, part=_(pro_pipeline.UNIT[k]["label"]),
+                     n=max(1, len(u.get("rounds") or [])), m=st.get("maxRounds") or pro_pipeline.MAX_ROUNDS, role=role)
+    status = st.get("status") or "new"
+    return {"new": _("Postup zatím neběžel."), "running": _("Postup běží…"), "done": _("Postup dokončen."),
+            "noai": _("Vstupy připravené (bez AI)."), "stopped": _("Postup zastaven — Spustit celý postup naváže."),
+            "failed": _("Postup skončil chybou — viz log a pipeline.json."),
+            "rejected": _("Koncept neschválen — postup zastaven, viz PREHLED.md.")}.get(status, status)
+
+
+def _prompts_view(app, parent, running: bool) -> None:
+    """Pokyny fází: rozbalitelný výchozí pokyn (šablona, editovatelná, uložená per projekt) + doplňující pokyn."""
+    box = card(parent, "✎", _("Pokyny fází"), expand=False)
+    prompts, extras = _per_project(app, "pro3d_prompts"), _per_project(app, "pro3d_extra")
+    app.pro_prompt_texts = {}
+    for k in pro_pipeline.AI_UNITS:
+        u = pro_pipeline.UNIT[k]
+        row = ttk.Frame(box)
+        row.pack(fill="x", pady=(2, 0))
+        is_open = k in (app.ui.get("pro_open") or [])
+
+        def toggle(k=k) -> None:
+            lst = list(app.ui.get("pro_open") or [])
+            if k in lst:
+                lst.remove(k)
+            else:
+                lst.append(k)
+            app.ui["pro_open"] = lst
+            app.render()
+
+        ph = dict(pro_pipeline.PHASES)[u["phase"]]
+        ttk.Button(row, text=("▾ " if is_open else "▸ ") + _(ph) + " · " + _(u["label"]),
+                   command=toggle).pack(side="left")
+        if (prompts.get(k) or "").strip():
+            ttk.Label(row, text=_("upravený pokyn"), style="Dim.TLabel").pack(side="left", padx=(8, 0))
+        if (extras.get(k) or "").strip():
+            ttk.Label(row, text=_("+ doplňující pokyn"), style="Dim.TLabel").pack(side="left", padx=(8, 0))
+        if not is_open:
+            continue
+        ttk.Label(box, text=_("Výchozí pokyn (šablona)"), style="Dim.TLabel").pack(anchor="w", pady=(4, 0))
+        frm, txt = scrolled_text(box, height=7)
+        frm.pack(fill="x")
+        txt.insert("1.0", prompts.get(k) or pro_pipeline.default_prompt(k))
+        ttk.Label(box, text=_("Doplňující pokyn"), style="Dim.TLabel").pack(anchor="w", pady=(4, 0))
+        frm2, ext = scrolled_text(box, height=2)
+        frm2.pack(fill="x")
+        ext.insert("1.0", extras.get(k) or "")
+        app.pro_prompt_texts[k] = (txt, ext)
+
+        def save(_e=None, k=k, txt=txt, ext=ext) -> None:
+            t = txt.get("1.0", "end-1c")
+            if t.strip() == pro_pipeline.default_prompt(k).strip():
+                prompts.pop(k, None)
+            else:
+                prompts[k] = t
+            extras[k] = ext.get("1.0", "end-1c")
+            app.save_settings()
+
+        for w in (txt, ext):
+            w.bind("<FocusOut>", save)
+            if running:
+                w.configure(state="disabled")
+
+        def reset(k=k) -> None:
+            prompts.pop(k, None)
+            app.save_settings()
+            app.render()
+
+        ttk.Button(box, text=_("Obnovit výchozí pokyn"), command=reset).pack(anchor="w", pady=(4, 6))
 
 
 def _update_bar(bar, run) -> None:
-    """Ukazatel průběhu: krok k/N z řádků agenta „PRŮBĚH k/N“, bez plánu neurčitý pruh, po konci plný / prázdný."""
+    """Ukazatel běžícího agenta: krok k/N z řádků „PRŮBĚH k/N“, bez plánu neurčitý pruh, po konci plný / prázdný."""
     try:
         k, n, _lbl = getattr(run, "step", (0, 0, "")) if run is not None else (0, 0, "")
         if run is not None and run.state == "running" and not n:
@@ -300,7 +454,7 @@ def _status_text(run) -> str:
 
 def _append(log: tk.Text, items) -> None:
     prefix = {"tool": "▸ ", "result": "   ", "error": "✖ ", "info": "· ", "done": "✔ ", "text": "",
-              "progress": "◆ "}
+              "progress": "◆ ", "phase": "■ "}
     log.configure(state="normal")
     for kind, text in items:
         if kind == "end":
@@ -310,31 +464,47 @@ def _append(log: tk.Text, items) -> None:
     log.see("end")
 
 
-def _poll(app, run, log: tk.Text, status) -> None:
-    """Dokreslení logu z fronty běhu (hlavní vlákno, každých 250 ms, dokud log existuje)."""
+def _poll(app, pipe, log: tk.Text, status, ostatus, seen: dict, snap: tuple) -> None:
+    """Dokreslení logu a ukazatelů ze stavu postupu (hlavní vlákno, každých 300 ms, dokud log existuje).
+    Vlákno postupu frontu běhu vybírá samo — tady se jen čtou řádky (``run.lines``) a události (``pipe.events``)."""
     try:
         if not log.winfo_exists():
             return
     except tk.TclError:
         return
-    new = run.drain()
-    if new:
-        _append(log, new)
-    if any(k == "end" for k, _t in new) or not run.running():
-        app.render()                                  # konec běhu: tlačítka a stav znovu
+    ev = pipe.events
+    if len(ev) > seen["ev"]:
+        _append(log, [("phase", e) for e in ev[seen["ev"]:]])
+        seen["ev"] = len(ev)
+    run = pipe.current
+    if run is not seen["run"]:
+        seen["run"], seen["n"] = run, 0
+    if run is not None and len(run.lines) > seen["n"]:
+        lines = list(run.lines)
+        _append(log, lines[seen["n"]:])
+        seen["n"] = len(lines)
+    if not busy(app) or _snapshot(pipe) != snap:
+        app.render()                                  # změna fáze / kola / konec: pruh fází a tlačítka znovu
         return
     status.configure(text=_status_text(run))
+    ostatus.configure(text=overall_text(pipe.state))
     bar = getattr(app, "_pro_bar", None)
     if bar is not None:
         _update_bar(bar, run)
-    app.root.after(250, lambda: _poll(app, run, log, status))
+    obar = getattr(app, "_pro_obar", None)
+    if obar is not None:
+        try:
+            obar.configure(value=round(100 * pro_pipeline.progress(pipe.state)))
+        except tk.TclError:
+            pass
+    app.root.after(300, lambda: _poll(app, pipe, log, status, ostatus, seen, snap))
 
 
 def _state_view(app, parent, folder: Path | None, st: dict) -> None:
     box = ttk.Frame(parent)
     box.pack(fill="x", pady=(8, 0))
     if folder is not None and not st["exists"]:
-        wrap_label(box, _("Složka zatím neexistuje — agent ji při prvním spuštění založí."))
+        wrap_label(box, _("Složka zatím neexistuje — postup ji při prvním spuštění založí."))
         return
     if folder is None:
         return
@@ -380,6 +550,6 @@ def _state_view(app, parent, folder: Path | None, st: dict) -> None:
 
 def _open_file(p: str) -> None:
     try:
-        os.startfile(p)                                  # noqa: S606 — snímek otevře prohlížeč obrázků
+        os.startfile(p)                                  # noqa: S606 — snímek / přehled otevře výchozí aplikace
     except (OSError, AttributeError):
         pass
