@@ -355,7 +355,22 @@ def _usage(result: dict | None) -> dict:
     u = r.get("usage") or {}
     return {"cost": float(r.get("total_cost_usd") or 0.0),
             "tin": sum(int(u.get(k) or 0) for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")),
-            "tout": int(u.get("output_tokens") or 0), "turns": int(r.get("num_turns") or 0)}
+            "tout": int(u.get("output_tokens") or 0), "turns": int(r.get("num_turns") or 0),
+            "subtype": str(r.get("subtype") or "")}
+
+
+CONTINUE_PROMPT = ("\n\nPOKRAČOVÁNÍ: předchozí běh téže úlohy vyčerpal limit kol, práce je rozdělaná. "
+                   "Nezačínej znovu — přečti STAV.md a výstupy ve složce, dokonči zbývající kroky "
+                   "(kontroly pro3d_tools vse, snímky jen chybějící) a odevzdej.")
+
+
+def _merge_runs(first: dict, second: dict) -> dict:
+    """Součet ceny / tokenů / kol / času dvou běhů téže role (pokračování po limitu kol); stav = druhý běh."""
+    out = dict(second)
+    for k in ("cost", "tin", "tout", "turns", "secs"):
+        out[k] = (first.get(k) or 0) + (second.get(k) or 0)
+    out["continued"] = int(first.get("continued") or 0) + 1
+    return out
 
 
 def agent_runner(*, model: str = "", budget: float | None = None, exe=None):
@@ -649,7 +664,16 @@ class Pipeline:
                 role = "concept" if key == "concept" and n == 1 else "builder"
                 p = builder_prompt(self.folder, key, n, self.prompts.get(key, ""), self.extras.get(key, ""),
                                    self.project, self.test_safety)
-                r["builder"] = self._agent(key, role, p, n)
+                prev = r["builder"] if r["builder"] and r["builder"].get("subtype") == "error_max_turns" else None
+                r["builder"] = self._agent(key, role, p + (CONTINUE_PROMPT if prev else ""), n)
+                if prev:                               # navázání po zastavení / pádu uprostřed pokračování
+                    r["builder"] = _merge_runs(prev, r["builder"])
+                if (r["builder"].get("state") == "failed" and r["builder"].get("subtype") == "error_max_turns"
+                        and not self.stop_requested):
+                    # limit kol vyčerpán uprostřed práce → jedno pokračování, ne pád celého postupu
+                    self.log(_("{part}, kolo {n}: limit kol vyčerpán, pokračuji…", part=_(UNIT[key]["label"]), n=n))
+                    self.save()
+                    r["builder"] = _merge_runs(r["builder"], self._agent(key, role, p + CONTINUE_PROMPT, n))
                 self.save()
                 if r["builder"].get("state") != "done":
                     u["state"] = r["builder"].get("state") if r["builder"].get("state") in ("stopped",) else "failed"

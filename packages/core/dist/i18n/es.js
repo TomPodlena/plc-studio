@@ -6981,6 +6981,7 @@ const d = {
     "{ok} OK, {na} N/A, {nok} NOK, {open} bez výsledku z {total} kroků": "{ok} OK, {na} N/A, {nok} NOK, {open} sin resultado de {total} pasos",
     "{ok} v pořádku, {warn} upozornění, {err} chyb": "{ok} correctos, {warn} advertencias, {err} errores",
     "{ok} z {n} schváleno": "{ok} de {n} aprobados",
+    "{part}, kolo {n}: limit kol vyčerpán, pokračuji…": "{part}, ronda {n}: límite de turnos alcanzado, continúo…",
     "{part}, kolo {n}: verdikt {v}.": "{part}, ronda {n}: veredicto {v}.",
     "{part}, kolo {n}: {role}…": "{part}, ronda {n}: {role}…",
     "{part}: neschváleno po {n} kole.|{part}: neschváleno po {n} kolech.": "{part}: no aprobado tras {n} ronda.|{part}: no aprobado tras {n} rondas.",

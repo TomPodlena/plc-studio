@@ -6981,6 +6981,7 @@ const d: Record<string, string> = {
   "{ok} OK, {na} N/A, {nok} NOK, {open} bez výsledku z {total} kroků": "{total} 步中：{ok} OK，{na} N/A，{nok} NOK，{open} 无结果",
   "{ok} v pořádku, {warn} upozornění, {err} chyb": "{ok} 项正常，{warn} 项警告，{err} 项错误",
   "{ok} z {n} schváleno": "已批准 {ok}/{n}",
+  "{part}, kolo {n}: limit kol vyčerpán, pokračuji…": "{part}，第 {n} 轮：已达轮次上限，继续…",
   "{part}, kolo {n}: verdikt {v}.": "{part}，第 {n} 轮：结论 {v}。",
   "{part}, kolo {n}: {role}…": "{part}，第 {n} 轮：{role}…",
   "{part}: neschváleno po {n} kole.|{part}: neschváleno po {n} kolech.": "{part}：{n} 轮后未通过。",

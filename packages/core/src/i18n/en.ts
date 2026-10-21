@@ -6981,6 +6981,7 @@ const d: Record<string, string> = {
   "{ok} OK, {na} N/A, {nok} NOK, {open} bez výsledku z {total} kroků": "{ok} OK, {na} N/A, {nok} NOK, {open} without result out of {total} steps",
   "{ok} v pořádku, {warn} upozornění, {err} chyb": "{ok} OK, {warn} warnings, {err} errors",
   "{ok} z {n} schváleno": "{ok} of {n} approved",
+  "{part}, kolo {n}: limit kol vyčerpán, pokračuji…": "{part}, round {n}: turn limit reached, continuing…",
   "{part}, kolo {n}: verdikt {v}.": "{part}, round {n}: verdict {v}.",
   "{part}, kolo {n}: {role}…": "{part}, round {n}: {role}…",
   "{part}: neschváleno po {n} kole.|{part}: neschváleno po {n} kolech.": "{part}: not approved after {n} round.|{part}: not approved after {n} rounds.",
