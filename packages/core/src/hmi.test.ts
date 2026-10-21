@@ -33,7 +33,7 @@ function asciiContent(p: Project): Project {
   q.concept = null;
   return q;
 }
-const ALL = Object.keys(PLAT) as PlatformKey[];
+const ALL = (Object.keys(PLAT) as PlatformKey[]).filter(k => !PLAT[k].manual);   /* ruční přenos (Vision / Jazz): vlastní test unitronics_vision.test */
 const CZ = /[ěščřžůďťňĚŠČŘŽŮĎŤŇ]/;
 
 /* ------------------------------------------------ deklarace generovaného programu */

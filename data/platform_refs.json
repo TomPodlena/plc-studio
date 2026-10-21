@@ -74,6 +74,22 @@
     { "kind": "support", "title": "Unitronics Help Center – podpora a tikety", "url": "https://support.unitronics.com/", "lang": "en", "login": false },
     { "kind": "cz", "title": "SCHMACHTL CZ – distributor Unitronics v ČR", "url": "https://www.schmachtl.cz", "lang": "cs", "login": false }
   ],
+  "vision": [
+    { "kind": "product", "title": "Vision V350 / V130 TA24 – technická specifikace (I/O, operandy, časovače)", "url": "https://www.unitronicsplc.com/wp-content/uploads/2016/08/Vxxx_J_TA24_SPEC_02_16.pdf", "lang": "en", "login": false },
+    { "kind": "ide", "title": "VisiLogic – stránka softwaru a stažení zdarma", "url": "https://unitronicsplc.com/software-visilogic-for-programmable-controllers/", "lang": "en", "login": false },
+    { "kind": "manual", "title": "VisiLogic Knowledgebase – nápověda (Ladder, operandy, funkce)", "url": "https://unitronicsplc.com/Download/SoftwareHelp/VisiLogic_Knowledgebase/GETTING_STARTED/welcome.htm", "lang": "en", "login": false },
+    { "kind": "manual", "title": "VisiLogic – Store Timer Counter Preset (preset v jednotkách 10 ms)", "url": "https://www.unitronicsplc.com/Download/SoftwareHelp/VisiLogic_Knowledgebase/Ladder/Functions/Store_-_Load_Functions/Store_Timer_Counter_Preset.htm", "lang": "en", "login": false },
+    { "kind": "manual", "title": "EX-A2X – adaptér rozšiřovacích modulů (adresy 32 + 16·x + kanál)", "url": "https://unitronicsplc.com/Documents/Vision/EXP/UG_EX-A2X.pdf", "lang": "en", "login": false },
+    { "kind": "cz", "title": "SCHMACHTL CZ – distributor Unitronics v ČR", "url": "https://www.schmachtl.cz", "lang": "cs", "login": false }
+  ],
+  "jazz": [
+    { "kind": "product", "title": "Jazz – produktová stránka řady", "url": "https://unitronicsplc.com/jazz-series-jazz/", "lang": "en", "login": false },
+    { "kind": "product", "title": "M91 – produktová stránka řady", "url": "https://unitronicsplc.com/m91-series-m91", "lang": "en", "login": false },
+    { "kind": "ide", "title": "U90 Ladder – stránka softwaru a stažení zdarma", "url": "https://unitronicsplc.com/software-u90/", "lang": "en", "login": false },
+    { "kind": "manual", "title": "U90 Ladder Knowledgebase – kompatibilita HW / OS / SW (velikost aplikace)", "url": "https://www.unitronicsplc.com/Download/SoftwareHelp/U90LadderKnowledgebase/Compatibility__HW,_OS,_SW.htm", "lang": "en", "login": false },
+    { "kind": "manual", "title": "U90 Ladder Knowledgebase – časovače (rozlišení 10 ms / 100 ms / 1 s / 10 s)", "url": "https://www.unitronicsplc.com/Download/SoftwareHelp/U90LadderKnowledgebase/Timers/Timers.htm", "lang": "en", "login": false },
+    { "kind": "cz", "title": "SCHMACHTL CZ – distributor Unitronics v ČR", "url": "https://www.schmachtl.cz", "lang": "cs", "login": false }
+  ],
   "wago": [
     { "kind": "product", "title": "WAGO PFC200 750-8212 – kontrolér (CODESYS V3.5 / e!COCKPIT)", "url": "https://www.wago.com/global/p/750-8212", "lang": "en", "login": false },
     { "kind": "product", "title": "WAGO PFC100 750-8101 – kontrolér", "url": "https://www.wago.com/global/p/750-8101", "lang": "en", "login": false },

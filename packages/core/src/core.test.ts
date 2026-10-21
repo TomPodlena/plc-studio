@@ -701,7 +701,7 @@ test("časové literály: celé sekundy i desetinné časy kroků", () => {
   assert.equal(timeLit(0.25), "T#250MS");
   const p = sampleSmall();
   p.program.seq[2].timeS = 1.5;                    // výdrž 1,5 s
-  for (const plat of Object.keys(PLAT) as Array<keyof typeof PLAT>) {
+  for (const plat of (Object.keys(PLAT) as Array<keyof typeof PLAT>).filter(k => !PLAT[k].manual)) {   /* ruční přenos: unitronics_vision.test */
     const all = Object.values(genFor(p, plat)).join("\n");
     if (plat === "rockwell") { assert.ok(all.includes("tonSeq30.PRE := 1500;"), plat); continue; }   // Logix: TONR, PRE v ms
     assert.ok(all.includes("PT := T#1S500MS") || all.includes("PT := T#1S500MS)"), plat);
@@ -770,7 +770,7 @@ test("funkce stroje: čekání na vstup, meze analogů, žádaná hodnota, vazby
   p.program.seq.unshift({ dev: dev("S3").id, act: "waitOn", cond: "fbk", timeS: 10 });
   p.program.seq.push({ dev: dev("S3").id, act: "waitOff", cond: "fbk", timeS: 10 });
 
-  for (const plat of Object.keys(PLAT) as Array<keyof typeof PLAT>) {
+  for (const plat of (Object.keys(PLAT) as Array<keyof typeof PLAT>).filter(k => !PLAT[k].manual)) {   /* ruční přenos: unitronics_vision.test */
     const all = Object.values(genFor(p, plat)).join("\n");
     assert.ok(/limitHi := 200\.0/.test(all) || /instB1_limitHi := 200\.0/.test(all), plat + ": mez B1");
     assert.ok(/alarmHi/.test(all) && /(H2_out"? := "?#?machineFault|H2_out := machineFault)/.test(all), plat + ": porucha z mezí, maják");
@@ -895,7 +895,7 @@ test("blokování: kryty a závora jsou v enable kódu všech platforem a v simu
   const p = sampleComplex();
   const tag = (t: string) => p.io.find(e => e.tag === t)!.key;
   assert.deepEqual(enableInputs(p).map(x => x.io.tag), ["S1_in", "S2_in", "S3_in", "S4_in"]);
-  for (const plat of Object.keys(PLAT) as Array<keyof typeof PLAT>) {
+  for (const plat of (Object.keys(PLAT) as Array<keyof typeof PLAT>).filter(k => !PLAT[k].manual)) {   /* ruční přenos: unitronics_vision.test */
     const files = genFor(p, plat);
     const main = files["Gen_Main.scl"] || files["MAIN.st"] || files["Machine.st"] || files["MainRoutine.st"];
     assert.ok(/S1_in"? AND ("|GVL_IO\.)?S2_in"? AND ("|GVL_IO\.)?S3_in"? AND ("|GVL_IO\.)?S4_in/.test(main), plat + ": enable = E-stop AND blokování");
@@ -1175,6 +1175,8 @@ test("import: adresy — přesně tam, kde je výstup nese; jinak doplněné a h
   /* ostatní platformy nesou kanál SVÉ sestavy (hardware.ts); Unitronics / Omron / TwinCAT / WAGO bez adres */
   const carry: Record<PlatformKey, string[]> = {
     siemens: all, rockwell: all, codesys: all, schneider: all, unitronics: [],
+    /* ruční přenos (VisiLogic / U90): žebříček se neimportuje — v PLATS_ALL nejsou */
+    vision: [], jazz: [],
     mitsubishi: ["M1_fbkRunning", "M1_outRun", "Y1_fbkClosed"], beckhoff: [], omron: [],
     /* profily CODESYS: WAGO bez AT (I/O mapování), Delta AX adresy CODESYS */
     wago: [], delta: all,

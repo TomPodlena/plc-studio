@@ -154,7 +154,7 @@ test("vlastní typ zařízení v projektu: zařízení, I/O, kusovník, časy, v
     assert.deepEqual(libraryApprovers(p), ["Ing. Novák"]);
 });
 /* ------------------------------------------------ napojení knihovny do generátoru (genFor) */
-const ALL = Object.keys(PLAT);
+const ALL = Object.keys(PLAT).filter(k => !PLAT[k].manual); /* ruční přenos (Vision / Jazz): vlastní test unitronics_vision.test */
 const MY_MOTOR_SCL = SCL_MOTOR.replace("T#3S", "T#5S").replace("// Šablona: motor", "// ACME firemní blok: motor");
 /** Knihovna s vlastním FB_Motor (stejné rozhraní, rozběh 5 s místo 3 s) pro ST i SCL. */
 function genLib() {

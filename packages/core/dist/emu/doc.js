@@ -11,7 +11,8 @@ const where = (f) => f.file ? f.file + (f.line ? ":" + f.line + (f.col ? ":" + f
 export function emuDocMd(prj) {
     if (!api)
         return "";
-    const plats = (prj.platforms && prj.platforms.length ? prj.platforms : Object.keys(PLAT));
+    /* ruční přenos (VisiLogic / U90 Ladder) nemá kód k emulaci */
+    const plats = (prj.platforms && prj.platforms.length ? prj.platforms : Object.keys(PLAT)).filter(p => !PLAT[p]?.manual);
     /* plná matice stavů u menších projektů; u velkých (nad 40 kroků) rychlá sada — plnou spustí emulateAll(prj) */
     const scope = prj.program.seq.length <= 40 ? "full" : "quick";
     const all = api.emulateAll(prj, { platforms: plats, scope });

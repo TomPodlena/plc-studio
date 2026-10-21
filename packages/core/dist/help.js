@@ -120,6 +120,7 @@ const SRC = [
         ],
         tips: [
             N_("Další řídicí systémy na bázi CODESYS (Turck, Festo, ABB, Rexroth…) mají stejný kód jako CODESYS a vlastní postup importu, I/O a kusovník."),
+            N_("**Unitronics Vision / Samba (VisiLogic)** a **Jazz / M91 (U90 Ladder)** mají štítek **ruční přenos**: tato IDE neumí import programu z textu, takže PLCdesk dá žebříček větev po větvi (Ladder.md a tisknutelné Ladder.html), seznam operandů (Operandy.csv) a mapu I/O k ručnímu zadání. Emulace kódu se jich netýká, simulace návrhu platí; servoosu ani styl OOP nepodporují."),
             N_("Projekt se servoosou umí jen sedm platforem — u ostatních dlaždice ukáže „servoosu nepodporuje“."),
             N_("U platforem ve stavu beta je tlačítko **Balík k ověření** — připraví vzorové výstupy pro import ve skutečném IDE."),
             N_("Sestava hardwaru (CPU a moduly) a adresy I/O se počítají pro první vybranou platformu, pokud v Kusovníku nezvolíš jinou."),
@@ -127,9 +128,10 @@ const SRC = [
         issues: [
             { problem: N_("„Vyber aspoň jednu platformu (krok 3).“"), fix: N_("Bez vybrané platformy se nevygeneruje žádný kód — vyber aspoň jednu dlaždici.") },
             { problem: N_("„Platforma … servoosu nepodporuje“"), fix: N_("Odeber platformu, nebo nahraď servoosu polohovacím pohonem se záznamy (přes I/O).") },
+            { problem: N_("„Projekt se do platformy Unitronics Jazz / M91 nevejde“ nebo varování o limitu MB / MI / MF / T"), fix: N_("Jazz / M91 mají jen vestavěné I/O a malou paměť operandů, Vision V350 jen 64 registrů MF. Zvol v Kusovníku větší CPU, nebo jinou platformu.") },
         ],
         see: ["overeni-platforem", "generovat", "kusovnik"],
-        keywords: N_("platforma, Siemens, Rockwell, CODESYS, Beckhoff, TwinCAT, Mitsubishi, Omron, Schneider, WAGO, Unitronics, OOP, styl kódu, IDE"),
+        keywords: N_("platforma, Siemens, Rockwell, CODESYS, Beckhoff, TwinCAT, Mitsubishi, Omron, Schneider, WAGO, Unitronics, Vision, VisiLogic, Jazz, U90, Ladder, ruční přenos, OOP, styl kódu, IDE"),
     },
     {
         id: "zarizeni", group: "step", step: 3, title: N_("Zařízení"),

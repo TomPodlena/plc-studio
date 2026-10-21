@@ -7,6 +7,8 @@ import { CDS_PROFILES, CDS_PROFILE_KEYS } from "./codesys_profiles.js";
 export const RAW_MAX = { beckhoff: 32767, codesys: 32767, mitsubishi: 16000, schneider: 10000, omron: 32000,
     /* WAGO 750-455 (4–20 mA): 0…32767; Delta AS04AD-A: ±32000 — obojí TODO podle modulu */
     wago: 32767, delta: 32000,
+    /* Unitronics Vision V350/V130-TA24 vestavěné AI 14 bit (0–16383), Jazz JZ20 AI 12 bit (0–4095) — NEOVĚŘENO, README */
+    vision: 16383, jazz: 4095,
     /* profily CODESYS dalších výrobců: rozsah analogového modulu z katalogu (codesys_profiles.ts, README) */
     ...Object.fromEntries(CDS_PROFILE_KEYS.map(k => [k, CDS_PROFILES[k].rawMax])) };
 /** Surový rozsah analogu platformy (bez = Siemens 27648 z výchozí hodnoty šablony). */

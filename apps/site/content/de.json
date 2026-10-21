@@ -637,6 +637,22 @@
         "output": "flaches ST und Tag-Liste",
         "check": "ST-Compiler aus UniLogic 1.43.369 (Unitronics), 5. Oktober 2026: Machine.st von vier Beispielen ohne Fehler; Tag-Import, Build und Lauf in UniLogic ungeprüft",
         "state": "lang"
+      },
+      {
+        "key": "vision",
+        "name": "Unitronics Vision / Samba",
+        "ide": "VisiLogic",
+        "output": "Kontaktplan zur manuellen Eingabe (Ladder.md / .html) und Operandenliste",
+        "check": "manuelle Übertragung: VisiLogic kann kein Programm aus Text importieren; die Ausgabe erzeugt {{site.brand}}-Code aus demselben Modell wie das UniLogic-ST, Tests vergleichen sie mit der ST-Emulation; Eingabe in VisiLogic nicht geprüft",
+        "state": "beta"
+      },
+      {
+        "key": "jazz",
+        "name": "Unitronics Jazz / M91",
+        "ide": "U90 Ladder",
+        "output": "Kontaktplan zur manuellen Eingabe (Ladder.md / .html) und Operandenliste",
+        "check": "manuelle Übertragung: U90 Ladder kann kein Programm aus Text importieren; die Ausgabe erzeugt {{site.brand}}-Code, Tests prüfen Operanden und Grenzen von Jazz / M91; Eingabe in U90 nicht geprüft",
+        "state": "beta"
       }
     ],
     "state_verified": "in IDE geprüft",

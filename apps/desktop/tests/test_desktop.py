@@ -116,7 +116,7 @@ class BridgeTest(unittest.TestCase):
         cls.b.close()
 
     def test_init_exposes_core_constants(self):
-        self.assertEqual(len(self.init["PLAT"]), 20)   # 8 platforem + profily CODESYS (WAGO, Delta AX + 10 dalších)
+        self.assertEqual(len(self.init["PLAT"]), 22)   # 8 platforem + Vision / Jazz (ruční přenos) + profily CODESYS (WAGO, Delta AX + 10 dalších)
         self.assertIn("unitronics", self.init["PLAT"])
         self.assertEqual(self.init["PLAT"]["wago"]["base"], "codesys")
         self.assertTrue(self.init["PLAT"]["delta"]["oop"])
@@ -130,6 +130,17 @@ class BridgeTest(unittest.TestCase):
         self.assertNotIn("FUNCTION_BLOCK", out["Machine.st"])
         self.assertTrue(out["Machine.st"].isascii() and out["Tags.csv"].isascii())
         self.assertIn("STAV OVĚŘENÍ: JAZYK OVĚŘEN", out["README.txt"])
+
+    def test_vision_jazz_manual_transfer_through_bridge(self):
+        """Unitronics Vision / Jazz: ruční přenos — žebříček a operandy z jádra, štítek manual."""
+        p = self.b.call("sampleSmall")
+        p["platforms"] = ["vision", "jazz"]
+        res = self.b.request("gen", prj=p)["out"]
+        for k in ("vision", "jazz"):
+            self.assertTrue(self.init["PLAT"][k]["manual"])
+            self.assertEqual(sorted(res[k]), ["IO_mapa.csv", "Ladder.html", "Ladder.md", "Operandy.csv", "README.txt"])
+            self.assertTrue(res[k]["Operandy.csv"].isascii())
+            self.assertIn("STAV OVĚŘENÍ: BETA", res[k]["README.txt"])
 
     def test_sync_keeps_edits_and_returns_mutated_project(self):
         p = self.b.call("sampleSmall")
@@ -807,6 +818,8 @@ class GuiTest(unittest.TestCase):
         for c in chips:
             self.assertTrue(c.cget("text"))
             self.assertIn("\n", c.tip_text)              # význam, co ověřeno, kde, co neověřeno
+        manual = [w for w in walk(self.app.view) if getattr(w, "manual_transfer", False)]
+        self.assertEqual(len(manual), 2)                 # Vision / Samba, Jazz / M91
         tip = self.app.VERIF["wago"]["tip"]
         self.assertIn(self.app.VERIF["wago"]["notVerified"], tip)
 
@@ -1919,6 +1932,8 @@ class GuiTest(unittest.TestCase):
         out = self.app.bridge.request("gen", prj={**src, "platforms": list(self.app.PLAT)})["out"]
         self.assertEqual(set(out), set(self.app.PLAT))
         for plat, files in out.items():
+            if self.app.PLAT[plat].get("manual"):        # ruční přenos (žebříček) se neimportuje
+                continue
             with self.subTest(plat=plat):
                 tmp = Path(tempfile.mkdtemp())
                 for n, body in files.items():
@@ -2688,7 +2703,7 @@ class GuiTest(unittest.TestCase):
     def test_help_links_to_platform_documentation(self):
         self.goto("help")
         txt = self.find(tk.Text)[0]
-        self.assertEqual(len(txt.tag_ranges("link")) // 2, 124)  # 59 + WAGO (4) + Delta AX (3) + další profily CODESYS (58)
+        self.assertEqual(len(txt.tag_ranges("link")) // 2, 136)  # 59 + WAGO (4) + Delta AX (3) + další profily CODESYS (58) + Vision (6) + Jazz (6)
         self.assertIn("Odkazy na dokumentaci platforem", txt.get("1.0", "end"))
         self.assertIn("10 · Kusovník", txt.get("1.0", "end"))   # kapitoly kroků z jádra (help.ts)
         first = txt.tag_ranges("link")[0]

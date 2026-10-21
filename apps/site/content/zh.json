@@ -637,6 +637,22 @@
         "output": "平铺 ST 和标签列表",
         "check": "UniLogic 1.43.369（Unitronics）的 ST 编译器，2026 年 10 月 5 日：四个示例的 Machine.st 无错误；UniLogic 中的标签导入、构建和运行未验证",
         "state": "lang"
+      },
+      {
+        "key": "vision",
+        "name": "Unitronics Vision / Samba",
+        "ide": "VisiLogic",
+        "output": "供手动输入的梯形图（Ladder.md / .html）和操作数列表",
+        "check": "手动转移：VisiLogic 无法从文本导入程序；输出由 {{site.brand}} 代码根据与 UniLogic ST 相同的模型生成，测试将其与 ST 仿真进行比较；在 VisiLogic 中的输入未验证",
+        "state": "beta"
+      },
+      {
+        "key": "jazz",
+        "name": "Unitronics Jazz / M91",
+        "ide": "U90 Ladder",
+        "output": "供手动输入的梯形图（Ladder.md / .html）和操作数列表",
+        "check": "手动转移：U90 Ladder 无法从文本导入程序；输出由 {{site.brand}} 代码生成，测试检查操作数和 Jazz / M91 限制；在 U90 中的输入未验证",
+        "state": "beta"
       }
     ],
     "state_verified": "已在 IDE 中验证",

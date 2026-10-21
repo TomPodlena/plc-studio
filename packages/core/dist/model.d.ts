@@ -13,7 +13,7 @@ import { type HwModule } from "./hardware.js";
 import { type AxisCfg } from "./axis.js";
 import { type CdsProfileKey } from "./codesys_profiles.js";
 import { instName } from "./names.js";
-export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics" | "wago" | "delta" | CdsProfileKey;
+export type PlatformKey = "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics" | "wago" | "delta" | "vision" | "jazz" | CdsProfileKey;
 /** Styl generovaného kódu: klasické FB (výchozí) nebo OOP (rozhraní, dědičnost) — viz codegen_oop.ts. */
 export type CodeStyle = "classic" | "oop";
 export type DeviceClass = "Motor" | "Ventil" | "AnalogIn" | "AnalogOut" | "DI" | "DO" | "Vfd" | "PosDrive" | "PropValve" | "Axis";
@@ -38,6 +38,8 @@ export interface PlatformInfo {
     base?: PlatformKey;
     /** Platforma umí styl kódu OOP (INTERFACE / METHOD / PROPERTY / EXTENDS). */
     oop?: boolean;
+    /** Ruční přenos: IDE nemá import programu z textu — výstup je žebříček k ručnímu zadání (bez emulace kódu). */
+    manual?: boolean;
 }
 export interface Device {
     id: number;
@@ -268,6 +270,8 @@ export declare const PLAT: Record<PlatformKey, PlatformInfo>;
 export declare function platBase(plat: PlatformKey): PlatformKey;
 /** Rodina CODESYS (GVL_IO, PLCopen XML, adresy %IX / %IW): CODESYS a jeho profily, TwinCAT, Schneider. */
 export declare function isCodesysFamily(plat: PlatformKey): boolean;
+/** Ruční přenos (Unitronics VisiLogic / U90 Ladder): žebříček k zadání, žádný importovatelný kód ani emulace. */
+export declare function isManualPlat(plat: PlatformKey): boolean;
 /** Platforma umí styl kódu OOP. */
 export declare function supportsOop(plat: PlatformKey): boolean;
 /** Styl kódu, který pro platformu skutečně platí (OOP jen kde ho platforma umí). */

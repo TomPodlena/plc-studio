@@ -2,7 +2,7 @@ import type { PlatformKey } from "./model.js";
 export type VerifState = "verified" | "lang" | "beta" | "unsupported";
 /** Stav jednoho výstupního souboru: ide = import a překlad v IDE, compiler = překladač, xsd = schéma,
  *  structure = kontrola struktury (emulátor), emulator = jen emulátor PLCdesk. */
-export type VerifFormatState = "ide" | "compiler" | "xsd" | "structure" | "emulator";
+export type VerifFormatState = "ide" | "compiler" | "xsd" | "structure" | "emulator" | "manual";
 export type VerifScope = "classic" | "oop" | "motion" | "axis" | "plcopen" | "iec61131-10";
 export interface VerifFormat {
     file: string;

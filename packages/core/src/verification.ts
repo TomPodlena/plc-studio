@@ -16,7 +16,7 @@ import { VERIFICATION_DATA } from "./verification_data.js";
 export type VerifState = "verified" | "lang" | "beta" | "unsupported";
 /** Stav jednoho výstupního souboru: ide = import a překlad v IDE, compiler = překladač, xsd = schéma,
  *  structure = kontrola struktury (emulátor), emulator = jen emulátor PLCdesk. */
-export type VerifFormatState = "ide" | "compiler" | "xsd" | "structure" | "emulator";
+export type VerifFormatState = "ide" | "compiler" | "xsd" | "structure" | "emulator" | "manual";
 export type VerifScope = "classic" | "oop" | "motion" | "axis" | "plcopen" | "iec61131-10";
 
 export interface VerifFormat { file: string; state: VerifFormatState; note?: string; }
@@ -58,6 +58,7 @@ export const VERIF_FORMAT_LABEL: Record<VerifFormatState, string> = {
   xsd: N_("validováno schématem XSD, import neověřen"),
   structure: N_("kontrola struktury, import neověřen"),
   emulator: N_("emulátor PLCdesk, import neověřen"),
+  manual: N_("ruční přenos do IDE (bez importu), neověřeno"),
 };
 export const VERIF_SCOPE_LABEL: Record<VerifScope, string> = {
   classic: N_("klasický styl"),

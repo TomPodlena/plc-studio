@@ -256,7 +256,11 @@ export function buildBom(prj: Project): Bom {
     }
     for (const g of groups.values()) add(g[0].bomTag, g[0].cat, g.length, modsDesc(g), hwOf(g[0]));
   }
-  if (prj.program.modes !== false && plat !== "unitronics") add("-P1", "plc_hmi", 1, tr("Ovládání AUTO / START / kvitace, alarmy"));
+  /* Vision: rozšiřovací moduly lokálně přes adaptér EX-A2X (CPU `hw.acc`) */
+  if (L.cpu.opt?.hw?.acc?.includes("plc_busadapter") && L.stations[0]?.modules.some(m => m.kind === "io" && !m.builtin))
+    add("-A1", "plc_busadapter", 1, tr("Adaptér rozšiřovacích modulů I/O"), { hw: { opt: brandsFor("plc_busadapter", plat)[0] } });
+  /* UniStream, Vision / Samba i Jazz / M91 mají displej v CPU — samostatný panel se nepočítá */
+  if (prj.program.modes !== false && plat !== "unitronics" && plat !== "vision" && plat !== "jazz") add("-P1", "plc_hmi", 1, tr("Ovládání AUTO / START / kvitace, alarmy"));
 
   /* --- zařízení */
   let nMotor = 0;

@@ -50,6 +50,8 @@ export function axisUnsupportedWhy(plat) {
         return tr("parametry knihovny GMC Independent PLCopen MC (GIPLC) se nepodařilo ověřit (EIO0000003592 nedostupný) — kód osy se negeneruje, aby nevznikl nepřeložitelný program.");
     if (plat === "unitronics")
         return tr("UniLogic má bloky MC jen v Ladderu a plochý ST (Machine.st) instance FB nemá — použij polohovací pohon se záznamy nebo měnič přes I/O.");
+    if (plat === "vision" || plat === "jazz")
+        return tr("VisiLogic / U90 Ladder: žebříček se přenáší ručně a PLCdesk pro ně servoosu (PLCopen Motion) negeneruje — použij polohovací pohon se záznamy nebo měnič přes I/O.");
     const prof = cdsProfile(plat);
     if (prof && !prof.axis && prof.axisWhy)
         return tr(prof.axisWhy);
