@@ -42,6 +42,7 @@ import { hwChannelText } from "./hardware.js";
 import { axisTemplate, axisTemplates, axisDialect, axisBlocked, axisReadme, axisSupport, AXIS_TPL_COMMENTS } from "./axis_gen.js";
 import { axisObjName } from "./axis.js";
 import { verificationReadme } from "./verification.js";
+import { genForLadder, isLadderPlat, type LadderPlat } from "./unitronics_ladder.js";
 
 /* ------------------------------------------------------------ šablony SCL */
 
@@ -1589,6 +1590,7 @@ export function genTagFile(prj: Project, plat: PlatformKey): { name: string; bod
  * součástí klíče (prostý text s pevnou šířkou řádku). Číslo kroku a odrážka zůstávají mimo.
  */
 export function genReadme(prj: Project, plat: PlatformKey): string {
+  if (isLadderPlat(plat)) return genForLadder(outputSafe(prj), plat)["README.txt"];
   const steps = [
     tr("Vytvoř projekt v IDE a nakonfiguruj HW (CPU + I/O moduly) — HW konfigurace se negeneruje."),
     plat === "unitronics"
@@ -1619,7 +1621,7 @@ export function genReadme(prj: Project, plat: PlatformKey): string {
   /* rodina CODESYS: PLCopen_Import.xml ověřen importem a překladem v CODESYS V3.5 SP21 Patch 6 (2026-10-05);
      úlohu import objektů nevytváří (konfigurace „Default“ CODESYS odmítá) → krok po importu */
   const cdsTask = () => tr("Po importu: Task Configuration → MainTask — nahraď volání PLC_PRG voláním MAIN (Add Call → MAIN, PLC_PRG odeber); úlohu PLCopen import nepřenáší. Projekt založ jako Standard project — Library Manager musí mít knihovnu Standard (TON).");
-  const spec: Record<PlatformKey, () => string> = {
+  const spec: Record<Exclude<PlatformKey, LadderPlat>, () => string> = {
     siemens: () => list("SIEMENS TIA PORTAL (V17–V21, S7-1200/1500)",
       tr("Gen_Tags.tsv: otevři v Excelu (UTF-8, oddělovač tabulátor), list přejmenuj na „PLC Tags“, ulož jako .xlsx a v tabulce tagů dej Import (sloupce Name / Data Type / Logical Address / Comment odpovídají formátu TIA)."),
       tr("Gen_IO.xml: import přes Openness. Pro V17–V20 přepiš v hlavičce Engineering version V21 na svou verzi; jazyk komentářů (Culture) musí být mezi jazyky projektu."),
@@ -1775,7 +1777,7 @@ GVL_IO přiřaď kanálům v Edit IO Mapping.`) + "\n",
       tr("Test: nejdřív na PLC s odpojenými akčními členy.")),
   };
   /* štítek ověření (data/verification.json → verification.ts) hned pod nadpisem platformy, jednotně */
-  const sp = spec[plat](), nl = sp.indexOf("\n");
+  const sp = spec[plat as Exclude<PlatformKey, LadderPlat>](), nl = sp.indexOf("\n");
   const body = nl < 0 ? sp : sp.slice(0, nl + 1) + verificationReadme(plat) + "\n\n" + sp.slice(nl + 1);
   return libReadmeHead(prj, plat) + common + "\n" + body + motionReadme(prj, plat) + axisReadme(prj, plat) + libReadmeTail(prj, plat);
 }
@@ -1814,7 +1816,7 @@ export function motionReadme(prj: Project, plat: PlatformKey): string {
 }
 
 /** Řádek README s číslem projektu a zákazníkem pod řádkem PROJEKT (bez údajů ""; do kódu PLC se nepíše). */
-function metaLine(prj: Project): string {
+export function metaLine(prj: Project): string {
   const t = projectMetaText(prj);
   return t ? "\n" + t : "";
 }
@@ -1934,11 +1936,17 @@ export function genUnitronicsTags(prj: Project): string {
   return l.join("\n");
 }
 
-/** Logika stroje jako tělo jedné ST funkce pro UniLogic (stav v globálních tazích). */
-export function genMainUnitronics(prj: Project): string {
-  const ir = buildIR(prj), c = stCtx("unitronics"), lib = codeLibrary(prj, "unitronics");
+/** Část ploché logiky Unitronics: uvolnění, sekvence, zařízení (blok / role), porucha stroje. */
+export interface UniSection { kind: "enable" | "seq" | "dev" | "role" | "fault"; dev?: Device; cls?: string; title: string; st: string; }
+
+/**
+ * Plochá logika stroje po částech (dialekt UniLogic, texty s diakritikou) — skládá z ní Machine.st
+ * (UniLogic) i žebříček VisiLogic / U90 (unitronics_ladder.ts). `plat` určuje jen surový rozsah analogů.
+ */
+export function uniSections(prj: Project, plat: PlatformKey = "unitronics"): { sections: UniSection[]; free: IoEntry[]; lib: CodeLibrary } {
+  const ir = buildIR(prj), c: StCtx = { ...stCtx("unitronics"), plat }, lib = codeLibrary(prj, "unitronics");
   const x = (b: IrFb, n: string) => irText(b.inputs.find(p => p.name === n)!.expr, c);
-  const parts: string[] = [], free: string[] = [];
+  const sections: UniSection[] = [], free: IoEntry[] = [];
   /* komentáře šablony se překládají až PO rozepsání — inlineFb přepisuje názvy proměnných
      i uvnitř komentářů a přeložený text by mohl některý z nich obsahovat (reset, error…) */
   const fb = (b: IrFb, skip: string[] = []) => {
@@ -1947,40 +1955,56 @@ export function genMainUnitronics(prj: Project): string {
     for (const o of b.outputs) if (o.tag) outs[o.name] = o.tag;
     return trComments(inlineFb(fbTemplate(b.cls, "st", lib), b.inst, wired, outs), stripDia);
   };
+  const NL = "\n";
+  sections.push({ kind: "enable", title: trx("Uvolnění"), st: "    enable := " + enableText(ir, c) + ";" });
+  const seq = renderSeq(ir, c);
+  if (seq) sections.push({ kind: "seq", title: trx("Automatická sekvence"), st: uniDialect(seq) });
   for (const it of uniItems(ir)) {
     const d = it.dev;
-    const title = "    (* " + cmtSafe(d.name + (d.desc ? " - " + d.desc : "")) + " *)";
+    const name = d.name + (d.desc ? " - " + d.desc : "");
+    const title = "    (* " + cmtSafe(name) + " *)";
     if (it.kind === "fb" && (it.cls === "Motor" || it.cls === "Ventil" || it.cls === "Vfd" || it.cls === "PosDrive" || it.cls === "PropValve")) {
-      parts.push(title + "\n" + fb(it));
+      sections.push({ kind: "dev", dev: d, cls: it.cls, title: name, st: title + NL + fb(it) });
     } else if (it.kind === "fb" && it.cls === "AnalogIn") {
       const tag = it.inst + "_value";
-      parts.push(title + "  (* " + (d.unit ? trx("hodnota v {unit}: {tag}", { unit: d.unit, tag }) : trx("hodnota v jednotkách snímače: {tag}", { tag })) + " *)\n" + fb(it));
+      sections.push({ kind: "dev", dev: d, cls: it.cls, title: name, st: title + "  (* " + (d.unit ? trx("hodnota v {unit}: {tag}", { unit: d.unit, tag }) : trx("hodnota v jednotkách snímače: {tag}", { tag })) + " *)" + NL + fb(it) });
     } else if (it.kind === "fb" && it.cls === "AnalogOut") {
       /* žádaná hodnota se zapisuje přímo do tagu value (bez ní ji zapisuje uživatel) */
       const sp = it.setpoint !== undefined;
-      parts.push(title + "  (* " + (sp ? trx("žádaná hodnota") + " " + (d.unit || "") : "TODO: " + trx("žádanou hodnotu zapisuj do {tag}", { tag: it.inst + "_value" })) + " *)\n"
-        + (sp ? "    " + it.inst + "_value := " + x(it, "value") + ";\n" : "") + fb(it, ["value"]));
+      sections.push({ kind: "dev", dev: d, cls: it.cls, title: name, st: title + "  (* " + (sp ? trx("žádaná hodnota") + " " + (d.unit || "") : "TODO: " + trx("žádanou hodnotu zapisuj do {tag}", { tag: it.inst + "_value" })) + " *)" + NL
+        + (sp ? "    " + it.inst + "_value := " + x(it, "value") + ";" + NL : "") + fb(it, ["value"]) });
     } else if (it.kind === "role") {
       const expr = irText(it.expr, c);
-      for (const e of it.outs) parts.push(title + "  (* " + trx("vazba na stav stroje: {role}", { role: trx(DO_ROLE_TECH[it.role]) }) + " *)\n    "
-        + e.tag + " := " + expr + ";");
+      for (const e of it.outs) sections.push({ kind: "role", dev: d, title: name, st: title + "  (* " + trx("vazba na stav stroje: {role}", { role: trx(DO_ROLE_TECH[it.role]) }) + " *)" + NL + "    "
+        + e.tag + " := " + expr + ";" });
     } else if (it.kind === "free") {
-      for (const e of it.io) free.push("    (*   " + e.tag + "  " + (e.cmt || "") + " *)");
+      free.push(...it.io);
     }
   }
   const fault = renderFault(ir, c);
+  if (fault) sections.push({ kind: "fault", title: trx("Porucha stroje a kvitace"), st: uniDialect(fault.trimEnd()) });
+  return { sections, free, lib };
+}
+
+/** Logika stroje jako tělo jedné ST funkce pro UniLogic (stav v globálních tazích). */
+export function genMainUnitronics(prj: Project): string {
+  const { sections, free, lib } = uniSections(prj);
+  const sec = (k: UniSection["kind"]) => sections.filter(s => s.kind === k);
+  const parts = sections.filter(s => s.kind === "dev" || s.kind === "role").map(s => s.st);
+  const seq = sec("seq")[0], fault = sec("fault")[0];
+  const NL = "\n";
   /* texty jsou tu s diakritikou — čisté ASCII z nich (i z překladu) dělá až uniAscii() na konci */
   const st = `${libHeader(lib, false)}(* ${trx(`Machine.st - logika stroje pro Unitronics UniLogic (UniStream), jazyk ST.
    Generováno PLCdesk. Obsah vlož do JEDNÉ ST funkce volané každý scan.
    ST funkce v UniLogic nemá vlastní paměť: všechny tagy z Tags.csv založ jako
    GLOBÁLNÍ. Bloky zařízení jsou proto rozepsané přímo zde (předpona instX_).`)} *)
 
-    enable := ${enableText(ir, c)};
+${sec("enable")[0].st}
 
-${renderSeq(ir, c)}${parts.join("\n\n") || "    ;"}${fault ? "\n\n" + fault.trimEnd() : ""}
+${seq ? seq.st : ""}${parts.join(NL + NL) || "    ;"}${fault ? NL + NL + fault.st : ""}
 
     (* ${trx("Volné signály (DI/DO) pro vlastní logiku:")} *)
-${free.join("\n") || "    (*   " + trx("žádné") + " *)"}
+${free.map(e => "    (*   " + e.tag + "  " + (e.cmt || "") + " *)").join(NL) || "    (*   " + trx("žádné") + " *)"}
 `;
   return uniAscii(uniDialect(st));
 }
@@ -1992,6 +2016,8 @@ export function genFor(prj0: Project, plat: PlatformKey): Record<string, string>
   const prj = outputSafe(prj0);
   /* servoosa na platformě bez podpory: žádný kód (nepřeložitelný program by klamal), jen README s důvodem */
   if (axisBlocked(prj, plat)) return { "README.txt": axisBlockedReadme(prj, plat) };
+  /* ruční přenos (VisiLogic / U90 Ladder): žebříček + operandy, žádný textový kód — unitronics_ladder.ts */
+  if (isLadderPlat(plat)) return genForLadder(prj, plat);
   /* styl OOP (jen rodina CODESYS, volba projektu) — stejný IR a šablony, jiný zápis; viz codegen_oop.ts */
   if (codeStyleFor(prj, plat) === "oop") return genForOop(prj, plat);
   const files: Record<string, string> = {};

@@ -89,7 +89,7 @@ test("balík k ověření: beta platforma × 5 jazyků — návod, protokol, man
                 assert.equal(m.verification.state, "beta");
                 assert.equal(m.samples.length, 4);
                 const axis = m.samples.find((s) => s.dir === "04_servo_axis_PM-12");
-                if (plat === "mitsubishi") {
+                if (plat === "mitsubishi" || PLAT[plat].manual) {
                     assert.ok(axis.blocked, where + ": FX5 osu negeneruje");
                     assert.deepEqual(names.filter(n => n.startsWith("04_")), ["04_servo_axis_PM-12/README.txt"]);
                 }

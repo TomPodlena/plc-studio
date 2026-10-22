@@ -844,6 +844,24 @@ python scripts/build_verification.py        # data/verification.json → verific
   z Ladderu a TON jako globální tag neověřeny — po prvním překladu v GUI doplnit nálezy. Emulátor
   `unitronics` je srovnaný s překladačem (2026-10-06): převody INT↔UINT / zúžení = chyba, END_IF bez `;`
   přijat (info), vnořené komentáře povoleny — test `emu mutace: UniLogic 1.43`.
+- **Unitronics Vision / Samba (VisiLogic) a Jazz / M91 (U90 Ladder) — RUČNÍ PŘENOS** (2026-10-21, podnět beta
+  testera): platformy `vision` / `jazz` (`PLAT[k].manual`, `isManualPlat`, `isLadderPlat`). Obě IDE jen Ladder bez
+  importu z textu → `genFor` = `genForLadder` (`unitronics_ladder.ts`): `Operandy.csv` (jméno = tag, I / O / MB / MI /
+  MF / T, adresa, preset, popis), `IO_mapa.csv`, `Ladder.md` + tisknutelné `Ladder.html`, `README.txt` (štítek ověření,
+  postup, limity se zdroji, „NEOVĚŘENO — DOPLNÍ TESTER“). Vše KÓDEM: `uniSections(prj, plat)` (codegen.ts, z ní skládá
+  i `genMainUnitronics` — výstup UniLogicu beze změny) → parser emulátoru → větve: kontakty / porovnání / cívka /
+  SET-RST / MOV, ADD… (FP u REAL) / časovač TD; podmínka IF / CASE, kterou větev mění (nebo stojí na mezivýsledku),
+  se nejdřív uloží do `aux_*` bitu; konstantní vstupy bloků (`instX_scaleMin := 0.0`) se dosadí (`foldConstants`,
+  šetří MF — V350 jich má 64); literál > 32767 = táž 16bitová hodnota se znaménkem (MI = INT16). Adresy: vestavěné
+  I/O od 0, rozšiřovací modul Vision x = 32 + 16·x + kanál (EX-A2X), analogy do MI (propojení v HW konfiguraci).
+  Presety: Vision 10 ms, U90 14 bitů + jednotka 10 ms / 100 ms / 1 s / 10 s (`timerPreset`). U90 nemá MF → REAL do
+  MI, větve `!REAL` + warn. Limity CPU (`limitsFor`, spec. PDF) → `registerValidationHook` warn; Jazz / M91 jen
+  vestavěné I/O (velké projekty „nevejde se“, `check_samples` je u nich z projektu vyřadí). RAW_MAX vision 16383,
+  jazz 4095 (neověřeno). Osa nepodporována (`axisUnsupportedWhy`), OOP ne, HMI export ne, kusovník bez `plc_hmi`
+  (displej v CPU), adaptér EX-A2X (`plc_busadapter@vision`, CPU `hw.acc`). Emulátor: `emulateCompile` = jeden
+  nález info `manual`, `emulateRun` skipped ok, `emulateAll` / dokument 15 je přeskočí. Stav `beta`, výstupy
+  `manual` (`docs/verification/unitronics-ladder.md`). Test `unitronics_vision.test.ts` vč. **lockstepu**: interpret
+  žebříčku × emulace téhož ST s náhodnými vstupy (4 vzory, 3000 scanů) + mutace převodu.
 - **Simulace = zrcadlo generátoru.** `sim.ts` (třída `Simulator`, jeden `scan()` = jeden scan
   programu; nad ní dávková `simulate()` i živá simulace v desktopu) provádí logiku, kterou generuje
   `codegen.ts` (FB_Motor/FB_Ventil, timeouty, CASE sekvence, pořadí enable → sekvence → TON →

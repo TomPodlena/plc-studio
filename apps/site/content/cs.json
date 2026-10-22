@@ -637,6 +637,22 @@
         "output": "plochý ST a seznam tagů",
         "check": "překladač ST z UniLogic 1.43.369 (Unitronics), 5. 10. 2026: Machine.st čtyř vzorů bez chyby; import tagů, build a běh v UniLogicu neověřeny",
         "state": "lang"
+      },
+      {
+        "key": "vision",
+        "name": "Unitronics Vision / Samba",
+        "ide": "VisiLogic",
+        "output": "žebříček k ručnímu zadání (Ladder.md / .html) a seznam operandů",
+        "check": "ruční přenos: VisiLogic neumí import programu z textu; výstup generuje kód {{site.brand}} z téhož modelu jako ST UniLogicu, testy ho porovnávají s emulací ST; zadání ve VisiLogicu neověřeno",
+        "state": "beta"
+      },
+      {
+        "key": "jazz",
+        "name": "Unitronics Jazz / M91",
+        "ide": "U90 Ladder",
+        "output": "žebříček k ručnímu zadání (Ladder.md / .html) a seznam operandů",
+        "check": "ruční přenos: U90 Ladder neumí import programu z textu; výstup generuje kód {{site.brand}}, testy hlídají operandy a limity Jazz / M91; zadání v U90 neověřeno",
+        "state": "beta"
       }
     ],
     "state_verified": "ověřeno v IDE",

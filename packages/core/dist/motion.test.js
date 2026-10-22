@@ -17,7 +17,7 @@ import { buildBom } from "./bom.js";
 import { hmiTags, hmiAlarms } from "./hmi.js";
 import { emulateRunMany, emulateRunFiles, emulateCompile } from "./emu/index.js";
 const SAMPLE = new URL("../../../samples/11_podavaci_lisovaci_stanice_PS-11.plcstudio.json", import.meta.url);
-const PLATS = Object.keys(PLAT);
+const PLATS = Object.keys(PLAT).filter(k => !PLAT[k].manual); /* ruční přenos (Vision / Jazz): vlastní test unitronics_vision.test */
 const OOP_PLATS = ["codesys", "beckhoff", "schneider", "wago", "delta"];
 function load() {
     const raw = JSON.parse(readFileSync(SAMPLE, "utf8"));

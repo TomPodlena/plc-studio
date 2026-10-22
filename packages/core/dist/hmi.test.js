@@ -42,7 +42,7 @@ function asciiContent(p) {
     q.concept = null;
     return q;
 }
-const ALL = Object.keys(PLAT);
+const ALL = Object.keys(PLAT).filter(k => !PLAT[k].manual); /* ruční přenos (Vision / Jazz): vlastní test unitronics_vision.test */
 const CZ = /[ěščřžůďťňĚŠČŘŽŮĎŤŇ]/;
 /** Deklarace z ST/SCL: `název : typ` v daném úseku. */
 function declsIn(text) {

@@ -473,6 +473,7 @@ export function makeSteps(ctx) {
     <div class="platgrid">${grp.map(([k, pf]) => { const v = verificationInfo(k); return `
       <div class="plat ${p.platforms.includes(k) ? "on" : ""}" data-k="${k}" role="button" tabindex="0" aria-pressed="${p.platforms.includes(k)}">
         <span class="plat-head"><b>${pf.name}</b><span class="verif verif-${v.state}" title="${esc(v.tip)}">${esc(v.label)}</span></span><span>${pf.ide} · ${pf.cpu}</span><span class="lng">${tr(pf.lang)} · ${tr(pf.imp)}</span>
+        ${pf.manual ? "<span class='lng' style='color:var(--warn)' title='" + esc(tr("IDE neumí import programu z textu — PLCdesk dá žebříček větev po větvi (Ladder.md / .html) a seznam operandů k ručnímu zadání. Emulace kódu se netýká, simulace návrhu platí.")) + "'>" + tr("ruční přenos") + "</span>" : ""}
         ${hasAxis(p) && !axisSupport(p, k).ok ? "<span class='lng' style='color:var(--warn)' title='" + esc(axisSupport(p, k).why) + "'>" + tr("servoosu nepodporuje") + "</span>" : ""}
         ${v.state === "beta" ? verifyPackHtml(k, pf) : ""}
       </div>`; }).join("")}

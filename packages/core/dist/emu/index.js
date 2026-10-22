@@ -1,4 +1,4 @@
-import { PLAT } from "../model.js";
+import { PLAT, isManualPlat } from "../model.js";
 import { genFor } from "../codegen.js";
 import { getLang, tr, withLang } from "../i18n.js";
 import { loadPlatform } from "./load.js";
@@ -69,6 +69,13 @@ function compileEntry(prj, platform, lang = getLang()) {
         put(compileCache, key, e);
         return e;
     }
+    /* ruční přenos (VisiLogic / U90 Ladder): žádný textový kód k překladu — jen informace, bez pádu */
+    if (isManualPlat(platform)) {
+        const msg = withLang(lang, () => tr("Ruční přenos ({ide}): platforma nemá importovatelný textový kód — emulace překladu a běhu se jí netýká, simulace návrhu platí beze změny.", { ide: PLAT[platform].ide }));
+        const e = { res: { platform, files: Object.keys(withLang(lang, () => genFor(prj, platform))), findings: [{ level: "info", rule: "manual", file: "Ladder.md", line: 0, col: 0, msg, platform }], ok: true }, fp: "manual", rawMax: 27648 };
+        put(compileCache, key, e);
+        return e;
+    }
     /* soubory (komentáře, hlášení) v žádaném jazyce — klíč cache nese jazyk */
     const { files, r } = withLang(lang, () => { const files = genFor(prj, platform); return { files, r: emulateFiles(prj, platform, files) }; });
     const e = { res: r.res, prog: r.prog, fp: fingerprint(r.prog, files), rawMax: detectRawMax(files) };
@@ -97,6 +104,10 @@ export function emulateRunMany(prj, platforms, opts = {}) {
         return out;
     }
     for (const plat of platforms) {
+        if (isManualPlat(plat)) {
+            out[plat] = { platform: plat, scenarios: [], diffs: [], ok: true, skipped: tr("Ruční přenos ({ide}): běh kódu se neemuluje — chování ověřuje simulace návrhu.", { ide: PLAT[plat].ide }), ms: 0, scans: 0 };
+            continue;
+        }
         const c = compileEntry(prj, plat);
         const key = JSON.stringify([prj, plat, c.fp, opts.scope || "full", opts.dt || 0]);
         const hit = runCache.get(key);
@@ -131,7 +142,8 @@ export function emulateRunFiles(prj, platform, files, opts = {}) {
 /** Překlad i běh všech platforem projektu (výchozí: všech 8). */
 export function emulateAll(prj, opts = {}) {
     const t0 = Date.now();
-    const plats = opts.platforms || Object.keys(PLAT);
+    /* platformy s ručním přenosem (VisiLogic / U90) nemají kód k emulaci — přeskočí se */
+    const plats = (opts.platforms || Object.keys(PLAT)).filter(p => !isManualPlat(p));
     const compileRes = {};
     for (const p of plats)
         compileRes[p] = emulateCompile(prj, p);

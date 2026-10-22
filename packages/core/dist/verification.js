@@ -32,6 +32,7 @@ export const VERIF_FORMAT_LABEL = {
     xsd: N_("validováno schématem XSD, import neověřen"),
     structure: N_("kontrola struktury, import neověřen"),
     emulator: N_("emulátor PLCdesk, import neověřen"),
+    manual: N_("ruční přenos do IDE (bez importu), neověřeno"),
 };
 export const VERIF_SCOPE_LABEL = {
     classic: N_("klasický styl"),

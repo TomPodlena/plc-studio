@@ -18,7 +18,7 @@ import { emulateCompile, emulateRunMany, emulateAll, emulateFiles, emulateRunFil
 import { emuScenarios } from "./emu/run.js";
 
 const SAMPLE_DIR = new URL("../../../samples/", import.meta.url);   // dist/ → kořen repozitáře
-const PLATS = Object.keys(PLAT) as PlatformKey[];
+const PLATS = (Object.keys(PLAT) as PlatformKey[]).filter(k => !PLAT[k].manual);   /* ruční přenos (Vision / Jazz): vlastní test unitronics_vision.test */
 
 function load(name: string): Project {
   const raw = JSON.parse(readFileSync(new URL(name, SAMPLE_DIR), "utf8"));

@@ -22,6 +22,8 @@ export type PlatformKey =
   | "siemens" | "rockwell" | "beckhoff" | "codesys" | "mitsubishi" | "schneider" | "omron" | "unitronics"
   /* profily platformy CODESYS (PLAT[…].base = "codesys"): sdílí dialekt, addrFor a emulátor */
   | "wago" | "delta"
+  /* Unitronics Vision / Samba (VisiLogic) a Jazz / M91 (U90 Ladder): jen Ladder bez importu z textu → ruční přenos (unitronics_ladder.ts) */
+  | "vision" | "jazz"
   /* další profily CODESYS (Turck, Festo, ABB, Rexroth, Inovance, Weidmüller, Eaton, Lenze, Berghof, Hitachi, ifm) — codesys_profiles.ts */
   | CdsProfileKey;
 
@@ -54,6 +56,8 @@ export interface PlatformInfo {
   base?: PlatformKey;
   /** Platforma umí styl kódu OOP (INTERFACE / METHOD / PROPERTY / EXTENDS). */
   oop?: boolean;
+  /** Ruční přenos: IDE nemá import programu z textu — výstup je žebříček k ručnímu zadání (bez emulace kódu). */
+  manual?: boolean;
 }
 
 export interface Device {
@@ -252,6 +256,8 @@ export const PLAT: Record<PlatformKey, PlatformInfo> = {
   schneider:  { name: "Schneider Electric", ide: "EcoStruxure Machine Expert", cpu: "Modicon M241 / M262", lang: "ST", imp: N_("POU + GVL (báze CODESYS)"), oop: true },
   omron:      { name: "OMRON", ide: "Sysmac Studio", cpu: "NX / NJ", lang: "ST", imp: N_("ST program + tabulka proměnných") },
   unitronics: { name: "Unitronics", ide: "UniLogic", cpu: "UniStream (US5–US15, USC)", lang: N_("ST (funkce)"), imp: N_("ST funkce k vložení + seznam tagů k založení; Vision/Samba jen Ladder (předloha)") },
+  vision:     { name: "Unitronics Vision / Samba", ide: "VisiLogic", cpu: "Vision V130 / V350, Samba", lang: "Ladder", imp: N_("ruční přenos: žebříček větev po větvi (Ladder.md / .html) + seznam operandů k zadání ve VisiLogic"), manual: true },
+  jazz:       { name: "Unitronics Jazz / M91", ide: "U90 Ladder", cpu: "Jazz JZ20, M91", lang: "Ladder", imp: N_("ruční přenos: žebříček větev po větvi (Ladder.md / .html) + seznam operandů k zadání v U90 Ladder"), manual: true },
   wago:       { name: "WAGO", ide: "e!COCKPIT / CODESYS V3.5", cpu: "PFC100 / PFC200 + I/O 750", lang: "ST", imp: N_("POU + GVL / PLCopen XML (báze CODESYS)"), base: "codesys", oop: true },
   delta:      { name: "Delta Electronics", ide: "DIADesigner-AX (CODESYS V3.5)", cpu: "AX-3 / AX-5 / AX-8", lang: "ST", imp: N_("POU + GVL / PLCopen XML (báze CODESYS)"), base: "codesys", oop: true },
   /* profily CODESYS dalších výrobců (codesys_profiles.ts) */
@@ -266,6 +272,10 @@ export function platBase(plat: PlatformKey): PlatformKey {
 export function isCodesysFamily(plat: PlatformKey): boolean {
   const b = platBase(plat);
   return b === "codesys" || b === "beckhoff" || b === "schneider";
+}
+/** Ruční přenos (Unitronics VisiLogic / U90 Ladder): žebříček k zadání, žádný importovatelný kód ani emulace. */
+export function isManualPlat(plat: PlatformKey): boolean {
+  return !!PLAT[plat]?.manual;
 }
 /** Platforma umí styl kódu OOP. */
 export function supportsOop(plat: PlatformKey): boolean {

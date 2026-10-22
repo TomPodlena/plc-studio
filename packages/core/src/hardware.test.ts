@@ -17,7 +17,7 @@ import { sampleSmall, sampleComplex } from "./samples.js";
 import { sampleNames, loadSampleFile } from "./exp_util.test.js";
 import { normalizeProject } from "./project_norm.js";
 
-const PLATS = Object.keys(PLAT) as PlatformKey[];
+const PLATS = (Object.keys(PLAT) as PlatformKey[]).filter(k => !PLAT[k].manual);   /* ruční přenos (Vision / Jazz): vlastní test unitronics_vision.test */
 const clone = (p: Project): Project => JSON.parse(JSON.stringify(p));
 /** Projekt s platformou hardwaru `plat` (kusovník), adresy přidělené. */
 function onPlat(base: Project, plat: PlatformKey): Project {

@@ -72,6 +72,14 @@ export const PLATFORM_REFS = {
         { kind: "ide", title: N_("Inovance a CODESYS – AM400/AM600/AC800 programované v InoProShop"), url: "https://www.inovance.eu/news/details/inovance-has-worked-with-codesys-since-2015-is-now-listed-on-the-codesys-website-173", lang: "en" },
         { kind: "import", title: N_("Instalace InoProShop (zdarma; manuál AM600 str. 119)"), url: "https://www.manualslib.com/manual/1812322/Inovance-Am600-Series.html?page=119", lang: "en" },
     ],
+    jazz: [
+        { kind: "product", title: N_("Jazz – produktová stránka řady"), url: "https://unitronicsplc.com/jazz-series-jazz/", lang: "en" },
+        { kind: "product", title: N_("M91 – produktová stránka řady"), url: "https://unitronicsplc.com/m91-series-m91", lang: "en" },
+        { kind: "ide", title: N_("U90 Ladder – stránka softwaru a stažení zdarma"), url: "https://unitronicsplc.com/software-u90/", lang: "en" },
+        { kind: "manual", title: N_("U90 Ladder Knowledgebase – kompatibilita HW / OS / SW (velikost aplikace)"), url: "https://www.unitronicsplc.com/Download/SoftwareHelp/U90LadderKnowledgebase/Compatibility__HW,_OS,_SW.htm", lang: "en" },
+        { kind: "manual", title: N_("U90 Ladder Knowledgebase – časovače (rozlišení 10 ms / 100 ms / 1 s / 10 s)"), url: "https://www.unitronicsplc.com/Download/SoftwareHelp/U90LadderKnowledgebase/Timers/Timers.htm", lang: "en" },
+        { kind: "cz", title: N_("SCHMACHTL CZ – distributor Unitronics v ČR"), url: "https://www.schmachtl.cz", lang: "cs" },
+    ],
     lenze: [
         { kind: "product", title: N_("I/O system 1000 – přehled modulů (Lenze)"), url: "https://www.lenze.com/en-de/products/controllers/i/o-systems/i/o-system-1000", lang: "en" },
         { kind: "manual", title: N_("Systémový manuál I/O system 1000 EDSIO1000 v8.0 (spojky, moduly, hodnoty analogů)"), url: "https://www.stercontrol.pl/attachments/data//lenze/EPM-IO%20system%201000%20System%20Manual__v8-0EN.pdf", lang: "en" },
@@ -150,6 +158,14 @@ export const PLATFORM_REFS = {
         { kind: "ide", title: N_("UniLogic – stránka softwaru a stažení zdarma"), url: "https://www.unitronicsplc.com/software-unilogic-for-programmable-controllers/", lang: "en" },
         { kind: "manual", title: N_("Technická knihovna – uživatelské příručky UniStream"), url: "https://www.unitronicsplc.com/support-technical-library/", lang: "en" },
         { kind: "support", title: N_("Unitronics Help Center – podpora a tikety"), url: "https://support.unitronics.com/", lang: "en" },
+        { kind: "cz", title: N_("SCHMACHTL CZ – distributor Unitronics v ČR"), url: "https://www.schmachtl.cz", lang: "cs" },
+    ],
+    vision: [
+        { kind: "product", title: N_("Vision V350 / V130 TA24 – technická specifikace (I/O, operandy, časovače)"), url: "https://www.unitronicsplc.com/wp-content/uploads/2016/08/Vxxx_J_TA24_SPEC_02_16.pdf", lang: "en" },
+        { kind: "ide", title: N_("VisiLogic – stránka softwaru a stažení zdarma"), url: "https://unitronicsplc.com/software-visilogic-for-programmable-controllers/", lang: "en" },
+        { kind: "manual", title: N_("VisiLogic Knowledgebase – nápověda (Ladder, operandy, funkce)"), url: "https://unitronicsplc.com/Download/SoftwareHelp/VisiLogic_Knowledgebase/GETTING_STARTED/welcome.htm", lang: "en" },
+        { kind: "manual", title: N_("VisiLogic – Store Timer Counter Preset (preset v jednotkách 10 ms)"), url: "https://www.unitronicsplc.com/Download/SoftwareHelp/VisiLogic_Knowledgebase/Ladder/Functions/Store_-_Load_Functions/Store_Timer_Counter_Preset.htm", lang: "en" },
+        { kind: "manual", title: N_("EX-A2X – adaptér rozšiřovacích modulů (adresy 32 + 16·x + kanál)"), url: "https://unitronicsplc.com/Documents/Vision/EXP/UG_EX-A2X.pdf", lang: "en" },
         { kind: "cz", title: N_("SCHMACHTL CZ – distributor Unitronics v ČR"), url: "https://www.schmachtl.cz", lang: "cs" },
     ],
     wago: [

@@ -66,6 +66,22 @@ export const VERIFICATION_DATA = {
         evidence: ["docs/verification/unilogic-1.43.md"],
         formats: [{ file: "Machine.st", state: "compiler" }, { file: "Tags.csv", state: "emulator" }],
     },
+    vision: {
+        state: "beta", ide: null, date: "2026-10-21",
+        scope: ["classic", "motion"],
+        summary: N_("ruční přenos: žebříček (Ladder.md / .html) a operandy generuje kód PLCdesk z téhož modelu jako ST UniLogicu, testy hlídají úplnost a jednoznačnost operandů; VisiLogic neumí import z textu"),
+        notVerified: N_("zadání a překlad ve VisiLogicu, adresy rozšiřovacích modulů, rozsah analogů, běh na Vision / Samba"),
+        evidence: ["docs/verification/unitronics-ladder.md"],
+        formats: [{ file: "Ladder.md, Ladder.html", state: "manual" }, { file: "Operandy.csv, IO_mapa.csv", state: "manual" }],
+    },
+    jazz: {
+        state: "beta", ide: null, date: "2026-10-21",
+        scope: ["classic", "motion"],
+        summary: N_("ruční přenos: žebříček (Ladder.md / .html) a operandy generuje kód PLCdesk z téhož modelu jako ST UniLogicu, testy hlídají úplnost a jednoznačnost operandů; U90 Ladder neumí import z textu"),
+        notVerified: N_("zadání a překlad v U90 Ladder, velikost aplikace (Jazz 24K / M91 32K), výpočty REAL (U90 nemá MF), rozsah analogů, běh na Jazz / M91"),
+        evidence: ["docs/verification/unitronics-ladder.md"],
+        formats: [{ file: "Ladder.md, Ladder.html", state: "manual" }, { file: "Operandy.csv, IO_mapa.csv", state: "manual" }],
+    },
     wago: {
         state: "lang", ide: "CODESYS V3.5 SP21 Patch 6 (3.5.21.60)", date: "2026-10-05",
         scope: ["classic", "oop", "motion", "plcopen"],

@@ -17,7 +17,7 @@ import { docFiles } from "./docs.js";
 import { emulateCompile, emulateRunMany, emulateAll, emulateFiles, emulateRunFiles, EMU_DOC_FILE, registerEmuModule } from "./emu/index.js";
 import { emuScenarios } from "./emu/run.js";
 const SAMPLE_DIR = new URL("../../../samples/", import.meta.url); // dist/ → kořen repozitáře
-const PLATS = Object.keys(PLAT);
+const PLATS = Object.keys(PLAT).filter(k => !PLAT[k].manual); /* ruční přenos (Vision / Jazz): vlastní test unitronics_vision.test */
 function load(name) {
     const raw = JSON.parse(readFileSync(new URL(name, SAMPLE_DIR), "utf8"));
     const prj = Object.assign(blankProject(), raw.prj || raw);

@@ -757,6 +757,137 @@
           "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ"], "note": "Týž modul jako plc_ai@unitronics." }
       ]
     },
+    "plc_cpu@vision": {
+      "label": "PLC – CPU s displejem (Unitronics Vision / Samba)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Vision V350"],
+          "typical": "V350-35-TA24 – 3,5\" dotykový displej + PLC, 12 DI, 10 DO tranzistor PNP, 2 AI (0–10 V / 0–20 / 4–20 mA, 14 bit), 2 AO (12 bit)",
+          "orderCode": "V350-35-TA24", "src": "https://www.unitronicsplc.com/wp-content/uploads/2016/08/Vxxx_J_TA24_SPEC_02_16.pdf",
+          "hw": {"builtin": {"DI": 12, "DO": 10, "AI": 2, "AO": 2}, "builtinSig": {"AI": "0–10 V / 0–20 / 4–20 mA (14 bit)", "AO": "0–10 V / 4–20 mA (12 bit)"}, "slots": {"exp": 8}, "family": "Vision", "acc": ["plc_busadapter"], "hwSrc": "https://www.unitronicsplc.com/wp-content/uploads/2016/08/Vxxx_J_TA24_SPEC_02_16.pdf"},
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Rozšíření: až 8 modulů I/O přes adaptér EX-A2X (celkem až 128 I/O). Vstupy 5 a 6 lze použít jako analogové." },
+        { "brand": "Unitronics", "series": ["Vision V130"],
+          "typical": "V130-33-TA24 – 2,4\" displej + klávesnice, I/O jako V350-35-TA24 (12 DI, 10 DO PNP, 2 AI, 2 AO)",
+          "orderCode": "V130-33-TA24", "src": "https://www.unitronicsplc.com/wp-content/uploads/2016/08/Vxxx_J_TA24_SPEC_02_16.pdf",
+          "hw": {"builtin": {"DI": 12, "DO": 10, "AI": 2, "AO": 2}, "builtinSig": {"AI": "0–10 V / 0–20 / 4–20 mA (14 bit)", "AO": "0–10 V / 4–20 mA (12 bit)"}, "slots": {"exp": 8}, "family": "Vision", "acc": ["plc_busadapter"], "hwSrc": "https://www.unitronicsplc.com/wp-content/uploads/2016/08/Vxxx_J_TA24_SPEC_02_16.pdf"},
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Menší paměť operandů než V350 (MB 4096, MI 2048, MF 24, T 192)." },
+        { "brand": "Unitronics", "series": ["Vision V350"],
+          "typical": "V350-35-T38 – 3,5\" displej + PLC, 22 DI, 16 DO tranzistor PNP, 2 AI (10 bit), bez AO",
+          "orderCode": "V350-35-T38", "src": "https://www.unitronicsplc.com/wp-content/uploads/2015/12/Vxxx_J_T38_TECH-SPEC_01-15.pdf",
+          "hw": {"builtin": {"DI": 22, "DO": 16, "AI": 2}, "builtinSig": {"AI": "0–10 V / 0–20 / 4–20 mA (10 bit)"}, "slots": {"exp": 8}, "family": "Vision", "acc": ["plc_busadapter"], "hwSrc": "https://www.unitronicsplc.com/wp-content/uploads/2015/12/Vxxx_J_T38_TECH-SPEC_01-15.pdf"},
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Analogové vstupy jen 10 bit (0–1023)." },
+        { "brand": "Unitronics", "series": ["Samba SM35 / SM43"],
+          "typical": "SM35-J-TA22 – 3,5\" dotykový displej + PLC, 12 DI, 8 DO PNP, 2 AI (14 bit), 2 AO (12 bit)",
+          "orderCode": "SM35-J-TA22", "src": "https://www.unitronicsplc.com/wp-content/uploads/2015/12/SMXX-J-TA22-SPEC-02-16.pdf",
+          "hw": {"builtin": {"DI": 12, "DO": 8, "AI": 2, "AO": 2}, "builtinSig": {"AI": "0–10 V / 0–20 / 4–20 mA (14 bit)", "AO": "0–10 V / 4–20 mA (12 bit)"}, "family": "Samba", "hwSrc": "https://www.unitronicsplc.com/wp-content/uploads/2015/12/SMXX-J-TA22-SPEC-02-16.pdf"},
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Rozšíření I/O ve specifikaci nedoloženo – jen vestavěné I/O." }
+      ]
+    },
+    "plc_di@vision": {
+      "label": "PLC – digitální vstupy (Unitronics Vision)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Vision I/O Expansion"],
+          "typical": "IO-DI16 – 16 DI, 24 V DC, PNP/NPN, 2 skupiny",
+          "orderCode": "IO-DI16", "src": "https://unitronicsplc.com/Documents/Vision/EXP/UG_IO-DI16_DI16-L.pdf",
+          "hw": {"ch": {"DI": 16}, "bus": "exp"},
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Přes adaptér EX-A2X; adresy 32 + 16·pozice + kanál." }
+      ]
+    },
+    "plc_do@vision": {
+      "label": "PLC – digitální výstupy (Unitronics Vision)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Vision I/O Expansion"],
+          "typical": "IO-TO16 – 16 DO tranzistor PNP, 0,5 A (3 A na skupinu)",
+          "orderCode": "IO-TO16", "src": "https://unitronicsplc.com/Documents/Vision/EXP/UG_IO-TO16.pdf",
+          "hw": {"ch": {"DO": 16}, "bus": "exp"},
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Přes adaptér EX-A2X." }
+      ]
+    },
+    "plc_ai@vision": {
+      "label": "PLC – analogové vstupy (Unitronics Vision)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Vision I/O Expansion"],
+          "typical": "IO-AI4-AO2 – 4 AI (0–10 V / 0–20 / 4–20 mA, 12 bit) + 2 AO (±10 V / 0–20 / 4–20 mA, 12 bit + znaménko)",
+          "orderCode": "IO-AI4-AO2", "src": "https://www.unitronicsplc.com/wp-content/uploads/2015/12/IO-A14-AO2-5408-0061-2.pdf",
+          "hw": {"ch": {"AI": 4, "AO": 2}, "bus": "exp", "sig": {"AI": "0–10 V / 0–20 / 4–20 mA (12 bit)", "AO": "±10 V / 0–20 / 4–20 mA (12 bit)"}},
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Kombinovaný modul AI+AO – v kusovníku nepočítat dvakrát." }
+      ]
+    },
+    "plc_ao@vision": {
+      "label": "PLC – analogové výstupy (Unitronics Vision)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Vision I/O Expansion"],
+          "typical": "IO-AI4-AO2 – 2 AO + 4 AI v jednom modulu",
+          "orderCode": "IO-AI4-AO2", "src": "https://www.unitronicsplc.com/wp-content/uploads/2015/12/IO-A14-AO2-5408-0061-2.pdf",
+          "hw": {"ch": {"AI": 4, "AO": 2}, "bus": "exp"},
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Týž modul jako plc_ai@vision." },
+        { "brand": "Unitronics", "series": ["Vision I/O Expansion"],
+          "typical": "IO-AO6X – 6 AO izolovaných (0–10 V / 0–20 / 4–20 mA, 12 bit)",
+          "orderCode": "IO-AO6X", "src": "https://www.unitronicsplc.com/wp-content/uploads/2015/12/IO-AO6X.pdf",
+          "hw": {"ch": {"AO": 6}, "bus": "exp"},
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "" }
+      ]
+    },
+    "plc_busadapter@vision": {
+      "label": "Adaptér rozšiřovacích I/O (Unitronics Vision)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Vision I/O Expansion"],
+          "typical": "EX-A2X – adaptér až 8 rozšiřovacích modulů I/O (napájení modulů 1 A z 5 V)",
+          "orderCode": "EX-A2X", "src": "https://unitronicsplc.com/Documents/Vision/EXP/UG_EX-A2X.pdf",
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Jeden na PLC, pokud jsou použité rozšiřovací moduly." }
+      ]
+    },
+    "plc_hmi@vision": {
+      "label": "Operátorský panel HMI (Unitronics Vision / Samba)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Vision / Samba (displej vestavěn)"],
+          "typical": "Displej je součástí CPU Vision / Samba – samostatná položka se nepočítá",
+          "src": "https://www.unitronicsplc.com/wp-content/uploads/2016/08/Vxxx_J_TA24_SPEC_02_16.pdf",
+          "priceLevel": "střední", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "V kusovníku 0 ks navíc." }
+      ]
+    },
+    "plc_cpu@jazz": {
+      "label": "PLC – CPU s displejem (Unitronics Jazz / M91)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Jazz JZ20"],
+          "typical": "JZ20-T40 – Jazz, 18 DI (I16 / I17 i jako AI 0–10 V), 20 DO tranzistor PNP, 2 AI 0–20 / 4–20 mA (AN0, AN1)",
+          "orderCode": "JZ20-T40", "src": "https://unitronicsplc.com/Documents/Jazz/PLC/UG_JZ20-T40.pdf",
+          "hw": {"builtin": {"DI": 18, "DO": 20, "AI": 2}, "builtinSig": {"AI": "0–20 / 4–20 mA (10 / 12 bit)"}, "family": "Jazz", "hwSrc": "https://unitronicsplc.com/Documents/Jazz/PLC/UG_JZ20-T40.pdf"},
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Bez rozšiřovacích modulů I/O (jen komunikační moduly JZ-PRG, JZ-RS4, MJ20-ET1)." },
+        { "brand": "Unitronics", "series": ["Jazz JZ20"],
+          "typical": "JZ20-R31 – Jazz, 18 DI (I16 / I17 i jako AI 0–10 V), 11 DO relé, 2 AI 0–20 / 4–20 mA (AN0, AN1, 10 / 12 bit)",
+          "orderCode": "JZ20-R31", "src": "https://www.unitronicsplc.com/wp-content/uploads/2015/12/JZ20-R31_JZ20-J-R31_TECH-SPEC_01-141.pdf",
+          "hw": {"builtin": {"DI": 18, "DO": 11, "AI": 2}, "builtinSig": {"AI": "0–20 / 4–20 mA (10 / 12 bit)"}, "family": "Jazz", "hwSrc": "https://www.unitronicsplc.com/wp-content/uploads/2015/12/JZ20-R31_JZ20-J-R31_TECH-SPEC_01-141.pdf"},
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Reléové výstupy; analog aktualizován každých 8 scanů." },
+        { "brand": "Unitronics", "series": ["M91"],
+          "typical": "M91-2-UA2 – M91, 12 DI, 10 DO PNP, 2 AI (0–10 V / 0–20 / 4–20 mA, 14 bit), 2 AO (0–10 V / 4–20 mA, 12 bit)",
+          "orderCode": "M91-2-UA2", "src": "https://unitronicsplc.com/m91-series-m91",
+          "hw": {"builtin": {"DI": 12, "DO": 10, "AI": 2, "AO": 2}, "builtinSig": {"AI": "0–10 V / 0–20 / 4–20 mA (14 bit)", "AO": "0–10 V / 4–20 mA (12 bit)"}, "family": "M91", "hwSrc": "https://unitronicsplc.com/m91-series-m91"},
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Rozšiřovací I/O M91 neověřeny – jen vestavěné I/O." },
+        { "brand": "Unitronics", "series": ["M91"],
+          "typical": "M91-2-T38 – M91, 22 DI, 16 DO tranzistor PNP, bez analogů",
+          "orderCode": "M91-2-T38", "src": "https://unitronicsplc.com/m91-series-m91",
+          "hw": {"builtin": {"DI": 22, "DO": 16}, "family": "M91", "hwSrc": "https://unitronicsplc.com/m91-series-m91"},
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "Rozšiřovací I/O M91 neověřeny – jen vestavěné I/O." }
+      ]
+    },
+    "plc_hmi@jazz": {
+      "label": "Operátorský panel HMI (Unitronics Jazz / M91)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Unitronics", "series": ["Jazz / M91 (displej vestavěn)"],
+          "typical": "Textový displej a klávesnice jsou součástí CPU Jazz / M91 – samostatná položka se nepočítá",
+          "src": "https://unitronicsplc.com/jazz-series-jazz/",
+          "priceLevel": "nízká", "suppliers": ["SCHMACHTL CZ spol. s r.o. (oficiální distributor Unitronics)"], "note": "V kusovníku 0 ks navíc." }
+      ]
+    },
     "plc_coupler@unitronics": {
       "label": "PLC – rozhraní vzdálených I/O (Unitronics)",
       "unit": "ks",
@@ -1666,7 +1797,7 @@
       "cats": ["plc_cpu@rockwell", "plc_di@rockwell", "plc_do@rockwell", "plc_ai@rockwell", "plc_ao@rockwell", "plc_coupler@rockwell", "plc_hmi@rockwell"],
       "note": "Ovčáry 297; autorizovaný Value-Add distributor a servisní partner Rockwell Automation, také Belden/Hirschmann; opravy a školení." },
     { "name": "SCHMACHTL CZ spol. s r.o.", "url": "https://www.schmachtl.cz", "country": "CZ", "kind": "distributor",
-      "cats": ["plc_cpu@unitronics", "plc_di@unitronics", "plc_do@unitronics", "plc_ai@unitronics", "plc_ao@unitronics", "plc_coupler@unitronics", "plc_hmi@unitronics"],
+      "cats": ["plc_cpu@unitronics", "plc_di@unitronics", "plc_do@unitronics", "plc_ai@unitronics", "plc_ao@unitronics", "plc_coupler@unitronics", "plc_hmi@unitronics", "plc_cpu@vision", "plc_di@vision", "plc_do@vision", "plc_ai@vision", "plc_ao@vision", "plc_busadapter@vision", "plc_hmi@vision", "plc_cpu@jazz", "plc_hmi@jazz"],
       "note": "Vestec u Prahy (Vídeňská 185) a Zlín; oficiální distributor Unitronics pro ČR (dle unitronicsplc.com), +420 244 001 558. Zastupuje přes 20 výrobců: senzorika a automatizace (Leuze — autorizovaný distributor, Pizzato, PLC), pohony (elektromotory, měniče, serva), strojírenství (čerpadla, spojky); výhradní distributor Wieland pro ČR." },
     { "name": "Mitsubishi Electric Europe B.V., organizační složka (FA)", "url": "https://cz-fa.mitsubishielectric.com/fa", "country": "CZ", "kind": "výrobce",
       "cats": ["plc_cpu@mitsubishi", "plc_di@mitsubishi", "plc_do@mitsubishi", "plc_ai@mitsubishi", "plc_ao@mitsubishi", "plc_hmi@mitsubishi"],

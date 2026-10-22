@@ -22,7 +22,8 @@ const where = (f: EmuFinding) => f.file ? f.file + (f.line ? ":" + f.line + (f.c
 /** Markdown dokument emulace (platformy projektu; bez platforem všech 8). */
 export function emuDocMd(prj: Project): string {
   if (!api) return "";
-  const plats = (prj.platforms && prj.platforms.length ? prj.platforms : Object.keys(PLAT)) as PlatformKey[];
+  /* ruční přenos (VisiLogic / U90 Ladder) nemá kód k emulaci */
+  const plats = ((prj.platforms && prj.platforms.length ? prj.platforms : Object.keys(PLAT)) as PlatformKey[]).filter(p => !PLAT[p]?.manual);
   /* plná matice stavů u menších projektů; u velkých (nad 40 kroků) rychlá sada — plnou spustí emulateAll(prj) */
   const scope = prj.program.seq.length <= 40 ? "full" : "quick";
   const all = api.emulateAll(prj, { platforms: plats, scope });

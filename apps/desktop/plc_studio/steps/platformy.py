@@ -88,11 +88,23 @@ def render(app, parent) -> None:
         parts[0].grid(row=0, column=0, sticky="ew", padx=(12, 4), pady=(10, 2))
         parts[1].grid(row=1, column=0, columnspan=2, sticky="ew", padx=12)
         parts[2].grid(row=2, column=0, columnspan=2, sticky="ew", padx=12, pady=(2, 10))
-        if key in no_axis:
+        nxt = 3
+        if pf.get("manual"):                     # VisiLogic / U90 Ladder: žebříček k ručnímu zadání
             parts[2].grid_configure(pady=(2, 0))
+            man = tk.Label(box, text="✎ " + _("ruční přenos"), bg=bg, fg=theme.WARN, anchor="w",
+                           font=theme.FONT_DIM, cursor="question_arrow")
+            man.grid(row=nxt, column=0, columnspan=2, sticky="ew", padx=12, pady=(2, 10))
+            man.manual_transfer = True              # testy
+            tooltip(man, _("IDE neumí import programu z textu — PLCdesk dá žebříček větev po větvi "
+                           "(Ladder.md / .html) a seznam operandů k ručnímu zadání. Emulace kódu se netýká, "
+                           "simulace návrhu platí."))
+            parts.append(man)
+            nxt += 1
+        if key in no_axis:
+            parts[nxt - 1 if nxt > 3 else 2].grid_configure(pady=(2, 0))
             warn = tk.Label(box, text="⚠ " + _("servoosu nepodporuje"), bg=bg, fg=theme.WARN, anchor="w",
                             font=theme.FONT_DIM, cursor="question_arrow")
-            warn.grid(row=3, column=0, columnspan=2, sticky="ew", padx=12, pady=(2, 10))
+            warn.grid(row=nxt, column=0, columnspan=2, sticky="ew", padx=12, pady=(2, 10))
             warn.axis_warning = True                 # testy
             tooltip(warn, no_axis[key])
             parts.append(warn)

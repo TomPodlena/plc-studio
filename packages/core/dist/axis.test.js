@@ -68,7 +68,7 @@ test("osa: podpora platforem a dialekty (Siemens podle CPU)", () => {
     const p = axisPrj();
     assert.deepEqual(Object.fromEntries(Object.keys(PLAT).map(k => [k, axisDialect(p, k)])), {
         siemens: "s12", beckhoff: "tc", codesys: "sm3", wago: "sml", delta: "sm3", omron: "om", rockwell: "lx",
-        mitsubishi: null, schneider: null, unitronics: null,
+        mitsubishi: null, schneider: null, unitronics: null, vision: null, jazz: null,
         /* profily CODESYS dalších výrobců: SM3 jen kde výrobce dokládá SoftMotion (codesys_profiles.ts) */
         ...Object.fromEntries(CDS_PROFILE_KEYS.map(k => [k, CDS_PROFILES[k].axis])),
     });

@@ -277,6 +277,9 @@ export const DIALECTS: Record<PlatformKey, Dialect> = {
     fns: new Set(["ABS", "ACOS", "ASIN", "ATAN", "COS", "DEG", "LN", "LOG", "RAD", "SIN", "SQRT", "TAN", "TRUNC"]),
     src: { syntax: SRC.pm007, ident: SRC.pm004, conv: SRC.pm007, semi: SRC.pm007, reserved: SRC.pm007, addr: SRC.rm014, ascii: SRC.pm007 },
   }),
+  /* Unitronics VisiLogic / U90 Ladder: ruční přenos žebříčku — kód se neemuluje (emu/index.ts), záznam jen pro úplnost */
+  vision: base({ plat: "vision", label: "Unitronics VisiLogic (Vision / Samba), Ladder — ruční přenos", src: { syntax: SRC.ulRef, ident: SRC.ulDt, conv: SRC.ulRef, semi: SRC.ulRef, reserved: SRC.ulRef } }),
+  jazz: base({ plat: "jazz", label: "Unitronics U90 Ladder (Jazz / M91) — ruční přenos", src: { syntax: SRC.ulRef, ident: SRC.ulDt, conv: SRC.ulRef, semi: SRC.ulRef, reserved: SRC.ulRef } }),
   unitronics: base({
     /* Ověřeno překladačem UniLogic 1.43 (docs/verification/unilogic-1.43.md): END_IF bez „;“ i vnořené komentáře
        přijme, implicitní převod celých čísel bez rozšíření (INT ↔ UINT, DINT → INT…) odmítne „Cannot convert“. */

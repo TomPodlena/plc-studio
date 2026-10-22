@@ -1,7 +1,7 @@
 {
   "_poznamka": "Jediný zdroj pravdy o ověření platforem. Po každém ověření naostro: zapsat záznam sem + protokol do docs/verification/, pak python scripts/build_verification.py (→ packages/core/src/verification_data.ts), build jádra, i18n missing/merge, golden jen README (vědomě). README platforem, výběr platforem v aplikaci (web i desktop) a stránka Platformy webu (apps/site) se aktualizují samy. České texty (summary, notVerified, note) jsou klíče překladu; ide a file jsou technické (bez češtiny).",
   "states": ["verified", "lang", "beta", "unsupported"],
-  "formatStates": ["ide", "compiler", "xsd", "structure", "emulator"],
+  "formatStates": ["ide", "compiler", "xsd", "structure", "emulator", "manual"],
   "scopes": ["classic", "oop", "motion", "axis", "plcopen", "iec61131-10"],
   "platforms": {
     "siemens": {
@@ -110,6 +110,32 @@
       "formats": [
         { "file": "Machine.st", "state": "compiler" },
         { "file": "Tags.csv", "state": "emulator" }
+      ]
+    },
+    "vision": {
+      "state": "beta",
+      "ide": null,
+      "date": "2026-10-21",
+      "scope": ["classic", "motion"],
+      "summary": "ruční přenos: žebříček (Ladder.md / .html) a operandy generuje kód PLCdesk z téhož modelu jako ST UniLogicu, testy hlídají úplnost a jednoznačnost operandů; VisiLogic neumí import z textu",
+      "notVerified": "zadání a překlad ve VisiLogicu, adresy rozšiřovacích modulů, rozsah analogů, běh na Vision / Samba",
+      "evidence": ["docs/verification/unitronics-ladder.md"],
+      "formats": [
+        { "file": "Ladder.md, Ladder.html", "state": "manual" },
+        { "file": "Operandy.csv, IO_mapa.csv", "state": "manual" }
+      ]
+    },
+    "jazz": {
+      "state": "beta",
+      "ide": null,
+      "date": "2026-10-21",
+      "scope": ["classic", "motion"],
+      "summary": "ruční přenos: žebříček (Ladder.md / .html) a operandy generuje kód PLCdesk z téhož modelu jako ST UniLogicu, testy hlídají úplnost a jednoznačnost operandů; U90 Ladder neumí import z textu",
+      "notVerified": "zadání a překlad v U90 Ladder, velikost aplikace (Jazz 24K / M91 32K), výpočty REAL (U90 nemá MF), rozsah analogů, běh na Jazz / M91",
+      "evidence": ["docs/verification/unitronics-ladder.md"],
+      "formats": [
+        { "file": "Ladder.md, Ladder.html", "state": "manual" },
+        { "file": "Operandy.csv, IO_mapa.csv", "state": "manual" }
       ]
     },
     "wago": {

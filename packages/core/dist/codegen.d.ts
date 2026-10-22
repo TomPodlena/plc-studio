@@ -248,6 +248,8 @@ export declare function genReadme(prj: Project, plat: PlatformKey): string;
  * pohonu, tabulka záznamů, rozsahy žádaných, kódy chyb. Parametry pohonu se generátorem nepřenesou.
  */
 export declare function motionReadme(prj: Project, plat: PlatformKey): string;
+/** Řádek README s číslem projektu a zákazníkem pod řádkem PROJEKT (bez údajů ""; do kódu PLC se nepíše). */
+export declare function metaLine(prj: Project): string;
 interface FbVar {
     name: string;
     type: string;
@@ -275,6 +277,23 @@ export declare function uniTags(prj: Project): Array<{
     cmt: string;
 }>;
 export declare function genUnitronicsTags(prj: Project): string;
+/** Část ploché logiky Unitronics: uvolnění, sekvence, zařízení (blok / role), porucha stroje. */
+export interface UniSection {
+    kind: "enable" | "seq" | "dev" | "role" | "fault";
+    dev?: Device;
+    cls?: string;
+    title: string;
+    st: string;
+}
+/**
+ * Plochá logika stroje po částech (dialekt UniLogic, texty s diakritikou) — skládá z ní Machine.st
+ * (UniLogic) i žebříček VisiLogic / U90 (unitronics_ladder.ts). `plat` určuje jen surový rozsah analogů.
+ */
+export declare function uniSections(prj: Project, plat?: PlatformKey): {
+    sections: UniSection[];
+    free: IoEntry[];
+    lib: CodeLibrary;
+};
 /** Logika stroje jako tělo jedné ST funkce pro UniLogic (stav v globálních tazích). */
 export declare function genMainUnitronics(prj: Project): string;
 /** Všechny generované soubory programu pro jednu platformu. */

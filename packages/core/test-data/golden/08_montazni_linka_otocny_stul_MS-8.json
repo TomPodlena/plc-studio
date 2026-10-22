@@ -552,6 +552,26 @@
    "sha256": "91ea74ba7b40de6c9edfb71de879075f44ede39e6f0c63ef4179adc9d9c9c892",
    "size": 3391
   },
+  "code/jazz/IO_mapa.csv": {
+   "sha256": "78cb800bd800722de193aa6ebbdfc86e456da3b529ae0c539daf1d23d058e9c7",
+   "size": 12074
+  },
+  "code/jazz/Ladder.html": {
+   "sha256": "1ab67bcfbae0575f203bf45ff04f1e0bb15a4d41146026de7f0b4e12a9d60128",
+   "size": 323812
+  },
+  "code/jazz/Ladder.md": {
+   "sha256": "0ef330bdcb4fae6e58d646b0a2c65241429b61a924071eed7b158c4e26625240",
+   "size": 454422
+  },
+  "code/jazz/Operandy.csv": {
+   "sha256": "c8c485faf424fdfda054a414e18cd9b96ee61d5e5a6d35410b20a419d4084f2a",
+   "size": 63376
+  },
+  "code/jazz/README.txt": {
+   "sha256": "409054fc70201765fc1f05b849bcd606268813046e7caa970b98740054be490c",
+   "size": 4228
+  },
   "code/lenze/GVL_IO.st": {
    "sha256": "a4c85868bea39a53fbfbd7c828837bfe1ab7e30cdf42052c09af3c0a927a27e1",
    "size": 9455
@@ -715,6 +735,26 @@
   "code/unitronics/Tags.csv": {
    "sha256": "b4da21777630375692153d8a2718b18ea9d5cb8f7275c575d4d2cb225b0d01b4",
    "size": 51841
+  },
+  "code/vision/IO_mapa.csv": {
+   "sha256": "753a52518fe820a95b9e9f97ac18666c2a55174a81f3ffa7b71062cbaf3247af",
+   "size": 12564
+  },
+  "code/vision/Ladder.html": {
+   "sha256": "8e367775421f410b516bea2e452e8b309d20a6e7ef25c285059288a517311069",
+   "size": 322872
+  },
+  "code/vision/Ladder.md": {
+   "sha256": "c0e79d26df22ba6fca99b850d95cb20a4f285670bcc7bb763216c3b6c88dd405",
+   "size": 452788
+  },
+  "code/vision/Operandy.csv": {
+   "sha256": "49fedcdd21d42aedd126a94a6ec129cf56c43d1b88a4704803aea06da449832c",
+   "size": 63260
+  },
+  "code/vision/README.txt": {
+   "sha256": "04dfcfb0c2290f7619406a893894f96f3ef572a90db43cdebfb65dd4d1496f48",
+   "size": 3752
   },
   "code/wago/GVL_IO.st": {
    "sha256": "a4c85868bea39a53fbfbd7c828837bfe1ab7e30cdf42052c09af3c0a927a27e1",
@@ -1366,6 +1406,26 @@
    "sha256": "ef14feaea0db07577ce2f1f9b397df10e5d02f3b41b25c7b3a2599640caaf876",
    "size": 3554
   },
+  "code/jazz/IO_mapa.csv": {
+   "sha256": "caba4766cab7d90a68fcaaffa2c57506d72dd5f33196f6b0c5db4666c022f698",
+   "size": 12154
+  },
+  "code/jazz/Ladder.html": {
+   "sha256": "05cf6ee8799ce682496e99909d36bb9d5181dfa2bffb9787a3323de204670ede",
+   "size": 319963
+  },
+  "code/jazz/Ladder.md": {
+   "sha256": "85bd826d863438791faf381f0e9e27b8903a5ec60ac8680545510395398f2696",
+   "size": 448930
+  },
+  "code/jazz/Operandy.csv": {
+   "sha256": "47f0a9f2cd7a0a184121509f2cafb1690b33b28e09a2f4e5472cc9fb62cb943f",
+   "size": 63533
+  },
+  "code/jazz/README.txt": {
+   "sha256": "53edc7ab7a21ccbd3e961ffdd57d277bba0997e51ce5d172288715bdd5f261f6",
+   "size": 4366
+  },
   "code/lenze/GVL_IO.st": {
    "sha256": "9d161a571fe92c842a00deb15a3f4b1ef75f96a0d9f9275ad0de81dea16576b4",
    "size": 9383
@@ -1529,6 +1589,26 @@
   "code/unitronics/Tags.csv": {
    "sha256": "6786e7d1e63f9498dbc082042831320d4f584ec592143b8ea8faeb660dd15009",
    "size": 52347
+  },
+  "code/vision/IO_mapa.csv": {
+   "sha256": "6df3d1d58c394db23c333dc2282f4aa9f810fc58b003b4678de5f1c92e71842a",
+   "size": 12482
+  },
+  "code/vision/Ladder.html": {
+   "sha256": "b2fc82031cabd6dfbcd7fe33205f9a0a615bfd8bffbfab8abbaf7b30048bdf20",
+   "size": 319046
+  },
+  "code/vision/Ladder.md": {
+   "sha256": "0b4f806a0d9a2d30effb8f6bf39b92bc7d437e2a8b9e96b2f9077b89f204d8a6",
+   "size": 447319
+  },
+  "code/vision/Operandy.csv": {
+   "sha256": "8b8aed5020ae11e84a0d0b616db2a7eebbca23dc2e07bba0c39c63b721b0b140",
+   "size": 63417
+  },
+  "code/vision/README.txt": {
+   "sha256": "daabb9223cb281589707ad595af85cb874b6d7f698e30d1cfa27a08353779842",
+   "size": 3928
   },
   "code/wago/GVL_IO.st": {
    "sha256": "9d161a571fe92c842a00deb15a3f4b1ef75f96a0d9f9275ad0de81dea16576b4",
@@ -2180,6 +2260,26 @@
    "sha256": "3db7cc4a6f13c374ae597b3b8858dfd0b429ac19ab15a03b552b2b9588d601f2",
    "size": 3801
   },
+  "code/jazz/IO_mapa.csv": {
+   "sha256": "95f5ff0b2e62e53b440b8550552d3737b1926b8037d3f3baa26bb1d79863a70b",
+   "size": 12346
+  },
+  "code/jazz/Ladder.html": {
+   "sha256": "e312ab624959d2570c220dcffce190302b60bdbf1bf7f324778114385a762b89",
+   "size": 328171
+  },
+  "code/jazz/Ladder.md": {
+   "sha256": "a8f0bb6d4ebdbd1a0480e8edd33dbf4e3e07078b1f4c52350e1f49ac9cf506f7",
+   "size": 458781
+  },
+  "code/jazz/Operandy.csv": {
+   "sha256": "bc991d36d58ca98d56668c8639bd59e79c7ac7e17a9cee150b1579405a6062ec",
+   "size": 64467
+  },
+  "code/jazz/README.txt": {
+   "sha256": "269cefa54f0cc13cbb539563ceddd1322e3896840139f07c55188f4a0944942e",
+   "size": 4668
+  },
   "code/lenze/GVL_IO.st": {
    "sha256": "4a0d9372e70441a37c328a179407b194c8419cb191c7fd86955f6553f5dcf1c5",
    "size": 9488
@@ -2343,6 +2443,26 @@
   "code/unitronics/Tags.csv": {
    "sha256": "8ac70be794a98d5d98800c2fa79bc8ef8942047823906aed4d8efb004de97b84",
    "size": 54183
+  },
+  "code/vision/IO_mapa.csv": {
+   "sha256": "655f371e2174adfa8c28c4d4afabcb0901a2680258538a18838e5ae8dc379179",
+   "size": 12755
+  },
+  "code/vision/Ladder.html": {
+   "sha256": "b5bf06a9797bc6e10ded1a945adf2f6f641e06cc20ad561e931e5f98fe04a6a9",
+   "size": 327219
+  },
+  "code/vision/Ladder.md": {
+   "sha256": "d9c4ca6012ad270f9265bd156acc9d483a5a60cc1b136c134e2a1ac555d38d71",
+   "size": 457135
+  },
+  "code/vision/Operandy.csv": {
+   "sha256": "465b2e4e7c4957d8fde05825734563a0e9b4dc5bef400eae3f51b90aafe265ce",
+   "size": 64351
+  },
+  "code/vision/README.txt": {
+   "sha256": "bf10b348db2c0f1d9e4ec4b02f9dc183d0954e5990912fc0d0e6d4a624c4f4d7",
+   "size": 4145
   },
   "code/wago/GVL_IO.st": {
    "sha256": "4a0d9372e70441a37c328a179407b194c8419cb191c7fd86955f6553f5dcf1c5",
@@ -2994,6 +3114,26 @@
    "sha256": "57310c7cafd3cf4c6ffd07c34843131baa5b1c6d8e89eefd77210890ac79db55",
    "size": 3965
   },
+  "code/jazz/IO_mapa.csv": {
+   "sha256": "d7e32afb19456239a26d62df8663f85e3c1db5cb1ec3b779f7b106011be998e7",
+   "size": 12052
+  },
+  "code/jazz/Ladder.html": {
+   "sha256": "f6b1bf8692b82cb39889e21a85e12cf8796f160226279e465ff530d57eb6894c",
+   "size": 327756
+  },
+  "code/jazz/Ladder.md": {
+   "sha256": "4f5f35aa717e0e4142d68577d099e2a683306597efe63221ece973f0b8b180d9",
+   "size": 458412
+  },
+  "code/jazz/Operandy.csv": {
+   "sha256": "4c3e94bd7bcb4de399b953d19847116560f48f7e4c37bc0561fc9636145ae663",
+   "size": 65065
+  },
+  "code/jazz/README.txt": {
+   "sha256": "5bfed16952a6b6267cd084fdb81ef09b4a559b37c330f6aed75ae9d7111a590a",
+   "size": 4885
+  },
   "code/lenze/GVL_IO.st": {
    "sha256": "b92a15a7307c696170a376113c14d48f1d50196c2358c9f75613fc62800c44a8",
    "size": 9586
@@ -3157,6 +3297,26 @@
   "code/unitronics/Tags.csv": {
    "sha256": "fb8b782d83f0b289a942ab77f3f144f0e6ca261976ca7cb81b2d65d6e998ea2d",
    "size": 54239
+  },
+  "code/vision/IO_mapa.csv": {
+   "sha256": "6d214b6210de60a7bc3ad7612da901c3653d0b806edbb0b4bd4f215a7272e04c",
+   "size": 12785
+  },
+  "code/vision/Ladder.html": {
+   "sha256": "1bed0558ea4b2313f15cef0bba0fe209906461f8d85d70885df2535806671812",
+   "size": 326797
+  },
+  "code/vision/Ladder.md": {
+   "sha256": "2e1f814dde30bdeb9e0a7ddd757ac4b48f7f03a8b7fc6c270c5a86a37860d8a8",
+   "size": 456759
+  },
+  "code/vision/Operandy.csv": {
+   "sha256": "e0c430ae02eaa36883074ab5276b8375176f404cf52d08f5726499c39bfb339c",
+   "size": 64949
+  },
+  "code/vision/README.txt": {
+   "sha256": "5c5b9260be2effc90019209fdd77881ea62ea29e81a5b12c47da40cab46f749d",
+   "size": 4382
   },
   "code/wago/GVL_IO.st": {
    "sha256": "b92a15a7307c696170a376113c14d48f1d50196c2358c9f75613fc62800c44a8",
@@ -3808,6 +3968,26 @@
    "sha256": "127e167989d0aeec422c853eccb6e283dc07aadd24bb97278055f5a59006e2d3",
    "size": 3397
   },
+  "code/jazz/IO_mapa.csv": {
+   "sha256": "6f78e1d5f773a5ba44b9ebd08c24a9bc6017200abaf953901769d6ecdffdb80d",
+   "size": 11834
+  },
+  "code/jazz/Ladder.html": {
+   "sha256": "34a3d7fb50b3f54bd8eafbad68708b7408079a045e092b6d919197d3a8bf0f9c",
+   "size": 323214
+  },
+  "code/jazz/Ladder.md": {
+   "sha256": "4dc83e82c52111e403fda273d0589ea1d9faac7e3325efa298a0ad03dc19f858",
+   "size": 450584
+  },
+  "code/jazz/Operandy.csv": {
+   "sha256": "fcfd97625ff197393461437d83b6cdee9675155ed69b36f597ebd2aebad827d3",
+   "size": 63213
+  },
+  "code/jazz/README.txt": {
+   "sha256": "6e8d632cfbccf867e84baa78bfd18088f79ead4be72036b672cd2036c979a31d",
+   "size": 4160
+  },
   "code/lenze/GVL_IO.st": {
    "sha256": "90babb4b1946bf01454bd25cbbcf3fcccb63b55fd817ed65d6ac00515cff0a35",
    "size": 9543
@@ -3971,6 +4151,26 @@
   "code/unitronics/Tags.csv": {
    "sha256": "20cce34026ad0449f3014cb4da37750de7bb30e3584d01771e534e8002a92989",
    "size": 52027
+  },
+  "code/vision/IO_mapa.csv": {
+   "sha256": "bc0767c916860f3447d34b3669c4e3ef19c4c9edf4738f5eb95e2027fcb3c4e2",
+   "size": 12162
+  },
+  "code/vision/Ladder.html": {
+   "sha256": "b0eb9be6ef3ab46376332b4386fb44d41141a121703b39fe85d037587d605890",
+   "size": 322276
+  },
+  "code/vision/Ladder.md": {
+   "sha256": "7cb11541e049a8719228dd80914e5446b45e67832d0d9635f986c1b0ec5f1b8c",
+   "size": 448952
+  },
+  "code/vision/Operandy.csv": {
+   "sha256": "8408785cb2857a8f4500279f8c7a658a5762a69d8ca62bc1fba94bfcc3d6768f",
+   "size": 63097
+  },
+  "code/vision/README.txt": {
+   "sha256": "1dd820b28600f7f2d30e2286062389b53943314f18969084cf56be549f60aeb9",
+   "size": 3686
   },
   "code/wago/GVL_IO.st": {
    "sha256": "90babb4b1946bf01454bd25cbbcf3fcccb63b55fd817ed65d6ac00515cff0a35",

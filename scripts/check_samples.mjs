@@ -50,6 +50,12 @@ function codeProblems(plat, out, prj) {
     const und = [...new Set(body.match(/[A-Za-z_][A-Za-z0-9_]*/g))].filter(i => !kw.has(i) && !tags.has(i));
     if (und.length) errs.push(`unitronics/Machine.st: nedeklarované identifikátory ${und.slice(0, 5).join(", ")}`);
   }
+  if (core.isManualPlat(plat)) {
+    /* ruční přenos: převod bez nepodporovaných konstrukcí, CSV a kresby ASCII, každý tag jako operand */
+    for (const x of core.buildLadder(prj, plat).problems) errs.push(`${plat}: převod do žebříčku: ${x}`);
+    for (const n of ["Operandy.csv", "IO_mapa.csv"]) if (/[^\x00-\x7F]/.test(out[n])) errs.push(`${plat}/${n}: není ASCII`);
+    for (const b of out["Ladder.md"].match(/```\n[\s\S]*?```/g) || []) if (/[^\x00-\x7F]/.test(b)) { errs.push(`${plat}/Ladder.md: kresba není ASCII`); break; }
+  }
   if (plat === "rockwell") {
     /* L5X well-formed, žádné konstrukce IEC, TONR s PRE před voláním, vše deklarované, ASCII */
     for (const e of core.logixProblems(out, prj.devices.filter(d => d.cls === "Axis").map(core.axisObjName))) errs.push(`rockwell/${e}`);
@@ -75,8 +81,12 @@ for (const file of files) {
     const all = Object.keys(core.PLAT);
     prj.platforms = all;
     const blocked = all.filter(p => core.axisBlocked(prj, p));
+    /* ruční přenos (Vision / Jazz): malá CPU bez vzdálených I/O — do projektu jen když se I/O vejdou (jinak validace = chyba) */
     prj.platforms = all.filter(p => !blocked.includes(p));
     core.syncIO(prj);
+    const small = all.filter(p => core.isManualPlat(p) && !blocked.includes(p)
+      && core.hwIssues({ ...prj, platforms: [p] }).some(i => i.level === "error"));
+    prj.platforms = prj.platforms.filter(p => !small.includes(p));
     r.name = prj.meta.name; r.devices = prj.devices.length; r.io = prj.io.length; r.steps = prj.program.seq.length;
     r.axisBlocked = blocked;
     for (const v of core.validateProject(prj)) if (v.level === "error") r.errors.push(`validace: ${v.where}: ${v.msg}`);
