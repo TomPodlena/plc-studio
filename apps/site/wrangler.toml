@@ -47,7 +47,11 @@ APP_NAME = "PLCdesk"
 PUBLIC_SITE = "https://plcdesk.podlena-t.workers.dev"
 # "direct" = free tarif bez vlastni domeny: zadne e-maily, odkaz ke stazeni se ukaze na strance.
 # "resend" = az bude domena a overeny odesilatel v Resend (MAIL_FROM + secret RESEND_API_KEY).
-MAIL_MODE = "direct"
+# "owner"  = bez domeny: jen e-maily provozovateli MAIL_OWNER (upozorneni na beta prihlasky) pres testovaciho
+#            odesilatele Resend; vyzaduje secret RESEND_API_KEY z uctu Resend zalozeneho na MAIL_OWNER.
+#            Zakaznikum se chova jako "direct".
+MAIL_MODE = "owner"
+MAIL_OWNER = "podlena.t@gmail.com"
 MAIL_FROM = ""
 MAIL_REPLY_TO = ""
 MAIL_SIGNATURE = "PLCdesk"
