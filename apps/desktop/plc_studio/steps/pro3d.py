@@ -20,7 +20,8 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from .. import pro_agent, pro_pipeline, theme
-from ..i18n import _
+from ..i18n import N_, _
+from ..pro3d_download import listing as dl
 from ..widgets import card, note_box, scrolled_text, tooltip, wrap_label
 
 THUMB = 200          # nejdelší strana náhledu snímku (px)
@@ -352,6 +353,7 @@ def render(app, parent) -> None:
     ttk.Button(row2, text=_("Načíst zpětnou vazbu z CAD…"), command=do_fb).pack(side="right")
 
     _prompts_view(app, parent, running)
+    _downloads_view(app, parent, folder)
 
     # --- log ---
     logc = card(parent, "LOG", _("Průběh"))
@@ -595,6 +597,201 @@ def _state_view(app, parent, folder: Path | None, st: dict) -> None:
         lbl.bind("<Button-1>", lambda _e, p=p: _open_file(p))
         ttk.Label(cell, text=Path(p).name[:30], style="Dim.TLabel").pack()
     app.pro_thumbs = imgs                               # reference (GC) — jinak obrázky zmizí
+
+
+DL_STATUS = {dl.ST_REGISTERED: N_("staženo"), dl.ST_DOWNLOADED: N_("staženo — nezaevidováno"),
+             dl.ST_LIBRARY: N_("v knihovně"), dl.ST_MISSING: N_("chybí"), dl.ST_PLACEHOLDER: N_("zástupný")}
+DL_HOW = {"name": N_("název souboru"), "code_name": N_("objednací kód v názvu"), "code_header": N_("objednací kód v hlavičce STEP"),
+          "type_name": N_("typ v názvu"), "type_header": N_("typ v hlavičce STEP")}
+
+
+def _dl_manifest(app, folder: Path) -> dict | None:
+    """Manifest aktuálního projektu (most ``cad``), jinak PLCdesk_CAD.json ze složky stroje."""
+    try:
+        return json.loads(app.bridge.request("cad", prj=app.prj)["json"])
+    except Exception:  # noqa: BLE001 — most nedostupný → soubor
+        try:
+            return json.loads((folder / "PLCdesk_CAD.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+
+
+def confirm_pairs(app, props: list[dict]) -> list[dict]:
+    """Dialog: návrhy párování stažených souborů (uživatel potvrdí). ``app.pro_dl_confirm`` = podvržení v testech."""
+    hook = getattr(app, "pro_dl_confirm", None)
+    if hook is not None:
+        return hook(props)
+    win = tk.Toplevel(app.root)
+    win.title(_("Párování stažených souborů"))
+    win.transient(app.root)
+    wrap_label(win, _("Tyto soubory odpovídají dílům podle objednacího kódu nebo typu. Potvrzené se zkopírují do "
+                      "models/manual pod přesným názvem a zaevidují."), pady=(8, 4))
+    vars_ = []
+    for p in props:
+        v = tk.BooleanVar(value=p["how"].startswith("code") or p["how"] == "name")
+        vars_.append(v)
+        ttk.Checkbutton(win, variable=v, text=f"{p['shown']}  →  {p['partId']}  ({_(DL_HOW.get(p['how'], p['how']))})"
+                        ).pack(anchor="w", padx=10)
+    out: list[dict] = []
+
+    def ok() -> None:
+        out.extend(p for p, v in zip(props, vars_) if v.get())
+        win.destroy()
+
+    row = ttk.Frame(win)
+    row.pack(fill="x", padx=10, pady=8)
+    ttk.Button(row, text=_("Převzít vybrané"), command=ok).pack(side="right")
+    ttk.Button(row, text=_("Zrušit"), command=win.destroy).pack(side="right", padx=(0, 6))
+    win.app_vars = vars_                                # Tk proměnné živé (GC)
+    win.grab_set()
+    app.root.wait_window(win)
+    return out
+
+
+def load_downloads(app, folder: Path, man: dict, rows: list[dict], *, thread: bool = True) -> str:
+    """„Načíst stažené“: návrhy párování (models/manual + volitelně Stažené soubory) → potvrzení → registrace
+    (FreeCAD ve vlastní instanci, vlákno) → výsledek v kartě. Vrací ``started`` / ``nothing``."""
+    md = folder / dl.MODELS_SUB
+    extra = [dl.downloads_dir()] if app.settings.get("pro3d_downloads", True) else []
+    props = dl.find_downloads(man, rows, md, [d for d in extra if d])
+    sure = [p for p in props if p["sure"]]
+    rest = [p for p in props if not p["sure"]]
+    chosen = confirm_pairs(app, rest) if rest else []
+    dl.accept(sure + chosen, md)
+    if not sure and not chosen:
+        app.set_status(_("Žádný nový stažený model k zaevidování."), keep=True)
+        return "nothing"
+    by = app.settings.get("approver") or ""
+    app.pro_dl_busy = True
+    app.set_status(_("Ověřuji a eviduji stažené modely (FreeCAD, vlastní instance)…"), keep=True)
+
+    def work() -> None:
+        try:
+            rep = dl.register_downloads(folder, man, by)
+        except Exception as exc:  # noqa: BLE001 — chyba se ukáže v kartě
+            rep = {"error": str(exc), "registered": [], "rejected": [], "unmatched": [], "warnings": []}
+
+        def done() -> None:
+            app.pro_dl_report = rep
+            app.pro_dl_busy = False
+            app.render()
+
+        try:
+            app.root.after(0, done)
+        except (tk.TclError, RuntimeError):
+            pass
+
+    if thread:
+        threading.Thread(target=work, daemon=True).start()
+    else:
+        work()
+    return "started"
+
+
+def _dl_report_text(rep: dict) -> str:
+    if rep.get("error"):
+        return _("Registrace selhala: {exc}", exc=rep["error"])
+    rp = rep.get("replace") or {}
+    txt = _("Zaevidováno {a}, odmítnuto {r}, nespárováno {u}; v modelu stroje nahrazeno zástupných {n}.",
+            a=len(rep.get("registered") or []), r=len(rep.get("rejected") or []), u=len(rep.get("unmatched") or []),
+            n=len(rp.get("replaced") or []))
+    for x in rep.get("rejected") or []:
+        txt += "\n" + _("Odmítnuto {file}: {why}", file=x["file"], why=x["why"])
+    for w in rep.get("warnings") or []:
+        txt += "\n" + _("Pozor {part}: {why}", part=w["partId"], why=w["why"])
+    if rp.get("error"):
+        txt += "\n" + _("Náhrada v modelu: {exc}", exc=rp["error"])
+    return txt
+
+
+def _downloads_view(app, parent, folder: Path | None) -> None:
+    box = card(parent, "⬇", _("Modely ke stažení"), expand=False)
+    note_box(box, _("Modely výrobců stahuješ ty v prohlížeči — podmínky 3Dfindit / CADENAS, TraceParts i portálů "
+                    "výrobců automatické stahování nedovolují. Ulož soubor STEP pod přesným názvem do models/manual "
+                    "(nebo ho nech ve Stažených souborech) a klikni Načíst stažené."), pady=(0, 6))
+    man = _dl_manifest(app, folder) if folder is not None else None
+    if folder is None or man is None:
+        wrap_label(box, _("Seznam vznikne, až bude složka stroje a manifest pro CAD."))
+        return
+    pidx = dl.load_parts_index(folder)
+    md = folder / dl.MODELS_SUB
+    rows = dl.download_list(man, pidx, md)
+    c = dl.counts(rows, man, pidx)
+    app.pro_dl_rows = rows
+    ttk.Label(box, text=_("Dle dokumentace {d} · staženo {s} · zbývá {r} · zástupné {z}", d=c[dl.ST_DOC],
+                          s=c[dl.ST_REGISTERED], r=c["remaining"], z=c[dl.ST_PLACEHOLDER])).pack(anchor="w")
+    cols = (("part", _("Díl"), 150), ("vendor", _("Výrobce"), 110), ("code", _("Obj. kód"), 130),
+            ("file", _("Soubor"), 190), ("status", _("Stav"), 150))
+    tree = ttk.Treeview(box, columns=[k for k, _t, _w in cols], show="headings", height=min(10, max(3, len(rows))),
+                        selectmode="browse")
+    for k, t, w in cols:
+        tree.heading(k, text=t)
+        tree.column(k, width=w, anchor="w")
+    for i, r in enumerate(rows):
+        tree.insert("", "end", iid=str(i), values=(r["partId"], r["vendorName"], r["orderCode"] or "—", r["file"],
+                                                    _(DL_STATUS[r["status"]])))
+    tree.pack(fill="x", pady=(4, 0))
+    app.pro_dl_tree = tree
+    info = ttk.Label(box, text="", style="Dim.TLabel", wraplength=760, justify="left")
+    info.pack(anchor="w", pady=(2, 0))
+
+    def sel() -> dict | None:
+        s = tree.selection()
+        return rows[int(s[0])] if s else None
+
+    def show(_e=None) -> None:
+        r = sel()
+        if r:
+            info.configure(text=(r["note"] + ("" if r["urlVerified"] else "  " + _("(vzor odkazu neověřen)"))
+                                 + "\n" + r["url"]))
+
+    tree.bind("<<TreeviewSelect>>", show)
+    tree.bind("<Double-1>", lambda _e: do_open())
+
+    def do_open() -> None:
+        r = sel()
+        if r:
+            import webbrowser
+            webbrowser.open(r["url"])
+
+    def open_dir() -> None:
+        p = md / dl.MANUAL_SUB
+        p.mkdir(parents=True, exist_ok=True)
+        _open_file(str(p))
+
+    def open_html() -> None:
+        dl.write_lists(folder, man, pidx)
+        _open_file(str(folder / dl.LIST_HTML))
+
+    def from_lib() -> None:
+        dl.take_from_library(rows, md)
+        load_downloads(app, folder, man, dl.download_list(man, pidx, md))
+
+    row = ttk.Frame(box)
+    row.pack(fill="x", pady=(6, 0))
+    ttk.Button(row, text=_("Otevřít"), command=do_open).pack(side="left")
+    ttk.Button(row, text=_("Otevřít složku"), command=open_dir).pack(side="left", padx=(6, 0))
+    b_load = ttk.Button(row, text=_("Načíst stažené"), command=lambda: load_downloads(app, folder, man, rows))
+    b_load.pack(side="left", padx=(6, 0))
+    tooltip(b_load, _("Najde soubory v models/manual (a ve Stažených souborech), nabídne párování, ověří STEP ve "
+                      "FreeCADu (vlastní instance) a zaeviduje je; zástupné díly v modelu stroje nahradí."))
+    if getattr(app, "pro_dl_busy", False):
+        b_load.state(["disabled"])
+    if c[dl.ST_LIBRARY]:
+        ttk.Button(row, text=_("Převzít z knihovny ({n})", n=c[dl.ST_LIBRARY]), command=from_lib
+                   ).pack(side="left", padx=(6, 0))
+    ttk.Button(row, text=_("Seznam STAHNOUT.html"), command=open_html).pack(side="left", padx=(6, 0))
+    var = tk.BooleanVar(value=bool(app.settings.get("pro3d_downloads", True)))
+    app.pro_dl_var = var
+
+    def toggle() -> None:
+        app.settings["pro3d_downloads"] = bool(var.get())
+        app.save_settings()
+
+    ttk.Checkbutton(row, text=_("Hledat i ve Stažených souborech"), variable=var, command=toggle).pack(side="right")
+    rep = getattr(app, "pro_dl_report", None)
+    if rep:
+        wrap_label(box, _dl_report_text(rep), pady=(6, 0))
 
 
 def _open_file(p: str) -> None:

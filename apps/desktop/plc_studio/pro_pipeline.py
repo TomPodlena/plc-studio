@@ -170,7 +170,11 @@ stavem „zástupný“ nebo mimo index. Spojovací materiál (ISO 4762 / 7380 /
 lišty TS35 (EN 60715) a vývodky SKINTOP generuj stejně, např.:
   {cmd}   (díly: "ISO4762 M6x20" "ISO4032 M6" "TS35 7.5x450" "SKINTOP M20" "ISO15552 32x100")
 Osy: válce +X (zadní čelo x = 0, pístnice v podčásti „Pistnice“ s Konstrukce_Pohyb), přístroje na lištu a skříňky
-X = šířka, Y = hloubka od montážní roviny, panelové přístroje čelo panelu y = 0 (tělo k −Y), šrouby osa −Z od hlavy."""
+X = šířka, Y = hloubka od montážní roviny, panelové přístroje čelo panelu y = 0 (tělo k −Y), šrouby osa −Z od hlavy.
+Modely výrobců stažené RUČNĚ (models/index.json, zdroj manual-*, soubor models/manual/<partId-safe>.stp, FCStd vedle
+něj; seznam STAHNOUT.md) mají PŘEDNOST: díl se zaevidovaným modelem vlož jako App::Link na jeho FCStd (jinak STEP
+importuj jednou do vlastního FCStd v models/manual/), model výrobce neměň; pořadí model výrobce → dle dokumentace →
+zástupný. Modely sám nestahuj (podmínky portálů) — chybějící zůstanou zástupné."""
 
 
 K5_CHECKS = """Postup kontroly:
@@ -339,6 +343,8 @@ def make_inputs(folder: str | Path, prj: dict, *, bridge=None, log=print) -> lis
         put("projekt.plcstudio.json", json.dumps(orig, ensure_ascii=False, indent=1))
         log(_("Vstupy: manifest pro CAD…"))
         put("PLCdesk_CAD.json", bridge.call("cadManifestJson", orig))
+        log(_("Vstupy: seznam modelů ke stažení…"))
+        written += write_download_list(folder, log=log)
         synced = bridge.mutate("syncIO", copy.deepcopy(orig))
         log(_("Vstupy: kusovník…"))
         put("KUSOVNIK.csv", bridge.call("bomCsv", synced), "utf-8-sig")
@@ -376,6 +382,19 @@ def make_inputs(folder: str | Path, prj: dict, *, bridge=None, log=print) -> lis
         if own:
             bridge.close()
     return written
+
+
+def write_download_list(folder: str | Path, *, log=print) -> list[str]:
+    """STAHNOUT.md / .html (modely výrobců k ručnímu stažení, ``pro3d_download``) nad ``PLCdesk_CAD.json``; díly
+    „dle dokumentace“ z ``dily/parts_index.json`` (bez něj z mapování generátorů). Chyba postup nezastaví."""
+    from .pro3d_download import listing as dl
+    folder = Path(folder)
+    try:
+        man = json.loads((folder / "PLCdesk_CAD.json").read_text(encoding="utf-8"))
+        return dl.write_lists(folder, man)["files"]
+    except (OSError, ValueError, KeyError) as exc:
+        log(_("Seznam modelů ke stažení nevznikl: {exc}", exc=exc))
+        return []
 
 
 def make_parts(folder: str | Path, *, log=print, slot: str = PARTS_SLOT, timeout: int = 1800) -> dict:
@@ -697,6 +716,8 @@ class Pipeline:
                        a=s.get("dle_dokumentace", 0), n=s.get("radku", 0), z=s.get("zastupne", 0)))
         if res.get("chyba"):
             self.log(_("Normalizované díly — chyba: {exc}", exc=res["chyba"]))
+        if (self.folder / "PLCdesk_CAD.json").is_file():   # seznam ke stažení bez dílů „dle dokumentace“
+            write_download_list(self.folder, log=self.log)
         self.save()
 
     def _agent(self, unit: str, role: str, prompt: str, rnd: int) -> dict:

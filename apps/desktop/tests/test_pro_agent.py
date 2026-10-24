@@ -225,6 +225,26 @@ class StepTest(unittest.TestCase):
             from plc_studio import helppanel
             self.assertEqual(helppanel.chapter_for_step(app, STEP_PRO), "pro3d")
             self.assertIsNotNone(helppanel.chapter(app, "pro3d"))
+            # karta Modely ke stažení: tabulka, Načíst stažené (registrace podvržená — bez FreeCADu)
+            from plc_studio.pro3d_download import listing as dl
+            self.assertIsNotNone(app.pro_dl_tree)
+            man = pro3d._dl_manifest(app, d)
+            self.assertIsNotNone(man)
+            rows = dl.download_list(man, None, d / "models")
+            self.assertEqual(len(app.pro_dl_tree.get_children()), len(rows))
+            if rows:
+                (d / "models" / "manual").mkdir(parents=True, exist_ok=True)
+                (d / "models" / "manual" / rows[0]["file"]).write_text("ISO-10303-21;\n", encoding="utf-8")
+                app.settings["pro3d_downloads"] = False
+                rep = {"registered": [{"partId": rows[0]["partId"]}], "rejected": [], "unmatched": [], "warnings": [],
+                       "replace": {"replaced": []}}
+                with mock.patch.object(dl, "register_downloads", return_value=rep) as reg:
+                    self.assertEqual(pro3d.load_downloads(app, d, man, rows, thread=False), "started")
+                self.assertEqual(reg.call_count, 1)
+                self.root.update()
+                self.assertIs(app.pro_dl_report, rep)
+                app.pro_dl_report = None
+                app.settings.pop("pro3d_downloads", None)
             # Spustit bez potvrzení nic nespustí (placené jen se souhlasem)
             with mock.patch.object(pa, "find_claude", return_value=Path(sys.executable)):
                 self.assertIsNone(pro3d.start_pipeline(app, None, confirm=lambda: False))

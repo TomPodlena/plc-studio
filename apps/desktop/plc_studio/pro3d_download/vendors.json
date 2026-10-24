@@ -1,0 +1,148 @@
+{
+ "format": "plcdesk-pro3d-vendors",
+ "version": 1,
+ "checked": "2026-10-24",
+ "about": "Vzory adres stránek produktů výrobců pro RUČNÍ stahování modelů (člověk v prohlížeči). Nic se neskriptuje ani nestahuje. {code} = objednací kód, {code_alnum} = jen písmena a číslice, {query} = kód, jinak typ. verified = vzor ověřen čtením veřejné HTML stránky (datum checked); false = stránka vrací 403 / vykresluje se až skriptem / 404 — vzor je převzatý z dřívější rešerše a je třeba ho ověřit v prohlížeči. library_ok = podmínky dovolují opakované interní použití modelu (firemní knihovna %APPDATA%\\PLCStudio\\model_library) — jen s citací podmínek; neznámé = false (jen k projektu).",
+ "vendors": {
+  "festo": {
+   "name": "Festo", "match": ["festo"], "kind": "product",
+   "url": "https://www.festo.com/cz/cs/a/{code}/",
+   "verified": false, "verify_note": "HTTP 403 pro automatické čtení (2026-10-24); vzor z rešerše 2026-10-14 (staging register_manual.py)",
+   "registration": "přihlášení k festo.com (zdarma) pro CAD", "format": "STEP AP214 (CAD přes eCATALOG CADENAS)",
+   "library_ok": false,
+   "terms": "CAD na festo.com běží na CADENAS eCATALOG → podmínky CADENAS: modely jen k projektu, vlastní databáze modelů ne (čl. 8 (1))",
+   "terms_src": "https://www.cadenas.de/terms-of-use-3d-cad-models"
+  },
+  "smc": {
+   "name": "SMC", "match": ["smc"], "kind": "search",
+   "url": "https://www.smc.eu/cs-cz/search?text={query}",
+   "verified": false, "verify_note": "stránka hledání se vykresluje až skriptem — výsledek z HTML neověřen (2026-10-24)",
+   "registration": "část CAD po registraci (zdarma)", "format": "STEP AP214 (knihovna CADENAS)",
+   "library_ok": false,
+   "terms": "knihovna „uses the CADENAS system“ → podmínky CADENAS (jen k projektu)",
+   "terms_src": "https://www.smcworld.com/cadlib/en/help.jsp"
+  },
+  "siemens": {
+   "name": "Siemens (SiePortal)", "match": ["siemens", "innomotics"], "kind": "product",
+   "url": "https://sieportal.siemens.com/en-ww/products-services/detail/{code}",
+   "search": "https://sieportal.siemens.com/en-ww/search?searchTerm={query}",
+   "verified": false, "verify_note": "SiePortal se vykresluje až skriptem („Loading…“, 2026-10-24); vzor z rešerše 2026-10-14",
+   "registration": "bezplatný účet Siemens; produkt → CAx data, víc kódů najednou CAx Download Manager (ZIP)", "format": "STEP (v ZIP balíku CAx — rozbalit 3D STEP)",
+   "library_ok": true,
+   "terms": "„dürfen nur von Siemens-Kunden für interne Zwecke … verwendet werden … Jede andere Nutzung erfordert eine schriftliche Genehmigung“ — interní použití povoleno, nepředávat třetím",
+   "terms_src": "https://www.automation.siemens.com/bilddb/index.aspx"
+  },
+  "rittal": {
+   "name": "Rittal", "match": ["rittal"], "kind": "portal",
+   "url": "https://www.rittal.com/sg-en/Software/CAD-Data",
+   "verified": false, "verify_note": "vzory produktu a hledání vrací 404 (2026-10-24) — odkaz na stránku CAD dat, kód {code} zadat do hledání",
+   "registration": "CAD přes rittal.partcommunity.com (účet CADENAS)", "format": "STEP AP214",
+   "library_ok": false,
+   "terms": "„Download data directly via the PARTcommunity Web platform“ → podmínky CADENAS (jen k projektu)",
+   "terms_src": "https://www.rittal.com/sg-en/Software/CAD-Data"
+  },
+  "phoenix": {
+   "name": "Phoenix Contact", "match": ["phoenix"], "kind": "product",
+   "url": "https://www.phoenixcontact.com/en-pc/products/{code}",
+   "verified": false, "verify_note": "HTTP 403 pro automatické čtení (2026-10-24)",
+   "registration": "bez registrace / účet myPhoenix; produkt → Downloads → CAD data", "format": "STEP",
+   "library_ok": true,
+   "terms": "Terms of Use for WORKS čl. 3.3.2: „CAD data … are for the purpose of distributing the USER's own products“ — použití pro vlastní výrobky (stroje) dovoleno, úpravy a předání jen s písemným souhlasem (čl. 3.5)",
+   "terms_src": "https://assets.phoenixcontact.com/file/10479e5a-a2ef-49ec-b119-771ecb9d8d30/media/original"
+  },
+  "wago": {
+   "name": "WAGO", "match": ["wago"], "kind": "product",
+   "url": "https://www.wago.com/global/p/{code}",
+   "verified": true, "verify_note": "stránka produktu 2002-1201 se záložkou Downloads (2026-10-24)",
+   "registration": "jednorázové přihlášení; CAD přes wago.partcommunity.com", "format": "STEP AP214",
+   "library_ok": false,
+   "terms": "CAD přes wago.partcommunity.com = CADENAS → podmínky CADENAS (jen k projektu)",
+   "terms_src": "https://www.wago.com/global/trends-topics-technologies/topics/digital-engineering/design-cad-data"
+  },
+  "ifm": {
+   "name": "ifm electronic", "match": ["ifm"], "kind": "product",
+   "url": "https://www.ifm.com/cz/cs/product/{code}",
+   "verified": true, "verify_note": "stránka produktu IFS204 (2026-10-24); odkaz na CAD z HTML neověřen",
+   "registration": "neověřeno (dříve bez registrace)", "format": "STEP",
+   "library_ok": false,
+   "terms": "podmínky CAD dat ifm nenalezeny → neznámé = jen k projektu",
+   "terms_src": ""
+  },
+  "sick": {
+   "name": "SICK", "match": ["sick"], "kind": "search",
+   "url": "https://www.sick.com/cz/cs/search?text={query}",
+   "verified": false, "verify_note": "stránka se vykresluje až skriptem (2026-10-24)",
+   "registration": "účet SICK ID pro CAD", "format": "STEP",
+   "library_ok": false,
+   "terms": "podmínky CAD dat neověřeny → jen k projektu",
+   "terms_src": ""
+  },
+  "pepperl": {
+   "name": "Pepperl+Fuchs", "match": ["pepperl"], "kind": "search",
+   "url": "https://www.pepperl-fuchs.com/global/en/24.htm?searchterm={query}",
+   "verified": false, "verify_note": "HTTP 403 pro automatické čtení (2026-10-24)",
+   "registration": "neověřeno", "format": "STEP",
+   "library_ok": false,
+   "terms": "podmínky CAD dat neověřeny → jen k projektu",
+   "terms_src": ""
+  },
+  "weidmueller": {
+   "name": "Weidmüller", "match": ["weidm"], "kind": "product",
+   "url": "https://catalog.weidmueller.com/catalog/Start.do?ObjectID={code_alnum}",
+   "verified": false, "verify_note": "HTTP 403 pro automatické čtení (2026-10-24)",
+   "registration": "neověřeno", "format": "STEP",
+   "library_ok": false,
+   "terms": "podmínky CAD dat neověřeny → jen k projektu",
+   "terms_src": ""
+  },
+  "lapp": {
+   "name": "Lapp", "match": ["lapp"], "kind": "search",
+   "url": "https://www.lapp.com/de/de/search?text={query}",
+   "verified": false, "verify_note": "stránka hledání se načte, výsledek se vykresluje až skriptem (2026-10-24)",
+   "registration": "neověřeno", "format": "STEP",
+   "library_ok": false,
+   "terms": "podmínky CAD dat neověřeny → jen k projektu",
+   "terms_src": ""
+  },
+  "schmersal": {
+   "name": "Schmersal", "match": ["schmersal"], "kind": "search",
+   "url": "https://products.schmersal.com/en_GB/search?q={query}",
+   "verified": true, "verify_note": "stránka hledání „Search results for …“ (2026-10-24); výsledky se vykresluji skriptem",
+   "registration": "neověřeno", "format": "STEP",
+   "library_ok": false,
+   "terms": "podmínky CAD dat neověřeny → jen k projektu",
+   "terms_src": ""
+  },
+  "werma": {
+   "name": "Werma", "match": ["werma"], "kind": "search",
+   "url": "https://www.werma.com/en/search?q={query}",
+   "verified": true, "verify_note": "stránka hledání s výsledky (2026-10-24); konkrétní artikl v HTML neověřen",
+   "registration": "download centrum werma.com CAD nenabízí — model Werma bývá na 3Dfindit (ručně, podmínky CADENAS)", "format": "STEP AP214",
+   "library_ok": false,
+   "terms": "podmínky CAD dat neověřeny → jen k projektu",
+   "terms_src": "https://www.werma.com/en/service/downloadcentre/"
+  },
+  "alutec": {
+   "name": "ALUTEC K&K (e-shop)", "match": ["alutec"], "kind": "product",
+   "url": "https://katalog.aluteckk.cz/produkt/{code}/",
+   "verified": false, "verify_note": "STEP u profilu 104040L ověřen 2026-10-15 (skill alutech-profily); dnešní čtení vrací 404 — tvar jména produktu ověřit v prohlížeči",
+   "registration": "bez registrace", "format": "STEP / IGES (profil délky 100 mm)",
+   "library_ok": false,
+   "terms": "VOP 2025 o CAD datech nic neříkají → neznámé = jen k projektu, jeden STEP na průřez",
+   "terms_src": "https://katalog.aluteckk.cz"
+  }
+ },
+ "fallback": {
+  "name": "TraceParts (hledání)", "kind": "fallback",
+  "url": "https://www.traceparts.com/en/search?Keywords={query}",
+  "verified": false, "verify_note": "stránka se vykresluje až skriptem (2026-10-24); výrobce není v tabulce — hledat ručně, nejdřív na webu výrobce",
+  "registration": "účet TraceParts (zdarma)", "format": "STEP AP214",
+  "library_ok": false,
+  "terms": "podmínky TraceParts — skripty zakázány, modely jen k projektu",
+  "terms_src": "https://www.traceparts.com/en/terms-of-use"
+ },
+ "no_cad": {
+  "lukas": "model na vyžádání u výrobce (LUKAS TENZO), jinak zástupný",
+  "jsp": "výkres / model na vyžádání u výrobce (JSP), jinak zástupný"
+ }
+}

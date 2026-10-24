@@ -353,6 +353,7 @@ const SRC: Src[] = [
       N_("**Spustit celý postup** naváže od posledního hotového kroku (pipeline.json ve složce stroje); **Spustit od fáze…** spustí zvolený krok a všechny další znovu. Před spuštěním se aplikace zeptá, zda spotřebovat kredity tvého tarifu Claude. **Zastavit** ukončí jen proces agenta spuštěný z PLCdesk."),
       N_("**Pokyny fází**: u každé části rozbalíš výchozí pokyn (šablonu — můžeš ji upravit, uloží se pro projekt; Obnovit výchozí pokyn ji vrátí) a pole **Doplňující pokyn**, které se přidá na konec."),
       N_("Na konci vznikne **PREHLED.md** (fáze, kola, verdikty, cena a tokeny, předpoklady označené ODHAD, sepsaná zpětná vazba, snímky) a logy běhů v podsložce logy. **Otevřít ve FreeCADu** otevře vybraný model ve vlastní instanci (slot plcdesk-pro), **Načíst zpětnou vazbu z CAD…** je totéž okno jako v Kusovníku."),
+      N_("**Modely ke stažení**: karta ukáže díly, které nemají model dle dokumentace, s výrobcem, objednacím kódem, přesným názvem souboru a stavem (staženo / chybí / v knihovně / zástupný); totéž je v STAHNOUT.md a klikací STAHNOUT.html ve složce stroje (vznikají ve fázi Vstupy). **Otevřít** otevře stránku produktu nebo hledání výrobce v prohlížeči — model stáhneš sám (STEP AP214) a uložíš do models/manual pod názvem ze seznamu, nebo ho necháš ve Stažených souborech. **Načíst stažené** soubor pozná (název, jinak objednací kód nebo typ v názvu či v hlavičce STEP — návrh potvrdíš), ověří ho ve FreeCADu, zaeviduje do models/index.json a zástupný díl v modelu stroje nahradí odkazem na model výrobce."),
     ],
     tips: [
       N_("Agent dostává pravidla práce (vlastní instance FreeCADu, App::Part a App::Link s vypočteným umístěním, zástupné díly oranžově, povolené kolize jen šroub × díra a matice × drážka, nic ve vzduchu, otvory krytů podle ISO 13857 měřením, prohlédnout snímky, PLCdesk = zdroj pravdy kusovníku, bezpečnost jen ke schválení)."),
@@ -361,6 +362,7 @@ const SRC: Src[] = [
       N_("V automatickém běhu nikdo neodpovídá na otázky: chybějící údaje agent doplní jako označený ODHAD a vypíše je v přehledu. Zpětnou vazbu pro kusovník jen sepíše — použít ji rozhodneš ty v kroku Kusovník."),
       N_("Zaškrtávátko **TEST: bezpečnostní prvky považovat za schválené** slouží jen ke zkoušce postupu — výstupy pak nesou „TEST – schválení předpokládáno“."),
       N_("Agent má zúžená oprávnění: jen nástroje souborů, skilly a příkazy powershell / python / node, zápis jen do složky stroje, bez webu a serverů MCP. Volitelný limit ceny (USD) platí pro každý běh agenta."),
+      N_("PLCdesk modely nikdy nestahuje sám: podmínky 3Dfindit / CADENAS, TraceParts i portálů výrobců automatické stahování nedovolují. Do firemní knihovny modelů (model_library ve složce stavu aplikace) jdou jen modely výrobců, jejichž podmínky interní opakované použití dovolují (Siemens, Phoenix Contact); ostatní patří jen k projektu. Co je v knihovně, karta nabídne tlačítkem **Převzít z knihovny**."),
       N_("Dávka bez okna: python -m plc_studio.pro_pipeline --sample projekt.plcstudio.json --out složka [--no-ai] připraví vstupy (a s AI spustí celý postup) z příkazové řádky."),
     ],
     issues: [
@@ -369,7 +371,7 @@ const SRC: Src[] = [
       { problem: N_("„Koncept neschválen — postup zastaven“"), fix: N_("Přečti poslední KONTROLA_K5_koncept_kolo(N).md, doplň pokyn konceptu (Doplňující pokyn) nebo údaje v projektu a spusť od fáze Koncept.") },
     ],
     see: ["kusovnik"],
-    keywords: N_("PRO, 3D, agent, AI, Claude Code, FreeCAD, model, stavitel, kontrola K5, koncept, snímky, postup, fáze, kolo, přehled, ODHAD, TEST"),
+    keywords: N_("PRO, 3D, agent, AI, Claude Code, FreeCAD, model, stavitel, kontrola K5, koncept, snímky, postup, fáze, kolo, přehled, ODHAD, TEST, stažení, STEP, model výrobce, STAHNOUT, knihovna modelů"),
   },
   {
     id: "nabidka", group: "step", step: 9, title: N_("Nabídka"),

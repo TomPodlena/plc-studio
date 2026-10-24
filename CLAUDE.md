@@ -416,6 +416,29 @@ python scripts/build_verification.py        # data/verification.json → verific
   v pokynu stavitele (díl „dle dokumentace“ = App::Link, zástupný jen zbytek), K5 to kontroluje, PREHLED.md souhrn.
   Pokrytí řádků kusovníku: vzor 01 70 %, 03 65 %, 11 68 %, 17 58 %, 20 67 %. Test `tests/test_pro3d_parts.py` (FreeCAD
   vzorek 23 dílů, obálka ± 0,1; porovnání s modely výrobců na disku jen ke čtení — V20 a IFS204 shodné, DSBC +2 / +0,9 mm).
+- **Řízené RUČNÍ stahování modelů** (2026-10-24) `plc_studio/pro3d_download/` (bez Tk, bez sítě — **nic se nestahuje
+  ani neskriptuje**: podmínky 3Dfindit / CADENAS čl. 12.3 (vii), TraceParts i portálů výrobců; stahuje člověk v prohlížeči).
+  `vendors.json` = vzory URL (stránka produktu / hledání, `{code}` `{code_alnum}` `{query}`), `verified` + `verify_note`
+  (čtení veřejné HTML 2026-10-24: ověřeno WAGO, ifm, Werma a Schmersal hledání; 403 Festo / Phoenix / P+F / Weidmüller,
+  SPA Siemens / SMC / SICK / Lapp / TraceParts, 404 Rittal / ALUTEC), registrace, formát, `library_ok` s citací podmínek
+  (`terms`, `terms_src`; true jen Siemens „für interne Zwecke“ a Phoenix Contact čl. 3.3.2; CADENAS / TraceParts /
+  neznámé = false), fallback hledání TraceParts, `no_cad` (LUKAS, JSP). `listing.py`: `download_list(manifest,
+  parts_index, models_dir)` (jeden řádek = jeden soubor, stejný výrobce + kód sdílí model, kabely a díly „dle dokumentace“
+  vynechány — bez `parts_index` podle `catalog_map.map_manifest`), stavy registered / downloaded / library / missing /
+  placeholder, `write_lists` → `STAHNOUT.md` + tisknutelné klikací `STAHNOUT.html` ve složce stroje, `find_downloads`
+  (models/manual + volitelně Stažené soubory `PLCDESK_DOWNLOADS` / ~/Downloads, i ZIP: jméno `partId-safe` = jisté, jinak
+  kód / typ v názvu nebo v hlavičce STEP FILE_NAME / PRODUCT = návrh, uživatel potvrdí), `accept` (kopie pod přesné jméno),
+  knihovna `%APPDATA%\PLCStudio\model_library\<výrobce>\<kód>.stp` (+ .json s podmínkami; `library_add` / `lookup` jen
+  `library_ok`, stav „v knihovně“ → Převzít z knihovny), `register_downloads` = `register_manual.register(plan=…)` (převzato
+  ze stagingu plcdesk_freecad s `models_index` a `check_step`: hlavička, schéma, FreeCAD objem > 0 přes run_fc slot
+  `pro3d-dl`) + obálka × rozměry z popisu („500×500×210“ → varování) + knihovna + `replace_placeholders` (jen když FCStd
+  stroje obsahuje partId: záloha `.FCStd.bak`, `fc_replace.py` STEP → `models/manual/<id>.FCStd`, zástupný
+  `PLCdesk_ModelStatus = placeholder` → App::Link ve stejném rodiči, střed obálky = střed zástupného — zkontrolovat; `fcstd`
+  do indexu). Postup: fáze ① zapíše STAHNOUT.* (`write_download_list`), po `make_parts` znovu; `PARTS_RULES`: zaevidovaný
+  model výrobce má přednost (model výrobce → dle dokumentace → zástupný). Krok: karta „Modely ke stažení“ (tabulka, Otevřít
+  = webbrowser, Otevřít složku, Načíst stažené ve vlákně, Převzít z knihovny, STAHNOUT.html, volba `settings.pro3d_downloads`).
+  Testy `tests/test_pro3d_download.py` (vzory 01 / 03 / 20, párování, knihovna, registrace, 1 headless běh FreeCADu:
+  syntetický STEP → index → App::Link) a `tests/test_register_manual.py` (testy stagingu přes adaptér unittest).
 
 ## Sestava hardwaru (hardware.ts)
 
