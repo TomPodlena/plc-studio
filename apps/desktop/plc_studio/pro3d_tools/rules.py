@@ -16,6 +16,8 @@ Konvence modelu (závazné pro stavitele, viz ``KONVENCE``):
   ``Zona_pro``, „mezera“, „rezerva“), obálky („Obálka …“) a místa obsluhy („Stanoviště …“) jsou pomocné, ne nebezpečí.
 * Zástupný díl = ``PLCdesk_ModelStatus = "placeholder"`` nebo ``Placeholder = True`` / ``Konstrukce_Zastupny = True``
   a barva RGB 255,140,0 (oranžová); kusovník ``PLCdesk_Id`` (= ``BomLine.id`` manifestu), ``PLCdesk_Instance``.
+* Díl z generátorů ``pro3d_parts`` = ``Konstrukce_ModelStav = "dle dokumentace"`` a barva RGB 255,215,0 (žlutá, jednotně;
+  vkládá se jako App::Link — barva se dědí, nepřebarvovat). Modely výrobců a vlastní konstrukce mají vlastní barvy.
 """
 
 from __future__ import annotations
@@ -26,7 +28,9 @@ import re
 import struct
 import unicodedata
 
-ORANGE = (255, 140, 0)
+ORANGE = (255, 140, 0)   # zástupný díl
+YELLOW = (255, 215, 0)   # díl „dle dokumentace“ (generátory pro3d_parts)
+STAV_DOKUMENTACE = "dle dokumentace"
 COLOR_TOL = 6            # ± na složku (zaokrouhlení float barvy FreeCADu)
 
 TYPES = ("sroub", "matice", "podlozka", "profil", "patka", "kryt", "vypln", "zona", "pomocny", "kabel", "hadice",
@@ -226,6 +230,15 @@ def je_oranzova(rgb) -> bool:
     return rgb is not None and all(abs(int(a) - b) <= COLOR_TOL for a, b in zip(rgb, ORANGE))
 
 
+def je_zluta(rgb) -> bool:
+    return rgb is not None and all(abs(int(a) - b) <= COLOR_TOL for a, b in zip(rgb, YELLOW))
+
+
+def je_dle_dokumentace(props: dict) -> bool:
+    """Díl z generátorů normalizovaných dílů (``Konstrukce_ModelStav = "dle dokumentace"``)."""
+    return fold(str((props or {}).get("Konstrukce_ModelStav") or "")).strip() == STAV_DOKUMENTACE
+
+
 def fcstd_colors(path: str) -> dict:
     """{jméno objektu: (r, g, b)} z GuiDocument.xml souboru FCStd (ShapeAppearance / ShapeColor / ShapeMaterial
     odkazu s OverrideMaterial). Jen čte zip — FreeCAD netřeba."""
@@ -255,6 +268,24 @@ def fcstd_colors(path: str) -> dict:
                     rgb = color_from_packed(int(sc.group(1)))
             if rgb is not None:
                 out[m.group(1)] = rgb
+    return out
+
+
+def fcstd_overrides(path: str) -> dict:
+    """{jméno odkazu: (r, g, b)} pro ViewProvidery s ``OverrideMaterial = true`` (odkaz přebarvuje cíl)."""
+    import zipfile
+    out: dict = {}
+    with zipfile.ZipFile(path) as z:
+        if "GuiDocument.xml" not in z.namelist():
+            return out
+        g = z.read("GuiDocument.xml").decode("utf-8", errors="replace")
+    for m in re.finditer(r'<ViewProvider name="([^"]+)"', g):
+        end = g.find("</ViewProvider>", m.end())
+        seg = g[m.end():end if end > 0 else len(g)]
+        ov = re.search(r'name="OverrideMaterial".*?<Bool value="(\w+)"', seg, re.S)
+        if ov and ov.group(1) == "true":
+            sm = re.search(r'name="ShapeMaterial".*?diffuseColor="(\d+)"', seg, re.S)
+            out[m.group(1)] = color_from_packed(int(sm.group(1))) if sm else None
     return out
 
 

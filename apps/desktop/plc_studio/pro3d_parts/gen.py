@@ -8,8 +8,10 @@
 ``gen`` namapuje řádky manifestu (``catalog_map.py``), každý jedinečný model postaví FreeCAD ve VLASTNÍ instanci
 (``run_fc.ps1 run``, slot ``--slot``) skriptem ``fc_parts.py`` a zapíše ``parts_index.json`` (id dílu → soubor FCStd,
 stav ``dle dokumentace`` / ``zástupný``, zdroj, důvod) a ``DILY.md`` (souhrn pokrytí). Hotové modely se stejnou
-specifikací se nepřestavují (otisk ve ``parts_index.json``; ``--force`` přestaví vše). Návratový kód 0 = ok,
-2 = FreeCAD selhal nebo model není platný.
+specifikací se nepřestavují (otisk ve ``parts_index.json``; ``--force`` přestaví vše). Headless FreeCAD barvy neukládá,
+proto se nové modely (a starší bez ``barva``) potom otevřou v GUI instanci téhož slotu (``gui-start`` → ``gui-run``
+``fc_colors.py`` → ``gui-stop``) a uloží jednotně žluté RGB 255,215,0 (``barva: true`` v indexu). Návratový kód 0 = ok,
+2 = FreeCAD selhal, model není platný nebo se barvy neuložily.
 """
 
 from __future__ import annotations
@@ -68,6 +70,36 @@ def run_freecad(specs: list[dict], work: Path, slot: str, timeout: int) -> dict:
     return {"chyba": f"FreeCAD skončil kódem {r.returncode} bez výsledku: {tail}"}
 
 
+def color_freecad(files: list[str], work: Path, slot: str, timeout: int, runner=subprocess.run) -> dict:
+    """Obarví díly „dle dokumentace“ v ``files`` žlutě a uloží je z GUI instance (vlastní slot, po práci zavřená).
+    Vrací ``{"soubory": {cesta: {ok, obarveno, chyba}}}`` nebo ``{"chyba": …}``."""
+    rf = run_fc_path()
+    if rf is None:
+        return {"chyba": "run_fc.ps1 (skill freecad-instance) nenalezen — barvy neuloženy"}
+    work.mkdir(parents=True, exist_ok=True)
+    fl = work / "barvy.json"
+    res = work / "barvy_vysledek.json"
+    fl.write_text(json.dumps(files, ensure_ascii=False), encoding="utf-8")
+    if res.exists():
+        res.unlink()
+    ps = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(rf)]
+    kw = dict(capture_output=True, text=True, encoding="utf-8", errors="replace", creationflags=NOWIN)
+    st = runner(ps + ["gui-start", "--slot", slot, "--max-min", str(max(5, timeout // 60 + 5))], timeout=600, **kw)
+    r = None
+    try:
+        r = runner(ps + ["gui-run", "--slot", slot, "--timeout", str(timeout), "--result", str(res),
+                         str(HERE / "fc_colors.py"), str(fl)], timeout=timeout + 120, **kw)
+    finally:
+        runner(ps + ["gui-stop", "--slot", slot], timeout=180, **kw)
+    if res.is_file():
+        try:
+            return json.loads(res.read_text(encoding="utf-8"))
+        except ValueError:
+            pass
+    tail = ((st.stdout or "") + ((r.stdout or "") if r is not None else ""))[-1500:]
+    return {"chyba": f"GUI FreeCADu barvy neuložilo: {tail}"}
+
+
 def generate(specs: dict, out_dir: Path, *, slot: str = DEFAULT_SLOT, timeout: int = 900, no_fc: bool = False,
              force: bool = False, old: dict | None = None) -> tuple[dict, str]:
     """Postaví modely ``specs`` (key → spec) do ``out_dir/modely``. Vrací (stav modelů key → {...}, chyba)."""
@@ -93,6 +125,17 @@ def generate(specs: dict, out_dir: Path, *, slot: str = DEFAULT_SLOT, timeout: i
                               chyba=r.get("chyba", ""), znovu=True)
     elif todo:
         err = "--no-fc: modely nepostaveny"
+    paint = [k for k, v in state.items() if v.get("ok") and not v.get("barva")]
+    if paint and not no_fc:                            # barvy uloží jen GUI (GuiDocument.xml)
+        files = {str((out_dir / state[k]["file"]).resolve()): k for k in paint}
+        cr = color_freecad(list(files), out_dir / ".prace", slot, timeout)
+        done = cr.get("soubory") or {}
+        for f, k in files.items():
+            state[k]["barva"] = bool((done.get(f) or {}).get("ok"))
+        bad = [f for f, k in files.items() if not state[k]["barva"]]
+        if bad:
+            why = cr.get("chyba") or ", ".join((done.get(f) or {}).get("chyba") or Path(f).name for f in bad[:3])
+            err = "; ".join(x for x in (err, f"barvy neuloženy ({len(bad)}): {why}") if x)
     return state, err
 
 
@@ -123,7 +166,9 @@ def summary_md(idx: dict, specs: dict) -> str:
            f"Řádků kusovníku: **{s['radku']}**, dle dokumentace **{s['dle_dokumentace']}** ({s['pokryti_pct']} %), "
            f"zástupné {s['zastupne']}; kusů {s['kusu_dle_dokumentace']} / {s['kusu']}; modelů {s['modelu']}.", "",
            "Modely z tabulek rozměrů se zdrojem (`pro3d_parts/data/*.json`); detail „obálka“ = rozměry z datového listu, "
-           "tvar zjednodušen. Zástupnou obálku (oranžová) stavět jen pro díly se stavem zástupný.", "",
+           "tvar zjednodušen. Barvy v modelu: **žlutá** RGB 255,215,0 = díl dle dokumentace (vložit jako App::Link, "
+           "nepřebarvovat), **oranžová** 255,140,0 = zástupná obálka (jen pro díly se stavem zástupný), ostatní = "
+           "model výrobce / vlastní konstrukce.", "",
            "| díl | stav | model / důvod |", "|---|---|---|"]
     for pid, r in idx["parts"].items():
         what = f"`{r['file']}` ({r.get('detail', '')})" if r.get("file") else (r.get("duvod") or "")

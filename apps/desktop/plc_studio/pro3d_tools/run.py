@@ -144,6 +144,16 @@ def _doc_objects(z: zipfile.ZipFile) -> dict:
     return out
 
 
+def _ext_dle_dokumentace(path: Path) -> list[str]:
+    """Popisky dílů „dle dokumentace“ v dokumentu ``path``, které nejsou žluté (prázdné = v pořádku)."""
+    with zipfile.ZipFile(path) as z:
+        objs = _doc_objects(z)
+        gui = "GuiDocument.xml" in z.namelist()
+    colors = rules.fcstd_colors(str(path)) if gui else {}
+    return [o["label"] for n, o in objs.items() if rules.je_dle_dokumentace(o["props"]) and o["type"] == "Part::Feature"
+            and not rules.je_zluta(colors.get(n))]
+
+
 def check_stav(model: Path) -> dict:
     t = time.time()
     res = {"chyby": [], "varovani": [], "info": [], "data": {}}
@@ -153,8 +163,9 @@ def check_stav(model: Path) -> dict:
     colors = rules.fcstd_colors(str(model))
     if not has_gui:
         n = sum(1 for o in objs.values() if rules.je_zastupny(o["props"]))
+        nd = sum(1 for o in objs.values() if rules.je_dle_dokumentace(o["props"]) and o["type"] == "Part::Feature")
         res["varovani"].append({"kod": "stav-gui", "text": f"model uložen bez GUI (chybí GuiDocument.xml) — barvy {n} zástupných "
-                                "dílů nelze ověřit; ulož model z GUI instance"})
+                                f"a {nd} dílů dle dokumentace nelze ověřit; ulož model z GUI instance"})
         res["data"] = {"objektu": len(objs), "zastupnych": n, "barev": 0}
         res["secs"] = round(time.time() - t, 1)
         return res
@@ -168,15 +179,53 @@ def check_stav(model: Path) -> dict:
             return color_of(lk["name"], depth + 1) if lk["name"] not in colors else colors[lk["name"]]
         return colors.get(name)
 
-    n_ph = n_or = 0
+    n_ph = n_or = n_dd = n_ye = 0
+    overrides = rules.fcstd_overrides(str(model))
+    ext_cache: dict = {}
     for name, o in objs.items():
+        lk = o.get("link") or {}
+        if lk.get("ext") and o["type"].startswith("App::Link"):          # odkaz na jiný dokument (díl dle dokumentace?)
+            f = (model.parent / lk["ext"]).resolve()
+            if f not in ext_cache:
+                try:
+                    with zipfile.ZipFile(f) as z:
+                        dd = any(rules.je_dle_dokumentace(x["props"]) for x in _doc_objects(z).values())
+                    ext_cache[f] = _ext_dle_dokumentace(f) if dd else None
+                except (OSError, zipfile.BadZipFile, KeyError):
+                    ext_cache[f] = None
+            bad = ext_cache[f]
+            if bad is not None:
+                n_dd += 1
+                if bad:
+                    res["chyby"].append({"kod": "stav-barva", "text": f"{o['label']}: díl dle dokumentace ({f.name}) není žlutý "
+                                         f"255,215,0 ({', '.join(bad[:3])}) — vygeneruj díly znovu (barvy ukládá GUI)",
+                                         "objekty": [name]})
+                if name in overrides and not rules.je_zluta(overrides[name]):
+                    res["chyby"].append({"kod": "stav-barva", "text": f"{o['label']}: odkaz na díl dle dokumentace přebarvuje "
+                                         f"cíl na {overrides[name]} — díly dle dokumentace nepřebarvovat (žlutá)",
+                                         "objekty": [name]})
         ph = rules.je_zastupny(o["props"])
-        if not (ph or name in colors):
+        dd = rules.je_dle_dokumentace(o["props"]) and not ph
+        if not (ph or dd or name in colors):
             continue
         if o["type"] in ("App::Origin", "App::Line", "App::Plane", "App::Point"):
             continue
         rgb = color_of(name)
         orange = rules.je_oranzova(rgb)
+        if dd:
+            if o["type"] == "App::Part":
+                continue
+            n_dd += 1
+            if rgb is None and lk.get("ext"):
+                continue
+            if not rules.je_zluta(rgb):
+                res["chyby"].append({"kod": "stav-barva", "text": f"{o['label']}: díl dle dokumentace, barva {rgb} místo 255,215,0",
+                                     "objekty": [name]})
+            continue
+        if rules.je_zluta(rgb) and o["type"] != "App::Part" and not lk:
+            n_ye += 1
+            res["varovani"].append({"kod": "stav-vlastnost", "text": f"{o['label']}: žlutý, ale bez Konstrukce_ModelStav = "
+                                    "„dle dokumentace“ (žlutá patří jen dílům z generátorů)", "objekty": [name]})
         if ph:
             n_ph += 1
             if rgb is None and (o.get("link") or {}).get("ext"):
@@ -197,7 +246,8 @@ def check_stav(model: Path) -> dict:
         n = len([x for x in res["info"] if x["kod"] == "stav-jmeno"])
         res["info"] = [x for x in res["info"] if x["kod"] != "stav-jmeno"] + [
             {"kod": "stav-jmeno", "text": f"{n} zástupných dílů nemá v popisku „zástupný“"}]
-    res["data"] = {"objektu": len(objs), "zastupnych": n_ph, "oranzovych_bez_vlastnosti": n_or, "barev": len(colors)}
+    res["data"] = {"objektu": len(objs), "zastupnych": n_ph, "oranzovych_bez_vlastnosti": n_or, "dle_dokumentace": n_dd,
+                   "zlutych_bez_vlastnosti": n_ye, "barev": len(colors)}
     res["secs"] = round(time.time() - t, 1)
     return res
 

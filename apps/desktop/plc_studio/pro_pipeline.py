@@ -90,8 +90,9 @@ D. Povolené kolize jen šroub × díra / drážka / závit a matice × drážka
 E. Nic ve vzduchu: graf souvislosti (každé těleso se dotýká nosného dílu, cesta až k podlaze / rámu) — ověř výpočtem.
 F. Otvory v krytech posuzuj podle ISO 13857 tab. 4 MĚŘENÍM otvoru; voxelová kontrola jen hledá cesty, neschvaluje.
 G. Díly s modelem v dily/parts_index.json (stav „dle dokumentace“, generátory kódem) vkládej jako App::Link na jejich
-   FCStd. Zástupné díly (bez modelu výrobce i generátoru) barvi oranžově RGB 255,140,0 a označ vlastností
-   (např. Placeholder = True).
+   FCStd — jsou jednotně ŽLUTÉ RGB 255,215,0 (barva se dědí), nepřebarvuj je (OverrideMaterial ne) a žlutou nepoužívej
+   na nic jiného. Zástupné díly (bez modelu výrobce i generátoru) barvi oranžově RGB 255,140,0 a označ vlastností
+   (např. Placeholder = True). Modely výrobců a vlastní konstrukce nechej v jejich barvách.
 H. Snímky klíčových míst (iso, půdorys, čelo, detaily vazeb) ulož do {sub}/snimky/ a PROHLÉDNI je před zprávou.
 I. FreeCAD jen ve vlastní instanci (skill freecad-instance, vlastní slot), cizí instance nech být; šetři paměť —
    jedna instance FreeCADu najednou, stavby po malých dávkách, po práci instanci zavři.
@@ -153,7 +154,8 @@ zástupné díly, STEP. Snímky: kontrola = snimky, --out {sub}/snimky --prefix 
 Konvence modelu, které kontroly čtou: vlastnost Konstrukce_Typ (sroub / matice / podlozka / profil / patka / kryt /
 vypln / zona / pomocny / kabel / hadice / dil), nebezpečné zóny jako tělesa Zona_* (Konstrukce_Typ = zona), druhé
 polohy pohyblivých dílů Konstrukce_Pohyb = JSON {"nazev": …, "posun": [x, y, z]} nebo {"nazev": …, "otoc": {"osa":
-[…], "bod": […], "uhel": …}}, zástupné díly PLCdesk_ModelStatus = placeholder + barva 255,140,0, díly kusovníku
+[…], "bod": […], "uhel": …}}, zástupné díly PLCdesk_ModelStatus = placeholder + barva 255,140,0, díly dle dokumentace
+(generátory) žluté 255,215,0 jen jako App::Link bez přebarvení, díly kusovníku
 PLCdesk_Id / PLCdesk_Instance (= řádek manifestu)."""
 
 def parts_cmd(role: str = "builder") -> str:
@@ -165,7 +167,7 @@ def parts_cmd(role: str = "builder") -> str:
 PARTS_RULES = """Normalizované díly KÓDEM (povinné): {parts}/parts_index.json přiřazuje řádkům manifestu modely FCStd
 v {parts}/modely/ (stav „dle dokumentace“ = rozměry z datových listů / norem se zdrojem, vlastnosti Konstrukce_*; souhrn
 {parts}/DILY.md). Díl se stavem „dle dokumentace“ MUSÍŠ vložit jako App::Link na jeho FCStd (vlastní model ani zástupnou
-obálku nestav, model neměň; PLCdesk_Id / PLCdesk_Instance dej na Link). Zástupnou obálku (pravidlo G) jen pro díly se
+obálku nestav, model neměň ani nepřebarvuj — žlutá 255,215,0 se dědí; PLCdesk_Id / PLCdesk_Instance dej na Link). Zástupnou obálku (pravidlo G) jen pro díly se
 stavem „zástupný“ nebo mimo index. Spojovací materiál (ISO 4762 / 7380 / 10642, matice ISO 4032, podložky ISO 7089),
 lišty TS35 (EN 60715) a vývodky SKINTOP generuj stejně, např.:
   {cmd}   (díly: "ISO4762 M6x20" "ISO4032 M6" "TS35 7.5x450" "SKINTOP M20" "ISO15552 32x100")
@@ -175,6 +177,11 @@ Modely výrobců stažené RUČNĚ (models/index.json, zdroj manual-*, soubor mo
 něj; seznam STAHNOUT.md) mají PŘEDNOST: díl se zaevidovaným modelem vlož jako App::Link na jeho FCStd (jinak STEP
 importuj jednou do vlastního FCStd v models/manual/), model výrobce neměň; pořadí model výrobce → dle dokumentace →
 zástupný. Modely sám nestahuj (podmínky portálů) — chybějící zůstanou zástupné."""
+
+
+COLOR_LEGEND = ["- **žlutá** RGB 255,215,0 — díl dle dokumentace (generátory kódem pro3d_parts, App::Link, nepřebarvovat)",
+                "- **oranžová** RGB 255,140,0 — zástupný díl (model chybí — stáhnout podle STAHNOUT.md)",
+                "- ostatní barvy — model výrobce nebo vlastní konstrukce"]
 
 
 K5_CHECKS = """Postup kontroly:
@@ -908,6 +915,7 @@ def write_summary(folder: str | Path, st: dict) -> Path:
         if perr:
             L.append(f"Chyba generátorů: {perr}")
         L.append("")
+    L += ["## Barvy v modelu", "", *COLOR_LEGEND, ""]
     est = collect_estimates(folder)
     L += ["## Předpoklady (ODHAD)", "", *(est or ["- žádné označené"]), ""]
     fbs = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("PLCdesk_CAD_feedback*.json"))

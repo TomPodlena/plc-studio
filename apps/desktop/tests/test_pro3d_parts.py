@@ -207,6 +207,46 @@ class GenCliTest(unittest.TestCase):
         txt = pp.write_summary(d, st).read_text(encoding="utf-8")
         self.assertIn("dle dokumentace 14", txt)
         self.assertIn("70.0 %", txt)
+        # barvy: pokyn stavitele (žlutá = dle dokumentace, nepřebarvovat) a legenda v PREHLED.md
+        self.assertIn("255,215,0", p)
+        self.assertIn("nepřebarvuj", p)
+        self.assertIn("## Barvy v modelu", txt)
+        self.assertIn("**žlutá** RGB 255,215,0", txt)
+        self.assertIn("**oranžová** RGB 255,140,0", txt)
+        self.assertIn("žlutá", (d / "dily" / "DILY.md").read_text(encoding="utf-8"))
+
+    def test_generate_colors_in_gui(self):
+        """Po stavbě se nové modely a starší bez barvy obarví v GUI (barva v indexu); selhání = chyba."""
+        d = tmpdir()
+        specs = {k: {"key": k, "gen": "matice", "params": {}} for k in ("A", "B", "C")}
+        calls = []
+
+        def fake_run(todo, work, slot, timeout):
+            for t in todo:
+                Path(t["out"]).parent.mkdir(parents=True, exist_ok=True)
+                Path(t["out"]).write_bytes(b"x")
+            return {"modely": {t["key"]: {"ok": True} for t in todo}}
+
+        def fake_color(files, work, slot, timeout):
+            calls.append(sorted(Path(f).stem for f in files))
+            return {"soubory": {f: {"ok": Path(f).stem != "C", "chyba": "x" if Path(f).stem == "C" else ""} for f in files}}
+
+        old_r, old_c = gen.run_freecad, gen.color_freecad
+        gen.run_freecad, gen.color_freecad = fake_run, fake_color
+        try:
+            state, err = gen.generate(specs, d, slot="s")
+            self.assertEqual(calls, [["A", "B", "C"]])
+            self.assertTrue(state["A"]["barva"] and not state["C"]["barva"])
+            self.assertIn("barvy neuloženy (1)", err)
+            old = {"modely": state}
+            calls.clear()
+            state2, err2 = gen.generate(specs, d, slot="s", old=old)       # A, B hotové a žluté → jen C znovu
+            self.assertEqual(calls, [["C"]])
+            calls.clear()
+            gen.generate(specs, d, slot="s", no_fc=True, old={"modely": state2})
+            self.assertEqual(calls, [])
+        finally:
+            gen.run_freecad, gen.color_freecad = old_r, old_c
 
     def test_pipeline_calls_parts_once_before_build(self):
         calls = []
@@ -254,7 +294,8 @@ class FreeCadTest(unittest.TestCase):
             s, why = cm.spec_for_request(r)
             assert s, (r, why)
             cls.specs[r] = s
-        cls.state, cls.err = gen.generate({s["key"]: s for s in cls.specs.values()}, cls.out, slot="pro3d-parts", timeout=900)
+        cls.state, cls.err = gen.generate({s["key"]: s for s in cls.specs.values()}, cls.out,
+                                          slot=os.environ.get("PRO3D_TEST_SLOT") or "pro3d-parts", timeout=900)
 
     def expected(self, s) -> list[float]:
         """Obálka [dx, dy, dz] z tabulky (konvence os fc_parts.py)."""
@@ -308,6 +349,20 @@ class FreeCadTest(unittest.TestCase):
                 continue
             for i, (a, e) in enumerate(zip(dims, exp)):
                 self.assertAlmostEqual(a, e, delta=0.1, msg=f"{r} osa {'xyz'[i]}: {dims} × {exp}")
+
+    def test_saved_yellow_from_gui(self):
+        """Barvy uloží GUI instance: každý vygenerovaný díl je po uložení žlutý 255,215,0 a projde kontrolou stav."""
+        from plc_studio.pro3d_tools import rules, run
+        for r, s in self.specs.items():
+            m = self.state[s["key"]]
+            self.assertTrue(m.get("barva"), r)
+            f = self.out / m["file"]
+            st = run.check_stav(f)
+            self.assertEqual((st["chyby"], st["varovani"]), ([], []), r)
+            self.assertGreaterEqual(st["data"]["dle_dokumentace"], 1, r)
+            cols = rules.fcstd_colors(str(f))
+            self.assertTrue(any(rules.je_zluta(c) for c in cols.values()), r)
+        self.assertEqual(list((self.out / "modely").glob("*.FCBak")), [])
 
     def test_properties_in_fcstd(self):
         import zipfile

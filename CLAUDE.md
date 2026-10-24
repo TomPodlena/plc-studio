@@ -409,7 +409,11 @@ python scripts/build_verification.py        # data/verification.json → verific
   rozměry). `typy.py` (Festo DSBC / DSNU, SMC CP96 / C96 / C85 / CJ2, popis „ISO 15552, Ø32, zdvih 100“), `catalog_map.py`
   (řádek manifestu → spec, `coverage`), `fc_parts.py` (FreeCAD: App::Part + tělesa, `Konstrukce_Typ` sroub / matice /
   podlozka / dil, `Konstrukce_ModelStav = "dle dokumentace"`, `Konstrukce_Zdroj`, `Konstrukce_Detail` tvar / obálka,
-  `Rozmer_*`; pístnice v podčásti s `Konstrukce_Pohyb`, závitové otvory Ø d − P; barva výchozí šedá, ne oranžová),
+  `Rozmer_*`; pístnice v podčásti s `Konstrukce_Pohyb`, závitové otvory Ø d − P; **barva jednotně žlutá RGB 255,215,0**
+  (`rules.YELLOW` vedle oranžové zástupné; headless barvy neukládá → po stavbě `color_freecad`: gui-start / gui-run
+  `fc_colors.py` / gui-stop téhož slotu obarví díly „dle dokumentace“, zviditelní je a uloží bez .FCBak, `barva: true`
+  v indexu, starší modely bez ní se obarví při dalším `gen`; kontrola `stav`: díl dle dokumentace ≠ žlutá = chyba, i v cíli
+  odkazu App::Link a odkaz s OverrideMaterial; žlutý bez vlastnosti = varování; legenda barev v PREHLED.md a DILY.md),
   `gen.py` / `pro3d_parts.ps1 gen <manifest> <složka>` → `parts_index.json` (id → FCStd, stav, zdroj / důvod) + `DILY.md`,
   `part "ISO4762 M6x20" "TS35 7.5x450" …`, `map` (bez FreeCADu); FreeCAD slot `pro3d-parts`, hotové modely podle otisku
   spec se nepřestavují. Postup: `make_parts` před první částí stavby (jen s AI nebo `--parts`) → `dily/`; `PARTS_RULES`

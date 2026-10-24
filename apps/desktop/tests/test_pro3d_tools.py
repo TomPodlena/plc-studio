@@ -119,7 +119,7 @@ class RulesTest(unittest.TestCase):
         self.assertIn("@ (0, 0, 0)", md)
 
 
-def _fcstd(path: Path, objs: list[tuple], colors: dict) -> Path:
+def _fcstd(path: Path, objs: list[tuple], colors: dict, overrides: dict | None = None) -> Path:
     """Minimální FCStd: Document.xml (typ, jméno, vlastnosti) + GuiDocument.xml se ShapeAppearance."""
     doc = ['<?xml version="1.0" encoding="utf-8"?>\n<Document><Objects>']
     doc += [f'<Object type="{t}" name="{n}" id="{i}"/>' for i, (t, n, _l, _p) in enumerate(objs)]
@@ -128,7 +128,8 @@ def _fcstd(path: Path, objs: list[tuple], colors: dict) -> Path:
         body = f'<Property name="Label" type="App::PropertyString"><String value="{label}"/></Property>'
         for k, v in props.items():
             if k == "LinkedObject":
-                body += f'<Property name="LinkedObject" type="App::PropertyXLink"><XLink file="" name="{v}"/></Property>'
+                f, _, nm = v.rpartition("#")
+                body += f'<Property name="LinkedObject" type="App::PropertyXLink"><XLink file="{f}" name="{nm}"/></Property>'
             else:
                 body += f'<Property name="{k}" type="App::PropertyString"><String value="{v}"/></Property>'
         doc.append(f'<Object name="{n}"><Properties>{body}</Properties></Object>')
@@ -141,6 +142,11 @@ def _fcstd(path: Path, objs: list[tuple], colors: dict) -> Path:
         files[fn] = struct.pack("<III", 1, 0x555555FF, packed) + b"\0" * 28
         gui.append(f'<ViewProvider name="{n}"><Properties><Property name="ShapeAppearance" type="App::PropertyMaterialList">'
                    f'<MaterialList file="{fn}" version="3"/></Property></Properties></ViewProvider>')
+    for n, rgb in (overrides or {}).items():
+        packed = (rgb[0] << 24) | (rgb[1] << 16) | (rgb[2] << 8) | 255
+        gui.append(f'<ViewProvider name="{n}"><Properties><Property name="OverrideMaterial" type="App::PropertyBool">'
+                   f'<Bool value="true"/></Property><Property name="ShapeMaterial" type="App::PropertyMaterial">'
+                   f'<PropertyMaterial diffuseColor="{packed}"/></Property></Properties></ViewProvider>')
     gui.append("</ViewProviderData></Document>")
     with zipfile.ZipFile(path, "w") as z:
         z.writestr("Document.xml", "".join(doc))
@@ -164,6 +170,31 @@ class StavTest(unittest.TestCase):
         self.assertEqual([f["objekty"] for f in r["chyby"]], [["B"]])                   # zástupný bez oranžové
         self.assertEqual(sorted(f["objekty"][0] for f in r["varovani"]), ["C", "SRC"])   # oranžové bez vlastnosti
         self.assertEqual(r["data"]["zastupnych"], 3)                                     # odkaz převzal barvu zdroje
+
+    def test_dle_dokumentace_yellow(self):
+        """Díl z generátorů = žlutý 255,215,0; jiná barva = chyba, žlutý bez vlastnosti = varování; odkaz do jiného
+        dokumentu se ověří v cílovém FCStd a nesmí cíl přebarvit."""
+        self.assertTrue(rules.je_zluta((255, 213, 2)) and not rules.je_zluta(rules.ORANGE))
+        self.assertTrue(rules.je_dle_dokumentace({"Konstrukce_ModelStav": "dle dokumentace"}))
+        self.assertFalse(rules.je_dle_dokumentace({"Konstrukce_ModelStav": "zástupný"}))
+        d = tmp()
+        dd = {"Konstrukce_ModelStav": "dle dokumentace"}
+        ok = _fcstd(d / "ok.FCStd", [("App::Part", "Dil", "Šroub", dd), ("Part::Feature", "S", "Sroub", dd)],
+                    {"S": rules.YELLOW})
+        bad = _fcstd(d / "bad.FCStd", [("App::Part", "Dil", "Válec", dd), ("Part::Feature", "T", "Teleso", dd)],
+                     {"T": (204, 204, 204)})
+        self.assertEqual(run.check_stav(ok)["chyby"], [])
+        self.assertEqual([f["objekty"] for f in run.check_stav(bad)["chyby"]], [["T"]])
+        asm = _fcstd(d / "asm.FCStd", [
+            ("App::Link", "L1", "Šroub -X1", {"PLCdesk_Id": "a", "LinkedObject": "ok.FCStd#Dil"}),
+            ("App::Link", "L2", "Válec -MM1", {"PLCdesk_Id": "b", "LinkedObject": "bad.FCStd#Dil"}),
+            ("App::Link", "L3", "Šroub přebarvený", {"LinkedObject": "ok.FCStd#Dil"}),
+            ("Part::Feature", "K", "Konzola", {}),
+        ], {"K": rules.YELLOW}, overrides={"L3": (0, 0, 255)})
+        r = run.check_stav(asm)
+        self.assertEqual(sorted(f["objekty"][0] for f in r["chyby"]), ["L2", "L3"])
+        self.assertEqual([f["objekty"][0] for f in r["varovani"]], ["K"])          # žlutá jen pro generované díly
+        self.assertEqual(r["data"]["dle_dokumentace"], 3)
 
 
 @unittest.skipIf(np is None, "numpy chybí")
