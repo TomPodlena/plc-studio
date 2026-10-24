@@ -261,6 +261,8 @@ class GenCliTest(unittest.TestCase):
                 f = pp.k5_file(pipe.folder, unit, 1)
                 f.parent.mkdir(parents=True, exist_ok=True)
                 f.write_text("## Verdikt: **SCHVÁLENO**\n", encoding="utf-8")
+                (f.parent / "k5_kolo1").mkdir(exist_ok=True)
+                (f.parent / "k5_kolo1" / "kontroly.json").write_text('{"souhrn": {"stav": "OK"}}', encoding="utf-8")
             return {"state": "done"}
 
         d = tmpdir()

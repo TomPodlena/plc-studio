@@ -366,7 +366,10 @@ python scripts/build_verification.py        # data/verification.json → verific
   `FIX_PROMPT` (kolo > 1 → body poslední K5), `K5_PROMPT` (proti zadání a manifestu, ne proti zprávě stavitele, nic neopravovat),
   TEST (`test_safety`) = pravidlo M + `TEST_MARK` „TEST – schválení předpokládáno“ v pokynech a PREHLED.md. Stav `pipeline.json`
   (navázání od posledního hotového kroku i uprostřed kola — hotový stavitel → jen K5; `run(from_unit)` = krok a další znovu,
-  stará kola do `history`), logy `logy/NN_<krok>_kolo<N>_<role>.log`, `PREHLED.md` (`write_summary`: tabulka fází / kol /
+  stará kola do `history`, staré výstupy podsložek a logy resetovaných částí se PŘESUNOU do `_archiv/<YYYYMMDD-HHMMSS>/`
+  (`state.archives`, odkaz v PREHLED.md) a stavitel kola 1 dostane `REBUILD_PROMPT` „postav znovu, díly z `dily/` jako
+  App::Link“; K5 bez `kontroly.json` nebo se stavem SELHALO = VRÁCENO „(bez kontrol skriptem)“ s automatickým bodem
+  v protokolu (`autoPoints`, `k5NoChecks`); K5 s `error_max_turns` = jedno pokračování `K5_CONTINUE_PROMPT`, druhé = failed), logy `logy/NN_<krok>_kolo<N>_<role>.log`, `PREHLED.md` (`write_summary`: tabulka fází / kol /
   verdiktů, cena a tokeny, vstupy, logy, ODHADY z *.md, zpětná vazba, snímky). `runner` = `agent_runner()` (AgentRun, frontu
   vybírá vlákno postupu) nebo podvržený v testech. **CLI** `python -m plc_studio.pro_pipeline --sample <.plcstudio.json>
   --out <složka> [--from-phase X] [--max-rounds 3] [--test-safety] [--no-ai] [--model] [--budget]` (výstup průběhu na stdout).

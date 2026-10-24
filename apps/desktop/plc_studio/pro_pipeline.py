@@ -39,6 +39,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -135,6 +136,16 @@ Ulož {sub}/Celek.FCStd, snímky do {sub}/snimky/, zprávu {sub}/CELEK.md (struk
 TOOLS_DIR = Path(__file__).resolve().parent / "pro3d_tools"
 PARTS_DIR = Path(__file__).resolve().parent / "pro3d_parts"
 PARTS_SUB = "dily"
+ARCHIVE_DIR = "_archiv"      # „Spustit od…“: staré výstupy resetovaných částí → _archiv/<YYYYMMDD-HHMMSS>/<podsložka>/
+REBUILD_PROMPT = ("STAVBA ZNOVU: postup byl spuštěn od této části znovu. Dřívější výstupy podsložky {sub}/ jsou "
+                  "přesunuté do {archive}/ (jen pro nahlédnutí — nenavazuj na ně, nic odtud nekopíruj do modelu). "
+                  "Postav část znovu od začátku (nestačí model jen zkontrolovat); vygenerované normalizované díly "
+                  "z {parts}/ vlož jako App::Link (dle {parts}/DILY.md a parts_index.json), zástupné jen tam, kde díl "
+                  "dle dokumentace není.")
+K5_CONTINUE_PROMPT = ("\n\nPOKRAČOVÁNÍ KONTROLY: předchozí běh téže kontroly vyčerpal limit kol. Nezačínej znovu — "
+                      "přečti, co už je v {sub}/k5_kolo{round}/ a v rozepsaném protokolu {k5file}; kontroly kódem spusť "
+                      "jen, když kontroly.json chybí, a dopiš protokol s verdiktem.")
+K5_NO_CHECKS_POINT = "spustit pro3d_tools vse (kontroly kódem do {sub}/k5_kolo{round}/) a verdikt opřít o kontroly.json"
 PARTS_SLOT = "pro3d-parts"
 TOOLS_SLOT = {"builder": "pro3d-stavitel", "concept": "pro3d-stavitel", "k5": "pro3d-k5"}
 
@@ -259,7 +270,7 @@ def system_extra(unit: str, test_safety: bool) -> str:
 
 
 def builder_prompt(folder: Path, unit: str, rnd: int, template: str = "", extra: str = "", project: str = "",
-                   test_safety: bool = False) -> str:
+                   test_safety: bool = False, rebuild: str = "") -> str:
     u = UNIT[unit]
     head = [f"Projekt PLCdesk: {project}" if project else "", f"Složka 3D stroje: {folder}",
             f"Část: {u['label']} (podsložka {u['sub']}/), kolo {rnd}"]
@@ -267,6 +278,8 @@ def builder_prompt(folder: Path, unit: str, rnd: int, template: str = "", extra:
     body += "\n\n" + fill(BUILD_CHECKS, cmd=tools_cmd("builder"), sub=u["sub"])
     if u["phase"] == "build":
         body += "\n\n" + fill(PARTS_RULES, parts=PARTS_SUB, cmd=parts_cmd("builder"))
+    if rebuild and rnd == 1:
+        body = fill(REBUILD_PROMPT, sub=u["sub"], archive=rebuild, parts=PARTS_SUB) + "\n\n" + body
     if rnd > 1:
         prev = k5_file(folder, unit, rnd - 1)
         body += "\n\n" + fill(FIX_PROMPT, round=rnd, last_k5=prev.relative_to(folder).as_posix())
@@ -497,6 +510,8 @@ def _now() -> str:
 def _sha_models(folder: Path) -> dict:
     out = {}
     for p in sorted(folder.rglob("*.FCStd")):
+        if ARCHIVE_DIR in p.relative_to(folder).parts:
+            continue
         try:
             out[p.relative_to(folder).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
         except OSError:
@@ -635,11 +650,47 @@ class Pipeline:
     def reset_from(self, unit: str) -> None:
         """„Spustit od…“: krok ``unit`` a všechny další znovu (předchozí kola zůstanou v ``history``)."""
         i = UNIT_KEYS.index(unit)
-        for k in UNIT_KEYS[i:]:
+        keys = UNIT_KEYS[i:]
+        arch = self._archive(keys)
+        for k in keys:
             u = self.state["units"][k]
             if u.get("rounds"):
                 u.setdefault("history", []).append({"at": _now(), "state": u["state"], "rounds": u["rounds"]})
             u["state"], u["rounds"] = "waiting", []
+            u.pop("rebuild", None)
+            if arch and k in arch["units"]:
+                u["rebuild"] = f"{arch['dir']}/{UNIT[k]['sub']}"
+
+    def _archive(self, keys) -> dict | None:
+        """Výstupy resetovaných částí (podsložky a jejich logy) přesune do ``_archiv/<čas>/`` — nic se nemaže."""
+        stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+        rel = f"{ARCHIVE_DIR}/{stamp}"
+        dest = self.folder / rel
+        n = 1
+        while dest.exists():
+            n += 1
+            rel = f"{ARCHIVE_DIR}/{stamp}-{n}"
+            dest = self.folder / rel
+        moved, logs = [], []
+        ld = self.folder / LOG_DIR
+        for k in keys:
+            sub = UNIT[k]["sub"]
+            src = self.folder / sub if sub else None
+            if src is not None and src.is_dir() and any(src.iterdir()):
+                dest.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(src), str(dest / sub))
+                moved.append(k)
+            idx = UNIT_KEYS.index(k)
+            for f in (sorted(ld.glob(f"{idx:02d}_{k}_kolo*.log")) if ld.is_dir() else []):
+                (dest / LOG_DIR).mkdir(parents=True, exist_ok=True)
+                shutil.move(str(f), str(dest / LOG_DIR / f.name))
+                logs.append(f.name)
+        if not moved and not logs:
+            return None
+        rec = {"at": _now(), "dir": rel, "units": moved, "logs": len(logs)}
+        self.state.setdefault("archives", []).append(rec)
+        self.log(_("Dřívější výstupy přesunuty do {dir}.", dir=rel))
+        return rec
 
     # --- běh ---
     def run(self, from_unit: str | None = None) -> str:
@@ -727,11 +778,11 @@ class Pipeline:
             write_download_list(self.folder, log=self.log)
         self.save()
 
-    def _agent(self, unit: str, role: str, prompt: str, rnd: int) -> dict:
+    def _agent(self, unit: str, role: str, prompt: str, rnd: int, cont: bool = False) -> dict:
         logs = self.folder / LOG_DIR
         logs.mkdir(parents=True, exist_ok=True)
         idx = UNIT_KEYS.index(unit)
-        path = logs / f"{idx:02d}_{unit}_kolo{rnd}_{role}.log"
+        path = logs / f"{idx:02d}_{unit}_kolo{rnd}_{role}{'_pokracovani' if cont else ''}.log"
         runner = self.runner or agent_runner()
         self.log(_("{part}, kolo {n}: {role}…", part=_(UNIT[unit]["label"]), n=rnd, role=_(dict(pro_agent.ROLES)[role])))
         t0 = time.monotonic()
@@ -765,7 +816,7 @@ class Pipeline:
                 self.save()
                 role = "concept" if key == "concept" and n == 1 else "builder"
                 p = builder_prompt(self.folder, key, n, self.prompts.get(key, ""), self.extras.get(key, ""),
-                                   self.project, self.test_safety)
+                                   self.project, self.test_safety, rebuild=u.get("rebuild", ""))
                 prev = r["builder"] if r["builder"] and r["builder"].get("subtype") == "error_max_turns" else None
                 r["builder"] = self._agent(key, role, p + (CONTINUE_PROMPT if prev else ""), n)
                 if prev:                               # navázání po zastavení / pádu uprostřed pokračování
@@ -775,7 +826,7 @@ class Pipeline:
                     # limit kol vyčerpán uprostřed práce → jedno pokračování, ne pád celého postupu
                     self.log(_("{part}, kolo {n}: limit kol vyčerpán, pokračuji…", part=_(UNIT[key]["label"]), n=n))
                     self.save()
-                    r["builder"] = _merge_runs(r["builder"], self._agent(key, role, p + CONTINUE_PROMPT, n))
+                    r["builder"] = _merge_runs(r["builder"], self._agent(key, role, p + CONTINUE_PROMPT, n, cont=True))
                 self.save()
                 if r["builder"].get("state") != "done":
                     u["state"] = r["builder"].get("state") if r["builder"].get("state") in ("stopped",) else "failed"
@@ -784,7 +835,19 @@ class Pipeline:
             u["state"] = "review"
             self.save()
             before = _sha_models(self.folder)
-            r["k5"] = self._agent(key, "k5", k5_prompt(self.folder, key, n, self.project, self.test_safety), n)
+            kp = k5_prompt(self.folder, key, n, self.project, self.test_safety)
+            kcont = fill(K5_CONTINUE_PROMPT, sub=UNIT[key]["sub"], round=n,
+                         k5file=k5_file(self.folder, key, n).relative_to(self.folder).as_posix())
+            prev = r["k5"] if r["k5"] and r["k5"].get("subtype") == "error_max_turns" else None
+            r["k5"] = self._agent(key, "k5", kp + (kcont if prev else ""), n, cont=bool(prev))
+            if prev:                                   # navázání po pádu uprostřed pokračování kontroly
+                r["k5"] = _merge_runs(prev, r["k5"])
+            if (r["k5"].get("state") == "failed" and r["k5"].get("subtype") == "error_max_turns"
+                    and not self.stop_requested and not r["k5"].get("continued")):
+                # limit kol kontrolora → jedno pokračování (dopsat protokol), teprve druhé selhání = failed
+                self.log(_("{part}, kolo {n}: kontrolor vyčerpal limit kol, pokračuji…", part=_(UNIT[key]["label"]), n=n))
+                self.save()
+                r["k5"] = _merge_runs(r["k5"], self._agent(key, "k5", kp + kcont, n, cont=True))
             if r["k5"].get("state") != "done":
                 u["state"] = "stopped" if r["k5"].get("state") == "stopped" else "failed"
                 r["k5"] = None if u["state"] == "stopped" else r["k5"]
@@ -806,10 +869,28 @@ class Pipeline:
                            state=chk.get("stav")))
                 kind = "back"
                 r["k5ChecksOverride"] = chk.get("stav")
-            elif chk is None:
-                self.log(_("Kontrolor nespustil kontroly kódem (kontroly.json chybí)."))
-            r["verdict"] = kind or "none"
             r["verdictText"] = pro_agent.verdict_text(text)
+            if chk is None or chk.get("stav") == "SELHALO":
+                # bez kontrol skriptem (chybí / nečitelné / selhaly) se verdikt nepřijme → VRÁCENO s automatickým bodem
+                if chk is None:
+                    self.log(_("Kontrolor nespustil kontroly kódem (kontroly.json chybí) — verdikt VRÁCENO."))
+                else:
+                    self.log(_("Kontroly kódem K5 ({file}) SELHALY — verdikt VRÁCENO.", file=chk["file"]))
+                kind = "back"
+                point = fill(K5_NO_CHECKS_POINT, sub=UNIT[key]["sub"], round=n)
+                r["autoPoints"] = [point]
+                r["k5NoChecks"] = "missing" if chk is None else "SELHALO"
+                r["verdictText"] = "VRÁCENO (bez kontrol skriptem)"
+                try:
+                    f.parent.mkdir(parents=True, exist_ok=True)
+                    with open(f, "a", encoding="utf-8") as fh:
+                        fh.write(("\n" if text and not text.endswith("\n") else "")
+                                 + "\n## Automatický bod PLCdesk\n\nVerdikt: **VRÁCENO (bez kontrol skriptem)** — "
+                                 "kontroly kódem chybí nebo selhaly, verdikt kontrolora neplatí.\n\n"
+                                 f"1. {point}\n")
+                except OSError:
+                    pass
+            r["verdict"] = kind or "none"
             self.log(_("{part}, kolo {n}: verdikt {v}.", part=_(UNIT[key]["label"]), n=n,
                        v=r["verdictText"] or _("chybí")))
             if kind == "ok":
@@ -828,7 +909,7 @@ _ROLE_CS = {"concept": "Koncept", "builder": "Stavitel", "k5": "Kontrolor K5"}
 def collect_estimates(folder: Path, limit: int = 60) -> list[str]:
     out = []
     for p in sorted(folder.rglob("*.md")):
-        if p.name in (SUMMARY_FILE, "ROZBOR.md") or LOG_DIR in p.parts or p.name.upper().startswith("KONTROLA_K5"):
+        if p.name in (SUMMARY_FILE, "ROZBOR.md") or LOG_DIR in p.parts or ARCHIVE_DIR in p.parts or p.name.upper().startswith("KONTROLA_K5"):
             continue
         try:
             for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -893,8 +974,15 @@ def write_summary(folder: str | Path, st: dict) -> Path:
            f"varování {r['checks']['varovani']}) — [{r['checks']['file']}]({r['checks']['file']})"
            + (" — verdikt SCHVÁLENO zneplatněn" if r.get("k5ChecksOverride") else "")
            for k in UNIT_KEYS for r in st["units"][k].get("rounds") or [] if r.get("checks")]
+    chk += [f"- {UNIT[k]['label']} kolo {r['n']}: kontrolor K5 kontroly kódem nespustil — "
+            f"verdikt VRÁCENO (bez kontrol skriptem)" for k in UNIT_KEYS for r in st["units"][k].get("rounds") or []
+            if r.get("k5NoChecks") and not r.get("checks")]
     if chk:
         L += ["## Kontroly kódem (pro3d_tools)", ""] + chk + [""]
+    if st.get("archives"):
+        L += ["## Archiv dřívějších výstupů (Spustit od…)", ""] + \
+             [f"- {a.get('at')}: [{a['dir']}]({a['dir']}) — "
+              + (", ".join(UNIT[k]["label"] for k in a.get("units") or []) or "jen logy") for a in st["archives"]] + [""]
     warn = [f"- {UNIT[k]['label']} kolo {r['n']}: kontrolor změnil {', '.join(r['k5Modified'])} — verdikt neplatí"
             for k in UNIT_KEYS for r in st["units"][k].get("rounds") or [] if r.get("k5Modified")]
     if warn:
@@ -918,10 +1006,11 @@ def write_summary(folder: str | Path, st: dict) -> Path:
     L += ["## Barvy v modelu", "", *COLOR_LEGEND, ""]
     est = collect_estimates(folder)
     L += ["## Předpoklady (ODHAD)", "", *(est or ["- žádné označené"]), ""]
-    fbs = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("PLCdesk_CAD_feedback*.json"))
+    fbs = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("PLCdesk_CAD_feedback*.json")
+                 if ARCHIVE_DIR not in p.relative_to(folder).parts)
     L += ["## Zpětná vazba pro PLCdesk (NEPOUŽITA — rozhodne uživatel v kroku Kusovník)", "",
           *([f"- [{f}]({f})" for f in fbs] or ["- žádná"]), ""]
-    shots = sorted(folder.rglob("*.png"), key=lambda p: p.stat().st_mtime, reverse=True)[:24]
+    shots = sorted((p for p in folder.rglob("*.png") if ARCHIVE_DIR not in p.relative_to(folder).parts), key=lambda p: p.stat().st_mtime, reverse=True)[:24]
     L += ["## Snímky", "", *([f"- [{p.relative_to(folder).as_posix()}]({p.relative_to(folder).as_posix()})" for p in shots]
                              or ["- žádné"]), ""]
     L += ["Bezpečnostní funkce a prvky jsou návrh ke schválení odpovědnou osobou (PLCdesk Bezpečnost / Schválení).", ""]

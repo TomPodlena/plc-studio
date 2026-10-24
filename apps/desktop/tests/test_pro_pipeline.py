@@ -32,14 +32,23 @@ def fake_inputs(folder, prj, log=print):
     return ["PLCdesk_CAD.json"]
 
 
+def write_checks(folder, unit, rnd, stav="OK"):
+    out = Path(folder) / pp.UNIT[unit]["sub"] / f"k5_kolo{rnd}"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "kontroly.json").write_text(json.dumps({"souhrn": {"stav": stav, "chyby": 0, "varovani": 0}}),
+                                       encoding="utf-8")
+
+
 class FakeRunner:
     """Podvržený běh agenta: stavitel nic nedělá, K5 zapíše protokol s verdiktem ze seznamu ``verdicts[unit]``."""
 
-    def __init__(self, verdicts: dict, fail_at: tuple | None = None, touch_model: tuple | None = None):
+    def __init__(self, verdicts: dict, fail_at: tuple | None = None, touch_model: tuple | None = None,
+                 checks: bool = True):
         self.verdicts = {k: list(v) for k, v in verdicts.items()}
         self.calls: list[tuple] = []
         self.fail_at = fail_at
         self.touch_model = touch_model
+        self.checks = checks       # K5 zapíše k5_kolo<N>/kontroly.json se stavem OK
 
     def __call__(self, pipe, role, prompt, extra, log_path):
         unit = next(k for k in pp.AI_UNITS if f"_{k}_kolo" in log_path.name)
@@ -54,6 +63,8 @@ class FakeRunner:
             f.parent.mkdir(parents=True, exist_ok=True)
             word = {"ok": "**SCHVÁLENO**", "back": "**VRÁCENO** staviteli", "none": "nevím"}[v]
             f.write_text(f"# K5 {unit}\n\n## Verdikt: {word}\n", encoding="utf-8")
+            if self.checks:
+                write_checks(pipe.folder, unit, rnd)
             if self.touch_model == (unit, rnd):
                 (pipe.folder / "x.FCStd").write_bytes(os.urandom(8))
         else:
@@ -269,6 +280,95 @@ class ModelsAndChecksTest(unittest.TestCase):
         self.assertIn("Běhy agentů", summ)
         self.assertIn("verdikt SCHVÁLENO zneplatněn", summ)
         self.assertIn("2 / 60", summ)
+
+    def test_reset_from_archives_outputs(self):
+        d = tmpdir()
+        p = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=FakeRunner({}))
+        self.assertEqual(p.run(), "done")
+        (d / "rozvadec" / "Rozvadec.FCStd").write_bytes(b"old")
+        r = FakeRunner({})
+        p2 = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=r)
+        self.assertEqual(p2.run("cabinet"), "done")
+        arch = p2.state["archives"]
+        self.assertEqual(len(arch), 1)
+        a = d / arch[0]["dir"]
+        self.assertTrue(arch[0]["dir"].startswith("_archiv/"))
+        self.assertTrue((a / "rozvadec" / "Rozvadec.FCStd").is_file(), "nic se nemaže, jen přesune")
+        self.assertTrue((a / "ram" / "ZPRAVA.md").is_file())
+        self.assertFalse((a / "koncept").exists(), "koncept se neresetuje")
+        self.assertTrue((a / "logy" / "02_cabinet_kolo1_builder.log").is_file())
+        self.assertFalse((d / "rozvadec" / "Rozvadec.FCStd").exists())
+        self.assertEqual(arch[0]["units"], ["cabinet", "frame", "modules", "assembly"])
+        prompt = (d / "logy" / "02_cabinet_kolo1_builder.log").read_text(encoding="utf-8")
+        self.assertIn("STAVBA ZNOVU", prompt)
+        self.assertIn(f"{arch[0]['dir']}/rozvadec", prompt)
+        self.assertIn("App::Link", prompt)
+        self.assertNotIn("STAVBA ZNOVU", pp.builder_prompt(d, "cabinet", 1))
+        summ = (d / pp.SUMMARY_FILE).read_text(encoding="utf-8")
+        self.assertIn("Archiv dřívějších výstupů", summ)
+        self.assertIn(arch[0]["dir"], summ)
+        self.assertNotIn("_archiv", "".join(pp.collect_estimates(d)))
+
+    def test_k5_without_checks_is_returned(self):
+        d = tmpdir()
+        r = FakeRunner({}, checks=False)
+        p = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=r, max_rounds=2)
+        self.assertEqual(p.run(), "rejected", "SCHVÁLENO bez kontrol skriptem neplatí")
+        r0 = p.state["units"]["concept"]["rounds"][0]
+        self.assertEqual(r0["verdict"], "back")
+        self.assertEqual(r0["verdictText"], "VRÁCENO (bez kontrol skriptem)")
+        self.assertEqual(r0["k5NoChecks"], "missing")
+        self.assertIn("pro3d_tools vse", r0["autoPoints"][0])
+        prot = pp.k5_file(d, "concept", 1).read_text(encoding="utf-8")
+        self.assertIn("Automatický bod PLCdesk", prot)
+        self.assertIn("pro3d_tools vse", prot)
+        st = json.loads((d / pp.STATE_FILE).read_text(encoding="utf-8"))
+        self.assertEqual(st["units"]["concept"]["rounds"][0]["verdictText"], "VRÁCENO (bez kontrol skriptem)")
+        self.assertIn("bez kontrol skriptem", (d / pp.SUMMARY_FILE).read_text(encoding="utf-8"))
+        # SELHALO = také VRÁCENO
+
+        class R(FakeRunner):
+            def __call__(self, pipe, role, prompt, extra, log_path):
+                res = super().__call__(pipe, role, prompt, extra, log_path)
+                if role == "k5":
+                    write_checks(pipe.folder, *self.calls[-1][::2], stav="SELHALO")
+                return res
+
+        p2 = pp.Pipeline(tmpdir(), PRJ01, inputs_fn=fake_inputs, runner=R({}), max_rounds=1)
+        self.assertEqual(p2.run(), "rejected")
+        self.assertEqual(p2.state["units"]["concept"]["rounds"][0]["k5NoChecks"], "SELHALO")
+
+    def test_k5_max_turns_continues_once(self):
+        class R(FakeRunner):
+            def __init__(self, fails):
+                super().__init__({})
+                self.fails = fails
+
+            def __call__(self, pipe, role, prompt, extra, log_path):
+                self.prompts = getattr(self, "prompts", []) + [(role, log_path.name, prompt)]
+                if role == "k5" and self.fails > 0:
+                    self.fails -= 1
+                    self.calls.append(("x", role, 0))
+                    return {"state": "failed", "subtype": "error_max_turns", "cost": 1.0, "turns": 40}
+                return super().__call__(pipe, role, prompt, extra, log_path)
+
+        d = tmpdir()
+        r = R(1)
+        p = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=r)
+        self.assertEqual(p.run(), "done")
+        k = p.state["units"]["concept"]["rounds"][0]["k5"]
+        self.assertEqual((k["state"], k["continued"]), ("done", 1))
+        self.assertAlmostEqual(k["cost"], 1.5)
+        self.assertEqual(k["turns"], 42)
+        cont = [x for x in r.prompts if x[1].endswith("_k5_pokracovani.log")]
+        self.assertEqual(len(cont), 1)
+        self.assertIn("POKRAČOVÁNÍ KONTROLY", cont[0][2])
+        self.assertIn("koncept/KONTROLA_K5_koncept_kolo1.md", cont[0][2])
+        # druhé selhání = failed
+        p2 = pp.Pipeline(tmpdir(), PRJ01, inputs_fn=fake_inputs, runner=R(2))
+        self.assertEqual(p2.run(), "failed")
+        k2 = p2.state["units"]["concept"]["rounds"][0]["k5"]
+        self.assertEqual((k2["state"], k2["continued"]), ("failed", 1))
 
     def test_cli_models(self):
         seen = {}
