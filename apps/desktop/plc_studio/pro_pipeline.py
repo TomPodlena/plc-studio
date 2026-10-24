@@ -20,6 +20,10 @@ Dávka bez GUI:
     python -m plc_studio.pro_pipeline --sample <projekt.plcstudio.json> --out <složka> [--from-phase X]
         [--max-rounds 3] [--test-safety] [--no-ai] [--model-concept M] [--model-build M] [--model-check M]
         [--turns-concept N] [--turns-build N] [--turns-check N] [--model M (všechny role)] [--budget USD]
+        [--parts | --no-parts]   (normalizované díly kódem před stavbou; výchozí jen s AI)
+
+Před stavbou (fáze 3) postup spustí generátory normalizovaných dílů ``pro3d_parts`` (bez AI, FreeCAD ve vlastní
+instanci) → ``dily/parts_index.json``; stavitel díly „dle dokumentace“ MUSÍ vložit jako App::Link, zástupné jen zbytek.
 
 Kontroly modelu dělá KÓD (``pro3d_tools``: kolize, souvislost, otvory ISO 13857, kusovník, zástupné díly, STEP, snímky);
 stavitel je spouští před odevzdáním, kontrolor K5 nezávisle a verdikt o ně opírá — SCHVÁLENO s chybou v
@@ -85,7 +89,9 @@ C. Sestavy: App::Part pro každou část, opakované díly App::Link s VYPOČTEN
 D. Povolené kolize jen šroub × díra / drážka / závit a matice × drážka profilu; ostatní průniky hmot = chyba.
 E. Nic ve vzduchu: graf souvislosti (každé těleso se dotýká nosného dílu, cesta až k podlaze / rámu) — ověř výpočtem.
 F. Otvory v krytech posuzuj podle ISO 13857 tab. 4 MĚŘENÍM otvoru; voxelová kontrola jen hledá cesty, neschvaluje.
-G. Zástupné díly (bez modelu výrobce) barvi oranžově RGB 255,140,0 a označ vlastností (např. Placeholder = True).
+G. Díly s modelem v dily/parts_index.json (stav „dle dokumentace“, generátory kódem) vkládej jako App::Link na jejich
+   FCStd. Zástupné díly (bez modelu výrobce i generátoru) barvi oranžově RGB 255,140,0 a označ vlastností
+   (např. Placeholder = True).
 H. Snímky klíčových míst (iso, půdorys, čelo, detaily vazeb) ulož do {sub}/snimky/ a PROHLÉDNI je před zprávou.
 I. FreeCAD jen ve vlastní instanci (skill freecad-instance, vlastní slot), cizí instance nech být; šetři paměť —
    jedna instance FreeCADu najednou, stavby po malých dávkách, po práci instanci zavři.
@@ -117,7 +123,7 @@ ROZBOR.md. Rám z profilů s výpočtem (průhyb, stabilita), řezací seznam {s
 vzdálenostmi (ISO 13857 měřením). Ulož {sub}/Ram.FCStd, snímky do {sub}/snimky/, zprávu {sub}/RAM.md.""",
     "modules": """Postav technologické moduly stroje ve složce {sub}/: pohony, pneumatika, držáky snímačů, vedení kabelů a hadic.
 Vstupy: PLCdesk_CAD.json (devices, sequence, relations, parts s location = field), KUSOVNIK.csv, rám ram/Ram.FCStd
-a koncept. Díly výrobců z jejich portálů, jinak zástupné. Každý modul jako App::Part s vazbou na rám (nic ve vzduchu).
+a koncept. Normalizované díly z dily/ (parts_index.json), díly výrobců z jejich portálů, jinak zástupné. Každý modul jako App::Part s vazbou na rám (nic ve vzduchu).
 Ulož {sub}/Moduly.FCStd, snímky do {sub}/snimky/, zprávu {sub}/MODULY.md (moduly, vazby, kontroly, ODHADY).""",
     "assembly": """Slož celek stroje ve složce {sub}/: rozvaděč, rám a kryty, moduly jako App::Link s vypočteným umístěním.
 Kontroly celku: kolize (jen povolené), graf souvislosti, kusovník 3D × PLCdesk_CAD.json (každý díl právě jednou),
@@ -126,6 +132,9 @@ Ulož {sub}/Celek.FCStd, snímky do {sub}/snimky/, zprávu {sub}/CELEK.md (struk
 }
 
 TOOLS_DIR = Path(__file__).resolve().parent / "pro3d_tools"
+PARTS_DIR = Path(__file__).resolve().parent / "pro3d_parts"
+PARTS_SUB = "dily"
+PARTS_SLOT = "pro3d-parts"
 TOOLS_SLOT = {"builder": "pro3d-stavitel", "concept": "pro3d-stavitel", "k5": "pro3d-k5"}
 
 
@@ -147,12 +156,31 @@ polohy pohyblivých dílů Konstrukce_Pohyb = JSON {"nazev": …, "posun": [x, y
 […], "bod": […], "uhel": …}}, zástupné díly PLCdesk_ModelStatus = placeholder + barva 255,140,0, díly kusovníku
 PLCdesk_Id / PLCdesk_Instance (= řádek manifestu)."""
 
+def parts_cmd(role: str = "builder") -> str:
+    """Příkaz generátorů normalizovaných dílů pro pokyn agenta."""
+    return (f'powershell -NoProfile -ExecutionPolicy Bypass -File "{PARTS_DIR / "pro3d_parts.ps1"}"'
+            f" part <díl> … --out {PARTS_SUB}/knihovna --slot {TOOLS_SLOT.get(role, PARTS_SLOT)}")
+
+
+PARTS_RULES = """Normalizované díly KÓDEM (povinné): {parts}/parts_index.json přiřazuje řádkům manifestu modely FCStd
+v {parts}/modely/ (stav „dle dokumentace“ = rozměry z datových listů / norem se zdrojem, vlastnosti Konstrukce_*; souhrn
+{parts}/DILY.md). Díl se stavem „dle dokumentace“ MUSÍŠ vložit jako App::Link na jeho FCStd (vlastní model ani zástupnou
+obálku nestav, model neměň; PLCdesk_Id / PLCdesk_Instance dej na Link). Zástupnou obálku (pravidlo G) jen pro díly se
+stavem „zástupný“ nebo mimo index. Spojovací materiál (ISO 4762 / 7380 / 10642, matice ISO 4032, podložky ISO 7089),
+lišty TS35 (EN 60715) a vývodky SKINTOP generuj stejně, např.:
+  {cmd}   (díly: "ISO4762 M6x20" "ISO4032 M6" "TS35 7.5x450" "SKINTOP M20" "ISO15552 32x100")
+Osy: válce +X (zadní čelo x = 0, pístnice v podčásti „Pistnice“ s Konstrukce_Pohyb), přístroje na lištu a skříňky
+X = šířka, Y = hloubka od montážní roviny, panelové přístroje čelo panelu y = 0 (tělo k −Y), šrouby osa −Z od hlavy."""
+
+
 K5_CHECKS = """Postup kontroly:
 1. NEJDŘÍV nezávisle spusť kontroly kódem nad každým modelem části (výsledky stavitele nepřebírej):
    {cmd}   (kontrola = vse, výstup: --out {sub}/k5_kolo{round})
    Čísla převezmi z {sub}/k5_kolo{round}/kontroly.json (souhrn, chyby a varování s polohou, SHA-256 modelu).
 2. Ručně (AI) posuď JEN to, co skripty neumí: soulad se zadáním, konceptem a manifestem (funkce, rozměry, umístění),
    vyrobitelnost, montovatelnost a servis, bezpečnostní koncepci (kryty, zóny, přístup — čísla otvorů má skript),
+   použití normalizovaných dílů (díl se stavem „dle dokumentace“ v dily/parts_index.json = App::Link na jeho model,
+   ne zástupná obálka),
    označené ODHADY a sepsanou zpětnou vazbu; udělej 2–4 snímky (kontrola = snimky, --prefix k5_kolo{round}) a prohlédni je.
 3. Verdikt opři o kontroly.json: jakákoli chyba nebo stav SELHALO = VRÁCENO (povinný bod s polohou z kontroly);
    varování posuď. Postup PLCdesk verdikt SCHVÁLENO s chybou v kontroly.json sám zneplatní."""
@@ -226,6 +254,8 @@ def builder_prompt(folder: Path, unit: str, rnd: int, template: str = "", extra:
             f"Část: {u['label']} (podsložka {u['sub']}/), kolo {rnd}"]
     body = fill(template.strip() or default_prompt(unit), sub=u["sub"], round=rnd)
     body += "\n\n" + fill(BUILD_CHECKS, cmd=tools_cmd("builder"), sub=u["sub"])
+    if u["phase"] == "build":
+        body += "\n\n" + fill(PARTS_RULES, parts=PARTS_SUB, cmd=parts_cmd("builder"))
     if rnd > 1:
         prev = k5_file(folder, unit, rnd - 1)
         body += "\n\n" + fill(FIX_PROMPT, round=rnd, last_k5=prev.relative_to(folder).as_posix())
@@ -346,6 +376,28 @@ def make_inputs(folder: str | Path, prj: dict, *, bridge=None, log=print) -> lis
         if own:
             bridge.close()
     return written
+
+
+def make_parts(folder: str | Path, *, log=print, slot: str = PARTS_SLOT, timeout: int = 1800) -> dict:
+    """Normalizované díly kódem (``pro3d_parts gen``) nad ``PLCdesk_CAD.json`` → ``dily/parts_index.json`` + modely FCStd.
+    FreeCAD jen ve vlastní instanci (slot ``pro3d-parts``); hotové modely se nepřestavují. Vrací ``{"souhrn", "chyba"}``."""
+    folder = Path(folder)
+    man = folder / "PLCdesk_CAD.json"
+    if not man.is_file():
+        return {"souhrn": None, "chyba": "PLCdesk_CAD.json chybí"}
+    log(_("Normalizované díly: generátory kódem…"))
+    try:
+        r = subprocess.run([_python(), "-I", str(PARTS_DIR / "gen.py"), "gen", str(man), str(folder / PARTS_SUB),
+                            "--slot", slot, "--timeout", str(timeout)], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=timeout + 300, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"souhrn": None, "chyba": str(exc)}
+    line = next((x for x in reversed((r.stdout or "").splitlines()) if x.startswith("{")), "")
+    try:
+        res = json.loads(line)
+    except ValueError:
+        return {"souhrn": None, "chyba": ((r.stdout or "") + (r.stderr or ""))[-1500:] or f"kód {r.returncode}"}
+    return {"souhrn": res.get("souhrn"), "chyba": res.get("chyba") or ""}
 
 
 # --- běh agenta --------------------------------------------------------------------------------------------------
@@ -488,7 +540,8 @@ class Pipeline:
 
     def __init__(self, folder: str | Path, prj: dict, *, max_rounds: int = MAX_ROUNDS, test_safety: bool = False,
                  prompts: dict | None = None, extras: dict | None = None, runner=None, ai: bool = True,
-                 inputs_fn=None, log=None, models: dict | None = None, turns: dict | None = None) -> None:
+                 inputs_fn=None, log=None, models: dict | None = None, turns: dict | None = None,
+                 parts: bool | None = None, parts_fn=None) -> None:
         self.folder = Path(folder)
         self.prj = prj
         self.project = str((prj.get("meta") or {}).get("name") or "")
@@ -499,6 +552,8 @@ class Pipeline:
         self.runner = runner
         self.ai = ai
         self.inputs_fn = inputs_fn or make_inputs
+        self.parts = ai if parts is None else bool(parts)     # normalizované díly před stavbou (FreeCAD, bez AI)
+        self.parts_fn = parts_fn or make_parts
         self.events: list[str] = []
         self._log = log
         self.current = None
@@ -524,7 +579,7 @@ class Pipeline:
     def command(self, exe, role: str, extra_system: str, *, model: str | None = None, budget: float | None = None) -> list:
         """Příkaz CLI pro roli: model a limit kol role, pracovní složky skilly, PLM, FreeCAD a nástroje kontrol."""
         fc = pro_agent.find_freecad()
-        dirs = [pro_agent.SKILLS_DIR, pro_agent.PLM_DIR, TOOLS_DIR] + ([fc.parent.parent] if fc else [])
+        dirs = [pro_agent.SKILLS_DIR, pro_agent.PLM_DIR, TOOLS_DIR, PARTS_DIR] + ([fc.parent.parent] if fc else [])
         return pro_agent.build_command(exe, role, model=model if model is not None else self.model_for(role), budget=budget,
                                        add_dirs=dirs, extra_system=extra_system, max_turns=self.turns_for(role))
 
@@ -569,6 +624,7 @@ class Pipeline:
         self.state["status"] = "running"
         self.save()
         status = "done"
+        parts_done = False
         try:
             for key in UNIT_KEYS:
                 u = self.state["units"][key]
@@ -577,6 +633,9 @@ class Pipeline:
                 if self.stop_requested:
                     status = "stopped"
                     break
+                if UNIT[key]["phase"] == "build" and self.parts and not parts_done:
+                    self._parts()
+                    parts_done = True
                 if key == "inputs":
                     res = self._inputs()
                 elif not self.ai:
@@ -624,6 +683,21 @@ class Pipeline:
         self.log(_n(len(files), N_("Vstupy hotové: {n} soubor.|Vstupy hotové: {n} soubory.|Vstupy hotové: {n} souborů.")))
         self.save()
         return "done"
+
+    def _parts(self) -> None:
+        """Před stavbou: normalizované díly kódem; chyba postup nezastaví (stavitel pak staví zástupné)."""
+        try:
+            res = self.parts_fn(self.folder, log=self.log) or {}
+        except Exception as exc:  # noqa: BLE001
+            res = {"souhrn": None, "chyba": str(exc)}
+        self.state["parts"] = dict(res, at=_now())
+        s = res.get("souhrn") or {}
+        if s:
+            self.log(_("Normalizované díly: dle dokumentace {a} z {n} řádků kusovníku, zástupné {z}.",
+                       a=s.get("dle_dokumentace", 0), n=s.get("radku", 0), z=s.get("zastupne", 0)))
+        if res.get("chyba"):
+            self.log(_("Normalizované díly — chyba: {exc}", exc=res["chyba"]))
+        self.save()
 
     def _agent(self, unit: str, role: str, prompt: str, rnd: int) -> dict:
         logs = self.folder / LOG_DIR
@@ -797,6 +871,22 @@ def write_summary(folder: str | Path, st: dict) -> Path:
             for k in UNIT_KEYS for r in st["units"][k].get("rounds") or [] if r.get("k5Modified")]
     if warn:
         L += ["## Upozornění", ""] + warn + [""]
+    pi = folder / PARTS_SUB / "parts_index.json"
+    try:
+        ps = json.loads(pi.read_text(encoding="utf-8")).get("souhrn") if pi.is_file() else None
+    except (OSError, ValueError):
+        ps = None
+    perr = (st.get("parts") or {}).get("chyba")
+    if ps or perr:
+        L += ["## Normalizované díly (generátory kódem)", ""]
+        if ps:
+            L.append(f"Řádků kusovníku {ps.get('radku')}: **dle dokumentace {ps.get('dle_dokumentace')}** "
+                     f"({ps.get('pokryti_pct')} %), zástupné {ps.get('zastupne')}; kusů dle dokumentace "
+                     f"{ps.get('kusu_dle_dokumentace')} / {ps.get('kusu')}; modelů {ps.get('modelu')} — "
+                     f"[{PARTS_SUB}/DILY.md]({PARTS_SUB}/DILY.md)")
+        if perr:
+            L.append(f"Chyba generátorů: {perr}")
+        L.append("")
     est = collect_estimates(folder)
     L += ["## Předpoklady (ODHAD)", "", *(est or ["- žádné označené"]), ""]
     fbs = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("PLCdesk_CAD_feedback*.json"))
@@ -830,6 +920,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--turns-build", type=int, default=0, help=f"limit kol Stavitel (výchozí {pro_agent.ROLE_TURNS['builder']})")
     ap.add_argument("--turns-check", type=int, default=0, help=f"limit kol Kontrolor (výchozí {pro_agent.ROLE_TURNS['k5']})")
     ap.add_argument("--budget", type=float, default=None, help="limit ceny jednoho běhu agenta (USD)")
+    ap.add_argument("--parts", action="store_true", help="normalizované díly kódem i s --no-ai (FreeCAD, bez AI)")
+    ap.add_argument("--no-parts", action="store_true", help="bez generátorů normalizovaných dílů")
     a = ap.parse_args(argv)
     models = {"concept": a.model_concept, "builder": a.model_build, "k5": a.model_check}
     turns = {"concept": a.turns_concept, "builder": a.turns_build, "k5": a.turns_check}
@@ -844,7 +936,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     pipe = Pipeline(a.out, prj, max_rounds=a.max_rounds, test_safety=a.test_safety, ai=not a.no_ai,
                     runner=None if a.no_ai else agent_runner(model=a.model, budget=a.budget), log=print,
-                    models=models, turns=turns)
+                    models=models, turns=turns, parts=False if a.no_parts else (True if a.parts else None))
     status = pipe.run(a.from_phase)
     print(f"PREHLED: {Path(a.out) / SUMMARY_FILE}")
     return 0 if status in ("done", "noai") else 1

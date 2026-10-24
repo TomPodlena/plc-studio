@@ -399,6 +399,23 @@ python scripts/build_verification.py        # data/verification.json → verific
   vyrobitelnost, montáž, bezpečnostní koncepci (`K5_CHECKS`); `k5_checks` — SCHVÁLENO s chybou / SELHALO postup zneplatní.
   Testy `test_pro3d_tools.py` (pravidla, barvy, voxely, syntetický model ve FreeCADu `pro3d_synth_build.py`).
   Kandidáti na další deterministické generátory (AI jen koncept, nestandardní mechanika a posouzení) — `.claude/plcdesk_pro/NAVRH_PLCdesk_PRO.md`.
+- **Normalizované díly kódem** (2026-10-24) `plc_studio/pro3d_parts/` (bez importu z `plc_studio`, vzor `alutech-profily/fc_profil.py`):
+  tabulky `data/valce.json` (ISO 15552 Ø32–125 z SMC CP96 / C96, ISO 6432 Ø8–25 z SMC C85), `katalog.json` (podle
+  objednacího kódu: Siemens S7-1200 G2, 3RT / 3RV / 5SL / 3SK / SITOP / 3LD / V20 / V90 / MTP700 / 3SU1 z datových listů
+  `teddatasheet`, ifm IFS204 / PT5404, SICK WL12 / CM18, Werma KS71, WAGO 2002-1201), `normalie.json` (ISO 4762 / 7380 /
+  10642 / 4032 / 7089, TS35 7,5 / 15, Lapp SKINTOP ST-M) — **zdroj (URL) u každé řady; rozměr bez zdroje v tabulce není →
+  díl zůstane zástupný** (Festo DSBC = rozhraní ISO 15552 z tabulky SMC, obrys E se liší o 2 mm; Festo VUVG / SMT-8M,
+  3SE5232, motory, skříně, kabely zatím bez zdroje — festo.com a Siemens mall blokují, datové listy ftp.festo.com nemají
+  rozměry). `typy.py` (Festo DSBC / DSNU, SMC CP96 / C96 / C85 / CJ2, popis „ISO 15552, Ø32, zdvih 100“), `catalog_map.py`
+  (řádek manifestu → spec, `coverage`), `fc_parts.py` (FreeCAD: App::Part + tělesa, `Konstrukce_Typ` sroub / matice /
+  podlozka / dil, `Konstrukce_ModelStav = "dle dokumentace"`, `Konstrukce_Zdroj`, `Konstrukce_Detail` tvar / obálka,
+  `Rozmer_*`; pístnice v podčásti s `Konstrukce_Pohyb`, závitové otvory Ø d − P; barva výchozí šedá, ne oranžová),
+  `gen.py` / `pro3d_parts.ps1 gen <manifest> <složka>` → `parts_index.json` (id → FCStd, stav, zdroj / důvod) + `DILY.md`,
+  `part "ISO4762 M6x20" "TS35 7.5x450" …`, `map` (bez FreeCADu); FreeCAD slot `pro3d-parts`, hotové modely podle otisku
+  spec se nepřestavují. Postup: `make_parts` před první částí stavby (jen s AI nebo `--parts`) → `dily/`; `PARTS_RULES`
+  v pokynu stavitele (díl „dle dokumentace“ = App::Link, zástupný jen zbytek), K5 to kontroluje, PREHLED.md souhrn.
+  Pokrytí řádků kusovníku: vzor 01 70 %, 03 65 %, 11 68 %, 17 58 %, 20 67 %. Test `tests/test_pro3d_parts.py` (FreeCAD
+  vzorek 23 dílů, obálka ± 0,1; porovnání s modely výrobců na disku jen ke čtení — V20 a IFS204 shodné, DSBC +2 / +0,9 mm).
 
 ## Sestava hardwaru (hardware.ts)
 
