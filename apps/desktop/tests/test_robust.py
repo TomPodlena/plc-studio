@@ -116,6 +116,17 @@ class StartupTest(unittest.TestCase):
             finally:
                 h.close()
 
+    def test_offscreen_geometry(self):
+        """Poloha z odpojeného druhého monitoru se zahodí, velikost zůstane."""
+        g, scr = appmod._onscreen_geometry, (0, 0, 1536, 960)
+        self.assertEqual(g("1792x950+-2321+0", scr), "1792x950")
+        self.assertEqual(g("1500x900+3000+0", scr), "1500x900")
+        self.assertEqual(g("1500x900+10+20", scr), "1500x900+10+20")
+        self.assertEqual(g("1500x900+-8+-8", scr), "1500x900+-8+-8")     # maximalizované okno
+        self.assertEqual(g("1500x900+-1800+0", (-1920, 0, 3456, 1080)), "1500x900+-1800+0")
+        self.assertEqual(g("1500x900", scr), "1500x900")
+        self.assertIsNone(g(None, scr))
+
 
 class RuntimeTest(unittest.TestCase):
     @classmethod

@@ -96,6 +96,37 @@ def read_text_any(path: Path) -> str:
     return text
 
 
+def _virtual_screen() -> tuple[int, int, int, int] | None:
+    """Plocha všech připojených monitorů (x, y, šířka, výška) z Windows; jinde None."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        gm = ctypes.windll.user32.GetSystemMetrics
+        return gm(76), gm(77), gm(78), gm(79)   # SM_X/YVIRTUALSCREEN, SM_CX/CYVIRTUALSCREEN
+    except (AttributeError, OSError):
+        return None
+
+
+def _onscreen_geometry(geo: str | None, screen: tuple[int, int, int, int] | None = None) -> str | None:
+    """Uložená geometrie okna; poloha mimo připojené monitory (odpojený druhý monitor) se zahodí
+    a zůstane jen velikost — jinak by okno běželo neviditelně mimo obrazovku."""
+    if not geo:
+        return geo
+    m = re.fullmatch(r"(\d+x\d+)([+-]-?\d+)([+-]-?\d+)", geo)
+    if not m:
+        return geo
+    scr = screen if screen is not None else _virtual_screen()
+    if not scr:
+        return geo
+    x, y = int(m.group(2).replace("+", "", 1)), int(m.group(3).replace("+", "", 1))
+    vx, vy, vw, vh = scr
+    # záhlaví okna (aspoň 120 × 40 px) musí ležet na ploše monitorů, jinak se okno nedá chytit
+    if vx - 40 <= x <= vx + vw - 120 and vy - 10 <= y <= vy + vh - 40:
+        return geo
+    return m.group(1)
+
+
 def _bad_number(name: str):
     raise ValueError(_("soubor obsahuje neplatné číslo {value} (JSON nepovoluje NaN ani nekonečno) — "
                        "oprav hodnotu v souboru, třeba na 0.", value=name))
@@ -185,7 +216,7 @@ class App:
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         default = f"{min(int(1240 * self.ui_scale), sw - 40)}x{min(int(820 * self.ui_scale), sh - 80)}"
         try:                                     # neplatná geometrie v settings.json nesmí shodit start
-            root.geometry(self.settings.get("geometry") or default)
+            root.geometry(_onscreen_geometry(self.settings.get("geometry")) or default)
         except tk.TclError:
             self.settings.pop("geometry", None)
             root.geometry(default)
