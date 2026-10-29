@@ -41,6 +41,22 @@ SAMPLE = [
 
 
 class CommandTest(unittest.TestCase):
+    def test_env_without_api(self):
+        """Agent běží jen na předplatné claude.ai — proměnné API z prostředí nedostane."""
+        env = pa.agent_env({"PATH": "C:/bin", "ANTHROPIC_API_KEY": "x", "ANTHROPIC_AUTH_TOKEN": "y",
+                            "CLAUDE_CODE_USE_BEDROCK": "1", "CLAUDE_CODE_USE_VERTEX": "1"})
+        self.assertEqual(env, {"PATH": "C:/bin"})
+        seen = {}
+
+        def fake_popen(cmd, **kw):
+            seen.update(kw)
+            raise OSError("stop")
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "x"}):
+            run = pa.AgentRun(["claude"], "pokyn", ".")
+            with self.assertRaises(OSError):
+                run.start(popen=fake_popen)
+        self.assertNotIn("ANTHROPIC_API_KEY", seen["env"])
+
     def test_command(self):
         cmd = pa.build_command("C:/x/claude.exe", "builder", model="opus", budget=2.5, add_dirs=["C:/skills"])
         self.assertEqual(cmd[:5], ["C:/x/claude.exe", "-p", "--output-format", "stream-json", "--verbose"])

@@ -929,7 +929,7 @@ def write_summary(folder: str | Path, st: dict) -> Path:
     if st.get("testSafety"):
         L += [f"> **{TEST_MARK}** — bezpečnostní prvky a funkce byly v tomto běhu považovány za schválené.", ""]
     L += [f"Stav postupu: **{st.get('status')}**, aktualizováno {st.get('updated')}, max. kol {st.get('maxRounds')}.", "",
-          "| Fáze | Krok | Stav | Kola | Verdikty | Cena USD | Tokeny vstup / výstup |", "|---|---|---|---|---|---|---|"]
+          "| Fáze | Krok | Stav | Kola | Verdikty | Odhad USD (ceník API) | Tokeny vstup / výstup |", "|---|---|---|---|---|---|---|"]
     tc = ti = to = 0
     for k in UNIT_KEYS:
         u = st["units"][k]
@@ -948,7 +948,9 @@ def write_summary(folder: str | Path, st: dict) -> Path:
         lbl = STATE_LABELS.get(u["state"], u["state"]).replace("{n}", str(len(u.get("rounds") or [])))
         L.append(f"| {dict(PHASES)[UNIT[k]['phase']]} | {UNIT[k]['label']} | {lbl} | {len(u.get('rounds') or [])} | "
                  f"{'; '.join(verd) or '—'} | {cost:.2f} | {tin} / {tout} |")
-    L += ["", f"**Celkem:** {tc:.2f} USD, tokeny vstup {ti} / výstup {to}.", ""]
+    L += ["", f"**Celkem:** tokeny vstup {ti} / výstup {to}; odhad podle ceníku API {tc:.2f} USD.", "",
+          "> Částka je přepočet tokenů na ceník API, který hlásí Claude Code. Při přihlášení předplatným claude.ai "
+          "(Pro / Max) se neúčtuje — čerpá limity předplatného. Agent API klíč nedostane (`pro_agent.agent_env`).", ""]
     if st.get("inputs"):
         L += ["## Vstupy z PLCdesk", ""] + [f"- [{f}]({f})" for f in st["inputs"] if "/" not in f] + \
              ([f"- program: {sum(1 for f in st['inputs'] if f.startswith('program/'))} souborů v `program/`"]
@@ -960,8 +962,8 @@ def write_summary(folder: str | Path, st: dict) -> Path:
     runs = [(k, r, x) for k in UNIT_KEYS for r in st["units"][k].get("rounds") or []
             for x in (r.get("builder"), r.get("k5")) if x]
     if runs:
-        L += ["## Běhy agentů (skutečná cena z Claude Code)", "",
-              "| Krok | Kolo | Role | Model | Stav | Kol / limit | Cena USD | Tokeny vstup / výstup | s | Log |",
+        L += ["## Běhy agentů (tokeny a odhad podle ceníku API z Claude Code)", "",
+              "| Krok | Kolo | Role | Model | Stav | Kol / limit | Odhad USD | Tokeny vstup / výstup | s | Log |",
               "|---|---|---|---|---|---|---|---|---|---|"]
         for k, r, x in runs:
             lg = x.get("log") or ""

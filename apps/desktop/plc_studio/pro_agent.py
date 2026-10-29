@@ -337,7 +337,7 @@ def parse_event(line: str) -> list[tuple[str, str]]:
         parts = []
         cost = ev.get("total_cost_usd")
         if isinstance(cost, (int, float)):
-            parts.append(_("cena {cost} USD", cost=f"{cost:.4f}"))
+            parts.append(_("odhad dle ceníku API {cost} USD", cost=f"{cost:.4f}"))
         tin = sum(int(usage.get(k) or 0) for k in ("input_tokens", "cache_creation_input_tokens",
                                                        "cache_read_input_tokens"))
         tout = int(usage.get("output_tokens") or 0)
@@ -354,6 +354,19 @@ def parse_event(line: str) -> list[tuple[str, str]]:
 
 
 # --- běh agenta ---------------------------------------------------------------------------------------------
+
+# Proměnné, se kterými by Claude Code CLI účtovalo přes API (klíč / token / jiný poskytovatel) místo přihlášení
+# claude.ai (předplatné). Agent PRO je nedostane — placené API se nesmí zapnout potají (rozhodnutí 2026-10-29).
+API_ENV_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX")
+
+
+def agent_env(base: dict | None = None) -> dict:
+    """Prostředí procesu agenta: kopie prostředí bez proměnných API (běh jen na předplatné claude.ai)."""
+    env = dict(os.environ if base is None else base)
+    for k in API_ENV_VARS:
+        env.pop(k, None)
+    return env
+
 
 def kill_tree(pid: int) -> bool:
     """Ukončí proces ``pid`` a jeho potomky — nic jiného (Windows ``taskkill /T /F`` nad tímto PID)."""
@@ -396,7 +409,8 @@ class AgentRun:
         else:
             kw["start_new_session"] = True
         self.proc = popen(self.cmd, cwd=self.cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT, encoding="utf-8", errors="replace", bufsize=1, **kw)
+                          stderr=subprocess.STDOUT, encoding="utf-8", errors="replace", bufsize=1,
+                          env=agent_env(), **kw)
         self.state = "running"
         self.t0 = time.monotonic()
         self._thread = threading.Thread(target=self._pump, daemon=True)

@@ -131,7 +131,7 @@ class AutomatonTest(unittest.TestCase):
         self.assertTrue((d / "logy" / "01_concept_kolo1_concept.log").is_file())
         prehled = (d / pp.SUMMARY_FILE).read_text(encoding="utf-8")
         for must in (pp.TEST_MARK, "neschváleno", "VRÁCENO", "SCHVÁLENO", "ram/KONTROLA_K5_ram_kolo3.md",
-                     "ODHAD: výška frame", "NEPOUŽITA", "Celkem:** 9.00 USD"):
+                     "ODHAD: výška frame", "NEPOUŽITA", "odhad podle ceníku API 9.00 USD"):
             self.assertIn(must, prehled)
         self.assertEqual(pp.phase_state(p.state, "build"), ("rejected", 3))
         self.assertEqual(pp.phase_state(p.state, "concept")[0], "approved")
