@@ -93,6 +93,29 @@ def build_url(entry: dict, code: str, typ: str) -> str:
              .replace("{query}", quote(q, safe="-._")))
 
 
+def row_links(vkey: str, entry: dict, code: str, typ: str) -> list[dict]:
+    """Odkazy ke stažení pro člověka: stránka produktu / hledání výrobce, stránka CAD výrobce
+    (``cad_pages``), náhradní hledání (``alternatives``) — vždy jen odkaz, nic se nestahuje."""
+    v = vendors()
+    out = [{"label": {"product": "Stránka produktu", "search": "Hledání výrobce", "portal": "Portál CAD výrobce",
+                      "fallback": "Hledání TraceParts"}.get(entry.get("kind", ""), "Odkaz"),
+            "url": build_url(entry, code, typ), "verified": bool(entry.get("verified")), "hint": ""}]
+    cad = v.get("cad_pages", {}).get(vkey)
+    if cad and (code or "{code}" not in cad["url"]):
+        out.append({"label": cad["label"], "url": build_url(cad, code, typ), "verified": bool(cad.get("verified")),
+                    "hint": cad.get("hint", "")})
+    for alt in v.get("alternatives", []):
+        u = build_url(alt, code, typ)
+        if all(u != o["url"] for o in out):
+            out.append({"label": alt["label"], "url": u, "verified": bool(alt.get("verified")), "hint": alt.get("hint", "")})
+    seen, uniq = set(), []
+    for o in out:
+        if o["url"] not in seen:
+            seen.add(o["url"])
+            uniq.append(o)
+    return uniq
+
+
 def expected_dims(p: dict) -> list[float] | None:
     """Rozměry z popisu dílu („… 500×500×210 …“), jen když jsou v textu — jinak None."""
     m = DIMS_RE.search(" ".join(str(p.get(k) or "") for k in ("type", "label")))
@@ -210,6 +233,7 @@ def download_list(manifest: dict, parts_index: dict | None, models_dir: str | Pa
             "brand": first.get("brand", ""), "vendor": vkey, "vendorName": ent.get("name") if known else first.get("brand", ""),
             "orderCode": code, "qty": sum(int(p.get("qty") or 1) for p in parts),
             "url": build_url(ent, code, first.get("type", "")), "urlKind": ent.get("kind", ""),
+            "links": row_links(vkey if known else "", ent, code, first.get("type", "")),
             "urlVerified": bool(ent.get("verified")), "urlNote": ent.get("verify_note", ""), "note": note,
             "format": ent.get("format") or FORMAT, "file": MI.safe_name(first["id"]) + ".stp",
             "dir": f"{MODELS_SUB}/{MANUAL_SUB}", "status": status, "libraryOk": library_ok(vkey),
@@ -267,30 +291,52 @@ def list_md(rows: list[dict], c: dict, project: str = "", created: str = "") -> 
          "| # | Díl (partId) | Popis | Výrobce | Obj. kód | Odkaz | Formát | Soubor | Další řádky | Knihovna | Stav |",
          "|---|---|---|---|---|---|---|---|---|---|---|"]
     for i, r in enumerate(rows, 1):
-        ver = "" if r["urlVerified"] else " (vzor neověřen)"
+        links = " · ".join(f"[{o['label']}]({o['url']})" + ("" if o["verified"] else "*")
+                           for o in r.get("links") or [{"label": r["urlKind"] or "odkaz", "url": r["url"],
+                                                        "verified": r["urlVerified"]}])
         desc = RM.short(f"{r['label']}: {r['type']}", 90).replace("|", "/")
         others = ", ".join(f"`{p}`" for p in r["partIds"][1:]) or "—"
         L.append(f"| {i} | `{r['partId']}` ({r['tag']}) | {desc} | {r['vendorName']} | {r['orderCode'] or '—'} | "
-                 f"[{r['urlKind'] or 'odkaz'}]({r['url']}){ver} | {r['format']} | `{r['dir']}/{r['file']}` | {others} | "
+                 f"{links} | {r['format']} | `{r['dir']}/{r['file']}` | {others} | "
                  f"{'ano' if r['libraryOk'] else 'ne'} | {STATUS_CS[r['status']]} |")
+    L += ["", "\\* vzor odkazu neověřen (portál se nedá přečíst automaticky) — když nevede na díl, vlož objednací kód "
+          "do hledání portálu."]
     notes = sorted({(r["vendorName"], r["note"]) for r in rows if r["note"]})
     if notes:
         L += ["", "## Poznámky k portálům", ""] + [f"- **{a}** — {b}" for a, b in notes]
     return "\n".join(L) + "\n"
 
 
-def list_html(rows: list[dict], c: dict, project: str = "", created: str = "") -> str:
+def _copy_btn(text: str) -> str:
+    e = html.escape
+    return (f' <button class="cp" type="button" data-copy="{e(text, quote=True)}" title="Zkopírovat do schránky">'
+            f'kopírovat</button>') if text else ""
+
+
+def list_html(rows: list[dict], c: dict, project: str = "", created: str = "", folder: str | Path | None = None) -> str:
     e = html.escape
     tr = []
     for i, r in enumerate(rows, 1):
-        ver = "" if r["urlVerified"] else ' <span class="dim">(vzor neověřen)</span>'
+        links = r.get("links") or [{"label": "otevřít", "url": r["url"], "verified": r["urlVerified"], "hint": ""}]
+        btns = ""
+        for j, o in enumerate(links):
+            star = "" if o["verified"] else ' <span class="dim">*</span>'
+            hint = f' <span class="dim">— {e(o["hint"])}</span>' if o.get("hint") else ""
+            cls = "btn" if j else "btn main"
+            btns += (f'<div class="lk"><a class="{cls}" href="{e(o["url"], quote=True)}" target="_blank" '
+                     f'rel="noopener">{e(o["label"])}</a>{star}{hint}</div>')
         tr.append(
             f'<tr class="s-{r["status"]}"><td>{i}</td><td><code>{e(r["partId"])}</code><br>{e(r["tag"])}</td>'
             f'<td>{e(RM.short(r["label"] + ": " + r["type"], 110))}</td><td>{e(r["vendorName"])}</td>'
-            f'<td><b>{e(r["orderCode"] or "—")}</b></td><td><a href="{e(r["url"], quote=True)}" target="_blank" '
-            f'rel="noopener">otevřít</a>{ver}<div class="dim">{e(r["note"])}</div></td><td>{e(r["format"])}</td>'
-            f'<td><code>{e(r["dir"])}/{e(r["file"])}</code></td><td>{e(", ".join(r["partIds"][1:]) or "—")}</td>'
+            f'<td><b>{e(r["orderCode"] or "—")}</b>{_copy_btn(r["orderCode"])}</td>'
+            f'<td>{btns}<div class="dim">{e(r["note"])}</div></td><td>{e(r["format"])}</td>'
+            f'<td><code>{e(r["file"])}</code>{_copy_btn(r["file"])}</td><td>{e(", ".join(r["partIds"][1:]) or "—")}</td>'
             f'<td>{"ano" if r["libraryOk"] else "ne"}</td><td>{e(STATUS_CS[r["status"]])}</td></tr>')
+    target = ""
+    if folder is not None:
+        man = (Path(folder) / MODELS_SUB / MANUAL_SUB).resolve()
+        target = (f'<p>Stažené soubory ukládej do <a href="{e(man.as_uri(), quote=True)}">{e(str(man))}</a>'
+                  f'{_copy_btn(str(man))} (nebo je nech ve Stažených souborech — PLCdesk je najde).</p>')
     how = "".join(f"<p>{e(h).replace('**', '')}</p>" for h in HOWTO)
     return f"""<!doctype html>
 <html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -300,6 +346,8 @@ body{{font:14px/1.4 Segoe UI,Arial,sans-serif;margin:16px;color:#1b1b1b;backgrou
 h1{{font-size:20px;color:#1F482A}} table{{border-collapse:collapse;width:100%}}
 th,td{{border:1px solid #ccc;padding:4px 6px;vertical-align:top;text-align:left}} th{{background:#e8f0ea}}
 a{{color:#008639}} .dim{{color:#666;font-size:12px}} code{{font-size:12px}}
+.lk{{margin:2px 0}} a.btn{{display:inline-block;padding:2px 8px;border:1px solid #008639;border-radius:4px;text-decoration:none}}
+a.btn.main{{background:#008639;color:#fff}} button.cp{{font-size:11px;padding:0 5px;margin-left:4px;cursor:pointer}}
 tr.s-registered td{{background:#eef7ef}} tr.s-placeholder td{{background:#fff4e5}} tr.s-library td{{background:#eef3fb}}
 @media print{{a{{color:#000}} a::after{{content:" (" attr(href) ")";font-size:10px;color:#444}} body{{margin:0}}}}
 </style></head><body>
@@ -308,11 +356,15 @@ tr.s-registered td{{background:#eef7ef}} tr.s-placeholder td{{background:#fff4e5
 v knihovně {c[ST_LIBRARY]}, staženo {c[ST_REGISTERED]}, nezaevidováno {c[ST_DOWNLOADED]}, zástupné {c[ST_PLACEHOLDER]};
 dle dokumentace {c.get(ST_DOC, 0)} řádků (v seznamu nejsou).</p>
 {how}
-<table><thead><tr><th>#</th><th>Díl</th><th>Popis</th><th>Výrobce</th><th>Obj. kód</th><th>Odkaz</th><th>Formát</th>
+{target}
+<p class="dim">* vzor odkazu neověřen (portál se nedá přečíst automaticky) — když nevede přímo na díl, vlož objednací kód do hledání portálu (tlačítko kopírovat).</p>
+<table><thead><tr><th>#</th><th>Díl</th><th>Popis</th><th>Výrobce</th><th>Obj. kód</th><th>Stáhnout</th><th>Formát</th>
 <th>Soubor (přesný název)</th><th>Další řádky</th><th>Knihovna</th><th>Stav</th></tr></thead>
 <tbody>
 {chr(10).join(tr)}
-</tbody></table></body></html>
+</tbody></table>
+<script>document.addEventListener('click',function(ev){{var b=ev.target.closest('button.cp');if(!b)return;var t=b.getAttribute('data-copy');try{{navigator.clipboard.writeText(t).then(function(){{b.textContent='zkopírováno';setTimeout(function(){{b.textContent='kopírovat'}},1500)}})}}catch(e){{window.prompt('Zkopíruj:',t)}}}});</script>
+</body></html>
 """
 
 
@@ -327,7 +379,7 @@ def write_lists(folder: str | Path, manifest: dict, parts_index: dict | None = N
     created = f"{_dt.datetime.now():%Y-%m-%d %H:%M}"
     (folder / MODELS_SUB / MANUAL_SUB).mkdir(parents=True, exist_ok=True)
     (folder / LIST_MD).write_text(list_md(rows, c, name, created), encoding="utf-8")
-    (folder / LIST_HTML).write_text(list_html(rows, c, name, created), encoding="utf-8")
+    (folder / LIST_HTML).write_text(list_html(rows, c, name, created, folder), encoding="utf-8")
     return {"rows": rows, "counts": c, "files": [LIST_MD, LIST_HTML]}
 
 

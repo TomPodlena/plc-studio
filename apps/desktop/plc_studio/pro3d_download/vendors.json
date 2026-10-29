@@ -141,6 +141,21 @@
   "terms": "podmínky TraceParts — skripty zakázány, modely jen k projektu",
   "terms_src": "https://www.traceparts.com/en/terms-of-use"
  },
+ "cad_pages": {
+  "about": "Stránka, kde se CAD daného výrobce stahuje (vedle stránky produktu). Jen odkaz pro člověka. checked 2026-10-29: siemens.com/cax přesměruje na CAxOnline (pak 403 pro automatické čtení), ostatní 403 → neověřeno.",
+  "siemens": {"label": "CAx Download Manager", "url": "https://www.siemens.com/cax", "verified": true,
+              "hint": "vlož objednací kód, vyber 3D STEP, stáhni ZIP"},
+  "rittal": {"label": "PARTcommunity Rittal", "url": "https://rittal.partcommunity.com/3d-cad-models/", "verified": false,
+             "hint": "do hledání vlož objednací kód"},
+  "festo": {"label": "CAD na stránce produktu", "url": "https://www.festo.com/cz/cs/a/{code}/", "verified": false,
+            "hint": "na stránce produktu sekce CAD (po přihlášení) → STEP"}
+ },
+ "alternatives": [
+  {"label": "TraceParts", "url": "https://www.traceparts.com/en/search?Keywords={query}", "verified": false,
+   "hint": "účet zdarma; modely jen k projektu"},
+  {"label": "3Dfindit", "url": "https://www.3dfindit.com/", "verified": false,
+   "hint": "vlož objednací kód do hledání; účet zdarma; podmínky CADENAS — jen ručně, jen k projektu"}
+ ],
  "no_cad": {
   "lukas": "model na vyžádání u výrobce (LUKAS TENZO), jinak zástupný",
   "jsp": "výkres / model na vyžádání u výrobce (JSP), jinak zástupný"

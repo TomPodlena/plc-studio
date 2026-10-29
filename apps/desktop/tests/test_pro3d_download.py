@@ -101,7 +101,20 @@ class SamplesTest(unittest.TestCase):
                 for r in out["rows"]:
                     self.assertIn(r["file"], md)
                     self.assertIn('href="' + r["url"].replace("&", "&amp;"), ht)
+                    # odkazy ke stažení: stránka výrobce + náhradní hledání, bez nevyplněných vzorů a duplicit
+                    urls = [o["url"] for o in r["links"]]
+                    self.assertEqual(urls[0], r["url"])
+                    self.assertEqual(len(urls), len(set(urls)))
+                    self.assertTrue(any("traceparts" in u for u in urls), r)
+                    for u in urls:
+                        self.assertTrue(u.startswith("https://") and "{" not in u, u)
+                        self.assertIn('href="' + u.replace("&", "&amp;"), ht)
+                    if r["vendor"] == "siemens":
+                        self.assertIn("https://www.siemens.com/cax", urls)
+                    if r["orderCode"]:
+                        self.assertIn(f'data-copy="{r["orderCode"]}"', ht)
                 self.assertIn("<title>", ht)
+                self.assertIn("models", ht)
 
     def test_parts_index_excludes_doc(self):
         m = manifest("01")

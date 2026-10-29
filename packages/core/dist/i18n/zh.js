@@ -4780,6 +4780,7 @@ const d = {
     "Uživatelská příručka B-Nimis MC-I/O 1.11 (moduly EtherCAT, objednací čísla, škálování)": "B-Nimis MC-I/O 1.11 用户手册（EtherCAT 模块、订货号、缩放）",
     "Uživatelská příručka B-Nimis MC-Pi a BC-Pi 1.5 (limit 10 modulů, E-bus)": "B-Nimis MC-Pi 和 BC-Pi 1.5 用户手册（10 个模块限制，E-bus）",
     "Uživatelské alarmy: zkopíruj do Excelu (od Sysmac Studio 1.27) a doplň řádky z NA_UserAlarms.txt.": "用户报警：复制到 Excel（自 Sysmac Studio 1.27 起），并补充 NA_UserAlarms.txt 中的行。",
+    "V **STAHNOUT.html** má každý díl tlačítka ke stažení: stránka produktu výrobce, stránka CAD dat (Siemens CAx Download Manager, Rittal PARTcommunity) a náhradní hledání TraceParts a 3Dfindit. Objednací kód a přesný název souboru zkopíruješ tlačítkem **kopírovat**, odkaz nahoře otevře složku models/manual. Odkazy označené hvězdičkou nejdou ověřit automaticky — když nevedou přímo na díl, vlož kód do hledání portálu.": "在 **STAHNOUT.html** 中，每个零件都有下载按钮：制造商产品页面、CAD 数据页面（Siemens CAx Download Manager、Rittal PARTcommunity）以及 TraceParts 和 3Dfindit 的备用搜索。用 **kopírovat**（复制）按钮复制订货号和准确的文件名；顶部链接打开 models/manual 文件夹。带星号的链接无法自动验证——如果没有直接指向零件，请将订货号粘贴到门户的搜索框中。",
     "V AUTO spusť cyklus bez materiálu a změř dobu cyklu.": "在 AUTO 下无物料运行循环并测量循环时间。",
     "V AUTO stojí, ovládá se jen ručním povelem. Pokud má v cyklu pracovat, doplň krok sekvence; jinak to potvrď schválením.": "在 AUTO 下静止，只能通过手动命令操作。若应参与循环，请补充顺序步；否则通过批准确认。",
     "V Chotejně 700/7, Praha 10.": "V Chotejně 700/7, Praha 10。",
