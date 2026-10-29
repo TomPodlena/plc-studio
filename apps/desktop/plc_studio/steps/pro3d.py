@@ -147,7 +147,8 @@ def start_pipeline(app, from_unit: str | None = None, *, confirm=None, runner=No
     ask = confirm or (lambda: messagebox.askyesno(
         _("Spustit 3D agenta"),
         _("Postup spouští agenty přes Claude Code a spotřebuje kredity tvého tarifu Claude "
-          "(každá část až {n} kol stavitel + kontrolor). Pokračovat?", n=pro_pipeline.MAX_ROUNDS),
+          "(každá část až {n} kol stavitel + kontrolor). Pokračovat?",
+          n=max(pro_pipeline.MAX_ROUNDS, *pro_pipeline.UNIT_ROUNDS.values())),
         parent=app.root))
     if not ask():
         return None
@@ -397,7 +398,8 @@ def overall_text(st: dict) -> str:
                 return _("Fáze {p}/3 · {part}", p=pi, part=_(pro_pipeline.UNIT[k]["label"]))
             role = _("Kontrolor K5") if u["state"] == "review" else _("Stavitel")
             return _("Fáze {p}/3 · {part} · kolo {n}/{m} · {role}", p=pi, part=_(pro_pipeline.UNIT[k]["label"]),
-                     n=max(1, len(u.get("rounds") or [])), m=st.get("maxRounds") or pro_pipeline.MAX_ROUNDS, role=role)
+                     n=max(1, len(u.get("rounds") or [])),
+                     m=(st.get("unitRounds") or {}).get(k) or st.get("maxRounds") or pro_pipeline.MAX_ROUNDS, role=role)
     status = st.get("status") or "new"
     return {"new": _("Postup zatím neběžel."), "running": _("Postup běží…"), "done": _("Postup dokončen."),
             "noai": _("Vstupy připravené (bez AI)."), "stopped": _("Postup zastaven — Spustit celý postup naváže."),

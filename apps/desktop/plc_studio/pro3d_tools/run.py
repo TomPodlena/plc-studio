@@ -4,8 +4,9 @@
               [--grids 5,4,3] [--podlaha Z] [--detail "díl1;díl2"] [--prefix k5]
     (= python run.py …; pro3d.ps1 vybere Python s numpy — FreeCAD 1.1 ho má)
 
-Kontroly: ``kolize`` (přísné průniky, povolené jen šroub × díra / závit, matice × drážka; polohy ``Konstrukce_Pohyb``;
-kalibrace měřiče), ``souvislost`` (graf dotyků, podlaha, díly bez spoje, volná čela profilů), ``otvory`` (voxely
+Kontroly: ``kolize`` (přísné průniky, povolené jen šroub × díra / závit, matice × drážka, kabel / hadice ve žlabu /
+obálce řetězu, hadice zasunutá do šroubení, šroubení v portu; polohy ``Konstrukce_Pohyb``; kalibrace měřiče),
+``souvislost`` (graf dotyků, podlaha, díly bez spoje, žlab bez šroubu k rámu = chyba, volná čela profilů), ``otvory`` (voxely
 5 / 4 / 3 mm → cesty k zónám ``Zona_*``, e a Sr, ISO 13857 tab. 4), ``kusovnik`` (``PLCdesk_Id`` × manifest),
 ``stav`` (zástupné díly = oranžová 255,140,0 = vlastnost), ``step`` (export a zpětné načtení), ``snimky`` (GUI instance),
 ``vse`` = kolize … step (bez snímků) → ``kontroly.json`` + ``KONTROLY.md`` (≤ 40 řádků) ve složce ``--out``

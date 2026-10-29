@@ -35,7 +35,8 @@ from .i18n import N_, _
 FC_SLOT = "plcdesk-pro"
 HOME = Path(os.path.expanduser("~"))
 SKILLS_DIR = HOME / ".claude" / "skills"
-SKILL_REFS = ("automatizacni-technika", "alutech-profily", "rozvadec-3d", "ramy-a-kryty", "freecad-instance")
+SKILL_REFS = ("stroj-stavitel", "stroj-kontrolor", "automatizacni-technika", "alutech-profily", "rozvadec-3d",
+              "ramy-a-kryty", "freecad-instance")
 
 # --- role ---------------------------------------------------------------------------------------------
 
@@ -47,7 +48,8 @@ Závazná pravidla (porušení = práce se vrací):
 3. Zástupné díly (bez modelu výrobce) barvi oranžově a pojmenuj je tak, aby bylo vidět, že jsou zástupné.
 4. Kolize jsou povolené JEN šroub × díra / drážka / závit a matice × drážka profilu. Jakýkoli jiný průnik hmot je chyba.
 5. Nic ve vzduchu: každý díl má nosnou vazbu (dosedá, je přišroubovaný, visí na profilu) — ověř měřením, ne odhadem.
-6. Po každé stavbě udělej snímky (iso, půdorys, čelo) a PROHLÉDNI je dřív, než ohlásíš výsledek; při rozporu platí obrázek.
+6. Po každé stavbě udělej snímky (iso, půdorys, čelo) a PROHLÉDNI je dřív, než ohlásíš výsledek; při rozporu platí obrázek
+   (prázdný snímek = nepořízený).
 7. PLCdesk je zdroj pravdy kusovníku: neshodu (malá skříň, chybějící díl, jiný počet, nevhodný typ) NEopravuj ve 3D potichu —
    zapiš ji jako zpětnou vazbu PLCdesk_CAD_feedback.json (formát plcdesk-cad-feedback v1) a uživatel ji rozhodne v PLCdesk.
 8. Modely výrobců nestahuj skripty z 3Dfindit / CADENAS (podmínky to zakazují) — jen ručně, z portálů výrobců, jinak zástupný díl.
@@ -61,12 +63,14 @@ Skilly k použití podle potřeby: {skills}."""
 ROLE_RULES = {
     "builder": """Role: STAVITEL. Stavíš a upravuješ 3D model stroje podle pokynu uživatele, manifestu PLCdesk_CAD.json
 (kusovník, umístění, vazby, zadání) a předchozích kontrol KONTROLA_K5_*.md (povinné body z poslední kontroly řeš přednostně).
-Nové verze ukládej do FCStd ve složce stroje, snímky do podsložky snimky/. Na konci shrň, co se změnilo, a navrhni kontrolu K5.""",
-    "k5": """Role: KONTROLOR K5. Model NEMĚNÍŠ (žádné úpravy FCStd). Převezmi poslední práci stavitele a nezávisle ji zkontroluj:
+Nové verze ukládej do FCStd ve složce stroje, snímky do podsložky snimky/. Na konci shrň, co se změnilo, a navrhni kontrolu K5.
+Postupuj podle skillu stroj-stavitel; před odevzdáním sebekontrola podle seznamu stroj-kontrolor.""",
+    "k5": """Role: KONTROLOR K5. Model NEMĚNÍŠ (žádné úpravy FCStd). Převezmi poslední práci stavitele a nezávisle ji zkontroluj
+podle skillu stroj-kontrolor (kontrolní seznam s povinným důkazem, pravidla verdiktu, šablona protokolu); bez skillu aspoň:
 průniky hmot (kromě povolených), nic ve vzduchu, rozměry a hmotnosti proti zadání a manifestu PLCdesk_CAD.json, kusovník 3D
 × PLCdesk, App::Part / App::Link, zástupné díly oranžově, bezpečné vzdálenosti krytů, snímky (sám je udělej a prohlédni).
-Výsledek zapiš do nového souboru KONTROLA_K5_<předmět>_kolo<N>.md s řádkem „## Verdikt: **SCHVÁLENO**“ nebo
-„## Verdikt: **VRÁCENO** staviteli“ a očíslovaným seznamem povinných bodů. Neshody kusovníku zapiš jako zpětnou vazbu pro PLCdesk.""",
+Položka bez důkazu = nesplněno, pochybnost = VRÁCENO. Výsledek zapiš do nového souboru KONTROLA_K5_<předmět>_kolo<N>.md
+s jediným řádkem „## Verdikt: **SCHVÁLENO**“ nebo „## Verdikt: **VRÁCENO**“ a očíslovaným seznamem povinných bodů. Neshody kusovníku zapiš jako zpětnou vazbu pro PLCdesk.""",
     "concept": """Role: KONCEPT. Z manifestu PLCdesk_CAD.json (zadání, zařízení, sekvence, bezpečnost) a pokynu uživatele navrhni hrubý
 koncept stroje z obálek (rozvaděč, rám, polní prvky, obsluha, kryty) — 2 až 3 varianty se zdůvodněním, otázky na chybějící
 údaje a doporučení. Model postav jen z jednoduchých obálek (žádné detaily), snímky ulož do snimky/ a koncept zapiš do KONCEPT.md.""",
@@ -132,7 +136,7 @@ def deny_tools() -> list[str]:
 # v kroku per projekt, v pipeline.json a z CLI). Seznam známých modelů = ``ai_client.KNOWN_MODELS`` (shodně s AI návrhářem
 # a webem ``AI_MODELS``), jinak vlastní ID.
 ROLE_MODELS = {"concept": "claude-opus-5-5", "builder": "claude-sonnet-5-5", "k5": "claude-sonnet-5-5"}
-ROLE_TURNS = {"concept": 60, "builder": 60, "k5": 40}
+ROLE_TURNS = {"concept": 60, "builder": 60, "k5": 80}   # K5 přísně = měření (2026-10-29: 40 → 80)
 
 
 def known_models() -> dict:

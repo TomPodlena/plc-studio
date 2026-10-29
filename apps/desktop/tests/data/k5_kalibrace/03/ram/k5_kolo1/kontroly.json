@@ -1,0 +1,1304 @@
+{
+ "tool": "pro3d_tools",
+ "version": 1,
+ "model": "C:\\Users\\uzivatel\\AppData\\Roaming\\PLCStudio\\pro3d\\03_nytovaci_lis_NL-1\\ram\\Ram.FCStd",
+ "model_name": "Ram.FCStd",
+ "sha256": "51289b40e2e0808a236230c3c75d5a57c4418abc0791d046199d70dd0371b60e",
+ "created": "2026-10-29T04:55:21",
+ "checks": {
+  "kolize": {
+   "chyby": [],
+   "varovani": [],
+   "info": [
+    {
+     "kod": "kolize",
+     "text": "Noha přední levá 45×45 L=850 × ZÁSTUPNÝ stavěcí patka přední levá (ALUTEC 408010 Ø80 M10): průnik 710.6 mm³ (profil × patka, souosá díra)",
+     "poloha": [
+      22.5,
+      22.5,
+      40.0
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Noha přední levá 45×45 L=850",
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/ZÁSTUPNÝ stavěcí patka přední levá (ALUTEC 408010 Ø80 M10)"
+     ],
+     "common": 710.63
+    },
+    {
+     "kod": "kolize",
+     "text": "Noha přední levá 45×45 L=850 × Sroub: průnik 206.8 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      22.5,
+      22.5,
+      865.8
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Noha přední levá 45×45 L=850",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Šroub desky v noze x=22/Sroub"
+     ],
+     "common": 206.83
+    },
+    {
+     "kod": "kolize",
+     "text": "Noha přední pravá 45×45 L=850 × ZÁSTUPNÝ stavěcí patka přední pravá (ALUTEC 408010 Ø80 M10): průnik 710.6 mm³ (profil × patka, souosá díra)",
+     "poloha": [
+      1177.5,
+      22.5,
+      40.0
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Noha přední pravá 45×45 L=850",
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/ZÁSTUPNÝ stavěcí patka přední pravá (ALUTEC 408010 Ø80 M10)"
+     ],
+     "common": 710.63
+    },
+    {
+     "kod": "kolize",
+     "text": "Noha přední pravá 45×45 L=850 × Sroub: průnik 206.8 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1177.5,
+      22.5,
+      865.8
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Noha přední pravá 45×45 L=850",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Šroub desky v noze x=1178/Sroub"
+     ],
+     "common": 206.83
+    },
+    {
+     "kod": "kolize",
+     "text": "Noha zadní levá 45×45 L=1870 × ZÁSTUPNÝ stavěcí patka zadní levá (ALUTEC 408010 Ø80 M10): průnik 710.6 mm³ (profil × patka, souosá díra)",
+     "poloha": [
+      22.5,
+      877.5,
+      40.0
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Noha zadní levá 45×45 L=1870",
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/ZÁSTUPNÝ stavěcí patka zadní levá (ALUTEC 408010 Ø80 M10)"
+     ],
+     "common": 710.63
+    },
+    {
+     "kod": "kolize",
+     "text": "Noha zadní pravá 45×45 L=1870 × ZÁSTUPNÝ stavěcí patka zadní pravá (ALUTEC 408010 Ø80 M10): průnik 710.6 mm³ (profil × patka, souosá díra)",
+     "poloha": [
+      1177.5,
+      877.5,
+      40.0
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Noha zadní pravá 45×45 L=1870",
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/ZÁSTUPNÝ stavěcí patka zadní pravá (ALUTEC 408010 Ø80 M10)"
+     ],
+     "common": 710.63
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka X přední horní 45×45 L=1110 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      55.5,
+      22.5,
+      857.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka X přední horní 45×45 L=1110",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka X přední horní 45×45 L=1110 levý spoj/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka X přední horní 45×45 L=1110 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1144.5,
+      22.5,
+      857.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka X přední horní 45×45 L=1110",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka X přední horní 45×45 L=1110 pravý spoj/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka X zadní horní 45×45 L=1110 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      55.5,
+      877.5,
+      857.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka X zadní horní 45×45 L=1110",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka X zadní horní 45×45 L=1110 levý spoj/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka X zadní horní 45×45 L=1110 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1144.5,
+      877.5,
+      857.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka X zadní horní 45×45 L=1110",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka X zadní horní 45×45 L=1110 pravý spoj/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka X přední dolní 45×45 L=1110 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      55.5,
+      22.5,
+      122.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka X přední dolní 45×45 L=1110",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka X přední dolní 45×45 L=1110 levý spoj/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka X přední dolní 45×45 L=1110 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1144.5,
+      22.5,
+      122.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka X přední dolní 45×45 L=1110",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka X přední dolní 45×45 L=1110 pravý spoj/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka X zadní dolní 45×45 L=1110 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      55.5,
+      877.5,
+      122.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka X zadní dolní 45×45 L=1110",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka X zadní dolní 45×45 L=1110 levý spoj/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka X zadní dolní 45×45 L=1110 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1144.5,
+      877.5,
+      122.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka X zadní dolní 45×45 L=1110",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka X zadní dolní 45×45 L=1110 pravý spoj/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y levá horní 45×90 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      22.5,
+      55.5,
+      812.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y levá horní 45×90 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y levá horní 45×90 L=810 přední spoj z=812.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y levá horní 45×90 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      22.5,
+      844.5,
+      812.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y levá horní 45×90 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y levá horní 45×90 L=810 zadní spoj z=812.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y levá horní 45×90 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      22.5,
+      55.5,
+      857.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y levá horní 45×90 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y levá horní 45×90 L=810 přední spoj z=857.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y levá horní 45×90 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      22.5,
+      844.5,
+      857.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y levá horní 45×90 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y levá horní 45×90 L=810 zadní spoj z=857.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y pravá horní 45×90 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1177.5,
+      55.5,
+      812.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y pravá horní 45×90 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y pravá horní 45×90 L=810 přední spoj z=812.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y pravá horní 45×90 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1177.5,
+      844.5,
+      812.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y pravá horní 45×90 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y pravá horní 45×90 L=810 zadní spoj z=812.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y pravá horní 45×90 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1177.5,
+      55.5,
+      857.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y pravá horní 45×90 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y pravá horní 45×90 L=810 přední spoj z=857.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y pravá horní 45×90 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1177.5,
+      844.5,
+      857.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y pravá horní 45×90 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y pravá horní 45×90 L=810 zadní spoj z=857.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y levá střední 45×45 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      22.5,
+      55.5,
+      522.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y levá střední 45×45 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y levá střední 45×45 L=810 přední spoj z=522.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y levá střední 45×45 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      22.5,
+      844.5,
+      522.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y levá střední 45×45 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y levá střední 45×45 L=810 zadní spoj z=522.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y pravá střední 45×45 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1177.5,
+      55.5,
+      522.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y pravá střední 45×45 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y pravá střední 45×45 L=810 přední spoj z=522.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y pravá střední 45×45 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1177.5,
+      844.5,
+      522.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y pravá střední 45×45 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y pravá střední 45×45 L=810 zadní spoj z=522.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y levá dolní 45×45 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      22.5,
+      55.5,
+      122.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y levá dolní 45×45 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y levá dolní 45×45 L=810 přední spoj z=122.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y levá dolní 45×45 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      22.5,
+      844.5,
+      122.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y levá dolní 45×45 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y levá dolní 45×45 L=810 zadní spoj z=122.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y pravá dolní 45×45 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1177.5,
+      55.5,
+      122.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y pravá dolní 45×45 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y pravá dolní 45×45 L=810 přední spoj z=122.5/Sroub"
+     ],
+     "common": 152.4
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka Y pravá dolní 45×45 L=810 × Sroub: průnik 152.4 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      1177.5,
+      844.5,
+      122.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Rám stolu (Al 45×45 ALUTEC, ODHAD)/Příčka Y pravá dolní 45×45 L=810",
+      "NL-1 Rám a kryty/Spojovací materiál (ISO 4762 / 7380 / 4032, knihovna dily/knihovna)/Příčka Y pravá dolní 45×45 L=810 zadní spoj z=122.5/Sroub"
+     ],
+     "common": 152.4
+    }
+   ],
+   "data": {
+    "kalibrace": {
+     "common": 4000.0,
+     "ocekavano": 4000.0,
+     "mrizka": 64,
+     "ok": true
+    },
+    "dvojic_s_obalkou": 244,
+    "povolenych": 116,
+    "dotyku": 128,
+    "teles": 210,
+    "polohy": [
+     {
+      "poloha": "zadní dveře otevřené 90°",
+      "dilu": 3,
+      "dvojic": 0,
+      "chyb": 0
+     }
+    ]
+   },
+   "secs": 33.5
+  },
+  "souvislost": {
+   "chyby": [],
+   "varovani": [
+    {
+     "kod": "bez-spoje",
+     "text": "Kryt zadní dveře kabiny (PC 6 mm, ODHAD): dotýká se jen dílů bez spojovacího prvku (2 dotyků) — ověřit uchycení",
+     "poloha": [
+      600.0,
+      898.0,
+      1377.5
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Kryty a výplně/Zadní dveře kabiny (S4)/Kryt zadní dveře kabiny (PC 6 mm, ODHAD)"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Kryt nástroje – prstová ochrana razníku (mezera 6 mm): dotýká se jen dílů bez spojovacího prvku (1 dotyků) — ověřit uchycení",
+     "poloha": [
+      650.0,
+      300.0,
+      1228.0
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Kryty a výplně/Kryt nástroje – prstová ochrana razníku (mezera 6 mm)"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "ZÁSTUPNÝ Lis Y2 – stojan C-rámu (obálka z konceptu): dotýká se jen dílů bez spojovacího prvku (2 dotyků) — ověřit uchycení",
+     "poloha": [
+      650.0,
+      610.0,
+      1370.0
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Základ lisu a rozhraní (obálky z konceptu)/ZÁSTUPNÝ Lis Y2 – stojan C-rámu (obálka z konceptu)"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "ZÁSTUPNÝ Lis Y2 – rameno C-rámu (obálka z konceptu): dotýká se jen dílů bez spojovacího prvku (10 dotyků) — ověřit uchycení",
+     "poloha": [
+      650.0,
+      365.0,
+      1550.0
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Základ lisu a rozhraní (obálky z konceptu)/ZÁSTUPNÝ Lis Y2 – rameno C-rámu (obálka z konceptu)"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Přípravek dílu (obálka z konceptu, bez S6): dotýká se jen dílů bez spojovacího prvku (1 dotyků) — ověřit uchycení",
+     "poloha": [
+      650.0,
+      300.0,
+      970.0
+     ],
+     "objekty": [
+      "NL-1 Rám a kryty/Základ lisu a rozhraní (obálky z konceptu)/Přípravek dílu (obálka z konceptu, bez S6)"
+     ]
+    }
+   ],
+   "info": [],
+   "data": {
+    "teles": 210,
+    "komponent": 1,
+    "ve_vzduchu": 0,
+    "bez_spoje": 5,
+    "volnych_cel": 0,
+    "podlaha_z": 0.0,
+    "na_podlaze": 4
+   },
+   "secs": 6.1
+  },
+  "otvory": {
+   "chyby": [],
+   "varovani": [],
+   "info": [
+    {
+     "kod": "otvory-oblast",
+     "text": "mřížka 5.0 mm: oblast oříznuta na zóny ± 1000 mm"
+    },
+    {
+     "kod": "otvory-oblast",
+     "text": "mřížka 4.0 mm: oblast oříznuta na zóny ± 1000 mm"
+    },
+    {
+     "kod": "otvory-oblast",
+     "text": "mřížka 3.0 mm: oblast oříznuta na zóny ± 200 mm (místní — jen malé otvory)"
+    },
+    {
+     "kod": "otvor",
+     "text": "e ≈ 6 mm → Sr ≥ 10 mm, změřeno ≥ 53 mm (změřeno v modelu, štěrbina 6 × 400 mm, mřížka 4 mm; vstup [618.0, -27.5, 1004.0])",
+     "poloha": [
+      618.0,
+      240.5,
+      1004.0
+     ],
+     "e": 6.0,
+     "sr": 52.9,
+     "sr_pozad": 10.0
+    }
+   ],
+   "data": {
+    "mrizky": [
+     {
+      "vox": 5.0,
+      "grid": [
+       254,
+       194,
+       385
+      ],
+      "cropped": true,
+      "reach": 1000.0,
+      "lokalni": null,
+      "secs": 280.0,
+      "skipped": null,
+      "cest": 0
+     },
+     {
+      "vox": 4.0,
+      "grid": [
+       316,
+       241,
+       481
+      ],
+      "cropped": true,
+      "reach": 1000.0,
+      "lokalni": null,
+      "secs": 502.2,
+      "skipped": null,
+      "cest": 1
+     },
+     {
+      "vox": 3.0,
+      "grid": [
+       237,
+       270,
+       277
+      ],
+      "cropped": true,
+      "reach": 200.0,
+      "lokalni": true,
+      "secs": 762.7,
+      "skipped": null,
+      "cest": 4
+     }
+    ],
+    "zony": [
+     {
+      "label": "Zona_Y2_razeni (zdvih razníku uvnitř prstové ochrany)",
+      "bb": [
+       635.0,
+       665.0,
+       285.0,
+       315.0,
+       1010.0,
+       1440.0
+      ]
+     },
+     {
+      "label": "Zona_Y4_oddelovac",
+      "bb": [
+       835.0,
+       945.0,
+       525.0,
+       695.0,
+       1302.0,
+       1340.0
+      ]
+     }
+    ],
+    "cesty": [
+     {
+      "vox": 4.0,
+      "e": 8.0,
+      "sr_primka": 83.5,
+      "sr_draha": 112.0,
+      "nejuzsi": [
+       618.0,
+       200.5,
+       1004.0
+      ],
+      "vstup": [
+       618.0,
+       -27.5,
+       1004.0
+      ],
+      "draha": [
+       [
+        618.0,
+        -27.5,
+        1004.0
+       ],
+       [
+        618.0,
+        -15.5,
+        1004.0
+       ],
+       [
+        618.0,
+        -3.5,
+        1004.0
+       ],
+       [
+        618.0,
+        8.5,
+        1004.0
+       ],
+       [
+        618.0,
+        20.5,
+        1004.0
+       ],
+       [
+        618.0,
+        32.5,
+        1004.0
+       ],
+       [
+        618.0,
+        44.5,
+        1004.0
+       ],
+       [
+        618.0,
+        56.5,
+        1004.0
+       ],
+       [
+        618.0,
+        68.5,
+        1004.0
+       ],
+       [
+        618.0,
+        80.5,
+        1004.0
+       ],
+       [
+        618.0,
+        92.5,
+        1004.0
+       ],
+       [
+        618.0,
+        104.5,
+        1004.0
+       ],
+       [
+        618.0,
+        116.5,
+        1004.0
+       ],
+       [
+        618.0,
+        128.5,
+        1004.0
+       ],
+       [
+        618.0,
+        140.5,
+        1004.0
+       ],
+       [
+        618.0,
+        152.5,
+        1004.0
+       ],
+       [
+        618.0,
+        164.5,
+        1004.0
+       ],
+       [
+        618.0,
+        176.5,
+        1004.0
+       ],
+       [
+        618.0,
+        188.5,
+        1004.0
+       ],
+       [
+        618.0,
+        200.5,
+        1004.0
+       ],
+       [
+        618.0,
+        212.5,
+        1004.0
+       ],
+       [
+        618.0,
+        224.5,
+        1004.0
+       ],
+       [
+        618.0,
+        236.5,
+        1004.0
+       ],
+       [
+        618.0,
+        248.5,
+        1004.0
+       ],
+       [
+        618.0,
+        260.5,
+        1004.0
+       ],
+       [
+        626.0,
+        264.5,
+        1004.0
+       ],
+       [
+        638.0,
+        264.5,
+        1004.0
+       ],
+       [
+        642.0,
+        272.5,
+        1004.0
+       ],
+       [
+        642.0,
+        284.5,
+        1004.0
+       ]
+      ],
+      "delka_vox": 86,
+      "delka_mer": 400.0,
+      "tvar": "sterbina",
+      "e_mer": 6.0,
+      "sr_mer": 52.9,
+      "sr_draha_mer": 72.0,
+      "bod_mer": [
+       618.0,
+       240.5,
+       1004.0
+      ],
+      "posudek": {
+       "uroven": "ok",
+       "sr_pozad": 10.0,
+       "text": "e ≈ 6 mm → Sr ≥ 10 mm, změřeno ≥ 53 mm"
+      }
+     }
+    ],
+    "zdroj_tabulky": "ČSN EN ISO 13857:2019 tab. 4 (osoby ≥ 14 let) — přetisk Troax „Safety Guide — ISO 13857“ ref. 202005-1655-EN; převzato ze skillu ramy-a-kryty references/bezpecne-vzdalenosti.md kap. 2.4"
+   },
+   "secs": 1550.1
+  },
+  "kusovnik": {
+   "chyby": [],
+   "varovani": [],
+   "info": [
+    {
+     "kod": "kusovnik-mimo",
+     "text": "+1:cabinet: mimo rozsah modelu (cabinet, none)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-A1:plc_cpu: mimo rozsah modelu (cabinet, rack)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-A2:plc_di: mimo rozsah modelu (cabinet, rack)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-A3:plc_do: mimo rozsah modelu (cabinet, rack)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-A4:plc_ai: mimo rozsah modelu (cabinet, rack)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-B1:pressure_transmitter: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-B2:load_cell: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-F1:mcb: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-H1:beacon: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-H2:beacon: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-K0:safety_controller: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-K1:contactor: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-KS1:contactor_mirror: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-KS2:contactor_mirror: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-M1:motor: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-P1:plc_hmi: mimo rozsah modelu (cabinet, panel)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Q0:main_switch: mimo rozsah modelu (cabinet, panel)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Q1:motor_protection: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-S0R:pushbutton: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-S1:estop_button: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-S2:pushbutton: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-S3:pushbutton: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-S4:safety_switch: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-S5:safety_switch: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-S6:sensor_inductive: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-T1:power_supply_24v: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-W1xx:cable_sensor: mimo rozsah modelu (field, none)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-X1:terminal_block: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-X2:terminal_block: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-X3:terminal_block: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-X4:terminal_block: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-X5:terminal_block: mimo rozsah modelu (cabinet, din)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Y1:cylinder: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Y1:cylinder_switch: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Y1:valve_solenoid: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Y2:hydraulic_valve: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Y2:limit_switch: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Y3:cylinder: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Y3:cylinder_switch: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Y3:valve_solenoid: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Y4:cylinder: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Y4:cylinder_switch: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-Y4:valve_solenoid: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-YP1:safety_valve: mimo rozsah modelu (field, field)"
+    },
+    {
+     "kod": "kusovnik-mimo",
+     "text": "-YS1:safety_valve: mimo rozsah modelu (field, field)"
+    }
+   ],
+   "data": {
+    "radku_manifestu": 45,
+    "dilu_s_id": 0,
+    "umisteni_v_modelu": [],
+    "radky": [
+     [
+      "+1:cabinet",
+      1,
+      0
+     ],
+     [
+      "-A1:plc_cpu",
+      1,
+      0
+     ],
+     [
+      "-A2:plc_di",
+      1,
+      0
+     ],
+     [
+      "-A3:plc_do",
+      1,
+      0
+     ],
+     [
+      "-A4:plc_ai",
+      1,
+      0
+     ],
+     [
+      "-B1:pressure_transmitter",
+      1,
+      0
+     ],
+     [
+      "-B2:load_cell",
+      1,
+      0
+     ],
+     [
+      "-F1:mcb",
+      2,
+      0
+     ],
+     [
+      "-H1:beacon",
+      1,
+      0
+     ],
+     [
+      "-H2:beacon",
+      1,
+      0
+     ],
+     [
+      "-K0:safety_controller",
+      1,
+      0
+     ],
+     [
+      "-K1:contactor",
+      1,
+      0
+     ],
+     [
+      "-KS1:contactor_mirror",
+      1,
+      0
+     ],
+     [
+      "-KS2:contactor_mirror",
+      1,
+      0
+     ],
+     [
+      "-M1:motor",
+      1,
+      0
+     ],
+     [
+      "-P1:plc_hmi",
+      1,
+      0
+     ],
+     [
+      "-Q0:main_switch",
+      1,
+      0
+     ],
+     [
+      "-Q1:motor_protection",
+      1,
+      0
+     ],
+     [
+      "-S0R:pushbutton",
+      1,
+      0
+     ],
+     [
+      "-S1:estop_button",
+      1,
+      0
+     ],
+     [
+      "-S2:pushbutton",
+      1,
+      0
+     ],
+     [
+      "-S3:pushbutton",
+      1,
+      0
+     ],
+     [
+      "-S4:safety_switch",
+      1,
+      0
+     ],
+     [
+      "-S5:safety_switch",
+      1,
+      0
+     ],
+     [
+      "-S6:sensor_inductive",
+      1,
+      0
+     ],
+     [
+      "-T1:power_supply_24v",
+      1,
+      0
+     ],
+     [
+      "-W1xx:cable_sensor",
+      16,
+      0
+     ],
+     [
+      "-X1:terminal_block",
+      8,
+      0
+     ],
+     [
+      "-X2:terminal_block",
+      6,
+      0
+     ],
+     [
+      "-X3:terminal_block",
+      7,
+      0
+     ],
+     [
+      "-X4:terminal_block",
+      1,
+      0
+     ],
+     [
+      "-X5:terminal_block",
+      2,
+      0
+     ],
+     [
+      "-Y1:cylinder",
+      1,
+      0
+     ],
+     [
+      "-Y1:cylinder_switch",
+      2,
+      0
+     ],
+     [
+      "-Y1:valve_solenoid",
+      1,
+      0
+     ],
+     [
+      "-Y2:hydraulic_valve",
+      1,
+      0
+     ],
+     [
+      "-Y2:limit_switch",
+      2,
+      0
+     ],
+     [
+      "-Y3:cylinder",
+      1,
+      0
+     ],
+     [
+      "-Y3:cylinder_switch",
+      2,
+      0
+     ],
+     [
+      "-Y3:valve_solenoid",
+      1,
+      0
+     ],
+     [
+      "-Y4:cylinder",
+      1,
+      0
+     ],
+     [
+      "-Y4:cylinder_switch",
+      2,
+      0
+     ],
+     [
+      "-Y4:valve_solenoid",
+      1,
+      0
+     ],
+     [
+      "-YP1:safety_valve",
+      1,
+      0
+     ],
+     [
+      "-YS1:safety_valve",
+      1,
+      0
+     ]
+    ],
+    "manifest": "C:\\Users\\uzivatel\\AppData\\Roaming\\PLCStudio\\pro3d\\03_nytovaci_lis_NL-1\\PLCdesk_CAD.json"
+   }
+  },
+  "stav": {
+   "chyby": [],
+   "varovani": [],
+   "info": [],
+   "data": {
+    "objektu": 296,
+    "zastupnych": 9,
+    "oranzovych_bez_vlastnosti": 0,
+    "dle_dokumentace": 316,
+    "zlutych_bez_vlastnosti": 0,
+    "barev": 90
+   },
+   "secs": 0.2
+  },
+  "step": {
+   "chyby": [],
+   "varovani": [],
+   "info": [],
+   "data": {
+    "soubor": "C:\\Users\\uzivatel\\AppData\\Roaming\\PLCStudio\\pro3d\\03_nytovaci_lis_NL-1\\ram\\k5_kolo1\\.kontroly\\Ram_kontrola.step",
+    "teles_model": 210,
+    "teles_step": 210,
+    "objem_model": 170657119.6,
+    "objem_step": 170657119.6,
+    "neplatnych": 0,
+    "velikost_B": 4142133
+   },
+   "secs": 6.2
+  }
+ },
+ "freecad": {
+  "ok": true,
+  "secs": 1597.5,
+  "pruchod": {
+   "listu": 213,
+   "realnych": 210,
+   "zon": 2,
+   "dilu_s_id": 0,
+   "preskoceno": {
+    "zdroje": 0,
+    "pomocne": 1,
+    "prazdne": 0,
+    "chyby_tvaru": []
+   },
+   "obalka": [
+    -20.0,
+    1220.0,
+    -17.5,
+    919.0,
+    0.0,
+    1920.0
+   ],
+   "typy": {
+    "sroub": 110,
+    "matice": 48,
+    "profil": 28,
+    "patka": 4,
+    "kryt": 13,
+    "prislusenstvi": 2,
+    "dil": 5
+   }
+  },
+  "error": null
+ },
+ "souhrn": {
+  "chyby": 0,
+  "varovani": 5,
+  "selhalo": [],
+  "stav": "OK"
+ }
+}

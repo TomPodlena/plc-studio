@@ -7,9 +7,9 @@ Fáze a kroky (``UNITS``):
    automatizacni-technika), kusovník ``KUSOVNIK.csv`` (bomCsv), program hardwarové platformy (``program/<plat>/``,
    genFor) + souhrn emulace překladu a běhu ``PROGRAM.md``, ``STAV.md`` (start).
 2. **Koncept**: role Koncept → kontrola K5 (role Kontrolor, model nemění) → při VRÁCENO oprava stavitelem a znovu K5,
-   nejvýš ``max_rounds`` kol. Neschválený koncept postup ZASTAVÍ (stavba nad ním nemá smysl).
+   nejvýš ``rounds_for(část)`` kol (výchozí 3, rám a kryty 5 — ``UNIT_ROUNDS``). Neschválený koncept postup ZASTAVÍ (stavba nad ním nemá smysl).
 3. **Stavba po částech**: rozvaděč → rám a kryty → moduly → celek + PLM; každá část stavitel → K5, nejvýš
-   ``max_rounds`` kol. Neschválená část se zapíše a postup pokračuje další částí.
+   ``rounds_for(část)`` kol. Neschválená část se zapíše a postup pokračuje další částí.
 
 Stav je v ``pipeline.json`` ve složce stroje (navázání po pádu / zastavení od posledního hotového kroku), log každého
 běhu agenta v ``logy/``, na konci ``PREHLED.md``. Běh agentů obstarává ``runner`` (výchozí = Claude Code CLI přes
@@ -18,7 +18,7 @@ běhu agenta v ``logy/``, na konci ``PREHLED.md``. Běh agentů obstarává ``ru
 
 Dávka bez GUI:
     python -m plc_studio.pro_pipeline --sample <projekt.plcstudio.json> --out <složka> [--from-phase X]
-        [--max-rounds 3] [--test-safety] [--no-ai] [--model-concept M] [--model-build M] [--model-check M]
+        [--max-rounds N] [--test-safety] [--no-ai] [--model-concept M] [--model-build M] [--model-check M]
         [--turns-concept N] [--turns-build N] [--turns-check N] [--model M (všechny role)] [--budget USD]
         [--parts | --no-parts]   (normalizované díly kódem před stavbou; výchozí jen s AI)
 
@@ -28,6 +28,11 @@ instanci) → ``dily/parts_index.json``; stavitel díly „dle dokumentace“ MU
 Kontroly modelu dělá KÓD (``pro3d_tools``: kolize, souvislost, otvory ISO 13857, kusovník, zástupné díly, STEP, snímky);
 stavitel je spouští před odevzdáním, kontrolor K5 nezávisle a verdikt o ně opírá — SCHVÁLENO s chybou v
 ``<část>/k5_kolo<N>/kontroly.json`` postup sám zneplatní.
+
+Stavitel a kontrolor pracují podle skillů ``stroj-stavitel`` / ``stroj-kontrolor`` (``~/.claude/skills``; bez nich
+vestavěné znění pravidel a kontrolního seznamu ``K5_ITEMS``). Brána ``k5_audit`` nad protokolem SCHVÁLENO (kontrolní
+seznam s důkazem, minima, snímky, plné počty z kontroly.json) a ``approvedSha`` schválených částí verdikt smí jen
+VRÁTIT, nikdy schválit.
 """
 
 from __future__ import annotations
@@ -60,16 +65,103 @@ PHASES = (("inputs", N_("Vstupy z PLCdesk")), ("concept", N_("Koncept")), ("buil
 # krok: (klíč, fáze, popisek, podsložka, předmět kontroly K5, skilly)
 UNITS = (
     ("inputs", "inputs", N_("Vstupy z PLCdesk"), "", "", ()),
-    ("concept", "concept", N_("Koncept"), "koncept", "koncept", ("automatizacni-technika", "konstrukce-pracoviste-3d")),
-    ("cabinet", "build", N_("Rozvaděč"), "rozvadec", "rozvadec", ("rozvadec-3d",)),
-    ("frame", "build", N_("Rám a kryty"), "ram", "ram", ("alutech-profily", "ramy-a-kryty", "bezpecnost-stroju")),
+    ("concept", "concept", N_("Koncept"), "koncept", "koncept",
+     ("stroj-stavitel", "automatizacni-technika", "konstrukce-pracoviste-3d")),
+    ("cabinet", "build", N_("Rozvaděč"), "rozvadec", "rozvadec", ("stroj-stavitel", "rozvadec-3d")),
+    ("frame", "build", N_("Rám a kryty"), "ram", "ram",
+     ("stroj-stavitel", "alutech-profily", "ramy-a-kryty", "bezpecnost-stroju")),
     ("modules", "build", N_("Moduly (pohony, pneumatika, držáky, kabely)"), "moduly", "moduly",
-     ("pohony-a-vedeni", "festo-pneumatics", "pneumatic-assemblies", "konstrukce-pracoviste-3d")),
-    ("assembly", "build", N_("Celek a PLM"), "celek", "celek", ("konstrukce-pracoviste-3d", "freecad-api")),
+     ("stroj-stavitel", "pohony-a-vedeni", "festo-pneumatics", "pneumatic-assemblies", "kabelaz-a-hadice",
+      "konstrukce-pracoviste-3d")),
+    ("assembly", "build", N_("Celek a PLM"), "celek", "celek", ("stroj-stavitel", "konstrukce-pracoviste-3d", "freecad-api")),
 )
 UNIT_KEYS = tuple(u[0] for u in UNITS)
 AI_UNITS = UNIT_KEYS[1:]
 UNIT = {u[0]: {"phase": u[1], "label": u[2], "sub": u[3], "subject": u[4], "skills": u[5]} for u in UNITS}
+
+# --- kontrola K5 podle skillu stroj-kontrolor (kontrolní seznam, minima, brána) -----------------------------------
+STAVITEL_SKILL = "stroj-stavitel"
+KONTROLOR_SKILL = "stroj-kontrolor"
+# oddíl kontrolního seznamu podle části (V = všechny části)
+K5_SECTION = {"concept": "K", "cabinet": "R", "frame": "F", "modules": "M", "assembly": "C"}
+# minimum na jedno kolo (SKILL.md kontrolora): vlastní kóty (kap. 3.2), prohlédnuté snímky (kap. 5), ověřená tvrzení (3.5)
+K5_MIN = {"concept": (6, 6, 3), "cabinet": (8, 6, 3), "frame": (12, 8, 5), "modules": (10, 8, 4), "assembly": (12, 8, 5)}
+# max. kol podle části (rám a kryty víc — přísnější K5 tam vrací nejčastěji); volba --max-rounds / krok je přebije
+UNIT_ROUNDS = {"frame": 5}
+BLANK_SHOT_PCT = 1.0       # snímek s méně než 1 % nebílých pixelů = prázdný (nástroj selhal)
+BEZ_SPOJE_SHOWN = 15       # kontrola souvislosti ukazuje nejvýš 15 dílů bez spoje — skutečný počet v data.bez_spoje
+# vestavěný kontrolní seznam (zkrácené znění stroj-kontrolor/references/kontrolni-seznam.md) — když skill chybí:
+# ID pro bránu a seznam do pokynu kontrolora; se skillem se ID čtou z jeho souboru (změna seznamu = změna brány)
+K5_ITEMS = {
+    "V1": "SHA-256 všech *.FCStd (mimo _archiv) na začátku = na konci, plné hodnoty; SHA modelu = kontroly.json",
+    "V2": "vlastní běh kontrol kódem vse do <část>/k5_kolo<N>/ v tomto kole, souhrn OK, selhalo []",
+    "V3": "úplnost zón: každé pohyblivé zařízení a rotující / vtahovací místo má Zona_* v celém zdvihu (tabulka)",
+    "V4": "skutečný počet dílů bez spoje (data.bez_spoje) a info „vynechána“; nosný díl bez spoje = nález",
+    "V5": "objekty s Konstrukce_Typ pomocny / prislusenstvi / rozhrani / zona jsou opravdu tím, co tvrdí",
+    "V6": "info „mimo rozsah“ v kusovníku: řádky, které do části patří, mají v modelu PLCdesk_Id",
+    "V7": "minimum vlastních měření kót proti zadání (hlavní rozměry, výšky obsluhy 0,4–2,0 m, zdvihy, vůle)",
+    "V8": "minimum snímků, každý otevřen a popsán, žádný prázdný, výřezy na nebezpečná místa a nálezy",
+    "V9": "ověřená tvrzení stavitele (číslo zprávy × vlastní měření)",
+    "V10": "ODHADY, na kterých stojí bezpečnost / funkce / pevnost: konzervativní a zdůvodněné",
+    "V11": "zpětná vazba PLCdesk_CAD_feedback_<předmět>.json: formát v1, čísla = stav modelu teď",
+    "V12": "díly „dle dokumentace“ = App::Link (žluté, nepřebarvené), zástupné oranžové s vlastností",
+    "V13": "navazující modely jiných částí mají SHA schválené jejich K5",
+    "V14": "body „Předáno dál“ z protokolů předchozích částí vypořádány",
+    "V15": "kolo > 1: každý bod minulého protokolu ověřen měřením (před × po) + regrese",
+    "K1": "každá funkce z ROZBOR.md / sequence má v modelu prvek a místo",
+    "K2": "2–3 varianty, doporučení se zdůvodněním, postavená = doporučená",
+    "K3": "řádky manifestu field / cabinet mají místo, hlavní vypínač má místo",
+    "K4": "tok materiálu: světlosti × rozměr dílu, senzor × dráha dílu změřené",
+    "K5": "bezpečnostní koncepce: nebezpečí → opatření → číslo (ISO 13857 / 13855); nebezpečí bez opatření = blokující",
+    "K6": "místo obsluhy, ovládače 0,4–2,0 m, E-stop u každého ovládacího místa",
+    "K7": "servis a výměna: rozvaděč, úprava vzduchu, pás / nástroj, přepravka — přístup změřen",
+    "K8": "geometrická tvrzení KONCEPT.md ověřena v modelu",
+    "K9": "hodnoty [Z] mají zdroj v zadání, jinak ODHAD",
+    "K10": "zpětná vazba error blokující další fázi je řešena konzervativním ODHADem",
+    "R1": "obsah = manifest location cabinet (PLCdesk_Id, qty), pořadí modulů PLC, svorky",
+    "R2": "upevnění desky, lišt, žlabů, přístrojů a skříně spojovacími prvky",
+    "R3": "zóny mezer výrobců vč. bočních (datasheet), bez průniku",
+    "R4": "hloubka přístroj + mezera ≤ líc dveří, dveře otevřené bez kolize",
+    "R5": "trasy vodičů: žlaby, svislá propojení, vstup kabelů, PE a přívodní svorky",
+    "R6": "víka žlabů a svorky přístupné; výšky 0,4–2,0 m / ≥ 0,2 m",
+    "R7": "oddělení silových a signálových vodičů změřené",
+    "R8": "tepelná bilance se ztrátami z datasheetů a nejnižší dovolenou teplotou",
+    "R9": "rezerva místa ≥ 20 % na lištách a desce",
+    "R10": "krytí skříně ≥ nejpřísnější požadavek přístrojů",
+    "F1": "průhyb / pevnost přepočtené pro 2 nejzatíženější nosníky",
+    "F2": "stabilita proti převržení každého samostatně stojícího celku (300 N), K < 1,5 bez kotvení = nález",
+    "F3": "každý spoj profilů: šroub / spojka + díra / závit v modelu, volná čela 0",
+    "F4": "dva spoje v jednom místě, šroub × šroub, matice v drážce s těsněním",
+    "F5": "díry ve vyráběných dílech (průnik = plný dřík → díra chybí)",
+    "F6": "přístup klíčem / montážní pořadí",
+    "F7": "ISO 13857 každá cesta k zóně: e a Sr změřené v B-rep (ne z mřížky)",
+    "F8": "otvory mezi díly krytů v okolí každé zóny",
+    "F9": "rotující a vtahovací místa krytá nebo e / Sr vyhovuje",
+    "F10": "pohyblivé kryty v krajních polohách bez kolize, spojovací materiál v podsestavě",
+    "F11": "blokovací spínače ISO 14119: ovladač zasunutý, hlava uvnitř, proti obcházení, počet",
+    "F12": "vyjmutí přepravky / dílu / nástroje se změřenou vůlí",
+    "F13": "řezací seznam = model, hmotnosti",
+    "F14": "funkční tvar: skluz ≤ pás, nic nečnícího do dráhy dílu",
+    "F15": "výplně odpovídají riziku, pevné kryty jen nářadím",
+    "M1": "každé polní zařízení má držák a upevnění šrouby",
+    "M2": "kolize v pohybu (Konstrukce_Pohyb v krajních polohách) 0",
+    "M3": "snímače: poloha × dráha dílu, paprsek volný, spínací vzdálenost × pozadí",
+    "M4": "kabely: poloměr ohybu ≥ datasheet (bez něj 4 × D pevně, 10 × D pohyblivě), žádné ostré zlomy",
+    "M5": "oddělení silových a signálových kabelů",
+    "M6": "hadice: R ohybu, zásuv do šroubení, délky řezů",
+    "M7": "žlaby, držáky: upevnění k rámu, nosnost, víko / přístup",
+    "M8": "žádná druhá verze dílu jiné části",
+    "M9": "rozhraní a konektory odpovídají kusovníku",
+    "C1": "části jako App::Link s vypočteným umístěním, SHA každé části = SHA schválené jejím K5",
+    "C2": "kusovník 3D × manifest: každý řádek právě jednou",
+    "C3": "upevnění částí k sobě (skříň, pult, úprava vzduchu) šrouby, nosnost doložená",
+    "C4": "dveře rozvaděče a krytů otevřené × okolí",
+    "C5": "bezpečnost celku: zóny všech částí, nové štěrbiny mezi částmi, E-stop, spínače",
+    "C6": "stabilita celku a kotvení",
+    "C7": "výstupy aktuální (STEP, výkresy) novější než poslední změna modelu",
+    "C8": "PLM: plm check bez chyb, plm scan nejvýš 1× za kolo",
+    "C9": "„Předáno dál“ ze všech částí uzavřené",
+}
 
 # stavy kroku: waiting (čeká), running (běží), review (kolo kontroly), approved / rejected / done / stopped / failed
 STATE_LABELS = {
@@ -86,24 +178,33 @@ A. Na otázky nikdo neodpoví: chybějící údaj doplň jako rozumný předpokl
    (např. „ODHAD: výška pracovní roviny 900 mm — zadání ji neuvádí“) a vypiš ho v sekci „Předpoklady (ODHAD)“ své zprávy.
 B. PLCdesk je zdroj pravdy: neshodu s kusovníkem / manifestem neopravuj ve 3D potichu — sepiš ji jako zpětnou vazbu
    {feedback} (formát plcdesk-cad-feedback v1). V automatickém běhu se do PLCdesk NEPOUŽIJE, jen se uvede v přehledu.
-C. Sestavy: App::Part pro každou část, opakované díly App::Link s VYPOČTENÝM umístěním (Placement z rozměrů, ne odhadem).
-D. Povolené kolize jen šroub × díra / drážka / závit a matice × drážka profilu; ostatní průniky hmot = chyba.
+{model_rules}
+I. FreeCAD jen ve vlastní instanci (skill freecad-instance, vlastní slot), cizí instance nech být; šetři paměť —
+   jedna instance FreeCADu najednou, stavby po malých dávkách, po práci instanci zavři. Nečekej příkazem (sleep /
+   Start-Sleep jsou blokované) a nezabíjej procesy (Stop-Process / taskkill zakázané) — stroj-stavitel/references/provoz.md.
+J. PLM: `plm scan` (C:\\CLAUDE\\freecad_plm, kód PLM neměnit) nejvýš jednou za kolo; registr PLM patří do složky stroje.
+K. Modely výrobců neskriptuj z 3Dfindit / CADENAS; jen portály výrobců nebo zástupný díl.
+L. Pracuj jen ve složce stroje (aktuální adresář); skilly a PLM jen čti / spouštěj.
+{test}"""
+
+# pravidla modelu: se skillem odkaz (obecná pravidla žijí ve skillu), bez skillu vestavěné znění (postup funguje i bez něj)
+MODEL_RULES_SKILL = """C. Pravidla modelu, spojů, barev, zón a snímků: skill stroj-stavitel (references/pravidla-modelu.md); způsob
+   a přísnost kontroly: skill stroj-kontrolor. Načti ten, který odpovídá tvé roli (nástroj Skill), HNED na začátku."""
+MODEL_RULES_INLINE = """C. Sestavy: App::Part pro každou část, opakované díly App::Link s VYPOČTENÝM umístěním (Placement z rozměrů, ne odhadem).
+D. Povolené kolize jen šroub × díra / drážka / závit, matice × drážka profilu, kabel / hadice ve žlabu / řetězu
+   a hadice zasunutá do šroubení; ostatní průniky hmot = chyba.
 E. Nic ve vzduchu: graf souvislosti (každé těleso se dotýká nosného dílu, cesta až k podlaze / rámu) — ověř výpočtem.
 F. Otvory v krytech posuzuj podle ISO 13857 tab. 4 MĚŘENÍM otvoru; voxelová kontrola jen hledá cesty, neschvaluje.
 G. Díly s modelem v dily/parts_index.json (stav „dle dokumentace“, generátory kódem) vkládej jako App::Link na jejich
    FCStd — jsou jednotně ŽLUTÉ RGB 255,215,0 (barva se dědí), nepřebarvuj je (OverrideMaterial ne) a žlutou nepoužívej
    na nic jiného. Zástupné díly (bez modelu výrobce i generátoru) barvi oranžově RGB 255,140,0 a označ vlastností
    (např. Placeholder = True). Modely výrobců a vlastní konstrukce nechej v jejich barvách.
-H. Snímky klíčových míst (iso, půdorys, čelo, detaily vazeb) ulož do {sub}/snimky/ a PROHLÉDNI je před zprávou.
-I. FreeCAD jen ve vlastní instanci (skill freecad-instance, vlastní slot), cizí instance nech být; šetři paměť —
-   jedna instance FreeCADu najednou, stavby po malých dávkách, po práci instanci zavři.
-J. PLM: `plm scan` (C:\\CLAUDE\\freecad_plm, kód PLM neměnit) nejvýš jednou za kolo; registr PLM patří do složky stroje.
-K. Modely výrobců neskriptuj z 3Dfindit / CADENAS; jen portály výrobců nebo zástupný díl.
-L. Pracuj jen ve složce stroje (aktuální adresář); skilly a PLM jen čti / spouštěj.
-{test}"""
+H. Snímky klíčových míst (iso, půdorys, čelo, detaily vazeb) ulož do {sub}/snimky/ a PROHLÉDNI je před zprávou
+   (prázdný snímek = nepořízený)."""
 
-TEST_RULE = ("M. TEST: bezpečnostní prvky a funkce považuj pro tento běh za schválené (předpoklad zkoušky postupu). "
-             "Každou zprávu a STAV.md označ řádkem „" + TEST_MARK + "“.")
+TEST_RULE = ("M. TEST: bezpečnostní prvky a funkce považuj pro tento běh za schválené (předpoklad zkoušky postupu) — "
+             "předpokládá se jen podpis odpovědné osoby. Bezpečnostní NÁVRH (zóny, kryty, vzdálenosti, opatření) se tím "
+             "nevynechává ani nekontroluje mírněji. Každou zprávu a STAV.md označ řádkem „" + TEST_MARK + "“.")
 
 DEFAULT_PROMPTS = {
     "concept": """Navrhni hrubý koncept stroje ve složce {sub}/.
@@ -159,12 +260,18 @@ def tools_cmd(role: str = "builder") -> str:
 BUILD_CHECKS = """Kontroly KÓDEM (povinné, nepiš na ně vlastní měřicí skripty): po každé stavbě / úpravě modelu spusť
   {cmd}   (kontrola = vse, výstup: --out {sub})
 a všechny CHYBY z {sub}/KONTROLY.md (kontroly.json) oprav PŘED odevzdáním — kontrolu opakuj, dokud není „Stav: OK“;
-varování vypořádej ve zprávě. Kontroly: kolize (povolené jen šroub × díra / závit, matice × drážka), souvislost (podlaha,
-díly bez spoje, volná čela profilů), otvory (voxely + měření e / Sr, ISO 13857 tab. 4), kusovník × PLCdesk_CAD.json,
-zástupné díly, STEP. Snímky: kontrola = snimky, --out {sub}/snimky --prefix <název> [--detail "díl;díl"].
-Konvence modelu, které kontroly čtou: vlastnost Konstrukce_Typ (sroub / matice / podlozka / profil / patka / kryt /
-vypln / zona / pomocny / kabel / hadice / dil), nebezpečné zóny jako tělesa Zona_* (Konstrukce_Typ = zona), druhé
-polohy pohyblivých dílů Konstrukce_Pohyb = JSON {"nazev": …, "posun": [x, y, z]} nebo {"nazev": …, "otoc": {"osa":
+varování i info „vynecháno / mimo rozsah / ověřit měřením“ a skutečný počet data.bez_spoje vypořádej ve zprávě.
+Snímky: kontrola = snimky, --out {sub}/snimky --prefix <název> [--detail "díl;díl"]. Dlouhý běh: jednotlivé kontroly
+zvlášť (stroj-stavitel/references/provoz.md), ne čekání.
+{conventions}
+Před odevzdáním SEBEKONTROLA: oddíl V a {section} kontrolního seznamu kontrolora K5 ({checklist}), tabulka
+ID → důkaz → výsledek do zprávy (oddíl „Sebekontrola“)."""
+
+CONVENTIONS_SKILL = "Konvence modelu: stroj-stavitel/references/pravidla-modelu.md."
+CONVENTIONS_INLINE = """Konvence modelu, které kontroly čtou: vlastnost Konstrukce_Typ (sroub / matice / podlozka / profil / patka / kryt /
+vypln / zona / pomocny / kabel / hadice / zlab / retez / sroubeni / prislusenstvi / rozhrani / dil), vedení kabelů
+Konstrukce_Vedeni = zlab / retez (žlab přišroubovaný k rámu), nebezpečné zóny jako tělesa Zona_* (Konstrukce_Typ = zona),
+druhé polohy pohyblivých dílů Konstrukce_Pohyb = JSON {"nazev": …, "posun": [x, y, z]} nebo {"nazev": …, "otoc": {"osa":
 […], "bod": […], "uhel": …}}, zástupné díly PLCdesk_ModelStatus = placeholder + barva 255,140,0, díly dle dokumentace
 (generátory) žluté 255,215,0 jen jako App::Link bez přebarvení, díly kusovníku
 PLCdesk_Id / PLCdesk_Instance (= řádek manifestu)."""
@@ -195,29 +302,49 @@ COLOR_LEGEND = ["- **žlutá** RGB 255,215,0 — díl dle dokumentace (generáto
                 "- ostatní barvy — model výrobce nebo vlastní konstrukce"]
 
 
-K5_CHECKS = """Postup kontroly:
-1. NEJDŘÍV nezávisle spusť kontroly kódem nad každým modelem části (výsledky stavitele nepřebírej):
+K5_CHECKS = """Postup: skill stroj-kontrolor (načti ho nástrojem Skill jako první krok) — kontrolní seznam oddíl V a {section},
+minimum měření / snímků / ověřených tvrzení, pravidla verdiktu a šablona protokolu.
+Kontroly kódem nezávisle a v TOMTO kole (nepřebírej soubor stavitele ani z dřívějšího pokusu):
    {cmd}   (kontrola = vse, výstup: --out {sub}/k5_kolo{round})
-   Čísla převezmi z {sub}/k5_kolo{round}/kontroly.json (souhrn, chyby a varování s polohou, SHA-256 modelu).
-2. Ručně (AI) posuď JEN to, co skripty neumí: soulad se zadáním, konceptem a manifestem (funkce, rozměry, umístění),
-   vyrobitelnost, montovatelnost a servis, bezpečnostní koncepci (kryty, zóny, přístup — čísla otvorů má skript),
-   použití normalizovaných dílů (díl se stavem „dle dokumentace“ v dily/parts_index.json = App::Link na jeho model,
-   ne zástupná obálka),
-   označené ODHADY a sepsanou zpětnou vazbu; udělej 2–4 snímky (kontrola = snimky, --prefix k5_kolo{round}) a prohlédni je.
-3. Verdikt opři o kontroly.json: jakákoli chyba nebo stav SELHALO = VRÁCENO (povinný bod s polohou z kontroly);
-   varování posuď. Postup PLCdesk verdikt SCHVÁLENO s chybou v kontroly.json sám zneplatní."""
+   Přečti celé {sub}/k5_kolo{round}/kontroly.json včetně data a info; jakákoli chyba nebo stav SELHALO = VRÁCENO.
+Měření (jen čte): skill stroj-kontrolor, scripts/k5_mer.py přes run_fc.ps1 run --slot pro3d-k5; výstupy do
+{sub}/k5_kolo{round}/mereni/.
+Snímky: kontrola = snimky, --out {sub}/k5_kolo{round} --prefix k5_kolo{round} [--detail "díl;díl"]; každý otevři.
+Normalizované díly (V12): díl se stavem „dle dokumentace“ v dily/parts_index.json = App::Link na jeho model, ne zástupná
+obálka; model výrobce (models/index.json) má přednost.
+Přísnost: položka bez důkazu = NESPLNĚNO; blokující / závažný nález nebo NESPLNĚNO = VRÁCENO; pochybnost = VRÁCENO
+s konkrétním bodem; TEST nevynechává kontrolu bezpečnostního návrhu.
+Minimum tohoto kola: {min_kot} vlastních kót v tabulce 3.2, {min_shots} prohlédnutých snímků v tabulce kap. 5 (soubory
+existují, nejsou prázdné), {min_claims} ověřených tvrzení stavitele v tabulce 3.5.
+Postup PLCdesk SCHVÁLENO sám zneplatní (brána K5), když v kontrolním seznamu chybí řádek položky, je tam NESPLNĚNO nebo
+SPLNĚNO bez důkazu, chybí minimum, snímek chybí / je prázdný, data.bez_spoje > 15 není posouzeno nebo je kontroly.json
+s chybou."""
+
+# kontrolní seznam do pokynu kontrolora, když skill stroj-kontrolor chybí (bez skillu by kontrolor ID neznal)
+K5_FALLBACK = """Skill stroj-kontrolor NENÍ nainstalován — platí tento vestavěný kontrolní seznam (každá položka svým řádkem
+tabulky „| ID | položka | důkaz | výsledek |“ v kap. 2 protokolu, výsledek SPLNĚNO / NESPLNĚNO / N/A, důkaz = vlastní
+měření, pole kontroly.json, snímek nebo citace dokumentu):
+{items}
+Protokol: kap. 1 povinné body, 2 kontrolní seznam, 3 vlastní měření (3.1 zóny nebezpečí, 3.2 kóty proti zadání,
+3.3 otvory ISO 13857, 3.4 výpočty, 3.5 tvrzení stavitele), 4 kontroly kódem, 5 snímky (tabulka soubor / pohled / co je
+vidět), 6 integrita (SHA-256), 7 výhrady, 8 předáno dál, 9 předpoklady."""
 
 FIX_PROMPT = """Toto je kolo {round} téže části. Kontrola K5 ji VRÁTILA: {last_k5}.
 Přednostně vyřeš všechny povinné body z tohoto protokolu (nic nevynechej, nic nepřidávej navíc), uprav model a zprávu
-a v ní doplň oddíl „Kolo {round}“ s vypořádáním každého bodu."""
+a v ní doplň oddíl „Kolo {round}“: ke každému bodu co změněno a hodnota PŘED → PO (změřená) s důkazem. Po opravě
+zkontroluj okolí každé změny (nové štěrbiny, kolize, spoje) a znovu sebekontrolu podle seznamu."""
 
 K5_PROMPT = """Kontrola K5 části „{label}“ (složka {sub}/), kolo {round}. Model NEMĚNÍŠ a nic neopravuješ.
 Kontroluj proti ZADÁNÍ a MANIFESTU (PLCdesk_CAD.json, ROZBOR.md, KUSOVNIK.csv, u stavby i schválený koncept), ne proti
 zprávě stavitele — tvrzení stavitele si ověř sám.
 {checks}
-Na začátku i na konci spočítej SHA-256 všech *.FCStd ve složce stroje a uveď je v protokolu (musí se shodovat).
-Protokol zapiš do {k5file}: první řádek nadpis, pak řádek „## Verdikt: **SCHVÁLENO**“ nebo „## Verdikt: **VRÁCENO**“,
-očíslované povinné body (jen u VRÁCENO) a výhrady."""
+Na začátku i na konci spočítej SHA-256 všech *.FCStd ve složce stroje (mimo _archiv, plné hodnoty) a uveď je v protokolu.
+Protokol zapiš do {k5file} podle stroj-kontrolor/references/protokol.md: první řádek nadpis, pak PRÁVĚ JEDEN řádek
+„## Verdikt: **SCHVÁLENO**“ nebo „## Verdikt: **VRÁCENO**“ (žádný jiný řádek nezačíná slovem Verdikt), pod ním
+„Povinných bodů: n (blokující b, závažné z) …“, oddíly 1–9 šablony. Schválené protokoly předchozích částí: {approved}."""
+
+APPROVED_CHANGED_POINT = ("model části „{label}“ {path} se po schválení K5 změnil (SHA {old} → {new}) — vrátit změnu, "
+                          "nebo změnu zapsat jako zpětnou vazbu / předání a nechat tu část znovu zkontrolovat (V13 / C1)")
 
 
 def fill(text: str, **kw) -> str:
@@ -244,12 +371,28 @@ def k5_checks(folder: Path, unit: str, rnd: int) -> dict | None:
     if not files:
         return None
     rank = {"OK": 0, "CHYBY": 1, "SELHALO": 2}
-    out = {"stav": "OK", "chyby": 0, "varovani": 0, "file": files[0].relative_to(folder).as_posix(), "modely": []}
+    out = {"stav": "OK", "chyby": 0, "varovani": 0, "file": files[0].relative_to(folder).as_posix(), "modely": [],
+           "bezSpoje": 0, "zony": 0, "bezZon": False, "vynechano": []}
     for f in files:
         try:
-            s = (json.loads(f.read_text(encoding="utf-8")).get("souhrn") or {})
+            rep = json.loads(f.read_text(encoding="utf-8"))
+            s = rep.get("souhrn") or {}
         except (OSError, ValueError):
-            s = {"stav": "SELHALO"}
+            rep, s = {}, {"stav": "SELHALO"}
+        ch = rep.get("checks") if isinstance(rep.get("checks"), dict) else {}
+        sv, ot = ch.get("souvislost") or {}, ch.get("otvory") or {}
+        try:
+            out["bezSpoje"] = max(out["bezSpoje"], int((sv.get("data") or {}).get("bez_spoje") or 0))
+        except (TypeError, ValueError, AttributeError):
+            pass
+        zl = (ot.get("data") or {}).get("zony") if isinstance(ot.get("data"), dict) else None
+        if isinstance(zl, list):
+            out["zony"] += len(zl)
+        infos = [str(i.get("text") or "") for c in ch.values() if isinstance(c, dict)
+                 for i in (c.get("info") or []) if isinstance(i, dict)]
+        out["vynechano"] += [t for t in infos if "vynechána" in t or "vynechano" in t]
+        if any("nemá nebezpečné zóny" in t for t in infos):
+            out["bezZon"] = True
         st = s.get("stav") if s.get("stav") in rank else "SELHALO"
         if rank[st] > rank[out["stav"]]:
             out["stav"], out["file"] = st, f.relative_to(folder).as_posix()
@@ -263,10 +406,48 @@ def feedback_file(unit: str) -> str:
     return f"PLCdesk_CAD_feedback_{UNIT[unit]['subject']}.json"
 
 
-def system_extra(unit: str, test_safety: bool) -> str:
+def skill_installed(name: str) -> bool:
+    """Skill je v ``~/.claude/skills`` (CLI ho načte); bez něj dostane agent vestavěné znění pravidel."""
+    return (pro_agent.SKILLS_DIR / name / "SKILL.md").is_file()
+
+
+def unit_skills(unit: str, role: str = "builder") -> tuple:
+    """Skilly části podle role: kontrolor K5 = stroj-kontrolor + odborné skilly části (bez stroj-stavitel)."""
+    sk = UNIT[unit]["skills"]
+    if role == "k5":
+        return (KONTROLOR_SKILL,) + tuple(s for s in sk if s != STAVITEL_SKILL)
+    return sk
+
+
+def system_extra(unit: str, test_safety: bool, role: str = "builder") -> str:
     u = UNIT[unit]
-    return fill(PIPELINE_RULES, feedback=feedback_file(unit), sub=u["sub"], test=TEST_RULE if test_safety else "") \
-        + "\nSkilly této části: " + ", ".join(u["skills"]) + "."
+    have = skill_installed(KONTROLOR_SKILL if role == "k5" else STAVITEL_SKILL)
+    rules = MODEL_RULES_SKILL if have else fill(MODEL_RULES_INLINE, sub=u["sub"])
+    return fill(PIPELINE_RULES, model_rules=rules, feedback=feedback_file(unit), sub=u["sub"],
+                test=TEST_RULE if test_safety else "") + "\nSkilly této části: " + ", ".join(unit_skills(unit, role)) + "."
+
+
+def k5_ids() -> tuple[dict, str]:
+    """ID kontrolního seznamu po oddílech ({"V": […], "F": […]…}) a zdroj: soubor skillu stroj-kontrolor
+    (``references/kontrolni-seznam.md``, řádky ``| V1 | …``), když chybí / je nečitelný, vestavěný ``K5_ITEMS``."""
+    p = pro_agent.SKILLS_DIR / KONTROLOR_SKILL / "references" / "kontrolni-seznam.md"
+    ids: list[str] = []
+    try:
+        ids = re.findall(r"^\|\s*([VKRFMC]\d+)\s*\|", p.read_text(encoding="utf-8"), re.M)
+    except OSError:
+        pass
+    src = p.as_posix() if ids else "vestavěný seznam"
+    out: dict = {}
+    for i in (ids or list(K5_ITEMS)):
+        if i not in out.setdefault(i[0], []):
+            out[i[0]].append(i)
+    return out, src
+
+
+def checklist_items(unit: str) -> str:
+    """Vestavěný kontrolní seznam části (oddíl V + oddíl části) do pokynu, když skill chybí."""
+    sec = K5_SECTION[unit]
+    return "\n".join(f"- {i}: {t}" for i, t in K5_ITEMS.items() if i[0] in ("V", sec))
 
 
 def builder_prompt(folder: Path, unit: str, rnd: int, template: str = "", extra: str = "", project: str = "",
@@ -275,7 +456,15 @@ def builder_prompt(folder: Path, unit: str, rnd: int, template: str = "", extra:
     head = [f"Projekt PLCdesk: {project}" if project else "", f"Složka 3D stroje: {folder}",
             f"Část: {u['label']} (podsložka {u['sub']}/), kolo {rnd}"]
     body = fill(template.strip() or default_prompt(unit), sub=u["sub"], round=rnd)
-    body += "\n\n" + fill(BUILD_CHECKS, cmd=tools_cmd("builder"), sub=u["sub"])
+    skill = skill_installed(STAVITEL_SKILL)
+    have_k5 = skill_installed(KONTROLOR_SKILL)
+    body += "\n\n" + fill(BUILD_CHECKS, cmd=tools_cmd("builder"), sub=u["sub"], section=K5_SECTION[unit],
+                          conventions=CONVENTIONS_SKILL if skill else CONVENTIONS_INLINE,
+                          checklist="stroj-kontrolor/references/kontrolni-seznam.md" if have_k5 else "seznam níže")
+    if not have_k5:
+        body += "\n" + checklist_items(unit)
+    if skill:
+        body += "\nPostupuj podle skillu stroj-stavitel (načti ho nástrojem Skill jako první krok)."
     if u["phase"] == "build":
         body += "\n\n" + fill(PARTS_RULES, parts=PARTS_SUB, cmd=parts_cmd("builder"))
     if rebuild and rnd == 1:
@@ -291,20 +480,287 @@ def builder_prompt(folder: Path, unit: str, rnd: int, template: str = "", extra:
     return "\n".join(x for x in head if x) + "\n\n" + body
 
 
-def k5_prompt(folder: Path, unit: str, rnd: int, project: str = "", test_safety: bool = False) -> str:
+def k5_prompt(folder: Path, unit: str, rnd: int, project: str = "", test_safety: bool = False,
+              approved: str = "") -> str:
     u = UNIT[unit]
     head = [f"Projekt PLCdesk: {project}" if project else "", f"Složka 3D stroje: {folder}"]
-    checks = fill(K5_CHECKS, cmd=tools_cmd("k5"), sub=u["sub"], round=rnd)
-    body = fill(K5_PROMPT, label=u["label"], sub=u["sub"], round=rnd, checks=checks,
+    mk, ms, mc = K5_MIN[unit]
+    checks = fill(K5_CHECKS, cmd=tools_cmd("k5"), sub=u["sub"], round=rnd, section=K5_SECTION[unit],
+                  min_kot=mk, min_shots=ms, min_claims=mc)
+    body = fill(K5_PROMPT, label=u["label"], sub=u["sub"], round=rnd, checks=checks, approved=approved or "žádné",
                 k5file=k5_file(folder, unit, rnd).relative_to(folder).as_posix())
+    if not skill_installed(KONTROLOR_SKILL):
+        body += "\n\n" + fill(K5_FALLBACK, items=checklist_items(unit))
     if test_safety:
         body += "\n\n" + TEST_RULE
     return "\n".join(x for x in head if x) + "\n\n" + body
 
 
 def parse_verdict(text: str) -> str:
-    """``ok`` / ``back`` / ``""`` z protokolu K5."""
+    """``ok`` / ``back`` / ``""`` z protokolu K5 (první řádek „Verdikt“ — kompatibilní se staršími protokoly)."""
     return pro_agent.verdict_kind(pro_agent.verdict_text(text))
+
+
+# --- brána K5: formální úplnost protokolu (smí jen vracet, nikdy schválit) -------------------------------------
+
+AUTO_HEAD = "## Automatický bod PLCdesk"
+_RESULT = re.compile(r"^(N/A|NA|NESPLN[ĚE]NO|SPLN[ĚE]NO)\b", re.I)
+_POINTS = re.compile(r"Povinných\s+bodů\s*:\s*(\d+)(?:\s*\(\s*blokující\s*(\d+)\s*,\s*závažné\s*(\d+))?", re.I)
+_PNG = re.compile(r"[\w./\\-]+\.png", re.I)
+
+
+def _section(text: str, head: str) -> str:
+    """Obsah oddílu od nadpisu, který začíná ``head`` (např. ``## 2``, ``### 3.2``), po další nadpis téže nebo vyšší
+    úrovně; "" = oddíl chybí."""
+    level = len(head) - len(head.lstrip("#"))
+    m = re.search(r"^" + re.escape(head) + r"\b.*$", text, re.M)
+    if not m:
+        return ""
+    rest = text[m.end():]
+    nxt = re.search(r"^#{1," + str(level) + r"}\s", rest, re.M)
+    return rest[:nxt.start()] if nxt else rest
+
+
+def _table_rows(text: str) -> list[list[str]]:
+    """Datové řádky tabulek Markdown (bez záhlaví a oddělovače) jako seznam buněk."""
+    def sep(s: str) -> bool:
+        return s.startswith("|") and "-" in s and re.fullmatch(r"[|\s:-]+", s) is not None
+
+    rows = []
+    lines = [ln.strip() for ln in text.splitlines()]
+    for i, ln in enumerate(lines):
+        if not ln.startswith("|") or sep(ln):
+            continue
+        if i + 1 < len(lines) and sep(lines[i + 1]):
+            continue                                   # záhlaví (řádek nad oddělovačem)
+        cells = [c.strip() for c in ln.strip("|").split("|")]
+        if any(c and c not in ("…", "...") for c in cells):
+            rows.append(cells)
+    return rows
+
+
+def checklist_rows(text: str) -> dict:
+    """{ID: (výsledek SPLNĚNO / NESPLNĚNO / N/A, důkaz)} z tabulky kontrolního seznamu (kap. 2; bez ní celý text)."""
+    body = _section(text, "## 2") or text
+    out: dict = {}
+    for line in body.splitlines():
+        m = re.match(r"^\|\s*([VKRFMC]\d+)\s*\|", line.strip())
+        if not m:
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        res = next((_RESULT.match(c).group(1).upper() for c in reversed(cells[1:]) if _RESULT.match(c)), "")
+        res = {"NA": "N/A", "SPLNENO": "SPLNĚNO", "NESPLNENO": "NESPLNĚNO"}.get(res, res)
+        proof = cells[2] if len(cells) >= 4 else ""
+        out.setdefault(m.group(1), (res, proof))
+    return out
+
+
+def points_count(text: str) -> dict | None:
+    """Řádek „Povinných bodů: n (blokující b, závažné z)“ → {"n", "b", "z"} (b / z None, když chybí)."""
+    m = _POINTS.search(text or "")
+    if not m:
+        return None
+    return {"n": int(m.group(1)), "b": int(m.group(2)) if m.group(2) else None,
+            "z": int(m.group(3)) if m.group(3) else None}
+
+
+def png_nonwhite_pct(path: str | Path, limit: float = 100.0) -> float | None:
+    """Podíl nebílých pixelů PNG v % (jen zlib, bez závislostí); s ``limit`` skončí, jakmile ho podíl jistě překročí.
+    None = formát neumí (prokládání, 16 bit, poškozený soubor) — brána ho pak neposuzuje."""
+    import struct
+    import zlib
+    try:
+        data = Path(path).read_bytes()
+    except OSError:
+        return None
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        return None
+    pos, idat, ihdr, pal, trns = 8, [], None, b"", b""
+    try:
+        while pos + 8 <= len(data):
+            n, typ = struct.unpack(">I4s", data[pos:pos + 8])
+            chunk = data[pos + 8:pos + 8 + n]
+            pos += 12 + n
+            if typ == b"IHDR":
+                ihdr = struct.unpack(">IIBBBBB", chunk)
+            elif typ == b"PLTE":
+                pal = chunk
+            elif typ == b"tRNS":
+                trns = chunk
+            elif typ == b"IDAT":
+                idat.append(chunk)
+            elif typ == b"IEND":
+                break
+        w, h, depth, ctype, _c, _f, inter = ihdr
+        if depth != 8 or inter or ctype not in (0, 2, 3, 4, 6):
+            return None
+        raw = zlib.decompress(b"".join(idat))
+    except (TypeError, ValueError, struct.error, zlib.error):
+        return None
+    bpp = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}[ctype]
+    stride = w * bpp
+    total = w * h
+    if total == 0 or len(raw) < h * (stride + 1):
+        return None
+    need = total * limit / 100.0
+    prev = bytearray(stride)
+    nonwhite = 0
+    for y in range(h):
+        f = raw[y * (stride + 1)]
+        cur = bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+        if f == 1:
+            for i in range(bpp, stride):
+                cur[i] = (cur[i] + cur[i - bpp]) & 255
+        elif f == 2:
+            cur = bytearray((a + b) & 255 for a, b in zip(cur, prev))
+        elif f == 3:
+            for i in range(stride):
+                left = cur[i - bpp] if i >= bpp else 0
+                cur[i] = (cur[i] + ((left + prev[i]) >> 1)) & 255
+        elif f == 4:
+            for i in range(stride):
+                a = cur[i - bpp] if i >= bpp else 0
+                b = prev[i]
+                c = prev[i - bpp] if i >= bpp else 0
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                cur[i] = (cur[i] + (a if pa <= pb and pa <= pc else (b if pb <= pc else c))) & 255
+        prev = cur
+        if ctype != 3 and cur.count(255) == stride:
+            continue                                      # celý řádek bílý (rychle, bez smyčky po pixelech)
+        for x in range(0, stride, bpp):
+            if ctype == 3:
+                k = cur[x]
+                if k < len(trns) and trns[k] == 0:
+                    continue
+                px = pal[3 * k:3 * k + 3]
+            elif ctype in (4, 6) and cur[x + bpp - 1] == 0:
+                continue                                  # průhledný pixel = pozadí
+            else:
+                px = cur[x:x + (1 if ctype in (0, 4) else 3)]
+            if min(px or b"\xff") < 245:
+                nonwhite += 1
+        if nonwhite > need:
+            break
+    return 100.0 * nonwhite / total
+
+
+def _find_shot(folder: Path, unit: str, rnd: int, name: str) -> Path | None:
+    name = name.strip("`*()[] ").replace("\\", "/")
+    sub = folder / UNIT[unit]["sub"]
+    for p in (folder / name, sub / name, sub / f"k5_kolo{rnd}" / Path(name).name):
+        if p.is_file():
+            return p
+    base = Path(name).name
+    return next((p for p in sub.rglob(base) if ARCHIVE_DIR not in p.relative_to(folder).parts), None) \
+        if sub.is_dir() else None
+
+
+def k5_audit(folder: str | Path, unit: str, rnd: int, text: str, chk: dict | None = None) -> list[str]:
+    """Brána nad protokolem SCHVÁLENO: body, proč schválení neplatí (prázdný seznam = brána prošla). Hodnotí jen úplnost
+    a formální přísnost podle skillu stroj-kontrolor (seznam s důkazem, minima, snímky, plné počty z kontroly.json) —
+    věcnou správnost posuzuje K5; brána proto smí jen vracet, nikdy schválit."""
+    folder = Path(folder)
+    text = (text or "").split(AUTO_HEAD)[0]
+    pts: list[str] = []
+    ids, _src = k5_ids()
+    sec = K5_SECTION[unit]
+    need = ids.get("V", []) + ids.get(sec, [])
+    rows = checklist_rows(text)
+    miss = [i for i in need if i not in rows]
+    if miss:
+        pts.append(f"kontrolní seznam (stroj-kontrolor, oddíl V a {sec}): chybí řádky {', '.join(miss)} — "
+                   "položka bez řádku = NESPLNĚNO")
+    bad = [i for i in need if rows.get(i, ("",))[0] == "NESPLNĚNO"]
+    if bad:
+        pts.append("SCHVÁLENO s nesplněnými položkami " + ", ".join(bad))
+    nores = [i for i in need if i in rows and not rows[i][0]]
+    if nores:
+        pts.append("položky bez výsledku SPLNĚNO / NESPLNĚNO / N/A: " + ", ".join(nores))
+    noproof = [i for i in need if rows.get(i, ("",))[0] == "SPLNĚNO"
+               and re.sub(r"[\s—–\-.?…]", "", rows[i][1]) == ""]
+    if noproof:
+        pts.append("SPLNĚNO bez důkazu (položka bez důkazu = NESPLNĚNO): " + ", ".join(noproof))
+    verd = [ln for ln in text.splitlines() if re.match(r"^[#*\s]*Verdikt\b", ln, re.I)]
+    if len(verd) > 1:
+        pts.append(f"protokol má {len(verd)} řádky začínající „Verdikt“ — smí být právě jeden (protokol.md)")
+    pc = points_count(text)
+    if pc and pc["n"] > 0:
+        pts.append(f"SCHVÁLENO s povinnými body ({pc['n']}) — povinný bod = VRÁCENO")
+    mk, ms, mc = K5_MIN[unit]
+    for head, lo, what in (("### 3.1", 1, "tabulka zón nebezpečí (3.1)"), ("### 3.2", mk, "vlastní kóty proti zadání (3.2)"),
+                           ("### 3.5", mc, "ověřená tvrzení stavitele (3.5)")):
+        n = len(_table_rows(_section(text, head)))
+        if n < lo:
+            pts.append(f"{what}: {n} řádků, minimum {lo}")
+    shots = _table_rows(_section(text, "## 5"))
+    if len(shots) < ms:
+        pts.append(f"prohlédnuté snímky (kap. 5): {len(shots)}, minimum {ms}")
+    missing, blank = [], []
+    for row in shots:
+        for name in dict.fromkeys(_PNG.findall(" ".join(row))):
+            p = _find_shot(folder, unit, rnd, name)
+            if p is None:
+                missing.append(Path(name.replace("\\", "/")).name)
+                continue
+            pct = png_nonwhite_pct(p, limit=BLANK_SHOT_PCT)
+            if pct is not None and pct < BLANK_SHOT_PCT:
+                blank.append(f"{p.name} ({pct:.1f} %)")
+    if missing:
+        pts.append("snímky z kap. 5 neexistují: " + ", ".join(missing[:8]))
+    if blank:
+        pts.append("prázdné snímky (nebílých pixelů < 1 % — nástroj selhal): " + ", ".join(blank[:8]))
+    if chk:
+        bs = int(chk.get("bezSpoje") or 0)
+        if bs > BEZ_SPOJE_SHOWN and "bez_spoje" not in text:
+            pts.append(f"data.bez_spoje = {bs} (varování ukazují jen {BEZ_SPOJE_SHOWN}) — skutečný počet neposouzen (V4)")
+        if chk.get("vynechano") and "vynechan" not in _fold(text):
+            pts.append("info kontrol kódem „" + chk["vynechano"][0][:120] + "“ neposouzeno (V4)")
+        if chk.get("bezZon") and unit != "cabinet" and rows.get("V3", ("",))[0] == "SPLNĚNO":
+            pts.append("model nemá zóny nebezpečí (Zona_*), V3 přesto SPLNĚNO — kontrola otvorů neproběhla")
+    return pts
+
+
+def _fold(s: str) -> str:
+    """Malá písmena bez diakritiky."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", s or "")
+    return "".join(c for c in s if not unicodedata.combining(c)).lower()
+
+
+def unit_models(folder: Path, unit: str) -> dict:
+    """SHA-256 modelů FCStd části (podsložka, mimo archiv)."""
+    sub = UNIT[unit]["sub"] + "/"
+    return {k: v for k, v in _sha_models(folder).items() if k.startswith(sub)}
+
+
+def approved_changes(state: dict, cur: dict, unit: str) -> list[tuple]:
+    """Schválené části (jiné než ``unit``), jejichž model se od schválení K5 změnil: [(část, cesta, staré, nové)]."""
+    out = []
+    for k in UNIT_KEYS:
+        if k == unit:
+            continue
+        u = state["units"].get(k) or {}
+        last = (u.get("rounds") or [{}])[-1]
+        if u.get("state") != "approved" or not isinstance(last.get("approvedSha"), dict):
+            continue
+        for path, sha in sorted(last["approvedSha"].items()):
+            if cur.get(path) != sha:
+                out.append((k, path, sha, cur.get(path) or "chybí"))
+    return out
+
+
+def approved_list(state: dict, unit: str) -> str:
+    """Schválené protokoly předchozích částí pro pokyn K5: „<část>: <protokol>, SHA <model> …“."""
+    out = []
+    for k in UNIT_KEYS[:UNIT_KEYS.index(unit)]:
+        u = state["units"].get(k) or {}
+        last = (u.get("rounds") or [{}])[-1]
+        if u.get("state") != "approved" or not last.get("file"):
+            continue
+        shas = ", ".join(f"{p} {s}" for p, s in sorted((last.get("approvedSha") or {}).items()))
+        out.append(f"{UNIT[k]['label']}: {last['file']}" + (f" (SHA {shas})" if shas else ""))
+    return "; ".join(out)
 
 
 # --- vstupy z PLCdesk (bez AI) --------------------------------------------------------------------------------
@@ -519,8 +975,13 @@ def _sha_models(folder: Path) -> dict:
     return out
 
 
+def default_unit_rounds(base: int = MAX_ROUNDS) -> dict:
+    return {k: int(UNIT_ROUNDS.get(k) or base) for k in AI_UNITS}
+
+
 def blank_state(project: str = "", max_rounds: int = MAX_ROUNDS, test_safety: bool = False) -> dict:
     return {"version": 1, "project": project, "maxRounds": max_rounds, "testSafety": test_safety,
+            "unitRounds": default_unit_rounds(max_rounds),
             "models": dict(pro_agent.ROLE_MODELS), "maxTurns": dict(pro_agent.ROLE_TURNS),
             "status": "new", "created": _now(), "updated": _now(), "inputs": [],
             "units": {k: {"state": "waiting", "rounds": []} for k in UNIT_KEYS}}
@@ -563,7 +1024,7 @@ def state_label(state: str, rnd: int = 0) -> str:
 
 def progress(st: dict) -> float:
     """Celkový průběh 0–1: hotové kroky + rozpracované kolo (kolo / max kol, půlka za stavitele)."""
-    mx = max(1, int(st.get("maxRounds") or MAX_ROUNDS))
+    ur = st.get("unitRounds") if isinstance(st.get("unitRounds"), dict) else {}
     total = 0.0
     for k in UNIT_KEYS:
         u = st["units"][k]
@@ -571,6 +1032,7 @@ def progress(st: dict) -> float:
             total += 1
         elif u.get("rounds"):
             r = u["rounds"][-1]
+            mx = max(1, int(ur.get(k) or st.get("maxRounds") or MAX_ROUNDS))
             total += min(0.95, (len(u["rounds"]) - 1 + (0.5 if r.get("builder") else 0)) / mx)
     return total / len(UNIT_KEYS)
 
@@ -579,14 +1041,13 @@ class Pipeline:
     """Automatický postup nad složkou stroje. ``run()`` běží ve volajícím vlákně (GUI ho pouští ve vlákně na pozadí),
     ``stop()`` smí volat jiné vlákno. ``state`` = obsah ``pipeline.json``; ``current`` = běžící ``AgentRun``."""
 
-    def __init__(self, folder: str | Path, prj: dict, *, max_rounds: int = MAX_ROUNDS, test_safety: bool = False,
+    def __init__(self, folder: str | Path, prj: dict, *, max_rounds: int | None = None, test_safety: bool = False,
                  prompts: dict | None = None, extras: dict | None = None, runner=None, ai: bool = True,
                  inputs_fn=None, log=None, models: dict | None = None, turns: dict | None = None,
                  parts: bool | None = None, parts_fn=None) -> None:
         self.folder = Path(folder)
         self.prj = prj
         self.project = str((prj.get("meta") or {}).get("name") or "")
-        self.max_rounds = max(1, int(max_rounds))
         self.test_safety = bool(test_safety)
         self.prompts = prompts or {}
         self.extras = extras or {}
@@ -600,7 +1061,15 @@ class Pipeline:
         self.current = None
         self.stop_requested = False
         self.lock = threading.Lock()
-        self.state = load_state(self.folder) or blank_state(self.project, self.max_rounds, self.test_safety)
+        self.state = load_state(self.folder) or blank_state(self.project, MAX_ROUNDS, self.test_safety)
+        # max. kol podle části: výchozí (UNIT_ROUNDS, jinak MAX_ROUNDS) < pipeline.json < volba max_rounds (všem částem)
+        if max_rounds is not None:
+            self.max_rounds = max(1, int(max_rounds))
+            self.state["unitRounds"] = {k: self.max_rounds for k in AI_UNITS}
+        else:
+            self.max_rounds = max(1, int(self.state.get("maxRounds") or MAX_ROUNDS))
+            st_r = self.state.get("unitRounds") if isinstance(self.state.get("unitRounds"), dict) else {}
+            self.state["unitRounds"] = {k: max(1, int(st_r.get(k) or d)) for k, d in default_unit_rounds(self.max_rounds).items()}
         self.state["maxRounds"] = self.max_rounds
         self.state["testSafety"] = self.test_safety
         # model a limit kol podle role: výchozí < pipeline.json < volba (krok / CLI)
@@ -610,6 +1079,10 @@ class Pipeline:
                                 for r, d in pro_agent.ROLE_MODELS.items()}
         self.state["maxTurns"] = {r: max(1, int((turns or {}).get(r) or st_t.get(r) or d))
                                   for r, d in pro_agent.ROLE_TURNS.items()}
+
+    def rounds_for(self, unit: str) -> int:
+        """Max. kol stavitel + K5 pro část (``pipeline.json`` ``unitRounds``)."""
+        return int(self.state["unitRounds"].get(unit) or self.max_rounds)
 
     def model_for(self, role: str) -> str:
         return self.state["models"].get(role) or pro_agent.ROLE_MODELS.get(role, "")
@@ -725,7 +1198,7 @@ class Pipeline:
                     status = res
                     break
                 if key == "concept" and res == "rejected":
-                    self.log(_n(self.max_rounds, N_("Koncept neschválen ani po {n} kole — postup zastaven (stavba nad "
+                    self.log(_n(self.rounds_for("concept"), N_("Koncept neschválen ani po {n} kole — postup zastaven (stavba nad "
                                                  "neschváleným konceptem nemá smysl).|Koncept neschválen ani po {n} "
                                                  "kolech — postup zastaven (stavba nad neschváleným konceptem nemá "
                                                  "smysl).")))
@@ -786,7 +1259,7 @@ class Pipeline:
         runner = self.runner or agent_runner()
         self.log(_("{part}, kolo {n}: {role}…", part=_(UNIT[unit]["label"]), n=rnd, role=_(dict(pro_agent.ROLES)[role])))
         t0 = time.monotonic()
-        res = runner(self, role, prompt, system_extra(unit, self.test_safety), path) or {}
+        res = runner(self, role, prompt, system_extra(unit, self.test_safety, role), path) or {}
         res.setdefault("secs", round(time.monotonic() - t0))
         res["log"] = path.relative_to(self.folder).as_posix()
         res["role"] = role
@@ -802,7 +1275,7 @@ class Pipeline:
         while True:
             rounds = u["rounds"]
             if not rounds or rounds[-1].get("verdict"):
-                if rounds and len(rounds) >= self.max_rounds:
+                if rounds and len(rounds) >= self.rounds_for(key):
                     u["state"] = "rejected"
                     self.log(_n(len(rounds), N_("{part}: neschváleno po {n} kole.|{part}: neschváleno po {n} kolech."),
                                 part=_(UNIT[key]["label"])))
@@ -835,7 +1308,13 @@ class Pipeline:
             u["state"] = "review"
             self.save()
             before = _sha_models(self.folder)
-            kp = k5_prompt(self.folder, key, n, self.project, self.test_safety)
+            # modely schválených částí změněné po jejich K5 (V13 / C1) — do pokynu i jako automatický bod
+            drift = approved_changes(self.state, before, key)
+            appr = approved_list(self.state, key)
+            if drift:
+                appr += "; POZOR — po schválení změněno: " + "; ".join(
+                    f"{UNIT[k]['label']} {pth} {old} → {new}" for k, pth, old, new in drift)
+            kp = k5_prompt(self.folder, key, n, self.project, self.test_safety, approved=appr)
             kcont = fill(K5_CONTINUE_PROMPT, sub=UNIT[key]["sub"], round=n,
                          k5file=k5_file(self.folder, key, n).relative_to(self.folder).as_posix())
             prev = r["k5"] if r["k5"] and r["k5"].get("subtype") == "error_max_turns" else None
@@ -853,51 +1332,85 @@ class Pipeline:
                 r["k5"] = None if u["state"] == "stopped" else r["k5"]
                 self.save()
                 return u["state"]
-            f = k5_file(self.folder, key, n)
-            r["file"] = f.relative_to(self.folder).as_posix()
-            text = f.read_text(encoding="utf-8", errors="replace") if f.is_file() else ""
-            kind = parse_verdict(text)
-            changed = sorted(k for k, v in _sha_models(self.folder).items() if before.get(k) != v)
-            if changed:
-                r["k5Modified"] = changed
-                self.log(_("Kontrolor změnil model ({files}) — verdikt neplatí.", files=", ".join(changed)))
-                kind = ""
-            chk = k5_checks(self.folder, key, n)
-            r["checks"] = chk
-            if kind == "ok" and chk and chk.get("stav") != "OK":
-                self.log(_("Kontroly kódem K5 ({file}): {state} — verdikt SCHVÁLENO neplatí.", file=chk["file"],
-                           state=chk.get("stav")))
-                kind = "back"
-                r["k5ChecksOverride"] = chk.get("stav")
-            r["verdictText"] = pro_agent.verdict_text(text)
-            if chk is None or chk.get("stav") == "SELHALO":
-                # bez kontrol skriptem (chybí / nečitelné / selhaly) se verdikt nepřijme → VRÁCENO s automatickým bodem
-                if chk is None:
-                    self.log(_("Kontrolor nespustil kontroly kódem (kontroly.json chybí) — verdikt VRÁCENO."))
-                else:
-                    self.log(_("Kontroly kódem K5 ({file}) SELHALY — verdikt VRÁCENO.", file=chk["file"]))
-                kind = "back"
-                point = fill(K5_NO_CHECKS_POINT, sub=UNIT[key]["sub"], round=n)
-                r["autoPoints"] = [point]
-                r["k5NoChecks"] = "missing" if chk is None else "SELHALO"
-                r["verdictText"] = "VRÁCENO (bez kontrol skriptem)"
-                try:
-                    f.parent.mkdir(parents=True, exist_ok=True)
-                    with open(f, "a", encoding="utf-8") as fh:
-                        fh.write(("\n" if text and not text.endswith("\n") else "")
-                                 + "\n## Automatický bod PLCdesk\n\nVerdikt: **VRÁCENO (bez kontrol skriptem)** — "
-                                 "kontroly kódem chybí nebo selhaly, verdikt kontrolora neplatí.\n\n"
-                                 f"1. {point}\n")
-                except OSError:
-                    pass
-            r["verdict"] = kind or "none"
-            self.log(_("{part}, kolo {n}: verdikt {v}.", part=_(UNIT[key]["label"]), n=n,
-                       v=r["verdictText"] or _("chybí")))
-            if kind == "ok":
+            self._verdict(key, r, n, before, drift)
+            if r["verdict"] == "ok":
                 u["state"] = "approved"
                 self.save()
                 return "approved"
             self.save()
+
+    def _verdict(self, key: str, r: dict, n: int, before: dict, drift: list) -> None:
+        """Verdikt kola z protokolu K5 + pojistky postupu (smí jen vracet): změna modelu kontrolorem, kontroly kódem
+        (chybí / SELHALO / CHYBY), změněný schválený model jiné části, brána K5 nad protokolem SCHVÁLENO."""
+        f = k5_file(self.folder, key, n)
+        r["file"] = f.relative_to(self.folder).as_posix()
+        text = f.read_text(encoding="utf-8", errors="replace") if f.is_file() else ""
+        kind = parse_verdict(text)
+        r["points"] = points_count(text)
+        after = _sha_models(self.folder)
+        changed = sorted(k for k, v in after.items() if before.get(k) != v)
+        if changed:
+            r["k5Modified"] = changed
+            self.log(_("Kontrolor změnil model ({files}) — verdikt neplatí.", files=", ".join(changed)))
+            kind = ""
+        chk = k5_checks(self.folder, key, n)
+        r["checks"] = chk
+        if kind == "ok" and chk and chk.get("stav") != "OK":
+            self.log(_("Kontroly kódem K5 ({file}): {state} — verdikt SCHVÁLENO neplatí.", file=chk["file"],
+                       state=chk.get("stav")))
+            kind = "back"
+            r["k5ChecksOverride"] = chk.get("stav")
+        r["verdictText"] = pro_agent.verdict_text(text)
+        auto: list[str] = []
+        why = ""
+        if chk is None or chk.get("stav") == "SELHALO":
+            # bez kontrol skriptem (chybí / nečitelné / selhaly) se verdikt nepřijme → VRÁCENO s automatickým bodem
+            if chk is None:
+                self.log(_("Kontrolor nespustil kontroly kódem (kontroly.json chybí) — verdikt VRÁCENO."))
+            else:
+                self.log(_("Kontroly kódem K5 ({file}) SELHALY — verdikt VRÁCENO.", file=chk["file"]))
+            kind = "back"
+            auto.append(fill(K5_NO_CHECKS_POINT, sub=UNIT[key]["sub"], round=n))
+            r["k5NoChecks"] = "missing" if chk is None else "SELHALO"
+            r["verdictText"] = why = "VRÁCENO (bez kontrol skriptem)"
+        if drift:
+            r["approvedChanged"] = [{"unit": k, "path": p, "old": o, "new": nw} for k, p, o, nw in drift]
+            auto += [fill(APPROVED_CHANGED_POINT, label=UNIT[k]["label"], path=p, old=o[:12], new=nw[:12])
+                     for k, p, o, nw in drift]
+            self.log(_("Schválený model jiné části se změnil ({files}) — verdikt VRÁCENO.",
+                       files=", ".join(p for _k, p, _o, _n in drift)))
+            if kind == "ok":
+                kind = "back"
+                r["verdictText"] = why = why or "VRÁCENO (změněn schválený model)"
+        if kind == "ok":
+            gate = k5_audit(self.folder, key, n, text, chk)
+            r["k5Audit"] = gate
+            if gate:
+                self.log(_n(len(gate), N_("Brána K5: protokol SCHVÁLENO nesplňuje {n} požadavek — verdikt VRÁCENO."
+                                          "|Brána K5: protokol SCHVÁLENO nesplňuje {n} požadavky — verdikt VRÁCENO."
+                                          "|Brána K5: protokol SCHVÁLENO nesplňuje {n} požadavků — verdikt VRÁCENO.")))
+                kind = "back"
+                auto += gate
+                r["verdictText"] = why = "VRÁCENO (brána K5)"
+        if auto:
+            r["autoPoints"] = auto
+            reason = {"VRÁCENO (bez kontrol skriptem)": "kontroly kódem chybí nebo selhaly, verdikt kontrolora neplatí.",
+                      "VRÁCENO (brána K5)": "protokol SCHVÁLENO nesplňuje formální požadavky kontroly (kontrolní "
+                                            "seznam s důkazem, minima, snímky) — schválení neplatí.",
+                      "VRÁCENO (změněn schválený model)": "část stojí na modelu jiné části změněném po jejím schválení."}
+            try:
+                f.parent.mkdir(parents=True, exist_ok=True)
+                with open(f, "a", encoding="utf-8") as fh:
+                    fh.write(("\n" if text and not text.endswith("\n") else "") + f"\n{AUTO_HEAD}\n\n"
+                             + (f"Verdikt: **{why}** — {reason.get(why, '')}\n\n" if why else "")
+                             + "".join(f"{i}. {p}\n" for i, p in enumerate(auto, 1)))
+            except OSError:
+                pass
+        if kind == "ok":
+            r["approvedSha"] = unit_models(self.folder, key)     # SHA schválených modelů části (V13 / C1)
+        r["verdict"] = kind or "none"
+        self.log(_("{part}, kolo {n}: verdikt {v}.", part=_(UNIT[key]["label"]), n=n,
+                   v=r["verdictText"] or _("chybí")))
 
 
 # --- přehled -------------------------------------------------------------------------------------------------------
@@ -922,13 +1435,20 @@ def collect_estimates(folder: Path, limit: int = 60) -> list[str]:
     return out
 
 
+def _rounds_text(st: dict) -> str:
+    ur = st.get("unitRounds") if isinstance(st.get("unitRounds"), dict) else {}
+    base = st.get("maxRounds") or MAX_ROUNDS
+    extra = [f"{UNIT[k]['label']} {v}" for k, v in ur.items() if k in UNIT and v != base]
+    return f"{base}" + (f" ({', '.join(extra)})" if extra else "")
+
+
 def write_summary(folder: str | Path, st: dict) -> Path:
     """``PREHLED.md``: fáze, kola, verdikty, cena a tokeny, předpoklady (ODHAD), zpětná vazba, snímky, TEST."""
     folder = Path(folder)
     L = [f"# Přehled automatického postupu 3D — {st.get('project') or folder.name}", ""]
     if st.get("testSafety"):
         L += [f"> **{TEST_MARK}** — bezpečnostní prvky a funkce byly v tomto běhu považovány za schválené.", ""]
-    L += [f"Stav postupu: **{st.get('status')}**, aktualizováno {st.get('updated')}, max. kol {st.get('maxRounds')}.", "",
+    L += [f"Stav postupu: **{st.get('status')}**, aktualizováno {st.get('updated')}, max. kol {_rounds_text(st)}.", "",
           "| Fáze | Krok | Stav | Kola | Verdikty | Odhad USD (ceník API) | Tokeny vstup / výstup |", "|---|---|---|---|---|---|---|"]
     tc = ti = to = 0
     for k in UNIT_KEYS:
@@ -943,6 +1463,11 @@ def write_summary(folder: str | Path, st: dict) -> Path:
                 tout += int(x.get("tout") or 0)
             if r.get("verdict"):
                 v = {"ok": "SCHVÁLENO", "back": "VRÁCENO"}.get(r["verdict"], "bez verdiktu")
+                pc = r.get("points") or {}
+                if pc.get("n"):
+                    v += f" ({pc['n']} b." + (f", B {pc['b']} / Z {pc['z']}" if pc.get("b") is not None else "") + ")"
+                if r.get("k5Audit"):
+                    v += " (brána K5)"
                 verd.append(f"{r['n']}: [{v}]({r['file']})" if r.get("file") else f"{r['n']}: {v}")
         tc, ti, to = tc + cost, ti + tin, to + tout
         lbl = STATE_LABELS.get(u["state"], u["state"]).replace("{n}", str(len(u.get("rounds") or [])))
@@ -981,6 +1506,26 @@ def write_summary(folder: str | Path, st: dict) -> Path:
             if r.get("k5NoChecks") and not r.get("checks")]
     if chk:
         L += ["## Kontroly kódem (pro3d_tools)", ""] + chk + [""]
+    gate = []
+    for k in UNIT_KEYS:
+        for r in st["units"][k].get("rounds") or []:
+            pc = r.get("points") or {}
+            pcs = (f"povinných bodů {pc['n']}" + (f" (blokující {pc['b']}, závažné {pc['z']})" if pc.get("b") is not None
+                                                  else "")) if pc else "počet bodů neuveden"
+            if "k5Audit" in r:
+                res = (f"brána K5: SCHVÁLENO neplatí — {len(r['k5Audit'])} bodů: " + "; ".join(r["k5Audit"][:4])
+                       + (" …" if len(r["k5Audit"]) > 4 else "")) if r["k5Audit"] else "brána K5: prošla"
+                gate.append(f"- {UNIT[k]['label']} kolo {r['n']}: {res}; {pcs}")
+            elif r.get("verdict") and r.get("file"):
+                gate.append(f"- {UNIT[k]['label']} kolo {r['n']}: {pcs}")
+            for c in r.get("approvedChanged") or []:
+                gate.append(f"- {UNIT[k]['label']} kolo {r['n']}: model {c['path']} části "
+                            f"{UNIT.get(c['unit'], {}).get('label', c['unit'])} změněn po schválení "
+                            f"({str(c['old'])[:12]} → {str(c['new'])[:12]}) — verdikt VRÁCENO")
+    if gate:
+        L += ["## Kontrola K5 — brána a povinné body", "",
+              "Brána K5 (PLCdesk) jen vrací: SCHVÁLENO bez úplného kontrolního seznamu s důkazy, minim měření a snímků "
+              "nebo s neposouzenými počty z kontrol kódem se přepíše na VRÁCENO.", ""] + gate + [""]
     if st.get("archives"):
         L += ["## Archiv dřívějších výstupů (Spustit od…)", ""] + \
              [f"- {a.get('at')}: [{a['dir']}]({a['dir']}) — "
@@ -1029,7 +1574,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--sample", required=True, help="projekt .plcstudio.json")
     ap.add_argument("--out", required=True, help="složka 3D stroje")
     ap.add_argument("--from-phase", choices=sorted({*UNIT_KEYS, "build"}), help="začít od fáze / kroku (znovu)")
-    ap.add_argument("--max-rounds", type=int, default=MAX_ROUNDS)
+    ap.add_argument("--max-rounds", type=int, default=None,
+                    help=f"max. kol každé části (výchozí {MAX_ROUNDS}, rám a kryty {UNIT_ROUNDS['frame']}; "
+                         "volba platí všem částem)")
     ap.add_argument("--test-safety", action="store_true", help="TEST: bezpečnostní prvky považovat za schválené")
     ap.add_argument("--no-ai", action="store_true", help="jen vstupy z PLCdesk, agenti se nespustí")
     ap.add_argument("--model", default="", help="jeden model pro všechny role (přebije --model-*)")

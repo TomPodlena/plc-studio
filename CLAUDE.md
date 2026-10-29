@@ -384,10 +384,34 @@ python scripts/build_verification.py        # data/verification.json → verific
   Testy `apps/desktop/tests/test_pro_agent.py` a `test_pro_pipeline.py` (bez volání AI: vstupy na vzoru 01, automat kol, navázání,
   zastavení, K5 mění model, PREHLED.md, CLI `--no-ai`). Zbývá: licence PRO, interaktivní náhled 3D, ověřit vzory oprávnění naostro.
 - **Cena (2026-10-21):** model a limit kol PODLE ROLE — `pro_agent.ROLE_MODELS` (koncept `claude-opus-5-5`, stavitel a kontrolor
-  `claude-sonnet-5-5`), `ROLE_TURNS` (60 / 60 / 40, CLI `--max-turns`); priorita výchozí < `pipeline.json` (`models`,
+  `claude-sonnet-5-5`), `ROLE_TURNS` (60 / 60 / 80, CLI `--max-turns`); priorita výchozí < `pipeline.json` (`models`,
   `maxTurns`) < volba (krok: Combobox každé role = `ai_client.KNOWN_MODELS` s poznámkou o relativní ceně + vlastní ID,
   `settings.pro3d_models[guid]`, výchozí `settings.pro_models`; CLI `--model-concept / --model-build / --model-check`,
   `--turns-*`, `--model` = všechny role). `PREHLED.md` tabulka Běhy agentů: model, kola / limit, skutečná cena a tokeny.
+- **Skilly stroj-stavitel / stroj-kontrolor a brána K5** (2026-10-29, návrh `.claude/skills_staging/NAVRH_INTEGRACE.md`;
+  skilly instaluje uživatel do `~/.claude/skills`): obecná pravidla modelu / provozu / kontroly žijí ve skillech, pokyny
+  (`pro_pipeline`) nesou jen specifika běhu — `UNITS` začínají skillem `stroj-stavitel`, K5 dostane `stroj-kontrolor` +
+  odborné skilly části (`system_extra(unit, test, role)`), `K5_SECTION` (K / R / F / M / C) = oddíl kontrolního seznamu,
+  `K5_MIN` = minimum kót / snímků / tvrzení na kolo. **Bez nainstalovaného skillu** (`skill_installed`) jde do pokynu
+  vestavěné znění (`MODEL_RULES_INLINE`, `CONVENTIONS_INLINE`, `K5_FALLBACK` s `K5_ITEMS` = zkrácený seznam; test hlídá
+  shodu ID se seznamem skillu). **Brána `k5_audit`** (po `parse_verdict`, jen u SCHVÁLENO; smí jen VRACET): ID ze skillu
+  (`k5_ids`: `references/kontrolni-seznam.md`, jinak `K5_ITEMS`) — chybějící řádek, NESPLNĚNO, SPLNĚNO bez důkazu, víc řádků
+  „Verdikt“, „Povinných bodů: n > 0“, minima tabulek 3.1 / 3.2 / 3.5 a kap. 5, snímek chybí / prázdný (`png_nonwhite_pct`,
+  zlib bez závislostí, < 1 % nebílých), `data.bez_spoje` > 15 neposouzeno, info „vynechána“, bez zón a V3 SPLNĚNO
+  (`k5_checks` nese `bezSpoje` / `zony` / `bezZon` / `vynechano`) → VRÁCENO „(brána K5)“, `k5Audit` + `autoPoints`
+  + oddíl „Automatický bod PLCdesk“ v protokolu. **`approvedSha`** = SHA modelů části při schválení; při startu K5 další
+  části `approved_changes` (změněný schválený model jiné části → upozornění v pokynu, automatický bod V13 / C1, VRÁCENO
+  „(změněn schválený model)“, `approvedChanged`); `approved_list` → `{approved}` v `K5_PROMPT`. **Max. kol podle části**
+  `pipeline.json` `unitRounds` (`UNIT_ROUNDS`: rám a kryty 5, ostatní `MAX_ROUNDS` 3; `rounds_for`), volba `max_rounds` /
+  CLI `--max-rounds` platí všem částem. TEST: bezpečnostní NÁVRH se kontroluje stejně přísně, předpokládá se jen podpis.
+  `PREHLED.md` oddíl „Kontrola K5 — brána a povinné body“ (počet bodů z řádku „Povinných bodů: n (blokující b, závažné z)“
+  → `r["points"]`). Kalibrace brány: `tests/data/k5_kalibrace/` (protokoly + kontroly.json kola 1 příkladů 01 a 03 —
+  všech 7 SCHVÁLENO bránou neprojde). Placené ověření (`--k5-only`, `k5_mer.py` naostro) zatím neproběhlo.
+- **Kabeláž a hadice v kontrolách** (skill `kabelaz-a-hadice`): `rules.TYPES` + `zlab` / `retez` / `sroubeni`,
+  `Konstrukce_Vedeni` = zlab / retez má přednost před `Konstrukce_Typ`; povolené `kabel|hadice × zlab|retez` (vedení),
+  `hadice × sroubeni` = zasunutí (`fc_scan.in_fitting`: průnik ≤ `ZASUN_MAX` 30 mm a čelo hadice v průniku), šroubení
+  × díl / profil = díra; obálka řetězu × cokoli jiného = chyba, není zábranou pro otvory a nepočítá se do souvislosti;
+  žlab bez šroubu k rámu = chyba `zlab-bez-spoje` (nosný díl), test `pro3d_synth_vedeni.py`.
 - **Zásada: co jde kódem, ne AI.** Kontroly modelu = `plc_studio/pro3d_tools/` (`pro3d.ps1 <kontrola> <FCStd>` → `run.py`;
   Python FreeCADu má numpy / scipy; FreeCAD jen vlastní instance `run_fc.ps1`, model se jen čte, nic z `plc_studio`
   neimportuje): `fc_scan.py` (headless: průchod App::Part / App::Link / externí dokumenty, kolize s kalibrací známým průnikem,

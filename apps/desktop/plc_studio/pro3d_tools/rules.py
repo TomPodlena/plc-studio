@@ -6,7 +6,11 @@ Konvence modelu (závazné pro stavitele, viz ``KONVENCE``):
   ``profil``, ``patka`` (stavitelná noha se závitem — smí být v díře profilu), ``kryt``, ``vypln``, ``zona`` (nebezpečná
   zóna), ``pomocny`` (pomocná / obálková geometrie — nekontroluje se), ``kabel``, ``hadice``, ``prislusenstvi``
   (záslepka, krytka, těsnění — nemusí mít šroub), ``rozhrani`` (přípojka k okolí stroje — nemusí se dotýkat rámu),
-  ``dil`` (ostatní). Bez vlastnosti se druh odhadne podle jména / popisku (``typ_dilu``, rozhoduje začátek popisku).
+  ``zlab`` (kabelový žlab / lišta — nosný díl, musí být přišroubovaný k rámu), ``retez`` (obálka energetického řetězu —
+  kabely a hadice jí procházejí), ``sroubeni`` (šroubení / rychlospojka hadice — drží vlastním závitem), ``dil`` (ostatní).
+  Bez vlastnosti se druh odhadne podle jména / popisku (``typ_dilu``, rozhoduje začátek popisku).
+* ``Konstrukce_Vedeni`` = ``zlab`` / ``retez`` (skill kabelaz-a-hadice, ``fc_trasa.py``: žlab ``Konstrukce_Typ =
+  prislusenstvi``, obálka řetězu ``pomocny``) má přednost před ``Konstrukce_Typ`` → druh ``zlab`` / ``retez``.
 * ``Konstrukce_Pohyb`` (řetězec JSON) = volitelná druhá poloha dílu nebo celku (víko, dveře, vyhazovač):
   ``{"nazev": "dveře otevřené", "posun": [x, y, z]}`` nebo
   ``{"nazev": "víko 110°", "otoc": {"osa": [0, 0, 1], "bod": [x, y, z], "uhel": 110}}``; vlastnost na App::Part platí
@@ -34,7 +38,9 @@ STAV_DOKUMENTACE = "dle dokumentace"
 COLOR_TOL = 6            # ± na složku (zaokrouhlení float barvy FreeCADu)
 
 TYPES = ("sroub", "matice", "podlozka", "profil", "patka", "kryt", "vypln", "zona", "pomocny", "kabel", "hadice",
-         "prislusenstvi", "rozhrani", "dil")
+         "prislusenstvi", "rozhrani", "zlab", "retez", "sroubeni", "dil")
+VEDENI = ("zlab", "retez")          # Konstrukce_Vedeni (skill kabelaz-a-hadice)
+ZASUN_MAX = 30.0                    # mm — nejdelší průnik hadice × šroubení, který je ještě zasunutí (QS / KQ2 ~12–17 mm)
 FASTENERS = frozenset({"sroub", "matice", "podlozka"})
 
 KONVENCE = __doc__
@@ -52,12 +58,16 @@ _NAME_RULES = (
                            r"|mezer|rezerv|odstup")),                                  # odstupy a rezervy rozvaděče
     ("zona", re.compile(r"^zona[_ ]|^\[zona\]|nebezpecn[aá] zona|\bhazard\b")),
     ("rozhrani", re.compile(r"rozhrani|\binterface\b|schnittstelle|z rozvodu haly")),
+    ("sroubeni", re.compile(r"sroubeni|rychlospoj|push-?in|steckverschraub|verschraubung|\bfitting|\bqs[- ]?(g|m|\d)"
+                            r"|\bkq2")),
+    ("retez", re.compile(r"energeticky retez|kabelovy retez|vlecny retez|energiekette|energy chain|\be-?chain")),
+    ("zlab", re.compile(r"\bzlab|kabelovy kanal|kabelkanal|cable (tray|duct)|kabelova lista")),
     ("podlozka", re.compile(r"podlozk|washer|\bdin ?125\b|\biso ?7089\b|\biso ?7090\b")),
     ("sroub", re.compile(r"\bsroub(?!eni)|screw|bolt|schraube|svornik|\biso ?(4762|4017|4014|7380|10642|7045)\b|\bdin ?(912|933|931|7984)\b"
                          r"|^sp_|\bkolik|\bpin\b|konektor|connector|verbinder")),
     ("matice", re.compile(r"\bmatic|\bnut\b|nutenstein|t-nut|\bdin ?934\b|\biso ?4032\b|\bdin ?985\b|\bmutter\b")),
     ("patka", re.compile(r"patka|\bfoot\b|stavitelna noha|nivelac|kolecko|kolo s brzdou|\bcaster\b")),
-    ("prislusenstvi", re.compile(r"zaslepk|zatka|tesneni|krytka|\bcap\b|abdeckkappe|dichtung|pryzov|\bzlab|kabelovy kanal"
+    ("prislusenstvi", re.compile(r"zaslepk|zatka|tesneni|krytka|\bcap\b|abdeckkappe|dichtung|pryzov"
                                  r"|\blista ts|\bts ?35\b|koncova zarazka|koncova deska")),
     ("profil", re.compile(r"profil|profile|\b(10|8|6|5)\d{4}l?\b|\bkk ?\d|nosnik|sloup|pricnik|traverza")),
     ("kryt", re.compile(r"kryt|\bguard\b|dvere|dveře|viko|víko|plech|stena|stěna|deska krytu")),
@@ -73,6 +83,9 @@ _RX = dict(_NAME_RULES)
 def typ_dilu(props: dict | None, label: str = "", name: str = "") -> str:
     """Druh dílu: vlastnost ``Konstrukce_Typ``, jinak odhad z popisku a jména (``dil`` = ostatní)."""
     p = props or {}
+    v = fold(p.get("Konstrukce_Vedeni") or "").strip()
+    if v in VEDENI:                           # vedení kabelů (žlab / obálka řetězu) má přednost před Konstrukce_Typ
+        return v
     t = fold(p.get("Konstrukce_Typ") or "").strip()
     if t in TYPES:
         return t
@@ -134,8 +147,22 @@ def povolena_kolize(typ_a: str, typ_b: str) -> str | None:
 
     ``sroub`` × díl / profil = šroub v díře / závitu / drážce; ``sroub`` × ``matice`` = závit; ``matice`` × ``profil`` =
     matice v drážce; ``sroub`` × ``podlozka`` = šroub v otvoru podložky. Zda průnik opravdu leží v díře / drážce,
-    dověřuje ``fc_scan`` geometrií (souosá válcová plocha, podíl objemu)."""
+    dověřuje ``fc_scan`` geometrií (souosá válcová plocha, podíl objemu).
+
+    Vedení (skill kabelaz-a-hadice): ``kabel`` / ``hadice`` × ``zlab`` / ``retez`` = ``vedeni`` (kabel leží ve žlabu,
+    prochází obálkou řetězu); ``hadice`` × ``sroubeni`` = ``zasunuti`` (konec hadice uvnitř rychlospojky — ``fc_scan``
+    dověří čelo hadice v průniku a délku průniku ≤ ``ZASUN_MAX``); ``sroubeni`` × díl / profil / kryt / příslušenství /
+    výplň = ``dira`` (závit šroubení v portu — souosá díra jako u šroubu). Obálka řetězu × cokoli jiného = chyba
+    (do dráhy řetězu nesmí nic zasahovat)."""
     a, b = sorted((typ_a, typ_b))
+    pair = {a, b}
+    if len(pair) == 2 and pair & {"kabel", "hadice"} and pair & set(VEDENI):
+        return "vedeni"
+    if pair == {"hadice", "sroubeni"}:
+        return "zasunuti"
+    if "sroubeni" in pair and "sroub" not in pair:
+        other = b if a == "sroubeni" else a
+        return "dira" if other in ("dil", "profil", "kryt", "prislusenstvi", "vypln") else None
     if "sroub" in (a, b):
         other = b if a == "sroub" else a
         if other in ("sroub", "zona", "pomocny"):

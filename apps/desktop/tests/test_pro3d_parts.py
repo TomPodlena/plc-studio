@@ -255,12 +255,17 @@ class GenCliTest(unittest.TestCase):
             calls.append(Path(folder))
             return {"souhrn": {"radku": 3, "dle_dokumentace": 2, "zastupne": 1}, "chyba": ""}
 
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("pp_helpers", Path(__file__).with_name("test_pro_pipeline.py"))
+        helpers = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(helpers)              # úplný protokol K5 podle skillu (brána K5 projde)
+
         def runner(pipe, role, prompt, extra, log_path):
             unit = next(k for k in pp.AI_UNITS if f"_{k}_kolo" in log_path.name)
             if role == "k5":
                 f = pp.k5_file(pipe.folder, unit, 1)
                 f.parent.mkdir(parents=True, exist_ok=True)
-                f.write_text("## Verdikt: **SCHVÁLENO**\n", encoding="utf-8")
+                f.write_text(helpers.full_protocol(pipe.folder, unit, 1), encoding="utf-8")
                 (f.parent / "k5_kolo1").mkdir(exist_ok=True)
                 (f.parent / "k5_kolo1" / "kontroly.json").write_text('{"souhrn": {"stav": "OK"}}', encoding="utf-8")
             return {"state": "done"}

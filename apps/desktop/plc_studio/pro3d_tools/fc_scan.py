@@ -245,6 +245,23 @@ def in_slot(nut, prof, common, cs=None):
     return ok, ("v drážce profilu" if ok else ("zasahuje do jádra profilu" if core else "mimo obálku profilu"))
 
 
+def in_fitting(hose, common, cs=None):
+    """Hadice zasunutá do šroubení / rychlospojky: průnik je krátký (≤ ``rules.ZASUN_MAX``) a leží v něm čelo hadice
+    (rovinná koncová plocha) — hadice tam KONČÍ. Hadice, která šroubením prochází nebo ho protíná bokem, čelo
+    v průniku nemá → chyba."""
+    if cs is None or cs.isNull():
+        return False, "průnik hadice × šroubení nelze ověřit"
+    cb = cs.BoundBox
+    if max(cb.XLength, cb.YLength, cb.ZLength) > rules.ZASUN_MAX + 1e-6:
+        return False, f"průnik delší než {rules.ZASUN_MAX:.0f} mm — hadice šroubením prochází"
+    g = App.BoundBox(cb)
+    g.enlarge(0.5)
+    for fc in hose.Faces:
+        if fc.Surface.TypeId == "Part::GeomPlane" and g.isInside(fc.BoundBox):
+            return True, "hadice zasunutá do šroubení (konec hadice uvnitř)"
+    return False, "konec hadice není v šroubení — hadice protíná šroubení"
+
+
 def _near_solids(s, bb):
     """Jen tělesa složeného tvaru, jejichž obálka protíná ``bb`` (boolean nad celým sestavením je pomalý)."""
     sol = s.Solids
@@ -290,8 +307,13 @@ def collide(items, moved_keys=None, label=""):
             continue
         kind = rules.povolena_kolize(a["typ"], b["typ"])
         ok, why = False, "nepovolená dvojice"
-        if kind in ("dira", "otvor", "zavit"):
-            fa, ot = (a, b) if a["typ"] in ("sroub", "patka") else (b, a)
+        if kind == "vedeni":
+            ok, why = True, "kabel / hadice ve vedení (žlab / obálka řetězu)"
+        elif kind == "zasunuti":
+            hs = a if a["typ"] == "hadice" else b
+            ok, why = in_fitting(hs["s"], v, cs)
+        elif kind in ("dira", "otvor", "zavit"):
+            fa, ot = (a, b) if a["typ"] in ("sroub", "patka", "sroubeni") else (b, a)
             if kind == "zavit":
                 ok, why = v <= 0.5 * min(a["s"].Volume, b["s"].Volume), "závit šroub × matice"
             else:
@@ -365,7 +387,9 @@ def check_kolize():
 def check_souvislost():
     t = time.time()
     res = {"chyby": [], "varovani": [], "info": [], "data": {}}
-    items = [x for x in REAL if x["typ"] != "rozhrani"]      # přípojky k okolí stroje se nemusí dotýkat rámu
+    # přípojky k okolí stroje se nemusí dotýkat rámu; obálka řetězu není těleso (kabely jí procházejí — jako most
+    # by spojila díly, které spojené nejsou)
+    items = [x for x in REAL if x["typ"] not in ("rozhrani", "retez")]
     if not items:
         return dict(res, secs=0)
     floor = float(OPT["podlaha"]) if OPT.get("podlaha") is not None else min(x["bb"].ZMin for x in items)
@@ -411,14 +435,22 @@ def check_souvislost():
     has_fast = any(x["typ"] in rules.FASTENERS for x in items)
     loose = []
     in_air = {i for c in air for i in c}
-    skip_loose = rules.FASTENERS | {"kabel", "hadice", "patka", "prislusenstvi", "rozhrani"}
+    skip_loose = rules.FASTENERS | {"kabel", "hadice", "patka", "prislusenstvi", "rozhrani", "sroubeni"}
+    trays = []
     if has_fast:
         for i, x in enumerate(items):
             if i in in_air or x["typ"] in skip_loose or FL in nb[i] or \
                     str(x["props"].get("PLCdesk_Mount") or "").lower() in ("din", "rack"):   # přístroj na liště = klip
                 continue
             if not any(j != FL and items[j]["typ"] in rules.FASTENERS for j in nb[i]):
-                loose.append(i)
+                (trays if x["typ"] == "zlab" else loose).append(i)
+        # žlab nese kabely (nosný díl, skill kabelaz-a-hadice / K5 M7): bez šroubu k rámu = chyba, ne jen varování —
+        # „leží na profilu“ se ve skutečnosti při tahu za kabely posune / spadne
+        for i in trays:
+            x = items[i]
+            res["chyby"].append(f_("zlab-bez-spoje", f"{x['label']}: žlab bez spojovacího prvku k rámu ({len(nb[i])} "
+                                   "dotyků) — přišroubovat (šroub + díra / matice v drážce)", rules.bbox_center(bbl(x["bb"])),
+                                   [x["path"]]))
         for i in loose[:15]:
             x = items[i]
             res["varovani"].append(f_("bez-spoje", f"{x['label']}: dotýká se jen dílů bez spojovacího prvku "
@@ -458,20 +490,21 @@ def check_souvislost():
                                     [(l + h) / 2 for l, h in zip(lo, hi)], [x["path"]]))
     res["varovani"] += free_ends[:15]
     res["data"] = {"teles": len(items), "komponent": len(comps), "ve_vzduchu": sum(len(c) for c in air),
-                   "bez_spoje": len(loose), "volnych_cel": len(free_ends), "podlaha_z": round(floor, 2),
+                   "bez_spoje": len(loose), "zlab_bez_spoje": len(trays), "volnych_cel": len(free_ends),
+                   "podlaha_z": round(floor, 2),
                    "na_podlaze": sum(1 for i in range(len(items)) if FL in nb[i])}
     res["secs"] = round(time.time() - t, 1)
     return res
 
 
 def tessellate():
-    """Tělesa (bez pomocných) jako trojúhelníky pro voxely → npz (vrcholy, trojúhelníky, offsety, zóna)."""
+    """Tělesa (bez pomocných a obálek řetězu) jako trojúhelníky pro voxely → npz (vrcholy, trojúhelníky, offsety, zóna)."""
     import numpy as np
     t = time.time()
     tol = float(OPT.get("tes_tol", 1.0))
     vs, fs, fo, zone = [], [], [0], []
     nv = 0
-    for x in REAL + ZONES:
+    for x in [y for y in REAL if y["typ"] != "retez"] + ZONES:   # obálka řetězu není zábrana
         try:
             pts, tri = x["s"].tessellate(tol)
         except Exception:  # noqa: BLE001

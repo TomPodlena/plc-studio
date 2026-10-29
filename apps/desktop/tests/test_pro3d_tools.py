@@ -62,7 +62,26 @@ class RulesTest(unittest.TestCase):
         self.assertEqual(rules.typ_dilu({}, "[zóna] Stanoviště obsluhy — založení"), "pomocny")
         self.assertEqual(rules.typ_dilu({}, "Zóna mezery T1 (ODHAD 50 nad/pod)"), "pomocny")
         self.assertEqual(rules.typ_dilu({}, "Rezerva R1 76 mm = 21 % (zóna)"), "pomocny")
-        self.assertEqual(rules.typ_dilu({}, "Žlab 40×60 svislý vlevo (zástupný)"), "prislusenstvi")
+        # žlab = nosný díl (musí být přišroubovaný) — dřív prislusenstvi; skill kabelaz-a-hadice
+        self.assertEqual(rules.typ_dilu({}, "Žlab 40×60 svislý vlevo (zástupný)"), "zlab")
+
+    def test_vedeni_types(self):
+        """Konvence skillu kabelaz-a-hadice: Konstrukce_Vedeni má přednost před Konstrukce_Typ (fc_trasa.py píše
+        žlab = prislusenstvi + zlab, obálka řetězu = pomocny + retez)."""
+        self.assertEqual(rules.typ_dilu({"Konstrukce_Typ": "prislusenstvi", "Konstrukce_Vedeni": "zlab"}, "Zlab_Z1"), "zlab")
+        self.assertEqual(rules.typ_dilu({"Konstrukce_Typ": "pomocny", "Konstrukce_Vedeni": "retez"},
+                                        "Obalka_retezu_E1"), "retez")
+        self.assertEqual(rules.typ_dilu({"Konstrukce_Typ": "pomocny"}, "Obálka řetězu E1"), "pomocny")
+        self.assertEqual(rules.typ_dilu({"Konstrukce_Typ": "zlab"}, "Cokoli"), "zlab")
+        self.assertEqual(rules.typ_dilu({}, "Energetický řetěz igus E2/000"), "retez")
+        self.assertEqual(rules.typ_dilu({}, "Šroubení QS-G1/8-6"), "sroubeni")
+        self.assertEqual(rules.typ_dilu({}, "Rychlospojka KQ2H06-01AS"), "sroubeni")
+        self.assertEqual(rules.typ_dilu({}, "Šroub ISO 4762 M6x20"), "sroub", "šroubení ≠ šroub a naopak")
+        self.assertEqual(rules.typ_dilu({}, "Kabelový kanál 40×60"), "zlab")
+        self.assertEqual(rules.typ_dilu({"Konstrukce_Typ": "kabel"}, "Kabel_W101"), "kabel")
+        self.assertEqual(rules.typ_dilu({}, "Hadice PUN-H 6×1"), "hadice")
+        for t in ("zlab", "retez", "sroubeni"):
+            self.assertIn(t, rules.TYPES)
 
     def test_allowed(self):
         self.assertEqual(rules.povolena_kolize("sroub", "dil"), "dira")
@@ -72,6 +91,22 @@ class RulesTest(unittest.TestCase):
         self.assertIsNone(rules.povolena_kolize("matice", "dil"))
         self.assertIsNone(rules.povolena_kolize("dil", "kryt"))
         self.assertIsNone(rules.povolena_kolize("sroub", "kabel"))
+        # vedení kabelů a hadic (skill kabelaz-a-hadice); stávající páry beze změny
+        for c in ("kabel", "hadice"):
+            for v in ("zlab", "retez"):
+                self.assertEqual(rules.povolena_kolize(c, v), "vedeni")
+                self.assertEqual(rules.povolena_kolize(v, c), "vedeni")
+        self.assertEqual(rules.povolena_kolize("sroubeni", "hadice"), "zasunuti")
+        self.assertIsNone(rules.povolena_kolize("sroubeni", "kabel"))
+        self.assertEqual(rules.povolena_kolize("sroubeni", "dil"), "dira")     # závit šroubení v portu ventilu
+        self.assertIsNone(rules.povolena_kolize("retez", "dil"), "do obálky řetězu nesmí nic zasahovat")
+        self.assertIsNone(rules.povolena_kolize("retez", "profil"))
+        self.assertIsNone(rules.povolena_kolize("zlab", "profil"), "žlab se rámu jen dotýká")
+        self.assertIsNone(rules.povolena_kolize("zlab", "retez"))
+        self.assertIsNone(rules.povolena_kolize("kabel", "hadice"))
+        self.assertIsNone(rules.povolena_kolize("kabel", "kabel"))
+        self.assertEqual(rules.povolena_kolize("sroub", "zlab"), "dira")
+        self.assertEqual(rules.povolena_kolize("matice", "profil"), "drazka")
 
     def test_pohyb(self):
         self.assertEqual(rules.pohyb({"Konstrukce_Pohyb": '{"nazev": "x", "posun": [0, 0, -5]}'})["posun"], [0.0, 0.0, -5.0])
@@ -308,6 +343,31 @@ class FreeCADSynthTest(unittest.TestCase):
         self.assertEqual(c["step"]["data"]["teles_model"], c["step"]["data"]["teles_step"])
         self.assertEqual(rep["souhrn"]["stav"], "CHYBY")
         self.assertLessEqual(len((d / "KONTROLY.md").read_text(encoding="utf-8").splitlines()), 40)
+
+
+    def test_vedeni(self):
+        """Vedení kabelů a hadic (pro3d_synth_vedeni.py): žlab bez šroubu = chyba, kabel ve žlabu / obálce řetězu
+        a hadice zasunutá do šroubení povolené, hadice skrz šroubení a díl v dráze řetězu = kolize."""
+        d = tmp()
+        model = d / "SynthVedeni.FCStd"
+        s = run.fc_run(HERE / "pro3d_synth_vedeni.py", [model], "pro3d-test", 300)
+        self.assertTrue(s.get("ok"), s)
+        rep = run.run_checks(model, ("kolize", "souvislost"), slot="pro3d-test", timeout=600)
+        c = rep["checks"]
+        self.assertTrue(c["kolize"]["data"]["kalibrace"]["ok"])
+        kol = sorted(" × ".join(sorted(f["text"].split(":")[0].split(" × "))) for f in c["kolize"]["chyby"])
+        self.assertEqual(kol, ["Hadice PUN-H 6 skrz šroubení × Šroubení QS-G1/8-6 druhé",
+                               "Obálka řetězu E1 × Snímač -B9 v dráze řetězu"], c["kolize"]["chyby"])
+        allowed = {frozenset(f["text"].split(":")[0].split(" × ")): f["text"] for f in c["kolize"]["info"]}
+        for pair, why in ((("Kabel -W101 ve žlabu", "Žlab přišroubovaný k profilu"), "ve vedení"),
+                          (("Kabel -W102 v řetězu", "Obálka řetězu E1"), "ve vedení"),
+                          (("Hadice PUN-H 6 zasunutá", "Šroubení QS-G1/8-6"), "hadice zasunutá do šroubení"),
+                          (("Profil 40x40 sloup", "Šroub ISO 4762 M6x20"), "souosá díra")):
+            self.assertIn(why, allowed.get(frozenset(pair), ""), (pair, list(allowed.values())))
+        tray = [f for f in c["souvislost"]["chyby"] if f["kod"] == "zlab-bez-spoje"]
+        self.assertEqual([f["text"].split(":")[0] for f in tray], ["Žlab 40×60 bez šroubu"])
+        self.assertEqual(c["souvislost"]["data"]["zlab_bez_spoje"], 1)
+        self.assertFalse([f for f in c["souvislost"]["chyby"] if f["kod"] == "ve-vzduchu"], c["souvislost"]["chyby"])
 
 
 if __name__ == "__main__":
