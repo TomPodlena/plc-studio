@@ -76,6 +76,7 @@ class CommandTest(unittest.TestCase):
         allow = cmd[cmd.index("--allowedTools") + 1].split(",")
         self.assertIn("Bash(python *)", allow)
         self.assertIn("PowerShell(powershell *)", allow)
+        self.assertIn("Bash(powershell.exe *)", allow)     # vzor 20 kolo 2: „powershell.exe -File …“ bez povolení
         self.assertNotIn("Bash", allow, "Bash jen s prefixem")
         deny = cmd[cmd.index("--disallowedTools") + 1].split(",")
         self.assertIn("WebFetch", deny)

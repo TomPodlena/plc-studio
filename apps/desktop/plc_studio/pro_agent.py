@@ -107,7 +107,10 @@ def build_prompt(role: str, instruction: str, folder: str | Path, project: str =
 
 PLM_DIR = Path(os.environ.get("PLCDESK_PLM") or r"C:\CLAUDE\freecad_plm")
 # příkazy, které agent smí spustit nástrojem Bash / PowerShell (prefix příkazu — CLI ``--allowedTools "Bash(python *)"``)
-SHELL_ALLOW = ("powershell", "pwsh", "python", "py", "node", "freecadcmd")
+# i varianty s .exe — agent je píše běžně (příklad 20, 2026-10-29: „powershell.exe -File pro3d.ps1“ = „requires approval“,
+# K5 kola 2 nespustil kontroly kódem)
+SHELL_ALLOW = ("powershell", "powershell.exe", "pwsh", "pwsh.exe", "python", "python.exe", "py", "py.exe", "node",
+               "node.exe", "freecadcmd", "freecadcmd.exe")
 # nástroje, které agent nedostane vůbec / zakázané vzory (zákaz se uplatní, i když vzor CLI nepozná — povolení ne)
 DENY_TOOLS = ("WebFetch", "WebSearch", "Agent", "NotebookEdit", "Bash(rm *)", "Bash(del *)", "Bash(git push *)",
               "Bash(curl *)", "Bash(wget *)", "PowerShell(Remove-Item *)", "PowerShell(Stop-Process *)",
@@ -136,7 +139,8 @@ def deny_tools() -> list[str]:
 # v kroku per projekt, v pipeline.json a z CLI). Seznam známých modelů = ``ai_client.KNOWN_MODELS`` (shodně s AI návrhářem
 # a webem ``AI_MODELS``), jinak vlastní ID.
 ROLE_MODELS = {"concept": "claude-opus-5-5", "builder": "claude-sonnet-5-5", "k5": "claude-sonnet-5-5"}
-ROLE_TURNS = {"concept": 60, "builder": 60, "k5": 80}   # K5 přísně = měření (2026-10-29: 40 → 80)
+# K5 přísně = měření (2026-10-29: 40 → 80); koncept 60 nestačil (vzory 20 a 16 vyčerpaly limit v každém kole) → 90
+ROLE_TURNS = {"concept": 90, "builder": 60, "k5": 80}
 
 
 def known_models() -> dict:

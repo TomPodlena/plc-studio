@@ -314,7 +314,7 @@ class ModelsAndChecksTest(unittest.TestCase):
         self.assertEqual(p.model_for("concept"), "claude-opus-5-5")
         self.assertEqual(p.model_for("builder"), "claude-sonnet-5-5")
         self.assertEqual(p.model_for("k5"), "claude-sonnet-5-5")
-        self.assertEqual((p.turns_for("builder"), p.turns_for("k5"), p.turns_for("concept")), (60, 80, 60))
+        self.assertEqual((p.turns_for("builder"), p.turns_for("k5"), p.turns_for("concept")), (60, 80, 90))
         cmd = p.command("C:/x/claude.exe", "k5", "extra")
         self.assertEqual(cmd[cmd.index("--model") + 1], "claude-sonnet-5-5")
         self.assertEqual(cmd[cmd.index("--max-turns") + 1], "80")
