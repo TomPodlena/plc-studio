@@ -3,7 +3,7 @@
 Rešerše značek, řad a dodavatelů (zaměřeno na český trh). `scripts/build_catalog.py` z ní
 generuje `packages/core/src/catalog_data.ts` — aplikace za běhu nic nestahuje.
 
-Soubory podle oblasti: `pohony.json`, `pneu.json`, `snimace.json`, `plc.json`. Tvar:
+Soubory podle oblasti: `pohony.json`, `servopohony.json`, `pneu.json`, `uchopy.json` (vakuové přísavky, ejektory, spínače podtlaku, chapadla), `snimace.json`, `plc.json`. Tvar:
 
 ```json
 {

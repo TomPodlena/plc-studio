@@ -246,9 +246,11 @@ python scripts/build_verification.py        # data/verification.json → verific
   (vakuu / vakuov / podtlak / ejektor / přísav / vacuum / suction / Sauger) = rozváděč + `vacuum_ejector` + `suction_cup`
   + `vacuum_switch` (místo „koncových poloh“) → **chapadlo** (chapad / úchop / gripper / Greifer) = rozváděč + `gripper`
   + `cylinder_switch` → procesní armatura → válec. **Pohyb** (zdvih / pojezd / posuv / otoč / dolů / nahoru / lift /
-  stroke / Hub / heben / schwenk…) má přednost před vakuem i chapadlem — „zdvih chapadla“ je válec. Nové kategorie
-  (gripper, vacuum_ejector, suction_cup, vacuum_switch, machine_interface) zatím bez položek katalogu (kód jen s URL
-  zdroje). Kabely M12 jen ke skutečným snímačům (ne k signálům rozhraní). Volba uživatele v `prj.bom.lines` má dál
+  stroke / Hub / heben / schwenk…) má přednost před vakuem i chapadlem — „zdvih chapadla“ je válec. Kategorie úchopů
+  (suction_cup, vacuum_ejector, vacuum_switch, gripper) mají položky v `data/catalog/uchopy.json` (2026-10-29, 10 položek
+  Festo / Schmalz / Schunk / Zimmer / ifm z rešerše skillu uchopy-a-vakuum, kód jen s URL zdroje; výchozí = Festo, u
+  platformy Festo shodná značka) — poznámky řádků říkají „typ z katalogu je výchozí návrh“; `machine_interface` zatím
+  bez položek katalogu. Kabely M12 jen ke skutečným snímačům (ne k signálům rozhraní). Volba uživatele v `prj.bom.lines` má dál
   přednost. Testy `bom.test.ts`. Výstupy `bomCsv` (středník, BOM
   pro český Excel), `bomMd`; v dokumentaci `09_kusovnik.md/.csv`.
 - Volby uživatele `prj.bom` = `{ plat, brand: {catKey: optId|vlastní}, lines: {id: {brand, type,

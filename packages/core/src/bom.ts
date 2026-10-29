@@ -142,9 +142,9 @@ function valveKind(d: Device): ValveKind {
 /** Poznámky řádků dílů ventilu (klíče překladu). */
 const VALVE_NOTE: Record<string, string> = {
   interface_relay: N_("bezpotenciálový kontakt do druhého stroje (signál rozhraní, ne akční člen)"),
-  vacuum_ejector: N_("typ doplní projektant; ejektor může mít vlastní ventil a spínač podtlaku (pak rozváděč a spínač vypustit)"),
-  suction_cup: N_("počet, průměr a tvar přísavek podle dílu — typ doplní projektant"),
-  gripper: N_("paralelní chapadlo; síla a zdvih čelistí podle dílu — typ doplní projektant"),
+  vacuum_ejector: N_("typ z katalogu je výchozí návrh — ověř sací výkon a vakuum podle dílu; ejektor může mít vlastní ventil a spínač podtlaku (pak rozváděč a spínač vypustit)"),
+  suction_cup: N_("počet, průměr a tvar přísavek podle dílu — typ z katalogu je výchozí návrh, přídržnou sílu ověř výpočtem"),
+  gripper: N_("paralelní chapadlo; síla a zdvih čelistí podle dílu — typ z katalogu je výchozí návrh, ověř výpočtem"),
 };
 const VALVE_CATS: Record<ValveKind, string[]> = {
   interface: ["interface_relay"],
@@ -275,7 +275,7 @@ export function buildBom(prj: Project): Bom {
       /* hlášení: snímače polohy válce / chapadla, spínač podtlaku, u armatury koncové spínače;
          u rozhraní je hlášení kontakt druhého stroje (pin konektoru rozhraní) */
       if (kind === "cylinder" || kind === "gripper") add(t, "cylinder_switch", sw, tr("Poloha {dev}", { dev: d.name }), { devId: d.id });
-      else if (kind === "vacuum") add(t, "vacuum_switch", sw ? 1 : 0, tr("Hlášení podtlaku {dev}", { dev: d.name }), { devId: d.id, note: tr("typ doplní projektant") });
+      else if (kind === "vacuum") add(t, "vacuum_switch", sw ? 1 : 0, tr("Hlášení podtlaku {dev}", { dev: d.name }), { devId: d.id, note: tr("typ z katalogu je výchozí návrh") });
       else if (kind !== "interface" && sw) add(t, "limit_switch", sw, tr("Koncové polohy {dev}", { dev: d.name }), { devId: d.id, note: tr("u procesní armatury často součástí pohonu") });
     } else if (d.cls === "AnalogIn") {
       add(t, analogCat(d), 1, desc + (d.unit ? " [" + d.unit + "]" : "") + " " + d.rmin + "–" + d.rmax, { devId: d.id });
