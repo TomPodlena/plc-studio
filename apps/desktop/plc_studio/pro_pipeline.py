@@ -204,7 +204,12 @@ H. Snímky klíčových míst (iso, půdorys, čelo, detaily vazeb) ulož do {su
 
 TEST_RULE = ("M. TEST: bezpečnostní prvky a funkce považuj pro tento běh za schválené (předpoklad zkoušky postupu) — "
              "předpokládá se jen podpis odpovědné osoby. Bezpečnostní NÁVRH (zóny, kryty, vzdálenosti, opatření) se tím "
-             "nevynechává ani nekontroluje mírněji. Každou zprávu a STAV.md označ řádkem „" + TEST_MARK + "“.")
+             "nevynechává ani nekontroluje mírněji — geometrické vady (otevřený otvor, chybějící kryt, vzdálenost menší "
+             "než vypočtená S, opatření, které model nemá) jsou dál povinné body. Výjimka TESTu (rozhodnutí uživatele "
+             "2026-10-31): chybějící ZDROJ členů doby zastavení T (ISO 13855: odezva AOPD, logiky, ventilu, doběh pohonu) "
+             "je jen VÝHRADA, ne povinný bod — pokud stavitel použil hodnotu z tabulky časů (pro3d_parts, bezpecnost_casy) "
+             "nebo konzervativní horní mez označenou ODHAD a výpočet S = K·T + C je v textu úplný a souhlasí s modelem. "
+             "Každou zprávu a STAV.md označ řádkem „" + TEST_MARK + "“.")
 
 DEFAULT_PROMPTS = {
     "concept": """Navrhni hrubý koncept stroje ve složce {sub}/.

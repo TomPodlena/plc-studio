@@ -562,6 +562,8 @@ class SkillPromptsTest(unittest.TestCase):
     def test_test_rule(self):
         self.assertIn("nevynechává ani nekontroluje mírněji", pp.TEST_RULE)
         self.assertIn("jen podpis", pp.TEST_RULE)
+        self.assertIn("jen VÝHRADA", pp.TEST_RULE)          # chybějící zdroj T v TESTu (2026-10-31)
+        self.assertIn("geometrické vady", pp.TEST_RULE)
         self.assertIn(pp.TEST_MARK, pp.k5_prompt(Path("C:/s"), "frame", 1, test_safety=True))
 
     def test_role_rules(self):
