@@ -185,6 +185,9 @@ I. FreeCAD jen ve vlastní instanci (skill freecad-instance, vlastní slot), ciz
 J. PLM: `plm scan` (C:\\CLAUDE\\freecad_plm, kód PLM neměnit) nejvýš jednou za kolo; registr PLM patří do složky stroje.
 K. Modely výrobců neskriptuj z 3Dfindit / CADENAS; jen portály výrobců nebo zástupný díl.
 L. Pracuj jen ve složce stroje (aktuální adresář); skilly a PLM jen čti / spouštěj.
+N. Bezpečnostní vzdálenost S = K·T + C (ISO 13855) počítej z tabulky časů se zdroji (odezva AOPD, F-logiky, F-DQ,
+   ventilů, STO / brzd; členy bez dat skript označí ODHAD / CHYBÍ):
+   python "{casy}" --aopd … --logika … --ventil … --d … (--help, --hledat TEXT); řádky výstupu se zdroji vlož do textu.
 {test}"""
 
 # pravidla modelu: se skillem odkaz (obecná pravidla žijí ve skillu), bez skillu vestavěné znění (postup funguje i bez něj)
@@ -429,6 +432,7 @@ def system_extra(unit: str, test_safety: bool, role: str = "builder") -> str:
     have = skill_installed(KONTROLOR_SKILL if role == "k5" else STAVITEL_SKILL)
     rules = MODEL_RULES_SKILL if have else fill(MODEL_RULES_INLINE, sub=u["sub"])
     return fill(PIPELINE_RULES, model_rules=rules, feedback=feedback_file(unit), sub=u["sub"],
+                casy=str(Path(__file__).resolve().parent / "pro3d_parts" / "bezpecnost_casy.py"),
                 test=TEST_RULE if test_safety else "") + "\nSkilly této části: " + ", ".join(unit_skills(unit, role)) + "."
 
 
