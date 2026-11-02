@@ -798,5 +798,79 @@ class GateAutomatonTest(unittest.TestCase):
         self.assertIn("změněn po schválení", (d / pp.SUMMARY_FILE).read_text(encoding="utf-8"))
 
 
+class CabinetGenTest(unittest.TestCase):
+    """Napojení generátoru rozvaděče kódem (pro3d_cabinet) — podvržený generátor, bez FreeCADu."""
+
+    GEN = {"ok": True, "kod": 1, "skrin": "Rittal 1076.000", "zmena_skrine": True,
+           "listy": [{"n": "Lišta 1", "obsazeno_pct": 18.0, "rezerva_pct": 82.0}],
+           "bilance": {"verdikt": "nevyhovuje", "Qv": 61.4, "Qs": 24.8, "chybi": 30}, "chyba": ""}
+
+    def _run(self, gen_result, verdicts=None, parts=True):
+        calls = []
+
+        def cab(folder, log=print):
+            calls.append(str(folder))
+            return dict(gen_result)
+
+        d = tmpdir()
+        r = FakeRunner(verdicts or {})
+        p = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=r, parts=parts,
+                        parts_fn=lambda folder, log=print: {"souhrn": None, "chyba": ""}, cabinet_fn=cab)
+        self.assertEqual(p.run(), "done")
+        return d, p, calls
+
+    def _prompt(self, d, rnd):
+        return (d / pp.LOG_DIR / f"02_cabinet_kolo{rnd}_builder.log").read_text(encoding="utf-8")
+
+    def test_generated_prompt(self):
+        d, p, calls = self._run(self.GEN, {"cabinet": ["back", "ok"]})
+        self.assertEqual(len(calls), 1)                          # jen jednou, ne v každém kole
+        t1, t2 = self._prompt(d, 1), self._prompt(d, 2)
+        for t in (t1, t2):
+            self.assertIn("VYGENEROVANÝ KÓDEM", t)
+            self.assertIn("NEPŘESTAVUJ", t)
+            self.assertIn("Rittal 1076.000", t)
+            self.assertIn("ZMĚNA proti manifestu", t)
+            self.assertNotIn("Postav 3D rozvaděč", t)
+        self.assertIn("KONTROLA_K5_rozvadec_kolo1.md", t2)        # oprava podle K5 dál platí
+        g = p.state["units"]["cabinet"]["generated"]
+        self.assertTrue(g["ok"])
+        s = (d / pp.SUMMARY_FILE).read_text(encoding="utf-8")
+        self.assertIn("## Rozvaděč kódem (pro3d_cabinet)", s)
+        self.assertIn("Rittal 1076.000", s)
+        self.assertIn("nevyhovuje", s)
+        # ostatní části generátor nemění
+        self.assertNotIn("VYGENEROVANÝ KÓDEM", (d / pp.LOG_DIR / "03_frame_kolo1_builder.log").read_text(encoding="utf-8"))
+
+    def test_failed_generator_old_prompt(self):
+        d, p, calls = self._run({"ok": False, "chyba": "FreeCAD nenalezen"})
+        self.assertEqual(len(calls), 1)
+        t = self._prompt(d, 1)
+        self.assertIn("Postav 3D rozvaděč", t)
+        self.assertNotIn("VYGENEROVANÝ KÓDEM", t)
+        self.assertIn("Generátor selhal (FreeCAD nenalezen)", (d / pp.SUMMARY_FILE).read_text(encoding="utf-8"))
+
+    def test_without_parts_not_called(self):
+        d, p, calls = self._run(self.GEN, parts=False)
+        self.assertEqual(calls, [])
+        self.assertIn("Postav 3D rozvaděč", self._prompt(d, 1))
+
+    def test_reset_regenerates(self):
+        d, p, calls = self._run(self.GEN)
+        p.run("cabinet")
+        self.assertEqual(len(calls), 2)                          # „Spustit od rozvaděče“ = generovat znovu
+        t = self._prompt(d, 1)
+        self.assertIn("VYGENEROVANÝ KÓDEM", t)
+        self.assertNotIn("STAVBA ZNOVU", t)                      # model z kódu se nepřestavuje
+
+    def test_make_cabinet_without_manifest(self):
+        r = pp.make_cabinet(tmpdir(), log=lambda *_: None)
+        self.assertFalse(r["ok"])
+        d = tmpdir()
+        (d / "PLCdesk_CAD.json").write_text("{}", encoding="utf-8")
+        r = pp.make_cabinet(d, log=lambda *_: None)             # bez dílů rozvaděče → selhalo, bez FreeCADu
+        self.assertFalse(r["ok"])
+
+
 if __name__ == "__main__":
     unittest.main()

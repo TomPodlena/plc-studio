@@ -106,7 +106,8 @@ def walk(o, plc, path, inh):
                          "status": pr.get("PLCdesk_ModelStatus", ""), "guid": pr.get("PLCdesk_ProjectGuid", ""),
                          "obj": f"{o.Document.Name}#{o.Name}"})
         ids = ids | {pid}
-    sub = {"zona": zona, "pohyb": pm, "ids": ids}
+    # montáž kusovníku (PLCdesk_Mount din / rack = přístroj nacvaknutý na lištu) dědí obsah odkazu / kontejneru
+    sub = {"zona": zona, "pohyb": pm, "ids": ids, "mount": str(pr.get("PLCdesk_Mount") or inh.get("mount") or "")}
     if o.TypeId in CONTAINERS:
         nplc = plc.multiply(o.Placement) if o.TypeId == "App::Part" else plc
         for c in getattr(o, "Group", []) or []:
@@ -152,7 +153,7 @@ def walk(o, plc, path, inh):
         SKIPPED["pomocne"] += 1
     LEAVES.append({"key": f"{o.Document.Name}#{o.Name}#{len(LEAVES)}", "label": lab, "name": o.Name, "doc": o.Document.Name,
                    "path": "/".join(path + [lab]), "typ": typ, "s": s, "bb": s.BoundBox, "pohyb": pm, "props": pr,
-                   "vis": bool(getattr(o, "Visibility", True))})
+                   "vis": bool(getattr(o, "Visibility", True)), "mount": str(pr.get("PLCdesk_Mount") or inh.get("mount") or "")})
 
 
 ID = App.Placement()
@@ -440,7 +441,8 @@ def check_souvislost():
     if has_fast:
         for i, x in enumerate(items):
             if i in in_air or x["typ"] in skip_loose or FL in nb[i] or \
-                    str(x["props"].get("PLCdesk_Mount") or "").lower() in ("din", "rack"):   # přístroj na liště = klip
+                    str(x["props"].get("PLCdesk_Mount") or x.get("mount") or "").lower() in ("din", "rack"):   # přístroj na liště = klip
+                    # (vlastnost i zděděná z App::Link / kontejneru — model dílu z dily/ ji nenese)
                 continue
             if not any(j != FL and items[j]["typ"] in rules.FASTENERS for j in nb[i]):
                 (trays if x["typ"] == "zlab" else loose).append(i)
