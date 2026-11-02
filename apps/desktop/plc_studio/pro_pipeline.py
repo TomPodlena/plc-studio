@@ -216,7 +216,8 @@ TEST_RULE = ("M. TEST: bezpečnostní prvky a funkce považuj pro tento běh za 
              "nebo konzervativní horní mez označenou ODHAD a výpočet S = K·T + C je v textu úplný a souhlasí s modelem. "
              "Totéž platí pro ztrátové výkony a mezery přístrojů v rozvaděči a odolnost krytu proti vymrštění dílu: chybí-li "
              "jen zdroj hodnoty, ale výpočet (tepelná bilance, energie dílu) je úplný s konzervativním ODHADEM a vychází, "
-             "je to výhrada. Výpočet, který NEVYCHÁZÍ, nebo chybějící výpočet zůstává povinným bodem. "
+             "je to výhrada. Výpočet, který NEVYCHÁZÍ a model nemá navržené opatření (např. ventilátor u tepelné bilance), nebo "
+             "chybějící výpočet zůstává povinným bodem; opatření v modelu + zápis do zpětné vazby pro uživatele = výhrada. "
              "Každou zprávu a STAV.md označ řádkem „" + TEST_MARK + "“.")
 
 DEFAULT_PROMPTS = {
@@ -274,7 +275,9 @@ NEPŘESTAVUJ ho a neměň rozmístění, skříň ani mezery — zkontroluj ho a
 Pak spusť kontroly kódem (níže) a sebekontrolu oddílu R podle stroj-kontrolor; ve zprávě {sub}/ROZVADEC.md NEPŘEPISUJ část
 vygenerovanou kódem — připiš oddíl „Doplněno stavitelem“ (co, proč, výsledek kontrol). Nálezy kódu (změna skříně, nevyhovující
 tepelná bilance, chybějící ztráty / mezery) jsou rozhodnutí uživatele: sepiš je do {sub}/PLCdesk_CAD_feedback_rozvadec.json
-(formát v1), model kvůli nim neměň. Zóny mezer (Mezera …) a rezervy (Rezerva …) jsou pomocná tělesa — nemazat."""
+(formát v1); skříň ani rozmístění kvůli nim neměň. VÝJIMKA — nevyhovující tepelná bilance: doplň opatření navržené
+v ROZVADEC.md do modelu (filtrační ventilátor + výstupní filtr ve dveřích / boku podle návrhu průtoku, jako zástupné
+díly oranžově s ODHADEM typu, přišroubované, výřez ve skříni) a připiš přepočet bilance s opatřením. Zóny mezer (Mezera …) a rezervy (Rezerva …) jsou pomocná tělesa — nemazat."""
 TOOLS_SLOT = {"builder": "pro3d-stavitel", "concept": "pro3d-stavitel", "k5": "pro3d-k5"}
 _SLOT_BASE = (dict(TOOLS_SLOT), PARTS_SLOT, pro_agent.FC_SLOT)
 
