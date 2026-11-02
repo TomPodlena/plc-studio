@@ -575,6 +575,39 @@ class SkillPromptsTest(unittest.TestCase):
 
 
 @unittest.skipIf(STAGING is None, "staging skillů (.claude/skills_staging) není")
+class SlotsAndCascadeTest(unittest.TestCase):
+    """Souběžné postupy = vlastní sloty FreeCADu; neschválená předchozí část = výhrada (2026-11-02)."""
+
+    def tearDown(self):
+        pp.set_slot_tag("")
+
+    def test_slot_tag(self):
+        a, b = pp.slot_tag("C:/x/20_zkusebni_stanice"), pp.slot_tag("C:/x/16_paletizacni_bunka")
+        self.assertTrue(a.startswith("20") and b.startswith("16") and a != b)
+        pp.set_slot_tag(a)
+        self.assertEqual(pp.TOOLS_SLOT["k5"], "pro3d-k5-" + a)
+        self.assertEqual(pp.PARTS_SLOT, "pro3d-parts-" + a)
+        self.assertEqual(pro_agent.FC_SLOT, "plcdesk-pro-" + a)
+        self.assertIn("--slot pro3d-stavitel-" + a, pp.tools_cmd("builder"))
+        self.assertIn("--slot pro3d-k5-" + a, pp.k5_prompt(Path("C:/x"), "frame", 1))
+        self.assertIn("plcdesk-pro-" + a, pro_agent.system_prompt("builder"))
+        pp.set_slot_tag("")
+        self.assertEqual((pp.TOOLS_SLOT["k5"], pp.PARTS_SLOT, pro_agent.FC_SLOT),
+                         ("pro3d-k5", "pro3d-parts", "plcdesk-pro"))
+
+    def test_unapproved_is_reservation(self):
+        st = {"units": {k: {"state": "pending", "rounds": []} for k in pp.UNIT_KEYS}}
+        st["units"]["cabinet"] = {"state": "rejected", "rounds": [{"n": 3, "file": "rozvadec/KONTROLA_K5_rozvadec_kolo3.md"}]}
+        st["units"]["frame"] = {"state": "approved", "rounds": [{"n": 1, "file": "ram/KONTROLA_K5_ram_kolo1.md"}]}
+        un = pp.unapproved_list(st, "modules")
+        self.assertIn("KONTROLA_K5_rozvadec_kolo3.md", un)
+        self.assertNotIn("ram/", un)
+        kp = pp.k5_prompt(Path("C:/x"), "modules", 1, unapproved=un)
+        self.assertIn("jen VÝHRADA", kp)
+        self.assertIn("KONTROLA_K5_rozvadec_kolo3.md", kp)
+        self.assertIn("Neschválené předchozí části: žádné", pp.k5_prompt(Path("C:/x"), "cabinet", 1))
+
+
 class SkillFilesTest(unittest.TestCase):
     """Skilly ve stagingu: frontmatter, odkazy na reference, jedinečná ID, vestavěný seznam = seznam skillu."""
 

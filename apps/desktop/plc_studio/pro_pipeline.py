@@ -212,6 +212,9 @@ TEST_RULE = ("M. TEST: bezpečnostní prvky a funkce považuj pro tento běh za 
              "2026-10-31): chybějící ZDROJ členů doby zastavení T (ISO 13855: odezva AOPD, logiky, ventilu, doběh pohonu) "
              "je jen VÝHRADA, ne povinný bod — pokud stavitel použil hodnotu z tabulky časů (pro3d_parts, bezpecnost_casy) "
              "nebo konzervativní horní mez označenou ODHAD a výpočet S = K·T + C je v textu úplný a souhlasí s modelem. "
+             "Totéž platí pro ztrátové výkony a mezery přístrojů v rozvaděči a odolnost krytu proti vymrštění dílu: chybí-li "
+             "jen zdroj hodnoty, ale výpočet (tepelná bilance, energie dílu) je úplný s konzervativním ODHADEM a vychází, "
+             "je to výhrada. Výpočet, který NEVYCHÁZÍ, nebo chybějící výpočet zůstává povinným bodem. "
              "Každou zprávu a STAV.md označ řádkem „" + TEST_MARK + "“.")
 
 DEFAULT_PROMPTS = {
@@ -257,6 +260,24 @@ K5_CONTINUE_PROMPT = ("\n\nPOKRAČOVÁNÍ KONTROLY: předchozí běh téže kont
 K5_NO_CHECKS_POINT = "spustit pro3d_tools vse (kontroly kódem do {sub}/k5_kolo{round}/) a verdikt opřít o kontroly.json"
 PARTS_SLOT = "pro3d-parts"
 TOOLS_SLOT = {"builder": "pro3d-stavitel", "concept": "pro3d-stavitel", "k5": "pro3d-k5"}
+_SLOT_BASE = (dict(TOOLS_SLOT), PARTS_SLOT, pro_agent.FC_SLOT)
+
+
+def slot_tag(folder: str | Path) -> str:
+    """Přípona slotů FreeCADu pro složku stroje (souběžné postupy různých strojů si sloty nesdílejí)."""
+    name = Path(folder).name
+    m = re.match(r"(\d+)", name)
+    return (m.group(1) if m else "") + hashlib.sha1(name.encode("utf-8")).hexdigest()[:4]
+
+
+def set_slot_tag(tag: str) -> None:
+    """Sloty FreeCADu tohoto procesu (kontroly, díly, agent) s příponou ``-tag``; prázdná = výchozí jména."""
+    global PARTS_SLOT
+    sfx = f"-{tag}" if tag else ""
+    for k, v in _SLOT_BASE[0].items():
+        TOOLS_SLOT[k] = v + sfx
+    PARTS_SLOT = _SLOT_BASE[1] + sfx
+    pro_agent.FC_SLOT = _SLOT_BASE[2] + sfx
 
 
 def tools_cmd(role: str = "builder") -> str:
@@ -315,7 +336,7 @@ minimum měření / snímků / ověřených tvrzení, pravidla verdiktu a šablo
 Kontroly kódem nezávisle a v TOMTO kole (nepřebírej soubor stavitele ani z dřívějšího pokusu):
    {cmd}   (kontrola = vse, výstup: --out {sub}/k5_kolo{round})
    Přečti celé {sub}/k5_kolo{round}/kontroly.json včetně data a info; jakákoli chyba nebo stav SELHALO = VRÁCENO.
-Měření (jen čte): skill stroj-kontrolor, scripts/k5_mer.py přes run_fc.ps1 run --slot pro3d-k5; výstupy do
+Měření (jen čte): skill stroj-kontrolor, scripts/k5_mer.py přes run_fc.ps1 run --slot {k5slot}; výstupy do
 {sub}/k5_kolo{round}/mereni/.
 Snímky: kontrola = snimky, --out {sub}/k5_kolo{round} --prefix k5_kolo{round} [--detail "díl;díl"]; každý otevři.
 Normalizované díly (V12): díl se stavem „dle dokumentace“ v dily/parts_index.json = App::Link na jeho model, ne zástupná
@@ -349,7 +370,10 @@ zprávě stavitele — tvrzení stavitele si ověř sám.
 Na začátku i na konci spočítej SHA-256 všech *.FCStd ve složce stroje (mimo _archiv, plné hodnoty) a uveď je v protokolu.
 Protokol zapiš do {k5file} podle stroj-kontrolor/references/protokol.md: první řádek nadpis, pak PRÁVĚ JEDEN řádek
 „## Verdikt: **SCHVÁLENO**“ nebo „## Verdikt: **VRÁCENO**“ (žádný jiný řádek nezačíná slovem Verdikt), pod ním
-„Povinných bodů: n (blokující b, závažné z) …“, oddíly 1–9 šablony. Schválené protokoly předchozích částí: {approved}."""
+„Povinných bodů: n (blokující b, závažné z) …“, oddíly 1–9 šablony. Schválené protokoly předchozích částí: {approved}.
+Neschválené předchozí části: {unapproved}. Jejich vady se počítají u nich (mají vlastní protokol) — to, že tato část
+na nich stojí, je u ní jen VÝHRADA (V13 / C1 = N/A s odkazem na protokol té části), ne povinný bod. Povinné body dávej
+jen za to, co tato část sama přidává nebo mění; změna schváleného modelu jiné části (SHA) zůstává povinným bodem."""
 
 APPROVED_CHANGED_POINT = ("model části „{label}“ {path} se po schválení K5 změnil (SHA {old} → {new}) — vrátit změnu, "
                           "nebo změnu zapsat jako zpětnou vazbu / předání a nechat tu část znovu zkontrolovat (V13 / C1)")
@@ -490,13 +514,14 @@ def builder_prompt(folder: Path, unit: str, rnd: int, template: str = "", extra:
 
 
 def k5_prompt(folder: Path, unit: str, rnd: int, project: str = "", test_safety: bool = False,
-              approved: str = "") -> str:
+              approved: str = "", unapproved: str = "") -> str:
     u = UNIT[unit]
     head = [f"Projekt PLCdesk: {project}" if project else "", f"Složka 3D stroje: {folder}"]
     mk, ms, mc = K5_MIN[unit]
     checks = fill(K5_CHECKS, cmd=tools_cmd("k5"), sub=u["sub"], round=rnd, section=K5_SECTION[unit],
-                  min_kot=mk, min_shots=ms, min_claims=mc)
+                  min_kot=mk, min_shots=ms, min_claims=mc, k5slot=TOOLS_SLOT["k5"])
     body = fill(K5_PROMPT, label=u["label"], sub=u["sub"], round=rnd, checks=checks, approved=approved or "žádné",
+                unapproved=unapproved or "žádné",
                 k5file=k5_file(folder, unit, rnd).relative_to(folder).as_posix())
     if not skill_installed(KONTROLOR_SKILL):
         body += "\n\n" + fill(K5_FALLBACK, items=checklist_items(unit))
@@ -759,6 +784,18 @@ def approved_changes(state: dict, cur: dict, unit: str) -> list[tuple]:
     return out
 
 
+def unapproved_list(state: dict, unit: str) -> str:
+    """Předchozí AI části, které po svých kolech zůstaly neschválené: „<část>: <poslední protokol>“."""
+    out = []
+    for k in UNIT_KEYS[:UNIT_KEYS.index(unit)]:
+        u = state["units"].get(k) or {}
+        if k not in AI_UNITS or u.get("state") == "approved" or not u.get("rounds"):
+            continue
+        last = u["rounds"][-1]
+        out.append(f"{UNIT[k]['label']}: {last.get('file') or 'bez protokolu'}")
+    return "; ".join(out)
+
+
 def approved_list(state: dict, unit: str) -> str:
     """Schválené protokoly předchozích částí pro pokyn K5: „<část>: <protokol>, SHA <model> …“."""
     out = []
@@ -882,9 +919,10 @@ def write_download_list(folder: str | Path, *, log=print) -> list[str]:
         return []
 
 
-def make_parts(folder: str | Path, *, log=print, slot: str = PARTS_SLOT, timeout: int = 1800) -> dict:
+def make_parts(folder: str | Path, *, log=print, slot: str = "", timeout: int = 1800) -> dict:
     """Normalizované díly kódem (``pro3d_parts gen``) nad ``PLCdesk_CAD.json`` → ``dily/parts_index.json`` + modely FCStd.
     FreeCAD jen ve vlastní instanci (slot ``pro3d-parts``); hotové modely se nepřestavují. Vrací ``{"souhrn", "chyba"}``."""
+    slot = slot or PARTS_SLOT
     folder = Path(folder)
     man = folder / "PLCdesk_CAD.json"
     if not man.is_file():
@@ -1323,7 +1361,8 @@ class Pipeline:
             if drift:
                 appr += "; POZOR — po schválení změněno: " + "; ".join(
                     f"{UNIT[k]['label']} {pth} {old} → {new}" for k, pth, old, new in drift)
-            kp = k5_prompt(self.folder, key, n, self.project, self.test_safety, approved=appr)
+            kp = k5_prompt(self.folder, key, n, self.project, self.test_safety, approved=appr,
+                           unapproved=unapproved_list(self.state, key))
             kcont = fill(K5_CONTINUE_PROMPT, sub=UNIT[key]["sub"], round=n,
                          k5file=k5_file(self.folder, key, n).relative_to(self.folder).as_posix())
             prev = r["k5"] if r["k5"] and r["k5"].get("subtype") == "error_max_turns" else None
@@ -1610,6 +1649,7 @@ def main(argv: list[str] | None = None) -> int:
     if not a.no_ai and pro_agent.find_claude() is None:
         print("Claude Code nenalezen (PLCDESK_CLAUDE / PATH).", file=sys.stderr)
         return 2
+    set_slot_tag(slot_tag(a.out))                       # souběžné postupy různých strojů = různé sloty
     pipe = Pipeline(a.out, prj, max_rounds=a.max_rounds, test_safety=a.test_safety, ai=not a.no_ai,
                     runner=None if a.no_ai else agent_runner(model=a.model, budget=a.budget), log=print,
                     models=models, turns=turns, parts=False if a.no_parts else (True if a.parts else None))
