@@ -476,6 +476,7 @@ python scripts/build_verification.py        # data/verification.json → verific
   popisky, NEPŘESTAVUJ, nálezy do zpětné vazby), jinak starý pokyn; PREHLED.md oddíl „Rozvaděč kódem“. Testy
   `tests/test_pro3d_cabinet.py` (data, layout 01 / 03 / 16 / 20, hardware, CLI, FreeCAD 20 + kontroly + snímek),
   `test_pro_pipeline.CabinetGenTest`.
+  **Dveře, kabeláž ke dveřím, oddělení tras, PE / N a ventilátor kódem** (2026-11-02, `dvere.py` + `data/dvere.json`, nálezy K5 vzorů 16 / 20): výřezy / vrtací obrazce / upínky dveřních přístrojů z dokumentace (3LD2 4 × Ø5 na 48 × 48, MTP700 197 × 141 + 6 upínek), svazky ke dveřím (větve po dveřích, kmen v ose pantu, volný úsek ≥ 1,1 × dráha konců v 0–95°, R z `kabelaz-a-hadice/data/media.json`), žlaby silové / signálové / smíšené s uzemněnými přepážkami a dělicími plechy u pantu (≥ 250 mm nebo přepážka, G120C přes skill), PE vodivě na desce a N na izolátorech bez kovové cesty, filtrační ventilátor Rittal SK 3237–3239 .124 s vlastním příkonem v Q a rezervou ≥ 2 K (jinak varování); stavitel (`CABINET_GEN_PROMPT`) doplňuje jen kabeláž ve žlabech a popisky.
 - **Řízené RUČNÍ stahování modelů** (2026-10-24) `plc_studio/pro3d_download/` (bez Tk, bez sítě — **nic se nestahuje
   ani neskriptuje**: podmínky 3Dfindit / CADENAS čl. 12.3 (vii), TraceParts i portálů výrobců; stahuje člověk v prohlížeči).
   `vendors.json` = vzory URL (stránka produktu / hledání, `{code}` `{code_alnum}` `{query}`), `verified` + `verify_note`

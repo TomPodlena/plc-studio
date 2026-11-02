@@ -1,7 +1,7 @@
 """Testy generátoru rozvaděče kódem (plc_studio/pro3d_cabinet) — rozmístění bez FreeCADu na manifestech vzorů 01, 03, 16, 20
 (kopie ``PLCdesk_CAD.json`` a ``dily/parts_index.json`` z běhů automatického postupu v ``tests/data/rozvadec/``), data se
 zdrojem, spojovací materiál, ROZVADEC.md, CLI ``--no-fc``; s FreeCADem (``run_fc.ps1`` skillu freecad-instance, vlastní slot
-``pro3d-cabinet-test``; ``PRO3D_SKIP_FC=1`` přeskočí) jeden běh na vzoru 20: normalizované díly ``pro3d_parts gen`` → rozvaděč
+``pro3d-cabinet-test2``; ``PRO3D_SKIP_FC=1`` přeskočí) jeden běh na vzoru 20: normalizované díly ``pro3d_parts gen`` → rozvaděč
 → kontroly ``pro3d_tools vse`` bez chyb (kolize, souvislost, kusovník, zástupné díly) + snímek.
 
 Spuštění (z apps/desktop):  python -m unittest tests.test_pro3d_cabinet -v
@@ -26,7 +26,7 @@ from plc_studio.pro3d_cabinet import cli, layout as L, report  # noqa: E402
 
 DATA = Path(__file__).resolve().parent / "data" / "rozvadec"
 VZORY = ("01", "03", "16", "20")
-SLOT = os.environ.get("PRO3D_TEST_SLOT") or "pro3d-cabinet-test"
+SLOT = os.environ.get("PRO3D_TEST_SLOT") or "pro3d-cabinet-test2"
 
 
 def load(v: str):
@@ -193,7 +193,7 @@ class LayoutTest(unittest.TestCase):
         for d in r["ducts"]:
             self.assertGreaterEqual(len(hw["duct_holes"][d["name"]]), 1)
         self.assertEqual(len(hw["endstops"]), sum(1 for d in r["devices"] if d["kind"] == "zarazka"))
-        self.assertEqual(len(hw["door_cutouts"]), 1)                 # MTP700 ve dveřích
+        self.assertEqual(len([c for c in hw["door_cutouts"] if c["tag"] == "-P1"]), 1)   # MTP700 ve dveřích
         self.assertEqual(hw["door_axis"]["uhel"], -95.0)
         # hlavy šroubů na desce nezasahují do přístrojů (obálka hlavy × obálka přístroje)
         for s in hw["screws"]:
@@ -210,6 +210,149 @@ class LayoutTest(unittest.TestCase):
         r = L.plan({"parts": [], "plc": {"stations": []}})
         self.assertFalse(r["ok"])
         self.assertIn("cabinet", r["chyba"])
+
+
+class DvereTest(unittest.TestCase):
+    """Dveře, kabeláž ke dveřím, oddělení tras, PE / N a ventilátor (pro3d_cabinet/dvere.py) na vzorech 16 a 20."""
+
+    def test_vrtaci_obrazce(self):
+        for v in ("16", "20"):
+            with self.subTest(vzor=v):
+                r = plan(v)
+                dv, hw = r["dvere"], r["hw"]
+                self.assertEqual(dv["chyby"], [])
+                q0 = next(d for d in r["door"]["items"] if d["tag"] == "-Q0")
+                xc, zc = (q0["box"][0] + q0["box"][1]) / 2, (q0["box"][4] + q0["box"][5]) / 2
+                holes = [h for h in hw["door_holes"] if h.get("tag") == "-Q0"]
+                four = sorted((round(h["x"] - xc, 3), round(h["z"] - zc, 3)) for h in holes if h["d"] == 5.0)
+                self.assertEqual(four, [(-24.0, -24.0), (-24.0, 24.0), (24.0, -24.0), (24.0, 24.0)])   # 48 × 48, Ø5 (3LD2 str. 5)
+                self.assertEqual(len([s for s in hw["screws"] if s["name"].startswith("Šroub -Q0")]), 4)
+                fb = next(f for f in dv["front_blocks"] if f["tag"] == "-Q0")
+                self.assertAlmostEqual(fb["box"][1] - fb["box"][0], 66.0)
+                self.assertAlmostEqual(fb["box"][3] - fb["box"][2], 39.0)
+                p1 = next(d for d in r["door"]["items"] if d["tag"] == "-P1")
+                cut = next(c for c in hw["door_cutouts"] if c["tag"] == "-P1")
+                self.assertAlmostEqual(cut["x1"] - cut["x0"], 197.0)
+                self.assertAlmostEqual(cut["z1"] - cut["z0"], 141.0)
+                clips = [c["box"] for c in dv["clips"] if "-P1" in c["name"]]
+                self.assertEqual(len(clips), 6)
+                b = p1["box"]
+                top = [c for c in clips if abs(c[4] - b[5]) < 1e-6]
+                bot = [c for c in clips if abs(c[5] - b[4]) < 1e-6]
+                side = [c for c in clips if abs(c[0] - b[1]) < 1e-6 or abs(c[1] - b[0]) < 1e-6]
+                self.assertEqual((len(top), len(bot), len(side)), (2, 2, 2))
+                # přístroje na dveřích (vnitřní obálka) bez průniku s přístroji a žlaby na desce a navzájem
+                inner = [d["box"] for d in r["door"]["items"]] + [c for c in clips]
+                for a in inner:
+                    for d in r["devices"]:
+                        if d["kind"] != "zarazka":
+                            self.assertFalse(overlap(a, d["box"]), d["tag"])
+                    for dct in r["ducts"]:
+                        self.assertFalse(overlap(a, [dct["x0"], dct["x1"], dct["y0"], dct["y1"], dct["z0"], dct["z1"]]), dct["name"])
+
+    def test_kabelaz_ke_dverim(self):
+        from plc_studio.pro3d_cabinet import dvere as DV
+        rr = DV.radius_rule()
+        self.assertGreaterEqual(rr["pohyblive"], 10.0)                    # dveře = pohyblivě (skill kabelaz-a-hadice)
+        for v in ("16", "20"):
+            with self.subTest(vzor=v):
+                r = plan(v)
+                kd = r["kabelaz_dvere"]
+                self.assertEqual(set(kd), {"silovy", "signal"})
+                for k, b in kd.items():
+                    self.assertEqual(b["chyby"], [], k)
+                    fr = b["volny"]
+                    self.assertTrue(fr["ok"])
+                    self.assertGreaterEqual(fr["delka"], fr["potreba"] * 1.10 - 1e-6)    # ≥ potřeba v 95° + rezerva 10 %
+                    self.assertEqual(fr["potreba_uhel"], 95.0)
+                    self.assertGreaterEqual(fr["R"], b["R_pohyb"] - 1e-6)
+                    for t in b["tubes"]:
+                        arcs = [e for e in t["prvky"] if e[0] == "oblouk"]
+                        rmin = b["R_pohyb"] if t["ulozeni"] == "pohyblive" else min(x.get("R", 1e9) for x in b["vetve"] + [{"R": b["R_pevne"]}])
+                        for e in arcs:
+                            self.assertGreaterEqual(e[5], rmin - 1e-6, t["name"])
+                    # nezávislý přepočet potřeby délky v 95°
+                    ctx = DV.Door(r)
+                    pd = (b["x_kmen"], b["y_kmen"], b["D"] / 2)
+                    need, ang = DV._need_len(ctx, pd, (b["x_kmen"], b["y_kmen"]), b["z_upinka_dvere"] - b["z_upinka_bok"])
+                    self.assertAlmostEqual(need, fr["potreba"], delta=0.2)
+                    self.assertGreater(need, abs(b["z_upinka_dvere"] - b["z_upinka_bok"]))   # otevření dráhu prodlouží
+                    # dveřní části se pohybují s dveřmi, volný a pevný úsek ve skříni
+                    self.assertEqual({t["part"] for t in b["tubes"]}, {"door", "fixed"})
+                    self.assertTrue(b["door_clamps"] and b["cab_clamps"])
+                pohyb = r["hw"]["door_axis"]
+                self.assertEqual(pohyb["uhel"], -95.0)
+
+    def test_oddeleni(self):
+        for v in ("16", "20"):
+            with self.subTest(vzor=v):
+                r = plan(v)
+                od = r["oddeleni"]
+                self.assertEqual(od["min_mm"], 250.0)
+                self.assertTrue(od["tabulka"])
+                self.assertTrue(all(x["ok"] for x in od["tabulka"]), od["tabulka"])
+                self.assertTrue(r["verdikt"]["oddeleni_ok"])
+                mixed = [d["name"] for d in od["ducts"] if d["druh"] == "smiseny"]
+                self.assertTrue(mixed)
+                self.assertEqual(sorted(p["zlab"] for p in od["prepazky"]), sorted(mixed))     # smíšený žlab = přepážka
+                for p in r["hw"]["partitions"]:
+                    self.assertTrue(p["screws"])                                                # uzemnění šrouby do desky
+                ok_pairs = [x for x in od["tabulka"] if x["vzdalenost"] < 250.0]
+                self.assertTrue(all(x["prepazka"] for x in ok_pairs))
+        pls = plan("20")["oddeleni"]["delici_plechy"]
+        self.assertEqual(len(pls), 2)                                       # u pantu blíž než 250 mm → dělicí plechy
+
+    def test_pe_n(self):
+        for v in ("16", "20"):
+            with self.subTest(vzor=v):
+                r = plan(v)
+                hw, pr = r["hw"], r["pripojnice"]
+                bb = hw["busbars"]
+                y_plate = r["plate"]["y1"]
+                self.assertAlmostEqual(bb["PE"]["box"][2], y_plate)                       # PE na desce
+                pe_scr = [s for s in hw["screws"] if s["name"].startswith("Šroub PE")]
+                n_scr = [s for s in hw["screws"] if s["name"].startswith("Šroub N")]
+                self.assertEqual((len(pe_scr), len(n_scr)), (2, 2))
+                for s in pe_scr:
+                    self.assertLess(s["head"][1] - s["l"], y_plate)                       # do závitu desky (vodivě)
+                iz = pr["izolator"]
+                self.assertGreater(bb["N"]["box"][2] - y_plate, 0)                        # N nad deskou na izolátorech
+                for s in n_scr:
+                    tip = s["head"][1] - s["l"]
+                    self.assertGreater(tip, y_plate + float(iz["hloubka"]))                # šroub N nekončí v desce ani u závrtného
+                    self.assertGreaterEqual(tip, y_plate + float(iz["h"]) - float(iz["hloubka"]) - 1e-6)
+                for st in bb["studs"]:
+                    self.assertLessEqual(st["y1"], y_plate + float(iz["hloubka"]) + 1e-6)
+                    self.assertTrue(all(st["y1"] < s["head"][1] - s["l"] for s in n_scr))  # kov N × kov desky se nedotýká
+                for b_ in (bb["PE"]["box"], bb["N"]["box"]):
+                    for d in r["devices"]:
+                        self.assertFalse(overlap(b_, d["box"]), d["tag"])
+
+    def test_ventilator(self):
+        for v in ("16", "20"):
+            with self.subTest(vzor=v):
+                b = plan(v)["bilance"]
+                f = b["ventilator"]
+                self.assertEqual(f["verdikt"], "vyhovuje")
+                t = f["typ"]
+                self.assertTrue(t["zdroj"]["url"].startswith("https://www.rittal.com/"))
+                self.assertAlmostEqual(f["Q"], b["Qv"] + t["P"], places=2)                  # vlastní příkon ventilátoru v Q
+                self.assertAlmostEqual(f["ti_s"], b["tamb"] + b["f"] * f["Q"] / t["V_filtr"], places=1)
+                self.assertAlmostEqual(f["rezerva_K"], b["ti"] - f["ti_s"], places=1)
+                self.assertEqual(f["rezerva_ok"], f["rezerva_K"] >= 2.0)
+                if not f["rezerva_ok"]:
+                    self.assertTrue(any("rezerva" in w for w in f["varovani"]))
+        self.assertTrue(plan("20")["bilance"]["ventilator"]["rezerva_ok"])
+        self.assertFalse(plan("16")["bilance"]["ventilator"]["rezerva_ok"])           # 0,4 K < 2 K → varování
+        hw = plan("20")["hw"]
+        self.assertEqual(sorted(round(c["x1"] - c["x0"]) for c in hw["door_cutouts"]), [177, 177, 197])
+
+    def test_report_dvere(self):
+        t = report.md(plan("20"))
+        for s in ("## Tepelná bilance s filtračním ventilátorem", "## Dveře — výřezy, vrtací obrazce", "## Kabeláž ke dveřím",
+                  "## Oddělení silových a signálových tras", "## PE a N přípojnice", "SK 3239.124", "3LD2103", "A5E52645531",
+                  "kabelaz-a-hadice", "G120C"):
+            self.assertIn(s, t)
 
 
 class ReportCliTest(unittest.TestCase):
@@ -276,7 +419,8 @@ class FreeCADTest(unittest.TestCase):
         self.assertEqual(sv["ve_vzduchu"], 0)
         self.assertEqual(sv["bez_spoje"], 0)
         self.assertEqual(sv["zlab_bez_spoje"], 0)
-        self.assertEqual(ch["kolize"]["data"]["polohy"][0]["chyb"], 0)        # dveře otevřené 95°
+        self.assertEqual(ch["kolize"]["data"]["polohy"][0]["chyb"], 0)        # dveře otevřené 95° (i svazky a upínky)
+        self.assertGreater(ch["kolize"]["data"]["polohy"][0]["dilu"], 15)
         self.assertFalse(any("nemá spojovací prvky" in i["text"] for i in ch["souvislost"].get("info") or []))
 
     def test_snimek(self):
@@ -284,6 +428,9 @@ class FreeCADTest(unittest.TestCase):
         p = self.d / "rozvadec" / "snimky" / "generator_celo.png"
         self.assertTrue(p.is_file())
         self.assertGreater(pp.png_nonwhite_pct(p), 5.0)
+        o = self.d / "rozvadec" / "snimky" / "generator_dvere_otevrene.png"     # dveře otevřené 95°
+        self.assertTrue(o.is_file())
+        self.assertGreater(pp.png_nonwhite_pct(o), 5.0)
 
 
 if __name__ == "__main__":

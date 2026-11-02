@@ -303,8 +303,139 @@ def build():
         if b[1] - b[0] < 0.5:
             continue
         feat(f"Rezerva{k:02d}", r["name"], box(*b), grz, Konstrukce_Typ="pomocny")
+    build_extras(root, dv)
     DOC.recompute()
     DOC.save()
+
+
+# --- dveře, kabeláž ke dveřím, přepážky, PE / N (dvere.py → layout.json) ------------------------------------------------
+
+def _wire(prvky):
+    edges = []
+    for e in prvky:
+        if e[0] == "usek":
+            a, b = V(*e[1]), V(*e[2])
+            if (b - a).Length > 1e-6:
+                edges.append(Part.LineSegment(a, b).toShape())
+        else:
+            edges.append(Part.Arc(V(*e[1]), V(*e[2]), V(*e[3])).toShape())
+    return Part.Wire(edges)
+
+
+def _tube(prvky, r):
+    """Svazek = tažení kruhu po každém prvku střednice zvlášť (úsečka / oblouk v jedné rovině — robustní i pro STEP),
+    sloučené do jednoho tělesa; nesloučitelné → složenina."""
+    w = _wire(prvky)
+    pieces = []
+    for ed in w.OrderedEdges:
+        p0 = ed.valueAt(ed.FirstParameter)
+        t0 = ed.tangentAt(ed.FirstParameter)
+        prof = Part.Wire([Part.makeCircle(r, p0, t0)])
+        pieces.append(Part.Wire([ed]).makePipeShell([prof], True, False))
+    sh = pieces[0]
+    if len(pieces) > 1:
+        try:
+            f = pieces[0].fuse(pieces[1:]).removeSplitter()
+            sh = f if f.isValid() and len(f.Solids) == 1 else Part.makeCompound(pieces)
+        except Exception:  # noqa: BLE001
+            sh = Part.makeCompound(pieces)
+    return sh, w
+
+
+def build_extras(root, dv):
+    G, hw = LAY["geom"], LAY["hw"]
+    D = float(LAY["cabinet"]["d"])
+    dd = LAY.get("dvere") or {}
+    # čelní obálka hlavního vypínače (dle dokumentace: deska 66 × 66, před panelem 39, 4 × Ø5 na 48 × 48)
+    for k, fb in enumerate(dd.get("front_blocks", []), start=1):
+        b = fb["box"]
+        sh = box(*b)
+        cuts = [cyl_y(fb["d"] / 2, b[2] - 1, b[2] + fb["deska_t"] + 0.01, x, z) for x, z in fb["bores"]]
+        m4 = 7.0 / 2 + 0.5
+        cuts += [cyl_y(m4, b[2] + fb["deska_t"], b[3] + 1, x, z) for x, z in fb["bores"]]
+        sh = sh.cut(Part.makeCompound(cuts))
+        feat(f"Celo{k:02d}", f"{fb['tag']} čelní deska a rukojeť (obálka dle dokumentace 66 × 66 × 39)", sh, dv, Konstrukce_Typ="dil",
+             Konstrukce_ModelStav=STAV, Konstrukce_Detail="obálka", Konstrukce_Zdroj=fb["zdroj"], Konstrukce_Generator="pro3d_cabinet/dvere")
+    for k, c in enumerate(dd.get("clips", []), start=1):
+        feat(f"Upinka_HMI{k:02d}", c["name"], box(*c["box"]), dv, Konstrukce_Typ="sroub", Konstrukce_Zastupny=True,
+             PLCdesk_ModelStatus="placeholder", Konstrukce_Zdroj=c["zdroj"])
+    for key, label in (("fan", "Filtrační ventilátor"), ("filter", "Výstupní filtr")):
+        f = dd.get(key)
+        if not f:
+            continue
+        sh = box(*f["ram"])
+        if f.get("telo"):
+            sh = sh.fuse(box(*f["telo"])).removeSplitter()
+        feat(f"Dvere_{key}", f"{label} {f['tag'].split(' ', 1)[-1]} (zástupný — rozměry dle datového listu Rittal, upevnění ODHAD)", sh, dv,
+             Konstrukce_Typ="prislusenstvi", Konstrukce_Zastupny=True, PLCdesk_ModelStatus="placeholder",
+             Konstrukce_Zdroj="Rittal datový list (layout.json bilance.ventilator) — návrh mimo kusovník")
+    # svazky ke dveřím: kmen a větve na dveřích (pohyb s dveřmi), volný a pevný úsek ve skříni
+    gk = part("Kabelaz_dvere", "Kabeláž ke dveřím (svazky, návrh)", root)
+    n = 0
+    for kind, r in (LAY.get("kabelaz_dvere") or {}).items():
+        for t in r.get("tubes", []):
+            n += 1
+            try:
+                sh, w = _tube(t["prvky"], t["r"])
+            except Exception as exc:  # noqa: BLE001
+                ERR.append(f"{t['name']}: svazek nevznikl ({exc})")
+                continue
+            par = dv if t["part"] == "door" else gk
+            feat(f"Svazek{n:02d}", t["name"] + f" Ø{2 * t['r']:.1f}", sh, par, Konstrukce_Typ="kabel", Konstrukce_Druh=kind,
+                 Konstrukce_Ulozeni=t["ulozeni"], Konstrukce_Osa=f"Osa_svazek{n:02d}",
+                 Konstrukce_Zdroj=f"pro3d_cabinet/dvere.py — R pevně {r['R_pevne']} / pohyblivě {r['R_pohyb']} mm ({r['R_zdroj']})")
+            o = DOC.addObject("Part::Feature", f"Osa_svazek{n:02d}")
+            o.Label = f"Střednice — {t['name']}"
+            o.Shape = w
+            props(o, {"Konstrukce_Typ": "pomocny"})
+            par.addObject(o)
+        for k, c in enumerate(r.get("door_clamps", []), start=1):
+            feat(f"Upinka_{kind}_dv{k:02d}", c["name"], box(*c["box"]), dv, Konstrukce_Typ="prislusenstvi", Konstrukce_Zastupny=True,
+                 PLCdesk_ModelStatus="placeholder", Konstrukce_Zdroj="ODHAD — upínka svazku se stahovací páskou")
+        for k, c in enumerate(r.get("cab_clamps", []), start=1):
+            feat(f"Upinka_{kind}_sk{k:02d}", c["name"], box(*c["box"]), gk, Konstrukce_Typ="prislusenstvi", Konstrukce_Zastupny=True,
+                 PLCdesk_ModelStatus="placeholder", Konstrukce_Zdroj="ODHAD — upínka svazku se stahovací páskou")
+    # přepážky žlabů a dělicí plechy u pantu (uzemněné, návrh)
+    gp = part("Prepazky", "Přepážky silová × signálová trasa (uzemněné, návrh)", root)
+    for k, p in enumerate(hw.get("partitions", []), start=1):
+        sh = box(*p["stojina"]).fuse(box(*p["patka"])).removeSplitter()
+        cuts = [cyl_y(4.5, p["patka"][2] - 1, p["patka"][3] + 1, x, z) for x, z in p["notches"]]
+        cuts += [cyl_y(2.1, p["patka"][2] - 1, p["patka"][3] + 1, x, z) for x, z in p["screws"]]
+        if cuts:
+            sh = sh.cut(Part.makeCompound(cuts))
+        feat(f"Prepazka{k:02d}", p["name"], sh, gp, Konstrukce_Typ="dil", Konstrukce_Zdroj=LAY["oddeleni"]["zdroj"]["dokument"],
+             Konstrukce_Poznamka="podélná přepážka smíšeného žlabu, šrouby M4 do závitu desky (uzemnění)")
+    for k, e in enumerate(LAY.get("oddeleni", {}).get("celni", []), start=1):
+        sh = box(*e["box"])
+        for v in e.get("vyrezy") or []:
+            b = e["box"]
+            sh = sh.cut(box(b[0] - 1, b[1] + 1, v[0], v[1], v[2], v[3]))
+        feat(f"Celni_prepazka{k:02d}", e["name"], sh, gp, Konstrukce_Typ="prislusenstvi", Konstrukce_Zdroj="ODHAD — přepážka komory")
+    for k, e in enumerate(LAY.get("oddeleni", {}).get("delici_plechy", []), start=1):
+        feat(f"Delici_plech{k:02d}", e["name"], box(*e["box"]), dv if e["part"] == "door" else gp, Konstrukce_Typ="prislusenstvi",
+             Konstrukce_Zastupny=True, PLCdesk_ModelStatus="placeholder", Konstrukce_Zdroj="ODHAD — dělicí plech u pantu (uzemněný)")
+    # PE / N přípojnice
+    bb = hw.get("busbars")
+    if bb:
+        gb = part("Pripojnice", "PE a N přípojnice (návrh, mimo kusovník)", root)
+        pe, nn, iz = bb["PE"], bb["N"], bb["izolator"]
+        sh = box(*pe["box"]).cut(Part.makeCompound([cyl_y(2.1, pe["box"][2] - 1, pe["box"][3] + 1, pe["x"], z) for z in pe["sroub_z"]]))
+        feat("PE_pripojnice", f"PE přípojnice Cu {pe['b']:.0f}×{pe['t']:.0f}×{pe['L']:.0f} na desce (vodivě, návrh)", sh, gb,
+             Konstrukce_Typ="dil", Konstrukce_Zdroj=pe["zdroj"]["dokument"], Konstrukce_Pripojnice="PE")
+        sh = box(*nn["box"]).cut(Part.makeCompound([cyl_y(2.1, nn["box"][2] - 1, nn["box"][3] + 1, nn["x"], z) for z in nn["sroub_z"]]))
+        feat("N_pripojnice", f"N přípojnice {nn['typ']} na izolátorech (izolovaná od desky, návrh)", sh, gb, Konstrukce_Typ="dil",
+             Konstrukce_Zdroj=nn["zdroj"]["dokument"], Konstrukce_Pripojnice="N")
+        y0 = bb["y_deska"]
+        h, hl, rt = float(iz["h"]), float(iz["hloubka"]), bb["tap"] / 2
+        for k, z in enumerate(iz["z"], start=1):
+            c = cyl_y(float(iz["d"]) / 2, y0, y0 + h, nn["x"], z)
+            c = c.cut(cyl_y(rt, y0 - 1, y0 + hl, nn["x"], z)).cut(cyl_y(rt, y0 + h - hl, y0 + h + 1, nn["x"], z))
+            feat(f"Izolator_N{k}", f"Izolátor N přípojnice {k} Ø{float(iz['d']):.0f}×{h:.0f} PA (zástupný, ODHAD typu)", c, gb,
+                 Konstrukce_Typ="dil", Konstrukce_Zastupny=True, PLCdesk_ModelStatus="placeholder", Konstrukce_Material="PA (izolant)",
+                 Konstrukce_Zdroj=iz["pozn"])
+        for k, s in enumerate(bb["studs"], start=1):
+            feat(f"Zavrtny_N{k}", s["name"], cyl_y(s["r"], s["y0"], s["y1"], s["x"], s["z"]), gb, Konstrukce_Typ="sroub",
+                 Konstrukce_Zdroj="ODHAD — závrtný šroub izolátoru (kov jen v dolním závitu izolátoru)")
 
 
 res = {"ok": False, "out": OUT}

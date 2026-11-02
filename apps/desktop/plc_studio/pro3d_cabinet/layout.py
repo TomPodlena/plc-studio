@@ -32,6 +32,9 @@ DATA = HERE / "data"
 PARTS_DIR = HERE.parent / "pro3d_parts"
 if str(PARTS_DIR) not in sys.path:
     sys.path.insert(0, str(PARTS_DIR))
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+import dvere  # noqa: E402  (sourozenec, bez plc_studio)
 try:
     import catalog_map as cm  # type: ignore  # noqa: E402  (sourozenec pro3d_parts, bez plc_studio)
 except Exception:  # noqa: BLE001
@@ -762,13 +765,34 @@ def plan(manifest: dict, *, folder: str | Path | None = None, parts_index: dict 
                                                                                 for i in r["items"]]} for r in chosen["rails"]]
     out["devices"] = [_dev_out(i) for i in chosen["devices"]]
     out["door"] = {"items": [_dev_out(i) for i in chosen["door"]["items"]], "varovani": chosen["door"]["varovani"]}
-    out["hw"] = hardware(out)
     bil = thermal(cab, items, tamb, tin, mount, alt)
     out["bilance"] = bil
+    dv = dvere.apply(out)                       # dveře, kabeláž ke dveřím, oddělení tras, PE / N, ventilátor
+    out["door"]["varovani"] += dv["varovani"]
+    out["hw"] = hardware(out)
     if bil["verdikt"] == "nevyhovuje":
         fb.append({"kind": "other", "partId": out["cabinet"]["id"],
                    "text": f"tepelná bilance nevyhovuje: Qv {bil['Qv']:.1f} W > Qs {bil['Qs']:.1f} W (ΔT {bil['dT']:.0f} K, A {bil['A']:.2f} m²); "
                            "opatření: " + "; ".join(bil["opatreni"])})
+    fan = bil.get("ventilator")
+    if fan:
+        if fan.get("typ"):
+            fb.append({"kind": "other", "partId": out["cabinet"]["id"],
+                       "text": f"návrh opatření tepelné bilance: filtrační ventilátor Rittal {fan['typ']['kod']} + výstupní filtr "
+                               f"{fan['filtr']['kod']} ve dveřích (mimo kusovník, ke schválení); Q {fan['Q']:.1f} W, průtok s filtrem "
+                               f"{fan['typ']['V_filtr']:.0f} m³/h, Ti {fan['ti_s']:.1f} °C, rezerva {fan['rezerva_K']:.1f} K"
+                               + ("" if fan["rezerva_ok"] else " — REZERVA < 2 K") + "; snižuje krytí na IP 54"})
+        else:
+            fb.append({"kind": "other", "partId": out["cabinet"]["id"], "text": "tepelná bilance: " + fan.get("duvod", "")})
+    for k, r in (out.get("kabelaz_dvere") or {}).items():
+        if r.get("chyby"):
+            fb.append({"kind": "other", "partId": "", "text": f"kabeláž ke dveřím ({k}): " + "; ".join(r["chyby"])})
+    bad = [x for x in out["oddeleni"]["tabulka"] if not x["ok"]]
+    if bad:
+        fb.append({"kind": "other", "partId": "", "text": "oddělení silových a signálových tras nesplněno: "
+                   + "; ".join(f"{x['a']} × {x['b']} {x['vzdalenost']:.0f} mm" for x in bad)})
+    fb.append({"kind": "other", "partId": "", "text": "návrh mimo kusovník: PE a N přípojnice, přepážky žlabů, upínky a ochrana svazků "
+               "ke dveřím, čelní obálka hlavního vypínače — doplnit do kusovníku nebo odsouhlasit (rozvaděč vygenerovaný kódem)"})
     if bil["chybi"]:
         cnt: dict = {}
         for x in bil["chybi"]:
@@ -779,7 +803,9 @@ def plan(manifest: dict, *, folder: str | Path | None = None, parts_index: dict 
     out["zpetna_vazba"] = fb
     out["odhady"] = _estimates(out)
     out["verdikt"] = {"vejde_se": True, "rezerva_ok": all(r["rezerva_pct"] >= rezerva - 1e-6 for r in out["rails"]),
-                      "bilance": bil["verdikt"], "konflikty_zon": len(out["konflikty_zon"])}
+                      "bilance": bil["verdikt"], "konflikty_zon": len(out["konflikty_zon"]),
+                      "bilance_s_opatrenim": (fan or {}).get("verdikt"), "dvere_chyby": len(dv["chyby"]),
+                      "oddeleni_ok": not bad}
     return out
 
 
@@ -891,16 +917,52 @@ def hardware(lay: dict) -> dict:
             hw["plate_holes"].append({"x": xc, "z": z, "d": round(m5["d"] - m5["P"], 3), "druh": "závit M5"})
             hw["screws"].append(_screw(f"Šroub {d['tag']} {side} ISO 4762 M5×8", "M5", 8, (xc, py1, z), down,
                                        f"upevnění {d['tag']} k desce (poloha ODHAD, vrtací obrazec z datasheetu doplnit)"))
-    # dveře: HMI výřez, šrouby přístrojů (dřík těsně u boku přístroje)
-    for d in lay["door"]["items"]:
-        b = d["box"]
-        if d["hmi"]:
-            hw["door_cutouts"].append({"tag": d["tag"], "x0": b[0], "x1": b[1], "z0": b[4], "z1": b[5]})
-        zc = (b[4] + b[5]) / 2
-        for side, x in (("vlevo", b[0] - m4["d"] / 2 - 0.05), ("vpravo", b[1] + m4["d"] / 2 + 0.05)):
-            hw["door_holes"].append({"x": x, "z": zc, "d": m4["d"] + 0.2})
-            hw["screws"].append(_screw(f"Šroub {d['tag']} {side} ISO 4762 M4×12", "M4", 12, (x, D, zc), down,
-                                       f"upevnění {d['tag']} ve dveřích (ODHAD — upínky výrobce)"))
+    # dveře (dvere.apply): výřezy, vrtací obrazce, šrouby čelní montáže dle data/dvere.json
+    dv = lay.get("dvere") or {}
+    hw["door_cutouts"] += dv.get("door_cutouts", [])
+    hw["door_holes"] += [dict(h, d=h["d"] + (0.0 if h.get("pozn") else 0.0)) for h in dv.get("door_holes", [])]
+    for sc in dv.get("screws", []):
+        hw["screws"].append(_screw(sc["name"], sc["M"], sc["l"], sc["head"], sc["dir"], sc["ucel"]))
+    # přepážky smíšených žlabů: šrouby M4 patkou a dnem žlabu do závitu desky (mezi šrouby žlabu)
+    hw["partitions"] = []
+    for p in (lay.get("oddeleni") or {}).get("prepazky", []):
+        dct = next(d for d in lay["ducts"] if d["name"] == p["zlab"])
+        hs = hw["duct_holes"].get(dct["name"], [])
+        along = [h["x"] for h in hs] if p["orient"] == "h" else [h["z"] for h in hs]
+        lo, hi = (dct["x0"], dct["x1"]) if p["orient"] == "h" else (dct["z0"], dct["z1"])
+        mids = [(a + b) / 2 for a, b in zip(along, along[1:])] or [(lo + hi) / 2]
+        notches = [(h["x"], h["z"]) for h in hs]
+        scr = []
+        for j, u in enumerate(mids, start=1):
+            x, z = (u, p["skrz"]) if p["orient"] == "h" else (p["skrz"], u)
+            hw["duct_holes"][dct["name"]].append({"x": x, "z": z, "d": m4["d"] + 0.2})
+            hw["plate_holes"].append({"x": x, "z": z, "d": tap4, "druh": "závit M4"})
+            hw["screws"].append(_screw(f"Šroub přepážky {dct['name'].lower()}.{j} ISO 4762 M4×6", "M4", 6, (x, p["patka"][3], z), down,
+                                       f"přepážka {dct['name']} → deska (uzemnění)"))
+            scr.append((x, z))
+        hw["partitions"].append(dict(p, notches=notches, screws=scr))
+    hw["endplates"] = list((lay.get("oddeleni") or {}).get("celni", []))
+    # PE / N přípojnice: PE šrouby do závitu desky, N šroub jen do izolátoru, izolátor na závrtném šroubu v desce
+    pr = lay.get("pripojnice") or {}
+    hw["busbars"] = None
+    if pr and not pr.get("chyba"):
+        Mb = pr["sroub"]
+        rb_ = _iso4762(Mb)
+        tapb = round(rb_["d"] - rb_["P"], 3)
+        iz = pr["izolator"]
+        pe, nn = pr["PE"], pr["N"]
+        for k, z in enumerate(pe["sroub_z"], start=1):
+            hw["plate_holes"].append({"x": pe["x"], "z": z, "d": tapb, "druh": f"závit {Mb} (PE)"})
+            hw["screws"].append(_screw(f"Šroub PE přípojnice {k} ISO 4762 {Mb}×6", Mb, 6, (pe["x"], pe["box"][3], z), down,
+                                       "PE přípojnice → deska (vodivě)"))
+        studs = []
+        for k, z in enumerate(iz["z"], start=1):
+            hw["plate_holes"].append({"x": nn["x"], "z": z, "d": tapb, "druh": f"závit {Mb} (izolátor N)"})
+            hw["screws"].append(_screw(f"Šroub N přípojnice {k} ISO 4762 {Mb}×8 (jen do izolátoru)", Mb, 8,
+                                       (nn["x"], nn["box"][3], z), down, "N přípojnice → izolátor (izolovaně od desky)"))
+            studs.append({"name": f"Závrtný šroub izolátoru N {k} {Mb}×{float(iz['hloubka']) + G['deska']:.1f}", "x": nn["x"], "z": z,
+                          "r": rb_["d"] / 2, "y0": pl["y0"], "y1": pl["y1"] + float(iz["hloubka"])})
+        hw["busbars"] = {"PE": pe, "N": nn, "izolator": iz, "studs": studs, "tap": tapb, "y_deska": pl["y1"]}
     # panty vlevo při pohledu zepředu (= na straně x = W, viz _mirror_x); dveře se otevírají ven (−95° kolem osy Z)
     ax, ay = W + G["pant_r"], D - G["dvere"] / 2
     for k, zh in enumerate((H * 0.2, H * 0.8 - 2 * G["pant_l"]), start=1):
@@ -948,4 +1010,11 @@ def _estimates(out: dict) -> list:
             seen.add(d["code"] or d["cat"])
             L.append(f"mezery {d['tag']} ({d['code'] or d['cat']}): ODHAD nad/pod {c['nad']} / {c['pod']} mm — DOLOŽIT z návodu")
     L.append("tepelná bilance: " + out["bilance"]["plocha"])
+    dd = dvere.data()
+    L.append("kabeláž ke dveřím: " + dd["obsazeni"]["_pozn"] + "; " + dd["svazek"]["pozn"] + "; " + dd["smycka"]["pozn"])
+    L.append("přepážky žlabů a dělicí plechy u pantu: plech 1 mm, patka 7,5 mm, šrouby M4 do desky (typ a uzemnění ODHAD)")
+    L.append("PE / N: " + dd["pripojnice"]["N"]["odhad"] + "; " + dd["pripojnice"]["izolator"]["pozn"])
+    L.append("ventilátor / filtr: " + dd["ventilatory"]["_pozn"] + "; " + dd["ventilatory"]["hloubka_text"])
+    L.append("dveře: " + dd["pristroje"]["3LD2103-0TK53"]["sroub"]["pozn"] + "; upínky MTP700: "
+             + dd["pristroje"]["6AV2123-3GB32-0AW0"]["upinky"]["tvar"]["pozn"])
     return L

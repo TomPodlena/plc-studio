@@ -266,18 +266,20 @@ CABINET_DIR = Path(__file__).resolve().parent / "pro3d_cabinet"
 CABINET_SLOT = "pro3d-cabinet"
 # rozvaděč vygenerovaný kódem (pro3d_cabinet) — stavitel ho jen kontroluje a doplňuje, nepřestavuje
 CABINET_GEN_PROMPT = """Rozvaděč je VYGENEROVANÝ KÓDEM (pro3d_cabinet, deterministicky z manifestu): {sub}/Rozvadec.FCStd,
-{sub}/ROZVADEC.md (skříň, lišty a obsazení, mezery výrobců se zdrojem, tepelná bilance se zdrojem každé ztráty, ODHAD / CHYBÍ,
-zpětná vazba) a {sub}/layout.json (všechny polohy, díry, šrouby). Skříň: {skrin}; lišty: {listy}; tepelná bilance: {bilance}.
-NEPŘESTAVUJ ho a neměň rozmístění, skříň ani mezery — zkontroluj ho a doplň jen to, co kód neumí:
-- kabeláž ve žlabech (svazky jako Konstrukce_Typ = kabel ve žlabech), PE / N přípojnice a potenciálové svorky, pokud chybí
-  (návrh mimo kusovník — vyjmenovat), popisky / štítky IEC 81346 podle tag z manifestu;
-- upevnění, které kód jen odhadl (vrtací obrazce přístrojů na desce, upínky přístrojů ve dveřích), jen když máš doklad.
-Pak spusť kontroly kódem (níže) a sebekontrolu oddílu R podle stroj-kontrolor; ve zprávě {sub}/ROZVADEC.md NEPŘEPISUJ část
-vygenerovanou kódem — připiš oddíl „Doplněno stavitelem“ (co, proč, výsledek kontrol). Nálezy kódu (změna skříně, nevyhovující
-tepelná bilance, chybějící ztráty / mezery) jsou rozhodnutí uživatele: sepiš je do {sub}/PLCdesk_CAD_feedback_rozvadec.json
-(formát v1); skříň ani rozmístění kvůli nim neměň. VÝJIMKA — nevyhovující tepelná bilance: doplň opatření navržené
-v ROZVADEC.md do modelu (filtrační ventilátor + výstupní filtr ve dveřích / boku podle návrhu průtoku, jako zástupné
-díly oranžově s ODHADEM typu, přišroubované, výřez ve skříni) a připiš přepočet bilance s opatřením. Zóny mezer (Mezera …) a rezervy (Rezerva …) jsou pomocná tělesa — nemazat."""
+{sub}/ROZVADEC.md (skříň, lišty, mezery, tepelná bilance i s filtračním ventilátorem, dveře s vrtacími obrazci a upínkami,
+kabeláž ke dveřím s volným úsekem u pantu, oddělení silových a signálových tras přepážkami, PE / N přípojnice — vše se zdrojem
+nebo ODHAD, zpětná vazba) a {sub}/layout.json (všechny polohy, díry, šrouby, svazky). Skříň: {skrin}; lišty: {listy};
+tepelná bilance: {bilance}.
+NEPŘESTAVUJ ho a neměň nic, co vygeneroval kód (rozmístění, skříň, mezery, dveře, ventilátor, svazky ke dveřím, přepážky,
+PE / N) — zkontroluj ho a doplň JEN:
+- kabeláž uvnitř žlabů (svazky Konstrukce_Typ = kabel ve žlabech; silové jen v silových žlabech / komorách, signálové jen
+  v signálových — druh žlabů a komor je v ROZVADEC.md, oddíl Oddělení);
+- popisky / štítky IEC 81346 podle tag z manifestu.
+Víc nic. Pak spusť kontroly kódem (níže) a sebekontrolu oddílu R podle stroj-kontrolor; ve zprávě {sub}/ROZVADEC.md
+NEPŘEPISUJ část vygenerovanou kódem — připiš oddíl „Doplněno stavitelem“ (co, proč, výsledek kontrol). Nálezy kódu (změna
+skříně, bilance, chybějící ztráty / mezery, ODHADY, kabeláž ke dveřím a oddělení s výsledkem NESPLNĚNO) jsou rozhodnutí
+uživatele: sepiš je do {sub}/PLCdesk_CAD_feedback_rozvadec.json (formát v1) a nic z toho v modelu neopravuj. Zóny mezer
+(Mezera …) a rezervy (Rezerva …) jsou pomocná tělesa — nemazat."""
 TOOLS_SLOT = {"builder": "pro3d-stavitel", "concept": "pro3d-stavitel", "k5": "pro3d-k5"}
 _SLOT_BASE = (dict(TOOLS_SLOT), PARTS_SLOT, pro_agent.FC_SLOT)
 
@@ -507,6 +509,10 @@ def cabinet_gen_text(gen: dict) -> str:
     listy = "; ".join(f"{x.get('n')} rezerva {x.get('rezerva_pct')} %" for x in gen.get("listy") or []) or "—"
     b = gen.get("bilance") or {}
     bil = (f"{b.get('verdikt')} (Qv {b.get('Qv')} W, Qs {b.get('Qs')} W, chybí ztráty {b.get('chybi', 0)} kusů)" if b else "—")
+    o = (b or {}).get("opatreni") or {}
+    if o:
+        bil += (f"; s ventilátorem {o.get('typ')}: {o.get('verdikt')}, Ti {o.get('ti')} °C, rezerva {o.get('rezerva_K')} K"
+                if o.get("typ") else f"; opatření: {o.get('verdikt')}")
     skrin = str(gen.get("skrin") or "—") + (" — ZMĚNA proti manifestu (zpětná vazba)" if gen.get("zmena_skrine") else "")
     return CABINET_GEN_PROMPT.replace("{skrin}", skrin).replace("{listy}", listy).replace("{bilance}", bil)
 
