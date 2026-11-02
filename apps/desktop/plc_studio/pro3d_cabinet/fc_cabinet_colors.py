@@ -11,6 +11,7 @@ import FreeCAD as App
 import FreeCADGui as Gui
 
 ORANGE, YELLOW, BLUE, GREY, DUCT = (255, 140, 0), (255, 215, 0), (90, 160, 230), (190, 190, 185), (140, 140, 140)
+CABLE = {"silovy": (40, 40, 40), "signal": (30, 70, 200)}       # EN 60204-1 13.2.4: silové černá, řídicí DC modrá
 
 
 def rgb(c):
@@ -48,6 +49,12 @@ for o in doc.Objects:
         color(o.ViewObject, ORANGE)
     elif str(getattr(o, "Konstrukce_ModelStav", "")) == "dle dokumentace":
         color(o.ViewObject, YELLOW)
+    elif typ == "kabel":
+        color(o.ViewObject, CABLE.get(str(getattr(o, "Konstrukce_Druh", "")), GREY))
+    elif str(getattr(o, "Konstrukce_Pripojnice", "")) == "PE":
+        color(o.ViewObject, (60, 160, 60))
+    elif str(getattr(o, "Konstrukce_Pripojnice", "")) == "N":
+        color(o.ViewObject, (90, 160, 230))
     elif typ == "pomocny":
         color(o.ViewObject, BLUE, 85)
     elif typ in ("zlab", "prislusenstvi"):
@@ -87,6 +94,30 @@ if len(sys.argv) > 2:
             Gui.updateGui()
             v.saveImage(sys.argv[3], 1600, 1200, "White")
             shots.append(sys.argv[3])
+        if len(sys.argv) > 4:                  # dveře otevřené 95° (Konstrukce_Pohyb), pohled zepředu z boku proti pantům
+            dvp = doc.getObject("Dvere")
+            pohyb = json.loads(str(getattr(dvp, "Konstrukce_Pohyb", "") or "{}"))
+            ot = pohyb.get("otoc") or {}
+            for o in doc.Objects:
+                if hasattr(o, "Visibility"):
+                    o.Visibility = not (o.Name.startswith(("Mezera", "Rezerva", "Osa_")) or o.Name in ("Zony_mezer", "Rezervy"))
+            if dvp is not None and ot:
+                dvp.Placement = App.Placement(App.Vector(*ot["bod"]), App.Rotation(App.Vector(*ot["osa"]), ot["uhel"]),
+                                              App.Vector(0, 0, 0)).multiply(App.Placement(App.Vector(*[-c for c in ot["bod"]]), App.Rotation()))
+                doc.recompute()
+            v = Gui.ActiveDocument.ActiveView
+            d = App.Vector(0.55, -1.0, -0.45).normalize()
+            zc = d.negative()
+            xc = d.cross(App.Vector(0, 0, 1)).normalize()
+            yc = zc.cross(xc)
+            m = App.Matrix(xc.x, yc.x, zc.x, 0, xc.y, yc.y, zc.y, 0, xc.z, yc.z, zc.z, 0, 0, 0, 0, 1)
+            v.setCameraOrientation(App.Rotation(m))
+            v.fitAll()
+            Gui.updateGui()
+            v.fitAll()
+            Gui.updateGui()
+            v.saveImage(sys.argv[4], 1600, 1200, "White")
+            shots.append(sys.argv[4])
     except Exception as exc:  # noqa: BLE001
         shots.append(f"chyba: {exc}")
 App.closeDocument(doc.Name)

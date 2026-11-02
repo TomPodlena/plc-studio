@@ -1,0 +1,97 @@
+{
+ "_popis": "Dveře rozvaděče, kabeláž ke dveřím, oddělení silových a signálových tras, PE / N přípojnice a filtrační ventilátor pro generátor rozvaděče (pro3d_cabinet/dvere.py). Hodnota jen se zdrojem (URL, dokument, strana); stav: 'ověřeno' = PDF výrobce přečteno, 'prodejce' = stránka distributora s daty výrobce, 'skill' = převzato ze skillu se zdrojem, 'ODHAD' = návrh bez dokladu (v ROZVADEC.md v oddílu ODHADY). Čteno 2026-11-02.",
+ "pristroje": {
+  "3LD2103-0TK53": {
+   "nazev": "Hlavní / nouzový vypínač SENTRON 3LD2103-0TK53, čelní montáž na 4 otvory",
+   "druh": "silovy",
+   "otvory": {"roztec_x": 48.0, "roztec_z": 48.0, "d": 5.0, "stred_d": 10.0},
+   "celo": {"w": 66.0, "h": 66.0, "d": 39.0},
+   "za_panelem": 50.0,
+   "sroub": {"M": "M4", "stav": "ODHAD", "pozn": "typ šroubů výrobce v přečteném listu neuvádí — díra Ø5 odpovídá M4 (ODHAD); hlava v čelní desce, délka = deska 4 mm (ODHAD) + dveře"},
+   "celo_deska_t": 4.0,
+   "zdroj": {"dokument": "Siemens Karta informacyjna 3LD2103-0TK53 (25.08.2022), výkres str. 5/7: rozteč 48 × 48, Ø5, středový otvor (kóta 10 — význam nejistý), čelní deska 66 × 66, za panelem 50, před panelem 39", "url": "https://sklep.ke.pl/amfile/file/download/file/715527/product/7032", "stav": "ověřeno"},
+   "nedolozeno": "tloušťka dveří (rozsah), typ šroubů, tvar rukojeti — čelní deska + rukojeť je obálka 66 × 66 × 39"
+  },
+  "6AV2123-3GB32-0AW0": {
+   "nazev": "SIMATIC HMI MTP700 Unified Basic",
+   "druh": "signal",
+   "vyrez": {"w": 197.0, "h": 141.0, "tol": "+1/0"},
+   "panel_t": [2.0, 6.0],
+   "upinky": {"pocet": 6, "strany": {"nahore": 2, "dole": 2, "vlevo": 1, "vpravo": 1}, "moment_Nm": 0.2,
+              "tvar": {"delka": 20.0, "vyska": 10.0, "hloubka": 10.0, "stav": "ODHAD", "pozn": "rozměr upínky výrobce neuvádí — zástupná obálka 20 × 10 × 10 mm"}},
+   "okoli": {"vlevo": 15.0, "vpravo": 15.0, "nahore": 50.0, "dole": 50.0, "za": 10.0},
+   "celo": {"w": 214.0, "h": 158.0, "d": 8.4},
+   "zdroj": {"dokument": "Siemens Betriebsanleitung SIMATIC HMI Unified Basic Panels (TIA V20, 12/2024), A5E52645531-AC: výřez 197 (+1/0) × 141 (+1/0) str. 27; materiál 2–6 mm str. 26; 6 upínek (2 nahoře, 2 dole, 1 vlevo, 1 vpravo) str. 28; 0,2 Nm str. 29–30; volný prostor ≥ 15 mm vlevo / vpravo, ≥ 50 mm nahoře / dole, ≥ 10 mm za str. 25; čelo 214 × 158, hloubka 44,4 (čelo 8,4) str. 132", "url": "https://cache.industry.siemens.com/dl/files/042/109977042/att_1309016/v1/HWUnifiedBasicPanelsdeDE_de-DE.pdf", "stav": "ověřeno"}
+  }
+ },
+ "kategorie": {
+  "_pozn": "Druh přístroje na dveřích podle kategorie (silový = 230 / 400 V AC, signál = 24 V DC, PLC I/O, sběrnice); otvor Ø 22,3 mm pro řadu 3SU1 z pro3d_parts/data/katalog.json (hole_d, zdroj teddatasheet).",
+  "main_switch": "silovy", "plc_hmi": "signal", "push_button": "signal", "pilot_light": "signal", "emergency_stop": "signal",
+  "selector_switch": "signal", "fan": "signal"
+ },
+ "vodice": {
+  "H05V-K_0.75": {"D": 2.4, "zdroj": {"dokument": "Lapp H05V-K 0,75 mm² — RS (data výrobce)", "url": "https://de.rs-online.com/web/p/schaltdraht/7244349", "stav": "prodejce"}},
+  "H07V-K_1.5": {"D": 3.4, "zdroj": {"dokument": "Lapp H07V-K 1,5 mm² — RS (data výrobce)", "url": "https://de.rs-online.com/web/p/schaltdraht/7244406", "stav": "prodejce"}},
+  "PROFINET": {"D": 6.5, "zdroj": {"dokument": "ODHAD — kabel PROFINET k HMI (typ a průměr nedoloženy)", "url": "", "stav": "ODHAD"}}
+ },
+ "obsazeni": {
+  "_pozn": "ODHAD počtu vodičů ke dveřním přístrojům (schéma zapojení v manifestu není): hlavní vypínač 3pólový = 3 vstup + 3 výstup H07V-K 1,5 + PE dveří; HMI = 24 V DC 2 × H05V-K 0,75 + PROFINET; ventilátor 24 V DC 2 × H05V-K 0,75; tlačítko / signálka / E-stop / přepínač 2 × H05V-K 0,75 na kontakt.",
+  "main_switch": [["H07V-K_1.5", 7]],
+  "plc_hmi": [["H05V-K_0.75", 2], ["PROFINET", 1]],
+  "fan": [["H05V-K_0.75", 2]],
+  "push_button": [["H05V-K_0.75", 2]], "pilot_light": [["H05V-K_0.75", 2]], "emergency_stop": [["H05V-K_0.75", 4]],
+  "selector_switch": [["H05V-K_0.75", 3]]
+ },
+ "svazek": {
+  "plneni": 0.6, "ochrana_t": 0.5,
+  "typ": "spirálová ochranná páska / ochranná hadice svazku ke dveřím — typ ODHADEM (datový list výrobce nenalezen 2026-11-02)",
+  "stav": "ODHAD",
+  "pozn": "průměr svazku D = √(Σ dᵢ² / plnění) + 2 × ochrana (ODHAD); poloměr ohybu podle největšího prvku svazku (volné vodiče v pásce se ohýbají každý kolem vlastní osy — ODHAD metodiky)"
+ },
+ "polomer": {
+  "_pozn": "Násobky D podle uložení = nejpřísnější kabel z dat skillu kabelaz-a-hadice (data/media.json): načítá se za běhu z ~/.claude/skills/kabelaz-a-hadice/data/media.json; když skill chybí, platí tato záloha (stav k 2026-10-29).",
+  "pevne_x": 5.0, "pohyblive_x": 15.0,
+  "zdroj": "kabelaz-a-hadice/data/media.json — pevně 5×D (Murrelektronik 7000-12221, SICK YF2A14), pohyblivě (dveře) 15×D (Lapp ÖLFLEX CLASSIC 110, prodejce https://www.lapp.com/cs/cz/p/1119304)"
+ },
+ "smycka": {
+  "rezerva_pct": 10.0, "upinka_t": 3.0, "upinka_l": 15.0, "upinka_roztec": 150.0, "uhly_krok": 5.0, "uhel": 95.0,
+  "stav": "ODHAD",
+  "pozn": "volný úsek u pantu = svislý oblouk mezi upínkou na dveřích a upínkou na boku skříně v ose pantu (otevřením se úsek kroutí, ne ohýbá); délka ≥ (1 + rezerva) × nejkratší dráha konců v celém rozsahu 0–95° po 5° (rezerva 10 % ODHAD, skill: rezervu volí konstruktér); upínka 3 mm × 15 mm se stahovací páskou — typ ODHADEM"
+ },
+ "oddeleni": {
+  "min_mm": 250.0,
+  "zdroj": {"dokument": "SINAMICS G120C Operating Instructions 09/2017, kap. EMC-compliant installation: silové × citlivé kabely ≥ 25 cm, jinak uzemněná dělicí přepážka spojená s montážní deskou — převzato ze skillu rozvadec-3d (references/normy.md, [ověřeno]) a kabelaz-a-hadice (trasa.py ODDELENI_MM); PDF 2026-11-02 znovu neotevřeno (SIOS 403)", "url": "", "stav": "skill"},
+  "prepazka": {"t": 1.0, "patka": 7.5, "material": "ocelový plech pozinkovaný, uzemněný šrouby k montážní desce", "stav": "ODHAD"},
+  "silove_kat": ["main_switch", "mcb", "fuse", "rcd", "surge_protection", "power_supply_24v", "power_supply", "motor_protection", "contactor", "contactor_mirror", "soft_starter", "overload_relay", "vfd", "servo_drive", "positioning_drive"]
+ },
+ "pripojnice": {
+  "N": {"typ": "Phoenix Contact NLS-CU 3/10 SN (0402174), Cu pocínovaná 10 × 3 mm", "b": 10.0, "t": 3.0, "L": 100.0,
+        "zdroj": {"dokument": "Phoenix Contact datový list 0402174 (06.09.2022), str. 2/5: šířka 10 mm, výška 3 mm, 140 A", "url": "https://media.soselectronic.com/KatList/Phoenix/phoenix-contact-0402174-en.pdf", "stav": "ověřeno"},
+        "odhad": "délka 100 mm, upevnění (izolátory, šrouby) — datový list neuvádí, ODHAD"},
+  "PE": {"typ": "PE přípojnice Cu 10 × 3 mm (průřez jako NLS-CU 3/10)", "b": 10.0, "t": 3.0, "L": 100.0,
+         "zdroj": {"dokument": "průřez z datového listu Phoenix 0402174 (viz N); vodivé přišroubování k desce = ODHAD", "url": "https://media.soselectronic.com/KatList/Phoenix/phoenix-contact-0402174-en.pdf", "stav": "ODHAD"}},
+  "izolator": {"d": 14.0, "h": 20.0, "zavit": "M4", "hloubka": 6.0, "stav": "ODHAD", "pozn": "izolátor PA se dvěma vnitřními závity M4 6 mm proti sobě (mezi závity 8 mm plastu) — typ ODHADEM"},
+  "sroub": "M4"
+ },
+ "ventilatory": {
+  "_pozn": "Filtrační ventilátory Rittal TopTherm 24 V DC (napájení z -T1 = signálová strana). Průtok s 1 výstupním filtrem (výřez + filtr ve dveřích). Upevnění do výřezu bez šroubů (západky) — ODHAD, montážní návod nečten.",
+  "rezerva_K": 2.0,
+  "rezerva_text": "ODHAD: rezerva vnitřní teploty ≥ 2 K — průtok s výstupním filtrem je o 26–31 % nižší než volný (Rittal: 3239.124 100 → 74 m³/h); zanesení filtru průtok dál snižuje, 2 K při ΔT 5 K pokryje pokles průtoku o 40 %",
+  "f_zdroj": "Rittal TSH str. 7 (viz ztraty.json metoda)",
+  "typy": [
+   {"kod": "SK 3237.124", "vystup": "SK 3237.200", "U": "24 V DC", "V_volny": 20.0, "V_filtr": 15.0, "P": 2.4, "ram": 116.5, "vyrez": 92.0, "hloubka": 43.0, "ram_t": 16.0, "krytí": "IP 54",
+    "zdroj": {"dokument": "Rittal datový list SK 3237.124 (rittal.com pdf-creator, stav 2026-11-02), str. 2–3", "url": "https://www.rittal.com/pdf-creator/variant/ca-en/3237124", "stav": "ověřeno"}},
+   {"kod": "SK 3238.124", "vystup": "SK 3238.200", "U": "24 V DC", "V_volny": 52.0, "V_filtr": 36.0, "P": 5.7, "ram": 148.5, "vyrez": 124.0, "hloubka": 58.5, "ram_t": 16.0, "krytí": "IP 54",
+    "zdroj": {"dokument": "Rittal datový list SK 3238.124 (rittal.com pdf-creator, stav 2026-11-02), str. 2–3", "url": "https://www.rittal.com/pdf-creator/variant/ca-en/3238124", "stav": "ověřeno"}},
+   {"kod": "SK 3239.124", "vystup": "SK 3239.200", "U": "24 V DC", "V_volny": 100.0, "V_filtr": 74.0, "P": 5.7, "ram": 204.0, "vyrez": 177.0, "hloubka": 90.0, "ram_t": 24.0, "krytí": "IP 54",
+    "zdroj": {"dokument": "Rittal datový list SK 3239.124 (rittal.com pdf-creator, stav 2026-11-02), str. 2–3", "url": "https://www.rittal.com/pdf-creator/variant/ca-en/3239124", "stav": "ověřeno"}}
+  ],
+  "filtry": {
+   "SK 3237.200": {"ram": 116.5, "t": 16.0, "vyrez": 92.0, "url": "https://www.rittal.com/pdf-creator/variant/ca-en/3237200"},
+   "SK 3238.200": {"ram": 148.5, "t": 24.0, "vyrez": 124.0, "url": "https://www.rittal.com/pdf-creator/variant/ca-en/3238200"},
+   "SK 3239.200": {"ram": 204.0, "t": 24.0, "vyrez": 177.0, "url": "https://www.rittal.com/pdf-creator/variant/ca-en/3239200"}
+  },
+  "hloubka_text": "montážní hloubka z datového listu = hloubka za panelem (ODHAD výkladu); výstupní filtr za panelem 0 mm (ODHAD)",
+  "psu_text": "ztráta -T1 je v bilanci při jmenovitém zatížení — napájení ventilátoru ji nezvýší, dokud je celkový odběr ≤ jmenovitý proud zdroje (ověřit v bilanci proudů 24 V)"
+ }
+}

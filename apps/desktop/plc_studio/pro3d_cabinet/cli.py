@@ -6,7 +6,7 @@
 
 Výstup ve ``<složka>/rozvadec/``: ``layout.json``, ``ROZVADEC.md``, ``Rozvadec.FCStd`` (FreeCAD ve VLASTNÍ instanci přes
 skill freecad-instance: headless ``fc_cabinet.py``, pak GUI ``fc_cabinet_colors.py`` — barvy + snímky
-``snimky/generator_celo.png`` a ``generator_iso.png``). Díly „dle dokumentace“ bere z ``<složka>/dily/parts_index.json``
+``snimky/generator_celo.png``, ``generator_iso.png`` a ``generator_dvere_otevrene.png`` — dveře 95°). Díly „dle dokumentace“ bere z ``<složka>/dily/parts_index.json``
 (pro3d_parts gen). Poslední řádek stdout = JSON souhrn. Kód: 0 = vejde se, rezerva i bilance vyhovují; 1 = nevyhovuje
 (nevejde se do žádné skříně / rezerva / tepelná bilance nevyhovuje nebo nelze rozhodnout); 2 = selhalo (vstup, FreeCAD).
 """
@@ -69,7 +69,7 @@ def build_freecad(lay_path: Path, fcstd: Path, folder: Path, slot: str, timeout:
     if shots:
         sd = fcstd.parent / "snimky"
         sd.mkdir(parents=True, exist_ok=True)
-        args += [str(sd / "generator_celo.png"), str(sd / "generator_iso.png")]
+        args += [str(sd / "generator_celo.png"), str(sd / "generator_iso.png"), str(sd / "generator_dvere_otevrene.png")]
     runner(_ps(rf) + ["gui-start", "--slot", slot, "--max-min", str(max(10, timeout // 60 + 5))], timeout=600, **kw)
     try:
         runner(_ps(rf) + ["gui-run", "--slot", slot, "--timeout", str(timeout), "--result", str(cres),
@@ -120,15 +120,26 @@ def generate(manifest_path: str | Path, folder: str | Path, *, rezerva: float = 
                    zmena_skrine=lay["cabinet"]["zmena"], listy=[{"n": r["name"], "obsazeno_pct": round(100 - r["rezerva_pct"], 1),
                                                                  "rezerva_pct": r["rezerva_pct"]} for r in lay["rails"]],
                    bilance={"verdikt": b["verdikt"], "Qv": b["Qv"], "Qs": b["Qs"], "ti": b["ti"], "t_odhad": b["t_odhad"],
-                            "chybi": len(b["chybi"])}, rezerva_ok=v["rezerva_ok"], fc=fc)
+                            "chybi": len(b["chybi"]), "opatreni": _fan_summary(b.get("ventilator"))},
+                   rezerva_ok=v["rezerva_ok"], fc=fc, dvere_chyby=v.get("dvere_chyby", 0), oddeleni_ok=v.get("oddeleni_ok", True),
+                   kabelaz_dvere={k: {"volny": r.get("volny"), "chyby": r.get("chyby")} for k, r in (lay.get("kabelaz_dvere") or {}).items()})
+    therm_ok = b["verdikt"] == "vyhovuje" or (bool((b.get("ventilator") or {}).get("rezerva_ok")) and not b["chybi"])
     if no_fc:
-        summary.update(ok=True, kod=0 if (v["rezerva_ok"] and b["verdikt"] == "vyhovuje") else 1)
+        summary.update(ok=True, kod=0 if (v["rezerva_ok"] and therm_ok) else 1)
         return summary
     if not fc or not fcstd.is_file() or not fc.get("objektu"):
         summary.update(kod=2, chyba="; ".join((fc or {}).get("chyby") or ["model nevznikl"]))
         return summary
-    summary.update(ok=True, fcstd=str(fcstd), kod=0 if (v["rezerva_ok"] and b["verdikt"] == "vyhovuje" and fc.get("ok")) else 1)
+    summary.update(ok=True, fcstd=str(fcstd), kod=0 if (v["rezerva_ok"] and therm_ok and fc.get("ok")) else 1)
     return summary
+
+
+def _fan_summary(f: dict | None) -> dict | None:
+    if not f:
+        return None
+    t = f.get("typ") or {}
+    return {"verdikt": f.get("verdikt"), "typ": t.get("kod"), "ti": f.get("ti_s"), "rezerva_K": f.get("rezerva_K"),
+            "rezerva_ok": f.get("rezerva_ok"), "duvod": f.get("duvod")}
 
 
 def main(argv: list[str] | None = None) -> int:
