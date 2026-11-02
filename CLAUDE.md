@@ -449,6 +449,33 @@ python scripts/build_verification.py        # data/verification.json → verific
   v pokynu stavitele (díl „dle dokumentace“ = App::Link, zástupný jen zbytek), K5 to kontroluje, PREHLED.md souhrn.
   Pokrytí řádků kusovníku: vzor 01 70 %, 03 65 %, 11 68 %, 17 58 %, 20 67 %. Test `tests/test_pro3d_parts.py` (FreeCAD
   vzorek 23 dílů, obálka ± 0,1; porovnání s modely výrobců na disku jen ke čtení — V20 a IFS204 shodné, DSBC +2 / +0,9 mm).
+- **Rozvaděč kódem** (2026-11-02) `plc_studio/pro3d_cabinet/` (bez importu z `plc_studio`; `catalog_map` z `pro3d_parts`
+  jako sourozenec): `python -m plc_studio.pro3d_cabinet <PLCdesk_CAD.json> <složka stroje> [--rezerva 20] [--tamb 35] [--tin 40]
+  [--montaz stena|volne] [--no-fc]` → `rozvadec/layout.json`, `ROZVADEC.md`, `Rozvadec.FCStd`; kód 0 / 1 nevyhovuje (nevejde
+  se nikam / rezerva / bilance) / 2 selhalo. `layout.py` (čistý Python): kusy `location: cabinet` (stanice PLC v pořadí slotů,
+  svorky po svorkách se zarážkami), rozměry dily `modely[].bbox` → `catalog_map` → `data/rozmery.json` → ODHAD kategorie,
+  skupiny (napájení + silová / pohony na desce — smí sdílet pás / řízení / svorky / dveře), lišty TS35 s rezervou ≥ 20 % na
+  každé, žlaby 30 × 40 (ODHAD) mezi pásy + svislé, mezery `data/mezery.json` (zóna stanice / svorkovnice jako celek),
+  hloubka × vnitřní líc dveří, přístroje na dveřích bez kolize hloubkou; skříň = z manifestu, nevejde-li se, nejmenší
+  z `data/catalog/plc.json` (záloha `data/skrine.json`) + zpětná vazba `cabinet_too_small`; souřadnice X zleva při pohledu
+  zepředu po `_mirror_x`, Y k dveřím, Z nahoru; `hardware()` = díry, sloupky, šrouby ISO 4762 (deska M6, lišty / žlaby /
+  zarážky M4, přístroje na desce a ve dveřích M4 / M5 tečně — poloha ODHAD), panty (−95°), vývodky SKINTOP; tepelná bilance
+  Qs = k · A · ΔT (k = 5,5 Rittal TSH s. 6, A = geometrická plocha bez součinitelů b IEC TR 60890 — ODHAD metody),
+  Ti = min(`--tin`, nejnižší Tmax přístrojů), Qv jen z `data/ztraty.json` (stav doloženo / výtah / chybí — nic se
+  nedopočítává; chybí-li a Qv ≤ Qs → „nelze rozhodnout“), opatření jen návrh (ventilátor V = f · Qv / ΔT, chlazení,
+  větší skříň). Data 2026-11-02: ztráty S7-1200 G2 CPU / SM1221 / SM1231 / SM1232, 1214FC, MTP700, 3RT2016, 3RV2011,
+  5SL6110-7, 3SK1111, 3LD2103, PSU6200 z datových listů Siemens (kopie docs.rs-online.com, teddatasheet vrací 400),
+  V20 výtah; chybí SM1222 DQ16 G2, G120C, 1214C G2, 3RT2015, WAGO 2002, Festo CMMT-ST. `fc_cabinet.py` (headless, slot
+  `pro3d-cabinet`): App::Part `asm:cabinet`, skříň / dveře zástupné, deska na sloupcích, lišty / šrouby / vývodky „dle
+  dokumentace“, přístroje App::Link na `dily/` (jinak oranžová obálka), dveře s `Konstrukce_Pohyb`, zóny `Mezera …` /
+  `Rezerva …` = pomocny; `fc_cabinet_colors.py` (GUI) barvy + snímky `snimky/generator_celo.png` / `generator_iso.png`.
+  `fc_scan` dědí `PLCdesk_Mount` z odkazu / kontejneru (přístroj na liště z `dily/` = klip). Vzory: 20 → AX 1076.000,
+  16 → AX 1180.000 (obě změna proti 1050.000), kontroly `vse` bez chyb i varování, bilance nevyhovuje (40 °C S7-1200 G2
+  při plné specifikaci, okolí 35 °C). **Postup:** `make_cabinet` před 1. kolem stavitele rozvaděče (jen s generátory dílů),
+  výsledek `units.cabinet.generated` (reset části ho smaže); úspěch → `CABINET_GEN_PROMPT` (zkontroluj, doplň kabeláž / PE /
+  popisky, NEPŘESTAVUJ, nálezy do zpětné vazby), jinak starý pokyn; PREHLED.md oddíl „Rozvaděč kódem“. Testy
+  `tests/test_pro3d_cabinet.py` (data, layout 01 / 03 / 16 / 20, hardware, CLI, FreeCAD 20 + kontroly + snímek),
+  `test_pro_pipeline.CabinetGenTest`.
 - **Řízené RUČNÍ stahování modelů** (2026-10-24) `plc_studio/pro3d_download/` (bez Tk, bez sítě — **nic se nestahuje
   ani neskriptuje**: podmínky 3Dfindit / CADENAS čl. 12.3 (vii), TraceParts i portálů výrobců; stahuje člověk v prohlížeči).
   `vendors.json` = vzory URL (stránka produktu / hledání, `{code}` `{code_alnum}` `{query}`), `verified` + `verify_note`

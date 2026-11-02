@@ -1,0 +1,115 @@
+{
+ "_popis": "Skříně s rozměry a montážní deskou (mm) — kopie položek kategorie 'cabinet' s 'dims' z data/catalog/plc.json repozitáře PLCdesk (zdroj u každé). Generátor čte přednostně data/catalog/plc.json (je-li v repozitáři); tento soubor je záloha pro samostatné spuštění.",
+ "skrine": [
+  {
+   "brand": "Rittal",
+   "orderCode": "1050.000",
+   "typ": "AX 1050.000 – ocelová kompaktní skříň 500×500×210 mm",
+   "w": 500,
+   "h": 500,
+   "d": 210,
+   "plateW": 450,
+   "plateH": 475,
+   "src": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1050000"
+  },
+  {
+   "brand": "Rittal",
+   "orderCode": "1060.000",
+   "typ": "AX 1060.000 – ocelová kompaktní skříň 600×600×210 mm",
+   "w": 600,
+   "h": 600,
+   "d": 210,
+   "plateW": 550,
+   "plateH": 575,
+   "src": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1060000"
+  },
+  {
+   "brand": "Rittal",
+   "orderCode": "1076.000",
+   "typ": "AX 1076.000 – ocelová kompaktní skříň 600×760×210 mm",
+   "w": 600,
+   "h": 760,
+   "d": 210,
+   "plateW": 550,
+   "plateH": 735,
+   "src": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1076000"
+  },
+  {
+   "brand": "Rittal",
+   "orderCode": "1057.000",
+   "typ": "AX 1057.000 – ocelová kompaktní skříň 500×700×250 mm",
+   "w": 500,
+   "h": 700,
+   "d": 250,
+   "plateW": 450,
+   "plateH": 675,
+   "src": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1057000"
+  },
+  {
+   "brand": "Rittal",
+   "orderCode": "1073.000",
+   "typ": "AX 1073.000 – ocelová kompaktní skříň 760×760×300 mm",
+   "w": 760,
+   "h": 760,
+   "d": 300,
+   "plateW": 705,
+   "plateH": 735,
+   "src": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1073000"
+  },
+  {
+   "brand": "Rittal",
+   "orderCode": "1059.000",
+   "typ": "AX 1059.000 – ocelová kompaktní skříň 600×800×400 mm",
+   "w": 600,
+   "h": 800,
+   "d": 400,
+   "plateW": 545,
+   "plateH": 775,
+   "src": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1059000"
+  },
+  {
+   "brand": "Rittal",
+   "orderCode": "1260.000",
+   "typ": "AX 1260.000 – ocelová kompaktní skříň 600×1200×300 mm",
+   "w": 600,
+   "h": 1200,
+   "d": 300,
+   "plateW": 545,
+   "plateH": 1175,
+   "src": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1260000"
+  },
+  {
+   "brand": "Rittal",
+   "orderCode": "1180.000",
+   "typ": "AX 1180.000 – ocelová kompaktní skříň 800×1000×300 mm",
+   "w": 800,
+   "h": 1000,
+   "d": 300,
+   "plateW": 745,
+   "plateH": 975,
+   "src": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1180000"
+  },
+  {
+   "brand": "Rittal",
+   "orderCode": "1130.000",
+   "typ": "AX 1130.000 – ocelová kompaktní skříň 1000×760×300 mm",
+   "w": 1000,
+   "h": 760,
+   "d": 300,
+   "plateW": 945,
+   "plateH": 735,
+   "src": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1130000"
+  },
+  {
+   "brand": "Rittal",
+   "orderCode": "1114.000",
+   "typ": "AX 1114.000 – ocelová kompaktní skříň 1000×1400×300 mm",
+   "w": 1000,
+   "h": 1400,
+   "d": 300,
+   "plateW": 945,
+   "plateH": 1375,
+   "src": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1114000"
+  }
+ ]
+}

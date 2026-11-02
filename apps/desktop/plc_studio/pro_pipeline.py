@@ -24,6 +24,8 @@ Dávka bez GUI:
 
 Před stavbou (fáze 3) postup spustí generátory normalizovaných dílů ``pro3d_parts`` (bez AI, FreeCAD ve vlastní
 instanci) → ``dily/parts_index.json``; stavitel díly „dle dokumentace“ MUSÍ vložit jako App::Link, zástupné jen zbytek.
+Před 1. kolem stavitele rozvaděče postaví rozvaděč generátor kódem ``pro3d_cabinet`` (``make_cabinet``): když model vznikne,
+stavitel ho jen kontroluje a doplňuje (``CABINET_GEN_PROMPT``), jinak staví postaru.
 
 Kontroly modelu dělá KÓD (``pro3d_tools``: kolize, souvislost, otvory ISO 13857, kusovník, zástupné díly, STEP, snímky);
 stavitel je spouští před odevzdáním, kontrolor K5 nezávisle a verdikt o ně opírá — SCHVÁLENO s chybou v
@@ -256,6 +258,20 @@ K5_CONTINUE_PROMPT = ("\n\nPOKRAČOVÁNÍ KONTROLY: předchozí běh téže kont
                       "jen, když kontroly.json chybí, a dopiš protokol s verdiktem.")
 K5_NO_CHECKS_POINT = "spustit pro3d_tools vse (kontroly kódem do {sub}/k5_kolo{round}/) a verdikt opřít o kontroly.json"
 PARTS_SLOT = "pro3d-parts"
+CABINET_DIR = Path(__file__).resolve().parent / "pro3d_cabinet"
+CABINET_SLOT = "pro3d-cabinet"
+# rozvaděč vygenerovaný kódem (pro3d_cabinet) — stavitel ho jen kontroluje a doplňuje, nepřestavuje
+CABINET_GEN_PROMPT = """Rozvaděč je VYGENEROVANÝ KÓDEM (pro3d_cabinet, deterministicky z manifestu): {sub}/Rozvadec.FCStd,
+{sub}/ROZVADEC.md (skříň, lišty a obsazení, mezery výrobců se zdrojem, tepelná bilance se zdrojem každé ztráty, ODHAD / CHYBÍ,
+zpětná vazba) a {sub}/layout.json (všechny polohy, díry, šrouby). Skříň: {skrin}; lišty: {listy}; tepelná bilance: {bilance}.
+NEPŘESTAVUJ ho a neměň rozmístění, skříň ani mezery — zkontroluj ho a doplň jen to, co kód neumí:
+- kabeláž ve žlabech (svazky jako Konstrukce_Typ = kabel ve žlabech), PE / N přípojnice a potenciálové svorky, pokud chybí
+  (návrh mimo kusovník — vyjmenovat), popisky / štítky IEC 81346 podle tag z manifestu;
+- upevnění, které kód jen odhadl (vrtací obrazce přístrojů na desce, upínky přístrojů ve dveřích), jen když máš doklad.
+Pak spusť kontroly kódem (níže) a sebekontrolu oddílu R podle stroj-kontrolor; ve zprávě {sub}/ROZVADEC.md NEPŘEPISUJ část
+vygenerovanou kódem — připiš oddíl „Doplněno stavitelem“ (co, proč, výsledek kontrol). Nálezy kódu (změna skříně, nevyhovující
+tepelná bilance, chybějící ztráty / mezery) jsou rozhodnutí uživatele: sepiš je do {sub}/PLCdesk_CAD_feedback_rozvadec.json
+(formát v1), model kvůli nim neměň. Zóny mezer (Mezera …) a rezervy (Rezerva …) jsou pomocná tělesa — nemazat."""
 TOOLS_SLOT = {"builder": "pro3d-stavitel", "concept": "pro3d-stavitel", "k5": "pro3d-k5"}
 
 
@@ -459,11 +475,22 @@ def checklist_items(unit: str) -> str:
     return "\n".join(f"- {i}: {t}" for i, t in K5_ITEMS.items() if i[0] in ("V", sec))
 
 
+def cabinet_gen_text(gen: dict) -> str:
+    """Pokyn stavitele nad rozvaděčem vygenerovaným kódem (``gen`` = výsledek ``make_cabinet``)."""
+    listy = "; ".join(f"{x.get('n')} rezerva {x.get('rezerva_pct')} %" for x in gen.get("listy") or []) or "—"
+    b = gen.get("bilance") or {}
+    bil = (f"{b.get('verdikt')} (Qv {b.get('Qv')} W, Qs {b.get('Qs')} W, chybí ztráty {b.get('chybi', 0)} kusů)" if b else "—")
+    skrin = str(gen.get("skrin") or "—") + (" — ZMĚNA proti manifestu (zpětná vazba)" if gen.get("zmena_skrine") else "")
+    return CABINET_GEN_PROMPT.replace("{skrin}", skrin).replace("{listy}", listy).replace("{bilance}", bil)
+
+
 def builder_prompt(folder: Path, unit: str, rnd: int, template: str = "", extra: str = "", project: str = "",
-                   test_safety: bool = False, rebuild: str = "") -> str:
+                   test_safety: bool = False, rebuild: str = "", generated: dict | None = None) -> str:
     u = UNIT[unit]
     head = [f"Projekt PLCdesk: {project}" if project else "", f"Složka 3D stroje: {folder}",
             f"Část: {u['label']} (podsložka {u['sub']}/), kolo {rnd}"]
+    if generated and generated.get("ok") and unit == "cabinet":
+        template, rebuild = cabinet_gen_text(generated), ""        # model z kódu: kontrola a doplnění, ne stavba znovu
     body = fill(template.strip() or default_prompt(unit), sub=u["sub"], round=rnd)
     skill = skill_installed(STAVITEL_SKILL)
     have_k5 = skill_installed(KONTROLOR_SKILL)
@@ -904,6 +931,32 @@ def make_parts(folder: str | Path, *, log=print, slot: str = PARTS_SLOT, timeout
     return {"souhrn": res.get("souhrn"), "chyba": res.get("chyba") or ""}
 
 
+def make_cabinet(folder: str | Path, *, log=print, slot: str = CABINET_SLOT, timeout: int = 1200) -> dict:
+    """Rozvaděč kódem (``pro3d_cabinet``) nad ``PLCdesk_CAD.json`` → ``rozvadec/Rozvadec.FCStd``, ``ROZVADEC.md``, ``layout.json``.
+    FreeCAD jen ve vlastní instanci (slot ``pro3d-cabinet``). ``ok`` = model vznikl (kód 0 / 1 — i nevyhovující bilance je
+    výsledek k rozhodnutí uživatele); kód 2 / bez modelu = selhalo → stavitel staví postaru."""
+    folder = Path(folder)
+    man = folder / "PLCdesk_CAD.json"
+    if not man.is_file():
+        return {"ok": False, "chyba": "PLCdesk_CAD.json chybí"}
+    log(_("Rozvaděč: generátor kódem…"))
+    try:
+        r = subprocess.run([_python(), "-I", str(CABINET_DIR / "cli.py"), str(man), str(folder), "--slot", slot,
+                            "--timeout", str(timeout)], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=timeout + 900, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"ok": False, "chyba": str(exc)}
+    line = next((x for x in reversed((r.stdout or "").splitlines()) if x.startswith("{")), "")
+    try:
+        res = json.loads(line)
+    except ValueError:
+        return {"ok": False, "chyba": ((r.stdout or "") + (r.stderr or ""))[-1500:] or f"kód {r.returncode}"}
+    ok = bool(res.get("fcstd")) and Path(res["fcstd"]).is_file() and int(res.get("kod", 2)) in (0, 1)
+    return {"ok": ok, "kod": res.get("kod"), "skrin": res.get("skrin"), "zmena_skrine": res.get("zmena_skrine"),
+            "listy": res.get("listy"), "bilance": res.get("bilance"), "rezerva_ok": res.get("rezerva_ok"),
+            "chyba": res.get("chyba") or ("" if ok else "model nevznikl")}
+
+
 # --- běh agenta --------------------------------------------------------------------------------------------------
 
 def _usage(result: dict | None) -> dict:
@@ -1053,7 +1106,7 @@ class Pipeline:
     def __init__(self, folder: str | Path, prj: dict, *, max_rounds: int | None = None, test_safety: bool = False,
                  prompts: dict | None = None, extras: dict | None = None, runner=None, ai: bool = True,
                  inputs_fn=None, log=None, models: dict | None = None, turns: dict | None = None,
-                 parts: bool | None = None, parts_fn=None) -> None:
+                 parts: bool | None = None, parts_fn=None, cabinet_fn=None) -> None:
         self.folder = Path(folder)
         self.prj = prj
         self.project = str((prj.get("meta") or {}).get("name") or "")
@@ -1065,6 +1118,7 @@ class Pipeline:
         self.inputs_fn = inputs_fn or make_inputs
         self.parts = ai if parts is None else bool(parts)     # normalizované díly před stavbou (FreeCAD, bez AI)
         self.parts_fn = parts_fn or make_parts
+        self.cabinet_fn = cabinet_fn or make_cabinet          # rozvaděč kódem před stavitelem (jen s generátory dílů)
         self.events: list[str] = []
         self._log = log
         self.current = None
@@ -1140,6 +1194,7 @@ class Pipeline:
                 u.setdefault("history", []).append({"at": _now(), "state": u["state"], "rounds": u["rounds"]})
             u["state"], u["rounds"] = "waiting", []
             u.pop("rebuild", None)
+            u.pop("generated", None)
             if arch and k in arch["units"]:
                 u["rebuild"] = f"{arch['dir']}/{UNIT[k]['sub']}"
 
@@ -1260,6 +1315,26 @@ class Pipeline:
             write_download_list(self.folder, log=self.log)
         self.save()
 
+    def _cabinet(self) -> dict:
+        """Před 1. kolem stavitele rozvaděče: generátor kódem (FreeCAD, bez AI). Chyba postup nezastaví — stavitel pak
+        staví postaru. Výsledek v ``units.cabinet.generated`` (navázání ho nespouští znovu)."""
+        u = self.state["units"]["cabinet"]
+        if u.get("generated") is not None:
+            return u["generated"]
+        try:
+            res = self.cabinet_fn(self.folder, log=self.log) or {}
+        except Exception as exc:  # noqa: BLE001
+            res = {"ok": False, "chyba": str(exc)}
+        res = dict(res, at=_now())
+        u["generated"] = res
+        if res.get("ok"):
+            self.log(_("Rozvaděč vygenerován kódem: {cab}; tepelná bilance {bil}.", cab=res.get("skrin") or "?",
+                       bil=(res.get("bilance") or {}).get("verdikt") or "?"))
+        else:
+            self.log(_("Generátor rozvaděče selhal ({exc}) — stavitel staví rozvaděč sám.", exc=res.get("chyba") or "?"))
+        self.save()
+        return res
+
     def _agent(self, unit: str, role: str, prompt: str, rnd: int, cont: bool = False) -> dict:
         logs = self.folder / LOG_DIR
         logs.mkdir(parents=True, exist_ok=True)
@@ -1297,8 +1372,11 @@ class Pipeline:
                 u["state"] = "running"
                 self.save()
                 role = "concept" if key == "concept" and n == 1 else "builder"
+                gen = None
+                if key == "cabinet" and self.parts:
+                    gen = self._cabinet() if n == 1 or u.get("generated") is not None else None
                 p = builder_prompt(self.folder, key, n, self.prompts.get(key, ""), self.extras.get(key, ""),
-                                   self.project, self.test_safety, rebuild=u.get("rebuild", ""))
+                                   self.project, self.test_safety, rebuild=u.get("rebuild", ""), generated=gen)
                 prev = r["builder"] if r["builder"] and r["builder"].get("subtype") == "error_max_turns" else None
                 r["builder"] = self._agent(key, role, p + (CONTINUE_PROMPT if prev else ""), n)
                 if prev:                               # navázání po zastavení / pádu uprostřed pokračování
@@ -1558,6 +1636,19 @@ def write_summary(folder: str | Path, st: dict) -> Path:
                      f"[{PARTS_SUB}/DILY.md]({PARTS_SUB}/DILY.md)")
         if perr:
             L.append(f"Chyba generátorů: {perr}")
+        L.append("")
+    cg = (st.get("units") or {}).get("cabinet", {}).get("generated")
+    if cg:
+        L += ["## Rozvaděč kódem (pro3d_cabinet)", ""]
+        if cg.get("ok"):
+            b = cg.get("bilance") or {}
+            L.append(f"Skříň **{cg.get('skrin')}**" + (" (změna proti manifestu — zpětná vazba)" if cg.get("zmena_skrine") else "")
+                     + "; obsazení lišt: " + ", ".join(f"{x.get('n')} {x.get('obsazeno_pct')} % (rezerva {x.get('rezerva_pct')} %)"
+                                                       for x in cg.get("listy") or [])
+                     + f"; tepelná bilance **{b.get('verdikt')}** (Qv {b.get('Qv')} W, Qs {b.get('Qs')} W"
+                     + (f", chybí ztráty {b.get('chybi')} ks" if b.get("chybi") else "") + ") — [rozvadec/ROZVADEC.md](rozvadec/ROZVADEC.md)")
+        else:
+            L.append(f"Generátor selhal ({cg.get('chyba')}) — rozvaděč stavěl stavitel postaru.")
         L.append("")
     L += ["## Barvy v modelu", "", *COLOR_LEGEND, ""]
     est = collect_estimates(folder)
