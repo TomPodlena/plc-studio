@@ -595,6 +595,14 @@ class SlotsAndCascadeTest(unittest.TestCase):
         self.assertEqual((pp.TOOLS_SLOT["k5"], pp.PARTS_SLOT, pro_agent.FC_SLOT),
                          ("pro3d-k5", "pro3d-parts", "plcdesk-pro"))
 
+    def test_shot_ranges(self):
+        """Rozsah „detail_1…4.png“ v protokolu = 4 snímky, ne soubor „4.png“ (vzor 20, rozvaděč kolo 3)."""
+        names = pp.shot_names("`k5_kolo3/k5_kolo3_pudorys.png`, `k5_kolo3_detail_1…4.png`, detail_1-2.png")
+        self.assertIn("k5_kolo3_detail_4.png", names)
+        self.assertIn("detail_2.png", names)
+        self.assertNotIn("4.png", names)
+        self.assertIn("k5_kolo3/k5_kolo3_pudorys.png", names)
+
     def test_unapproved_is_reservation(self):
         st = {"units": {k: {"state": "pending", "rounds": []} for k in pp.UNIT_KEYS}}
         st["units"]["cabinet"] = {"state": "rejected", "rounds": [{"n": 3, "file": "rozvadec/KONTROLA_K5_rozvadec_kolo3.md"}]}

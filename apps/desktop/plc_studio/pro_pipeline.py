@@ -571,6 +571,23 @@ AUTO_HEAD = "## Automatický bod PLCdesk"
 _RESULT = re.compile(r"^(N/A|NA|NESPLN[ĚE]NO|SPLN[ĚE]NO)\b", re.I)
 _POINTS = re.compile(r"Povinných\s+bodů\s*:\s*(\d+)(?:\s*\(\s*blokující\s*(\d+)\s*,\s*závažné\s*(\d+))?", re.I)
 _PNG = re.compile(r"[\w./\\-]+\.png", re.I)
+# rozsah snímků v protokolu „k5_kolo3_detail_1…4.png“ / „detail_1-4.png“ (vzor 20, 2026-11-02: brána četla „4.png“)
+_PNG_RANGE = re.compile(r"([\w./\\-]*?[_\-])(\d{1,2})\s*(?:…|\.\.\.|–|-)\s*(\d{1,2})\.png", re.I)
+
+
+def shot_names(text: str) -> list[str]:
+    """Jména snímků z textu buňky; rozsah „x_1…4.png“ rozepíše na x_1.png … x_4.png."""
+    out: list[str] = []
+
+    def expand(m: re.Match) -> str:
+        a, b = int(m.group(2)), int(m.group(3))
+        if a <= b and b - a <= 20:
+            out.extend(f"{m.group(1)}{i}.png" for i in range(a, b + 1))
+            return " "
+        return m.group(0)
+    rest = _PNG_RANGE.sub(expand, text)
+    out += _PNG.findall(rest)
+    return list(dict.fromkeys(out))
 
 
 def _section(text: str, head: str) -> str:
@@ -762,7 +779,7 @@ def k5_audit(folder: str | Path, unit: str, rnd: int, text: str, chk: dict | Non
         pts.append(f"prohlédnuté snímky (kap. 5): {len(shots)}, minimum {ms}")
     missing, blank = [], []
     for row in shots:
-        for name in dict.fromkeys(_PNG.findall(" ".join(row))):
+        for name in shot_names(" ".join(row)):
             p = _find_shot(folder, unit, rnd, name)
             if p is None:
                 missing.append(Path(name.replace("\\", "/")).name)
