@@ -159,6 +159,7 @@ def modul_valec(typ: str, cil, y_s: float = 0.0, z_p: float = 40.0, vzdalenost: 
     telo = _spec_telo(typ)
     dily += [telo, mat]
     P = [cx, py, zs]
+    j_telo = len(inst)
     inst.append({"model": telo["key"], "pos": P, "rot": ROT_VALEC, "druh": "snimac", "mount": "zavit"})
     inst.append({"model": mat["key"], "pos": [cx, yl + T_DRZAK, zs], "rot": ROT_MATICE_Y, "druh": "matice_snimace"})
     inst.append({"model": mat["key"], "pos": [cx, yl - mn, zs], "rot": ROT_MATICE_Y, "druh": "matice_snimace"})
@@ -167,6 +168,7 @@ def modul_valec(typ: str, cil, y_s: float = 0.0, z_p: float = 40.0, vzdalenost: 
     kon = spojky_el.konektor(t["konektor"], start, [0, -1, 0], [-1, 0, 0])
     kk = _spec_konektor(kon, f"Zasuvka_{t['konektor']}")
     dily.append(kk)
+    j_kon = len(inst)
     inst.append({"model": kk["key"], "pos": start, "rot": ROT_VALEC, "druh": "konektor", "mount": "zavit"})
     # zóna snímání a cíl
     zona = {"add": [{"cyl": {"p": P, "d": [0, 1, 0], "r": d / 2, "h": t["Sn"]}}]}
@@ -178,9 +180,10 @@ def modul_valec(typ: str, cil, y_s: float = 0.0, z_p: float = 40.0, vzdalenost: 
                                                                   "Konstrukce_Poznamka": "tvar a tloušťka ODHAD; seřízení: podélné otvory "
                                                                   f"± {po['serizeni']:g} mm napříč drážkou, axiálně po závitu {serizeni['axialne']}"}},
                        {"name": "Zona_snimani", "label": f"Pomocná zóna snímání {typ} (Sn {t['Sn']:g} mm)", "body": zona,
-                        "props": {"Konstrukce_Typ": "pomocny"}},
+                        "props": {"Konstrukce_Typ": "pomocny", "Konstrukce_Zona": "snimani"}, "vyjimka": [f"inst:{j_telo}"]},
                        {"name": "Prostor_konektoru", "label": f"Pomocný prostor nasunutí zásuvky {t['konektor']} a prsty",
-                        "body": kon["zona"], "props": {"Konstrukce_Typ": "pomocny"}},
+                        "body": kon["zona"], "props": {"Konstrukce_Typ": "pomocny", "Konstrukce_Zona": "konektor"},
+                        "vyjimka": [f"inst:{j_telo}", f"inst:{j_kon}"]},
                        {"name": "Cil", "label": f"Pomocný cíl (snímaný předmět, {dist:g} mm od čela)", "body": cil_b,
                         "props": {"Konstrukce_Typ": "pomocny"}}],
             "kabely": [{"name": "Kabel", "label": f"Kabel {t['konektor']} (začátek, R {kon['kabel']['R']:g})", "r": kon["kabel"]["r"],
@@ -232,6 +235,7 @@ def modul_kvadr(typ: str, cil, y_s: float = 0.0, z_p: float = 40.0, py: float | 
         srouby_m4.append(r["text"])
     telo = _spec_telo(typ)
     dily.append(telo)
+    j_telo = len(inst)
     inst.append({"model": telo["key"], "pos": P, "rot": ROT_KVADR, "druh": "snimac", "mount": ""})
     # konektor: vidlice M12 na spodku snímače (model −z → globální +X), ODHAD poloha
     kp = add(P, mul(ROT_KVADR, [t["konektor_x"], W / 2, 0]))
@@ -240,6 +244,7 @@ def modul_kvadr(typ: str, cil, y_s: float = 0.0, z_p: float = 40.0, py: float | 
     kon = spojky_el.konektor(t["konektor"], start, [1, 0, 0], [0, 1, 0])
     kk = _spec_konektor(kon, f"Zasuvka_{t['konektor']}")
     dily.append(kk)
+    j_kon = len(inst)
     inst.append({"model": kk["key"], "pos": start, "rot": I3, "druh": "konektor", "mount": "zavit"})
     opt = add(P, mul(ROT_KVADR, [0, W / 2, t["osa_z"]]))
     L = cy - py
@@ -256,9 +261,10 @@ def modul_kvadr(typ: str, cil, y_s: float = 0.0, z_p: float = 40.0, py: float | 
                         "props": {"Konstrukce_Typ": "dil", "PLCdesk_ModelStatus": "placeholder", "Konstrukce_Zastupny": True,
                                   "PLCdesk_Mount": "zavit"}},
                        {"name": "Zona_paprsku", "label": f"Pomocná zóna paprsku {typ} (rozptyl {t['rozptyl_deg']:g}°)", "body": zona,
-                        "props": {"Konstrukce_Typ": "pomocny"}},
+                        "props": {"Konstrukce_Typ": "pomocny", "Konstrukce_Zona": "paprsek"}, "vyjimka": [f"inst:{j_telo}", "tel:Vidlice"]},
                        {"name": "Prostor_konektoru", "label": f"Pomocný prostor nasunutí zásuvky {t['konektor']} a prsty",
-                        "body": kon["zona"], "props": {"Konstrukce_Typ": "pomocny"}},
+                        "body": kon["zona"], "props": {"Konstrukce_Typ": "pomocny", "Konstrukce_Zona": "konektor"},
+                        "vyjimka": [f"inst:{j_telo}", f"inst:{j_kon}", "tel:Vidlice"]},
                        {"name": "Odrazka", "label": f"Pomocná odrazka {t['odrazka']} (mimo modul — poloha cíle, Ø 80 ODHAD)", "body": odr,
                         "props": {"Konstrukce_Typ": "pomocny"}}],
             "kabely": [{"name": "Kabel", "label": f"Kabel {t['konektor']} (začátek, R {kon['kabel']['R']:g})", "r": kon["kabel"]["r"],

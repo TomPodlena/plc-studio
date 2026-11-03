@@ -2,6 +2,7 @@
 
 FreeCAD část běží jen s run_fc.ps1 (skill freecad-instance) a bez PRO3D_SKIP_FC; slot pro3d-s1-test."""
 
+import json
 import math
 import os
 import shutil
@@ -9,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from plc_studio.pro3d_lib import bench, modul_snimac, spojky_el, spojky_mech
+from plc_studio.pro3d_lib import bench, modul_snimac, modul_valec, spojky_el, spojky_mech, spojky_pneu
 from plc_studio.pro3d_tools import rules
 
 
@@ -165,6 +166,164 @@ class ModulS1Test(unittest.TestCase):
         m = modul_snimac.modul("IFS204", (50, 45, 50))
         self.assertTrue(m["varovani"])
         self.assertGreater(m["kontrola"]["celo"][2], 50)
+
+
+class ZonyRulesTest(unittest.TestCase):
+    def test_pomocne_zony(self):
+        self.assertEqual(rules.typ_dilu({"Konstrukce_Zona": "konektor"}), "pomocny")
+        self.assertEqual(rules.typ_dilu({"Konstrukce_Zona": "zdvih"}), "zona")
+        self.assertEqual(rules.pomocna_zona({"Konstrukce_Zona": "Hadice"}), "hadice")
+        self.assertIsNone(rules.pomocna_zona({"Konstrukce_Zona": "zdvih"}))
+        self.assertEqual(rules.zona_vyjimky({"Konstrukce_ZonaVyjimka": "M1_snimac_4, M1_Vidlice"}), {"M1_snimac_4", "M1_Vidlice"})
+
+    def test_s1_zony_nesou_druh_a_vyjimky(self):
+        for m in modul_snimac.lavice_s1()["moduly"]:
+            z = [t for t in m["telesa"] if t["props"].get("Konstrukce_Zona")]
+            self.assertEqual(len(z), 2, m["nazev"])
+            for t in z:
+                self.assertIn(t["props"]["Konstrukce_Zona"], rules.POMOCNE_ZONY)
+                self.assertTrue(t["vyjimka"])
+                for ref in t["vyjimka"]:
+                    kind, _s, key = ref.partition(":")
+                    if kind == "inst":
+                        self.assertLess(int(key), len(m["instance"]))
+
+
+class SpojkyPneuTest(unittest.TestCase):
+    def test_volba_a_data(self):
+        v = spojky_pneu.volba_pro_valec("G1/8", grla=True)
+        self.assertEqual(v["fitting"], "GRLA-1/8-QS-6-RS-D")
+        self.assertEqual(spojky_pneu.volba_pro_valec("G1/4")["fitting"], "QS-G1/4-8")
+        self.assertEqual(spojky_pneu.volba_pro_valec("M5x0.8")["hose"], "festo_PUN_4x0.75")
+        self.assertEqual(spojky_pneu.sroubeni("QS-G1/8-6")["zasun"], 17)
+        self.assertEqual(spojky_pneu.hadice(6)["R_prutok"], 26.5)
+
+    def test_port_hadice_zasunuta_a_polomer(self):
+        for fit, hose, tower in (("QS-G1/8-6", "festo_PUN_6x1", [0, -1, 0]), ("GRLA-1/8-QS-6-RS-D", "festo_PUN_6x1", [0, -1, 0]),
+                                 ("QSM-M5-4", "festo_PUN_4x0.75", [1, 0, 0])):
+            w = [0, 0, 1] if fit.startswith("GRLA") else tower
+            r = spojky_pneu.port({"seat": [0, 0, 0], "n": [0, 0, 1], "fitting": fit, "hose": hose, "tower": tower, "w": w})
+            h = r["hadice"]
+            a, b = h["path"][0]["line"]
+            self.assertAlmostEqual(math.dist(a, h["usti"]), h["zasun"], places=6)          # čelo hadice = hloubka zasunutí
+            self.assertLessEqual(h["zasun"], rules.ZASUN_MAX)
+            self.assertAlmostEqual(spojky_pneu.ohyb_z_cesty(h["path"]), h["R"], places=3)
+            self.assertGreaterEqual(h["R"], h["R_min"])
+            self.assertTrue(r["dil"]["zastupny"])
+            self.assertEqual(r["dil"]["typ"], "sroubeni")
+
+    def test_frame(self):
+        R = spojky_pneu.frame([0, 0, 1], [0, -1, 0])
+        self.assertEqual([R[i][2] for i in range(3)], [0, 0, 1])
+        self.assertEqual([R[i][0] for i in range(3)], [0, -1, 0])
+
+
+class ModulP1Test(unittest.TestCase):
+    def setUp(self):
+        self.plan = modul_valec.lavice_p1()
+
+    def test_tri_varianty_bez_varovani(self):
+        self.assertEqual([m["tag"] for m in self.plan["moduly"]], ["-Y1", "-Y2", "-Y3"])
+        self.assertEqual(len({d["key"] for d in self.plan["dily"]}), len(self.plan["dily"]))
+        for m in self.plan["moduly"]:
+            self.assertEqual(m["varovani"], [], m["nazev"])
+
+    def test_sily(self):
+        A, B, C = self.plan["moduly"]
+        self.assertAlmostEqual(A["rozhrani"]["sily"]["F_ven_10bar_N"], round(math.pi * 32 ** 2 / 4, 1))
+        self.assertAlmostEqual(A["rozhrani"]["sily"]["F_zpet_10bar_N"], round(math.pi * (32 ** 2 - 12 ** 2) / 4, 1))
+        self.assertAlmostEqual(B["rozhrani"]["sily"]["F_ven_6bar_N"], round(math.pi * 50 ** 2 / 4 * 0.6, 1))
+        self.assertAlmostEqual(A["rozhrani"]["sily"]["M_kotveni_10bar_Nm"], round(math.pi * 32 ** 2 / 4 * 32 / 1000, 2))
+        self.assertEqual(C["rozhrani"]["sily"]["rameno_mm"], 20)
+
+    def test_zdvih_a_pohyb(self):
+        for m in self.plan["moduly"]:
+            k = m["kontrola"]
+            pm = json.loads(m["skupiny"][0]["props"]["Konstrukce_Pohyb"])
+            self.assertEqual(pm, {"nazev": "pístnice vysunuta", "posun": [float(k["zdvih"]), 0.0, 0.0]})
+            acc = [i for i in m["instance"] if i.get("skupina") == "Pistnice"]
+            for i in acc:
+                self.assertAlmostEqual(i["pos"][0], k["x_osazeni"])
+            z = next(t for t in m["telesa"] if t["name"] == "Zona_zdvihu")["body"]["add"][0]["box"]
+            self.assertGreaterEqual(z[1], k["konec"] + k["zdvih"])                      # zóna pokryje vysunutou polohu
+
+    def test_srouby_zasroubovani(self):
+        for m in self.plan["moduly"]:
+            for t in m["kontrola"]["srouby"]:
+                self.assertIn("≥", t, t)
+            for s in m["dily"]:
+                if s.get("gen") == "sroub_4762":
+                    self.assertIn(int(s["params"]["l"]), spojky_mech.delky())
+        # víko válce ISO 15552 (hliník, BG 16): M6 / M8 zašroubování ≥ 1,5·d a dřík nesmí na dno závitu
+        for d, m_ in ((32, "M6"), (50, "M8")):
+            p, _ = modul_valec.catalog_map.cylinder_spec("ISO 15552", d, 50)
+            r = spojky_mech.delka_do_zavitu(m_, 4.5 if d == 32 else 5.5, p["params"]["BG"], "hlinik", pruchozi=False)
+            self.assertTrue(r["ok"])
+            self.assertGreaterEqual(r["v_zavitu"], rules.min_zasroubovani(float(m_[1:]), "hlinik") - rules.ZASROUB_TOL)
+            self.assertLessEqual(r["v_zavitu"], p["params"]["BG"])
+
+    def test_snimace_v_koncovych_polohach(self):
+        for m in self.plan["moduly"]:
+            k = m["kontrola"]
+            B, A = k["snimace"]
+            self.assertEqual((B["nazev"], B["poloha_pistu"], A["nazev"], A["poloha_pistu"]), ("B", "zasunuto", "A", "vysunuto"))
+            self.assertLess(B["x"][1], k["L"] / 2)                    # B u zadního víka
+            self.assertGreater(A["x"][0], k["L"] / 2)                 # A u předního víka
+            self.assertGreaterEqual(B["x"][0], 0)
+            self.assertLessEqual(A["x"][1], k["L"])
+            for R, Rc in k["kabel_R"]:
+                self.assertAlmostEqual(R, Rc, places=2)
+
+    def test_hadice_polomery(self):
+        for m in self.plan["moduly"]:
+            self.assertEqual(len(m["kontrola"]["porty"]), 2)
+            for R, Rc in m["kontrola"]["hadice_R"]:
+                self.assertAlmostEqual(R, Rc, places=2)
+            for q in m["kontrola"]["porty"]:
+                self.assertGreaterEqual(q["R"], q["R_min"])
+
+    def test_rozhrani_uplne(self):
+        for m in self.plan["moduly"]:
+            r = m["rozhrani"]
+            for k in ("kotveni", "pripojky", "elektro", "signaly", "zony", "obalka", "obalka_vysunuto", "hmotnost_kg", "sily",
+                      "odhady", "zdroje"):
+                self.assertIn(k, r)
+            self.assertTrue(r["kotveni"] and r["pripojky"] and r["elektro"] and r["odhady"])
+            for z in r["zdroje"]:
+                self.assertTrue(z.startswith("http") or "SMC" in z or "ODHAD" in z, z)
+        # kotvení do drážky profilu leží na drážce (y = 0, z = 40) i u natočeného válce C
+        for m in self.plan["moduly"]:
+            for k in m["rozhrani"]["kotveni"]:
+                self.assertAlmostEqual(k["pos"][1], 0.0, places=6)
+                self.assertAlmostEqual(k["pos"][2], 40.0, places=6)
+
+    def test_nepodporovane(self):
+        with self.assertRaises(ValueError):
+            modul_valec.modul("-Y9", "ISO 15552", 32, 100, "oko")
+        with self.assertRaises(ValueError):
+            modul_valec.modul("-Y9", "ISO 15552", 33, 100, "patky")
+
+
+@unittest.skipIf(os.environ.get("PRO3D_SKIP_FC") or not bench.available(), "FreeCAD (run_fc.ps1) není k dispozici")
+class LaviceP1FreeCADTest(unittest.TestCase):
+    def test_lavice_p1_kontroly(self):
+        d = Path(tempfile.mkdtemp(prefix="p1_lavice_"))
+        try:
+            res = bench.build_and_check(modul_valec.lavice_p1(), d, slot="pro3d-p1-test", vysunuto=True)
+            s = res["souhrn"]
+            self.assertEqual(s["selhalo"], [], s)
+            for k in ("kolize", "souvislost", "zasunuti", "kopie", "zony", "stav", "step"):
+                self.assertEqual(s["kontroly"][k]["chyby"], 0, (k, s))
+            ch = res["kontroly"]["checks"]
+            self.assertTrue(any(p["poloha"] == "pístnice vysunuta" for p in ch["kolize"]["data"]["polohy"]))
+            self.assertGreaterEqual(ch["zony"]["data"]["zon"], 6)
+            zas = ch["zasunuti"]["data"]["sroubu"]
+            self.assertTrue(all(x["posudek"]["uroven"] == "ok" for x in zas), [x["posudek"] for x in zas if x["posudek"]["uroven"] != "ok"])
+            for p in s["snimky"]:
+                self.assertTrue(Path(p).is_file() and Path(p).stat().st_size > 10000, p)
+        finally:
+            if not os.environ.get("PRO3D_KEEP"):
+                shutil.rmtree(d, ignore_errors=True)
 
 
 @unittest.skipIf(os.environ.get("PRO3D_SKIP_FC") or not bench.available(), "FreeCAD (run_fc.ps1) není k dispozici")
