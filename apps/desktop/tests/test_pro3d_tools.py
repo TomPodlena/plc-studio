@@ -441,6 +441,73 @@ class FreeCADSynthTest(unittest.TestCase):
         self.assertIn("Kopie těles", md)
         self.assertIn("Zašroubování", md)
 
+    def test_dolozeny_zavit(self):
+        """Konstrukce_Zavit na App::Link k modelu bez děr (pro3d_synth_zavit.py): šroub do doloženého závitu = OK
+        a kolize povolena; záznam bez zdroje se neuzná (kolize = chyba, varování zavit-zaznam)."""
+        d = tmp()
+        model = d / "SynthZavit.FCStd"
+        s = run.fc_run(HERE / "pro3d_synth_zavit.py", [model], FC_SLOT, 300)
+        self.assertTrue(s.get("ok"), s)
+        rep = run.run_checks(model, ("kolize", "souvislost", "zasunuti"), slot=FC_SLOT, timeout=600)
+        c = rep["checks"]
+        self.assertEqual(rep["freecad"]["pruchod"]["zavitu_dolozenych"], 1, rep["freecad"]["pruchod"])
+        posud = {x["label"]: x["posudek"] for x in c["zasunuti"]["data"]["sroubu"]}
+        ok = posud["Šroub ISO 4762 M6x20 do doloženého závitu"]
+        self.assertEqual((ok["uroven"], ok["druh"]), ("ok", "zavit"), ok)
+        self.assertAlmostEqual(ok["delka"], 12.0, delta=0.2)
+        self.assertIn("zavit-zaznam", [f["kod"] for f in c["zasunuti"]["varovani"]])
+        kol = [f["text"] for f in c["kolize"]["chyby"]]
+        self.assertEqual(len(kol), 1, kol)
+        self.assertIn("bez zdroje", kol[0])
+        self.assertEqual(c["kolize"]["data"]["povolenych"], 1)      # šroub v doloženém závitu (v desce je vůle)
+        self.assertEqual(c["souvislost"]["chyby"], [])
+
+
+class ZavitRulesTest(unittest.TestCase):
+    def test_parse_a_zaber(self):
+        z, e = rules.parse_zavit("M6x1;hloubka 12;poloha 0,0,0;osa 0,0,-2;zdroj https://x.cz/a.pdf;material hlinik"
+                                 " | M5;hloubka 3;poloha 1,2,3;osa 1,0,0 | M8;poloha 0,0,0;osa 0,0,1;zdroj https://y")
+        self.assertEqual(len(z), 1)
+        self.assertEqual(len(e), 2)                         # bez zdroje, bez hloubky
+        self.assertEqual(z[0]["osa"], [0.0, 0.0, -1.0])
+        self.assertEqual(z[0]["d"], 6.0)
+        # dřík M6 od z = 5 dolů 15 mm: v závitu 0…−12 → 10 mm
+        self.assertAlmostEqual(rules.zavit_zaber([0, 0, 5], [0, 0, -1], 3.0, 0.0, 15.0, z[0]), 10.0)
+        self.assertAlmostEqual(rules.zavit_zaber([0, 0, -20], [0, 0, 1], 3.0, 0.0, 30.0, z[0]), 12.0)   # opačný směr osy
+        self.assertIsNone(rules.zavit_zaber([1, 0, 5], [0, 0, -1], 3.0, 0.0, 15.0, z[0]))             # mimo osu
+        self.assertIsNone(rules.zavit_zaber([0, 0, 5], [0, 0, -1], 4.0, 0.0, 15.0, z[0]))             # M8 do M6
+        self.assertIsNone(rules.zavit_zaber([0, 0, 5], [1, 0, 0], 3.0, 0.0, 15.0, z[0]))              # jiný směr
+        z2, _ = rules.parse_zavit(rules.zavit_text(z))
+        self.assertEqual(z2[0]["poloha"], z[0]["poloha"])
+        self.assertEqual(z2[0]["zdroj"], z[0]["zdroj"])
+
+    def test_mount_self(self):
+        for m in ("din", "rack", "drazka", "zavit", "bajonet", "upinka"):
+            self.assertIn(m, rules.MOUNT_SELF)
+
+    def test_konvence_zon_zavazna(self):
+        self.assertIn("ZÁVAZNÉ pro všechny moduly", rules.KONVENCE)
+        self.assertIn("Konstrukce_Zavit", rules.KONVENCE)
+
+
+class OtvoryVarovaniTest(unittest.TestCase):
+    def test_zkusebni_deska_jen_varovani(self):
+        d = tmp()
+        model = _fcstd(d / "m.FCStd", [("Part::Feature", "A", "a", {})], {})
+
+        def fake(script, args, slot, timeout):
+            Path(args[1]).write_text(json.dumps({"pruchod": {}, "checks": {"otvory": {"teles": 1, "zon": 1, "zony": [], "grids": [
+                {"vox": 5.0, "grid": [1, 1, 1], "paths": [{"vox": 5.0, "e": 999.0, "sr_primka": 10.0, "sr_draha": 10.0,
+                                                           "nejuzsi": [0, 0, 0], "vstup": [0, -9, 0]}]}]}}}), encoding="utf-8")
+            return {"ok": True}
+
+        r1 = run.run_checks(model, ("otvory",), fc_runner=fake, slot="x")
+        self.assertTrue(r1["checks"]["otvory"]["chyby"])
+        r2 = run.run_checks(model, ("otvory",), fc_runner=fake, slot="x", otvory_varovani=True)
+        self.assertEqual(r2["checks"]["otvory"]["chyby"], [])
+        self.assertTrue(any("jen varování" in f["text"] for f in r2["checks"]["otvory"]["varovani"]))
+        self.assertEqual(r2["souhrn"]["stav"], "OK")
+
 
 if __name__ == "__main__":
     unittest.main()

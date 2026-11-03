@@ -93,6 +93,8 @@ def _zjed(pr):
 
 LEAVES = []      # {key, label, name, doc, path, typ, s, bb, pohyb, props}
 PLC_OBJS = []    # díly s PLCdesk_Id (kusovník)
+THREADS = []     # doložené závity (Konstrukce_Zavit) v globálních souřadnicích: {owner, label, path, d, hloubka, poloha, osa, …}
+THREAD_ERR = []  # vadné záznamy Konstrukce_Zavit (bez zdroje / formát)
 SKIPPED = {"zdroje": 0, "pomocne": 0, "prazdne": 0, "chyby_tvaru": []}
 
 
@@ -108,6 +110,21 @@ def pohyb_global(pm, plc):
         o = pm["otoc"]
         out["otoc"] = {"osa": list(plc.Rotation.multVec(V(*o["osa"]))), "bod": list(plc.multVec(V(*o["bod"]))), "uhel": o["uhel"]}
     return out
+
+
+def add_threads(o, pr, gplc, path, mat=""):
+    """``Konstrukce_Zavit`` objektu (odkaz / těleso) → THREADS v globálu (``gplc`` = umístění souřadnic záznamu)."""
+    raw = pr.get("Konstrukce_Zavit")
+    if not raw:
+        return
+    zz, err = rules.parse_zavit(raw)
+    owner = f"{o.Document.Name}#{o.Name}"
+    THREAD_ERR.extend(f"{o.Label}: {e}" for e in err)
+    for z in zz:
+        p = gplc.multVec(V(*z["poloha"]))
+        a = gplc.Rotation.multVec(V(*z["osa"]))
+        THREADS.append(dict(z, owner=owner, label=o.Label, path="/".join(path + [o.Label]), poloha=[p.x, p.y, p.z],
+                            osa=[a.x, a.y, a.z], material=z.get("material") or mat or pr.get("Konstrukce_Material") or ""))
 
 
 def walk(o, plc, path, inh):
@@ -149,6 +166,8 @@ def walk(o, plc, path, inh):
             if getattr(o, "LinkTransform", False):
                 nplc = nplc.multiply(lo.Placement)
             lpr = props(lo)
+            add_threads(o, pr if pr.get("Konstrukce_Zavit") else lpr, nplc, path,
+                        lpr.get("Konstrukce_Material") or inh.get("mat") or "")
             lpid = lpr.get("PLCdesk_Id") or ""
             if lpid and lpid not in ids and not pid:        # vlastní PLCdesk_Id odkazu má přednost před cílem
                 PLC_OBJS.append({"id": lpid, "inst": lpr.get("PLCdesk_Instance", ""), "label": lab,
@@ -185,6 +204,7 @@ def walk(o, plc, path, inh):
     if inh.get("mat") and not pr.get("Konstrukce_Material"):
         pr = dict(pr, Konstrukce_Material=inh["mat"])
     typ = rules.typ_dilu(pr, lab, o.Name)
+    add_threads(o, pr, plc.multiply(o.Placement), path)
     if typ == "pomocny":
         SKIPPED["pomocne"] += 1
     LEAVES.append({"key": f"{o.Document.Name}#{o.Name}#{len(LEAVES)}", "label": lab, "name": o.Name, "doc": o.Document.Name,
@@ -206,7 +226,8 @@ for x in REAL:
     mbb = x["bb"] if mbb is None else mbb.united(x["bb"])
 R["pruchod"] = {"listu": len(LEAVES), "realnych": len(REAL), "zon": len(ZONES), "dilu_s_id": len(PLC_OBJS),
                 "preskoceno": SKIPPED, "obalka": bbl(mbb) if mbb else None,
-                "typy": {t: sum(1 for x in REAL if x["typ"] == t) for t in rules.TYPES if any(x["typ"] == t for x in REAL)}}
+                "typy": {t: sum(1 for x in REAL if x["typ"] == t) for t in rules.TYPES if any(x["typ"] == t for x in REAL)},
+                "zavitu_dolozenych": len(THREADS), "zavit_chyby": THREAD_ERR[:20]}
 R["t"]["pruchod"] = round(time.time() - T0, 1)
 save()
 
@@ -265,6 +286,22 @@ def coaxial_hole(fast, other, common):
         if off <= 0.6 and fc.Surface.Radius <= r + 0.6:
             return common <= 0.5 * fast.Volume, "souosá díra"
     return False, "bez souosé díry v druhém dílu"
+
+
+def in_doc_thread(fast, other, common):
+    """Šroub v doloženém závitu (``Konstrukce_Zavit``) dílu ``other``: dřík souosý se záznamem vlastníka a průnik
+    nepřesahuje objem dříku v závitu (+ 10 % a 1 mm³ na zaokrouhlení)."""
+    sh = shank_of(fast["s"])
+    if sh is None:
+        return False, "šroub bez dříku"
+    zz = doc_thread_zaber(sh, leaf_owners(other))
+    if not zz:
+        return False, "bez souosého doloženého závitu"
+    L = max(z["delka"] for z in zz)
+    lim = math.pi * sh["r"] ** 2 * L * 1.1 + 1.0
+    if common <= lim:
+        return True, f"doložený závit (Konstrukce_Zavit, {zz[0]['zavit'].split(';')[0]}, {L:.1f} mm)"
+    return False, f"průnik {common:.0f} mm³ > dřík v doloženém závitu {lim:.0f} mm³"
 
 
 def in_slot(nut, prof, common, cs=None):
@@ -359,6 +396,10 @@ def collide(items, moved_keys=None, label=""):
                 ok, why = v <= 0.5 * min(a["s"].Volume, b["s"].Volume), "závit šroub × matice"
             else:
                 ok, why = coaxial_hole(fa["s"], ot["s"], v)
+                if not ok and fa["typ"] == "sroub" and THREADS:
+                    ok2, why2 = in_doc_thread(fa, ot, v)          # Konstrukce_Zavit — model výrobce bez děr
+                    if ok2:
+                        ok, why = ok2, why2
                 if not ok and fa["typ"] == "sroub" and ot["typ"] == "profil":
                     ok2, why2 = in_slot(fa["s"], ot["s"], v, cs)       # hlava šroubu / spojky v drážce profilu
                     if ok2:
@@ -562,6 +603,29 @@ def _zaber(sh, x):
     return None
 
 
+def doc_thread_zaber(sh, owners=None):
+    """Záběry dříku ``sh`` (shank_of) v doložených závitech ``Konstrukce_Zavit`` (``rules.zavit_zaber``) — druh
+    ``zavit`` s ``dolozeny = True``. ``owners`` = jen závity těchto vlastníků (doc#Name odkazu / tělesa)."""
+    out = []
+    c, d = sh["c"], sh["d"]
+    for z in THREADS:
+        if owners is not None and z["owner"] not in owners:
+            continue
+        L = rules.zavit_zaber([c.x, c.y, c.z], [d.x, d.y, d.z], sh["r"], sh["t0"], sh["t1"], z)
+        if L is None or L <= rules.ZASROUB_TOL:
+            continue
+        out.append({"dil": z["label"], "path": z["path"], "druh": "zavit", "dolozeny": True, "delka": round(L, 2),
+                    "diry": z["hloubka"], "skrz": False, "material": rules.material_zavitu({"Konstrukce_Material": z["material"]},
+                                                                                          z["label"]),
+                    "zdroj": z["zdroj"], "zavit": z["text"]})
+    return out
+
+
+def leaf_owners(x):
+    """Identifikace listu pro doložené závity: vlastní objekt + všechny App::Link na cestě."""
+    return {f"{x['doc']}#{x['name']}"} | set(x.get("lnk") or ())
+
+
 _SCREWS = None
 
 
@@ -603,6 +667,11 @@ def screw_analysis():
                 z = {"dil": y["label"], "druh": "chyba", "delka": 0.0, "chyba": str(exc)[:200]}
             if z:
                 zab.append(z)
+        dz = doc_thread_zaber(sh)
+        if dz:      # dřík v plném materiálu dílu s doloženým závitem = ten závit (model díry nemá)
+            tp = {z["path"] for z in dz}
+            zab = [z for z in zab if not (z.get("druh") == "bez_diry" and any(
+                str(z.get("path") or "") == p or str(z.get("path") or "").startswith(p + "/") for p in tp))] + dz
         if not any(z.get("druh") in ("zavit", "matice", "bez_diry", "kontext") for z in zab):
             # konec dříku dosedá na zjednodušený model (obálka / zástupný bez děr) — závit v něm tady modelovat nejde
             ends = [(sh["t0"], -1.0), (sh["t1"], 1.0)] if sh["head"] is None else                 [(sh["t0"], -1.0)] if sh["head"] == "hi" else [(sh["t1"], 1.0)]
@@ -669,6 +738,12 @@ def check_zasunuti():
             res[key] = res[key][:10] + [f_("sroub-souhrn", f"… a dalších {n} šroubů ("
                                            + ", ".join(f"{k} {v}×" for k, v in sorted(cnt.items()))
                                            + ") — plný výpis kontroly.json checks.zasunuti.data.sroubu")]
+    for e in THREAD_ERR[:10]:
+        res["varovani"].append(f_("zavit-zaznam", f"Konstrukce_Zavit neuznán — {e} (formát {rules.ZAVIT_FORMAT})"))
+    if THREADS:
+        n = sum(1 for s in lst for z in s["zabery"] if z.get("dolozeny"))
+        res["info"].append(f_("zavit-dolozeny", f"{len(THREADS)} doložených závitů (Konstrukce_Zavit), využito {n}× — závit "
+                              "podle dokumentace výrobce, model díry nemá"))
     if sa["preskoceno"]["bez_driku"]:
         res["info"].append(f_("sroub-bez-driku", f"{len(sa['preskoceno']['bez_driku'])} dílů typu šroub bez válcového dříku "
                               "(zasunutí neměřeno): " + ", ".join(sa["preskoceno"]["bez_driku"][:6])))

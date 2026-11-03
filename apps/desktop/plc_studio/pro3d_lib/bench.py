@@ -67,9 +67,12 @@ def colors_and_shots(model: Path, dily: list[str], shots: dict, max_min: int = 1
     return out
 
 
-def checks(model: Path, out: Path, timeout: int = 1800, slot: str | None = None) -> dict:
+def checks(model: Path, out: Path, timeout: int = 1800, slot: str | None = None, otvory_varovani: bool = True) -> dict:
+    """Kontroly ``pro3d.ps1 vse``; na zkušební desce (modul bez krytů) je ``otvory`` jen varování (ISO 13857 řeší
+    rám a kryty stroje — rozhodnutí uživatele 2026-11-03)."""
     slot = slot or SLOT
-    r = _ps([PRO3D, "vse", model, "--out", out, "--slot", slot, "--timeout", str(timeout)], timeout + 300)
+    r = _ps([PRO3D, "vse", model, "--out", out, "--slot", slot, "--timeout", str(timeout)]
+            + (["--otvory-varovani"] if otvory_varovani else []), timeout + 300)
     kj = out / "kontroly.json"
     rep = json.loads(kj.read_text(encoding="utf-8")) if kj.is_file() else {}
     rep["_exit"] = r.returncode

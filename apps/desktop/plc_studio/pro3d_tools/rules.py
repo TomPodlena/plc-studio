@@ -21,6 +21,22 @@ Konvence modelu (závazné pro stavitele, viz ``KONVENCE``):
   Výjimka: ``Konstrukce_Zona`` = ``konektor`` / ``paprsek`` / ``snimani`` / ``hadice`` (``POMOCNE_ZONY``) = pomocná zóna
   volného prostoru (nasunutí zásuvky, paprsek / zóna snímání, nasunutí hadice) — kontrola ``zony`` hlídá, že do ní
   nezasahuje pevný díl (vyjma ``Konstrukce_ZonaVyjimka``), i v polohách ``Konstrukce_Pohyb``.
+* **Pomocné zóny jsou ZÁVAZNÉ pro všechny moduly** (P1 válec, O1 pult, O2 maják, S1 snímač, generátory rozvaděče
+  a modulů i ruční stavba): každý volný prostor, který musí zůstat volný pro funkci nebo montáž (nasunutí hadice /
+  zásuvky, paprsek snímače, sejmutí víka, výřez dveří…), se modeluje jako těleso ``Konstrukce_Typ = pomocny``
+  s ``Konstrukce_Zona`` = druh z ``POMOCNE_ZONY`` a ``Konstrukce_ZonaVyjimka`` = jména (FreeCAD Name) vlastních dílů
+  zóny, které do ní smějí (šroubení, snímač, zásuvka; App::Link vyjme celý obsah). Kontrola ``zony`` (``fc_scan``)
+  hlásí každý jiný pevný díl v zóně jako chybu, i v polohách ``Konstrukce_Pohyb``. Bez zóny se volný prostor
+  nekontroluje — kontrolor K5 chybějící zónu u přípojky / konektoru / paprsku vrací. Nebezpečné zóny (zdvih, dráha
+  nástroje) mají jiný druh (``zdvih``…) nebo popisek ``Zona_*`` a hodnotí je kontrola ``otvory``.
+* ``Konstrukce_Zavit`` (řetězec) = **doložený závit** v dílu, jehož model díry nemá (model výrobce / STEP vložený jako
+  App::Link — závity patek a čel válce, upevňovací závity přístroje): záznamy oddělené ``|`` (nebo novým řádkem),
+  pole záznamu oddělená ``;`` — ``M6x1;hloubka 12;poloha x,y,z;osa dx,dy,dz;zdroj URL`` (volitelně ``material hlinik``).
+  ``poloha`` = střed ústí závitu na povrchu dílu, ``osa`` = směr do materiálu, obojí v souřadnicích cíle odkazu (stejné
+  jako model z ``dily/``; umístění App::Link se použije); ``zdroj`` (URL datového listu) je povinný — záznam bez zdroje
+  se neuzná. Kontrola ``zasunuti`` uzná dřík šroubu souosý se záznamem (osa do 0,6 mm, jmenovitý Ø ± 0,3 mm) jako
+  závit délky průniku dříku s hloubkou závitu; kontrola ``kolize`` pak průnik šroubu s tímto dílem povolí. Formát
+  ``ZAVIT_FORMAT``, rozbor ``parse_zavit``, záběr ``zavit_zaber``.
 * Zástupný díl = ``PLCdesk_ModelStatus = "placeholder"`` nebo ``Placeholder = True`` / ``Konstrukce_Zastupny = True``
   a barva RGB 255,140,0 (oranžová); kusovník ``PLCdesk_Id`` (= ``BomLine.id`` manifestu), ``PLCdesk_Instance``.
 * Díl z generátorů ``pro3d_parts`` = ``Konstrukce_ModelStav = "dle dokumentace"`` a barva RGB 255,215,0 (žlutá, jednotně;
@@ -47,8 +63,9 @@ ZASUN_MAX = 30.0                    # mm — nejdelší průnik hadice × šroub
 FASTENERS = frozenset({"sroub", "matice", "podlozka"})
 # PLCdesk_Mount, u kterého díl drží vlastním upevněním (bez šroubu v modelu): přístroj nacvaknutý na lištu (din / rack),
 # snímač polohy upnutý v T-drážce válce vlastním šroubem (drazka), přístroj zašroubovaný vlastním závitem / maticemi
-# v držáku (zavit — snímač M12 / M18, snímač tlaku G1/4) — souvislost je nehlásí jako „bez spoje“
-MOUNT_SELF = ("din", "rack", "drazka", "zavit")
+# v držáku (zavit — snímač M12 / M18, snímač tlaku G1/4), světelný prvek / věž nasazená bajonetem výrobce (bajonet),
+# přístroj držený upínkami výrobce (upinka — upínky HMI, příchytky panelu) — souvislost je nehlásí jako „bez spoje“
+MOUNT_SELF = ("din", "rack", "drazka", "zavit", "bajonet", "upinka")
 
 KONVENCE = __doc__
 
@@ -118,13 +135,15 @@ def typ_dilu(props: dict | None, label: str = "", name: str = "") -> str:
     return "dil"
 
 
-# Pomocné zóny volného prostoru (modul S1 / spojky V1 / V2): ``Konstrukce_Zona`` = druh z POMOCNE_ZONY (a obvykle
+# Pomocné zóny volného prostoru — ZÁVAZNÁ konvence pro všechny moduly (S1, P1, O1, O2, generátory rozvaděče / modulů,
+# ruční stavba; viz KONVENCE výše a skilly stroj-stavitel / stroj-kontrolor / modul-*): ``Konstrukce_Zona`` = druh z POMOCNE_ZONY (a obvykle
 # ``Konstrukce_Typ = pomocny``) — NEJSOU nebezpečné zóny (otvory je nehodnotí), ale nesmí do nich zasahovat pevné díly
 # modelu (kontrola ``zony``, v obou polohách ``Konstrukce_Pohyb``). Výjimky = vlastní díly zóny (snímač, cíl, šroubení,
 # zásuvka): ``Konstrukce_ZonaVyjimka`` = jména objektů (FreeCAD Name) hlavního dokumentu oddělená čárkou; patří sem
 # i App::Link — vyjme se celý obsah odkazu. Kabely, hadice, obálky řetězu a ostatní pomocná tělesa se nekontrolují
 # (vlastní hadice / kabel zónou prochází). Nebezpečné zóny (zdvih válce…) mají jiný druh (např. ``zdvih``) nebo ``Zona_*``.
-POMOCNE_ZONY = ("konektor", "paprsek", "snimani", "hadice")
+POMOCNE_ZONY = ("konektor", "paprsek", "snimani", "hadice",
+                "ovladani")         # P2/P3 (2026-11-03): ruka na ručním uzávěru, knoflíku regulátoru, odvodu kondenzátu
 ZONY_PEVNE_SKIP = frozenset({"kabel", "hadice", "retez", "zona", "pomocny"})
 
 
@@ -169,6 +188,100 @@ def pohyb(props: dict | None) -> dict | None:
     else:
         return {"chyba": "Konstrukce_Pohyb potřebuje posun [x, y, z] nebo otoc {osa, bod, uhel}"}
     return out
+
+
+# --- doložený závit v modelu bez děr (Konstrukce_Zavit) -------------------------------------------------------------
+
+ZAVIT_FORMAT = "M6x1;hloubka 12;poloha x,y,z;osa dx,dy,dz;zdroj URL[;material hlinik] | další závit …"
+ZAVIT_OSA_TOL = 0.6       # mm — odchylka osy dříku od osy závitu
+ZAVIT_D_TOL = 0.3         # mm — jmenovitý průměr dříku × závitu
+_RX_M = re.compile(r"^\s*m\s*(\d+(?:[.,]\d+)?)(?:\s*x\s*(\d+(?:[.,]\d+)?))?\s*$", re.I)
+
+
+def _vec3(t: str) -> list[float]:
+    v = [float(x) for x in re.split(r"[\s,/]+", t.strip()) if x.strip()]
+    if len(v) != 3:
+        raise ValueError(f"čekám 3 čísla, je {t!r}")
+    return v
+
+
+def parse_zavit(text: str | None) -> tuple[list[dict], list[str]]:
+    """``Konstrukce_Zavit`` → ([{d, P, hloubka, poloha, osa (jednotková), zdroj, material, text}], [chyby záznamů]).
+    Záznam bez ``zdroj`` (URL) nebo s chybou se vynechá a jde do chyb (doložený závit se neodhaduje). Desetinná
+    místa tečkou (čárka odděluje složky vektoru)."""
+    out, err = [], []
+    raw = str(text or "").strip()
+    if not raw:
+        return out, err
+    for rec in [r for r in re.split(r"[|\n]", raw) if r.strip()]:
+        f = [x.strip() for x in rec.split(";") if x.strip()]
+        try:
+            m = _RX_M.match(f[0]) if f else None
+            if not m:
+                raise ValueError("první pole musí být závit M<d>[x<P>]")
+            z = {"d": float(m.group(1).replace(",", ".")), "P": float(m.group(2).replace(",", ".")) if m.group(2) else None,
+                 "hloubka": None, "poloha": None, "osa": None, "zdroj": "", "material": "", "text": rec.strip()}
+            for x in f[1:]:
+                k, _s, v = x.partition(" ")
+                k = fold(k)
+                if k == "hloubka":
+                    z["hloubka"] = float(v.strip().replace(",", "."))
+                elif k == "poloha":
+                    z["poloha"] = _vec3(v)
+                elif k == "osa":
+                    a = _vec3(v)
+                    n = math.sqrt(sum(c * c for c in a))
+                    if n < 1e-9:
+                        raise ValueError("nulová osa")
+                    z["osa"] = [c / n for c in a]
+                elif k == "zdroj":
+                    z["zdroj"] = v.strip()
+                elif k == "material":
+                    z["material"] = v.strip()
+            miss = [k for k in ("hloubka", "poloha", "osa") if z[k] is None]
+            if miss:
+                raise ValueError("chybí " + ", ".join(miss))
+            if z["hloubka"] <= 0:
+                raise ValueError("hloubka musí být > 0")
+            if not re.match(r"^https?://", z["zdroj"]):
+                raise ValueError("chybí zdroj (URL datového listu) — doložený závit bez zdroje se neuzná")
+            out.append(z)
+        except (ValueError, IndexError) as exc:
+            err.append(f"{rec.strip()[:80]}: {exc}")
+    return out, err
+
+
+def zavit_text(zavity: list[dict]) -> str:
+    """Opak ``parse_zavit`` (pro generátory): seznam {d, P?, hloubka, poloha, osa, zdroj, material?} → řetězec."""
+    def v(a):
+        return ",".join(f"{round(float(c), 4):g}" for c in a)
+    out = []
+    for z in zavity:
+        t = f"M{float(z['d']):g}" + (f"x{float(z['P']):g}" if z.get("P") else "")
+        t += f";hloubka {float(z['hloubka']):g};poloha {v(z['poloha'])};osa {v(z['osa'])};zdroj {z['zdroj']}"
+        if z.get("material"):
+            t += f";material {z['material']}"
+        out.append(t)
+    return " | ".join(out)
+
+
+def zavit_zaber(c, d, r: float, t0: float, t1: float, z: dict) -> float | None:
+    """Délka dříku (osa bod ``c``, směr ``d`` jednotkový, poloměr ``r``, interval ⟨t0, t1⟩ podél osy) v doloženém
+    závitu ``z`` (globální poloha / osa). None = jiná osa nebo průměr; 0 = souosý, ale mimo hloubku závitu."""
+    if abs(2 * r - z["d"]) > ZAVIT_D_TOL:
+        return None
+    a = z["osa"]
+    dot = sum(d[i] * a[i] for i in range(3))
+    if abs(abs(dot) - 1.0) > 1e-3:
+        return None
+    w = [z["poloha"][i] - c[i] for i in range(3)]
+    s = sum(w[i] * d[i] for i in range(3))
+    off = math.sqrt(max(0.0, sum(w[i] * w[i] for i in range(3)) - s * s))
+    if off > ZAVIT_OSA_TOL:
+        return None
+    sg = 1.0 if dot > 0 else -1.0
+    lo, hi = sorted((s, s + sg * z["hloubka"]))
+    return max(0.0, min(t1, hi) - max(t0, lo))
 
 
 def povolena_kolize(typ_a: str, typ_b: str) -> str | None:

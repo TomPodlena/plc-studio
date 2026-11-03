@@ -313,7 +313,9 @@ def eval_paths(vox: dict, tes_info: dict) -> dict:
 
 def run_checks(model: str | Path, checks=ALL, *, out: str | Path | None = None, manifest: str | None = None,
                slot: str = DEFAULT_SLOT, timeout: int = 3600, grids=(5.0, 4.0, 3.0), podlaha: float | None = None,
-               fc_runner=None, keep: bool = False) -> dict:
+               fc_runner=None, keep: bool = False, otvory_varovani: bool = False) -> dict:
+    """``otvory_varovani`` = nálezy kontroly ``otvory`` jen jako varování (zkušební deska modulu bez krytů — ISO 13857
+    řeší rám / kryty stroje, ne modul; ``pro3d_lib.bench``)."""
     model = Path(model).resolve()
     outd = Path(out).resolve() if out else model.parent
     work = outd / WORK
@@ -358,6 +360,11 @@ def run_checks(model: str | Path, checks=ALL, *, out: str | Path | None = None, 
                 except Exception as exc:  # noqa: BLE001 — chyba vyhodnocení = kontrola selhala, ostatní zůstanou
                     e = {"selhalo": f"vyhodnocení otvorů: {type(exc).__name__}: {exc}", "chyby": [], "varovani": []}
                 e["secs"] = r.get("secs", 0)
+                if otvory_varovani and e.get("chyby"):
+                    e["varovani"] = [dict(f, text=f["text"] + " [zkušební deska modulu bez krytů — jen varování]")
+                                     for f in e["chyby"]] + list(e.get("varovani") or [])
+                    e["chyby"] = []
+                    e.setdefault("data", {})["jen_varovani"] = True
                 rep["checks"][c] = e
             else:
                 rep["checks"][c] = r
@@ -425,6 +432,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--detail", default="", help="snímky: díly k výřezu oddělené ;")
     ap.add_argument("--prefix", default="snimek")
     ap.add_argument("--keep", action="store_true", help="ponechat pracovní soubory (.kontroly/)")
+    ap.add_argument("--otvory-varovani", action="store_true",
+                    help="nálezy otvorů ISO 13857 jen jako varování (zkušební deska modulu bez krytů)")
     a = ap.parse_args(argv)
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -440,7 +449,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if res.get("ok") else 2
     checks = ALL if a.kontrola == "vse" else (a.kontrola,)
     rep = run_checks(a.model, checks, out=a.out, manifest=a.manifest, slot=a.slot, timeout=a.timeout,
-                     grids=[float(x) for x in a.grids.split(",") if x.strip()], podlaha=a.podlaha, keep=a.keep)
+                     grids=[float(x) for x in a.grids.split(",") if x.strip()], podlaha=a.podlaha, keep=a.keep,
+                     otvory_varovani=a.otvory_varovani)
     print(rules.summarize(rep))
     return {"OK": 0, "CHYBY": 1}.get(rep["souhrn"]["stav"], 2)
 
