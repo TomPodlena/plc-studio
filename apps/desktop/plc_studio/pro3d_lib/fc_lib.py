@@ -192,11 +192,12 @@ def main():
             res["ok"] = False
             res["chyby"].append(f"díl {k}: {v.get('chyba', 'neplatné těleso')}")
     # 2) sestava zkušební desky
-    doc = App.newDocument("Lavice_S1")
-    out = os.path.join(folder, "Lavice_S1.FCStd")
+    mname = plan.get("model") or "Lavice_S1"
+    doc = App.newDocument(mname)
+    out = os.path.join(folder, mname + ".FCStd")
     doc.saveAs(out)                                   # App::Link na jiný dokument potřebuje uložený hostitelský dokument
     root = doc.addObject("App::Part", "Lavice")
-    root.Label = "Zkušební deska modulu S1"
+    root.Label = plan.get("nazev") or "Zkušební deska modulu S1"
     props(root, {"Konstrukce_Generator": GEN})
     pr = plan["profil"]
     po = doc.addObject("Part::Feature", "Profil")
@@ -209,8 +210,33 @@ def main():
     for i, m in enumerate(plan["moduly"]):
         g = doc.addObject("App::Part", f"Modul_{i + 1}")
         g.Label = m["nazev"]
-        props(g, {"Konstrukce_Generator": "pro3d_lib/modul_snimac", "Konstrukce_Modul": "S1", "Konstrukce_Snimac": m["typ"]})
+        props(g, m.get("props") or {"Konstrukce_Generator": "pro3d_lib/modul_snimac", "Konstrukce_Modul": "S1",
+                                     "Konstrukce_Snimac": m["typ"]})
+        if m.get("placement"):                         # modul v místních souřadnicích (P1: osa válce X) → poloha na desce
+            g.Placement = App.Placement(V(*m["placement"]["pos"]), rot(m["placement"]["rot"]))
         root.addObject(g)
+        # podčásti modulu (např. „Pístnice“ s Konstrukce_Pohyb — příslušenství pístnice se pohybuje s ní)
+        subs = {}
+        for s in m.get("skupiny") or []:
+            sg = doc.addObject("App::Part", f"M{i + 1}_{s['name']}")
+            sg.Label = s.get("label") or s["name"]
+            props(sg, dict(s.get("props") or {}, Konstrukce_Generator=GEN))
+            g.addObject(sg)
+            subs[s["name"]] = sg
+        names = {"inst": {j: f"M{i + 1}_{it['druh']}_{j}" for j, it in enumerate(m["instance"])},
+                 "tel": {t["name"]: f"M{i + 1}_{t['name']}" for t in m["telesa"]}}
+
+        def _vyj(refs):
+            out_ = []
+            for r_ in refs or []:
+                kind, _s, key = str(r_).partition(":")
+                nm = names.get(kind, {}).get(int(key) if kind == "inst" else key)
+                if nm:
+                    out_.append(nm)
+            return ",".join(out_) or None
+
+        def host(item):
+            return subs.get(item.get("skupina")) or g
         for j, it in enumerate(m["instance"]):
             p = os.path.join(dily_dir, it["model"] + ".FCStd")
             if p not in ext:
@@ -221,14 +247,14 @@ def main():
             lk.LinkTransform = False
             lk.Placement = App.Placement(V(*it["pos"]), rot(it["rot"]))
             lk.Label = f"{m['typ']} {it['druh']} {j} ({tgt.Label})"
-            props(lk, {"Konstrukce_Generator": GEN, "PLCdesk_Mount": it.get("mount") or None})
-            g.addObject(lk)
+            props(lk, dict({"Konstrukce_Generator": GEN, "PLCdesk_Mount": it.get("mount") or None}, **(it.get("props") or {})))
+            host(it).addObject(lk)
         for t in m["telesa"]:
             o = doc.addObject("Part::Feature", f"M{i + 1}_{t['name']}")
             o.Shape = solid(t["body"])
             o.Label = t["label"]
-            props(o, dict(t["props"], Konstrukce_Generator=GEN))
-            g.addObject(o)
+            props(o, dict(t["props"], Konstrukce_Generator=GEN, Konstrukce_ZonaVyjimka=_vyj(t.get("vyjimka"))))
+            host(t).addObject(o)
         for c in m["kabely"]:
             o = doc.addObject("Part::Feature", f"M{i + 1}_{c['name']}")
             try:

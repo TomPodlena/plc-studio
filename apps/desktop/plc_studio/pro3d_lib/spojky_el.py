@@ -96,3 +96,31 @@ def ohyb_z_cesty(path) -> float:
             area = math.sqrt(max(s * (s - a) * (s - b) * (s - c), 1e-12))
             return a * b * c / (4 * area)
     return float("inf")
+
+
+def vyvod_data(typ: str) -> dict:
+    """Vývodový kabel snímače (pigtail) — ``data/spojky_el.json`` ``vyvody``."""
+    return dict(DATA["vyvody"][typ])
+
+
+def kabel_vyvod(typ: str, start, u, w) -> dict:
+    """Začátek vývodového kabelu snímače (bez konektoru u snímače — konektor M8 je na konci vývodu, mimo modul):
+    rovný úsek ``rovny_usek_x_D`` × D v ose ``u``, oblouk 90° s poloměrem R_x × D do ``w``, krátký rovný úsek.
+    Vrací {r, R, path, delka, konec_vyvodu_mm} pro ``fc_lib`` (stejný tvar jako ``konektor()["kabel"]``)."""
+    k = DATA["vyvody"][typ]
+    u, w = _norm(u), _norm(w)
+    if abs(_dot(u, w)) > 1e-6:
+        raise ValueError("w musí být kolmé k u")
+    D = float(k["D"])
+    R = float(k["R_x"]) * D
+    s0 = DATA["prostor"]["rovny_usek_x_D"]["hodnota"] * D
+    a = list(start)
+    b = _add(a, u, s0)
+    ctr = _add(b, w, R)
+    c = _add(ctr, u, R)
+    mid = _add(ctr, _norm(_add(u, [-x for x in w])), R)
+    e = _add(c, w, 2 * D + 10.0)
+    delka = s0 + math.pi * R / 2 + 2 * D + 10.0
+    return {"typ": typ, "nazev": k["nazev"], "r": D / 2, "R": R, "path": [{"line": [a, b]}, {"arc": [b, mid, c]}, {"line": [c, e]}],
+            "delka": round(delka, 1), "konec_vyvodu_mm": k.get("delka_mm"), "konektor": k.get("konektor"),
+            "odhad": bool(k.get("odhad")), "zdroj": k.get("zdroj", ""), "zdroj_popis": k.get("zdroj_popis", "")}

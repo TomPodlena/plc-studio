@@ -50,6 +50,10 @@ def paint(doc):
             color(o.ViewObject, ORANGE)
         elif _st(o, "Konstrukce_ModelStav") == "dle dokumentace":
             color(o.ViewObject, YELLOW)
+        elif typ == "hadice":
+            color(o.ViewObject, (0, 150, 210))
+        elif typ == "zona" or str(getattr(o, "Konstrukce_Zona", "") or "") and typ != "pomocny":
+            color(o.ViewObject, (220, 40, 40), 85)
         elif typ == "kabel":
             color(o.ViewObject, BLUE)
         elif typ == "pomocny":
@@ -103,8 +107,37 @@ try:
         camera(v, views.get(k, (1.0, 1.0, -0.8)))
         v.saveImage(p, 1600, 1200, "White")
         res["snimky"].append(p)
+    if job.get("snimky_vysunuto"):
+        # druhá poloha: posun všech objektů s Konstrukce_Pohyb (posun v soustavě rodiče) — jen pro snímek, NEUKLÁDÁ se
+        moved = 0
+        for d in App.listDocuments().values():
+            for o in d.Objects:
+                raw = str(getattr(o, "Konstrukce_Pohyb", "") or "")
+                if not raw or not hasattr(o, "Placement"):
+                    continue
+                try:
+                    pm = json.loads(raw)
+                except ValueError:
+                    continue
+                if isinstance(pm.get("posun"), list):
+                    pl = o.Placement
+                    pl.Base = pl.Base + App.Vector(*pm["posun"])
+                    o.Placement = pl
+                    moved += 1
+            d.recompute()
+        res["vysunuto_objektu"] = moved
+        for k, p in job["snimky_vysunuto"].items():
+            camera(v, views.get(k, (1.0, 1.0, -0.8)))
+            v.saveImage(p, 1600, 1200, "White")
+            res["snimky"].append(p)
 except Exception as exc:  # noqa: BLE001
     res["snimky"].append(f"chyba: {exc}")
+for d in list(App.listDocuments().values()):
+    if d.Name != doc.Name:
+        try:
+            App.closeDocument(d.Name)
+        except Exception:  # noqa: BLE001
+            pass
 App.closeDocument(doc.Name)
 json.dump(res, open(globals().get("FC_RESULT") or sys.argv[1] + ".vysledek.json", "w", encoding="utf-8"), ensure_ascii=False)
 print(json.dumps({"ok": res["ok"], "obarveno": res.get("obarveno")}))

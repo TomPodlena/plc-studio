@@ -18,6 +18,9 @@ Konvence modelu (závazné pro stavitele, viz ``KONVENCE``):
 * ``Konstrukce_Zona`` (cokoli neprázdného), ``Konstrukce_Typ = zona``, popisek ``Zona_*`` / ``[zóna] …`` = nebezpečná
   zóna pro kontrolu otvorů (členství ve skupině „Zóny“ nestačí). Odstupové zóny a rezervy rozvaděče (vlastnost
   ``Zona_pro``, „mezera“, „rezerva“), obálky („Obálka …“) a místa obsluhy („Stanoviště …“) jsou pomocné, ne nebezpečí.
+  Výjimka: ``Konstrukce_Zona`` = ``konektor`` / ``paprsek`` / ``snimani`` / ``hadice`` (``POMOCNE_ZONY``) = pomocná zóna
+  volného prostoru (nasunutí zásuvky, paprsek / zóna snímání, nasunutí hadice) — kontrola ``zony`` hlídá, že do ní
+  nezasahuje pevný díl (vyjma ``Konstrukce_ZonaVyjimka``), i v polohách ``Konstrukce_Pohyb``.
 * Zástupný díl = ``PLCdesk_ModelStatus = "placeholder"`` nebo ``Placeholder = True`` / ``Konstrukce_Zastupny = True``
   a barva RGB 255,140,0 (oranžová); kusovník ``PLCdesk_Id`` (= ``BomLine.id`` manifestu), ``PLCdesk_Instance``.
 * Díl z generátorů ``pro3d_parts`` = ``Konstrukce_ModelStav = "dle dokumentace"`` a barva RGB 255,215,0 (žlutá, jednotně;
@@ -93,6 +96,8 @@ def typ_dilu(props: dict | None, label: str = "", name: str = "") -> str:
     t = fold(p.get("Konstrukce_Typ") or "").strip()
     if t in TYPES:
         return t
+    if pomocna_zona(p):                       # volný prostor konektoru / paprsku / hadice ≠ nebezpečí
+        return "pomocny"
     if str(p.get("Konstrukce_Zona") or "").strip():
         return "zona"
     if str(p.get("Zona_pro") or "").strip():  # odstupová zóna přístroje v rozvaděči (skill rozvadec-3d) ≠ nebezpečí
@@ -111,6 +116,26 @@ def typ_dilu(props: dict | None, label: str = "", name: str = "") -> str:
         if rx.search(text):
             return typ
     return "dil"
+
+
+# Pomocné zóny volného prostoru (modul S1 / spojky V1 / V2): ``Konstrukce_Zona`` = druh z POMOCNE_ZONY (a obvykle
+# ``Konstrukce_Typ = pomocny``) — NEJSOU nebezpečné zóny (otvory je nehodnotí), ale nesmí do nich zasahovat pevné díly
+# modelu (kontrola ``zony``, v obou polohách ``Konstrukce_Pohyb``). Výjimky = vlastní díly zóny (snímač, cíl, šroubení,
+# zásuvka): ``Konstrukce_ZonaVyjimka`` = jména objektů (FreeCAD Name) hlavního dokumentu oddělená čárkou; patří sem
+# i App::Link — vyjme se celý obsah odkazu. Kabely, hadice, obálky řetězu a ostatní pomocná tělesa se nekontrolují
+# (vlastní hadice / kabel zónou prochází). Nebezpečné zóny (zdvih válce…) mají jiný druh (např. ``zdvih``) nebo ``Zona_*``.
+POMOCNE_ZONY = ("konektor", "paprsek", "snimani", "hadice")
+ZONY_PEVNE_SKIP = frozenset({"kabel", "hadice", "retez", "zona", "pomocny"})
+
+
+def pomocna_zona(props: dict | None) -> str | None:
+    """Druh pomocné zóny volného prostoru (``POMOCNE_ZONY``) nebo None."""
+    v = fold((props or {}).get("Konstrukce_Zona") or "").strip()
+    return v if v in POMOCNE_ZONY else None
+
+
+def zona_vyjimky(props: dict | None) -> set[str]:
+    return {x.strip() for x in str((props or {}).get("Konstrukce_ZonaVyjimka") or "").split(",") if x.strip()}
 
 
 def je_zastupny(props: dict | None) -> bool:
@@ -472,7 +497,7 @@ def kusovnik(objs: list[dict], manifest: dict | None) -> dict:
 # --- souhrn KONTROLY.md -----------------------------------------------------------------------------------------------
 
 CHECK_LABELS = {"kolize": "Kolize", "souvislost": "Souvislost", "zasunuti": "Zašroubování", "kopie": "Kopie těles (App::Link)",
-                "otvory": "Otvory ISO 13857", "kusovnik": "Kusovník × manifest", "stav": "Zástupné díly", "step": "STEP export / načtení", "snimky": "Snímky"}
+                "otvory": "Otvory ISO 13857", "zony": "Pomocné zóny (volný prostor)", "kusovnik": "Kusovník × manifest", "stav": "Zástupné díly", "step": "STEP export / načtení", "snimky": "Snímky"}
 
 
 def _pos(f: dict) -> str:

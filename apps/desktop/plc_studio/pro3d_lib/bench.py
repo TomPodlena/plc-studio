@@ -34,12 +34,13 @@ def available() -> bool:
     return RUN_FC.is_file()
 
 
-def build(plan: dict, folder: Path, timeout: int = 900) -> dict:
+def build(plan: dict, folder: Path, timeout: int = 900, slot: str | None = None) -> dict:
+    slot = slot or SLOT
     folder.mkdir(parents=True, exist_ok=True)
     pp = folder / "plan.json"
     pp.write_text(json.dumps(plan, ensure_ascii=False, indent=1), encoding="utf-8")
     rp = folder / "fc_lib_vysledek.json"
-    r = _ps([RUN_FC, "run", "--slot", SLOT, "--timeout", str(timeout), "--result", rp, HERE / "fc_lib.py", pp, folder],
+    r = _ps([RUN_FC, "run", "--slot", slot, "--timeout", str(timeout), "--result", rp, HERE / "fc_lib.py", pp, folder],
             timeout + 120)
     summ = _last_json(r.stdout)
     res = json.loads(rp.read_text(encoding="utf-8")) if rp.is_file() else {"ok": False}
@@ -49,22 +50,26 @@ def build(plan: dict, folder: Path, timeout: int = 900) -> dict:
     return res
 
 
-def colors_and_shots(model: Path, dily: list[str], shots: dict, max_min: int = 15) -> dict:
+def colors_and_shots(model: Path, dily: list[str], shots: dict, max_min: int = 15, slot: str | None = None,
+                     shots2: dict | None = None) -> dict:
+    slot = slot or SLOT
     job = model.parent / "barvy_ulohy.json"
-    job.write_text(json.dumps({"dily": dily, "model": str(model), "snimky": {k: str(v) for k, v in shots.items()}},
+    job.write_text(json.dumps({"dily": dily, "model": str(model), "snimky": {k: str(v) for k, v in shots.items()},
+                              "snimky_vysunuto": {k: str(v) for k, v in (shots2 or {}).items()}},
                               ensure_ascii=False), encoding="utf-8")
-    st = _ps([RUN_FC, "gui-start", "--slot", SLOT, "--max-min", str(max_min)], 300)
+    st = _ps([RUN_FC, "gui-start", "--slot", slot, "--max-min", str(max_min)], 300)
     try:
-        r = _ps([RUN_FC, "gui-run", "--slot", SLOT, "--timeout", "600", HERE / "fc_lib_colors.py", job], 700)
+        r = _ps([RUN_FC, "gui-run", "--slot", slot, "--timeout", "600", HERE / "fc_lib_colors.py", job], 700)
         out = _last_json(r.stdout)
     finally:
-        _ps([RUN_FC, "gui-stop", "--slot", SLOT], 120)
+        _ps([RUN_FC, "gui-stop", "--slot", slot], 120)
     out["start"] = _last_json(st.stdout) or st.stdout[-400:]
     return out
 
 
-def checks(model: Path, out: Path, timeout: int = 1800) -> dict:
-    r = _ps([PRO3D, "vse", model, "--out", out, "--slot", SLOT, "--timeout", str(timeout)], timeout + 300)
+def checks(model: Path, out: Path, timeout: int = 1800, slot: str | None = None) -> dict:
+    slot = slot or SLOT
+    r = _ps([PRO3D, "vse", model, "--out", out, "--slot", slot, "--timeout", str(timeout)], timeout + 300)
     kj = out / "kontroly.json"
     rep = json.loads(kj.read_text(encoding="utf-8")) if kj.is_file() else {}
     rep["_exit"] = r.returncode
@@ -79,17 +84,21 @@ def souhrn(rep: dict) -> dict:
     return out
 
 
-def build_and_check(plan: dict, folder: Path) -> dict:
+def build_and_check(plan: dict, folder: Path, slot: str | None = None, vysunuto: bool = False) -> dict:
+    """Plán → model → barvy + snímky → kontroly. ``vysunuto`` = i snímky druhé polohy (Konstrukce_Pohyb, např. pístnice
+    vysunuta; model se v té poloze neukládá)."""
     folder = Path(folder).resolve()
-    b = build(plan, folder)
+    b = build(plan, folder, slot=slot)
     if not b.get("model"):
         return {"ok": False, "stavba": b}
     model = Path(b["model"])
     sn = folder / "snimky"
     sn.mkdir(exist_ok=True)
     shots = {"iso": sn / "lavice_iso.png", "iso2": sn / "lavice_iso2.png", "shora": sn / "lavice_shora.png", "bok": sn / "lavice_bok.png"}
-    c = colors_and_shots(model, b.get("soubory_dilu") or [], shots)
-    rep = checks(model, folder / "kontroly")
+    shots2 = {"iso": sn / "lavice_vysunuto_iso.png", "shora": sn / "lavice_vysunuto_shora.png"} if vysunuto else {}
+    c = colors_and_shots(model, b.get("soubory_dilu") or [], shots, slot=slot, shots2=shots2)
+    shots = dict(shots, **{"v_" + k: v for k, v in shots2.items()})
+    rep = checks(model, folder / "kontroly", slot=slot)
     s = souhrn(rep)
     nch = sum(v["chyby"] for v in s.values())
     failed = [k for k, v in s.items() if v["selhalo"]]

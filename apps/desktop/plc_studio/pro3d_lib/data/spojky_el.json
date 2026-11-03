@@ -20,6 +20,13 @@
              "D": 10.0, "L": 35.0, "kabel_D": 4.3, "R_x": 10, "uzeni": "pohyblive", "odhad": true,
              "zdroj": "", "zdroj_popis": "ODHAD — výkres ifm EVC150 / EVC141 nečitelný (JavaScript); Ø 10 a délka 35 jsou obálka do ověření."}
  },
+ "vyvody": {
+  "_popis": "Vývodový kabel snímače polohy válce (pigtail) s konektorem M8 na konci — v modulu se modeluje jen začátek kabelu u snímače.",
+  "SMT-8M_0.3_M8": {"nazev": "Festo SMT-8M-A-PS-24V-E-0,3-M8D vývod 0,3 m, konektor M8x1 A 3 pin", "delka_mm": 300, "konektor": "M8_primy",
+             "D": 3.0, "R_x": 10, "odhad": true,
+             "zdroj": "https://ftp.festo.com/public/pneumatic/SOFTWARE_SERVICE/DataSheet/EN_US/574334.pdf",
+             "zdroj_popis": "FESTO_DS 574334 (přes skill modul-valec data/upevneni.json snimace_v_drazce): kabel 0,3 m, konektor M8x1 A 3 pin, vhodný do řetězu. Ø kabelu a poloměr ohybu v listu NEJSOU — ODHAD Ø 3, R = 10 × D (jako EVC002 pohyblivě)."}
+ },
  "prostor": {
   "nasunuti_mm": {"hodnota": 10.0, "odhad": true, "_pozn": "volná dráha v ose za zásuvkou pro stažení / nasunutí (ODHAD ≥ délka závitu M12 ~ 8 mm + rezerva)"},
   "prsty_mm": {"hodnota": 12.0, "odhad": true, "_pozn": "radiální volný prostor kolem převlečné matice pro prsty (ODHAD; ISO / EN 547 rozměry ruky neověřeny)"},

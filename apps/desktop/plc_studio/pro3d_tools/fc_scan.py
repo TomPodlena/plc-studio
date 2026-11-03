@@ -23,7 +23,7 @@ import rules  # noqa: E402
 V = App.Vector
 MODEL, OUTF, OPTF = sys.argv[1:4]
 OPT = json.load(open(OPTF, encoding="utf-8"))
-CHECKS = OPT.get("checks") or ["kolize", "souvislost", "zasunuti", "kopie", "otvory", "kusovnik", "step"]
+CHECKS = OPT.get("checks") or ["kolize", "souvislost", "zasunuti", "kopie", "zony", "otvory", "kusovnik", "step"]
 TOL = float(OPT.get("tol", 0.2))              # mm — dotyk
 VOL_TOL = float(OPT.get("vol_tol", 0.5))      # mm³ — průnik pod touto mezí = dotyk (zaokrouhlení booleanu)
 R = {"model": MODEL, "checks": {}, "t": {}}
@@ -378,6 +378,23 @@ def calibrate():
     return {"common": round(v, 3), "ocekavano": 4000.0, "mrizka": g, "ok": abs(v - 4000.0) < 1e-3 and g == 64}
 
 
+def _rnd(v):
+    if isinstance(v, float):
+        r = round(v, 4)
+        return 0.0 if r == 0 else r
+    if isinstance(v, list):
+        return [_rnd(x) for x in v]
+    if isinstance(v, dict):
+        return {k: _rnd(x) for k, x in v.items()}
+    return v
+
+
+def pohyb_key(pm):
+    """Klíč skupiny pohybu: zaokrouhleno na 1e-4 mm — pístnice natočeného válce (převod rotací, šum 1e-15) a příslušenství
+    na ní zapsané v globálu tvoří JEDNU skupinu (jinak by se pístnice posunula bez příslušenství a „kolidovala“ s ním)."""
+    return json.dumps(_rnd(pm), sort_keys=True)
+
+
 def moved(item, pm):
     s = item["s"].copy()
     if "posun" in pm:
@@ -406,7 +423,7 @@ def check_kolize():
     groups = {}
     for x in items:
         if x["pohyb"] and not x["pohyb"].get("chyba"):
-            groups.setdefault(json.dumps(x["pohyb"], sort_keys=True), []).append(x)
+            groups.setdefault(pohyb_key(x["pohyb"]), []).append(x)
     poses = []
     for key, mem in groups.items():
         pm = json.loads(key)
@@ -1047,6 +1064,73 @@ def check_otvory():
     return out
 
 
+# --- pomocné zóny volného prostoru (konektor V2, paprsek / snímání S1, nasunutí hadice V1) ---------------------------
+
+def _excluded(x, exc):
+    if not exc:
+        return False
+    if x["doc"] == doc.Name and x["name"] in exc:
+        return True
+    for l in x.get("lnk") or ():
+        d, _s, n = str(l).partition("#")
+        if d == doc.Name and n in exc:
+            return True
+    return False
+
+
+def check_zony():
+    """Pomocná zóna (``rules.pomocna_zona``) × pevný díl (vše kromě ``rules.ZONY_PEVNE_SKIP``) — průnik nad VOL_TOL =
+    chyba; vlastní díly zóny (``Konstrukce_ZonaVyjimka``) se vynechají. Polohy: výchozí + každá skupina
+    ``Konstrukce_Pohyb`` (posune se vše, co ji nese — díly i zóny)."""
+    t = time.time()
+    res = {"chyby": [], "varovani": [], "info": [], "data": {}}
+    zones = [dict(x, druh=rules.pomocna_zona(x["props"]), exc=rules.zona_vyjimky(x["props"])) for x in LEAVES
+             if x["typ"] == "pomocny" and rules.pomocna_zona(x["props"])]
+    solid = [x for x in REAL if x["typ"] not in rules.ZONY_PEVNE_SKIP]
+    res["data"] = {"zon": len(zones), "druhy": {}, "pevnych": len(solid), "polohy": []}
+    for z in zones:
+        res["data"]["druhy"][z["druh"]] = res["data"]["druhy"].get(z["druh"], 0) + 1
+    if not zones:
+        res["info"].append(f_("zony-zadne", "model nemá pomocné zóny (Konstrukce_Zona = "
+                              + " / ".join(rules.POMOCNE_ZONY) + ") — volný prostor nekontrolován"))
+        return dict(res, secs=round(time.time() - t, 1))
+    groups = {}
+    for x in zones + solid:
+        if x["pohyb"] and not x["pohyb"].get("chyba"):
+            groups.setdefault(pohyb_key(x["pohyb"]), []).append(x["key"])
+    poses = [(None, None)] + [(json.loads(k), set(v)) for k, v in groups.items()]
+    seen = set()
+    for pm, keys in poses:
+        name = pm["nazev"] if pm else "výchozí poloha"
+        mv = (lambda x: moved(x, pm) if x["key"] in keys else x) if pm else (lambda x: x)
+        zs, ss = [mv(z) for z in zones], [mv(s) for s in solid]
+        n = 0
+        for z, z0 in zip(zs, zones):
+            for s, s0 in zip(ss, solid):
+                if pm and not (z0["key"] in keys or s0["key"] in keys):
+                    continue                        # dvojice beze změny = už ve výchozí poloze
+                if _excluded(s0, z0["exc"]) or not ov_box(z["bb"], s["bb"]):
+                    continue
+                n += 1
+                try:
+                    sa = _near_solids(s["s"], z["bb"])
+                    v = z["s"].common(sa).Volume if sa is not None else 0.0
+                except Exception as exc:  # noqa: BLE001
+                    res["chyby"].append(f_("zona-boolean", f"{z['label']} × {s['label']}: boolean selhal ({exc})",
+                                           objekty=[z0["path"], s0["path"]]))
+                    continue
+                if v > VOL_TOL and (z0["key"], s0["key"]) not in seen:
+                    seen.add((z0["key"], s0["key"]))
+                    b = z["s"].common(sa).BoundBox
+                    res["chyby"].append(f_("zona-kolize", f"[{name}] {z0['label']} ({z0['druh']}) × {s0['label']}: pevný díl "
+                                           f"zasahuje do volného prostoru ({v:.1f} mm³)",
+                                           [(b.XMin + b.XMax) / 2, (b.YMin + b.YMax) / 2, (b.ZMin + b.ZMax) / 2],
+                                           [z0["path"], s0["path"]], common=round(v, 2)))
+        res["data"]["polohy"].append({"poloha": name, "dvojic": n})
+    res["secs"] = round(time.time() - t, 1)
+    return res
+
+
 def check_step():
     t = time.time()
     res = {"chyby": [], "varovani": [], "info": [], "data": {}}
@@ -1081,7 +1165,7 @@ def check_step():
 
 
 for name, fn in (("kolize", check_kolize), ("souvislost", check_souvislost), ("zasunuti", check_zasunuti),
-                 ("kopie", check_kopie), ("otvory", check_otvory),
+                 ("kopie", check_kopie), ("zony", check_zony), ("otvory", check_otvory),
                  ("kusovnik", None), ("step", check_step)):
     if name not in CHECKS:
         continue

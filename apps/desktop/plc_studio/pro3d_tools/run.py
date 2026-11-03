@@ -38,8 +38,8 @@ if str(HERE) not in sys.path:
 import rules  # noqa: E402
 
 HOME = Path(os.path.expanduser("~"))
-FC_CHECKS = ("kolize", "souvislost", "zasunuti", "kopie", "otvory", "kusovnik", "step")
-ALL = ("kolize", "souvislost", "zasunuti", "kopie", "otvory", "kusovnik", "stav", "step")
+FC_CHECKS = ("kolize", "souvislost", "zasunuti", "kopie", "zony", "otvory", "kusovnik", "step")
+ALL = ("kolize", "souvislost", "zasunuti", "kopie", "zony", "otvory", "kusovnik", "stav", "step")
 DEFAULT_SLOT = "pro3d-kontroly"
 WORK = ".kontroly"
 NOWIN = getattr(subprocess, "CREATE_NO_WINDOW", 0)
