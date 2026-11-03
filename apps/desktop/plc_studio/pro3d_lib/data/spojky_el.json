@@ -1,0 +1,28 @@
+{
+ "_popis": "Spojka V2 elektrická: konektory M8 / M12 kabelů snímačů (zásuvka na kabelu). mm. 'odhad': true = ODHAD (nedoloženo). Kabelová zásuvka se nasunuje na konektor snímače (vidlici) a dotahuje převlečnou maticí.",
+ "kodovani_m12": {
+  "_zdroj": "https://en.wikipedia.org/wiki/IEC_metric_screw_sized_connectors (tabulka kódování, čteno 2026-11-03); norma IEC 61076-2-101 https://webstore.iec.ch/publication/4418",
+  "A": {"piny": [2, 3, 4, 5, 8, 12, 17], "pouziti": "napájení DC, snímače, akční členy"},
+  "B": {"piny": [5], "pouziti": "sběrnice mimo Ethernet (Profibus DP)"},
+  "D": {"piny": [4], "pouziti": "Industrial Ethernet 100 Mb/s (PROFINET, EtherNet/IP)"},
+  "X": {"piny": [8], "pouziti": "Ethernet 10 Gb/s"}
+ },
+ "konektory": {
+  "EVC002": {"nazev": "ifm EVC002 kabel se zásuvkou M12 přímou, 4 piny, kódování A, PUR 5 m", "zavit": "M12x1", "uhel": 0,
+             "D": 15.5, "L": 45.0, "SW": 14, "kabel_D": 4.3, "R_x": 10, "uzeni": "pohyblive",
+             "moment_Nm": [0.6, 1.5],
+             "zdroj": "https://cdn.shopify.com/s/files/1/0836/9137/2878/files/EVC002-01_EN-GB.pdf",
+             "zdroj_popis": "ifm datový list EVC002-01 (13.04.2023): výkres Ø 15,5, délka 45, převlečná matice SW14; kabel Ø 4,3 PUR; R ohybu pro pohyblivé použití min. 10 × D; M12 přímá, kódování A; utahovací moment 0,6–1,5 Nm. Pevné uložení list neuvádí → bere se 10 × D (přísnější, skill kabelaz-a-hadice data/media.json ifm_EVC002)."},
+  "M12_uhlovy": {"nazev": "zásuvka M12 úhlová 90°, 4 piny, kódování A (obálka)", "zavit": "M12x1", "uhel": 90,
+             "D": 15.5, "L": 30.0, "H": 30.0, "kabel_D": 4.3, "R_x": 10, "uzeni": "pohyblive", "odhad": true,
+             "zdroj": "", "zdroj_popis": "ODHAD — výkres úhlové zásuvky (ifm EVC005) se nepodařilo přečíst (stránka ifm se skládá JavaScriptem); obálka podle přímé EVC002 Ø 15,5."},
+  "M8_primy": {"nazev": "zásuvka M8 přímá, 3 piny (obálka)", "zavit": "M8x1", "uhel": 0,
+             "D": 10.0, "L": 35.0, "kabel_D": 4.3, "R_x": 10, "uzeni": "pohyblive", "odhad": true,
+             "zdroj": "", "zdroj_popis": "ODHAD — výkres ifm EVC150 / EVC141 nečitelný (JavaScript); Ø 10 a délka 35 jsou obálka do ověření."}
+ },
+ "prostor": {
+  "nasunuti_mm": {"hodnota": 10.0, "odhad": true, "_pozn": "volná dráha v ose za zásuvkou pro stažení / nasunutí (ODHAD ≥ délka závitu M12 ~ 8 mm + rezerva)"},
+  "prsty_mm": {"hodnota": 12.0, "odhad": true, "_pozn": "radiální volný prostor kolem převlečné matice pro prsty (ODHAD; ISO / EN 547 rozměry ruky neověřeny)"},
+  "rovny_usek_x_D": {"hodnota": 3, "odhad": true, "_pozn": "rovný úsek kabelu za zásuvkou před prvním ohybem (odlehčení tahu, ODHAD — kabely.md skillu kabelaz-a-hadice: ohyb ne hned za koncovkou)"}
+ }
+}
