@@ -197,7 +197,7 @@ def drazka(drazka: str = "40/8") -> dict:
 def sirka_dutiny(drazka_: str, hloubka: float) -> float:
     """Šířka dutiny drážky v hloubce pod povrchem (zástupný průřez: rty, pak zúžení k dnu)."""
     dz = DATA["drazky"][drazka_]
-    if hloubka <= dz["ret"]:
+    if hloubka < dz["ret"] - 1e-9:
         return dz["otvor"]
     sl = (dz["sirka_pod_rty"] - dz["otvor"]) / (dz["hloubka"] - dz["ret"])
     return max(dz["otvor"], dz["sirka_pod_rty"] - sl * (hloubka - dz["ret"]))

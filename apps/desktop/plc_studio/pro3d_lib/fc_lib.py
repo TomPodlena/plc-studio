@@ -112,7 +112,7 @@ def build_lib_body(spec, out):
     sh = solid(spec["body"])
     o = doc.addObject("Part::Feature", "Teleso")
     o.Shape = sh
-    o.Label = spec["nazev"]
+    o.Label = "Těleso: " + spec["nazev"]           # popisek ≠ popisek dílu (FreeCAD by duplicitu přečísloval)
     props(o, dict({"Konstrukce_Typ": spec.get("typ") or "dil"}, **stav))
     part.addObject(o)
     doc.recompute()
@@ -193,6 +193,8 @@ def main():
             res["chyby"].append(f"díl {k}: {v.get('chyba', 'neplatné těleso')}")
     # 2) sestava zkušební desky
     doc = App.newDocument("Lavice_S1")
+    out = os.path.join(folder, "Lavice_S1.FCStd")
+    doc.saveAs(out)                                   # App::Link na jiný dokument potřebuje uložený hostitelský dokument
     root = doc.addObject("App::Part", "Lavice")
     root.Label = "Zkušební deska modulu S1"
     props(root, {"Konstrukce_Generator": GEN})
@@ -238,8 +240,7 @@ def main():
             props(o, dict(c["props"], Konstrukce_Generator=GEN))
             g.addObject(o)
     doc.recompute()
-    out = os.path.join(folder, "Lavice_S1.FCStd")
-    doc.saveAs(out)
+    doc.save()
     res["model"] = out
     res["objektu"] = len(doc.Objects)
     App.closeDocument(doc.Name)

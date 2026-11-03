@@ -38,6 +38,9 @@ def _st(o, name):
 def paint(doc):
     n = 0
     for o in doc.Objects:
+        if o.TypeId in ("App::Origin", "App::Line", "App::Plane", "App::Point"):
+            o.Visibility = False                       # osy a roviny App::Part do snímku nepatří
+            continue
         if hasattr(o, "Visibility"):
             o.Visibility = True
         if o.TypeId != "Part::Feature" or o.ViewObject is None:

@@ -87,7 +87,10 @@ def _spec_matice_snimace(typ: str) -> dict:
 
 
 def _spec_konektor(kon: dict, key: str) -> dict:
-    return {"key": key, "gen": "lib_body", "body": kon["body"], "zastupny": kon["odhad"],
+    """Zásuvka jako díl v MÍSTNÍCH souřadnicích (čelo v počátku, osa +X) — jeden model pro všechny moduly, poloha
+    a natočení na odkazu (App::Link)."""
+    loc = spojky_el.konektor(kon["typ"], [0, 0, 0], [1, 0, 0], [0, 1, 0])
+    return {"key": key, "gen": "lib_body", "body": loc["body"], "zastupny": kon["odhad"],
             "nazev": kon["nazev"] + (" (zástupná obálka)" if kon["odhad"] else ""), "zdroj": [kon["zdroj"]] if kon["zdroj"] else [],
             "detail": "obálka", "typ": "dil", "material": "TPU / mosaz", "poznamka": kon["zdroj_popis"]}
 
@@ -164,7 +167,7 @@ def modul_valec(typ: str, cil, y_s: float = 0.0, z_p: float = 40.0, vzdalenost: 
     kon = spojky_el.konektor(t["konektor"], start, [0, -1, 0], [-1, 0, 0])
     kk = _spec_konektor(kon, f"Zasuvka_{t['konektor']}")
     dily.append(kk)
-    inst.append({"model": kk["key"], "pos": [0, 0, 0], "rot": I3, "druh": "konektor"})
+    inst.append({"model": kk["key"], "pos": start, "rot": ROT_VALEC, "druh": "konektor", "mount": "zavit"})
     # zóna snímání a cíl
     zona = {"add": [{"cyl": {"p": P, "d": [0, 1, 0], "r": d / 2, "h": t["Sn"]}}]}
     cil_b = {"add": [{"box": [cx - 12, cx + 12, cy, cy + 1, zs - 12, zs + 12]}]}
@@ -237,7 +240,7 @@ def modul_kvadr(typ: str, cil, y_s: float = 0.0, z_p: float = 40.0, py: float | 
     kon = spojky_el.konektor(t["konektor"], start, [1, 0, 0], [0, 1, 0])
     kk = _spec_konektor(kon, f"Zasuvka_{t['konektor']}")
     dily.append(kk)
-    inst.append({"model": kk["key"], "pos": [0, 0, 0], "rot": I3, "druh": "konektor"})
+    inst.append({"model": kk["key"], "pos": start, "rot": I3, "druh": "konektor", "mount": "zavit"})
     opt = add(P, mul(ROT_KVADR, [0, W / 2, t["osa_z"]]))
     L = cy - py
     r0 = 5.0                                              # ODHAD — poloměr výstupu optiky
