@@ -26,7 +26,9 @@
  },
  "kategorie": {
   "_pozn": "Druh přístroje na dveřích podle kategorie (silový = 230 / 400 V AC, signál = 24 V DC, PLC I/O, sběrnice); otvor Ø 22,3 mm pro řadu 3SU1 z pro3d_parts/data/katalog.json (hole_d, zdroj teddatasheet).",
-  "main_switch": "silovy", "plc_hmi": "signal", "push_button": "signal", "pilot_light": "signal", "emergency_stop": "signal",
+  "_kategorie_jadra": "Klíče = kategorie kusovníku jádra PLCdesk (bom.ts: pushbutton, estop_button, selector_switch, pilot_light). Starší jména push_button / emergency_stop převádí dvere.core_cat (aliasy pro starší manifesty).",
+  "_aliasy": {"push_button": "pushbutton", "emergency_stop": "estop_button"},
+  "main_switch": "silovy", "plc_hmi": "signal", "pushbutton": "signal", "pilot_light": "signal", "estop_button": "signal",
   "selector_switch": "signal", "fan": "signal"
  },
  "vodice": {
@@ -39,7 +41,7 @@
   "main_switch": [["H07V-K_1.5", 7]],
   "plc_hmi": [["H05V-K_0.75", 2], ["PROFINET", 1]],
   "fan": [["H05V-K_0.75", 2]],
-  "push_button": [["H05V-K_0.75", 2]], "pilot_light": [["H05V-K_0.75", 2]], "emergency_stop": [["H05V-K_0.75", 4]],
+  "pushbutton": [["H05V-K_0.75", 2]], "pilot_light": [["H05V-K_0.75", 2]], "estop_button": [["H05V-K_0.75", 4]],
   "selector_switch": [["H05V-K_0.75", 3]]
  },
  "svazek": {

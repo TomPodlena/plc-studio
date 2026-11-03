@@ -41,6 +41,25 @@ export interface Bom {
     plat: PlatformKey;
     lines: BomLine[];
 }
+export type BeaconColor = "red" | "yellow" | "blue" | "green" | "white";
+/** Pořadí pater shora podle IEC 60204-1 čl. 10.3.2 (sekundárně IDEC LD6A; skill modul-majak `data/veze.json`). */
+export declare const BEACON_ORDER: BeaconColor[];
+export interface BeaconTier {
+    dev: Device;
+    color: BeaconColor | null;
+    estimated: boolean;
+}
+export interface BeaconTower {
+    tag: string;
+    tiers: BeaconTier[];
+    stock: boolean;
+}
+/**
+ * Signální věže projektu: DO s kategorií `beacon` seskupené do věží (jedna, pokud popisy nejmenují víc věží),
+ * patra seřazená shora (R / Y / B / G / W, neurčená barva dole). `stock` = patra se vejdou do hotové věže
+ * červená / žlutá / zelená z katalogu (barvy určené, různé, nejvýš 3). Sdílí kusovník i export pro CAD.
+ */
+export declare function bomBeaconTowers(prj: Project): BeaconTower[];
 /** Je zařízení (DI / DO / Ventil) jen signál rozhraní k jinému stroji? */
 export declare function bomIsInterface(d: Device): boolean;
 /** Nabídka katalogu pro řádek kusovníku (kategorie + platforma). */

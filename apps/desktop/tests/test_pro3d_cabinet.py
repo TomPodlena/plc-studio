@@ -250,6 +250,22 @@ class DvereTest(unittest.TestCase):
                     for dct in r["ducts"]:
                         self.assertFalse(overlap(a, [dct["x0"], dct["x1"], dct["y0"], dct["y1"], dct["z0"], dct["z1"]]), dct["name"])
 
+    def test_kategorie_jadra(self):
+        """Dveřní přístroje = kategorie kusovníku jádra (bom.ts); starší jména generátoru jako aliasy."""
+        from plc_studio.pro3d_cabinet import dvere as DV
+        self.assertEqual(DV.core_cat("push_button"), "pushbutton")
+        self.assertEqual(DV.core_cat("emergency_stop"), "estop_button")
+        self.assertEqual(DV.core_cat("selector_switch"), "selector_switch")
+        for c in ("pushbutton", "estop_button", "selector_switch", "pilot_light"):
+            self.assertIn(c, L.DOOR_CATS)
+            self.assertEqual(L.group_of(c, "panel"), "dvere")
+            self.assertIn(c, DV.data()["obsazeni"])
+        for old, new in (("push_button", "pushbutton"), ("emergency_stop", "estop_button")):
+            self.assertEqual(L.group_of(old, "panel"), "dvere", old)
+            self.assertEqual(DV._elements(old), DV._elements(new))
+            self.assertEqual(DV._door_kind(old), "signal")
+        self.assertEqual(len(DV._elements("estop_button")), 4)
+
     def test_kabelaz_ke_dverim(self):
         from plc_studio.pro3d_cabinet import dvere as DV
         rr = DV.radius_rule()

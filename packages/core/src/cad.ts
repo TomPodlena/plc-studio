@@ -20,7 +20,7 @@
  */
 import type { Project, PlatformKey, Device } from "./model.js";
 import { modules, syncIO, hasRange, interlockDevs } from "./model.js";
-import { buildBom, bomLineIsSafety, type BomLine } from "./bom.js";
+import { buildBom, bomBeaconTowers, bomLineIsSafety, type BomLine } from "./bom.js";
 import { isGuid, derivedGuid } from "./guid.js";
 import { axisCfgOf, type AxisCfg } from "./axis.js";
 import { stepTitle } from "./sim.js";
@@ -124,8 +124,11 @@ export const CAD_PLACEMENT: Record<string, { location: CadLocation; mount: CadMo
   estop_button: { location: "field", mount: "field" },
   two_hand_station: { location: "field", mount: "field" },
   pushbutton: { location: "field", mount: "field" },
+  selector_switch: { location: "field", mount: "field" },
   pilot_light: { location: "field", mount: "field" },
+  /* signální věž = jeden díl na stroji; patro je součástí věže (samo se nemontuje, vazba věž → patro `feeds`) */
   beacon: { location: "field", mount: "field" },
+  beacon_light: { location: "field", mount: "none" },
   horn: { location: "field", mount: "field" },
 };
 /** Kategorie mimo tabulku (vlastní typ firemní knihovny): na stroji, bez montáže — konstruktér rozhodne. */
@@ -375,6 +378,11 @@ export function cadManifest(prj0: Project, opts: { generator?: string } = {}): C
     const ch = L.ch.get(e);
     if (!ch) continue;
     rel(partOfModule(ch.mod), driven.get(e.devId), "controls");
+  }
+  /* signální věž → její patra (přípojný prvek věže napájí světelná patra; patro ovládá výstup PLC výše) */
+  for (const tw of bomBeaconTowers(prj)) {
+    const tower = lines.find(l => l.tag === tw.tag && l.cat === "beacon")?.id;
+    for (const x of tw.tiers) rel(tower, lines.find(l => l.devId === x.dev.id && l.cat === "beacon_light")?.id, "feeds");
   }
 
   /* ---- zadání pro hrubý 3D koncept: jen to, co projekt nese (nic se nedopočítává ani nevymýšlí) */

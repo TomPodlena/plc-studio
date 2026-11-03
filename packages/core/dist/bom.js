@@ -56,7 +56,9 @@ function diCat(prj, d, locks) {
         return "estop_button";
     if (locks.has(d.id))
         return has(t, /závor|mříž|curtain|lichtgitter|barrera|clona/) ? "light_curtain" : "safety_switch";
-    if (has(t, /tlačítk|start|kvit|button|taster|pulsador|přepína|selector/))
+    if (has(t, SELECTOR_RE))
+        return "selector_switch";
+    if (has(t, /tlačítk|start|kvit|button|taster|pulsador/))
         return "pushbutton";
     if (bomIsInterface(d))
         return ""; // kontakt druhého stroje: jen pin konektoru rozhraní (řádek machine_interface)
@@ -67,6 +69,55 @@ function diCat(prj, d, locks) {
     if (has(t, /koncák|koncov|limit|endschalter|final de carrera/))
         return "limit_switch";
     return "sensor_inductive";
+}
+/** Volič / přepínač (režim AUTO / RUČNĚ, seřizování…) — vlastní kategorie, ne tlačítko (pult: drážka proti pootočení). */
+const SELECTOR_RE = /volič|přepínač|přepína|selector|wahlschalter|schlüsselschalter|conmutador/;
+/** Pořadí pater shora podle IEC 60204-1 čl. 10.3.2 (sekundárně IDEC LD6A; skill modul-majak `data/veze.json`). */
+export const BEACON_ORDER = ["red", "yellow", "blue", "green", "white"];
+const BEACON_COLOR_TEXT = {
+    red: N_("červená"), yellow: N_("žlutá"), blue: N_("modrá"), green: N_("zelená"), white: N_("bílá"),
+};
+/** Barva z popisu zařízení (obsah projektu cs / en / de / es — nikdy z přeloženého UI). */
+const BEACON_COLOR_RE = [
+    ["red", /červen|\bred\b|\brot\b|\brojo|\broja\b/],
+    ["yellow", /žlut|oranž|jantar|yellow|amber|orange|gelb|amarillo|ámbar/],
+    ["blue", /modr|\bblue\b|\bblau|\bazul/],
+    ["green", /zelen|green|grün|gruen|\bverde\b/],
+    ["white", /bíl|white|weiß|weiss|\bblanc/],
+];
+/** Barva podle role DO, když ji popis neříká (veze.json `role_DO_na_barvu`: fault / run doloženo významem barev, ostatní ODHAD). */
+const BEACON_ROLE_COLOR = {
+    fault: { c: "red", est: false }, run: { c: "green", est: false },
+    ready: { c: "white", est: true }, stopped: { c: "yellow", est: true }, auto: { c: "white", est: true },
+};
+/** Barvy hotové věže z katalogu (Werma 64924005, PATLITE LR6-…-RYG, Eaton SL7 RYG, Auer CT5 RAG). */
+const BEACON_STOCK = new Set(["red", "yellow", "green"]);
+const TOWER_RE = /(?:věž|věže|věži|tower|turm|säule|torre)\s+([a-z0-9])\b/;
+/**
+ * Signální věže projektu: DO s kategorií `beacon` seskupené do věží (jedna, pokud popisy nejmenují víc věží),
+ * patra seřazená shora (R / Y / B / G / W, neurčená barva dole). `stock` = patra se vejdou do hotové věže
+ * červená / žlutá / zelená z katalogu (barvy určené, různé, nejvýš 3). Sdílí kusovník i export pro CAD.
+ */
+export function bomBeaconTowers(prj) {
+    const groups = new Map();
+    for (const d of prj.devices)
+        if (d.cls === "DO" && doCat(d) === "beacon") {
+            const k = (TOWER_RE.exec((d.desc || "").toLowerCase())?.[1] || "");
+            groups.set(k, [...(groups.get(k) || []), d]);
+        }
+    return [...groups.values()].map((devs, i) => {
+        const tiers = devs.map(dev => {
+            const t = (dev.desc || "").toLowerCase();
+            const byDesc = BEACON_COLOR_RE.find(([, re]) => re.test(t))?.[0];
+            const byRole = !byDesc && dev.role ? BEACON_ROLE_COLOR[dev.role] : undefined;
+            return { dev, color: byDesc || byRole?.c || null, estimated: !byDesc && !!byRole?.est };
+        });
+        const rank = (c) => c ? BEACON_ORDER.indexOf(c) : BEACON_ORDER.length;
+        tiers.sort((a, b) => rank(a.color) - rank(b.color)); // stabilní: stejná barva v pořadí zařízení
+        const cs = tiers.map(x => x.color);
+        const stock = tiers.length <= 3 && cs.every(c => c && BEACON_STOCK.has(c)) && new Set(cs).size === cs.length;
+        return { tag: "-PF" + (i + 1), tiers, stock };
+    });
 }
 function doCat(d) {
     const t = d.desc || "";
@@ -225,6 +276,7 @@ export function buildBom(prj) {
         add("-P1", "plc_hmi", 1, tr("Ovládání AUTO / START / kvitace, alarmy"));
     /* --- zařízení */
     let nMotor = 0;
+    const towers = bomBeaconTowers(prj), towersDone = new Set();
     for (const d of prj.devices) {
         const t = "-" + d.name, desc = d.desc || d.name;
         if (d.cls === "Motor") {
@@ -284,10 +336,32 @@ export function buildBom(prj) {
             if (!c)
                 continue;
             const safety = c === "estop_button" || c === "light_curtain" || c === "safety_switch";
-            add(t, c, 1, desc, { devId: d.id, safety, note: safety ? safetyNote : "" });
+            add(t, c, 1, desc, { devId: d.id, safety, note: safety ? safetyNote
+                    : c === "selector_switch" ? tr("počet poloh, s klíčem / bez klíče a kontakty podle funkce — typ doplní projektant") : "" });
         }
         else if (d.cls === "DO") {
             const c = doCat(d);
+            if (c === "beacon") {
+                /* věž se zapíše u prvního jejího DO (řádek věže + všechna patra shora), další DO téže věže už nic */
+                const tw = towers.find(w => w.tiers.some(x => x.dev.id === d.id));
+                if (towersDone.has(tw.tag))
+                    continue;
+                towersDone.add(tw.tag);
+                const cname = (x) => x.color ? tr(BEACON_COLOR_TEXT[x.color]) : "?";
+                add(tw.tag, "beacon", 1, tr("Signální věž: {list}", { list: tw.tiers.map(x => x.dev.name + " " + cname(x)).join(", ") }), {
+                    note: tw.stock && tw.tiers.length === 3
+                        ? tr("jedna věž, patro na každý výstup (pořadí shora červená / žlutá / modrá / zelená / bílá); hotová věž červená / žlutá / zelená z katalogu; montáž (patka / trubka / držák) podle místa na stroji")
+                        : tw.stock
+                            ? tr("jedna věž, patro na každý výstup (pořadí shora červená / žlutá / modrá / zelená / bílá); hotová věž červená / žlutá / zelená z katalogu — nepoužité patro zůstane rezervou; montáž (patka / trubka / držák) podle místa na stroji")
+                            : tr("jedna věž, patro na každý výstup (pořadí shora červená / žlutá / modrá / zelená / bílá); barvy pater hotová věž z katalogu (červená / žlutá / zelená) nepokryje — stavebnicová věž (přípojný prvek, světelné prvky, montáž), typ doplní projektant")
+                });
+                for (const x of tw.tiers)
+                    add("-" + x.dev.name, "beacon_light", 1, x.dev.desc || x.dev.name, { devId: x.dev.id,
+                        note: !x.color ? tr("patro věže {tower}: barvu doplní projektant (popis ani role ji neurčují)", { tower: tw.tag })
+                            : x.estimated ? tr("patro věže {tower}: {color} — ODHAD podle role {role}, potvrď; u hotové věže součást věže, u stavebnicové světelný prvek této barvy", { tower: tw.tag, color: cname(x), role: x.dev.role || "" })
+                                : tr("patro věže {tower}: {color}; u hotové věže součást věže, u stavebnicové světelný prvek této barvy", { tower: tw.tag, color: cname(x) }) });
+                continue;
+            }
             add(t, c, 1, desc, { devId: d.id, safety: c === "safety_switch", note: c === "safety_switch" ? safetyNote
                     : bomIsInterface(d) ? tr(VALVE_NOTE.interface_relay) : "" });
         }
