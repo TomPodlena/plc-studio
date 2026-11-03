@@ -90,6 +90,20 @@ PLC_OBJS = []    # díly s PLCdesk_Id (kusovník)
 SKIPPED = {"zdroje": 0, "pomocne": 0, "prazdne": 0, "chyby_tvaru": []}
 
 
+def pohyb_global(pm, plc):
+    """``Konstrukce_Pohyb`` je zapsaný v soustavě rodiče objektu (model z dily/ vložený odkazem s natočením — pístnice
+    válce ``posun [zdvih, 0, 0]`` platí podél osy válce) → převod do globálních souřadnic (``plc`` = umístění rodiče)."""
+    if not pm or pm.get("chyba") or plc.isIdentity():
+        return pm
+    out = dict(pm)
+    if "posun" in pm:
+        out["posun"] = list(plc.Rotation.multVec(V(*pm["posun"])))
+    elif "otoc" in pm:
+        o = pm["otoc"]
+        out["otoc"] = {"osa": list(plc.Rotation.multVec(V(*o["osa"]))), "bod": list(plc.multVec(V(*o["bod"]))), "uhel": o["uhel"]}
+    return out
+
+
 def walk(o, plc, path, inh):
     """inh = zděděné: {"zona": bool, "pohyb": dict|None, "ids": set (PLCdesk_Id předků)}."""
     if o.TypeId in SKIP_TYPES or o.TypeId.startswith("App::Origin"):
@@ -98,7 +112,7 @@ def walk(o, plc, path, inh):
     lab = o.Label
     fl = rules.fold(lab)
     zona = False                 # nebezpečí jen výslovně (rules.typ_dilu), ne podle skupiny „Zóny“
-    pm = rules.pohyb(pr) or inh["pohyb"]
+    pm = pohyb_global(rules.pohyb(pr), plc) or inh["pohyb"]
     pid = pr.get("PLCdesk_Id") or ""
     ids = inh["ids"]
     if pid and pid not in ids:
@@ -107,7 +121,8 @@ def walk(o, plc, path, inh):
                          "obj": f"{o.Document.Name}#{o.Name}"})
         ids = ids | {pid}
     # montáž kusovníku (PLCdesk_Mount din / rack = přístroj nacvaknutý na lištu) dědí obsah odkazu / kontejneru
-    sub = {"zona": zona, "pohyb": pm, "ids": ids, "mount": str(pr.get("PLCdesk_Mount") or inh.get("mount") or "")}
+    sub = {"zona": zona, "pohyb": pm, "ids": ids, "mount": str(pr.get("PLCdesk_Mount") or inh.get("mount") or ""),
+           "comp": inh.get("comp", "")}
     if o.TypeId in CONTAINERS:
         nplc = plc.multiply(o.Placement) if o.TypeId == "App::Part" else plc
         for c in getattr(o, "Group", []) or []:
@@ -126,7 +141,9 @@ def walk(o, plc, path, inh):
                                  "path": "/".join(path + [lab]), "status": lpr.get("PLCdesk_ModelStatus", ""),
                                  "guid": lpr.get("PLCdesk_ProjectGuid", ""), "obj": f"{o.Document.Name}#{o.Name}"})
                 sub = dict(sub, ids=ids | {lpid})
-            sub = dict(sub, pohyb=rules.pohyb(lpr) or sub["pohyb"])
+            sub = dict(sub, pohyb=pohyb_global(rules.pohyb(lpr), plc) or sub["pohyb"])
+            if lpr.get("Konstrukce_ModelStav") or lpid or pr.get("PLCdesk_Id"):   # jeden koupený díl z více těles (model z dily/)
+                sub = dict(sub, comp="/".join(path + [lab]))
             for c in getattr(lo, "Group", []) or []:
                 walk(c, nplc, path + [lab], sub)
             return
@@ -153,7 +170,8 @@ def walk(o, plc, path, inh):
         SKIPPED["pomocne"] += 1
     LEAVES.append({"key": f"{o.Document.Name}#{o.Name}#{len(LEAVES)}", "label": lab, "name": o.Name, "doc": o.Document.Name,
                    "path": "/".join(path + [lab]), "typ": typ, "s": s, "bb": s.BoundBox, "pohyb": pm, "props": pr,
-                   "vis": bool(getattr(o, "Visibility", True)), "mount": str(pr.get("PLCdesk_Mount") or inh.get("mount") or "")})
+                   "vis": bool(getattr(o, "Visibility", True)), "mount": str(pr.get("PLCdesk_Mount") or inh.get("mount") or ""),
+                   "comp": inh.get("comp", "")})
 
 
 ID = App.Placement()
@@ -438,10 +456,13 @@ def check_souvislost():
     in_air = {i for c in air for i in c}
     skip_loose = rules.FASTENERS | {"kabel", "hadice", "patka", "prislusenstvi", "rozhrani", "sroubeni"}
     trays = []
+    # díl z více těles (model dílu z dily/ v odkazu — tělo, nákružky, pístnice) je jeden kus: stačí, když spoj má jedno těleso
+    comp_ok = {x["comp"] for i, x in enumerate(items) if x.get("comp") and
+               (FL in nb[i] or any(j != FL and items[j]["typ"] in rules.FASTENERS for j in nb[i]))}
     if has_fast:
         for i, x in enumerate(items):
-            if i in in_air or x["typ"] in skip_loose or FL in nb[i] or \
-                    str(x["props"].get("PLCdesk_Mount") or x.get("mount") or "").lower() in ("din", "rack"):   # přístroj na liště = klip
+            if i in in_air or x["typ"] in skip_loose or FL in nb[i] or (x.get("comp") and x["comp"] in comp_ok) or \
+                    str(x["props"].get("PLCdesk_Mount") or x.get("mount") or "").lower() in rules.MOUNT_SELF:   # přístroj na liště = klip, snímač v drážce válce, zašroubovaný vlastním závitem
                     # (vlastnost i zděděná z App::Link / kontejneru — model dílu z dily/ ji nenese)
                 continue
             if not any(j != FL and items[j]["typ"] in rules.FASTENERS for j in nb[i]):
