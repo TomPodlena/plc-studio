@@ -82,7 +82,8 @@ class SamplesTest(unittest.TestCase):
                 self.assertTrue(rows)
                 self.assertFalse(doc & set(listed), "díl dle dokumentace v seznamu")
                 self.assertEqual(len(listed), len(set(listed)))
-                want = {p["id"] for p in m["parts"] if p["id"] not in doc and not p["category"].startswith("cable")}
+                want = {p["id"] for p in m["parts"] if p["id"] not in doc and not p["category"].startswith("cable")
+                        and p["category"] != "beacon_light"}             # patro věže = součást modelu věže
                 self.assertEqual(set(listed), want)                       # každý ostatní díl právě jednou
                 files = [r["file"] for r in rows]
                 self.assertEqual(len(files), len(set(f.lower() for f in files)), files)

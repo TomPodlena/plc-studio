@@ -194,8 +194,8 @@ def download_list(manifest: dict, parts_index: dict | None, models_dir: str | Pa
     groups: dict = {}
     order = []
     for p in manifest.get("parts") or []:
-        if RM.is_cable(p) or p.get("id") in doc:
-            continue
+        if RM.is_cable(p) or p.get("id") in doc or p.get("category") == "beacon_light":
+            continue                                   # patro signální věže = součást modelu věže (řádek beacon)
         k = RM.group_key(p)
         if k not in groups:
             groups[k] = []

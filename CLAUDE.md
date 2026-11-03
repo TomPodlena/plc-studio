@@ -250,7 +250,17 @@ python scripts/build_verification.py        # data/verification.json → verific
   (suction_cup, vacuum_ejector, vacuum_switch, gripper) mají položky v `data/catalog/uchopy.json` (2026-10-29, 10 položek
   Festo / Schmalz / Schunk / Zimmer / ifm z rešerše skillu uchopy-a-vakuum, kód jen s URL zdroje; výchozí = Festo, u
   platformy Festo shodná značka) — poznámky řádků říkají „typ z katalogu je výchozí návrh“; `machine_interface` zatím
-  bez položek katalogu. Kabely M12 jen ke skutečným snímačům (ne k signálům rozhraní). Volba uživatele v `prj.bom.lines` má dál
+  bez položek katalogu. Kabely M12 jen ke skutečným snímačům (ne k signálům rozhraní). **Signální věž** (2026-11-03, nálezy modulů
+  pult / maják PRO): DO majáku (`beacon` z popisu jako dřív) = JEDNA věž `-PF1:beacon` (IEC 81346-2 třída P; označení nezávisí na
+  jménech DO → id i GUID pro CAD přežijí přejmenování / smazání DO; řádek bez `devId`, katalog = hotová věž R/Y/G Werma 64924005…)
+  + patro `-<DO>:beacon_light` na každý DO (`devId`, bez kódu, CAD `mount: none`, vazby `controls` výstupní modul → patro a `feeds`
+  věž → patro), patra shora R / Y / B / G / W (IEC 60204-1 10.3.2). Barva z popisu (cs / en / de / es), jinak z role (fault R, run G;
+  ready / auto W, stopped Y = ODHAD v poznámce — skill modul-majak `data/veze.json`); barvy mimo R/Y/G, duplicitní nebo > 3 patra
+  → poznámka „stavebnicová věž, typ doplní projektant“ (kódy světelných prvků v katalogu nejsou). Víc věží jen podle popisu („věž A“,
+  „tower B“, „Turm 2“ → -PF1, -PF2). `bomBeaconTowers` sdílí kusovník i `cad.ts`. **Volič** (volič / přepínač / selector /
+  Wahlschalter) = kategorie `selector_switch` (dřív `pushbutton`), bez položky katalogu (kód voliče 3SU1 rešerší nedoložen — typ doplní
+  projektant). `pro3d_cabinet` čte kategorie jádra (`pushbutton`, `estop_button`, `selector_switch`; `dvere.core_cat` převádí starší
+  `push_button` / `emergency_stop`). Volba uživatele v `prj.bom.lines` má dál
   přednost. Testy `bom.test.ts`. Výstupy `bomCsv` (středník, BOM
   pro český Excel), `bomMd`; v dokumentaci `09_kusovnik.md/.csv`.
 - Volby uživatele `prj.bom` = `{ plat, brand: {catKey: optId|vlastní}, lines: {id: {brand, type,

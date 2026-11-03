@@ -123,3 +123,85 @@ test("CAD: vazby nových dílů (rozváděč → ejektor → přísavky, spína�
     const xg = m.parts.find(x => x.category === "machine_interface");
     assert.equal(xg.location, "field");
 });
+/* ---- signální věž s patry a volič (2026-11-03, nálezy přípravy modulů pult / maják PLCdesk PRO) ---- */
+const S03 = "03_nytovaci_lis_NL-1.plcstudio.json";
+const S20 = "20_zkusebni_stanice_tesnosti_ZT-20.plcstudio.json";
+test("vzor 03: jedna signální věž se 2 patry (červená nahoře, zelená), ne věž na každý DO", () => {
+    setLang("cs");
+    const p = loadSampleFile(S03);
+    const b = buildBom(p);
+    const towers = b.lines.filter(l => l.cat === "beacon");
+    assert.equal(towers.length, 1, "jedna věž");
+    assert.equal(towers[0].id, "-PF1:beacon");
+    assert.equal(towers[0].qty, 1);
+    assert.equal(towers[0].orderCode, "64924005", "hotová věž Werma R/Y/G z katalogu");
+    assert.equal(towers[0].devId, undefined, "věž nepatří jednomu DO");
+    const tiers = b.lines.filter(l => l.cat === "beacon_light");
+    assert.deepEqual(tiers.map(l => l.id), ["-H2:beacon_light", "-H1:beacon_light"], "patra shora: červená (fault), zelená (run)");
+    assert.match(tiers[0].note, /červená/);
+    assert.match(tiers[1].note, /zelená/);
+    assert.equal(tiers[0].orderCode, "", "patro samo nemá objednací kód");
+    assert.ok(!b.lines.some(l => l.id === "-H1:beacon" || l.id === "-H2:beacon"), "žádná věž na DO");
+    assert.equal(b.lines.indexOf(tiers[0]), b.lines.indexOf(towers[0]) + 1, "patra hned za věží");
+    assert.deepEqual(catsOf(p, "-S1"), ["estop_button"], "E-stop zůstává");
+    assert.deepEqual(catsOf(p, "-S2"), ["pushbutton"], "tlačítko dvouručního ovládání zůstává tlačítkem");
+});
+test("vzor 20: tři DO majáku = jedna věž se 3 patry R / Y / G", () => {
+    setLang("cs");
+    const b = buildBom(loadSampleFile(S20));
+    assert.equal(b.lines.filter(l => l.cat === "beacon").length, 1);
+    const tiers = b.lines.filter(l => l.cat === "beacon_light");
+    assert.equal(tiers.length, 3);
+    assert.deepEqual(tiers.map(l => /patro věže -PF1: ([^;,\s]+)/.exec(l.note)[1]), ["červená", "žlutá", "zelená"]);
+});
+test("věž: barva z popisu má přednost, jinak role (ODHAD), víc věží jen výslovně; mimo R/Y/G = stavebnice", () => {
+    setLang("cs");
+    const p = prjWith([
+        { cls: "DO", desc: "Maják — připraveno" },
+        { cls: "DO", desc: "Maják modrá — výzva obsluze" },
+        { cls: "DO", desc: "Maják — porucha" },
+    ]);
+    p.devices[0].role = "ready";
+    p.devices[2].role = "fault";
+    let b = buildBom(p);
+    assert.equal(b.lines.filter(l => l.cat === "beacon").length, 1);
+    assert.deepEqual(b.lines.filter(l => l.cat === "beacon_light").map(l => l.tag), ["-H3", "-H2", "-H1"], "shora červená, modrá, bílá");
+    assert.match(b.lines.find(l => l.id === "-H1:beacon_light").note, /ODHAD podle role ready/);
+    assert.match(b.lines.find(l => l.cat === "beacon").note, /stavebnicová věž/, "modrá / bílá hotová věž R/Y/G nepokryje");
+    /* dvě věže jen podle popisu */
+    const q = prjWith([
+        { cls: "DO", desc: "Maják věž A zelená" }, { cls: "DO", desc: "Maják věž A červená" },
+        { cls: "DO", desc: "Maják věž B zelená" },
+    ]);
+    b = buildBom(q);
+    assert.deepEqual(b.lines.filter(l => l.cat === "beacon").map(l => l.id), ["-PF1:beacon", "-PF2:beacon"]);
+    assert.match(b.lines.find(l => l.id === "-H3:beacon_light").note, /-PF2/);
+});
+test("volič režimů má vlastní kategorii selector_switch (cs / en / de), tlačítko zůstává", () => {
+    setLang("cs");
+    const p = prjWith([
+        { cls: "DI", desc: "Volič režimů AUTO / RUČNĚ" },
+        { cls: "DI", desc: "Mode selector switch" },
+        { cls: "DI", desc: "Wahlschalter Automatik / Hand" },
+        { cls: "DI", desc: "Tlačítko START" },
+    ]);
+    assert.deepEqual(["-S1", "-S2", "-S3", "-S4"].map(t => catsOf(p, t)), [["selector_switch"], ["selector_switch"], ["selector_switch"], ["pushbutton"]]);
+    const l = buildBom(p).lines.find(x => x.id === "-S1:selector_switch");
+    assert.equal(l.orderCode, "", "bez ověřeného kódu");
+    assert.match(l.note, /doplní projektant/);
+});
+test("CAD: výstupní modul → patro věže (controls), věž → patro (feeds), patro se samo nemontuje", () => {
+    setLang("cs");
+    const m = cadManifest(loadSampleFile(S03));
+    for (const t of ["-H1:beacon_light", "-H2:beacon_light"]) {
+        assert.ok(m.relations.some(r => r.to === t && r.kind === "controls" && /plc_(cpu|do)/.test(r.from)), t + " controls");
+        assert.ok(m.relations.some(r => r.from === "-PF1:beacon" && r.to === t && r.kind === "feeds"), t + " feeds");
+    }
+    const tower = m.parts.find(x => x.id === "-PF1:beacon");
+    assert.equal(tower.mount, "field");
+    assert.equal(tower.device, null);
+    assert.ok(tower.guid, "GUID věže z projektu (přežije přejmenování DO)");
+    const tier = m.parts.find(x => x.id === "-H1:beacon_light");
+    assert.equal(tier.mount, "none");
+    assert.equal(tier.device, "H1");
+});

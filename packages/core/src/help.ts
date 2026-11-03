@@ -327,6 +327,7 @@ const SRC: Src[] = [
       N_("Změna bezpečnostního dílu v kusovníku (E-stop, spínač krytu, bezpečnostní relé…) je v revizi bezpečnostní změna, ne kosmetická."),
       N_("Svorky v kusovníku = svorkovnice výkresů X1…Xn (jedna svorka na kanál); svorky napájení a rezervu doplní projektant."),
       N_("Díly zařízení se volí i podle popisu: signál z / do jiného stroje (EUROMAP, „signál z lisu“, robot) = konektor rozhraní a vazební relé, ne snímač ani válec; vakuum / přísavky = ejektor, přísavky a spínač podtlaku; chapadlo = paralelní chapadlo (zdvih chapadla zůstává válec). Jiný díl zvol u řádku."),
+      N_("Výstupy majáku tvoří **jednu signální věž** -PF1 s patrem na každý výstup (shora červená, žlutá, modrá, zelená, bílá; barva z popisu, jinak z role výstupu — odhad je v poznámce). Víc věží jen když to popis zařízení říká („věž A“, „věž B“). Volič / přepínač režimů má vlastní řádek voliče, ne tlačítka."),
       N_("Objednací kódy jsou jen ověřené (se zdrojem); ceny katalog neuvádí."),
       N_("Bezpečnostní prvky jsou v kusovníku jen jako hardware s výhradou „návrh k revizi“."),
       N_("**Obnovit výchozí volby** zahodí tvé volby značek a řádků."),

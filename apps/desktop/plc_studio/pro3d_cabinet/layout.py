@@ -66,7 +66,8 @@ GEOM_TEXT = {
 }
 POWER = ("main_switch", "mcb", "fuse", "rcd", "surge_protection", "power_supply_24v", "power_supply")
 SILOVA = ("motor_protection", "contactor", "contactor_mirror", "soft_starter", "overload_relay", "vfd")
-DOOR_CATS = ("plc_hmi", "main_switch", "pilot_light", "push_button", "emergency_stop", "selector_switch")
+# kategorie kusovníku jádra (bom.ts); starší jména push_button / emergency_stop převede dvere.core_cat
+DOOR_CATS = ("plc_hmi", "main_switch", "pilot_light", "pushbutton", "estop_button", "selector_switch")
 FAMILIES = (  # (klíč, popisek, skupiny, druh montáže)
     ("sil", "Napájení, jištění a silová část", ("napajeni", "silova"), "din"),
     ("poh", "Pohony na desce", ("pohony",), "panel"),
@@ -177,7 +178,7 @@ def group_of(cat: str, mount: str) -> str:
     if mount == "rack":
         return "rizeni"
     if mount in ("panel", "door"):
-        return "dvere" if cat in DOOR_CATS else "pohony"
+        return "dvere" if dvere.core_cat(cat) in DOOR_CATS else "pohony"
     if cat in POWER:
         return "napajeni"
     if cat in SILOVA:
@@ -247,7 +248,7 @@ def expand(manifest: dict, parts_index: dict | None) -> tuple[list, dict | None,
         cl = clear_of(p.get("orderCode") or "")
         ls = loss_of(p.get("orderCode") or "")
         it = {"pid": p["id"], "inst": n, "tag": p.get("tag") or p["id"].split(":")[0], "label": p.get("label") or "",
-              "cat": p.get("category") or "", "mount": p.get("mount") or "", "code": p.get("orderCode") or "",
+              "cat": dvere.core_cat(p.get("category") or ""), "mount": p.get("mount") or "", "code": p.get("orderCode") or "",
               "brand": p.get("brand") or "", "type": p.get("type") or "", "safety": bool(p.get("safety")),
               "group": group_of(p.get("category") or "", p.get("mount") or ""), "geom": g, "clear": cl, "loss": ls,
               "seq": len(out)}

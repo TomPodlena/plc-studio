@@ -313,14 +313,21 @@ def choose_fan(bil: dict) -> dict | None:
 
 # --- dveře: rozmístění ------------------------------------------------------------------------------------------------
 
+def core_cat(cat: str) -> str:
+    """Kategorie kusovníku jádra PLCdesk (bom.ts) — starší jména generátoru (push_button, emergency_stop) z dřívějších
+    manifestů / dat převede na jména jádra (pushbutton, estop_button); ostatní beze změny."""
+    return (data()["kategorie"].get("_aliasy") or {}).get(cat, cat)
+
+
 def _door_kind(cat: str) -> str:
-    return data()["kategorie"].get(cat, "signal")
+    k = data()["kategorie"].get(core_cat(cat), "signal")
+    return k if isinstance(k, str) else "signal"
 
 
 def _elements(cat: str) -> list:
     v = data()["vodice"]
     out = []
-    for key, n in data()["obsazeni"].get(cat) or data()["obsazeni"]["push_button"]:
+    for key, n in data()["obsazeni"].get(core_cat(cat)) or data()["obsazeni"]["pushbutton"]:
         out += [(key, float(v[key]["D"]))] * int(n)
     return out
 
