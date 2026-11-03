@@ -320,6 +320,7 @@ class RunChecksFakeTest(unittest.TestCase):
                 "souvislost": {"selhalo": "Traceback…"},
                 "zasunuti": {"chyby": [], "varovani": [], "info": [], "data": {"sroubu": []}},
                 "kopie": {"chyby": [], "varovani": [], "info": [], "data": {"skupin": 0}},
+                "zony": {"chyby": [], "varovani": [], "info": [], "data": {"zon": 0}},
                 "otvory": {"teles": 1, "zon": 1, "zony": [], "grids": [{"vox": 5.0, "grid": [1, 1, 1], "paths": [
                     {"vox": 5.0, "e": 8.0, "sr_primka": 50.0, "sr_draha": 60.0, "nejuzsi": [0, 0, 0], "vstup": [0, -9, 0],
                      "e_mer": 10.0, "sr_mer": 100.0, "sr_draha_mer": 110.0, "bod_mer": [0, 0, 0], "tvar": "sterbina",

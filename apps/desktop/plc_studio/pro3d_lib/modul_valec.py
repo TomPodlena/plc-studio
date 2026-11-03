@@ -414,7 +414,8 @@ def modul(tag: str, norma: str, prumer: int, zdvih: int, upevneni: str, pistnice
     if pistnice in ("kloub", "vidlice"):
         acc = (kloub if pistnice == "kloub" else vidlice)(nk, prumer, KK_d, A_thr)
         dily.append(acc["spec"])
-        inst.append({"model": acc["spec"]["key"], "pos": [x_s, 0, 0], "rot": I3, "druh": pistnice, "skupina": "Pistnice"})
+        inst.append({"model": acc["spec"]["key"], "pos": [x_s, 0, 0], "rot": I3, "druh": pistnice, "skupina": "Pistnice",
+                     "mount": "zavit"})                    # našroubováno na závit KK pístnice
         zdroje.append(acc["spec"]["zdroj"][0])
         fz = UPV["iso15552"]["festo_doplnky"]
         kk = p["KK"]

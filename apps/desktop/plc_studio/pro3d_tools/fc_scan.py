@@ -136,7 +136,7 @@ def walk(o, plc, path, inh):
     sub = {"zona": zona, "pohyb": pm, "ids": ids, "mount": str(pr.get("PLCdesk_Mount") or inh.get("mount") or ""),
            "comp": inh.get("comp", ""),
            "lnk": inh.get("lnk") or (), "src": inh.get("src") or (o.Document.Name, o.Name) in link_sources,
-           "zjed": inh.get("zjed") or _zjed(pr)}
+           "zjed": inh.get("zjed") or _zjed(pr), "mat": inh.get("mat")}
     if o.TypeId in CONTAINERS:
         nplc = plc.multiply(o.Placement) if o.TypeId == "App::Part" else plc
         for c in getattr(o, "Group", []) or []:
@@ -155,6 +155,8 @@ def walk(o, plc, path, inh):
                                  "path": "/".join(path + [lab]), "status": lpr.get("PLCdesk_ModelStatus", ""),
                                  "guid": lpr.get("PLCdesk_ProjectGuid", ""), "obj": f"{o.Document.Name}#{o.Name}"})
                 sub = dict(sub, ids=ids | {lpid})
+            if lpr.get("Konstrukce_Material"):              # materiál dílu z dily/ (závit ve víku Al válce = 1,5·d)
+                sub = dict(sub, mat=lpr["Konstrukce_Material"])
             sub = dict(sub, pohyb=pohyb_global(rules.pohyb(lpr), plc) or sub["pohyb"],
                        lnk=tuple(sub["lnk"]) + (f"{o.Document.Name}#{o.Name}",), zjed=sub["zjed"] or _zjed(lpr))
             if lpr.get("Konstrukce_ModelStav") or lpid or pr.get("PLCdesk_Id"):   # jeden koupený díl z více těles (model z dily/)
@@ -180,6 +182,8 @@ def walk(o, plc, path, inh):
         return
     s = s0.copy()
     s.Placement = plc.multiply(o.Placement).multiply(s.Placement)
+    if inh.get("mat") and not pr.get("Konstrukce_Material"):
+        pr = dict(pr, Konstrukce_Material=inh["mat"])
     typ = rules.typ_dilu(pr, lab, o.Name)
     if typ == "pomocny":
         SKIPPED["pomocne"] += 1

@@ -157,7 +157,11 @@ def port(p: dict, s_zavitem: bool = True) -> dict:
         raise ValueError("směr stočení hadice musí být kolmý k ose ústí")
     ved = DATA["vedeni"]
     Rb = float(h["R_prutok"])
-    a = _add(mouth, u, -s["zasun"])                       # čelo hadice uvnitř šroubení (hloubka zasunutí z listu)
+    zasun = s["zasun"]
+    if not s_zavitem and s["druh"] == "qs":
+        # bez modelované díry portu nesmí čelo hadice pod dosed (vnikla by do plného materiálu protikusu) — ODHAD zkrácení
+        zasun = min(zasun, s["obalka"]["soket"] - 1.0)
+    a = _add(mouth, u, -zasun)                            # čelo hadice uvnitř šroubení (hloubka zasunutí z listu)
     b = _add(mouth, u, ved["rovny_usek_x_D"]["hodnota"] * h["D"])
     ctr = _add(b, w, Rb)
     c = _add(ctr, u, Rb)
@@ -169,7 +173,7 @@ def port(p: dict, s_zavitem: bool = True) -> dict:
     zona = {"add": [{"cyl": {"p": mouth, "d": u, "r": zr, "h": pr["nasunuti_mm"]["hodnota"]}}]}
     delka = math.dist(a, b) + math.pi * Rb / 2 + math.dist(c, e)
     return dict(out, hadice={"kod": h["kod"], "nazev": h["nazev"], "r": h["D"] / 2, "D": h["D"], "R": Rb, "R_min": h["R_min"],
-                             "path": path, "zacatek": e, "smer": w, "usti": mouth, "zasun": s["zasun"],
+                             "path": path, "zacatek": e, "smer": w, "usti": mouth, "zasun": zasun, "zasun_list": s["zasun"],
                              "delka": round(delka, 1)},
                 zona=zona, zona_r=zr, usti=mouth, osa_usti=u)
 
