@@ -373,7 +373,13 @@ def agent_env(base: dict | None = None) -> dict:
     env = dict(os.environ if base is None else base)
     for k in API_ENV_VARS:
         env.pop(k, None)
+    # bez úloh na pozadí: agent spustil dlouhou kontrolu na pozadí, ukončil tah („čekám“) a CLI pak pokračovalo
+    # dalšími tahy po doběhu úlohy — mimo limit kol i log, hodiny (vzory 16 a 20, 2026-11-03)
+    env["CLAUDE_CODE_DISABLE_BACKGROUND_TASKS"] = "1"
     return env
+
+
+RESULT_GRACE_S = 120   # po události ``result`` má proces CLI skončit; jinak se ukončí jeho strom (pojistka)
 
 
 def kill_tree(pid: int) -> bool:
@@ -408,6 +414,8 @@ class AgentRun:
         self.last = ""
         self.t0: float | None = None
         self.result: dict | None = None       # poslední událost ``result`` stream-json (cena, tokeny)
+        self.grace_killed = False             # proces po ``result`` neskončil a byl ukončen pojistkou
+        self._grace: threading.Timer | None = None
 
     def start(self, popen=subprocess.Popen) -> None:
         kw = {}
@@ -436,6 +444,7 @@ class AgentRun:
                         ev = json.loads(raw)
                         if isinstance(ev, dict) and ev.get("type") == "result":
                             self.result = ev          # cena a tokeny pro přehled postupu
+                            self._arm_grace()
                     except ValueError:
                         pass
                 for item in parse_event(raw):
@@ -444,11 +453,32 @@ class AgentRun:
         except Exception as exc:  # noqa: BLE001 — chyba čtení se ukáže v logu
             self.queue.put(("error", str(exc)))
             code = -1
+        if self._grace is not None:
+            self._grace.cancel()
+        if self.grace_killed and self.state == "running":
+            ok = bool(self.result) and not self.result.get("is_error") and self.result.get("subtype") in (None, "success")
+            self.state = "done" if ok else "failed"
+            self.queue.put(("error", _("Proces agenta po závěrečné zprávě neskončil do {s} s — ukončen pojistkou.",
+                                       s=RESULT_GRACE_S)))
         if self.state == "running":
             self.state = "done" if code == 0 else "failed"
             if code:
                 self.queue.put(("error", _("Proces agenta skončil s kódem {code}.", code=code)))
         self.queue.put(("end", self.state))
+
+    def _arm_grace(self, kill=None) -> None:
+        """Po události ``result``: když proces do ``RESULT_GRACE_S`` neskončí, ukončit JEN jeho strom."""
+        if self._grace is not None or self.proc is None:
+            return
+        killer = kill or kill_tree
+
+        def fire() -> None:
+            if self.proc is not None and self.proc.poll() is None:
+                self.grace_killed = True
+                killer(self.proc.pid)
+        self._grace = threading.Timer(RESULT_GRACE_S, fire)
+        self._grace.daemon = True
+        self._grace.start()
 
     def drain(self) -> list[tuple[str, str]]:
         """Nové řádky z fronty (hlavní vlákno)."""

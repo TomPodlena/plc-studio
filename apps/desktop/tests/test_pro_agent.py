@@ -45,7 +45,7 @@ class CommandTest(unittest.TestCase):
         """Agent běží jen na předplatné claude.ai — proměnné API z prostředí nedostane."""
         env = pa.agent_env({"PATH": "C:/bin", "ANTHROPIC_API_KEY": "x", "ANTHROPIC_AUTH_TOKEN": "y",
                             "CLAUDE_CODE_USE_BEDROCK": "1", "CLAUDE_CODE_USE_VERTEX": "1"})
-        self.assertEqual(env, {"PATH": "C:/bin"})
+        self.assertEqual(env, {"PATH": "C:/bin", "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"})
         seen = {}
 
         def fake_popen(cmd, **kw):
@@ -56,6 +56,36 @@ class CommandTest(unittest.TestCase):
             with self.assertRaises(OSError):
                 run.start(popen=fake_popen)
         self.assertNotIn("ANTHROPIC_API_KEY", seen["env"])
+
+    def test_grace_after_result(self):
+        """Proces, který po události result neskončí (úlohy na pozadí), ukončí pojistka — jen jeho strom."""
+        killed = []
+
+        class Proc:
+            pid = 4242
+
+            def __init__(self):
+                self.alive = True
+
+            def poll(self):
+                return None if self.alive else 0
+
+        run = pa.AgentRun(["claude"], "pokyn", ".")
+        run.proc = Proc()
+        with mock.patch.object(pa, "RESULT_GRACE_S", 0.05):
+            run._arm_grace(kill=lambda pid: (killed.append(pid), setattr(run.proc, "alive", False)))
+            import time as _t
+            _t.sleep(0.3)
+        self.assertEqual(killed, [4242])
+        self.assertTrue(run.grace_killed)
+        run2 = pa.AgentRun(["claude"], "pokyn", ".")
+        run2.proc = Proc()
+        run2.proc.alive = False                            # skončil sám → pojistka nic nedělá
+        with mock.patch.object(pa, "RESULT_GRACE_S", 0.05):
+            run2._arm_grace(kill=lambda pid: killed.append(pid))
+            _t.sleep(0.2)
+        self.assertEqual(killed, [4242])
+        self.assertFalse(run2.grace_killed)
 
     def test_command(self):
         cmd = pa.build_command("C:/x/claude.exe", "builder", model="opus", budget=2.5, add_dirs=["C:/skills"])

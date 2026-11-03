@@ -3417,6 +3417,7 @@ const d = {
     "Pro výpočet času na cestě, který se účtuje sazbou oživení.": "Zur Berechnung der Reisezeit, die mit dem Inbetriebnahmesatz abgerechnet wird.",
     "Pro větší stroj S7-1500 (bez ověřeného kódu). Starší S7-1200 G1 = CPU 1212C 6ES7212-1AE40-0XB0 (viz automation24.com).": "Für größere Maschinen S7-1500 (ohne verifizierten Code). Ältere S7-1200 G1 = CPU 1212C 6ES7212-1AE40-0XB0 (siehe automation24.com).",
     "Probíhá emulace…": "Emulation läuft…",
+    "Proces agenta po závěrečné zprávě neskončil do {s} s — ukončen pojistkou.": "Der Agentenprozess hat sich {s} s nach der Abschlussmeldung nicht beendet — durch die Sicherung beendet.",
     "Proces agenta skončil s kódem {code}.": "Der Agentenprozess endete mit Code {code}.",
     "Procesní data v mV (10 V = 10000).": "Prozessdaten in mV (10 V = 10000).",
     "Procesní data v µA: 4 mA = 4000, 20 mA = 20000 (datasheet R911418501) – nula není 0, škálování 4000…20000.": "Prozessdaten in µA: 4 mA = 4000, 20 mA = 20000 (Datenblatt R911418501) – Null ist nicht 0, Skalierung 4000…20000.",

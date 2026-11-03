@@ -3417,6 +3417,7 @@ const d: Record<string, string> = {
   "Pro výpočet času na cestě, který se účtuje sazbou oživení.": "Used to calculate travel time, which is billed at the commissioning rate.",
   "Pro větší stroj S7-1500 (bez ověřeného kódu). Starší S7-1200 G1 = CPU 1212C 6ES7212-1AE40-0XB0 (viz automation24.com).": "For a larger machine S7-1500 (without a verified code). Older S7-1200 G1 = CPU 1212C 6ES7212-1AE40-0XB0 (see automation24.com).",
   "Probíhá emulace…": "Emulation running…",
+  "Proces agenta po závěrečné zprávě neskončil do {s} s — ukončen pojistkou.": "The agent process did not exit within {s} s after its final message — stopped by the safeguard.",
   "Proces agenta skončil s kódem {code}.": "The agent process ended with code {code}.",
   "Procesní data v mV (10 V = 10000).": "Process data in mV (10 V = 10000).",
   "Procesní data v µA: 4 mA = 4000, 20 mA = 20000 (datasheet R911418501) – nula není 0, škálování 4000…20000.": "Process data in µA: 4 mA = 4000, 20 mA = 20000 (datasheet R911418501) – zero is not 0, scaling 4000…20000.",

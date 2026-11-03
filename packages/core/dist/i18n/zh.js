@@ -3417,6 +3417,7 @@ const d = {
     "Pro výpočet času na cestě, který se účtuje sazbou oživení.": "用于计算路途时间，按调试费率计费。",
     "Pro větší stroj S7-1500 (bez ověřeného kódu). Starší S7-1200 G1 = CPU 1212C 6ES7212-1AE40-0XB0 (viz automation24.com).": "较大设备用 S7-1500（无已核实订货号）。旧款 S7-1200 G1 = CPU 1212C 6ES7212-1AE40-0XB0（见 automation24.com）。",
     "Probíhá emulace…": "正在仿真…",
+    "Proces agenta po závěrečné zprávě neskončil do {s} s — ukončen pojistkou.": "代理进程在最终消息后 {s} 秒内未退出——已被保护机制终止。",
     "Proces agenta skončil s kódem {code}.": "代理进程以代码 {code} 结束。",
     "Procesní data v mV (10 V = 10000).": "过程数据单位 mV（10 V = 10000）。",
     "Procesní data v µA: 4 mA = 4000, 20 mA = 20000 (datasheet R911418501) – nula není 0, škálování 4000…20000.": "过程数据单位 µA：4 mA = 4000，20 mA = 20000（数据表 R911418501）– 零点不是 0，缩放 4000…20000。",

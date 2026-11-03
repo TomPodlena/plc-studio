@@ -3417,6 +3417,7 @@ const d: Record<string, string> = {
   "Pro výpočet času na cestě, který se účtuje sazbou oživení.": "Para calcular el tiempo de viaje, que se factura con la tarifa de puesta en marcha.",
   "Pro větší stroj S7-1500 (bez ověřeného kódu). Starší S7-1200 G1 = CPU 1212C 6ES7212-1AE40-0XB0 (viz automation24.com).": "Para máquinas mayores S7-1500 (sin código verificado). El S7-1200 G1 anterior = CPU 1212C 6ES7212-1AE40-0XB0 (ver automation24.com).",
   "Probíhá emulace…": "Emulación en curso…",
+  "Proces agenta po závěrečné zprávě neskončil do {s} s — ukončen pojistkou.": "El proceso del agente no terminó en {s} s tras su mensaje final — detenido por la protección.",
   "Proces agenta skončil s kódem {code}.": "El proceso del agente terminó con el código {code}.",
   "Procesní data v mV (10 V = 10000).": "Datos de proceso en mV (10 V = 10000).",
   "Procesní data v µA: 4 mA = 4000, 20 mA = 20000 (datasheet R911418501) – nula není 0, škálování 4000…20000.": "Datos de proceso en µA: 4 mA = 4000, 20 mA = 20000 (hoja de datos R911418501) – el cero no es 0, escalado 4000…20000.",
