@@ -6229,7 +6229,7 @@ const d: Record<string, string> = {
   "parametry knihovny GMC Independent PLCopen MC (GIPLC) se nepodařilo ověřit (EIO0000003592 nedostupný) — kód osy se negeneruje, aby nevznikl nepřeložitelný program.": "the parameters of the GMC Independent PLCopen MC library (GIPLC) could not be verified (EIO0000003592 unavailable) — axis code is not generated to avoid a program that does not compile.",
   "parametry rizika S/F/P": "risk parameters S/F/P",
   "patro věže {tower}: barvu doplní projektant (popis ani role ji neurčují)": "tier of tower {tower}: colour to be completed by the designer (neither description nor role defines it)",
-  "patro věže {tower}: {color} — ODHAD podle role {role}, potvrď; u hotové věže součást věže, u stavebnicové světelný prvek této barvy": "tier of tower {tower}: {color} — ESTIMATE from role {role}, please confirm; part of a pre-assembled tower, a light element of this colour for a modular tower",
+  "patro věže {tower}: {color} — výchozí PLCdesk podle role {role} (rozhodnutí uživatele); u hotové věže součást věže, u stavebnicové světelný prvek této barvy": "tier of tower {tower}: {color} — PLCdesk default for role {role} (user decision); part of a pre-assembled tower, a light element of this colour for a modular tower",
   "patro věže {tower}: {color}; u hotové věže součást věže, u stavebnicové světelný prvek této barvy": "tier of tower {tower}: {color}; part of a pre-assembled tower, a light element of this colour for a modular tower",
   "pilotně ovládané zpětné ventily přímo na válcích {devs} (zadržení při odvzdušnění)": "pilot-operated check valves directly on cylinders {devs} (holding during exhaust)",
   "platforma (odhad)": "platform (estimate)",

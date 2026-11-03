@@ -6229,7 +6229,7 @@ const d = {
     "parametry knihovny GMC Independent PLCopen MC (GIPLC) se nepodařilo ověřit (EIO0000003592 nedostupný) — kód osy se negeneruje, aby nevznikl nepřeložitelný program.": "无法核实 GMC Independent PLCopen MC (GIPLC) 库的参数（EIO0000003592 不可获取）— 不生成轴代码，以免产生无法编译的程序。",
     "parametry rizika S/F/P": "风险参数 S/F/P",
     "patro věže {tower}: barvu doplní projektant (popis ani role ji neurčují)": "灯塔 {tower} 的层：颜色由设计人员补充（描述和角色均未确定）",
-    "patro věže {tower}: {color} — ODHAD podle role {role}, potvrď; u hotové věže součást věže, u stavebnicové světelný prvek této barvy": "灯塔 {tower} 的层：{color} — 按角色 {role} 估计，请确认；成品灯塔中为其组成部分，模块化灯塔中为该颜色的灯层",
+    "patro věže {tower}: {color} — výchozí PLCdesk podle role {role} (rozhodnutí uživatele); u hotové věže součást věže, u stavebnicové světelný prvek této barvy": "灯塔 {tower} 的层：{color} — 按角色 {role} 的 PLCdesk 默认值（用户决定）；成品灯塔中为其组成部分，模块化灯塔中为该颜色的灯层",
     "patro věže {tower}: {color}; u hotové věže součást věže, u stavebnicové světelný prvek této barvy": "灯塔 {tower} 的层：{color}；成品灯塔中为其组成部分，模块化灯塔中为该颜色的灯层",
     "pilotně ovládané zpětné ventily přímo na válcích {devs} (zadržení při odvzdušnění)": "直接装在气缸 {devs} 上的先导式单向阀（排气（泄压）时保持）",
     "platforma (odhad)": "平台（推测）",

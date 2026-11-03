@@ -44,10 +44,11 @@ export interface Bom {
 export type BeaconColor = "red" | "yellow" | "blue" | "green" | "white";
 /** Pořadí pater shora podle IEC 60204-1 čl. 10.3.2 (sekundárně IDEC LD6A; skill modul-majak `data/veze.json`). */
 export declare const BEACON_ORDER: BeaconColor[];
+/** `roleDefault` = barva z role podle výchozí volby PLCdesk (ne z popisu ani z významu barvy). */
 export interface BeaconTier {
     dev: Device;
     color: BeaconColor | null;
-    estimated: boolean;
+    roleDefault: boolean;
 }
 export interface BeaconTower {
     tag: string;

@@ -121,16 +121,21 @@ const BEACON_COLOR_RE: Array<[BeaconColor, RegExp]> = [
   ["green", /zelen|green|grün|gruen|\bverde\b/],
   ["white", /bíl|white|weiß|weiss|\bblanc/],
 ];
-/** Barva podle role DO, když ji popis neříká (veze.json `role_DO_na_barvu`: fault / run doloženo významem barev, ostatní ODHAD). */
-const BEACON_ROLE_COLOR: Record<string, { c: BeaconColor; est: boolean }> = {
-  fault: { c: "red", est: false }, run: { c: "green", est: false },
-  ready: { c: "white", est: true }, stopped: { c: "yellow", est: true }, auto: { c: "white", est: true },
+/**
+ * Barva podle role DO, když ji popis neříká — výchozí PLCdesk (rozhodnutí uživatele 2026-11-03; shodně s
+ * `pro3d_lib/data/veze.json` `role_DO_na_barvu`): fault / run podle významu barev, ready / stopped / lock / auto
+ * (`def` = výchozí volba, poznámka to říká) bílá / žlutá / modrá / bílá.
+ */
+const BEACON_ROLE_COLOR: Record<string, { c: BeaconColor; def: boolean }> = {
+  fault: { c: "red", def: false }, run: { c: "green", def: false },
+  ready: { c: "white", def: true }, stopped: { c: "yellow", def: true }, lock: { c: "blue", def: true }, auto: { c: "white", def: true },
 };
 /** Barvy hotové věže z katalogu (Werma 64924005, PATLITE LR6-…-RYG, Eaton SL7 RYG, Auer CT5 RAG). */
 const BEACON_STOCK: ReadonlySet<BeaconColor> = new Set(["red", "yellow", "green"]);
 const TOWER_RE = /(?:věž|věže|věži|tower|turm|säule|torre)\s+([a-z0-9])\b/;
 
-export interface BeaconTier { dev: Device; color: BeaconColor | null; estimated: boolean; }
+/** `roleDefault` = barva z role podle výchozí volby PLCdesk (ne z popisu ani z významu barvy). */
+export interface BeaconTier { dev: Device; color: BeaconColor | null; roleDefault: boolean; }
 export interface BeaconTower { tag: string; tiers: BeaconTier[]; stock: boolean; }
 
 /**
@@ -149,7 +154,7 @@ export function bomBeaconTowers(prj: Project): BeaconTower[] {
       const t = (dev.desc || "").toLowerCase();
       const byDesc = BEACON_COLOR_RE.find(([, re]) => re.test(t))?.[0];
       const byRole = !byDesc && dev.role ? BEACON_ROLE_COLOR[dev.role] : undefined;
-      return { dev, color: byDesc || byRole?.c || null, estimated: !byDesc && !!byRole?.est };
+      return { dev, color: byDesc || byRole?.c || null, roleDefault: !byDesc && !!byRole?.def };
     });
     const rank = (c: BeaconColor | null) => c ? BEACON_ORDER.indexOf(c) : BEACON_ORDER.length;
     tiers.sort((a, b) => rank(a.color) - rank(b.color));   // stabilní: stejná barva v pořadí zařízení
@@ -387,7 +392,7 @@ export function buildBom(prj: Project): Bom {
             : tr("jedna věž, patro na každý výstup (pořadí shora červená / žlutá / modrá / zelená / bílá); barvy pater hotová věž z katalogu (červená / žlutá / zelená) nepokryje — stavebnicová věž (přípojný prvek, světelné prvky, montáž), typ doplní projektant") });
         for (const x of tw.tiers) add("-" + x.dev.name, "beacon_light", 1, x.dev.desc || x.dev.name, { devId: x.dev.id,
           note: !x.color ? tr("patro věže {tower}: barvu doplní projektant (popis ani role ji neurčují)", { tower: tw.tag })
-            : x.estimated ? tr("patro věže {tower}: {color} — ODHAD podle role {role}, potvrď; u hotové věže součást věže, u stavebnicové světelný prvek této barvy", { tower: tw.tag, color: cname(x), role: x.dev.role || "" })
+            : x.roleDefault ? tr("patro věže {tower}: {color} — výchozí PLCdesk podle role {role} (rozhodnutí uživatele); u hotové věže součást věže, u stavebnicové světelný prvek této barvy", { tower: tw.tag, color: cname(x), role: x.dev.role || "" })
             : tr("patro věže {tower}: {color}; u hotové věže součást věže, u stavebnicové světelný prvek této barvy", { tower: tw.tag, color: cname(x) }) });
         continue;
       }

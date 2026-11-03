@@ -255,7 +255,8 @@ python scripts/build_verification.py        # data/verification.json → verific
   jménech DO → id i GUID pro CAD přežijí přejmenování / smazání DO; řádek bez `devId`, katalog = hotová věž R/Y/G Werma 64924005…)
   + patro `-<DO>:beacon_light` na každý DO (`devId`, bez kódu, CAD `mount: none`, vazby `controls` výstupní modul → patro a `feeds`
   věž → patro), patra shora R / Y / B / G / W (IEC 60204-1 10.3.2). Barva z popisu (cs / en / de / es), jinak z role (fault R, run G;
-  ready / auto W, stopped Y = ODHAD v poznámce — skill modul-majak `data/veze.json`); barvy mimo R/Y/G, duplicitní nebo > 3 patra
+  ready / auto W, stopped Y, lock B = výchozí PLCdesk, rozhodnutí uživatele 2026-11-03, poznámka „výchozí PLCdesk podle role“
+  — shodně skill modul-majak `data/veze.json`); barvy mimo R/Y/G, duplicitní nebo > 3 patra
   → poznámka „stavebnicová věž, typ doplní projektant“ (kódy světelných prvků v katalogu nejsou). Víc věží jen podle popisu („věž A“,
   „tower B“, „Turm 2“ → -PF1, -PF2). `bomBeaconTowers` sdílí kusovník i `cad.ts`. **Volič** (volič / přepínač / selector /
   Wahlschalter) = kategorie `selector_switch` (dřív `pushbutton`), bez položky katalogu (kód voliče 3SU1 rešerší nedoložen — typ doplní
@@ -442,6 +443,14 @@ python scripts/build_verification.py        # data/verification.json → verific
   spoje-sroubove kap. 6; do vzduchu / jen průchozí díry / krátký = chyba a není spojem pro souvislost) jsou od 2026-11-03
   ve `vse` (V12 a V4 / M1 z analýzy K5; `pro3d_cabinet` staví opakované tvary jako Link, test `pro3d_synth_kopie.py`).
   Kandidáti na další deterministické generátory (AI jen koncept, nestandardní mechanika a posouzení) — `.claude/plcdesk_pro/NAVRH_PLCdesk_PRO.md`.
+- **Konvence modulů schválené 2026-11-03** (`pro3d_tools/rules.py` KONVENCE, skilly stroj-stavitel / stroj-kontrolor V5 /
+  modul-*): pomocné zóny volného prostoru (`Konstrukce_Zona` + `Konstrukce_ZonaVyjimka`, kontrola `zony`) jsou ZÁVAZNÉ pro
+  všechny moduly; `Konstrukce_Zavit` = doložený závit (`M6x1;hloubka 12;poloha x,y,z;osa dx,dy,dz;zdroj URL`, záznamy `|`,
+  souřadnice cíle odkazu, zdroj povinný) na App::Link k modelu bez děr — `zasunuti` ho uzná, `kolize` povolí šroub v něm;
+  `MOUNT_SELF` + `bajonet`, `upinka`; na zkušebních deskách (`pro3d_lib.bench`) je `otvory` jen varování
+  (`run.py --otvory-varovani`). P1: výchozí patky na adaptérové desce (profil 80, když ho rám má), příruba MF1 šrouby DIN 7984
+  (`normalie.json`). O1: kotvení dvěma úhelníky, `g_panel_22 deska_t`; umístění HMI pult × dveře jedním rozhodnutím
+  `pro3d_cabinet/dvere.py hmi_misto` (kusovník mount / location → `brief.concept.hmi` → `brief.desc`, bez údaje dveře).
 - **Normalizované díly kódem** (2026-10-24) `plc_studio/pro3d_parts/` (bez importu z `plc_studio`, vzor `alutech-profily/fc_profil.py`):
   tabulky `data/valce.json` (ISO 15552 Ø32–125 z SMC CP96 / C96, ISO 6432 Ø8–25 z SMC C85), `katalog.json` (podle
   objednacího kódu: Siemens S7-1200 G2, 3RT / 3RV / 5SL / 3SK / SITOP / 3LD / V20 / V90 / MTP700 / 3SU1 z datových listů

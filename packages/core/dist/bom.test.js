@@ -166,7 +166,8 @@ test("věž: barva z popisu má přednost, jinak role (ODHAD), víc věží jen 
     let b = buildBom(p);
     assert.equal(b.lines.filter(l => l.cat === "beacon").length, 1);
     assert.deepEqual(b.lines.filter(l => l.cat === "beacon_light").map(l => l.tag), ["-H3", "-H2", "-H1"], "shora červená, modrá, bílá");
-    assert.match(b.lines.find(l => l.id === "-H1:beacon_light").note, /ODHAD podle role ready/);
+    assert.match(b.lines.find(l => l.id === "-H1:beacon_light").note, /výchozí PLCdesk podle role ready \(rozhodnutí uživatele\)/);
+    assert.doesNotMatch(b.lines.find(l => l.id === "-H1:beacon_light").note, /ODHAD/);
     assert.match(b.lines.find(l => l.cat === "beacon").note, /stavebnicová věž/, "modrá / bílá hotová věž R/Y/G nepokryje");
     /* dvě věže jen podle popisu */
     const q = prjWith([

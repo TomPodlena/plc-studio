@@ -6229,7 +6229,7 @@ const d = {
     "parametry knihovny GMC Independent PLCopen MC (GIPLC) se nepodařilo ověřit (EIO0000003592 nedostupný) — kód osy se negeneruje, aby nevznikl nepřeložitelný program.": "Die Parameter der Bibliothek GMC Independent PLCopen MC (GIPLC) ließen sich nicht verifizieren (EIO0000003592 nicht verfügbar) — der Achscode wird nicht erzeugt, damit kein nicht kompilierbares Programm entsteht.",
     "parametry rizika S/F/P": "Risikoparameter S/F/P",
     "patro věže {tower}: barvu doplní projektant (popis ani role ji neurčují)": "Etage der Säule {tower}: Farbe ergänzt der Projekteur (weder Beschreibung noch Rolle legen sie fest)",
-    "patro věže {tower}: {color} — ODHAD podle role {role}, potvrď; u hotové věže součást věže, u stavebnicové světelný prvek této barvy": "Etage der Säule {tower}: {color} — SCHÄTZUNG nach Rolle {role}, bitte bestätigen; bei Komplettsäule Teil der Säule, bei modularer Säule Leuchtelement dieser Farbe",
+    "patro věže {tower}: {color} — výchozí PLCdesk podle role {role} (rozhodnutí uživatele); u hotové věže součást věže, u stavebnicové světelný prvek této barvy": "Etage der Säule {tower}: {color} — PLCdesk-Standard für Rolle {role} (Entscheidung des Anwenders); bei Komplettsäule Teil der Säule, bei modularer Säule Leuchtelement dieser Farbe",
     "patro věže {tower}: {color}; u hotové věže součást věže, u stavebnicové světelný prvek této barvy": "Etage der Säule {tower}: {color}; bei Komplettsäule Teil der Säule, bei modularer Säule Leuchtelement dieser Farbe",
     "pilotně ovládané zpětné ventily přímo na válcích {devs} (zadržení při odvzdušnění)": "entsperrbare Rückschlagventile direkt an den Zylindern {devs} (Halten bei Entlüftung)",
     "platforma (odhad)": "Plattform (Schätzung)",
