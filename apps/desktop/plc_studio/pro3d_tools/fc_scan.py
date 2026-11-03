@@ -8,6 +8,7 @@ ověřené skripty K5 stroje 01). Zdroje odkazů (``SRC_*``, objekty, na které 
 booleanů se přeskočí. Výsledek se zapisuje průběžně po každé kontrole (pád = co doběhlo, zůstane)."""
 import itertools
 import json
+import math
 import os
 import sys
 import time
@@ -22,7 +23,7 @@ import rules  # noqa: E402
 V = App.Vector
 MODEL, OUTF, OPTF = sys.argv[1:4]
 OPT = json.load(open(OPTF, encoding="utf-8"))
-CHECKS = OPT.get("checks") or ["kolize", "souvislost", "otvory", "kusovnik", "step"]
+CHECKS = OPT.get("checks") or ["kolize", "souvislost", "zasunuti", "kopie", "otvory", "kusovnik", "step"]
 TOL = float(OPT.get("tol", 0.2))              # mm — dotyk
 VOL_TOL = float(OPT.get("vol_tol", 0.5))      # mm³ — průnik pod touto mezí = dotyk (zaokrouhlení booleanu)
 R = {"model": MODEL, "checks": {}, "t": {}}
@@ -85,16 +86,27 @@ def consumed(o):
     return False
 
 
+def _zjed(pr):
+    """Zjednodušený model bez děr: zástupný díl nebo díl dle dokumentace jen jako obálka (Konstrukce_Detail)."""
+    return rules.je_zastupny(pr) or "obalka" in rules.fold(pr.get("Konstrukce_Detail") or "")
+
+
 LEAVES = []      # {key, label, name, doc, path, typ, s, bb, pohyb, props}
 PLC_OBJS = []    # díly s PLCdesk_Id (kusovník)
 SKIPPED = {"zdroje": 0, "pomocne": 0, "prazdne": 0, "chyby_tvaru": []}
 
 
 def walk(o, plc, path, inh):
-    """inh = zděděné: {"zona": bool, "pohyb": dict|None, "ids": set (PLCdesk_Id předků)}."""
+    """inh = zděděné: {"zona": bool, "pohyb": dict|None, "ids": set (PLCdesk_Id předků), "lnk": list přes App::Link,
+    "src": bool předek je cíl odkazu}."""
     if o.TypeId in SKIP_TYPES or o.TypeId.startswith("App::Origin"):
         return
     pr = props(o)
+    if o.TypeId == "App::Link" and o.LinkedObject is not None and o.LinkedObject.TypeId not in CONTAINERS:
+        # odkaz na těleso: druh / materiál dílu ze zdroje (Konstrukce_*), vlastní vlastnosti odkazu mají přednost;
+        # PLCdesk_* (kusovník) a Konstrukce_Pohyb (absolutní souřadnice zdroje) se nedědí
+        pr = {**{k: v for k, v in props(o.LinkedObject).items() if k.startswith("Konstrukce_") and k != "Konstrukce_Pohyb"},
+              **pr}
     lab = o.Label
     fl = rules.fold(lab)
     zona = False                 # nebezpečí jen výslovně (rules.typ_dilu), ne podle skupiny „Zóny“
@@ -107,7 +119,9 @@ def walk(o, plc, path, inh):
                          "obj": f"{o.Document.Name}#{o.Name}"})
         ids = ids | {pid}
     # montáž kusovníku (PLCdesk_Mount din / rack = přístroj nacvaknutý na lištu) dědí obsah odkazu / kontejneru
-    sub = {"zona": zona, "pohyb": pm, "ids": ids, "mount": str(pr.get("PLCdesk_Mount") or inh.get("mount") or "")}
+    sub = {"zona": zona, "pohyb": pm, "ids": ids, "mount": str(pr.get("PLCdesk_Mount") or inh.get("mount") or ""),
+           "lnk": inh.get("lnk") or (), "src": inh.get("src") or (o.Document.Name, o.Name) in link_sources,
+           "zjed": inh.get("zjed") or _zjed(pr)}
     if o.TypeId in CONTAINERS:
         nplc = plc.multiply(o.Placement) if o.TypeId == "App::Part" else plc
         for c in getattr(o, "Group", []) or []:
@@ -121,12 +135,13 @@ def walk(o, plc, path, inh):
                 nplc = nplc.multiply(lo.Placement)
             lpr = props(lo)
             lpid = lpr.get("PLCdesk_Id") or ""
-            if lpid and lpid not in ids:
+            if lpid and lpid not in ids and not pid:        # vlastní PLCdesk_Id odkazu má přednost před cílem
                 PLC_OBJS.append({"id": lpid, "inst": lpr.get("PLCdesk_Instance", ""), "label": lab,
                                  "path": "/".join(path + [lab]), "status": lpr.get("PLCdesk_ModelStatus", ""),
                                  "guid": lpr.get("PLCdesk_ProjectGuid", ""), "obj": f"{o.Document.Name}#{o.Name}"})
                 sub = dict(sub, ids=ids | {lpid})
-            sub = dict(sub, pohyb=rules.pohyb(lpr) or sub["pohyb"])
+            sub = dict(sub, pohyb=rules.pohyb(lpr) or sub["pohyb"], lnk=tuple(sub["lnk"]) + (f"{o.Document.Name}#{o.Name}",),
+                       zjed=sub["zjed"] or _zjed(lpr))
             for c in getattr(lo, "Group", []) or []:
                 walk(c, nplc, path + [lab], sub)
             return
@@ -153,12 +168,15 @@ def walk(o, plc, path, inh):
         SKIPPED["pomocne"] += 1
     LEAVES.append({"key": f"{o.Document.Name}#{o.Name}#{len(LEAVES)}", "label": lab, "name": o.Name, "doc": o.Document.Name,
                    "path": "/".join(path + [lab]), "typ": typ, "s": s, "bb": s.BoundBox, "pohyb": pm, "props": pr,
-                   "vis": bool(getattr(o, "Visibility", True)), "mount": str(pr.get("PLCdesk_Mount") or inh.get("mount") or "")})
+                   "vis": bool(getattr(o, "Visibility", True)), "mount": str(pr.get("PLCdesk_Mount") or inh.get("mount") or ""),
+                   "lnk": tuple(inh.get("lnk") or ()) + ((f"{o.Document.Name}#{o.Name}",) if o.TypeId == "App::Link" else ()),
+                   "src": bool(inh.get("src")) or (o.Document.Name, o.Name) in link_sources, "otype": o.TypeId,
+                   "zjed": bool(inh.get("zjed") or _zjed(pr))})
 
 
 ID = App.Placement()
 for o in doc.RootObjects:
-    walk(o, ID, [], {"zona": False, "pohyb": None, "ids": frozenset()})
+    walk(o, ID, [], {"zona": False, "pohyb": None, "ids": frozenset(), "lnk": (), "src": False})
 REAL = [x for x in LEAVES if x["typ"] not in ("zona", "pomocny")]
 ZONES = [x for x in LEAVES if x["typ"] == "zona"]
 mbb = None
@@ -385,6 +403,383 @@ def check_kolize():
     return res
 
 
+# --- zašroubování (V4 / M1): délka dříku v závitu / matici ----------------------------------------------------------
+
+def _axial(fc, c, d):
+    """Interval faces podél osy (bod c, směr d): průměty bodů jejích hran."""
+    ts = []
+    for e in fc.Edges:
+        try:
+            pts = e.discretize(Number=6)
+        except Exception:  # noqa: BLE001
+            pts = [v.Point for v in e.Vertexes]
+        ts += [(p - c).dot(d) for p in pts]
+    return (min(ts), max(ts)) if ts else None
+
+
+def _union_len(iv, lo, hi):
+    """Délka sjednocení intervalů ``iv`` oříznutých na ⟨lo, hi⟩."""
+    segs = sorted((max(a, lo), min(b, hi)) for a, b in iv if min(b, hi) > max(a, lo))
+    tot, cur = 0.0, None
+    for a, b in segs:
+        if cur is None or a > cur[1]:
+            if cur is not None:
+                tot += cur[1] - cur[0]
+            cur = [a, b]
+        else:
+            cur[1] = max(cur[1], b)
+    return tot + (cur[1] - cur[0] if cur else 0.0)
+
+
+def shank_of(s):
+    """Dřík šroubu: válcová plocha s nejmenším poloměrem (hlava i zápustná hlava jsou větší) → osa, poloměr, interval
+    dříku podél osy, strana hlavy. None = šroub bez válcové plochy."""
+    cyl = [fc for fc in s.Faces if fc.Surface.TypeId == "Part::GeomCylinder" and fc.Area > 1e-3]
+    if not cyl:
+        return None
+    r = min(fc.Surface.Radius for fc in cyl)
+    base = next(fc for fc in cyl if abs(fc.Surface.Radius - r) < 1e-6)
+    c, d = V(base.Surface.Center), V(base.Surface.Axis).normalize()
+    iv = []
+    for fc in cyl:
+        if abs(fc.Surface.Radius - r) > 1e-3 or abs(abs(V(fc.Surface.Axis).normalize().dot(d)) - 1) > 1e-4:
+            continue
+        w = V(fc.Surface.Center) - c
+        if (w - d * w.dot(d)).Length > 1e-3:
+            continue
+        a = _axial(fc, c, d)
+        if a:
+            iv.append(a)
+    if not iv:
+        return None
+    t0, t1 = min(a for a, _ in iv), max(b for _, b in iv)
+    if t1 - t0 < 0.5:
+        return None
+    ts = [(vt.Point - c).dot(d) for vt in s.Vertexes]
+    head = "hi" if ts and max(ts) > t1 + 0.3 else ("lo" if ts and min(ts) < t0 - 0.3 else None)
+    return {"c": c, "d": d, "r": r, "t0": t0, "t1": t1, "head": head}
+
+
+def _zaber(sh, x):
+    """Záběr dříku ``sh`` (shank_of) s dílem ``x``: souosé válcové plochy (závit / jádro ≤ jmenovitý poloměr, průchozí
+    díra do r + max(0,6; 0,1·d)), jinak průnik s plným materiálem (díra chybí). None = bez záběru."""
+    c, d, r, t0, t1 = sh["c"], sh["d"], sh["r"], sh["t0"], sh["t1"]
+    clr = max(0.6, 0.2 * r)
+    bb = sh["bb"]
+    thr, cl = [], []
+    for so in (x["s"].Solids or [x["s"]]):
+        if not so.BoundBox.intersect(bb):
+            continue
+        for fc in so.Faces:
+            if fc.Surface.TypeId != "Part::GeomCylinder" or not fc.BoundBox.intersect(bb):
+                continue
+            R = fc.Surface.Radius
+            if R < 0.7 * r or R > r + clr:
+                continue
+            if abs(abs(V(fc.Surface.Axis).normalize().dot(d)) - 1) > 1e-3:
+                continue
+            w = V(fc.Surface.Center) - c
+            if (w - d * w.dot(d)).Length > 0.6:
+                continue
+            a = _axial(fc, c, d)
+            if a:
+                (thr if R <= r + 0.05 else cl).append(a)
+    mat = rules.material_zavitu(x["props"], x["label"], x["typ"])
+    rec = {"dil": x["label"], "path": x["path"], "material": mat}
+    if x["typ"] == "kontext":
+        L = _union_len(thr + cl, t0, t1) if thr or cl else 0.0
+        if L <= rules.ZASROUB_TOL:
+            try:
+                L = sh["solid"].common(_near_solids(x["s"], bb) or x["s"]).Volume / (math.pi * r * r)
+            except Exception:  # noqa: BLE001
+                L = 0.0
+        return dict(rec, druh="kontext", delka=round(L, 2)) if L > rules.ZASROUB_TOL else None
+    if x["typ"] == "matice":
+        iv = thr + cl
+        L = _union_len(iv, t0, t1) if iv else 0.0
+        nl = _axial(x["s"], c, d)
+        if L <= rules.ZASROUB_TOL:
+            try:
+                L = sh["solid"].common(x["s"]).Volume / (math.pi * r * r)
+            except Exception:  # noqa: BLE001
+                L = 0.0
+        return dict(rec, druh="matice", delka=round(L, 2), matice_l=round(nl[1] - nl[0], 2) if nl else None) \
+            if L > rules.ZASROUB_TOL else None
+    if thr:
+        L = _union_len(thr, t0, t1)
+        if L > rules.ZASROUB_TOL:
+            hole = _union_len(thr, -1e9, 1e9)
+            return dict(rec, druh="zavit", delka=round(L, 2), diry=round(hole, 2), skrz=L >= hole - rules.ZASROUB_TOL)
+    if cl:
+        L = _union_len(cl, t0, t1)
+        if L > rules.ZASROUB_TOL:
+            return dict(rec, druh="pruchozi", delka=round(L, 2))
+    try:
+        v = sh["solid"].common(_near_solids(x["s"], bb) or x["s"]).Volume
+    except Exception:  # noqa: BLE001
+        v = 0.0
+    if v > VOL_TOL:
+        return dict(rec, druh="bez_diry", delka=round(v / (math.pi * r * r), 2))
+    return None
+
+
+_SCREWS = None
+
+
+def screw_analysis():
+    """Každý šroub (Konstrukce_Typ sroub, ne kolík / spojka / upínka) → záběry dříku a posudek (rules.posud_sroub).
+    Výsledek se počítá jednou (kontrola ``zasunuti`` i souvislost)."""
+    global _SCREWS
+    if _SCREWS is not None:
+        return _SCREWS
+    out, skipped = [], {"bez_driku": [], "nezavitove": 0}
+    others = [x for x in REAL if x["typ"] not in ("sroub", "zona", "pomocny", "kabel", "hadice", "retez")]
+    # díly jiné části vložené jako kontext (pomocné „[kontext] …“): závit v nich tady ověřit nejde → jen varování
+    others += [dict(x, typ="kontext") for x in LEAVES if x["typ"] == "pomocny" and "kontext" in rules.fold(x["label"])]
+    for x in REAL:
+        if x["typ"] != "sroub":
+            continue
+        if rules.FASTENER_NOT_THREAD.search(rules.fold(x["label"])):
+            skipped["nezavitove"] += 1
+            continue
+        try:
+            sh = shank_of(x["s"])
+        except Exception:  # noqa: BLE001
+            sh = None
+        if sh is None:
+            skipped["bez_driku"].append(x["label"])
+            continue
+        c, d = sh["c"], sh["d"]
+        sh["solid"] = Part.makeCylinder(sh["r"], sh["t1"] - sh["t0"], c + d * sh["t0"], d)
+        bb = App.BoundBox(sh["solid"].BoundBox)
+        bb.enlarge(0.5)
+        sh["bb"] = bb
+        zab = []
+        for y in others:
+            if not y["bb"].intersect(bb):
+                continue
+            try:
+                z = _zaber(sh, y)
+            except Exception as exc:  # noqa: BLE001
+                z = {"dil": y["label"], "druh": "chyba", "delka": 0.0, "chyba": str(exc)[:200]}
+            if z:
+                zab.append(z)
+        if not any(z.get("druh") in ("zavit", "matice", "bez_diry", "kontext") for z in zab):
+            # konec dříku dosedá na zjednodušený model (obálka / zástupný bez děr) — závit v něm tady modelovat nejde
+            ends = [(sh["t0"], -1.0), (sh["t1"], 1.0)] if sh["head"] is None else                 [(sh["t0"], -1.0)] if sh["head"] == "hi" else [(sh["t1"], 1.0)]
+            for tt, sg in ends:
+                p = c + d * (tt + sg * 0.5)
+                for y in others:
+                    if not y.get("zjed") or y["typ"] == "kontext" or not y["bb"].isInside(p):
+                        continue
+                    try:
+                        inside = y["s"].isInside(p, 0.05, True)
+                    except Exception:  # noqa: BLE001
+                        inside = False
+                    if inside:
+                        zab.append({"dil": y["label"], "path": y["path"], "druh": "obalka", "delka": 0.0,
+                                    "material": rules.material_zavitu(y["props"], y["label"], y["typ"])})
+                        break
+        dn = round(2 * sh["r"], 2)
+        ev = rules.posud_sroub(dn, zab)
+        tip = c + d * (sh["t0"] if sh["head"] != "lo" else sh["t1"])
+        out.append({"key": x["key"], "label": x["label"], "path": x["path"], "d": dn,
+                    "dril": round(sh["t1"] - sh["t0"], 2), "zabery": zab, "posudek": ev,
+                    "poloha": [round(tip.x, 1), round(tip.y, 1), round(tip.z, 1)]})
+    _SCREWS = {"sroubu": out, "preskoceno": skipped}
+    return _SCREWS
+
+
+def check_zasunuti():
+    t = time.time()
+    res = {"chyby": [], "varovani": [], "info": [], "data": {}}
+    sa = screw_analysis()
+    lst = sa["sroubu"]
+    by = {}
+    for s in lst:
+        by.setdefault(s["posudek"]["kod"], []).append(s)
+    thin = {}
+    for s in lst:
+        ev = s["posudek"]
+        if ev["uroven"] == "ok":
+            continue
+        if ev["kod"] in ("sroub-tenky", "sroub-kontext", "sroub-obalka"):   # tenký plech / závit v kontextu — souhrnně po dílu a průměru
+            thin.setdefault((ev["kod"], ev.get("dil"), s["d"], ev.get("delka"), ev.get("pozad")), []).append(s)
+            continue
+        rec = f_(ev["kod"], f"{s['label']}: {ev['text']}", s["poloha"], [s["path"]], delka=ev.get("delka"),
+                 pozad=ev.get("pozad"))
+        (res["chyby"] if ev["uroven"] == "chyba" else res["varovani"]).append(rec)
+    for (kod, dil, dn, L, req), ss in sorted(thin.items(), key=lambda kv: -len(kv[1])):
+        if kod == "sroub-obalka":
+            txt = (f"{len(ss)}× šroub M{dn:g} končí na zjednodušeném modelu {dil} (obálka / zástupný, bez děr) — závit "
+                   f"předpokládán v dílu, ověř podle dokumentace výrobce; např. {ss[0]['label']}")
+        elif kod == "sroub-kontext":
+            txt = (f"{len(ss)}× šroub M{dn:g} se závitem jen v dílu jiné části {dil} (kontext, {L:g} mm) — tady neověřitelné, "
+                   f"ověř závit v té části; např. {ss[0]['label']}")
+        else:
+            txt = (f"{len(ss)}× šroub M{dn:g} se závitem jen v tenkém dílu {dil} (celá tloušťka {L:g} mm < {req:g} mm): ověř "
+                   f"únosnost, jinak závitová vložka / nýtovací matice / matice ({rules.ZASROUB_SRC}); např. {ss[0]['label']}")
+        res["varovani"].append(f_(kod, txt, ss[0]["poloha"], [x["path"] for x in ss[:8]], pocet=len(ss)))
+    # stejné nálezy u mnoha šroubů: do chyb nejvýš 12 jednotlivě + souhrn (plný výpis v data.sroubu)
+    for key in ("chyby", "varovani"):
+        if len(res[key]) > 12:
+            n = len(res[key]) - 10
+            cnt = {}
+            for f in res[key][10:]:
+                cnt[f["kod"]] = cnt.get(f["kod"], 0) + 1
+            res[key] = res[key][:10] + [f_("sroub-souhrn", f"… a dalších {n} šroubů ("
+                                           + ", ".join(f"{k} {v}×" for k, v in sorted(cnt.items()))
+                                           + ") — plný výpis kontroly.json checks.zasunuti.data.sroubu")]
+    if sa["preskoceno"]["bez_driku"]:
+        res["info"].append(f_("sroub-bez-driku", f"{len(sa['preskoceno']['bez_driku'])} dílů typu šroub bez válcového dříku "
+                              "(zasunutí neměřeno): " + ", ".join(sa["preskoceno"]["bez_driku"][:6])))
+    res["data"] = {"sroubu": [dict(s, key=None) for s in lst], "pocty": {k: len(v) for k, v in by.items()},
+                   "preskoceno": {"bez_driku": len(sa["preskoceno"]["bez_driku"]), "nezavitove": sa["preskoceno"]["nezavitove"]},
+                   "zdroj": rules.ZASROUB_SRC}
+    if not lst:
+        res["info"].append(f_("sroub-zadny", "model nemá šrouby s dříkem — zašroubování neměřeno"))
+    res["secs"] = round(time.time() - t, 1)
+    return res
+
+
+# --- kopie těles (V12): opakovaný díl má být App::Link -----------------------------------------------------------------
+
+def _inertia(s):
+    """Tenzor setrvačnosti (objemový, k těžišti) složeného tvaru přes jednotlivá tělesa (Steiner), těžiště a objem."""
+    import numpy as np
+    sol = s.Solids
+    vol = sum(x.Volume for x in sol)
+    if vol <= 0:
+        return None
+    C = sum((x.CenterOfMass * x.Volume for x in sol[1:]), sol[0].CenterOfMass * sol[0].Volume) * (1.0 / vol)
+    I = np.zeros((3, 3))
+    for x in sol:
+        m = x.MatrixOfInertia
+        Ii = np.array([[m.A11, m.A12, m.A13], [m.A21, m.A22, m.A23], [m.A31, m.A32, m.A33]])
+        r = np.array([x.CenterOfMass.x - C.x, x.CenterOfMass.y - C.y, x.CenterOfMass.z - C.z])
+        I += Ii + x.Volume * (r.dot(r) * np.eye(3) - np.outer(r, r))
+    return I, np.array([C.x, C.y, C.z]), vol
+
+
+def _q(v, n=3):
+    return float(f"{v:.{n}g}") if v else 0.0
+
+
+def shape_sig(x):
+    """Podpis tvaru nezávislý na poloze: počty těles / ploch / hran / vrcholů, objem, plocha, hlavní momenty."""
+    import numpy as np
+    s = x["s"]
+    it = _inertia(s)
+    if it is None:
+        return None
+    I, C, vol = it
+    w, R = np.linalg.eigh(I)
+    pts = np.array([[p.x, p.y, p.z] for p in (vt.Point for vt in s.Vertexes)], float).reshape(-1, 3) - C
+    x["_g"] = {"w": w, "R": R, "pts": pts, "C": C}
+    return (len(s.Solids), len(s.Faces), len(s.Edges), len(s.Vertexes), _q(vol), _q(s.Area)) + tuple(_q(v) for v in w)
+
+
+def _match_pts(P, Q, tol):
+    import numpy as np
+    if len(P) != len(Q):
+        return False
+    if not len(P):
+        return True
+    try:
+        from scipy.spatial import cKDTree
+        dd, _ = cKDTree(Q).query(P)
+        return float(dd.max()) <= tol
+    except ImportError:
+        for i in range(0, len(P), 500):
+            d2 = ((P[i:i + 500, None, :] - Q[None, :, :]) ** 2).sum(-1).min(1)
+            if float(np.sqrt(d2.max())) > tol:
+                return False
+        return True
+
+
+def rigid_match(a, b):
+    """``same`` = b je a po otočení a posunutí (App::Link ho nahradí), ``mirror`` = jen zrcadlově, None = jiný tvar.
+    Hlavní osy setrvačnosti: 8 kombinací znamének; při shodných momentech (osa rotační symetrie, krychle) rozhodne
+    rozložení vzdáleností vrcholů od těžiště."""
+    import numpy as np
+    ga, gb = a["_g"], b["_g"]
+    w = ga["w"]
+    scale = float(np.sqrt(max(abs(w[-1]), 1e-9) / max(a["s"].Volume, 1e-9))) + 1.0
+    tol = 0.02 + 1e-3 * scale
+    for ra, rb in ((np.linalg.norm(ga["pts"], axis=1), np.linalg.norm(gb["pts"], axis=1)),):
+        if len(ra) != len(rb) or (len(ra) and float(np.abs(np.sort(ra) - np.sort(rb)).max()) > tol):
+            return None
+    gaps = [abs(w[i + 1] - w[i]) / max(abs(w[-1]), 1e-12) for i in range(2)]
+    if min(gaps) < 1e-3:
+        return "same"
+    best = None
+    for sx in (1, -1):
+        for sy in (1, -1):
+            for sz in (1, -1):
+                M = gb["R"] @ np.diag([sx, sy, sz]) @ ga["R"].T
+                if _match_pts(ga["pts"] @ M.T, gb["pts"], tol):
+                    if np.linalg.det(M) > 0:
+                        return "same"
+                    best = "mirror"
+    return best
+
+
+def check_kopie():
+    t = time.time()
+    res = {"chyby": [], "varovani": [], "info": [], "data": {}}
+    # zdroj odkazů se porovnává také: jeho další kopie (vedle odkazů) je chyba; listy uvnitř odkazu ne
+    cand = [x for x in REAL if x["typ"] not in rules.KOPIE_SKIP and not x.get("lnk") and x.get("otype") != "App::Link"]
+    buckets = {}
+    for x in cand:
+        try:
+            k = shape_sig(x)
+        except Exception:  # noqa: BLE001
+            k = None
+        if k is not None:
+            buckets.setdefault(k, []).append(x)
+    groups, mirrors = [], []
+    for mem in buckets.values():
+        if len(mem) < 2:
+            continue
+        clusters = []
+        for x in mem:
+            for cl in clusters:
+                m = rigid_match(cl[0], x)
+                if m == "same":
+                    cl.append(x)
+                    break
+                if m == "mirror":
+                    mirrors.append([cl[0]["label"], x["label"]])
+            else:
+                clusters.append([x])
+        groups += [cl for cl in clusters if len(cl) > 1]
+    groups.sort(key=lambda g: (-len(g), g[0]["label"]))
+    full = [{"pocet": len(g), "objem": round(g[0]["s"].Volume, 1),
+             "rozmer": sorted(round(v, 1) for v in (g[0]["bb"].XLength, g[0]["bb"].YLength, g[0]["bb"].ZLength)),
+             "typ": g[0]["typ"], "dily": [x["label"] for x in g], "cesty": [x["path"] for x in g],
+             "plcdesk_id": sorted({str(x["props"].get("PLCdesk_Id")) for x in g if x["props"].get("PLCdesk_Id")})} for g in groups]
+    for g, info in list(zip(groups, full))[:rules.KOPIE_MAX_SKUPIN]:
+        names = ", ".join(x[:36] for x in info["dily"][:2]) + (" …" if len(g) > 2 else "")
+        ids = f" (různá PLCdesk_Id → na odkazy)" if len(info["plcdesk_id"]) > 1 else ""
+        res["chyby"].append(f_("kopie", f"{len(g)}× totéž těleso jako kopie, ne App::Link ({info['typ']}, "
+                               f"{' × '.join(f'{v:g}' for v in info['rozmer'])} mm){ids}: {names} → zdroj + App::Link, PLCdesk_Id na odkazu", rules.bbox_center(bbl(g[0]["bb"])),
+                               [x["path"] for x in g[:8]], pokyn=rules.KOPIE_POKYN))
+    if len(groups) > rules.KOPIE_MAX_SKUPIN:
+        rest = groups[rules.KOPIE_MAX_SKUPIN:]
+        res["chyby"].append(f_("kopie", f"… a dalších {len(rest)} skupin kopií ({sum(len(g) for g in rest)} těles) — plný výpis "
+                               "kontroly.json checks.kopie.data.skupiny"))
+    if groups:
+        res["info"].append(f_("kopie-pokyn", rules.KOPIE_POKYN))
+    if mirrors:
+        res["info"].append(f_("kopie-zrcadlo", f"{len(mirrors)} dvojic zrcadlově shodných těles (App::Link zrcadlit neumí — "
+                              "v pořádku): " + "; ".join(" / ".join(m) for m in mirrors[:4])))
+    res["data"] = {"kandidatu": len(cand), "skupin": len(groups), "teles_v_kopiich": sum(len(g) for g in groups),
+                   "odkazu": sum(1 for x in REAL if x.get("lnk") or x.get("otype") == "App::Link"),
+                   "skupiny": full[:300], "zrcadlove": mirrors[:100]}
+    res["secs"] = round(time.time() - t, 1)
+    return res
+
+
 def check_souvislost():
     t = time.time()
     res = {"chyby": [], "varovani": [], "info": [], "data": {}}
@@ -434,6 +829,13 @@ def check_souvislost():
         res["chyby"].append(f_("ve-vzduchu", f"{len(c)} díl(ů) bez spojení s podlahou / rámem: {', '.join(labels[:6])}"
                                + (" …" if len(labels) > 6 else ""), rules.bbox_center(bbl(bb)), [items[i]["path"] for i in c[:8]]))
     has_fast = any(x["typ"] in rules.FASTENERS for x in items)
+    # šroub, který nic nespojuje (dřík do vzduchu / jen průchozí díry), není spoj (kontrola zasunuti)
+    dead = set()
+    if has_fast:
+        try:
+            dead = {s["key"] for s in screw_analysis()["sroubu"] if not s["posudek"].get("nosny")}
+        except Exception:  # noqa: BLE001
+            dead = set()
     loose = []
     in_air = {i for c in air for i in c}
     skip_loose = rules.FASTENERS | {"kabel", "hadice", "patka", "prislusenstvi", "rozhrani", "sroubeni"}
@@ -444,7 +846,7 @@ def check_souvislost():
                     str(x["props"].get("PLCdesk_Mount") or x.get("mount") or "").lower() in ("din", "rack"):   # přístroj na liště = klip
                     # (vlastnost i zděděná z App::Link / kontejneru — model dílu z dily/ ji nenese)
                 continue
-            if not any(j != FL and items[j]["typ"] in rules.FASTENERS for j in nb[i]):
+            if not any(j != FL and items[j]["typ"] in rules.FASTENERS and items[j]["key"] not in dead for j in nb[i]):
                 (trays if x["typ"] == "zlab" else loose).append(i)
         # žlab nese kabely (nosný díl, skill kabelaz-a-hadice / K5 M7): bez šroubu k rámu = chyba, ne jen varování —
         # „leží na profilu“ se ve skutečnosti při tahu za kabely posune / spadne
@@ -492,6 +894,7 @@ def check_souvislost():
                                     [(l + h) / 2 for l, h in zip(lo, hi)], [x["path"]]))
     res["varovani"] += free_ends[:15]
     res["data"] = {"teles": len(items), "komponent": len(comps), "ve_vzduchu": sum(len(c) for c in air),
+                   "sroubu_bez_zaberu": len(dead),
                    "bez_spoje": len(loose), "zlab_bez_spoje": len(trays), "volnych_cel": len(free_ends),
                    "podlaha_z": round(floor, 2),
                    "na_podlaze": sum(1 for i in range(len(items)) if FL in nb[i])}
@@ -656,7 +1059,8 @@ def check_step():
     return res
 
 
-for name, fn in (("kolize", check_kolize), ("souvislost", check_souvislost), ("otvory", check_otvory),
+for name, fn in (("kolize", check_kolize), ("souvislost", check_souvislost), ("zasunuti", check_zasunuti),
+                 ("kopie", check_kopie), ("otvory", check_otvory),
                  ("kusovnik", None), ("step", check_step)):
     if name not in CHECKS:
         continue

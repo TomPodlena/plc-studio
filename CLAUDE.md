@@ -427,6 +427,10 @@ python scripts/build_verification.py        # data/verification.json → verific
   odevzdáním (`BUILD_CHECKS`), kontrolor K5 nezávisle do `<část>/k5_kolo<N>/` a AI posuzuje jen soulad se zadáním,
   vyrobitelnost, montáž, bezpečnostní koncepci (`K5_CHECKS`); `k5_checks` — SCHVÁLENO s chybou / SELHALO postup zneplatní.
   Testy `test_pro3d_tools.py` (pravidla, barvy, voxely, syntetický model ve FreeCADu `pro3d_synth_build.py`).
+  Kontroly `kopie` (shodná tělesa mimo App::Link podle objemu, plochy, hlavních momentů a vrcholů po otočení = chyba,
+  vlastní `PLCdesk_Id` patří na odkaz) a `zasunuti` (dřík šroubu v závitu / matici ≥ max(k·d, 3 mm), k ze skillu
+  spoje-sroubove kap. 6; do vzduchu / jen průchozí díry / krátký = chyba a není spojem pro souvislost) jsou od 2026-11-03
+  ve `vse` (V12 a V4 / M1 z analýzy K5; `pro3d_cabinet` staví opakované tvary jako Link, test `pro3d_synth_kopie.py`).
   Kandidáti na další deterministické generátory (AI jen koncept, nestandardní mechanika a posouzení) — `.claude/plcdesk_pro/NAVRH_PLCdesk_PRO.md`.
 - **Normalizované díly kódem** (2026-10-24) `plc_studio/pro3d_parts/` (bez importu z `plc_studio`, vzor `alutech-profily/fc_profil.py`):
   tabulky `data/valce.json` (ISO 15552 Ø32–125 z SMC CP96 / C96, ISO 6432 Ø8–25 z SMC C85), `katalog.json` (podle

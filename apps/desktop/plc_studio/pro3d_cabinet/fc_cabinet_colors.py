@@ -37,31 +37,49 @@ def color(vo, c, transp=0):
 
 App.ParamGet("User parameter:BaseApp/Preferences/Document").SetBool("CreateBackupFiles", False)
 doc = App.openDocument(sys.argv[1])
+def want(o):
+    """Barva (a průhlednost) dílu podle jeho vlastností — Part::Feature i App::Link (vlastnosti nese odkaz)."""
+    st = str(getattr(o, "PLCdesk_ModelStatus", "") or "").lower()
+    typ = str(getattr(o, "Konstrukce_Typ", "") or "")
+    if st == "placeholder" or str(getattr(o, "Konstrukce_Zastupny", "")).lower() == "true":
+        return ORANGE, 0
+    if str(getattr(o, "Konstrukce_ModelStav", "")) == "dle dokumentace":
+        return YELLOW, 0
+    if typ == "kabel":
+        return CABLE.get(str(getattr(o, "Konstrukce_Druh", "")), GREY), 0
+    if str(getattr(o, "Konstrukce_Pripojnice", "")) == "PE":
+        return (60, 160, 60), 0
+    if str(getattr(o, "Konstrukce_Pripojnice", "")) == "N":
+        return (90, 160, 230), 0
+    if typ == "pomocny":
+        return BLUE, 85
+    if typ in ("zlab", "prislusenstvi"):
+        return DUCT, 0
+    return GREY, 0
+
+
 n = 0
 for o in doc.Objects:
     if hasattr(o, "Visibility"):
         o.Visibility = True
-    if o.TypeId != "Part::Feature" or o.ViewObject is None:
+    if o.ViewObject is None:
         continue
-    st = str(getattr(o, "PLCdesk_ModelStatus", "") or "").lower()
-    typ = str(getattr(o, "Konstrukce_Typ", "") or "")
-    if st == "placeholder" or str(getattr(o, "Konstrukce_Zastupny", "")).lower() == "true":
-        color(o.ViewObject, ORANGE)
-    elif str(getattr(o, "Konstrukce_ModelStav", "")) == "dle dokumentace":
-        color(o.ViewObject, YELLOW)
-    elif typ == "kabel":
-        color(o.ViewObject, CABLE.get(str(getattr(o, "Konstrukce_Druh", "")), GREY))
-    elif str(getattr(o, "Konstrukce_Pripojnice", "")) == "PE":
-        color(o.ViewObject, (60, 160, 60))
-    elif str(getattr(o, "Konstrukce_Pripojnice", "")) == "N":
-        color(o.ViewObject, (90, 160, 230))
-    elif typ == "pomocny":
-        color(o.ViewObject, BLUE, 85)
-    elif typ in ("zlab", "prislusenstvi"):
-        color(o.ViewObject, DUCT)
-    else:
-        color(o.ViewObject, GREY)
-    n += 1
+    if o.TypeId == "Part::Feature":
+        c, tr = want(o)
+        color(o.ViewObject, c, tr)
+        n += 1
+    elif o.TypeId == "App::Link" and o.LinkedObject is not None and o.LinkedObject.Document is doc             and o.LinkedObject.TypeId == "Part::Feature":
+        # opakovaný díl jako odkaz (fc_cabinet.feat): barvu dědí ze zdroje; jiná barva podle vlastností (N × PE) = přepis
+        c, _tr = want(o)
+        if c != want(o.LinkedObject)[0]:
+            try:
+                o.ViewObject.OverrideMaterial = True
+                m = App.Material()
+                m.DiffuseColor = rgb(c) + (0.0,)
+                o.ViewObject.ShapeMaterial = m
+            except Exception:  # noqa: BLE001
+                pass
+        n += 1
 doc.save()
 shots = []
 if len(sys.argv) > 2:

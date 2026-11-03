@@ -21,7 +21,8 @@ OUT = os.path.abspath(sys.argv[2])
 FOLDER = os.path.abspath(sys.argv[3]) if len(sys.argv) > 3 else os.path.dirname(os.path.dirname(OUT))
 GUID = LAY.get("projectGuid") or ""
 ERR = []
-STATS = {"odkazu": 0, "zastupnych": 0, "sroubu": 0}
+STATS = {"odkazu": 0, "zastupnych": 0, "sroubu": 0, "odkazu_tvaru": 0}
+SHARED = {}          # podpis tvaru → (zdrojový Part::Feature, min. obálky lokálního tvaru) — opakované díly jako App::Link
 
 
 def box(x0, x1, y0, y1, z0, z1):
@@ -70,14 +71,78 @@ def part(name, label, parent=None, **pr):
     return p
 
 
-def feat(name, label, shape, parent, **pr):
+def _key(s):
+    """Podpis tvaru (s jeho umístěním) nezávislý na posunutí: objem, plocha, počty a vrcholy vůči min. obálky."""
+    bb = s.BoundBox
+    pts = tuple(sorted((round(v.X - bb.XMin, 3), round(v.Y - bb.YMin, 3), round(v.Z - bb.ZMin, 3)) for v in s.Vertexes))
+    return (round(s.Volume, 3), round(s.Area, 3), len(s.Faces), len(s.Edges), pts), V(bb.XMin, bb.YMin, bb.ZMin)
+
+
+def shape_key(sh):
+    """Podpis lokálního tvaru (bez umístění objektu)."""
+    loc = sh.copy()
+    loc.Placement = App.Placement()
+    return _key(loc)
+
+
+def _axis_rotations():
+    """24 otočení, která převádějí osy na osy (upínka na dveřích × na boku skříně = týž kvádr otočený)."""
+    out = []
+    for perm in ((0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)):
+        for sg in ((1, 1, 1), (1, 1, -1), (1, -1, 1), (1, -1, -1), (-1, 1, 1), (-1, 1, -1), (-1, -1, 1), (-1, -1, -1)):
+            m = [[0.0] * 3 for _ in range(3)]
+            for i in range(3):
+                m[i][perm[i]] = float(sg[i])
+            det = (m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                   + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]))
+            if det > 0 and (perm, sg) != ((0, 1, 2), (1, 1, 1)):
+                M = App.Matrix(m[0][0], m[0][1], m[0][2], 0, m[1][0], m[1][1], m[1][2], 0, m[2][0], m[2][1], m[2][2], 0)
+                out.append(App.Rotation(M))
+    return out
+
+
+AXIS_ROT = _axis_rotations()
+
+
+def feat(name, label, shape, parent, share=True, **pr):
+    """Těleso dílu. Opakovaný tvar (stejný jako dříve vložený, jen posunutý / jinak umístěný) = App::Link na první kus
+    s vlastními vlastnostmi (kontrola ``kopie`` pro3d_tools — kopie těles jsou chyba); pomocné a kabely se nesdílejí."""
+    if not shape.isValid() or not shape.Solids:
+        ERR.append(f"{label}: neplatné těleso")
+    elif share and pr.get("Konstrukce_Typ") not in ("pomocny", "kabel"):
+        key, mn = shape_key(shape)
+        hit = None
+        if key in SHARED:
+            src, mn0 = SHARED[key]
+            hit = (src, shape.Placement.multiply(App.Placement(mn - mn0, App.Rotation())))
+        else:
+            loc = shape.copy()
+            loc.Placement = App.Placement()
+            for R in AXIS_ROT:          # R(lokální) = zdroj + Δ  →  umístění odkazu = pl · R⁻¹ · T(Δ)
+                s2 = loc.copy()
+                s2.Placement = App.Placement(V(), R)
+                k2, mn2 = _key(s2)
+                if k2 in SHARED:
+                    src, mn0 = SHARED[k2]
+                    hit = (src, shape.Placement.multiply(App.Placement(V(), R.inverted())).multiply(
+                        App.Placement(mn2 - mn0, App.Rotation())))
+                    break
+        if hit is not None:
+            lk = DOC.addObject("App::Link", name)
+            lk.setLink(hit[0])
+            lk.Label = label
+            lk.Placement = hit[1]
+            props(lk, pr)
+            parent.addObject(lk)
+            STATS["odkazu_tvaru"] += 1
+            return lk
     o = DOC.addObject("Part::Feature", name)
     o.Label = label
     o.Shape = shape
     props(o, pr)
     parent.addObject(o)
-    if not shape.isValid() or not shape.Solids:
-        ERR.append(f"{label}: neplatné těleso")
+    if share and shape.Solids and pr.get("Konstrukce_Typ") not in ("pomocny", "kabel"):
+        SHARED.setdefault(shape_key(shape)[0], (o, shape_key(shape)[1]))
     return o
 
 
@@ -431,7 +496,8 @@ def build_extras(root, dv):
             c = cyl_y(float(iz["d"]) / 2, y0, y0 + h, nn["x"], z)
             c = c.cut(cyl_y(rt, y0 - 1, y0 + hl, nn["x"], z)).cut(cyl_y(rt, y0 + h - hl, y0 + h + 1, nn["x"], z))
             feat(f"Izolator_N{k}", f"Izolátor N přípojnice {k} Ø{float(iz['d']):.0f}×{h:.0f} PA (zástupný, ODHAD typu)", c, gb,
-                 Konstrukce_Typ="dil", Konstrukce_Zastupny=True, PLCdesk_ModelStatus="placeholder", Konstrukce_Material="PA (izolant)",
+                 Konstrukce_Typ="dil", Konstrukce_Zastupny=True, PLCdesk_ModelStatus="placeholder",
+                 Konstrukce_Material=iz.get("material") or "PA (izolant)",
                  Konstrukce_Zdroj=iz["pozn"])
         for k, s in enumerate(bb["studs"], start=1):
             feat(f"Zavrtny_N{k}", s["name"], cyl_y(s["r"], s["y0"], s["y1"], s["x"], s["z"]), gb, Konstrukce_Typ="sroub",

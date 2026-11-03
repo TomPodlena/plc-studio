@@ -956,9 +956,13 @@ def hardware(lay: dict) -> dict:
             hw["screws"].append(_screw(f"Šroub PE přípojnice {k} ISO 4762 {Mb}×6", Mb, 6, (pe["x"], pe["box"][3], z), down,
                                        "PE přípojnice → deska (vodivě)"))
         studs = []
+        # délka šroubu N: přípojnice + zašroubování ≥ 1,5·d do vložky izolátoru (skill spoje-sroubove kap. 6), ale ne přes
+        # hloubku závitu (šroub nesmí dosednout na dno); normalizované délky ISO 4762
+        tn, hz = float(nn["t"]), float(iz["hloubka"])
+        ln = next((x for x in (6, 8, 10, 12, 16, 20) if tn + 1.5 * rb_["d"] + 0.5 <= x <= tn + hz), 8)
         for k, z in enumerate(iz["z"], start=1):
             hw["plate_holes"].append({"x": nn["x"], "z": z, "d": tapb, "druh": f"závit {Mb} (izolátor N)"})
-            hw["screws"].append(_screw(f"Šroub N přípojnice {k} ISO 4762 {Mb}×8 (jen do izolátoru)", Mb, 8,
+            hw["screws"].append(_screw(f"Šroub N přípojnice {k} ISO 4762 {Mb}×{ln:g} (jen do izolátoru)", Mb, ln,
                                        (nn["x"], nn["box"][3], z), down, "N přípojnice → izolátor (izolovaně od desky)"))
             studs.append({"name": f"Závrtný šroub izolátoru N {k} {Mb}×{float(iz['hloubka']) + G['deska']:.1f}", "x": nn["x"], "z": z,
                           "r": rb_["d"] / 2, "y0": pl["y0"], "y1": pl["y1"] + float(iz["hloubka"])})

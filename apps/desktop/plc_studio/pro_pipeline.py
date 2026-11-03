@@ -27,7 +27,7 @@ instanci) → ``dily/parts_index.json``; stavitel díly „dle dokumentace“ MU
 Před 1. kolem stavitele rozvaděče postaví rozvaděč generátor kódem ``pro3d_cabinet`` (``make_cabinet``): když model vznikne,
 stavitel ho jen kontroluje a doplňuje (``CABINET_GEN_PROMPT``), jinak staví postaru.
 
-Kontroly modelu dělá KÓD (``pro3d_tools``: kolize, souvislost, otvory ISO 13857, kusovník, zástupné díly, STEP, snímky);
+Kontroly modelu dělá KÓD (``pro3d_tools``: kolize, souvislost, zašroubování, kopie těles, otvory ISO 13857, kusovník, zástupné díly, STEP, snímky);
 stavitel je spouští před odevzdáním, kontrolor K5 nezávisle a verdikt o ně opírá — SCHVÁLENO s chybou v
 ``<část>/k5_kolo<N>/kontroly.json`` postup sám zneplatní.
 
@@ -324,7 +324,9 @@ Konstrukce_Vedeni = zlab / retez (žlab přišroubovaný k rámu), nebezpečné 
 druhé polohy pohyblivých dílů Konstrukce_Pohyb = JSON {"nazev": …, "posun": [x, y, z]} nebo {"nazev": …, "otoc": {"osa":
 […], "bod": […], "uhel": …}}, zástupné díly PLCdesk_ModelStatus = placeholder + barva 255,140,0, díly dle dokumentace
 (generátory) žluté 255,215,0 jen jako App::Link bez přebarvení, díly kusovníku
-PLCdesk_Id / PLCdesk_Instance (= řádek manifestu)."""
+PLCdesk_Id / PLCdesk_Instance (= řádek manifestu). Opakovaný díl = App::Link na první kus (kopie tělesa = chyba
+kontroly kopie); vlastní PLCdesk_Id / PLCdesk_Instance dej na odkaz (addProperty na App::Link). Každý šroub do závitu
+(díra Ø d − P) nebo matice se zašroubováním ≥ max(k·d, 3 mm) — ocel 1, hliník 1,5, plast 2 (kontrola zasunuti)."""
 
 def parts_cmd(role: str = "builder") -> str:
     """Příkaz generátorů normalizovaných dílů pro pokyn agenta."""
