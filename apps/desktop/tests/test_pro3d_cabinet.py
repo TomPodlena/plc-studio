@@ -408,10 +408,11 @@ class FreeCADTest(unittest.TestCase):
         self.assertTrue(fc["ok"], fc.get("chyby"))
         self.assertGreater(fc["odkazu"], 30)                    # přístroje dle dokumentace jako App::Link
         self.assertGreater(fc["sroubu"], 20)
+        self.assertGreater(fc["odkazu_tvaru"], 50)             # opakované šrouby, zarážky, vývodky… jako App::Link
 
     def test_kontroly(self):
         ch = self.rep.get("checks") or {}
-        for k in ("kolize", "souvislost", "kusovnik", "stav", "step"):
+        for k in ("kolize", "souvislost", "zasunuti", "kopie", "kusovnik", "stav", "step"):
             self.assertIn(k, ch)
             self.assertFalse(ch[k].get("selhalo"), k)
             self.assertEqual(ch[k].get("chyby"), [], f"{k}: {ch[k].get('chyby')}")

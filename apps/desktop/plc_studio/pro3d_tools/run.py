@@ -7,7 +7,10 @@
 Kontroly: ``kolize`` (přísné průniky, povolené jen šroub × díra / závit, matice × drážka, kabel / hadice ve žlabu /
 obálce řetězu, hadice zasunutá do šroubení, šroubení v portu; polohy ``Konstrukce_Pohyb``; kalibrace měřiče),
 ``souvislost`` (graf dotyků, podlaha, díly bez spoje, žlab bez šroubu k rámu = chyba, volná čela profilů), ``otvory`` (voxely
-5 / 4 / 3 mm → cesty k zónám ``Zona_*``, e a Sr, ISO 13857 tab. 4), ``kusovnik`` (``PLCdesk_Id`` × manifest),
+5 / 4 / 3 mm → cesty k zónám ``Zona_*``, e a Sr, ISO 13857 tab. 4), ``zasunuti`` (délka dříku šroubu v závitu / matici ×
+max(k·d, 3 mm) podle materiálu — skill spoje-sroubove kap. 6; šroub do vzduchu / jen v průchozích dírách = chyba a pro
+souvislost není spojem), ``kopie`` (shodná tělesa — objem, plocha, hlavní momenty, vrcholy po otočení — vložená jako kopie
+místo App::Link = chyba), ``kusovnik`` (``PLCdesk_Id`` × manifest),
 ``stav`` (zástupné díly = oranžová 255,140,0 = vlastnost), ``step`` (export a zpětné načtení), ``snimky`` (GUI instance),
 ``vse`` = kolize … step (bez snímků) → ``kontroly.json`` + ``KONTROLY.md`` (≤ 40 řádků) ve složce ``--out``
 (výchozí složka modelu). Návratový kód: 0 bez chyb, 1 chyby, 2 kontrola selhala (= chyba pro verdikt K5).
@@ -35,8 +38,8 @@ if str(HERE) not in sys.path:
 import rules  # noqa: E402
 
 HOME = Path(os.path.expanduser("~"))
-FC_CHECKS = ("kolize", "souvislost", "otvory", "kusovnik", "step")
-ALL = ("kolize", "souvislost", "otvory", "kusovnik", "stav", "step")
+FC_CHECKS = ("kolize", "souvislost", "zasunuti", "kopie", "otvory", "kusovnik", "step")
+ALL = ("kolize", "souvislost", "zasunuti", "kopie", "otvory", "kusovnik", "stav", "step")
 DEFAULT_SLOT = "pro3d-kontroly"
 WORK = ".kontroly"
 NOWIN = getattr(subprocess, "CREATE_NO_WINDOW", 0)

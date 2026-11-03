@@ -70,7 +70,7 @@
         "odhad": "délka 100 mm, upevnění (izolátory, šrouby) — datový list neuvádí, ODHAD"},
   "PE": {"typ": "PE přípojnice Cu 10 × 3 mm (průřez jako NLS-CU 3/10)", "b": 10.0, "t": 3.0, "L": 100.0,
          "zdroj": {"dokument": "průřez z datového listu Phoenix 0402174 (viz N); vodivé přišroubování k desce = ODHAD", "url": "https://media.soselectronic.com/KatList/Phoenix/phoenix-contact-0402174-en.pdf", "stav": "ODHAD"}},
-  "izolator": {"d": 14.0, "h": 20.0, "zavit": "M4", "hloubka": 6.0, "stav": "ODHAD", "pozn": "izolátor PA se dvěma vnitřními závity M4 6 mm proti sobě (mezi závity 8 mm plastu) — typ ODHADEM"},
+  "izolator": {"d": 14.0, "h": 20.0, "zavit": "M4", "hloubka": 8.0, "stav": "ODHAD", "material": "PA, závitové vložky mosaz (ODHAD typu)", "pozn": "izolátor PA se dvěma závitovými vložkami M4 z mosazi 8 mm proti sobě (mezi vložkami 4 mm plastu) — typ ODHADEM; hloubka 8 mm ≥ 1,5·d do mosazi (skill spoje-sroubove kap. 6)"},
   "sroub": "M4"
  },
  "ventilatory": {

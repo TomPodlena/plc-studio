@@ -189,6 +189,99 @@ def povolena_kolize(typ_a: str, typ_b: str) -> str | None:
     return None
 
 
+# --- kopie těles (V12) a zašroubování (V4 / M1) ----------------------------------------------------------------------
+
+# Druhy, které kontrola kopií nehodnotí: pomocná geometrie, zóny, ohebné vedení (kabel / hadice mají každý jinou trasu,
+# shoda tvaru je náhoda), obálka řetězu.
+KOPIE_SKIP = frozenset({"pomocny", "zona", "kabel", "hadice", "retez"})
+KOPIE_MAX_SKUPIN = 5      # do chyb (KONTROLY.md) nejvýš tolik skupin, zbytek souhrnně; plný výpis v data.skupiny
+
+KOPIE_POKYN = ("opakovaný díl jako kopie tělesa — vlož jeden zdroj a ostatní kusy jako App::Link na něj; vlastnosti "
+               "kusovníku (PLCdesk_Id, PLCdesk_Instance, Konstrukce_Typ …) dej přímo na odkaz (addProperty na App::Link, "
+               "přežije uložení), umístění na Placement odkazu")
+
+# Hloubka zašroubování podle materiálu tělesa se závitem — ČSN / pravidlo palce ze skillu spoje-sroubove kap. 6
+# „Hloubka zašroubování“ (ocel cca 1 × d, litina 1,25–1,5 × d, hliníkové slitiny a mosaz 1,5–2 × d, termoplasty 2 × d
+# a víc); bereme dolní mez pásma. Spodní mez 3 mm = ODHAD (méně než ~3 stoupání drobného závitu nenese).
+ZASROUB_SRC = "skill spoje-sroubove kap. 6 Hloubka zašroubování (ocel 1·d, litina 1,25·d, Al / mosaz 1,5·d, plast 2·d)"
+ZASROUB_K = {"ocel": 1.0, "litina": 1.25, "hlinik": 1.5, "plast": 2.0}
+ZASROUB_MIN_MM = 3.0      # ODHAD — spodní mez pro drobné závity
+ZASROUB_TOL = 0.2         # mm — zaokrouhlení modelu
+FASTENER_NOT_THREAD = re.compile(r"\bcep\b|kolik|\bpin\b|konektor|connector|verbinder|\bspojk|upink|\bclip|klip|\bnyt"
+                                 r"|rivet|zavlack")
+_MAT = (("hlinik", re.compile(r"hlin|\balu|\bal\b|almg|alsi|en aw|aluminium|aluminum|mosaz|brass|messing")),  # i vložka v plastu
+        ("litina", re.compile(r"litin|\bgg\b|gjl|gjs|cast iron|guss")),
+        ("plast", re.compile(r"\bpa\b|pa ?6|polyamid|plast|\bpom\b|\bpe-?hd|\bpp\b|nylon|izolant|izolator|kunststoff")))
+
+
+def material_zavitu(props: dict | None, label: str = "", typ: str = "") -> str:
+    """Materiál tělesa se závitem: ``Konstrukce_Material``, jinak popisek; profil rámu = hliník (ALUTEC / item / Bosch),
+    jinak ocel (na straně požadavku nejmírnější — pro hliník a plast je požadavek přísnější)."""
+    p = props or {}
+    for text in (fold(p.get("Konstrukce_Material") or ""), fold(label)):
+        for mat, rx in _MAT:
+            if text and rx.search(text):
+                return mat
+    return "hlinik" if typ == "profil" else "ocel"
+
+
+def min_zasroubovani(d: float, mat: str = "ocel") -> float:
+    """Nejmenší délka zašroubování (mm) pro šroub o jmenovitém průměru ``d`` do materiálu ``mat``."""
+    return max(ZASROUB_K.get(mat, 1.0) * d, ZASROUB_MIN_MM)
+
+
+def posud_sroub(d: float, zabery: list[dict]) -> dict:
+    """Posouzení jednoho šroubu z naměřených záběrů dříku (``fc_scan``): každý záběr {dil, druh, delka, diry, skrz,
+    material, matice_l}. ``druh``: ``kontext`` (díl jiné části — jen varování), ``obalka`` (konec dříku na
+    zjednodušeném modelu bez děr — jen varování), ``zavit`` (souosá díra ≤ jmenovitý průměr = závit / jádro), ``matice``,
+    ``bez_diry`` (dřík v plném materiálu — díra chybí, kolize to hlásí zvlášť), ``pruchozi`` (průchozí díra / podložka).
+
+    Vrací {uroven: ok | varovani | chyba, kod, text, nosny (šroub něco drží — počítá se jako spoj), delka, pozad}."""
+    nit = [z for z in zabery if z.get("druh") in ("zavit", "matice", "bez_diry") and z.get("delka", 0) > ZASROUB_TOL]
+    pr = [z for z in zabery if z.get("druh") == "pruchozi" and z.get("delka", 0) > ZASROUB_TOL]
+    ctx = [z for z in zabery if z.get("druh") == "kontext" and z.get("delka", 0) > ZASROUB_TOL]
+    if not nit and ctx:
+        z = max(ctx, key=lambda q: q["delka"])
+        return {"uroven": "varovani", "kod": "sroub-kontext", "nosny": True, "delka": round(float(z["delka"]), 2),
+                "pozad": min_zasroubovani(d), "dil": z.get("dil"), "druh": "kontext",
+                "text": f"šroub M{d:g}: závit v dílu jiné části ({z.get('dil')}, kontext) {float(z['delka']):.1f} mm — "
+                        "tady neověřitelné, ověř závit v té části (požadavek / zpětná vazba)"}
+    ob = [z for z in zabery if z.get("druh") == "obalka"]
+    if not nit and ob:
+        return {"uroven": "varovani", "kod": "sroub-obalka", "nosny": True, "delka": 0.0, "pozad": min_zasroubovani(d),
+                "dil": ob[0].get("dil"), "druh": "obalka",
+                "text": f"šroub M{d:g} končí na zjednodušeném modelu {ob[0].get('dil')} (obálka / zástupný bez děr) — "
+                        "závit předpokládán v dílu, ověř podle dokumentace výrobce"}
+    if not nit and not pr:
+        return {"uroven": "chyba", "kod": "sroub-nic", "nosny": False, "delka": 0.0, "pozad": min_zasroubovani(d),
+                "text": f"šroub M{d:g} nic nespojuje — dřík nevede do žádného dílu ani matice (zasunutí 0 mm)"}
+    if not nit:
+        dily = ", ".join(sorted({str(z.get('dil')) for z in pr}))[:120]
+        return {"uroven": "chyba", "kod": "sroub-bez-zavitu", "nosny": False, "delka": 0.0, "pozad": min_zasroubovani(d),
+                "text": f"šroub M{d:g} bez závitu i matice — dřík jen v průchozích dírách ({dily}), nic ho nedrží "
+                        f"(závitovou díru modeluj Ø jádra d − P, jinak matice)"}
+
+    def need(z):
+        if z["druh"] == "matice":
+            return min(float(z.get("matice_l") or d), max(d, ZASROUB_MIN_MM))
+        return min_zasroubovani(d, z.get("material") or "ocel")
+
+    best = max(nit, key=lambda z: z["delka"] - need(z))
+    req, L = need(best), float(best["delka"])
+    base = {"nosny": True, "delka": round(L, 2), "pozad": round(req, 2), "dil": best.get("dil"), "druh": best["druh"]}
+    if L >= req - ZASROUB_TOL:
+        return dict(base, uroven="ok", kod="sroub-ok",
+                    text=f"šroub M{d:g}: {best['druh']} v {best.get('dil')} {L:.1f} mm ≥ {req:.1f} mm")
+    mat = best.get("material") or "ocel"
+    if best["druh"] == "zavit" and best.get("skrz") and float(best.get("diry") or 0) < req - ZASROUB_TOL:
+        return dict(base, uroven="varovani", kod="sroub-tenky",
+                    text=f"šroub M{d:g}: závit v tenkém dílu {best.get('dil')} — celá tloušťka {L:.1f} mm < {req:.1f} mm "
+                         f"({mat}) — ověř únosnost, jinak závitová vložka / nýtovací matice / matice ({ZASROUB_SRC})")
+    return dict(base, uroven="chyba", kod="sroub-kratky",
+                text=f"šroub M{d:g}: zašroubování do {best.get('dil')} jen {L:.1f} mm < {req:.1f} mm ({mat}, "
+                     f"{ZASROUB_K.get(mat, 1.0):g}·d) — delší šroub / hlubší závit ({ZASROUB_SRC})")
+
+
 # --- ISO 13857:2019 tab. 4 -------------------------------------------------------------------------------------------
 
 ISO13857_SRC = ("ČSN EN ISO 13857:2019 tab. 4 (osoby ≥ 14 let) — přetisk Troax „Safety Guide — ISO 13857“ "
@@ -378,8 +471,8 @@ def kusovnik(objs: list[dict], manifest: dict | None) -> dict:
 
 # --- souhrn KONTROLY.md -----------------------------------------------------------------------------------------------
 
-CHECK_LABELS = {"kolize": "Kolize", "souvislost": "Souvislost", "otvory": "Otvory ISO 13857", "kusovnik": "Kusovník × manifest",
-                "stav": "Zástupné díly", "step": "STEP export / načtení", "snimky": "Snímky"}
+CHECK_LABELS = {"kolize": "Kolize", "souvislost": "Souvislost", "zasunuti": "Zašroubování", "kopie": "Kopie těles (App::Link)",
+                "otvory": "Otvory ISO 13857", "kusovnik": "Kusovník × manifest", "stav": "Zástupné díly", "step": "STEP export / načtení", "snimky": "Snímky"}
 
 
 def _pos(f: dict) -> str:

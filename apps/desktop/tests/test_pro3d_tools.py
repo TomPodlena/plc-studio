@@ -29,6 +29,7 @@ except ImportError:  # pragma: no cover
     np = None
 
 HERE = Path(__file__).resolve().parent
+FC_SLOT = os.environ.get("PRO3D_TEST_SLOT") or "pro3d-test"
 
 
 def tmp() -> Path:
@@ -144,6 +145,35 @@ class RulesTest(unittest.TestCase):
         self.assertEqual(kody, ["kusovnik-duplicita", "kusovnik-navic", "kusovnik-pocet"])
         self.assertEqual({f["kod"] for f in r["info"]}, {"kusovnik-mimo"})     # cabinet mimo model, -W mount none
         self.assertTrue(rules.kusovnik([], None)["varovani"])
+
+    def test_zasroubovani(self):
+        """Hloubka zašroubování (skill spoje-sroubove kap. 6): ocel 1·d, hliník 1,5·d, plast 2·d, spodní mez 3 mm."""
+        self.assertEqual(rules.material_zavitu({}, "Deska stolu", "dil"), "ocel")
+        self.assertEqual(rules.material_zavitu({}, "Profil 40x40", "profil"), "hlinik")
+        self.assertEqual(rules.material_zavitu({"Konstrukce_Material": "PA (izolant)"}, "Izolátor", "dil"), "plast")
+        self.assertEqual(rules.material_zavitu({}, "Drzak: deska Al 280x120x10", "dil"), "hlinik")
+        self.assertEqual(rules.min_zasroubovani(6, "ocel"), 6.0)
+        self.assertEqual(rules.min_zasroubovani(6, "hlinik"), 9.0)
+        self.assertEqual(rules.min_zasroubovani(2.5, "ocel"), 3.0)
+        z = lambda **k: dict({"dil": "D", "material": "ocel"}, **k)  # noqa: E731
+        self.assertEqual(rules.posud_sroub(6, [])["kod"], "sroub-nic")
+        self.assertFalse(rules.posud_sroub(6, [])["nosny"])
+        r = rules.posud_sroub(6, [z(druh="pruchozi", delka=11)])
+        self.assertEqual((r["kod"], r["nosny"]), ("sroub-bez-zavitu", False))
+        r = rules.posud_sroub(6, [z(druh="pruchozi", delka=3), z(druh="zavit", delka=2, diry=10, skrz=False)])
+        self.assertEqual((r["uroven"], r["kod"], r["delka"], r["pozad"]), ("chyba", "sroub-kratky", 2.0, 6.0))
+        self.assertTrue(r["nosny"])
+        self.assertEqual(rules.posud_sroub(6, [z(druh="zavit", delka=9, diry=10, skrz=False)])["uroven"], "ok")
+        self.assertEqual(rules.posud_sroub(6, [z(druh="zavit", delka=6, diry=10, material="hlinik")])["kod"], "sroub-kratky")
+        r = rules.posud_sroub(4, [z(druh="zavit", delka=2.5, diry=2.5, skrz=True)])        # celá tloušťka plechu 2,5
+        self.assertEqual((r["uroven"], r["kod"]), ("varovani", "sroub-tenky"))
+        self.assertEqual(rules.posud_sroub(5, [z(druh="matice", delka=4.0, matice_l=4.0)])["uroven"], "ok")
+        self.assertEqual(rules.posud_sroub(8, [z(druh="matice", delka=4.5, matice_l=6.0)])["kod"], "sroub-kratky")
+        r = rules.posud_sroub(8, [z(druh="pruchozi", delka=30), z(druh="kontext", delka=20)])
+        self.assertEqual((r["uroven"], r["kod"], r["nosny"]), ("varovani", "sroub-kontext", True))
+        self.assertTrue(rules.FASTENER_NOT_THREAD.search(rules.fold("Čep pantu 1 Ø6")))
+        self.assertTrue(rules.FASTENER_NOT_THREAD.search(rules.fold("Spojka profilu 40")))
+        self.assertFalse(rules.FASTENER_NOT_THREAD.search(rules.fold("Šroub ISO 4762 M6x20")))
 
     def test_summary_limit(self):
         rep = {"model_name": "m", "sha256": "ab" * 32, "created": "t", "souhrn": {"stav": "CHYBY", "chyby": 99, "varovani": 0},
@@ -288,6 +318,8 @@ class RunChecksFakeTest(unittest.TestCase):
             out.write_text(json.dumps({"pruchod": {"listu": 1}, "checks": {
                 "kolize": {"chyby": [{"kod": "kolize", "text": "A × B", "poloha": [1, 2, 3]}], "varovani": [], "info": []},
                 "souvislost": {"selhalo": "Traceback…"},
+                "zasunuti": {"chyby": [], "varovani": [], "info": [], "data": {"sroubu": []}},
+                "kopie": {"chyby": [], "varovani": [], "info": [], "data": {"skupin": 0}},
                 "otvory": {"teles": 1, "zon": 1, "zony": [], "grids": [{"vox": 5.0, "grid": [1, 1, 1], "paths": [
                     {"vox": 5.0, "e": 8.0, "sr_primka": 50.0, "sr_draha": 60.0, "nejuzsi": [0, 0, 0], "vstup": [0, -9, 0],
                      "e_mer": 10.0, "sr_mer": 100.0, "sr_draha_mer": 110.0, "bod_mer": [0, 0, 0], "tvar": "sterbina",
@@ -316,12 +348,12 @@ class FreeCADSynthTest(unittest.TestCase):
     def test_vse(self):
         d = tmp()
         model = d / "Synth.FCStd"
-        s = run.fc_run(HERE / "pro3d_synth_build.py", [model], "pro3d-test", 300)
+        s = run.fc_run(HERE / "pro3d_synth_build.py", [model], FC_SLOT, 300)
         self.assertTrue(s.get("ok"), s)
         (d / "PLCdesk_CAD.json").write_text(json.dumps({"project": {"guid": ""}, "parts": [
             {"id": "-M1:motor", "qty": 1, "location": "field", "mount": "floor"},
             {"id": "-Q1:mcb", "qty": 1, "location": "cabinet", "mount": "din"}]}), encoding="utf-8")
-        rep = run.run_checks(model, run.ALL, slot="pro3d-test", timeout=900, grids=(5.0, 3.0))
+        rep = run.run_checks(model, run.ALL, slot=FC_SLOT, timeout=900, grids=(5.0, 3.0))
         c = rep["checks"]
         self.assertTrue(c["kolize"]["data"]["kalibrace"]["ok"])
         kol = sorted(f["text"].split(":")[0] for f in c["kolize"]["chyby"])
@@ -350,9 +382,9 @@ class FreeCADSynthTest(unittest.TestCase):
         a hadice zasunutá do šroubení povolené, hadice skrz šroubení a díl v dráze řetězu = kolize."""
         d = tmp()
         model = d / "SynthVedeni.FCStd"
-        s = run.fc_run(HERE / "pro3d_synth_vedeni.py", [model], "pro3d-test", 300)
+        s = run.fc_run(HERE / "pro3d_synth_vedeni.py", [model], FC_SLOT, 300)
         self.assertTrue(s.get("ok"), s)
-        rep = run.run_checks(model, ("kolize", "souvislost"), slot="pro3d-test", timeout=600)
+        rep = run.run_checks(model, ("kolize", "souvislost"), slot=FC_SLOT, timeout=600)
         c = rep["checks"]
         self.assertTrue(c["kolize"]["data"]["kalibrace"]["ok"])
         kol = sorted(" × ".join(sorted(f["text"].split(":")[0].split(" × "))) for f in c["kolize"]["chyby"])
@@ -368,6 +400,45 @@ class FreeCADSynthTest(unittest.TestCase):
         self.assertEqual([f["text"].split(":")[0] for f in tray], ["Žlab 40×60 bez šroubu"])
         self.assertEqual(c["souvislost"]["data"]["zlab_bez_spoje"], 1)
         self.assertFalse([f for f in c["souvislost"]["chyby"] if f["kod"] == "ve-vzduchu"], c["souvislost"]["chyby"])
+
+    def test_kopie_zasunuti(self):
+        """Kopie těles a zašroubování (pro3d_synth_kopie.py): 3 kopie konzoly (i otočená) = skupina, zdroj odkazů + jeho
+        kopie = skupina, odkazy s vlastním PLCdesk_Id a zrcadlový díl nejsou chyba; šroub správně / 2 mm v závitu / jen průchozí díry / do vzduchu; držák,
+        který drží jen šroub bez závitu, je pro souvislost bez spoje."""
+        d = tmp()
+        model = d / "SynthKopie.FCStd"
+        s = run.fc_run(HERE / "pro3d_synth_kopie.py", [model], FC_SLOT, 300)
+        self.assertTrue(s.get("ok"), s)
+        (d / "PLCdesk_CAD.json").write_text(json.dumps({"project": {"guid": ""}, "parts": [
+            {"id": f"-B{k}:bracket", "qty": 1, "location": "field", "mount": "floor"} for k in (1, 2, 3, 4)]}), encoding="utf-8")
+        rep = run.run_checks(model, ("kolize", "souvislost", "zasunuti", "kopie", "kusovnik"), slot=FC_SLOT, timeout=600)
+        c = rep["checks"]
+        self.assertEqual(c["kolize"]["chyby"], [])
+        kp = c["kopie"]
+        self.assertEqual(kp["data"]["skupin"], 2, kp["data"]["skupiny"])
+        self.assertEqual(sorted(kp["data"]["skupiny"][0]["dily"]), ["Konzola 1", "Konzola 2", "Konzola 3 otočená"])
+        self.assertEqual(sorted(kp["data"]["skupiny"][1]["dily"]), ["Úhelník -B1", "Úhelník -B4 kopie zdroje"])
+        self.assertEqual(len(kp["chyby"]), 2)
+        self.assertIn("App::Link", kp["chyby"][0]["text"])
+        self.assertEqual(len(kp["data"]["zrcadlove"]), 1)                                   # rohový díl levý / pravý
+        self.assertGreaterEqual(kp["data"]["odkazu"], 2)
+        self.assertEqual(c["kusovnik"]["chyby"], [])          # zdroj -B1 + odkazy -B2, -B3 s vlastním PLCdesk_Id = 3 řádky
+        posud = {x["label"]: x["posudek"] for x in c["zasunuti"]["data"]["sroubu"]}
+        self.assertEqual(posud["Šroub ISO 4762 M6x12 do závitu"]["uroven"], "ok")
+        self.assertAlmostEqual(posud["Šroub ISO 4762 M6x12 do závitu"]["delka"], 9.0, delta=0.1)
+        self.assertEqual(posud["Šroub ISO 4762 M6x5 krátký"]["kod"], "sroub-kratky")
+        self.assertAlmostEqual(posud["Šroub ISO 4762 M6x5 krátký"]["delka"], 2.0, delta=0.1)
+        self.assertEqual(posud["Šroub ISO 4762 M6x11 bez závitu"]["kod"], "sroub-bez-zavitu")
+        self.assertEqual(posud["Šroub ISO 4762 M6x7.5 držáku"]["kod"], "sroub-bez-zavitu")
+        self.assertEqual(posud["Šroub ISO 4762 M6x10 do vzduchu"]["kod"], "sroub-nic")
+        self.assertEqual(sorted(f["kod"] for f in c["zasunuti"]["chyby"]),
+                         ["sroub-bez-zavitu", "sroub-bez-zavitu", "sroub-kratky", "sroub-nic"])
+        loose = [f["text"].split(":")[0] for f in c["souvislost"]["varovani"] if f["kod"] == "bez-spoje"]
+        self.assertIn("Držák volný", loose)
+        self.assertEqual(c["souvislost"]["data"]["sroubu_bez_zaberu"], 3)
+        md = (d / "KONTROLY.md").read_text(encoding="utf-8")
+        self.assertIn("Kopie těles", md)
+        self.assertIn("Zašroubování", md)
 
 
 if __name__ == "__main__":
