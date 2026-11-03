@@ -108,6 +108,8 @@ def build_lib_body(spec, out):
               "Konstrukce_Material": spec.get("material") or "", "Konstrukce_Poznamka": spec.get("poznamka") or "",
               "Konstrukce_Model": spec["key"]}
     stav = {"PLCdesk_ModelStatus": "placeholder", "Konstrukce_Zastupny": True} if ph else {"Konstrukce_ModelStav": STAV}
+    if spec.get("vlastni") and not ph:               # vlastní konstrukce modulu (deska, úhelník) — díl pro App::Link, ne „dle dokumentace“
+        stav = {}
     props(part, dict(common, **stav))
     sh = solid(spec["body"])
     o = doc.addObject("Part::Feature", "Teleso")
@@ -192,12 +194,12 @@ def main():
             res["ok"] = False
             res["chyby"].append(f"díl {k}: {v.get('chyba', 'neplatné těleso')}")
     # 2) sestava zkušební desky
-    mname = plan.get("model") or "Lavice_S1"
+    mname = plan.get("model") or plan.get("sestava") or "Lavice_S1"
     doc = App.newDocument(mname)
     out = os.path.join(folder, mname + ".FCStd")
     doc.saveAs(out)                                   # App::Link na jiný dokument potřebuje uložený hostitelský dokument
     root = doc.addObject("App::Part", "Lavice")
-    root.Label = plan.get("nazev") or "Zkušební deska modulu S1"
+    root.Label = plan.get("nazev") or plan.get("label") or "Zkušební deska modulu S1"
     props(root, {"Konstrukce_Generator": GEN})
     pr = plan["profil"]
     po = doc.addObject("Part::Feature", "Profil")
@@ -264,7 +266,7 @@ def main():
                 res["ok"] = False
             o.Label = c["label"]
             props(o, dict(c["props"], Konstrukce_Generator=GEN))
-            g.addObject(o)
+            host(c).addObject(o)
     doc.recompute()
     doc.save()
     res["model"] = out

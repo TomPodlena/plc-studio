@@ -444,7 +444,7 @@ def modul(tag: str, norma: str, prumer: int, zdvih: int, upevneni: str, pistnice
         for k, (x0, nm, poloha) in enumerate(((pozB, "B", "zasunuto"), (L - pozA - SNIMAC_L, "A", "vysunuto"))[:snimace]):
             inst.append({"model": sp_s["key"], "pos": [x0, half, 0.0], "rot": I3, "druh": f"snimac_{nm}", "mount": "drazka",
                          "props": {"PLCdesk_Id": f"{tag}:cylinder_switch", "PLCdesk_Instance": str(k + 1)}})
-            kv = spojky_el.kabel_vyvod(SNIMAC_TYP, [x0, half + SNIMAC_W / 2, 0.0], [-1, 0, 0], [0, 1, 0])
+            kv = spojky_el.kabel_vyvod_snimace(SNIMAC_TYP, [x0, half + SNIMAC_W / 2, 0.0], [-1, 0, 0], [0, 1, 0])
             kab.append({"name": f"Kabel_snimace_{nm}", "label": f"Kabel snímače {tag} {nm} (vývod 0,3 m M8, začátek, R {kv['R']:g})",
                         "r": kv["r"], "path": kv["path"], "props": {"Konstrukce_Typ": "kabel", "Konstrukce_Druh": "signal",
                                                                     "Kabel_R_min": kv["R"]}})
