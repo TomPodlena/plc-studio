@@ -253,7 +253,9 @@ class ModulP1Test(unittest.TestCase):
                 self.assertIn("≥", t, t)
             for s in m["dily"]:
                 if s.get("gen") == "sroub_4762":
-                    self.assertIn(int(s["params"]["l"]), spojky_mech.delky())
+                    rada = (spojky_mech.NORM["DIN7984"]["rady"][s["key"].split("_")[1].split("x")[0]].get("l")
+                            if s["key"].startswith("DIN7984_") else None) or spojky_mech.delky()
+                    self.assertIn(int(s["params"]["l"]), rada)
         # víko válce ISO 15552 (hliník, BG 16): M6 / M8 zašroubování ≥ 1,5·d a dřík nesmí na dno závitu
         for d, m_ in ((32, "M6"), (50, "M8")):
             p, _ = modul_valec.catalog_map.cylinder_spec("ISO 15552", d, 50)
@@ -296,6 +298,37 @@ class ModulP1Test(unittest.TestCase):
             for k in m["rozhrani"]["kotveni"]:
                 self.assertAlmostEqual(k["pos"][1], 0.0, places=6)
                 self.assertAlmostEqual(k["pos"][2], 40.0, places=6)
+
+    def test_vychozi_upevneni_patky_deska_profil80(self):
+        self.assertEqual(modul_valec.vychozi_upevneni("ISO 15552"), {"upevneni": "patky", "kotveni": "deska", "profil": 40})
+        self.assertEqual(modul_valec.vychozi_upevneni("ISO 15552", (40, 80))["profil"], 80)
+        self.assertEqual(modul_valec.vychozi_upevneni("ISO 6432")["upevneni"], "patka")
+        m = modul_valec.modul("-Y5", "ISO 15552", 40, 100)                       # bez upevnění = patky + deska do profilu 40
+        self.assertEqual((m["rozhrani"]["valec"]["upevneni"], m["rozhrani"]["valec"]["kotveni"]), ("patky", "deska"))
+        self.assertEqual(sorted({k["pos"][1] for k in m["rozhrani"]["kotveni"]}), [0.0])
+        m8 = modul_valec.modul("-Y5", "ISO 15552", 40, 100, profily_ramu=(40, 80))
+        k8 = m8["rozhrani"]["kotveni"]
+        self.assertEqual(len(k8), 4)
+        self.assertEqual(sorted({round(k["pos"][1], 3) for k in k8}), [-20.0, 20.0])
+        deska = next(t for t in m8["telesa"] if t["name"] == "Deska")["body"]["add"][0]["box"]
+        self.assertGreaterEqual(deska[3] - 20.0, spojky_mech.otvor_vule("M6") / 2 + 4.0)   # okraj desky za dírou
+
+    def test_priruba_din7984_a_zavity_vik(self):
+        B = self.plan["moduly"][1]
+        sr = [s for s in B["dily"] if s["key"].startswith("DIN7984_")]
+        self.assertTrue(sr)
+        self.assertEqual(sr[0]["params"]["k"], 5)                               # M8 nízká hlava (fasten.it DIN 7984)
+        u = modul_valec.priruba_mf1(50)
+        self.assertLessEqual(sr[0]["params"]["k"], u["L4"])                     # hlava zapuštěná v zahloubení
+        uh = next(t for t in B["telesa"] if t["name"] == "Uhelnik")
+        self.assertEqual(len(uh["body"]["cut"]), 1 + 4 + 2)                       # pístnice + 4 díry příruby + 2 do profilu
+        self.assertIn("DIN 7984", " ".join(B["kontrola"]["srouby"]))
+        for m in self.plan["moduly"][:2]:
+            v = next(i for i in m["instance"] if i["druh"] == "valec")
+            zz, err = rules.parse_zavit(v["props"]["Konstrukce_Zavit"])
+            self.assertEqual((len(zz), err), (8, []))
+            self.assertTrue(all(z["zdroj"].startswith("https://") for z in zz))
+        self.assertNotIn("Konstrukce_Zavit", next(i for i in self.plan["moduly"][2]["instance"] if i["druh"] == "valec")["props"])
 
     def test_nepodporovane(self):
         with self.assertRaises(ValueError):

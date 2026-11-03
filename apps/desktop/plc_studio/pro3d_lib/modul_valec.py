@@ -18,8 +18,11 @@ Místní souřadnice válce: osa X = pístnice ven, z nahoru, počátek = zadní
 **Šrouby do závitu víka válce (otázka §5 návrhu generátoru):** model válce z ``pro3d_parts`` MÁ závity RT ve vících
 vymodelované jako díry Ø d − P hloubky BG (``catalog_map.cylinder_spec`` → ``RT_tap``), takže App::Link na něj nese
 díry a kontrola ``zasunuti`` (``fc_scan._zaber``) šroub uzná jako „závit“ v materiálu hliník (1,5·d). Délka šroubu se volí
-spojkou V4 ``delka_do_zavitu(…, "hlinik", pruchozi=False)``. Pro model výrobce bez děr (stažený STEP) zůstává varování
-``sroub-obalka`` — návrh: vlastnost ``Konstrukce_Zavit`` na odkazu (viz zpráva, ke schválení).
+spojkou V4 ``delka_do_zavitu(…, "hlinik", pruchozi=False)``. Odkaz válce navíc nese ``Konstrukce_Zavit`` (8 × RT hloubky
+BG, zdroj tabulka SMC — schváleno 2026-11-03): po záměně za model výrobce bez děr (stažený STEP) kontrola ``zasunuti``
+závit uzná podle dokumentace a ``kolize`` průnik šroubu povolí. Příruba MF1: šrouby do víka DIN 7984 (nízká hlava v
+zahloubení L4, ``normalie.json``). Výchozí upevnění bez zadání = patky na adaptérové desce (``vychozi_upevneni``; deska
+do dvou drážek profilu 80, když ho rám má).
 
 CLI: ``python -m plc_studio.pro3d_lib.modul_valec [--tag -Y1 --norma "ISO 15552" --prumer 32 --zdvih 100 --upevneni patky
 --pistnice nic --kotveni deska] [--plan plan.json] [--rozhrani SLOŽKA] [--fc SLOŽKA]`` (bez --prumer = zkušební deska P1)."""
@@ -48,6 +51,8 @@ T_DESKA = 8.0          # ODHAD — ocelová deska S235 pod patkami (8 mm: závit
 T_UHELNIK = 12.0       # ODHAD — úhelník S235 pro přírubu (závit M8 ≥ 8 mm, šroub do matice T M6x25 s podložkou)
 PREKRYV = 15.0         # ODHAD — přesah desky za patkou (místo pro šroub do drážky)
 M_PROFIL = "M6"        # šrouby desky / úhelníku do matic T drážky 40/8
+PROFIL80_Y = 20.0      # osy drážek plochy 80 profilu 40 × 80 (ALUTEC 104080, modul 40, drážka 8 — katalog s. 4/3, skill
+                       # alutech-profily data/profily_alutec.json) od středu plochy
 ZONA_PRSTY = 25.0      # ODHAD — přídavek zóny zdvihu (ISO 13854 nejmenší mezera pro prsty 25 mm)
 TLAK_MAX = 1.0         # MPa = 10 bar — ODHAD max. tlaku pro síly do rámu (provozní 6 bar ODHAD)
 TLAK_PROVOZ = 0.6
@@ -90,6 +95,56 @@ def m_pro_diru(d: float) -> str:
     if not best:
         raise ValueError(f"díra Ø{d}: žádný šroub")
     return best
+
+
+def vychozi_upevneni(norma: str, profily_ramu=()) -> dict:
+    """Výchozí upevnění bez údaje v zadání (rozhodnutí uživatele 2026-11-03): patky. ISO 15552 = patky MS1 na adaptérové
+    desce; deska kotvená do profilu 80 (dvě drážky), když ho rám má (``profily_ramu`` = šířky profilů rámu v mm, např.
+    ``(40, 80)``), jinak do jedné drážky profilu 40. ISO 6432 = přední patka C85L maticemi T do drážky."""
+    if norma == "ISO 6432":
+        return {"upevneni": "patka", "kotveni": "drazka", "profil": 40}
+    prof = [int(p) for p in profily_ramu or () if p]
+    return {"upevneni": "patky", "kotveni": "deska", "profil": 80 if 80 in prof else 40}
+
+
+def delka_7984(m: str, t_upinany: float, t_zavit: float, mat: str = "hlinik") -> dict:
+    """Délka šroubu DIN 7984 (nízká hlava) do slepého závitu: dřík v závitu ≥ min. zašroubování, konec nad dnem
+    (0,5 mm). Délky z ``normalie.json DIN7984 l`` (M6, M8); bez nich řada ISO 4762 = ODHAD dostupnosti."""
+    row = NORM["DIN7984"]["rady"][m.upper()]
+    d = float(m.upper().lstrip("M"))
+    need = spojky_mech.min_zasroubovani(d, mat)
+    lmin, lmax = t_upinany + need, t_upinany + t_zavit - 0.5
+    rada = row.get("l") or spojky_mech.delky()
+    for l in rada:
+        if lmin - 0.2 <= l <= lmax + 1e-6:
+            return {"ok": True, "m": m.upper(), "l": l, "potreba": need, "odhad_delky": not row.get("l"),
+                    "text": f"DIN 7984 {m.upper()}x{l}: v závitu {min(l - t_upinany, t_zavit):.1f} ≥ {need:.1f} mm ({mat})"
+                            + ("" if row.get("l") else " — délka z řady ISO 4762 (ODHAD dostupnosti DIN 7984)")}
+    return {"ok": False, "m": m.upper(), "l": None, "text": f"DIN 7984 {m.upper()}: žádná délka v ⟨{lmin:.1f}; {lmax:.1f}⟩"}
+
+
+def spec_sroub_7984(m: str, l: float) -> dict:
+    """Šroub DIN 7984 — tvar jako ISO 4762 (válcová hlava + šestihran), rozměry z ``normalie.json DIN7984``."""
+    r = NORM["DIN7984"]
+    p = {k: v for k, v in r["rady"][m.upper()].items() if k != "l"}
+    p.update(d=float(m.upper().lstrip("M")), l=float(l))
+    return {"key": f"DIN7984_{m.upper()}x{l:g}", "gen": "sroub_4762", "params": p, "nazev": f"DIN 7984 {m.upper()}x{l:g}",
+            "zdroj": [r["zdroj"]], "zdroj_popis": r["zdroj_popis"], "detail": "tvar", "typ": "sroub", "material": "ocel 8.8",
+            "poznamka": "nízká válcová hlava (zapuštěná v zahloubení příruby)"}
+
+
+def zavity_vik(p: dict, L: float, zdroj: str) -> str:
+    """``Konstrukce_Zavit`` válce ISO 15552: 4 × RT hloubky BG v zadním (osa +x) i předním víku (osa −x), čtverec TG
+    (= R tabulky SMC) — doložený závit pro model výrobce bez děr (``pro3d_tools.rules.parse_zavit``)."""
+    from ..pro3d_tools import rules as _r
+    d, P = (float(x) for x in p["RT"].upper().lstrip("M").split("X"))
+    zz = []
+    for sy in (-1, 1):
+        for sz in (-1, 1):
+            y, z = sy * p["R"] / 2, sz * p["R"] / 2
+            zz.append({"d": d, "P": P, "hloubka": p["BG"], "poloha": [0.0, y, z], "osa": [1, 0, 0], "zdroj": zdroj, "material": "hlinik"})
+            zz.append({"d": d, "P": P, "hloubka": p["BG"], "poloha": [L, y, z], "osa": [-1, 0, 0], "zdroj": zdroj, "material": "hlinik"})
+    return _r.zavit_text(zz)
 
 
 def _lib(key, body, nazev, zdroj, detail, typ="dil", material="ocel", pozn="", zastupny=False):
@@ -245,10 +300,19 @@ def _forces(Dp: float, d_rod: float, h: float) -> dict:
     return out
 
 
-def modul(tag: str, norma: str, prumer: int, zdvih: int, upevneni: str, pistnice: str = "nic", kotveni: str = "deska",
-          snimace: int = 2, grla: bool = False, pos=(0.0, 0.0, 0.0), rot=None, nazev: str = "") -> dict:
+def modul(tag: str, norma: str, prumer: int, zdvih: int, upevneni: str | None = None, pistnice: str = "nic",
+          kotveni: str | None = None, snimace: int = 2, grla: bool = False, pos=(0.0, 0.0, 0.0), rot=None, nazev: str = "",
+          profil: int | None = None, profily_ramu=()) -> dict:
     """Plán modulu P1 (místní souřadnice válce) + ``placement`` (rot, pos) do zkušební desky / stroje. ``pos`` je poloha
-    počátku válce v globálu, z se volí tak, aby dosedací rovina kotvení ležela na z = pos[2] − výška (viz ``z_kotveni``)."""
+    počátku válce v globálu, z se volí tak, aby dosedací rovina kotvení ležela na z = pos[2] − výška (viz ``z_kotveni``).
+    Bez ``upevneni`` / ``kotveni`` / ``profil`` = ``vychozi_upevneni(norma, profily_ramu)`` (patky; deska do profilu 80,
+    když ho rám má)."""
+    vy = vychozi_upevneni(norma, profily_ramu)
+    upevneni = upevneni or vy["upevneni"]
+    kotveni = kotveni or vy["kotveni"]
+    profil = int(profil or vy["profil"])
+    if profil not in (40, 80):
+        raise ValueError("profil kotvení desky = 40 (jedna drážka) nebo 80 (dvě drážky po 40 mm)")
     nk = {"ISO 15552": "iso15552", "ISO 6432": "iso6432"}[norma]
     spec, why = catalog_map.cylinder_spec(norma, prumer, zdvih)
     if not spec:
@@ -263,8 +327,10 @@ def modul(tag: str, norma: str, prumer: int, zdvih: int, upevneni: str, pistnice
     d_rod = p["D"] if nk == "iso15552" else p["C"]
     dily, inst, tel, kab, odh, zdroje = [spec], [], [], [], [], [spec["zdroj"][0]]
     var = []
-    inst.append({"model": spec["key"], "pos": [0, 0, 0], "rot": I3, "druh": "valec",
-                 "props": {"PLCdesk_Id": f"{tag}:cylinder"}})
+    cprops = {"PLCdesk_Id": f"{tag}:cylinder"}
+    if nk == "iso15552":     # doložené závity RT víek — platí i po záměně za model výrobce bez děr (Konstrukce_Zavit)
+        cprops["Konstrukce_Zavit"] = zavity_vik(p, L, spec["zdroj"][0])
+    inst.append({"model": spec["key"], "pos": [0, 0, 0], "rot": I3, "druh": "valec", "props": cprops})
     kotv, srouby_txt = [], []
 
     def put(r_, mount="", skupina=None, props=None):
@@ -303,7 +369,7 @@ def modul(tag: str, norma: str, prumer: int, zdvih: int, upevneni: str, pistnice
         if kotveni != "deska":
             raise ValueError("patky ISO 15552: kotvení zatím jen 'deska' (díry TR napříč osou — jedna drážka 40 nestačí)")
         x0, x1 = -u["delka"] - PREKRYV, L + u["delka"] + PREKRYV
-        W = u["E"] + 10.0
+        W = max(u["E"] + 10.0, 2 * PROFIL80_Y + spojky_mech.otvor_vule(M_PROFIL) + 10.0 if profil == 80 else 0.0)
         zt, zb = z_dosed, z_dosed - T_DESKA
         cut = []
         for hx, hy in u["holes_frame"]:
@@ -313,31 +379,40 @@ def modul(tag: str, norma: str, prumer: int, zdvih: int, upevneni: str, pistnice
                 if not r_["ok"]:
                     raise ValueError(r_["text"])
                 put(r_)
+        ys = (-PROFIL80_Y, PROFIL80_Y) if profil == 80 else (0.0,)
         for xx in (x0 + PREKRYV / 2, x1 - PREKRYV / 2):
-            cut.append(_cyl_z(xx, 0, spojky_mech.otvor_vule(M_PROFIL) / 2, zb - 1, zt + 1))
-            r_ = spojky_mech.sroub_do_drazky(M_PROFIL, xx, 0.0, zb, T_DESKA)
-            if not r_["ok"]:
-                raise ValueError(r_["text"])
-            put(r_)
-            kotv.append({"pos": [xx, 0.0, zb], "osa": [0, 0, -1], "M": M_PROFIL, "druh": "matice T drážka 40/8",
-                         "sroub": r_["delka"]["l"]})
-        tel.append({"name": "Deska", "label": f"Deska pod patky {tag} (S235 t {T_DESKA:g}, ODHAD)",
+            for yy in ys:
+                cut.append(_cyl_z(xx, yy, spojky_mech.otvor_vule(M_PROFIL) / 2, zb - 1, zt + 1))
+                r_ = spojky_mech.sroub_do_drazky(M_PROFIL, xx, yy, zb, T_DESKA)
+                if not r_["ok"]:
+                    raise ValueError(r_["text"])
+                put(r_)
+                kotv.append({"pos": [xx, yy, zb], "osa": [0, 0, -1], "M": M_PROFIL, "druh": "matice T drážka 40/8",
+                             "sroub": r_["delka"]["l"], "profil": profil})
+        nk_ = len(ys) * 2
+        tel.append({"name": "Deska", "label": f"Adaptérová deska pod patky {tag} (S235 t {T_DESKA:g}, profil {profil}, ODHAD)",
                     "body": {"add": [{"box": [x0, x1, -W / 2, W / 2, zb, zt]}], "cut": cut},
                     "props": {"Konstrukce_Typ": "dil", "Konstrukce_Material": "ocel S235 (ODHAD)",
-                              "Konstrukce_Poznamka": f"tloušťka a obrys ODHAD; závity {u['m']} pro patky, 2 × {M_PROFIL} do drážky profilu"}})
-        odh.append(f"deska pod patky S235 t {T_DESKA:g} — ODHAD (v rámu stroje patky na nosník / desku rámu)")
+                              "Konstrukce_Poznamka": f"tloušťka a obrys ODHAD; závity {u['m']} pro patky, {nk_} × {M_PROFIL} do "
+                                                     f"{'dvou drážek profilu 80' if profil == 80 else 'drážky profilu 40'}"}})
+        odh.append(f"adaptérová deska pod patky S235 t {T_DESKA:g} — ODHAD (výchozí upevnění; profil {profil}"
+                   + (", drážky ±20 mm" if profil == 80 else "") + ")")
         z_kotv = zb
     elif nk == "iso15552" and upevneni == "priruba":
         u = priruba_mf1(prumer)
         dily.append(u["spec"])
         inst.append({"model": u["spec"]["key"], "pos": [L, 0, 0], "rot": I3, "druh": "priruba"})
+        # šrouby do víka: nízká hlava DIN 7984 se vejde do zahloubení L4 (ISO 4762 by vyčnívala — K5 / skill modul-valec)
+        k7984 = NORM["DIN7984"]["rady"][u["m"]]["k"]
+        hlava_ven = max(0.0, k7984 - u["L4"])
         for (y, z) in u["holes_cover"]:
-            dl = spojky_mech.delka_do_zavitu(u["m"], u["MF"] - u["L4"], p["BG"], "hlinik", pruchozi=False)
+            dl = delka_7984(u["m"], u["MF"] - u["L4"], p["BG"], "hlinik")
             if not dl["ok"]:
                 raise ValueError(dl["text"])
-            sp = spojky_mech.spec_sroub(u["m"], dl["l"])
+            sp = spec_sroub_7984(u["m"], dl["l"])
             put({"dily": [sp], "instance": [{"model": sp["key"], "pos": [L + u["MF"] - u["L4"], y, z], "rot": RY_MX, "druh": "sroub"}],
                  "text": "víko: " + dl["text"]})
+        zdroje.append(NORM["DIN7984"]["zdroj"])
         if kotveni != "uhelnik":
             raise ValueError("příruba MF1: kotvení zatím jen 'uhelnik'")
         za = u["E"] / 2 + 5.0                                       # osa nad profilem (spodek příruby 5 mm nad profilem)
@@ -346,8 +421,9 @@ def modul(tag: str, norma: str, prumer: int, zdvih: int, upevneni: str, pistnice
         ztop = u["E"] / 2 + 10.0
         dk = NORM["ISO4762"]["rady"][u["m"]]["dk"]
         cut = [_cyl_x(xv - 1, xv + T_UHELNIK + 1, d_rod / 2 + 5.0)]
-        for (y, z) in u["holes_cover"]:
-            cut.append(_cyl_x(xv - 1, xv + T_UHELNIK + 1, (dk + 2) / 2, y, z))   # průchod hlav šroubů víka (vyčnívají 1,5)
+        if hlava_ven > 0:
+            for (y, z) in u["holes_cover"]:
+                cut.append(_cyl_x(xv - 1, xv + T_UHELNIK + 1, (dk + 2) / 2, y, z))   # průchod hlav šroubů víka (vyčnívají)
         for (y, z) in u["holes_frame"]:
             cut.append(_cyl_x(xv - 1, xv + T_UHELNIK + 1, spojky_mech.zavit_otvor(u["m_fb"]) / 2, y, z))
             dl = spojky_mech.delka_do_zavitu(u["m_fb"], u["MF"], T_UHELNIK, "ocel")
@@ -369,7 +445,9 @@ def modul(tag: str, norma: str, prumer: int, zdvih: int, upevneni: str, pistnice
                     "body": {"add": [{"box": [xv, xv + T_UHELNIK, -W / 2, W / 2, zb, ztop]},
                                      {"box": [xv, xv + leg, -W / 2, W / 2, zb, zb + T_UHELNIK]}], "cut": cut},
                     "props": {"Konstrukce_Typ": "dil", "Konstrukce_Material": "ocel S235 (ODHAD)",
-                              "Konstrukce_Poznamka": f"svařenec / ohýbaný plech ODHAD; závity {u['m_fb']} pro přírubu, průchody hlav šroubů víka, "
+                              "Konstrukce_Poznamka": f"svařenec / ohýbaný plech ODHAD; závity {u['m_fb']} pro přírubu, "
+                                                     + ("průchody hlav šroubů víka, " if hlava_ven > 0 else
+                                                        "šrouby víka DIN 7984 zapuštěné v zahloubení příruby, ") +
                                                      f"2 × {M_PROFIL} do drážky profilu"}})
         odh += ["úhelník příruby S235 t 12 — ODHAD (tuhost neověřena — dimenzovani.md)", "zahloubení L4 příruby Ø dk + 1 (výklad)"]
         zdroje.append(UPV["iso15552"]["priruba_F_MF1_MF2"]["zdroj"])
@@ -580,9 +658,11 @@ def main(argv=None) -> int:
     ap.add_argument("--norma", default="ISO 15552", choices=["ISO 15552", "ISO 6432"])
     ap.add_argument("--prumer", type=int, help="Ø válce (bez = zkušební deska se 3 variantami)")
     ap.add_argument("--zdvih", type=int, default=100)
-    ap.add_argument("--upevneni", default="patky", choices=["patky", "priruba", "patka"])
+    ap.add_argument("--upevneni", choices=["patky", "priruba", "patka"], help="výchozí patky (ISO 6432 přední patka)")
     ap.add_argument("--pistnice", default="nic", choices=["nic", "kloub", "vidlice"])
-    ap.add_argument("--kotveni", default="deska", choices=["deska", "uhelnik", "drazka"])
+    ap.add_argument("--kotveni", choices=["deska", "uhelnik", "drazka"], help="výchozí adaptérová deska (ISO 6432 drážka)")
+    ap.add_argument("--profil", type=int, choices=[40, 80], help="deska do profilu 40 / 80 (výchozí 80, když ho rám má)")
+    ap.add_argument("--profily-ramu", default="", help="šířky profilů rámu oddělené čárkou, např. 40,80")
     ap.add_argument("--grla", action="store_true", help="GRLA místo QS v přípojkách (jen kde je doložené)")
     ap.add_argument("--plan", help="uložit plán JSON")
     ap.add_argument("--rozhrani", help="složka pro P1_<tag>.json")
@@ -593,7 +673,8 @@ def main(argv=None) -> int:
     except (AttributeError, ValueError):
         pass
     if a.prumer:
-        m = modul(a.tag, a.norma, a.prumer, a.zdvih, a.upevneni, a.pistnice, a.kotveni, grla=a.grla)
+        m = modul(a.tag, a.norma, a.prumer, a.zdvih, a.upevneni, a.pistnice, a.kotveni, grla=a.grla, profil=a.profil,
+                  profily_ramu=[int(x) for x in a.profily_ramu.split(",") if x.strip()])
         plan = {"format": "pro3d-lib-plan", "verze": 1, "generator": GEN, "model": "Lavice_P1", "nazev": "Modul P1",
                 "profil": {"kod": "104040L", "delka": 400.0, "label": "Profil ALUTEC 104040L 40×40×400"}, "dily": _uniq(m["dily"]),
                 "moduly": [m]}
