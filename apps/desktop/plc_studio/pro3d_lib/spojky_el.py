@@ -84,6 +84,25 @@ def konektor(typ: str, start, u, w) -> dict:
             "odhad": bool(k.get("odhad")), "zdroj": k.get("zdroj", ""), "zdroj_popis": k.get("zdroj_popis", "")}
 
 
+def kabel_vyvod(start, u, w, D: float, R: float, s0: float | None = None, konec: float | None = None) -> dict:
+    """Začátek volného kabelu (bez konektoru — vývod přístroje / vývodka): rovný úsek ``s0`` (výchozí 3 × D podle
+    ``prostor.rovny_usek_x_D``) ve směru ``u``, oblouk 90° o poloměru ``R`` do směru ``w``, rovný úsek ``konec``
+    (výchozí 2 × D + 10). Vrací {r, path, R, delka} ve tvaru jako ``konektor()['kabel']``."""
+    u, w = _norm(u), _norm(w)
+    if abs(_dot(u, w)) > 1e-6:
+        raise ValueError("w musí být kolmé k u")
+    s0 = DATA["prostor"]["rovny_usek_x_D"]["hodnota"] * D if s0 is None else float(s0)
+    konec = 2 * D + 10.0 if konec is None else float(konec)
+    a = list(start)
+    b = _add(a, u, s0)
+    ctr = _add(b, w, R)
+    c = _add(ctr, u, R)
+    mid = _add(ctr, _norm(_add(u, [-x for x in w])), R)
+    dk = _add(c, w, konec)
+    return {"r": D / 2, "path": [{"line": [a, b]}, {"arc": [b, mid, c]}, {"line": [c, dk]}], "R": R,
+            "delka": round(s0 + math.pi * R / 2 + konec, 1), "zacatek": a, "smer": u}
+
+
 def ohyb_z_cesty(path) -> float:
     """Poloměr oblouku z cesty kabelu (3 body oblouku) — kontrola bez FreeCADu."""
     for seg in path:

@@ -52,6 +52,9 @@ def paint(doc):
             color(o.ViewObject, YELLOW)
         elif typ == "kabel":
             color(o.ViewObject, BLUE)
+        elif typ == "pomocny" and str(getattr(o, "Konstrukce_Barva_RGB", "") or ""):
+            rgb = tuple(int(x) for x in str(o.Konstrukce_Barva_RGB).split(","))      # barva patra / hlavice (jen náhled)
+            color(o.ViewObject, rgb, int(getattr(o, "Konstrukce_Pruhlednost", 30) or 0))
         elif typ == "pomocny":
             color(o.ViewObject, (120, 120, 120), 75)
         else:
@@ -98,11 +101,18 @@ res["obarveno"] = paint(doc)
 doc.save()
 try:
     v = Gui.ActiveDocument.ActiveView
-    views = {"iso": (1.0, 1.0, -0.8), "iso2": (-1.0, -1.0, -0.7), "bok": (1.0, 0.0001, -0.0001), "shora": (0.0001, 0.0001, -1.0)}
+    views = {"iso": (1.0, 1.0, -0.8), "iso2": (-1.0, -1.0, -0.7), "bok": (1.0, 0.0001, -0.0001), "shora": (0.0001, 0.0001, -1.0),
+             "celo": (0.0001, -1.0, -0.0001), "zezadu": (0.0001, 1.0, -0.0001), "zezadu_iso": (0.6, 1.0, -0.5)}
+    skryt = job.get("skryt") or {}                     # pohled → začátky jmen objektů skrytých jen pro ten snímek
     for k, p in (job.get("snimky") or {}).items():
+        hid = [o for o in doc.Objects if hasattr(o, "Visibility") and any(o.Name.startswith(x) for x in skryt.get(k, []))]
+        for o in hid:
+            o.Visibility = False
         camera(v, views.get(k, (1.0, 1.0, -0.8)))
         v.saveImage(p, 1600, 1200, "White")
         res["snimky"].append(p)
+        for o in hid:
+            o.Visibility = True
 except Exception as exc:  # noqa: BLE001
     res["snimky"].append(f"chyba: {exc}")
 App.closeDocument(doc.Name)

@@ -49,10 +49,10 @@ def build(plan: dict, folder: Path, timeout: int = 900) -> dict:
     return res
 
 
-def colors_and_shots(model: Path, dily: list[str], shots: dict, max_min: int = 15) -> dict:
+def colors_and_shots(model: Path, dily: list[str], shots: dict, max_min: int = 15, skryt: dict | None = None) -> dict:
     job = model.parent / "barvy_ulohy.json"
-    job.write_text(json.dumps({"dily": dily, "model": str(model), "snimky": {k: str(v) for k, v in shots.items()}},
-                              ensure_ascii=False), encoding="utf-8")
+    job.write_text(json.dumps({"dily": dily, "model": str(model), "snimky": {k: str(v) for k, v in shots.items()},
+                               "skryt": skryt or {}}, ensure_ascii=False), encoding="utf-8")
     st = _ps([RUN_FC, "gui-start", "--slot", SLOT, "--max-min", str(max_min)], 300)
     try:
         r = _ps([RUN_FC, "gui-run", "--slot", SLOT, "--timeout", "600", HERE / "fc_lib_colors.py", job], 700)
@@ -87,8 +87,9 @@ def build_and_check(plan: dict, folder: Path) -> dict:
     model = Path(b["model"])
     sn = folder / "snimky"
     sn.mkdir(exist_ok=True)
-    shots = {"iso": sn / "lavice_iso.png", "iso2": sn / "lavice_iso2.png", "shora": sn / "lavice_shora.png", "bok": sn / "lavice_bok.png"}
-    c = colors_and_shots(model, b.get("soubory_dilu") or [], shots)
+    pre = plan.get("snimky_prefix") or "lavice"
+    shots = {k: sn / f"{pre}_{k}.png" for k in (plan.get("snimky") or ("iso", "iso2", "shora", "bok"))}
+    c = colors_and_shots(model, b.get("soubory_dilu") or [], shots, skryt=plan.get("snimky_skryt"))
     rep = checks(model, folder / "kontroly")
     s = souhrn(rep)
     nch = sum(v["chyby"] for v in s.values())

@@ -203,4 +203,94 @@ def sirka_dutiny(drazka_: str, hloubka: float) -> float:
     return max(dz["otvor"], dz["sirka_pod_rty"] - sl * (hloubka - dz["ret"]))
 
 
+# --- rozšíření pro moduly O1 / O2 (2026-11-03): libovolná osa šroubu, šroub + matice ISO 4032, boční drážka ----------
+
+def rot_z_na(v) -> list:
+    """Rotační matice, jejíž třetí sloupec (obraz osy Z modelu) je jednotkový vektor ``v``."""
+    n = math.sqrt(sum(x * x for x in v))
+    z = [x / n for x in v]
+    a = [1.0, 0.0, 0.0] if abs(z[0]) < 0.9 else [0.0, 1.0, 0.0]
+    x = [a[1] * z[2] - a[2] * z[1], a[2] * z[0] - a[0] * z[2], a[0] * z[1] - a[1] * z[0]]
+    nx = math.sqrt(sum(c * c for c in x))
+    x = [c / nx for c in x]
+    y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]]
+    return [[x[i], y[i], z[i]] for i in range(3)]
+
+
+def _mm(A, B):
+    return [[sum(A[i][k] * B[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
+
+
+def _mv(A, v):
+    return [sum(A[i][j] * v[j] for j in range(3)) for i in range(3)]
+
+
+def spec_matice_4032(m: str) -> dict:
+    """Šestihranná matice ISO 4032 — díl pro ``pro3d_parts/fc_parts.py`` (generátor ``matice``; osa Z, z 0 … m,
+    závitová díra Ø d − P jako ostatní závity pro3d_parts)."""
+    r = NORM["ISO4032"]
+    row = r["rady"][m.upper()]
+    return {"key": f"ISO4032_{m.upper()}", "gen": "matice", "params": {"s": row["s"], "m": row["m"], "tap": _d(m) - row["P"],
+                                                                     "P": row["P"]},
+            "nazev": f"Matice ISO 4032 {m.upper()}", "zdroj": [r["zdroj"]], "zdroj_popis": r["zdroj_popis"], "detail": "tvar",
+            "typ": "matice", "material": "ocel 8", "poznamka": ""}
+
+
+def delka_s_matici(m: str, t_svirane: float) -> dict:
+    """Délka ISO 4762 pro průchozí spoj s maticí ISO 4032: dřík projde sevřenými díly a celou maticí (požadavek
+    kontroly = celá výška matice ≤ max(d, 3)), přečnívá ½ stoupání až 1 stoupání + 3 mm (ODHAD); nejkratší
+    normalizovaná délka."""
+    d = _d(m)
+    row = NORM["ISO4032"]["rady"][m.upper()]
+    lmin = t_svirane + row["m"] + 0.5 * row["P"]
+    lmax = t_svirane + row["m"] + row["P"] + 3.0
+    for l in delky():
+        if lmin - 1e-6 <= l <= lmax + 1e-6:
+            return {"ok": True, "m": m.upper(), "l": l, "v_matici": row["m"], "potreba": potreba_matice(d, row["m"]),
+                    "prechod": round(l - t_svirane - row["m"], 2),
+                    "text": f"ISO 4762 {m.upper()}x{l} + matice ISO 4032 {m.upper()}: sevřeno {t_svirane:g} mm, přesah "
+                            f"{l - t_svirane - row['m']:.1f} mm za maticí"}
+    return {"ok": False, "m": m.upper(), "l": None, "text": f"{m.upper()}: žádná normalizovaná délka v ⟨{lmin:.1f}; {lmax:.1f}⟩"}
+
+
+def sroub_s_matici(m: str, hlava, smer, t_svirane: float, podlozka: bool = True) -> dict:
+    """Průchozí šroub ISO 4762 (+ podložka ISO 7089 pod hlavou) a matice ISO 4032 na druhé straně. ``hlava`` = bod na
+    povrchu sevřeného dílu pod hlavou (podložkou), ``smer`` = směr dříku. Vrací {ok, dily, instance, text, delka}."""
+    hw = NORM["ISO7089"]["rady"][m.upper()]["h"] if podlozka else 0.0
+    dl = delka_s_matici(m, t_svirane + hw)
+    if not dl["ok"]:
+        return {"ok": False, "delka": dl, "dily": [], "instance": [], "text": dl["text"]}
+    n = math.sqrt(sum(x * x for x in smer))
+    s = [x / n for x in smer]
+    R_s = rot_z_na([-x for x in s])                  # model sroub_4762: hlava nad z = 0, dřík do −Z
+    R_n = rot_z_na(s)                               # matice / podložka z 0 … h ve směru dříku
+    sp_s, sp_n = spec_sroub(m, dl["l"]), spec_matice_4032(m)
+    p_h = [hlava[i] - s[i] * hw for i in range(3)]     # dosed hlavy na podložku
+    p_n = [hlava[i] + s[i] * t_svirane for i in range(3)]
+    dily = [sp_s, sp_n]
+    inst = [{"model": sp_s["key"], "pos": p_h, "rot": R_s, "druh": "sroub"},
+            {"model": sp_n["key"], "pos": p_n, "rot": R_n, "druh": "matice"}]
+    if podlozka:
+        sp_w = spec_podlozka(m)
+        dily.append(sp_w)
+        inst.append({"model": sp_w["key"], "pos": p_h, "rot": R_n, "druh": "podlozka"})
+    return {"ok": True, "delka": dl, "dily": dily, "instance": inst, "text": dl["text"]}
+
+
+def sroub_do_drazky_r(m: str, bod, R, t_upinany: float, drazka: str = "40/8") -> dict:
+    """``sroub_do_drazky`` v obecné poloze: ``bod`` = osa drážky na povrchu profilu, ``R`` = matice místních os → globální
+    (místní Z = vnější normála plochy profilu, místní X = podél drážky). Použití: boční drážka profilu (úhelník)."""
+    r = sroub_do_drazky(m, 0.0, 0.0, 0.0, t_upinany, drazka)
+    if not r["ok"]:
+        return r
+    for it in r["instance"]:
+        it["pos"] = [bod[i] + v for i, v in enumerate(_mv(R, it["pos"]))]
+        it["rot"] = _mm(R, it["rot"])
+    return r
+
+
+# boční plocha profilu 40 × 40 podél X: vnější normála +Y, drážka podél X (místní X → X, místní Y → −Z, místní Z → +Y)
+R_BOK_PLUS_Y = [[1, 0, 0], [0, 0, 1], [0, -1, 0]]
+
+
 __all__ = [n for n in dir() if not n.startswith("_") and n not in ("json", "math", "Path", "annotations")]
