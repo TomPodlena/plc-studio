@@ -61,6 +61,9 @@ def g_valec_iso15552(p):
             y, z = sy * R / 2, sz * R / 2
             holes.append(Part.makeCylinder(p["RT_tap"] / 2, p["BG"], V(0, y, z), V(1, 0, 0)))
             holes.append(Part.makeCylinder(p["RT_tap"] / 2, p["BG"], V(L - p["BG"], y, z), V(1, 0, 0)))
+    if p.get("EE_hole"):                       # přípojky EE na horní ploše (+z), PL od čela víka
+        for x in (p["PL"], L - p["PL"]):
+            holes.append(Part.makeCylinder(p["EE_hole"] / 2, p["EE_depth"] + 0.5, V(x, 0, E / 2 - p["EE_depth"]), V(0, 0, 1)))
     body = body.cut(Part.makeCompound(holes))
     front = cyl_x(p["B"] / 2, L, L + p["VD"]).cut(cyl_x(p["D"] / 2, L - 1, L + p["VD"] + 1))
     rear = cyl_x(p["B"] / 2, -p["VA"], 0)

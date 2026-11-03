@@ -477,6 +477,31 @@ python scripts/build_verification.py        # data/verification.json → verific
   `tests/test_pro3d_cabinet.py` (data, layout 01 / 03 / 16 / 20, hardware, CLI, FreeCAD 20 + kontroly + snímek),
   `test_pro_pipeline.CabinetGenTest`.
   **Dveře, kabeláž ke dveřím, oddělení tras, PE / N a ventilátor kódem** (2026-11-02, `dvere.py` + `data/dvere.json`, nálezy K5 vzorů 16 / 20): výřezy / vrtací obrazce / upínky dveřních přístrojů z dokumentace (3LD2 4 × Ø5 na 48 × 48, MTP700 197 × 141 + 6 upínek), svazky ke dveřím (větve po dveřích, kmen v ose pantu, volný úsek ≥ 1,1 × dráha konců v 0–95°, R z `kabelaz-a-hadice/data/media.json`), žlaby silové / signálové / smíšené s uzemněnými přepážkami a dělicími plechy u pantu (≥ 250 mm nebo přepážka, G120C přes skill), PE vodivě na desce a N na izolátorech bez kovové cesty, filtrační ventilátor Rittal SK 3237–3239 .124 s vlastním příkonem v Q a rezervou ≥ 2 K (jinak varování); stavitel (`CABINET_GEN_PROMPT`) doplňuje jen kabeláž ve žlabech a popisky.
+- **Moduly kódem** (2026-11-03) `plc_studio/pro3d_modules/` (bez importu z `plc_studio`; sourozenci `pro3d_parts.catalog_map`,
+  `pro3d_tools.rules`, skill kabelaz-a-hadice `scripts/trasa.py` / `fc_trasa.py`): `python -m plc_studio.pro3d_modules
+  <PLCdesk_CAD.json> <složka stroje> [--no-fc --scena X]` → `moduly/layout.json`, `MODULY.md`, `Moduly.FCStd`,
+  `PLCdesk_CAD_feedback_moduly_kod.json`; kód 0 / 1 (něco nepostaveno — doplní stavitel) / 2 selhalo. ① `fc_scene.py` (headless,
+  jen čte) → scéna: listy `ram/Ram.FCStd` bez kontextu konceptu a `koncept/Koncept.FCStd` s obálkami, `PLCdesk_Id` (i zděděné z odkazu,
+  `pkey`), duté díly jako stěny (`boxes`). ② `layout.py` (čistý Python): zařízení v poli — v rámu (jen kabel) / z konceptu / CHYBÍ;
+  nosné konstrukce konceptu (tělesa, na kterých zařízení stojí / o která se válec opírá čelem; kolize s rámem = nepřevzít; podpěra pod
+  válcem s patkami se nepřebírá); válce ISO 15552 (model `dily/`, osa a pístnice z konceptu, patky L ven / pod tělo do horních závitů
+  RT, nebo čelo 4 × RT; přípojky EE na horní ploše — `fc_parts` je nově vrtá, zastaralé modely CLI přegeneruje `pro3d_parts gen`),
+  snímače polohy v drážce (`PLCdesk_Mount = drazka`), snímače se závitem v držáku s podélnými otvory ± 5 mm (`zavit`), snímač tlaku na
+  rozvodném bloku, ostatní zástupně (obálka konceptu) se šrouby skrz / úchytkami; šrouby ISO 4762 do vlastního dílu = závit, do profilu
+  rámu = matice v drážce (rastr 40), do desky rámu bez díry = dřík jen přes náš díl + **požadavek na rám** (předání); šroubení QS / GRLA
+  zástupně s rozhraním ze skillu festo-pneumatics (závit zvlášť = souosý s přípojkou); hadice rozváděč → válec (4 → zadní, 2 → přední,
+  ODHAD), rozvod P, kabely ke každému zařízení k rozvaděči (vstup dnem, stojí-li na desce, zadní stěnou); `router.py` = A* na
+  nepravidelné mřížce s rovným úsekem ≥ 2 R mezi ohyby, vůle 3 + 0,15 R; nenalezená trasa = ODHAD délky pravoúhlou spojnicí
+  a průchody deskami rámu na ní = požadavky na rám (trasa se nestaví); poloměry, délky, rezerva a zpětná vazba z `trasa.py`. Vše
+  nesestavitelné → `nepostaveno` s důvodem. ③ `fc_modules.py`: rám = App::Link na části `Ram.FCStd`, každá skupina se ověří průnikem
+  s rámem a přijatými díly (koliduje → odebrat celou, `odebrano`), trasy `fc_trasa.stavej_trasu`; `fc_modules_colors.py` barvy + snímky
+  `moduly/snimky/generator_*.png`. `pro3d_tools`: `Konstrukce_Pohyb` se převádí z rodiče do globálu (`pohyb_global` — pístnice
+  natočeného válce), `rules.MOUNT_SELF` (din / rack / drazka / zavit) a díl z více těles v odkazu (`comp`) nejsou „bez spoje“.
+  **Postup:** `make_modules` před 1. kolem stavitele modulů (jen s generátory dílů), `units.modules.generated`, úspěch →
+  `MODULES_GEN_PROMPT` (nepřestavovat, doplnit jen „Nepostaveno“), PREHLED.md „Moduly kódem“. Vzor 20: 4 válce s patkami / čelem,
+  11 / 14 snímačů, rozváděče na liště, 25 kabelů a 9 hadic spočteno — většina tras vede deskou stolu / skříňkou pneumatiky
+  (rám průchody nemá → požadavky na rám). Testy `tests/test_pro3d_modules.py` (vzory 01 / 03 / 16 / 20 z `tests/data/moduly/`,
+  FreeCAD na vzoru 20 + `kolize` / `souvislost`), `test_pro_pipeline.ModulesGenTest`.
 - **Řízené RUČNÍ stahování modelů** (2026-10-24) `plc_studio/pro3d_download/` (bez Tk, bez sítě — **nic se nestahuje
   ani neskriptuje**: podmínky 3Dfindit / CADENAS čl. 12.3 (vii), TraceParts i portálů výrobců; stahuje člověk v prohlížeči).
   `vendors.json` = vzory URL (stránka produktu / hledání, `{code}` `{code_alnum}` `{query}`), `verified` + `verify_note`

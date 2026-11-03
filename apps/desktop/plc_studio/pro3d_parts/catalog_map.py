@@ -44,6 +44,10 @@ def _kk(s: str) -> tuple[float, float]:
     return d, (p or 0.0)
 
 
+# ISO 228-1:2000 tab. 1 — vnější průměr trubkového závitu G (mm)
+G_THREAD = {"G1/8": 9.728, "G1/4": 13.157, "G3/8": 16.662, "G1/2": 20.955}
+
+
 def cylinder_spec(norma: str, prumer: int, zdvih: int, extra_src: str = "", nazev: str = "") -> tuple[dict | None, str]:
     tab = load("valce")
     key = {"ISO 15552": "iso15552", "ISO 6432": "iso6432"}.get(norma or "")
@@ -61,6 +65,12 @@ def cylinder_spec(norma: str, prumer: int, zdvih: int, extra_src: str = "", naze
     if key == "iso15552":
         rd, rp = _kk(row["RT"])
         p["RT_tap"] = _tap(rd, rp)
+        # přípojky EE na horní ploše, PL od čela víka (SMC CP96 str. A 133); otvor = Ø závitu G (ISO 228-1) − 1,2 mm
+        # (vrták pro závit, ODHAD), hloubka 10 mm (ODHAD — katalog neuvádí)
+        g = G_THREAD.get(str(row.get("EE") or ""))
+        if g and row.get("PL"):
+            p["EE_hole"] = round(g - 1.2, 3)
+            p["EE_depth"] = 10.0
         gen, mat, typ_k = "valec_iso15552", "hliník", "ISO15552"
     else:
         gen, mat, typ_k = "valec_iso6432", "ocel", "ISO6432"

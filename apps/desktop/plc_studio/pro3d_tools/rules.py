@@ -42,6 +42,10 @@ TYPES = ("sroub", "matice", "podlozka", "profil", "patka", "kryt", "vypln", "zon
 VEDENI = ("zlab", "retez")          # Konstrukce_Vedeni (skill kabelaz-a-hadice)
 ZASUN_MAX = 30.0                    # mm — nejdelší průnik hadice × šroubení, který je ještě zasunutí (QS / KQ2 ~12–17 mm)
 FASTENERS = frozenset({"sroub", "matice", "podlozka"})
+# PLCdesk_Mount, u kterého díl drží vlastním upevněním (bez šroubu v modelu): přístroj nacvaknutý na lištu (din / rack),
+# snímač polohy upnutý v T-drážce válce vlastním šroubem (drazka), přístroj zašroubovaný vlastním závitem / maticemi
+# v držáku (zavit — snímač M12 / M18, snímač tlaku G1/4) — souvislost je nehlásí jako „bez spoje“
+MOUNT_SELF = ("din", "rack", "drazka", "zavit")
 
 KONVENCE = __doc__
 

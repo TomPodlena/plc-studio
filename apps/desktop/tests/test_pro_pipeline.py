@@ -898,5 +898,71 @@ class CabinetGenTest(unittest.TestCase):
         self.assertFalse(r["ok"])
 
 
+class ModulesGenTest(unittest.TestCase):
+    """Napojení generátoru modulů kódem (pro3d_modules) — podvržený generátor, bez FreeCADu."""
+
+    GEN = {"ok": True, "kod": 1, "odebrano": 2, "chyba": "",
+           "souhrn": {"zarizeni": 37, "v_ramu": 6, "postaveno_zarizeni": 24, "valcu": 4, "snimacu": 14, "snimacu_postaveno": 11,
+                      "drzaku": 15, "sroubu": 70, "hadic": 9, "hadic_postaveno": 0, "hadice_m": 11.0, "kabelu": 25,
+                      "kabelu_postaveno": 5, "kabely_m": 56.5, "nepostaveno": 41, "predani": 69}}
+
+    def _run(self, gen_result, verdicts=None, parts=True):
+        calls = []
+
+        def mod(folder, log=print):
+            calls.append(str(folder))
+            return dict(gen_result)
+
+        d = tmpdir()
+        r = FakeRunner(verdicts or {})
+        p = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=r, parts=parts,
+                        parts_fn=lambda folder, log=print: {"souhrn": None, "chyba": ""},
+                        cabinet_fn=lambda folder, log=print: {"ok": False, "chyba": "test"}, modules_fn=mod)
+        self.assertEqual(p.run(), "done")
+        return d, p, calls
+
+    def _prompt(self, d, rnd):
+        return (d / pp.LOG_DIR / f"04_modules_kolo{rnd}_builder.log").read_text(encoding="utf-8")
+
+    def test_generated_prompt(self):
+        d, p, calls = self._run(self.GEN, {"modules": ["back", "ok"]})
+        self.assertEqual(len(calls), 1)
+        for t in (self._prompt(d, 1), self._prompt(d, 2)):
+            self.assertIn("VYGENEROVANÉ KÓDEM (pro3d_modules", t)
+            self.assertIn("NEPŘESTAVUJ", t)
+            self.assertIn("nepostaveno 41", t)
+            self.assertNotIn("Postav technologické moduly", t)
+        self.assertIn("KONTROLA_K5_moduly_kolo1.md", self._prompt(d, 2))
+        self.assertTrue(p.state["units"]["modules"]["generated"]["ok"])
+        s = (d / pp.SUMMARY_FILE).read_text(encoding="utf-8")
+        self.assertIn("## Moduly kódem (pro3d_modules)", s)
+        self.assertIn("nepostaveno 41", s)
+        self.assertNotIn("VYGENEROVANÉ KÓDEM (pro3d_modules", (d / pp.LOG_DIR / "05_assembly_kolo1_builder.log").read_text(encoding="utf-8"))
+
+    def test_failed_generator_old_prompt(self):
+        d, p, calls = self._run({"ok": False, "chyba": "ram/Ram.FCStd chybí"})
+        t = self._prompt(d, 1)
+        self.assertIn("Postav technologické moduly", t)
+        self.assertIn("Generátor selhal (ram/Ram.FCStd chybí)", (d / pp.SUMMARY_FILE).read_text(encoding="utf-8"))
+
+    def test_without_parts_not_called(self):
+        d, p, calls = self._run(self.GEN, parts=False)
+        self.assertEqual(calls, [])
+
+    def test_reset_regenerates(self):
+        d, p, calls = self._run(self.GEN)
+        p.run("modules")
+        self.assertEqual(len(calls), 2)
+        self.assertNotIn("STAVBA ZNOVU", self._prompt(d, 1))
+
+    def test_make_modules_without_inputs(self):
+        self.assertFalse(pp.make_modules(tmpdir(), log=lambda *_: None)["ok"])
+        d = tmpdir()
+        (d / "PLCdesk_CAD.json").write_text("{}", encoding="utf-8")
+        r = pp.make_modules(d, log=lambda *_: None)             # bez schváleného rámu → selhalo, bez FreeCADu
+        self.assertFalse(r["ok"])
+        self.assertIn("Ram.FCStd", r["chyba"])
+
+
 if __name__ == "__main__":
     unittest.main()

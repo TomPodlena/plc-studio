@@ -1,0 +1,2704 @@
+{
+  "format": "plcdesk-cad",
+  "version": 2,
+  "generator": "PLCdesk 0.2.3",
+  "project": {
+    "guid": "6c0f6af3-eae0-4a44-a8df-bef95cc3efb1",
+    "name": "Paletizační buňka PC-16 se třemi polohovacími osami",
+    "number": "",
+    "customer": "",
+    "revision": null
+  },
+  "platform": "siemens",
+  "brief": {
+    "desc": "Kartézský paletizátor ukládá kartony z dopravníku na paletu. Osy Z (zdvih, ozubený řemen s brzdou), X (pojezd, ozubený řemen) a C (otočná hlava) jsou elektrické polohovací pohony se záznamy řízené přes I/O (výběr záznamu, start, referování, HALT). Na začátku cyklu se osy referují v pořadí Z → C → X (Z nahoře, aby hlava nenarazila). Dopravník kartonů na frekvenčním měniči veze karton rychle (40 Hz), u snímače zpomalení přejde na 12 Hz a karton dojede k zarážce; dopravník zastaví. Hlava sjede na odběr, vakuové chapadlo (ejektor, snímač podtlaku) karton nasaje, Z vyjede nahoru, X přejede nad paletu a Z sjede na odkládací výšku; po vypnutí vakua (odfuk) Z vyjede. První karton se ukládá podélně (C 0°) na pozici 1, druhý se otočí o 90° a ukládá na pozici 2; hlava se vrátí do 0° a nad odběrové místo. Hlídání: porucha, nepřipravenost a referování pohonů, ztráta podtlaku při přenosu, nedojetí kartonu (hlídací časy kroků), tlak vzduchu (mez min). Ochrany: nouzové zastavení, dveře buňky (zámek během cyklu) a světelná závora výměny palety v blokování (STO pohonů a měniče řeší bezpečnostní technika). Jeden cyklus = dva kartony (zjednodušeno pro ukázku).",
+    "takt": 45,
+    "startDate": "",
+    "modes": true,
+    "platforms": [
+      "siemens",
+      "rockwell",
+      "beckhoff",
+      "codesys",
+      "mitsubishi",
+      "schneider",
+      "omron",
+      "unitronics",
+      "wago",
+      "delta"
+    ],
+    "concept": null
+  },
+  "devices": [
+    {
+      "name": "S1",
+      "guid": "ac4696d3-64ba-48f0-afa9-47d3b006891e",
+      "cls": "DI",
+      "desc": "Nouzové zastavení (NC)",
+      "role": null,
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "in",
+          "dir": "DI",
+          "tag": "S1_in"
+        }
+      ],
+      "parts": [
+        "-S1:estop_button"
+      ]
+    },
+    {
+      "name": "S2",
+      "guid": "a8e65698-e967-4b77-8191-3476f4b242c5",
+      "cls": "DI",
+      "desc": "Dveře buňky zavřeny a zamčeny (NC)",
+      "role": null,
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "in",
+          "dir": "DI",
+          "tag": "S2_in"
+        }
+      ],
+      "parts": [
+        "-S2:safety_switch"
+      ]
+    },
+    {
+      "name": "S3",
+      "guid": "70fffee4-095a-49a4-9d4d-d47a5cb61c8c",
+      "cls": "DI",
+      "desc": "Světelná závora výměny palety volná (NC)",
+      "role": null,
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "in",
+          "dir": "DI",
+          "tag": "S3_in"
+        }
+      ],
+      "parts": [
+        "-S3:light_curtain"
+      ]
+    },
+    {
+      "name": "S4",
+      "guid": "6ec4f1fa-c5b7-44dc-b2d8-b1168b76b4e2",
+      "cls": "DI",
+      "desc": "Karton u snímače zpomalení (optický snímač)",
+      "role": null,
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "in",
+          "dir": "DI",
+          "tag": "S4_in"
+        }
+      ],
+      "parts": [
+        "-S4:sensor_optical"
+      ]
+    },
+    {
+      "name": "S5",
+      "guid": "1934c3e0-d0a4-4fed-8a49-c607dc0bfdfd",
+      "cls": "DI",
+      "desc": "Karton na odběrovém místě u zarážky (optický snímač)",
+      "role": null,
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "in",
+          "dir": "DI",
+          "tag": "S5_in"
+        }
+      ],
+      "parts": [
+        "-S5:sensor_optical"
+      ]
+    },
+    {
+      "name": "S6",
+      "guid": "9203b371-dbf5-477d-bb24-7e293a4b69af",
+      "cls": "DI",
+      "desc": "Paleta v pozici (indukční snímač)",
+      "role": null,
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "in",
+          "dir": "DI",
+          "tag": "S6_in"
+        }
+      ],
+      "parts": [
+        "-S6:sensor_inductive"
+      ]
+    },
+    {
+      "name": "M1",
+      "guid": "9f98ac0c-123b-4edf-8b62-ea999af796d3",
+      "cls": "Vfd",
+      "desc": "Dopravník kartonů — frekvenční měnič",
+      "role": null,
+      "unit": "Hz",
+      "range": {
+        "min": 0,
+        "max": 50
+      },
+      "limits": null,
+      "setpoint": 40,
+      "options": [
+        "fault",
+        "fbk",
+        "ready"
+      ],
+      "rampS": 1.5,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "ready",
+          "dir": "DI",
+          "tag": "M1_ready"
+        },
+        {
+          "sig": "atSpeed",
+          "dir": "DI",
+          "tag": "M1_atSpeed"
+        },
+        {
+          "sig": "fault",
+          "dir": "DI",
+          "tag": "M1_fault"
+        },
+        {
+          "sig": "outRun",
+          "dir": "DO",
+          "tag": "M1_outRun"
+        },
+        {
+          "sig": "rawSpeed",
+          "dir": "AO",
+          "tag": "M1_rawSpeed"
+        }
+      ],
+      "parts": [
+        "-M1:gearmotor",
+        "-TA1:vfd",
+        "-Q1:mcb"
+      ]
+    },
+    {
+      "name": "M2",
+      "guid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "cls": "PosDrive",
+      "desc": "Osa Z — zdvih hlavy (polohovací pohon se záznamy, brzda)",
+      "role": null,
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [
+        "fault",
+        "ready",
+        "rst"
+      ],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": 2,
+      "records": [
+        {
+          "no": 1,
+          "name": "horní poloha (pojezd)",
+          "pos": 0,
+          "vel": null
+        },
+        {
+          "no": 2,
+          "name": "odběr z dopravníku",
+          "pos": 850,
+          "vel": null
+        },
+        {
+          "no": 3,
+          "name": "odložení na paletu — vrstva 1",
+          "pos": 1150,
+          "vel": null
+        }
+      ],
+      "travelS": 1,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "ready",
+          "dir": "DI",
+          "tag": "M2_ready"
+        },
+        {
+          "sig": "inPos",
+          "dir": "DI",
+          "tag": "M2_inPos"
+        },
+        {
+          "sig": "homed",
+          "dir": "DI",
+          "tag": "M2_homed"
+        },
+        {
+          "sig": "fault",
+          "dir": "DI",
+          "tag": "M2_fault"
+        },
+        {
+          "sig": "outEnable",
+          "dir": "DO",
+          "tag": "M2_outEnable"
+        },
+        {
+          "sig": "outStart",
+          "dir": "DO",
+          "tag": "M2_outStart"
+        },
+        {
+          "sig": "outHome",
+          "dir": "DO",
+          "tag": "M2_outHome"
+        },
+        {
+          "sig": "outHalt",
+          "dir": "DO",
+          "tag": "M2_outHalt"
+        },
+        {
+          "sig": "outSel0",
+          "dir": "DO",
+          "tag": "M2_outSel0"
+        },
+        {
+          "sig": "outSel1",
+          "dir": "DO",
+          "tag": "M2_outSel1"
+        },
+        {
+          "sig": "outReset",
+          "dir": "DO",
+          "tag": "M2_outReset"
+        }
+      ],
+      "parts": [
+        "-TA2:positioning_drive",
+        "-M2:linear_axis"
+      ]
+    },
+    {
+      "name": "M3",
+      "guid": "5e57ba8d-974f-468b-9841-7419f058c15f",
+      "cls": "PosDrive",
+      "desc": "Osa X — pojezd hlavy (polohovací pohon se záznamy)",
+      "role": null,
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [
+        "fault",
+        "ready",
+        "rst"
+      ],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": 3,
+      "records": [
+        {
+          "no": 1,
+          "name": "odběrové místo",
+          "pos": 0,
+          "vel": null
+        },
+        {
+          "no": 2,
+          "name": "paleta — pozice 1",
+          "pos": 1450,
+          "vel": null
+        },
+        {
+          "no": 3,
+          "name": "paleta — pozice 2",
+          "pos": 1850,
+          "vel": null
+        },
+        {
+          "no": 4,
+          "name": "servisní poloha",
+          "pos": 2400,
+          "vel": null
+        }
+      ],
+      "travelS": 1.6,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "ready",
+          "dir": "DI",
+          "tag": "M3_ready"
+        },
+        {
+          "sig": "inPos",
+          "dir": "DI",
+          "tag": "M3_inPos"
+        },
+        {
+          "sig": "homed",
+          "dir": "DI",
+          "tag": "M3_homed"
+        },
+        {
+          "sig": "fault",
+          "dir": "DI",
+          "tag": "M3_fault"
+        },
+        {
+          "sig": "outEnable",
+          "dir": "DO",
+          "tag": "M3_outEnable"
+        },
+        {
+          "sig": "outStart",
+          "dir": "DO",
+          "tag": "M3_outStart"
+        },
+        {
+          "sig": "outHome",
+          "dir": "DO",
+          "tag": "M3_outHome"
+        },
+        {
+          "sig": "outHalt",
+          "dir": "DO",
+          "tag": "M3_outHalt"
+        },
+        {
+          "sig": "outSel0",
+          "dir": "DO",
+          "tag": "M3_outSel0"
+        },
+        {
+          "sig": "outSel1",
+          "dir": "DO",
+          "tag": "M3_outSel1"
+        },
+        {
+          "sig": "outSel2",
+          "dir": "DO",
+          "tag": "M3_outSel2"
+        },
+        {
+          "sig": "outReset",
+          "dir": "DO",
+          "tag": "M3_outReset"
+        }
+      ],
+      "parts": [
+        "-TA3:positioning_drive",
+        "-M3:linear_axis"
+      ]
+    },
+    {
+      "name": "M4",
+      "guid": "956c18a8-063e-4cbe-8e89-910baec2f95e",
+      "cls": "PosDrive",
+      "desc": "Osa C — otočná hlava (polohovací pohon se záznamy)",
+      "role": null,
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [
+        "fault",
+        "ready"
+      ],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": 2,
+      "records": [
+        {
+          "no": 1,
+          "name": "0° (podélně)",
+          "pos": 0,
+          "vel": null
+        },
+        {
+          "no": 2,
+          "name": "90° (napříč)",
+          "pos": 90,
+          "vel": null
+        }
+      ],
+      "travelS": 0.6,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "ready",
+          "dir": "DI",
+          "tag": "M4_ready"
+        },
+        {
+          "sig": "inPos",
+          "dir": "DI",
+          "tag": "M4_inPos"
+        },
+        {
+          "sig": "homed",
+          "dir": "DI",
+          "tag": "M4_homed"
+        },
+        {
+          "sig": "fault",
+          "dir": "DI",
+          "tag": "M4_fault"
+        },
+        {
+          "sig": "outEnable",
+          "dir": "DO",
+          "tag": "M4_outEnable"
+        },
+        {
+          "sig": "outStart",
+          "dir": "DO",
+          "tag": "M4_outStart"
+        },
+        {
+          "sig": "outHome",
+          "dir": "DO",
+          "tag": "M4_outHome"
+        },
+        {
+          "sig": "outHalt",
+          "dir": "DO",
+          "tag": "M4_outHalt"
+        },
+        {
+          "sig": "outSel0",
+          "dir": "DO",
+          "tag": "M4_outSel0"
+        },
+        {
+          "sig": "outSel1",
+          "dir": "DO",
+          "tag": "M4_outSel1"
+        }
+      ],
+      "parts": [
+        "-TA4:positioning_drive",
+        "-M4:linear_axis"
+      ]
+    },
+    {
+      "name": "Y1",
+      "guid": "60567c39-3d87-4e5a-9e0a-ff9a56d4097b",
+      "cls": "Ventil",
+      "desc": "Vakuové chapadlo — ejektor zapnout (snímač podtlaku)",
+      "role": null,
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [
+        "fbkOpen"
+      ],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "fbkOpen",
+          "dir": "DI",
+          "tag": "Y1_fbkOpen"
+        },
+        {
+          "sig": "outOpen",
+          "dir": "DO",
+          "tag": "Y1_outOpen"
+        }
+      ],
+      "parts": [
+        "-Y1:valve_solenoid",
+        "-Y1:vacuum_ejector",
+        "-Y1:suction_cup",
+        "-Y1:vacuum_switch"
+      ]
+    },
+    {
+      "name": "B1",
+      "guid": "d1f8bac8-7eff-4f0f-9367-8cc90bf53028",
+      "cls": "AnalogIn",
+      "desc": "Tlak vzduchu v rozvodu",
+      "role": null,
+      "unit": "bar",
+      "range": {
+        "min": 0,
+        "max": 10
+      },
+      "limits": {
+        "lo": 5,
+        "hi": null
+      },
+      "setpoint": null,
+      "options": [],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "raw",
+          "dir": "AI",
+          "tag": "B1_raw"
+        }
+      ],
+      "parts": [
+        "-B1:pressure_transmitter"
+      ]
+    },
+    {
+      "name": "H1",
+      "guid": "dfc7a066-206f-4c39-ac47-ef897b9f9a9a",
+      "cls": "DO",
+      "desc": "Maják zelená — cyklus běží",
+      "role": "run",
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "out",
+          "dir": "DO",
+          "tag": "H1_out"
+        }
+      ],
+      "parts": [
+        "-H1:beacon"
+      ]
+    },
+    {
+      "name": "H2",
+      "guid": "6652bc8c-7d8c-4fcf-9c64-c6ddb99a5c54",
+      "cls": "DO",
+      "desc": "Maják červená — porucha",
+      "role": "fault",
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "out",
+          "dir": "DO",
+          "tag": "H2_out"
+        }
+      ],
+      "parts": [
+        "-H2:beacon"
+      ]
+    },
+    {
+      "name": "H3",
+      "guid": "95ba1e7d-5e88-4ebf-a001-7664f2b40182",
+      "cls": "DO",
+      "desc": "Maják žlutá — připraveno ke startu",
+      "role": "ready",
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "out",
+          "dir": "DO",
+          "tag": "H3_out"
+        }
+      ],
+      "parts": [
+        "-H3:beacon"
+      ]
+    },
+    {
+      "name": "H4",
+      "guid": "9f14d2d4-18fd-42e6-ac7f-b97950d3328d",
+      "cls": "DO",
+      "desc": "Zámek dveří buňky — zamknout",
+      "role": "lock",
+      "unit": "",
+      "range": null,
+      "limits": null,
+      "setpoint": null,
+      "options": [],
+      "rampS": null,
+      "tol": null,
+      "tolTimeS": null,
+      "selBits": null,
+      "records": [],
+      "travelS": null,
+      "axis": null,
+      "libType": null,
+      "signals": [
+        {
+          "sig": "out",
+          "dir": "DO",
+          "tag": "H4_out"
+        }
+      ],
+      "parts": [
+        "-H4:safety_switch"
+      ]
+    }
+  ],
+  "sequence": [
+    {
+      "no": 1,
+      "device": "M2",
+      "deviceGuid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "act": "home",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M2 referenční jízda"
+    },
+    {
+      "no": 2,
+      "device": "M4",
+      "deviceGuid": "956c18a8-063e-4cbe-8e89-910baec2f95e",
+      "act": "home",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M4 referenční jízda"
+    },
+    {
+      "no": 3,
+      "device": "M3",
+      "deviceGuid": "5e57ba8d-974f-468b-9841-7419f058c15f",
+      "act": "home",
+      "cond": "fbk",
+      "timeS": 5,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M3 referenční jízda"
+    },
+    {
+      "no": 4,
+      "device": "S6",
+      "deviceGuid": "9203b371-dbf5-477d-bb24-7e293a4b69af",
+      "act": "waitOn",
+      "cond": "fbk",
+      "timeS": 30,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "čekat na S6"
+    },
+    {
+      "no": 5,
+      "device": "M3",
+      "deviceGuid": "5e57ba8d-974f-468b-9841-7419f058c15f",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 5,
+      "sp": null,
+      "rev": null,
+      "rec": 1,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M3 jízda na záznam 1 (odběrové místo)"
+    },
+    {
+      "no": 6,
+      "device": "M4",
+      "deviceGuid": "956c18a8-063e-4cbe-8e89-910baec2f95e",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": 1,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M4 jízda na záznam 1 (0° (podélně))"
+    },
+    {
+      "no": 7,
+      "device": "M1",
+      "deviceGuid": "9f98ac0c-123b-4edf-8b62-ea999af796d3",
+      "act": "start",
+      "cond": "fbk",
+      "timeS": 5,
+      "sp": 40,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M1 start 40 Hz"
+    },
+    {
+      "no": 8,
+      "device": "S4",
+      "deviceGuid": "6ec4f1fa-c5b7-44dc-b2d8-b1168b76b4e2",
+      "act": "waitOn",
+      "cond": "fbk",
+      "timeS": 20,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "čekat na S4"
+    },
+    {
+      "no": 9,
+      "device": "M1",
+      "deviceGuid": "9f98ac0c-123b-4edf-8b62-ea999af796d3",
+      "act": "start",
+      "cond": "fbk",
+      "timeS": 5,
+      "sp": 12,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M1 start 12 Hz"
+    },
+    {
+      "no": 10,
+      "device": "S4",
+      "deviceGuid": "6ec4f1fa-c5b7-44dc-b2d8-b1168b76b4e2",
+      "act": "waitOff",
+      "cond": "fbk",
+      "timeS": 6,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "čekat na S4 = FALSE"
+    },
+    {
+      "no": 11,
+      "device": "S5",
+      "deviceGuid": "1934c3e0-d0a4-4fed-8a49-c607dc0bfdfd",
+      "act": "waitOn",
+      "cond": "fbk",
+      "timeS": 8,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "čekat na S5"
+    },
+    {
+      "no": 12,
+      "device": "M1",
+      "deviceGuid": "9f98ac0c-123b-4edf-8b62-ea999af796d3",
+      "act": "stop",
+      "cond": "time",
+      "timeS": 0.5,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M1 stop"
+    },
+    {
+      "no": 13,
+      "device": "M2",
+      "deviceGuid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": 2,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M2 jízda na záznam 2 (odběr z dopravníku)"
+    },
+    {
+      "no": 14,
+      "device": "Y1",
+      "deviceGuid": "60567c39-3d87-4e5a-9e0a-ff9a56d4097b",
+      "act": "open",
+      "cond": "fbk",
+      "timeS": 3,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "Y1 otevřít"
+    },
+    {
+      "no": 15,
+      "device": "M2",
+      "deviceGuid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": 1,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M2 jízda na záznam 1 (horní poloha (pojezd))"
+    },
+    {
+      "no": 16,
+      "device": "S5",
+      "deviceGuid": "1934c3e0-d0a4-4fed-8a49-c607dc0bfdfd",
+      "act": "waitOff",
+      "cond": "fbk",
+      "timeS": 3,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "čekat na S5 = FALSE"
+    },
+    {
+      "no": 17,
+      "device": "M3",
+      "deviceGuid": "5e57ba8d-974f-468b-9841-7419f058c15f",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 5,
+      "sp": null,
+      "rev": null,
+      "rec": 2,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M3 jízda na záznam 2 (paleta — pozice 1)"
+    },
+    {
+      "no": 18,
+      "device": "M2",
+      "deviceGuid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": 3,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M2 jízda na záznam 3 (odložení na paletu — vrstva 1)"
+    },
+    {
+      "no": 19,
+      "device": "Y1",
+      "deviceGuid": "60567c39-3d87-4e5a-9e0a-ff9a56d4097b",
+      "act": "close",
+      "cond": "time",
+      "timeS": 0.5,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "Y1 zavřít"
+    },
+    {
+      "no": 20,
+      "device": "M2",
+      "deviceGuid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": 1,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M2 jízda na záznam 1 (horní poloha (pojezd))"
+    },
+    {
+      "no": 21,
+      "device": "M3",
+      "deviceGuid": "5e57ba8d-974f-468b-9841-7419f058c15f",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 5,
+      "sp": null,
+      "rev": null,
+      "rec": 1,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M3 jízda na záznam 1 (odběrové místo)"
+    },
+    {
+      "no": 22,
+      "device": "M1",
+      "deviceGuid": "9f98ac0c-123b-4edf-8b62-ea999af796d3",
+      "act": "start",
+      "cond": "fbk",
+      "timeS": 5,
+      "sp": 40,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M1 start 40 Hz"
+    },
+    {
+      "no": 23,
+      "device": "S4",
+      "deviceGuid": "6ec4f1fa-c5b7-44dc-b2d8-b1168b76b4e2",
+      "act": "waitOn",
+      "cond": "fbk",
+      "timeS": 20,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "čekat na S4"
+    },
+    {
+      "no": 24,
+      "device": "M1",
+      "deviceGuid": "9f98ac0c-123b-4edf-8b62-ea999af796d3",
+      "act": "start",
+      "cond": "fbk",
+      "timeS": 5,
+      "sp": 12,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M1 start 12 Hz"
+    },
+    {
+      "no": 25,
+      "device": "S4",
+      "deviceGuid": "6ec4f1fa-c5b7-44dc-b2d8-b1168b76b4e2",
+      "act": "waitOff",
+      "cond": "fbk",
+      "timeS": 6,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "čekat na S4 = FALSE"
+    },
+    {
+      "no": 26,
+      "device": "S5",
+      "deviceGuid": "1934c3e0-d0a4-4fed-8a49-c607dc0bfdfd",
+      "act": "waitOn",
+      "cond": "fbk",
+      "timeS": 8,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "čekat na S5"
+    },
+    {
+      "no": 27,
+      "device": "M1",
+      "deviceGuid": "9f98ac0c-123b-4edf-8b62-ea999af796d3",
+      "act": "stop",
+      "cond": "time",
+      "timeS": 0.5,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M1 stop"
+    },
+    {
+      "no": 28,
+      "device": "M2",
+      "deviceGuid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": 2,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M2 jízda na záznam 2 (odběr z dopravníku)"
+    },
+    {
+      "no": 29,
+      "device": "Y1",
+      "deviceGuid": "60567c39-3d87-4e5a-9e0a-ff9a56d4097b",
+      "act": "open",
+      "cond": "fbk",
+      "timeS": 3,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "Y1 otevřít"
+    },
+    {
+      "no": 30,
+      "device": "M2",
+      "deviceGuid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": 1,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M2 jízda na záznam 1 (horní poloha (pojezd))"
+    },
+    {
+      "no": 31,
+      "device": "S5",
+      "deviceGuid": "1934c3e0-d0a4-4fed-8a49-c607dc0bfdfd",
+      "act": "waitOff",
+      "cond": "fbk",
+      "timeS": 3,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "čekat na S5 = FALSE"
+    },
+    {
+      "no": 32,
+      "device": "M4",
+      "deviceGuid": "956c18a8-063e-4cbe-8e89-910baec2f95e",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": 2,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M4 jízda na záznam 2 (90° (napříč))"
+    },
+    {
+      "no": 33,
+      "device": "M3",
+      "deviceGuid": "5e57ba8d-974f-468b-9841-7419f058c15f",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 5,
+      "sp": null,
+      "rev": null,
+      "rec": 3,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M3 jízda na záznam 3 (paleta — pozice 2)"
+    },
+    {
+      "no": 34,
+      "device": "M2",
+      "deviceGuid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": 3,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M2 jízda na záznam 3 (odložení na paletu — vrstva 1)"
+    },
+    {
+      "no": 35,
+      "device": "Y1",
+      "deviceGuid": "60567c39-3d87-4e5a-9e0a-ff9a56d4097b",
+      "act": "close",
+      "cond": "time",
+      "timeS": 0.5,
+      "sp": null,
+      "rev": null,
+      "rec": null,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "Y1 zavřít"
+    },
+    {
+      "no": 36,
+      "device": "M2",
+      "deviceGuid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": 1,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M2 jízda na záznam 1 (horní poloha (pojezd))"
+    },
+    {
+      "no": 37,
+      "device": "M4",
+      "deviceGuid": "956c18a8-063e-4cbe-8e89-910baec2f95e",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 4,
+      "sp": null,
+      "rev": null,
+      "rec": 1,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M4 jízda na záznam 1 (0° (podélně))"
+    },
+    {
+      "no": 38,
+      "device": "M3",
+      "deviceGuid": "5e57ba8d-974f-468b-9841-7419f058c15f",
+      "act": "posRecord",
+      "cond": "fbk",
+      "timeS": 5,
+      "sp": null,
+      "rev": null,
+      "rec": 1,
+      "pos": null,
+      "posRef": null,
+      "vel": null,
+      "acc": null,
+      "dec": null,
+      "title": "M3 jízda na záznam 1 (odběrové místo)"
+    }
+  ],
+  "safety": {
+    "estop": {
+      "device": "S1",
+      "guid": "ac4696d3-64ba-48f0-afa9-47d3b006891e"
+    },
+    "interlocks": [
+      {
+        "device": "S2",
+        "guid": "a8e65698-e967-4b77-8191-3476f4b242c5"
+      },
+      {
+        "device": "S3",
+        "guid": "70fffee4-095a-49a4-9d4d-d47a5cb61c8c"
+      }
+    ],
+    "functions": [
+      {
+        "id": "SF1",
+        "ref": "estop",
+        "kind": "estop",
+        "title": "Nouzové zastavení (E-stop) — S1",
+        "off": false,
+        "plr": "d",
+        "pl": "d",
+        "category": "3",
+        "stopCategory": 1,
+        "inputs": [
+          "S1"
+        ],
+        "actuators": [
+          "STO_M1",
+          "STO_M2",
+          "STO_M3",
+          "STO_M4"
+        ],
+        "safeState": "pohony bez energie (stykače odpadlé / STO)",
+        "missing": []
+      },
+      {
+        "id": "SF2",
+        "ref": "guard:S2",
+        "kind": "guard",
+        "title": "Blokování pohyblivého ochranného krytu (bez jištění) — S2",
+        "off": false,
+        "plr": "d",
+        "pl": "d",
+        "category": "3",
+        "stopCategory": 1,
+        "inputs": [
+          "S2"
+        ],
+        "actuators": [
+          "STO_M1",
+          "STO_M2",
+          "STO_M3",
+          "STO_M4"
+        ],
+        "safeState": "pohony bez energie (stykače odpadlé / STO)",
+        "missing": []
+      },
+      {
+        "id": "SF3",
+        "ref": "guard_lock",
+        "kind": "guard_lock",
+        "title": "Kryt se zámkem (jištění krytu) a uvolnění zámku po zastavení — S2, H4",
+        "off": false,
+        "plr": "d",
+        "pl": "d",
+        "category": "3",
+        "stopCategory": 0,
+        "inputs": [
+          "S2",
+          "H4"
+        ],
+        "actuators": [
+          "STO_M1",
+          "STO_M2",
+          "STO_M3",
+          "STO_M4"
+        ],
+        "safeState": "pohony bez energie (stykače odpadlé / STO)",
+        "missing": []
+      },
+      {
+        "id": "SF4",
+        "ref": "light_curtain:S3",
+        "kind": "light_curtain",
+        "title": "Světelná závora (AOPD) – ochrana nebezpečného místa (prst/ruka) — S3",
+        "off": false,
+        "plr": "d",
+        "pl": "d",
+        "category": "3",
+        "stopCategory": 0,
+        "inputs": [
+          "S3"
+        ],
+        "actuators": [
+          "STO_M1",
+          "STO_M2",
+          "STO_M3",
+          "STO_M4"
+        ],
+        "safeState": "pohony bez energie (stykače odpadlé / STO)",
+        "missing": []
+      },
+      {
+        "id": "SF5",
+        "ref": "restart",
+        "kind": "restart",
+        "title": "Ochrana proti neočekávanému rozběhu (odpojení a vybití energie, LOTO, blokování startu)",
+        "off": false,
+        "plr": "d",
+        "pl": "d",
+        "category": "3",
+        "stopCategory": 0,
+        "inputs": [],
+        "actuators": [
+          "STO_M1",
+          "STO_M2",
+          "STO_M3",
+          "STO_M4"
+        ],
+        "safeState": "pohony bez energie (stykače odpadlé / STO)",
+        "missing": []
+      },
+      {
+        "id": "SF6",
+        "ref": "sto",
+        "kind": "sto",
+        "title": "Bezpečné zastavení pohonu – STO, SS1, SS2, SOS, SBC (IEC 61800-5-2)",
+        "off": false,
+        "plr": "d",
+        "pl": "d",
+        "category": "3",
+        "stopCategory": 1,
+        "inputs": [],
+        "actuators": [
+          "STO_M1",
+          "STO_M2",
+          "STO_M3",
+          "STO_M4"
+        ],
+        "safeState": "pohony bez energie (stykače odpadlé / STO)",
+        "missing": []
+      }
+    ]
+  },
+  "parts": [
+    {
+      "id": "-A1:plc_cpu",
+      "tag": "-A1",
+      "category": "plc_cpu",
+      "label": "Řídicí systém PLC (CPU)",
+      "brand": "Siemens",
+      "type": "CPU 1212C DC/DC/DC (S7-1200 G2) – napájení 24 V DC, 8 DI 24 V DC / 6 DO 24 V DC, 2× PROFINET, STEP 7 V21+",
+      "orderCode": "6ES7212-1AG50-0XB0",
+      "supplier": "Siemens, s.r.o. (ČR)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "rack",
+      "device": null,
+      "station": 0,
+      "slot": 1,
+      "sourceUrl": "https://www.automation24.com/simatic-s7-1200-g2-siemens-cpu-1212c-6es7212-1ag50-0xb0",
+      "guid": "62ce86a2-b3fa-8b44-a3a2-c22fec66b5bb",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-A2:plc_di",
+      "tag": "-A2",
+      "category": "plc_di",
+      "label": "Modul digitálních vstupů",
+      "brand": "Siemens",
+      "type": "SM 1221 DI 16x24VDC (G2) – 16 DI, 24 V DC, do racku CPU S7-1200 G2",
+      "orderCode": "6ES7221-1BH50-0XB0",
+      "supplier": "Siemens, s.r.o. (ČR)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "rack",
+      "device": null,
+      "station": 0,
+      "slot": 2,
+      "sourceUrl": "https://ielec.com/f/pdfs/st70_s71200G2.pdf",
+      "guid": "837841dc-4421-8179-8fcf-6a470fba5e7e",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": [
+        {
+          "guid": "4aa21934-546d-4dbd-887a-29344c51aa1b",
+          "station": 0,
+          "slot": 2
+        }
+      ]
+    },
+    {
+      "id": "-A3:plc_do",
+      "tag": "-A3",
+      "category": "plc_do",
+      "label": "Modul digitálních výstupů",
+      "brand": "Siemens",
+      "type": "SM 1222 DQ 16x24VDC/0,5A (G2) – 16 DO tranzistor 24 V DC, do racku CPU S7-1200 G2",
+      "orderCode": "6ES7222-5BH50-0XB0",
+      "supplier": "Siemens, s.r.o. (ČR)",
+      "qty": 2,
+      "location": "cabinet",
+      "mount": "rack",
+      "device": null,
+      "station": 0,
+      "slot": 3,
+      "sourceUrl": "https://ielec.com/f/pdfs/st70_s71200G2.pdf",
+      "guid": "0f63185c-ded1-8f4c-afac-26a189e59813",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": [
+        {
+          "guid": "5a21a8c6-8a0e-4c00-a814-f95e75519f61",
+          "station": 0,
+          "slot": 3
+        },
+        {
+          "guid": "983ba766-28b5-4048-a070-7e731ce5839a",
+          "station": 0,
+          "slot": 4
+        }
+      ]
+    },
+    {
+      "id": "-A4:plc_ai",
+      "tag": "-A4",
+      "category": "plc_ai",
+      "label": "Modul analogových vstupů",
+      "brand": "Siemens",
+      "type": "SM 1231 AI 8 (G2) – 8 AI napětí / proud, do racku CPU S7-1200 G2",
+      "orderCode": "6ES7231-4HF50-0XB0",
+      "supplier": "Siemens, s.r.o. (ČR)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "rack",
+      "device": null,
+      "station": 0,
+      "slot": 5,
+      "sourceUrl": "https://ielec.com/f/pdfs/st70_s71200G2.pdf",
+      "guid": "92c974cc-fc75-8c3f-ad29-804b9d1e506e",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": [
+        {
+          "guid": "a9bb9a64-0f16-4ea3-a4e7-1772abedb615",
+          "station": 0,
+          "slot": 5
+        }
+      ]
+    },
+    {
+      "id": "-A5:plc_ao",
+      "tag": "-A5",
+      "category": "plc_ao",
+      "label": "Modul analogových výstupů",
+      "brand": "Siemens",
+      "type": "SM 1232 AQ 8 (G2) – 8 AO napětí / proud, do racku CPU S7-1200 G2",
+      "orderCode": "6ES7232-4HF50-0XB0",
+      "supplier": "Siemens, s.r.o. (ČR)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "rack",
+      "device": null,
+      "station": 0,
+      "slot": 6,
+      "sourceUrl": "https://ielec.com/f/pdfs/st70_s71200G2.pdf",
+      "guid": "7ab90ad8-e713-883e-9224-51eb03e0b413",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": [
+        {
+          "guid": "339b9b15-4d2d-41b8-aeb3-d773a9d59d3e",
+          "station": 0,
+          "slot": 6
+        }
+      ]
+    },
+    {
+      "id": "-P1:plc_hmi",
+      "tag": "-P1",
+      "category": "plc_hmi",
+      "label": "Operátorský panel HMI",
+      "brand": "Siemens",
+      "type": "MTP700 Unified Basic – 7\" dotykový, 800×480, PROFINET, WinCC Unified Basic V18 Upd. 3+",
+      "orderCode": "6AV2123-3GB32-0AW0",
+      "supplier": "Siemens, s.r.o. (ČR)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "panel",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.automation24.com/siemens-simatic-hmi-mtp700-unified-basic-panel-6av2123-3gb32-0aw0",
+      "guid": "2d42b687-214d-8798-9367-a2b7c76eb8bc",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-S1:estop_button",
+      "tag": "-S1",
+      "category": "estop_button",
+      "label": "Tlačítko nouzového zastavení",
+      "brand": "Siemens",
+      "type": "3SU1150-1HB20-1CH0 — hřibové tlačítko nouzového zastavení, kov, 40 mm, uvolnění pootočením, 1 NC, s držákem",
+      "orderCode": "3SU1150-1HB20-1CH0",
+      "supplier": "RS Components CZ",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "S1",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://cz.rs-online.com/web/p/nouzova-tlacitka/8741807",
+      "guid": "cd6de200-a66e-8459-8021-68813d664bb0",
+      "deviceGuid": "ac4696d3-64ba-48f0-afa9-47d3b006891e",
+      "safety": true,
+      "instances": []
+    },
+    {
+      "id": "-S2:safety_switch",
+      "tag": "-S2",
+      "category": "safety_switch",
+      "label": "Bezpečnostní spínač krytu",
+      "brand": "Siemens",
+      "type": "3SE5232-0QV40 — bezpečnostní polohový spínač s odděleným ovladačem, plast 31 mm, 1NO+2NC, M20",
+      "orderCode": "3SE5232-0QV40",
+      "supplier": "Conrad.cz",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "S2",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.conrad.cz/p/siemens-3se5232-0qv40-bezpecnostni-polohovy-spinac-6-a-ip65-1-ks-1746422",
+      "guid": "14178167-b511-81a0-936c-076bdb91a1d3",
+      "deviceGuid": "a8e65698-e967-4b77-8191-3476f4b242c5",
+      "safety": true,
+      "instances": []
+    },
+    {
+      "id": "-S3:light_curtain",
+      "tag": "-S3",
+      "category": "light_curtain",
+      "label": "Bezpečnostní světelná závora",
+      "brand": "SICK",
+      "type": "C4C-SA03010A10000 — vysílač, ochranná výška 300 mm, rozlišení 14 mm, 24 V DC, M12; přijímač C4C-EA03010A10000",
+      "orderCode": "C4C-SA03010A10000",
+      "supplier": "SICK CZ",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "S3",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.tme.com/us/en-us/details/c4c-sa03010a10000/light-curtains/sick/",
+      "guid": "5858a87f-8e77-86e1-a3df-5577363c3268",
+      "deviceGuid": "70fffee4-095a-49a4-9d4d-d47a5cb61c8c",
+      "safety": true,
+      "instances": []
+    },
+    {
+      "id": "-S4:sensor_optical",
+      "tag": "-S4",
+      "category": "sensor_optical",
+      "label": "Optický snímač",
+      "brand": "SICK",
+      "type": "WL12-3P2431 — reflexní závora s polarizačním filtrem, dosah 0–7 m, PNP, M12 4pin",
+      "orderCode": "1041436",
+      "supplier": "SICK CZ",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "S4",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.sick.com/media/pdf/0/10/310/dataSheet_WL12-3P2431_1041436_cs.pdf",
+      "guid": "1fd3ea73-3c03-8261-bdcd-e0f2ac81033b",
+      "deviceGuid": "6ec4f1fa-c5b7-44dc-b2d8-b1168b76b4e2",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-S5:sensor_optical",
+      "tag": "-S5",
+      "category": "sensor_optical",
+      "label": "Optický snímač",
+      "brand": "SICK",
+      "type": "WL12-3P2431 — reflexní závora s polarizačním filtrem, dosah 0–7 m, PNP, M12 4pin",
+      "orderCode": "1041436",
+      "supplier": "SICK CZ",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "S5",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.sick.com/media/pdf/0/10/310/dataSheet_WL12-3P2431_1041436_cs.pdf",
+      "guid": "ef5f0e42-0981-8a03-bcfd-6f62d3dac3b2",
+      "deviceGuid": "1934c3e0-d0a4-4fed-8a49-c607dc0bfdfd",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-S6:sensor_inductive",
+      "tag": "-S6",
+      "category": "sensor_inductive",
+      "label": "Indukční snímač",
+      "brand": "ifm electronic",
+      "type": "IFS204 — M12, Sn 4 mm, zapuštěný, PNP NO, konektor M12, 10–36 V DC",
+      "orderCode": "IFS204",
+      "supplier": "ifm electronic (přímo)",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "S6",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.conrad.cz/p/ifm-electronic-indukcni-senzor-priblizeni-m12-zarovnana-pnp-ifs204-507184",
+      "guid": "90e1bf50-6378-8a02-af6c-785fff4937ee",
+      "deviceGuid": "9203b371-dbf5-477d-bb24-7e293a4b69af",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-M1:gearmotor",
+      "tag": "-M1",
+      "category": "gearmotor",
+      "label": "Převodový motor",
+      "brand": "Siemens",
+      "type": "SIMOGEAR čelní převodový motor 2KJ3…-Z s motorem 1LE IE3; řada pokrývá 0,25–1,5 kW",
+      "orderCode": "",
+      "supplier": "Siemens, s.r.o. (ČR)",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "M1",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://cache.industry.siemens.com/dl/files/885/109779885/att_1021496/v1/SIMOGEAR_Geared_motors-D50-2-CH_2020en.pdf",
+      "guid": "04e807a6-f5fe-8e9a-b536-a554d4d94ae7",
+      "deviceGuid": "9f98ac0c-123b-4edf-8b62-ea999af796d3",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-TA1:vfd",
+      "tag": "-TA1",
+      "category": "vfd",
+      "label": "Frekvenční měnič",
+      "brand": "Siemens",
+      "type": "V20 6SL3210-5BE17-5UV0 — 0,75 kW, 3AC 380–480 V, Modbus RTU/USS",
+      "orderCode": "6SL3210-5BE17-5UV0",
+      "supplier": "Siemens CZ / distributoři",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "panel",
+      "device": "M1",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.electricautomationnetwork.com/en/siemens/6sl3210-5be17-5uv0-6sl32105be175uv0-siemens-sinamics-v20-3ac380-480v-15-10-47-63hz-rated-power-075kw-with",
+      "guid": "9a85c91d-05e0-8838-b228-3cac030252c4",
+      "deviceGuid": "9f98ac0c-123b-4edf-8b62-ea999af796d3",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-Q1:mcb",
+      "tag": "-Q1",
+      "category": "mcb",
+      "label": "Jistič",
+      "brand": "Siemens",
+      "type": "5SL6110-7 – jistič 1pól, 10 A, char. C, 6 kA",
+      "orderCode": "5SL6110-7",
+      "supplier": "Siemens, s.r.o. (ČR)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "din",
+      "device": "M1",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.elfetex.cz/siemens-jistic-10c-1-5sl6110-7-6ka-1586470",
+      "guid": "80e184ce-9cc0-82c5-a262-bf91ad79460e",
+      "deviceGuid": "9f98ac0c-123b-4edf-8b62-ea999af796d3",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-TA2:positioning_drive",
+      "tag": "-TA2",
+      "category": "positioning_drive",
+      "label": "Polohovací pohon (řadič se záznamy)",
+      "brand": "Festo",
+      "type": "CMMT-ST – regulátor krokového motoru 24–48 V DC s tabulkou záznamů (I/O, IO-Link, fieldbus) + motor EMMT-ST; EMCA = motor s integrovanou elektronikou",
+      "orderCode": "",
+      "supplier": "Festo CZ (přímo)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "panel",
+      "device": "M2",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.festo.com/cz/cs/",
+      "guid": "dc37c099-d847-83c8-9f00-46fb604b594b",
+      "deviceGuid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-M2:linear_axis",
+      "tag": "-M2",
+      "category": "linear_axis",
+      "label": "Elektrická lineární osa / aktuátor",
+      "brand": "Festo",
+      "type": "ELGC-BS-KF-45 – osa s kuličkovým šroubem, zdvih ~200 mm, motor EMMT-ST/EMMT-AS dle zatížení",
+      "orderCode": "",
+      "supplier": "Festo CZ (přímo)",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "M2",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.festo.com/cz/cs/",
+      "guid": "e0706e79-1568-809f-86fa-8d8dcda31990",
+      "deviceGuid": "58748275-bbdf-41aa-b2d4-376e9366110e",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-TA3:positioning_drive",
+      "tag": "-TA3",
+      "category": "positioning_drive",
+      "label": "Polohovací pohon (řadič se záznamy)",
+      "brand": "Festo",
+      "type": "CMMT-ST – regulátor krokového motoru 24–48 V DC s tabulkou záznamů (I/O, IO-Link, fieldbus) + motor EMMT-ST; EMCA = motor s integrovanou elektronikou",
+      "orderCode": "",
+      "supplier": "Festo CZ (přímo)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "panel",
+      "device": "M3",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.festo.com/cz/cs/",
+      "guid": "d0cd518e-cf24-8169-9fb7-e011f2b7f581",
+      "deviceGuid": "5e57ba8d-974f-468b-9841-7419f058c15f",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-M3:linear_axis",
+      "tag": "-M3",
+      "category": "linear_axis",
+      "label": "Elektrická lineární osa / aktuátor",
+      "brand": "Festo",
+      "type": "ELGC-BS-KF-45 – osa s kuličkovým šroubem, zdvih ~200 mm, motor EMMT-ST/EMMT-AS dle zatížení",
+      "orderCode": "",
+      "supplier": "Festo CZ (přímo)",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "M3",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.festo.com/cz/cs/",
+      "guid": "3570a0b6-30f1-86d1-82a3-87cb1e2e235f",
+      "deviceGuid": "5e57ba8d-974f-468b-9841-7419f058c15f",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-TA4:positioning_drive",
+      "tag": "-TA4",
+      "category": "positioning_drive",
+      "label": "Polohovací pohon (řadič se záznamy)",
+      "brand": "Festo",
+      "type": "CMMT-ST – regulátor krokového motoru 24–48 V DC s tabulkou záznamů (I/O, IO-Link, fieldbus) + motor EMMT-ST; EMCA = motor s integrovanou elektronikou",
+      "orderCode": "",
+      "supplier": "Festo CZ (přímo)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "panel",
+      "device": "M4",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.festo.com/cz/cs/",
+      "guid": "132ed310-c6d4-847d-8f58-9da1fd36d789",
+      "deviceGuid": "956c18a8-063e-4cbe-8e89-910baec2f95e",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-M4:linear_axis",
+      "tag": "-M4",
+      "category": "linear_axis",
+      "label": "Elektrická lineární osa / aktuátor",
+      "brand": "Festo",
+      "type": "ELGC-BS-KF-45 – osa s kuličkovým šroubem, zdvih ~200 mm, motor EMMT-ST/EMMT-AS dle zatížení",
+      "orderCode": "",
+      "supplier": "Festo CZ (přímo)",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "M4",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.festo.com/cz/cs/",
+      "guid": "f3b8c646-e5c1-89c6-91ea-97241b198223",
+      "deviceGuid": "956c18a8-063e-4cbe-8e89-910baec2f95e",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-Y1:valve_solenoid",
+      "tag": "-Y1",
+      "category": "valve_solenoid",
+      "label": "Pneumatický rozváděč",
+      "brand": "Festo",
+      "type": "VUVG-L14-M52-MT-G18-1P3 — 5/2 monostabilní, G1/8, 24 V DC, vnitřní pilot",
+      "orderCode": "574371",
+      "supplier": "Festo CZ (přímo)",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "Y1",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/574371.pdf",
+      "guid": "37828c12-96d4-86dc-afb5-f9dc9958d9bb",
+      "deviceGuid": "60567c39-3d87-4e5a-9e0a-ff9a56d4097b",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-Y1:vacuum_ejector",
+      "tag": "-Y1",
+      "category": "vacuum_ejector",
+      "label": "Vakuová tryska (ejektor)",
+      "brand": "Festo",
+      "type": "OVEM-07-H-B-GO-CE-N-1P — kompaktní ejektor, tryska 0,7 mm, vysoké vakuum 93 %, ventil sání NC a odfukový impuls, zpětný ventil, spínač podtlaku PNP, M12 5pin, G1/4",
+      "orderCode": "540026",
+      "supplier": "Festo CZ (přímo)",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "Y1",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/540026.pdf",
+      "guid": "beea2b50-ef1b-870a-8ba3-103717dd2fd3",
+      "deviceGuid": "60567c39-3d87-4e5a-9e0a-ff9a56d4097b",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-Y1:suction_cup",
+      "tag": "-Y1",
+      "category": "suction_cup",
+      "label": "Vakuová přísavka",
+      "brand": "Festo",
+      "type": "ESS-40-SN — plochá kruhová přísavka Ø40, NBR 60 Shore, připojení M6 nahoře, přídržná síla 69,6 N při −70 kPa",
+      "orderCode": "189304",
+      "supplier": "Festo CZ (přímo)",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "Y1",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/189304.pdf",
+      "guid": "b9cf9879-0f9d-8793-a655-56ab30e177be",
+      "deviceGuid": "60567c39-3d87-4e5a-9e0a-ff9a56d4097b",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-Y1:vacuum_switch",
+      "tag": "-Y1",
+      "category": "vacuum_switch",
+      "label": "Spínač podtlaku",
+      "brand": "Festo",
+      "type": "SPAN-V1R-Q4-PN-PN-L1 — elektronický spínač podtlaku 0 až −1 bar, displej, 2× PNP/NPN přepínatelné, hadice Ø4",
+      "orderCode": "8035554",
+      "supplier": "Festo CZ (přímo)",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "Y1",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/8035554.pdf",
+      "guid": "3d3f2c33-5131-86df-b1a0-b015d2f1c01b",
+      "deviceGuid": "60567c39-3d87-4e5a-9e0a-ff9a56d4097b",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-B1:pressure_transmitter",
+      "tag": "-B1",
+      "category": "pressure_transmitter",
+      "label": "Snímač tlaku",
+      "brand": "ifm electronic",
+      "type": "PT5404 — 0–10 bar, G1/4, 4–20 mA, M12",
+      "orderCode": "PT5404",
+      "supplier": "ifm electronic (přímo)",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "B1",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.automation24.com/pressure-transmitter-ifm-electronic-pt5404",
+      "guid": "dd28f5eb-6224-8d21-a3a8-d1315e29945c",
+      "deviceGuid": "d1f8bac8-7eff-4f0f-9367-8cc90bf53028",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-H1:beacon",
+      "tag": "-H1",
+      "category": "beacon",
+      "label": "Signální maják",
+      "brand": "Werma",
+      "type": "KS71 RM 24VAC/DC GN/YE/RD — hotová věž KombiSIGN 71 zelená/žlutá/červená, LED trvalé světlo, 24 V AC/DC, IP65, Ø70 mm, jedno objednací číslo",
+      "orderCode": "64924005",
+      "supplier": "TME",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "H1",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.werma.com/us/Signal-tower-KS71-RM-24VAC-DC-GN-YE-RD/64924005",
+      "guid": "aee744ec-529a-8f46-898a-9fd831e21e6d",
+      "deviceGuid": "dfc7a066-206f-4c39-ac47-ef897b9f9a9a",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-H2:beacon",
+      "tag": "-H2",
+      "category": "beacon",
+      "label": "Signální maják",
+      "brand": "Werma",
+      "type": "KS71 RM 24VAC/DC GN/YE/RD — hotová věž KombiSIGN 71 zelená/žlutá/červená, LED trvalé světlo, 24 V AC/DC, IP65, Ø70 mm, jedno objednací číslo",
+      "orderCode": "64924005",
+      "supplier": "TME",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "H2",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.werma.com/us/Signal-tower-KS71-RM-24VAC-DC-GN-YE-RD/64924005",
+      "guid": "3f6cbef7-e574-863d-8b34-17240d186037",
+      "deviceGuid": "6652bc8c-7d8c-4fcf-9c64-c6ddb99a5c54",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-H3:beacon",
+      "tag": "-H3",
+      "category": "beacon",
+      "label": "Signální maják",
+      "brand": "Werma",
+      "type": "KS71 RM 24VAC/DC GN/YE/RD — hotová věž KombiSIGN 71 zelená/žlutá/červená, LED trvalé světlo, 24 V AC/DC, IP65, Ø70 mm, jedno objednací číslo",
+      "orderCode": "64924005",
+      "supplier": "TME",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "H3",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.werma.com/us/Signal-tower-KS71-RM-24VAC-DC-GN-YE-RD/64924005",
+      "guid": "9954fc1a-fa2f-86db-8f54-327bc637ec3c",
+      "deviceGuid": "95ba1e7d-5e88-4ebf-a001-7664f2b40182",
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-H4:safety_switch",
+      "tag": "-H4",
+      "category": "safety_switch",
+      "label": "Bezpečnostní spínač krytu",
+      "brand": "Siemens",
+      "type": "3SE5232-0QV40 — bezpečnostní polohový spínač s odděleným ovladačem, plast 31 mm, 1NO+2NC, M20",
+      "orderCode": "3SE5232-0QV40",
+      "supplier": "Conrad.cz",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": "H4",
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.conrad.cz/p/siemens-3se5232-0qv40-bezpecnostni-polohovy-spinac-6-a-ip65-1-ks-1746422",
+      "guid": "ce1c8bc2-892b-8fea-bc33-2e94a40c2d23",
+      "deviceGuid": "9f14d2d4-18fd-42e6-ac7f-b97950d3328d",
+      "safety": true,
+      "instances": []
+    },
+    {
+      "id": "-Q0:main_switch",
+      "tag": "-Q0",
+      "category": "main_switch",
+      "label": "Hlavní vypínač",
+      "brand": "Siemens",
+      "type": "3LD2103-0TK53 – hlavní / nouzový vypínač 3pól. 25 A (9,5 kW AC-23A/400 V), červeno-žlutá rukojeť, čelní montáž 4 otvory, uzamykatelný, IP65",
+      "orderCode": "3LD2103-0TK53",
+      "supplier": "Siemens, s.r.o. (ČR)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "panel",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=3LD21030TK53&language=en&caller=SIOS",
+      "guid": "2d92cfce-1282-8107-a398-40f634a39357",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-F1:mcb",
+      "tag": "-F1",
+      "category": "mcb",
+      "label": "Jistič",
+      "brand": "Siemens",
+      "type": "5SL6110-7 – jistič 1pól, 10 A, char. C, 6 kA",
+      "orderCode": "5SL6110-7",
+      "supplier": "Siemens, s.r.o. (ČR)",
+      "qty": 2,
+      "location": "cabinet",
+      "mount": "din",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.elfetex.cz/siemens-jistic-10c-1-5sl6110-7-6ka-1586470",
+      "guid": "bc475f93-9fc6-88e5-8f55-9e0b64e2cb6e",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-T1:power_supply_24v",
+      "tag": "-T1",
+      "category": "power_supply_24v",
+      "label": "Zdroj 24 V DC",
+      "brand": "Siemens",
+      "type": "SITOP PSU6200 24 V / 10 A, vstup 120–230 V AC, diagnostické rozhraní",
+      "orderCode": "6EP3334-7SB00-3AX0",
+      "supplier": "Siemens, s.r.o. (ČR)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "din",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.kempstoncontrols.com/6EP3334-7SB00-3AX0/Siemens/sku/2853055",
+      "guid": "4c4c61a5-3b1b-8a48-a82b-5c544a1df334",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-X1:terminal_block",
+      "tag": "-X1",
+      "category": "terminal_block",
+      "label": "Řadové svorky",
+      "brand": "WAGO",
+      "type": "2002-1201 – průchozí svorka 2,5 mm², 2 vodiče, Push-in CAGE CLAMP, šedá",
+      "orderCode": "2002-1201",
+      "supplier": "WAGO (česká pobočka)",
+      "qty": 8,
+      "location": "cabinet",
+      "mount": "din",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.wago.com/global/p/2002-1201",
+      "guid": "109f9c36-8853-85df-8eed-c1b59157c3cd",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-X2:terminal_block",
+      "tag": "-X2",
+      "category": "terminal_block",
+      "label": "Řadové svorky",
+      "brand": "WAGO",
+      "type": "2002-1201 – průchozí svorka 2,5 mm², 2 vodiče, Push-in CAGE CLAMP, šedá",
+      "orderCode": "2002-1201",
+      "supplier": "WAGO (česká pobočka)",
+      "qty": 6,
+      "location": "cabinet",
+      "mount": "din",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.wago.com/global/p/2002-1201",
+      "guid": "54b961aa-1395-85df-99ba-b83ea59e2429",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-X3:terminal_block",
+      "tag": "-X3",
+      "category": "terminal_block",
+      "label": "Řadové svorky",
+      "brand": "WAGO",
+      "type": "2002-1201 – průchozí svorka 2,5 mm², 2 vodiče, Push-in CAGE CLAMP, šedá",
+      "orderCode": "2002-1201",
+      "supplier": "WAGO (česká pobočka)",
+      "qty": 14,
+      "location": "cabinet",
+      "mount": "din",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.wago.com/global/p/2002-1201",
+      "guid": "f2a24683-c99e-8368-a3b0-466095768af1",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-X4:terminal_block",
+      "tag": "-X4",
+      "category": "terminal_block",
+      "label": "Řadové svorky",
+      "brand": "WAGO",
+      "type": "2002-1201 – průchozí svorka 2,5 mm², 2 vodiče, Push-in CAGE CLAMP, šedá",
+      "orderCode": "2002-1201",
+      "supplier": "WAGO (česká pobočka)",
+      "qty": 16,
+      "location": "cabinet",
+      "mount": "din",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.wago.com/global/p/2002-1201",
+      "guid": "9bc1c9e0-4b19-8283-ad02-5d25904c39d5",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-X5:terminal_block",
+      "tag": "-X5",
+      "category": "terminal_block",
+      "label": "Řadové svorky",
+      "brand": "WAGO",
+      "type": "2002-1201 – průchozí svorka 2,5 mm², 2 vodiče, Push-in CAGE CLAMP, šedá",
+      "orderCode": "2002-1201",
+      "supplier": "WAGO (česká pobočka)",
+      "qty": 5,
+      "location": "cabinet",
+      "mount": "din",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.wago.com/global/p/2002-1201",
+      "guid": "674e23bd-7d2a-8d3d-8f44-01aaec225120",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-X6:terminal_block",
+      "tag": "-X6",
+      "category": "terminal_block",
+      "label": "Řadové svorky",
+      "brand": "WAGO",
+      "type": "2002-1201 – průchozí svorka 2,5 mm², 2 vodiče, Push-in CAGE CLAMP, šedá",
+      "orderCode": "2002-1201",
+      "supplier": "WAGO (česká pobočka)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "din",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.wago.com/global/p/2002-1201",
+      "guid": "8f46c5dd-0993-80cc-9e7a-11579e20b641",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-X7:terminal_block",
+      "tag": "-X7",
+      "category": "terminal_block",
+      "label": "Řadové svorky",
+      "brand": "WAGO",
+      "type": "2002-1201 – průchozí svorka 2,5 mm², 2 vodiče, Push-in CAGE CLAMP, šedá",
+      "orderCode": "2002-1201",
+      "supplier": "WAGO (česká pobočka)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "din",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.wago.com/global/p/2002-1201",
+      "guid": "e124dfb0-3d3a-8360-a9b3-5c47a46b4a29",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-W1xx:cable_sensor",
+      "tag": "-W1xx",
+      "category": "cable_sensor",
+      "label": "Kabel s konektorem M12",
+      "brand": "ifm electronic",
+      "type": "EVC002 – kabel se zásuvkou M12 přímou, 4pól., 5 m, PUR, bezhalogenový, pozlacené kontakty, IP67/68/69K",
+      "orderCode": "EVC002",
+      "supplier": "ifm electronic spol. s r.o. (ČR)",
+      "qty": 11,
+      "location": "field",
+      "mount": "none",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://automation24.com/m12-sensor-cable-ifm-electronic-evc002",
+      "guid": "c6fcc0a5-7ae6-8891-aa00-8d5addffd0f0",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "+1:cabinet",
+      "tag": "+1",
+      "category": "cabinet",
+      "label": "Skříň rozvaděče",
+      "brand": "Rittal",
+      "type": "AX 1050.000 – ocelová kompaktní skříň 500×500×210 mm",
+      "orderCode": "1050.000",
+      "supplier": "Rittal Czech, s.r.o. (Zdiby u Prahy)",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "none",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.rittal.com/com-en/product/show/variantdetail.action?productID=1050000",
+      "guid": "9c1deb6c-3f81-8643-a24d-4e0bcb8ee365",
+      "deviceGuid": null,
+      "safety": false,
+      "instances": []
+    },
+    {
+      "id": "-K0:safety_controller",
+      "tag": "-K0",
+      "category": "safety_controller",
+      "label": "Bezpečnostní řídicí systém",
+      "brand": "Siemens",
+      "type": "SIMATIC S7-1200F CPU 1214FC DC/DC/DC — Kompaktní bezpečnostní PLC, 14 DI / 10 DQ / 2 AI",
+      "orderCode": "6ES7214-1AF40-0XB0",
+      "supplier": "",
+      "qty": 1,
+      "location": "cabinet",
+      "mount": "din",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.kempstoncontrols.com/6ES7214-1AF40-0XB0/Siemens/sku/868627",
+      "guid": "937bc62d-3d1f-816d-a318-5fba3de5d010",
+      "deviceGuid": null,
+      "safety": true,
+      "instances": []
+    },
+    {
+      "id": "-S0R:pushbutton",
+      "tag": "-S0R",
+      "category": "pushbutton",
+      "label": "Ovládací tlačítko",
+      "brand": "Siemens",
+      "type": "3SU1100-0AB40-1BA0 — kompletní tlačítko Ø22, plast, zelené ploché, s návratem, s držákem a 1 NO, šroubové svorky, IP66/67/69K",
+      "orderCode": "3SU1100-0AB40-1BA0",
+      "supplier": "TME",
+      "qty": 1,
+      "location": "field",
+      "mount": "field",
+      "device": null,
+      "station": null,
+      "slot": null,
+      "sourceUrl": "https://www.electricautomationnetwork.com/en/siemens/3su1100-0ab40-1ba0-3su11000ab401ba0-siemens-pushbutton-22mm-round-plastic-green-flat-button-momentary-",
+      "guid": "cce8d5f0-3ad4-8dd2-8342-5dad6dec5c64",
+      "deviceGuid": null,
+      "safety": true,
+      "instances": []
+    }
+  ],
+  "plc": {
+    "stations": [
+      {
+        "index": 0,
+        "guid": "63c5d4e4-e106-85c7-a507-5d82ab1e4733",
+        "kind": "local",
+        "head": "-A1:plc_cpu",
+        "modules": [
+          {
+            "slot": 2,
+            "partId": "-A2:plc_di",
+            "guid": "4aa21934-546d-4dbd-887a-29344c51aa1b",
+            "kind": "DI",
+            "channels": 16
+          },
+          {
+            "slot": 3,
+            "partId": "-A3:plc_do",
+            "guid": "5a21a8c6-8a0e-4c00-a814-f95e75519f61",
+            "kind": "DO",
+            "channels": 16
+          },
+          {
+            "slot": 4,
+            "partId": "-A3:plc_do",
+            "guid": "983ba766-28b5-4048-a070-7e731ce5839a",
+            "kind": "DO",
+            "channels": 16
+          },
+          {
+            "slot": 5,
+            "partId": "-A4:plc_ai",
+            "guid": "a9bb9a64-0f16-4ea3-a4e7-1772abedb615",
+            "kind": "AI",
+            "channels": 8
+          },
+          {
+            "slot": 6,
+            "partId": "-A5:plc_ao",
+            "guid": "339b9b15-4d2d-41b8-aeb3-d773a9d59d3e",
+            "kind": "AO",
+            "channels": 8
+          }
+        ]
+      }
+    ]
+  },
+  "terminals": [
+    {
+      "strip": "X1",
+      "count": 8
+    },
+    {
+      "strip": "X2",
+      "count": 6
+    },
+    {
+      "strip": "X3",
+      "count": 14
+    },
+    {
+      "strip": "X4",
+      "count": 16
+    },
+    {
+      "strip": "X5",
+      "count": 5
+    },
+    {
+      "strip": "X6",
+      "count": 1
+    },
+    {
+      "strip": "X7",
+      "count": 1
+    }
+  ],
+  "relations": [
+    {
+      "from": "-Q1:mcb",
+      "to": "-TA1:vfd",
+      "kind": "feeds"
+    },
+    {
+      "from": "-TA1:vfd",
+      "to": "-M1:gearmotor",
+      "kind": "feeds"
+    },
+    {
+      "from": "-TA2:positioning_drive",
+      "to": "-M2:linear_axis",
+      "kind": "feeds"
+    },
+    {
+      "from": "-TA3:positioning_drive",
+      "to": "-M3:linear_axis",
+      "kind": "feeds"
+    },
+    {
+      "from": "-TA4:positioning_drive",
+      "to": "-M4:linear_axis",
+      "kind": "feeds"
+    },
+    {
+      "from": "-Y1:valve_solenoid",
+      "to": "-Y1:vacuum_ejector",
+      "kind": "actuates"
+    },
+    {
+      "from": "-Y1:vacuum_ejector",
+      "to": "-Y1:suction_cup",
+      "kind": "actuates"
+    },
+    {
+      "from": "-Y1:vacuum_switch",
+      "to": "-Y1:vacuum_ejector",
+      "kind": "senses"
+    },
+    {
+      "from": "-A1:plc_cpu",
+      "to": "-TA1:vfd",
+      "kind": "controls"
+    },
+    {
+      "from": "-A5:plc_ao",
+      "to": "-TA1:vfd",
+      "kind": "controls"
+    },
+    {
+      "from": "-A1:plc_cpu",
+      "to": "-TA2:positioning_drive",
+      "kind": "controls"
+    },
+    {
+      "from": "-A3:plc_do",
+      "to": "-TA2:positioning_drive",
+      "kind": "controls"
+    },
+    {
+      "from": "-A3:plc_do",
+      "to": "-TA3:positioning_drive",
+      "kind": "controls"
+    },
+    {
+      "from": "-A3:plc_do",
+      "to": "-TA4:positioning_drive",
+      "kind": "controls"
+    },
+    {
+      "from": "-A3:plc_do",
+      "to": "-Y1:valve_solenoid",
+      "kind": "controls"
+    },
+    {
+      "from": "-A3:plc_do",
+      "to": "-H1:beacon",
+      "kind": "controls"
+    },
+    {
+      "from": "-A3:plc_do",
+      "to": "-H2:beacon",
+      "kind": "controls"
+    },
+    {
+      "from": "-A3:plc_do",
+      "to": "-H3:beacon",
+      "kind": "controls"
+    },
+    {
+      "from": "-A3:plc_do",
+      "to": "-H4:safety_switch",
+      "kind": "controls"
+    }
+  ]
+}
