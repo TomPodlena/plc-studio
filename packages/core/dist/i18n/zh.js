@@ -7064,6 +7064,7 @@ const d = {
     "{ok} v pořádku, {warn} upozornění, {err} chyb": "{ok} 项正常，{warn} 项警告，{err} 项错误",
     "{ok} z {n} schváleno": "已批准 {ok}/{n}",
     "{part}, kolo {n}: kontrolor vyčerpal limit kol, pokračuji…": "{part}，第 {n} 轮：审核员已达轮次上限，继续…",
+    "{part}, kolo {n}: kontroly kódem stavitele neprošly ({why}) — vracím staviteli před K5.": "{part}，第 {n} 轮：构建者的代码检查未通过（{why}）——在 K5 之前退回构建者。",
     "{part}, kolo {n}: limit kol vyčerpán, pokračuji…": "{part}，第 {n} 轮：已达轮次上限，继续…",
     "{part}, kolo {n}: verdikt {v}.": "{part}，第 {n} 轮：结论 {v}。",
     "{part}, kolo {n}: {role}…": "{part}，第 {n} 轮：{role}…",

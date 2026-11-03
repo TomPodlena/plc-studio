@@ -132,6 +132,7 @@ class FakeRunner:
         self.fail_at = fail_at
         self.touch_model = touch_model
         self.checks = checks       # K5 zapíše k5_kolo<N>/kontroly.json se stavem OK
+        self.builder_checks = True
 
     def __call__(self, pipe, role, prompt, extra, log_path):
         unit = next(k for k in pp.AI_UNITS if f"_{k}_kolo" in log_path.name)
@@ -156,6 +157,8 @@ class FakeRunner:
         else:
             sub = pipe.folder / pp.UNIT[unit]["sub"]
             (sub / "ZPRAVA.md").write_text(f"ODHAD: výška {unit} 900 mm\n", encoding="utf-8")
+            if self.builder_checks:              # stavitel spustil kontroly kódem (brána před K5 projde)
+                (sub / "kontroly.json").write_text(json.dumps({"souhrn": {"stav": "OK", "chyby": 0}}), encoding="utf-8")
         return {"state": "done", "cost": 0.5, "tin": 100, "tout": 10, "turns": 2}
 
 
@@ -594,6 +597,21 @@ class SlotsAndCascadeTest(unittest.TestCase):
         pp.set_slot_tag("")
         self.assertEqual((pp.TOOLS_SLOT["k5"], pp.PARTS_SLOT, pro_agent.FC_SLOT),
                          ("pro3d-k5", "pro3d-parts", "plcdesk-pro"))
+
+    def test_precheck_before_k5(self):
+        """Stavitel bez kontrol kódem / s chybami → jedno opravné kolo stavitele před K5 (ne drahý kontrolor)."""
+        d = tmpdir()
+        sub = d / pp.UNIT["frame"]["sub"]
+        sub.mkdir(parents=True)
+        self.assertIn("chybí", pp.builder_checks(d, "frame"))
+        (sub / "kontroly.json").write_text(json.dumps({"souhrn": {"stav": "CHYBY", "chyby": 3}}), encoding="utf-8")
+        self.assertIn("CHYBY", pp.builder_checks(d, "frame"))
+        (sub / "kontroly.json").write_text(json.dumps({"souhrn": {"stav": "OK", "chyby": 0}}), encoding="utf-8")
+        self.assertEqual(pp.builder_checks(d, "frame"), "")
+        m = sub / "Ram.FCStd"
+        m.write_bytes(b"x")
+        os.utime(m, (m.stat().st_mtime + 10, m.stat().st_mtime + 10))
+        self.assertIn("starší", pp.builder_checks(d, "frame"))
 
     def test_shot_ranges(self):
         """Rozsah „detail_1…4.png“ v protokolu = 4 snímky, ne soubor „4.png“ (vzor 20, rozvaděč kolo 3)."""

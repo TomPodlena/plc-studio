@@ -7064,6 +7064,7 @@ const d = {
     "{ok} v pořádku, {warn} upozornění, {err} chyb": "{ok} correctos, {warn} advertencias, {err} errores",
     "{ok} z {n} schváleno": "{ok} de {n} aprobados",
     "{part}, kolo {n}: kontrolor vyčerpal limit kol, pokračuji…": "{part}, ronda {n}: el revisor agotó el límite de turnos, continúo…",
+    "{part}, kolo {n}: kontroly kódem stavitele neprošly ({why}) — vracím staviteli před K5.": "{part}, ronda {n}: las comprobaciones por código del constructor no pasaron ({why}) — se devuelve al constructor antes de K5.",
     "{part}, kolo {n}: limit kol vyčerpán, pokračuji…": "{part}, ronda {n}: límite de turnos alcanzado, continúo…",
     "{part}, kolo {n}: verdikt {v}.": "{part}, ronda {n}: veredicto {v}.",
     "{part}, kolo {n}: {role}…": "{part}, ronda {n}: {role}…",

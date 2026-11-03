@@ -455,6 +455,31 @@ def k5_checks(folder: Path, unit: str, rnd: int) -> dict | None:
     return out
 
 
+PRECHECK_PROMPT = """Před předáním kontrolorovi K5 postup ověřil tvé kontroly kódem v {sub}/: {why}.
+Kontrolor K5 by část s tím vrátil (nejčastější důvod vrácení v dosavadních bězích). Oprav VŠECHNY chyby z
+{sub}/KONTROLY.md, spusť kontroly kódem znovu ({cmd}, kontrola = vse, --out {sub}) až do „Stav: OK“ a aktualizuj zprávu
+(i zpětnou vazbu, pokud se změnila čísla). Nic jiného neměň."""
+
+
+def builder_checks(folder: Path, unit: str) -> str:
+    """Důvod, proč kontroly kódem stavitele NEJSOU připravené pro K5 ("" = v pořádku): {sub}/kontroly.json chybí,
+    je starší než nejnovější model části, nebo má stav CHYBY / SELHALO."""
+    sub = folder / UNIT[unit]["sub"]
+    f = sub / "kontroly.json"
+    models = [m for m in sub.glob("*.FCStd")]
+    if not f.is_file():
+        return "kontroly.json chybí (kontroly kódem nespuštěny)"
+    if models and max(m.stat().st_mtime for m in models) > f.stat().st_mtime + 1:
+        return "kontroly.json je starší než model (po poslední úpravě nespuštěny)"
+    try:
+        s = (json.loads(f.read_text(encoding="utf-8")).get("souhrn") or {})
+    except (OSError, ValueError):
+        return "kontroly.json nečitelný"
+    if s.get("stav") != "OK":
+        return f"stav {s.get('stav') or '?'}, chyb {s.get('chyby', '?')}"
+    return ""
+
+
 def feedback_file(unit: str) -> str:
     return f"PLCdesk_CAD_feedback_{UNIT[unit]['subject']}.json"
 
@@ -1456,6 +1481,20 @@ class Pipeline:
                     u["state"] = r["builder"].get("state") if r["builder"].get("state") in ("stopped",) else "failed"
                     self.save()
                     return u["state"]
+            # brána PŘED K5 (2026-11-03, analýza 116 bodů K5: odevzdání s chybami kontrol kódem): jedno opravné kolo
+            # stavitele místo drahého kontrolora; když ani potom kontroly neprojdou, K5 rozhodne sám
+            if self.ai and key != "concept" and not r.get("precheck") and not self.stop_requested:
+                why = builder_checks(self.folder, key)
+                if why:
+                    r["precheck"] = why
+                    self.log(_("{part}, kolo {n}: kontroly kódem stavitele neprošly ({why}) — vracím staviteli před K5.",
+                               part=_(UNIT[key]["label"]), n=n, why=why))
+                    self.save()
+                    pf = fill(PRECHECK_PROMPT, sub=UNIT[key]["sub"], why=why, cmd=tools_cmd("builder"))
+                    r["builder"] = _merge_runs(r["builder"], self._agent(key, "builder", pf, n, cont=True))
+                    self.save()
+                    if self.stop_requested:
+                        return "stopped"
             u["state"] = "review"
             self.save()
             before = _sha_models(self.folder)
