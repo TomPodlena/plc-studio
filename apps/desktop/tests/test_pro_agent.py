@@ -251,6 +251,23 @@ class StepTest(unittest.TestCase):
         from plc_studio import helppanel
         self.assertIsNone(helppanel.chapter(app, "pro3d"))
 
+    def test_folder_never_inside_app(self):
+        """Volba složky 3D uvnitř repa (samples/) se ignoruje — postup nesmí zapisovat do aplikace."""
+        from plc_studio.steps import pro3d
+        app = self.app
+        old = app.settings.get("pro3d_dirs")
+        try:
+            app.settings["pro3d_dirs"] = {pro3d._key(app): str(pro3d.APP_ROOT / "samples")}
+            f = pro3d.machine_folder(app)
+            self.assertIsNotNone(f)
+            self.assertFalse(pro3d.inside_app(f), f)
+            self.assertTrue(pro3d.inside_app(pro3d.APP_ROOT / "samples" / "x"))
+        finally:
+            if old is None:
+                app.settings.pop("pro3d_dirs", None)
+            else:
+                app.settings["pro3d_dirs"] = old
+
     def test_shown_with_preview(self):
         app = self.app
         app.settings["pro_preview"] = True

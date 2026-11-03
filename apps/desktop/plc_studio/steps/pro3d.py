@@ -53,11 +53,32 @@ def default_folder(app) -> Path | None:
     return Path(home) / "pro3d" / folder_name(app) / "02_Vykresy" / "3D" if home else None
 
 
+APP_ROOT = Path(__file__).resolve().parents[4]      # kořen repa / instalace aplikace (samples, apps, packages…)
+
+
+def inside_app(path) -> bool:
+    """Složka uvnitř repa / instalace aplikace (např. ``samples/``) — 3D agent tam nesmí zapisovat (2026-11-03: běh
+    postupu z okna PLCdesk zapsal celý stroj NL-1 do ``samples/`` přes starou uloženou volbu složky)."""
+    try:
+        Path(path).resolve().relative_to(APP_ROOT)
+        return True
+    except (ValueError, OSError):
+        return False
+
+
 def machine_folder(app) -> Path | None:
-    """Složka 3D stroje: volba pro projekt (``settings.pro3d_dirs``), jinak 02_Vykresy/3D projektové složky."""
+    """Složka 3D stroje: volba pro projekt (``settings.pro3d_dirs``), jinak 02_Vykresy/3D projektové složky.
+    Volba / výchozí složka uvnitř aplikace se nepoužije → pracovní složka ``<home>/pro3d/<číslo>_<Název>/…``."""
     dirs = app.settings.get("pro3d_dirs")
     v = dirs.get(_key(app)) if isinstance(dirs, dict) else None
-    return Path(v) if isinstance(v, str) and v else default_folder(app)
+    if isinstance(v, str) and v and not inside_app(v):
+        return Path(v)
+    d = default_folder(app)
+    if d is not None and inside_app(d):
+        from ..datadir import folder_name
+        home = getattr(app, "home", None)
+        return Path(home) / "pro3d" / folder_name(app) / "02_Vykresy" / "3D" if home else None
+    return d
 
 
 def set_folder(app, path: str) -> None:
