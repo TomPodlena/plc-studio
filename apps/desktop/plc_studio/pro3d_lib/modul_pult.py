@@ -16,8 +16,10 @@ a E-stopu jen u řad, které ji vyžadují (Siemens 3SU1 ne). Rozteče os ≥ ob
 E-stop 48 × 56). HMI: výřez, tloušťka desky, upínky a volné okolí jen z ``pro3d_cabinet/data/dvere.json`` (čte se),
 tělo za panelem = App::Link na ``pro3d_parts`` (hmi_panel), čelo 214 × 158 × 8,4 z téhož listu. Přístroje 3SU1:
 rozměry z ``pro3d_parts/data/katalog.json`` (act_d, front_h, rear_*), tvar „hlavice + krk v otvoru + držák za deskou“
-staví tento modul (model pro3d_parts panel_22 nemá tloušťku desky — tělo za panelem by kolidovalo s deskou).
-Kotvení V4: dno pultu 2 × M6 do matic T horní drážky profilu; kabel V2: vývodka SKINTOP ST-M M20 v zadní stěně
+= model pro3d_parts ``panel_22`` s parametrem ``deska_t`` (dle dokumentace); jiný typ / volič = obálka tohoto modulu.
+HMI v pultu jen podle konceptu (``pro3d_cabinet.dvere.hmi_misto``) — jinak zůstává ve dveřích rozvaděče.
+Kotvení V4: dva úhelníky S235 t 8 (ODHAD) — svislé rameno M6 do matice T boční drážky profilu, vodorovné rameno pod
+přesahem dna pultu, dnem M6 + podložka + matice ISO 4032 (schváleno 2026-11-03); kabel V2: vývodka SKINTOP ST-M M20 v zadní stěně
 (normalie.json), kabel Ø10 (ODHAD) R = 5 × D.
 
 CLI: ``python -m plc_studio.pro3d_lib.modul_pult [--manifest PLCdesk_CAD.json] [--plan] [--md PULT.md] [--fc SLOŽKA]``."""
@@ -37,6 +39,7 @@ if __package__ in (None, ""):
 
 from . import spojky_el, spojky_mech  # noqa: E402
 from .modul_majak import RGB, barva_z_popisu, barva_z_role  # noqa: E402
+from ..pro3d_cabinet.dvere import hmi_misto  # noqa: E402  (umístění HMI: pult × dveře — jedno místo rozhodnutí)
 
 HERE = Path(__file__).resolve().parent
 P22 = json.loads((HERE / "data" / "pristroje_22.json").read_text(encoding="utf-8"))
@@ -60,7 +63,12 @@ RGB_X = dict(RGB, K="30,30,30", E="200,20,20", EY="245,195,0")   # EY ≠ žlut�
 # ODHADY modulu
 T_TELO = 2.0           # plech těla
 T_VIKO = 3.0           # čelní deska (víko) — v pásmu 1–6 (přístroje) i 2–6 (HMI); Siemens držák z výroby 4,5 → seřídit
-T_VYZTUHA = 3.0        # výztuha dna pod šrouby do profilu
+UH_T = 8.0             # úhelník kotvení S235 t 8 (šroub M6 do matice T bez podložky vychází jen pro 8 / 12 mm — V4)
+UH_W = 50.0            # šířka úhelníku podél profilu
+UH_DX = 12.0           # šroub do drážky x − 12, šroub dnem x + 12 (konec dříku nesmí na hlavu šroubu v drážce)
+UH_HORIZ = 22.0        # vodorovné rameno od boku profilu (pod přesahem dna pultu)
+UH_VYSKA = 32.0        # svislé rameno (z 8 … 40, přes boční drážku z = 20)
+R_BOK_MINUS_Y = [[1, 0, 0], [0, 0, -1], [0, 1, 0]]   # boční plocha profilu −Y: místní Z → −Y, místní X → X
 PRIRUBA = 15.0         # příruby těla vpředu (pod šrouby víka)
 HLOUBKA = 100.0        # vnější hloubka pultu (tělo přístroje 49,7 + víko + rezerva na vodiče ≥ 30)
 M_VIKO = "M4"
@@ -98,12 +106,16 @@ def pristroje_z_manifestu(manifest: dict) -> dict:
     """Řádky kusovníku → přístroje pultu {pristroje: [...], hmi, vynechano, zpetna_vazba}."""
     devs = {d.get("name"): d for d in manifest.get("devices") or []}
     out, vyn, fb, hmi = [], [], [], None
+    hm = hmi_misto(manifest)                       # jedno rozhodnutí sdílené s rozvaděčem (pro3d_cabinet.dvere)
     for r in manifest.get("parts") or []:
         druh = KAT.get(r.get("category"))
         if not druh:
             continue
         d = devs.get(r.get("device")) or {}
         desc = d.get("desc") or r.get("label") or ""
+        if druh == "hmi" and hm["misto"] != "pult":
+            vyn.append(f"{r.get('id')}: HMI ve dveřích rozvaděče ({hm['zdroj']}) — do pultu nevloženo")
+            continue
         if druh == "hmi":
             code = str(r.get("orderCode") or "").replace(" ", "")
             if code in DVERE["pristroje"] and KATALOG.get(code, {}).get("gen") == "hmi_panel":
@@ -151,6 +163,14 @@ def _spec_pristroj(p: dict) -> dict:
     přes tloušťku desky, držák + kontakty za deskou (rear_w × rear_h × rear_d od zadního líce desky)."""
     k = KATALOG[p["model"]]
     t = T_VIKO
+    if not p["zastupny"] and p["druh"] != "volic" and k.get("gen") == "panel_22":
+        # model pro3d_parts „dle dokumentace“ s tloušťkou desky (g_panel_22 deska_t) — rozměry z katalog.json
+        prm = {kk: v for kk, v in k.items() if kk not in ("gen", "nazev", "material", "detail", "zdroj", "poznamka")}
+        prm.update(deska_t=t, krk_d=KRK_D)
+        return {"key": f"P22_{p['model']}_t{t:g}", "gen": "panel_22", "params": prm, "nazev": f"{k['nazev']} — deska {t:g} mm",
+                "zdroj": [k["zdroj"], P22["rady"]["siemens_3SU1"]["drzak"]["zdroj"]], "detail": "obálka",
+                "typ": "dil", "material": k.get("material", ""),
+                "poznamka": "hlavice, krk Ø22 (ODHAD) v otvoru Ø22,3, držák 3SU1500 + kontakty za zadním lícem desky"}
     add = [{"cyl": {"p": [0, 0, 0], "d": [0, 1, 0], "r": k["act_d"] / 2, "h": k["front_h"]}},
            {"cyl": {"p": [0, -t, 0], "d": [0, 1, 0], "r": KRK_D / 2, "h": t}},
            {"box": [-k["rear_w"] / 2, k["rear_w"] / 2, -t - k["rear_d"], -t, -k["rear_h"] / 2, k["rear_h"] / 2]}]
@@ -189,6 +209,21 @@ def _spec_upinka(code: str, svisla: bool) -> dict:
             "zastupny": True, "nazev": f"Upínka HMI {L:g} × {hh:g} × {dd:g} (tvar ODHAD, počet a strany dle návodu)",
             "zdroj": [DVERE["pristroje"][code]["zdroj"]["url"]], "detail": "obálka", "typ": "prislusenstvi", "material": "plast",
             "poznamka": tv["pozn"]}
+
+
+def _spec_uhelnik() -> dict:
+    """Úhelník kotvení pultu (vlastní konstrukce, ODHAD) v místních souřadnicích: počátek = horní hrana boku profilu
+    (y = −20, z = 40 globálně), svislé rameno na boku profilu (−Y), vodorovné rameno pod přesahem dna pultu."""
+    h6 = spojky_mech.otvor_vule(M_PROFIL)
+    yl = -UH_HORIZ / 2 - UH_T / 2
+    body = {"add": [{"box": [-UH_W / 2, UH_W / 2, -UH_T, 0.0, -UH_VYSKA, 0.0]},
+                    {"box": [-UH_W / 2, UH_W / 2, -UH_HORIZ, 0.0, -UH_T, 0.0]}],
+            "cut": [{"cyl": {"p": [-UH_DX, -UH_T - 1, -20.0], "d": [0, 1, 0], "r": h6 / 2, "h": UH_T + 2}},
+                    {"cyl": {"p": [UH_DX, yl, -UH_T - 1], "d": [0, 0, 1], "r": h6 / 2, "h": UH_T + 2}}]}
+    return {"key": f"O1_uhelnik_t{UH_T:g}", "gen": "lib_body", "body": body, "vlastni": True,
+            "nazev": f"Úhelník kotvení pultu (ocel S235 t {UH_T:g}, ODHAD)", "zdroj": ["vlastní konstrukce (ODHAD)"],
+            "detail": "vlastní konstrukce (ODHAD)", "typ": "dil", "material": "ocel S235 (ODHAD)",
+            "poznamka": f"2 ks na pult; díry Ø{h6:g} (ISO 273 m) — {M_PROFIL} do matice T boční drážky a {M_PROFIL} dnem pultu s maticí"}
 
 
 def _spec_vyvodka() -> dict:
@@ -275,14 +310,11 @@ def modul(pr: dict, x0: float = 65.0, z_podlaha: float = 0.0, nazev: str = "Pult
     var, info = [], []
     dily, inst, telesa = [], [], []
     # tělo: plášť (dno, záda, boky, strop) otevřený vpředu + příruby
-    # tělo = kvádr − dutina (dutina vynechá navařenou výztuhu dna) − otvor čela (zbydou příruby PRIRUBA vpředu)
+    # tělo = kvádr − dutina − otvor čela (zbydou příruby PRIRUBA vpředu)
     add = [{"box": [x0, x1, yb, yf, z0, z1]}]
     xa, xb, ya, yb2 = x0 + T_TELO, x1 - T_TELO, yb + T_TELO, yf - T_TELO
-    zs, zv_ = z0 + T_TELO, z0 + T_TELO + T_VYZTUHA
-    sx0, sx1, sy0, sy1 = x0 + 40.0, x1 - 40.0, -15.0, 15.0           # výztuha dna (pásovina 30 × T_VYZTUHA, ODHAD)
-    cut = [{"box": [xa, xb, ya, yb2, zv_, z1 - T_TELO]},
-           {"box": [xa, sx0, ya, yb2, zs - 0.01, zv_ + 0.01]}, {"box": [sx1, xb, ya, yb2, zs - 0.01, zv_ + 0.01]},
-           {"box": [sx0, sx1, ya, sy0, zs - 0.01, zv_ + 0.01]}, {"box": [sx0, sx1, sy1, yb2, zs - 0.01, zv_ + 0.01]},
+    zs = z0 + T_TELO
+    cut = [{"box": [xa, xb, ya, yb2, zs, z1 - T_TELO]},
            {"box": [x0 + PRIRUBA, x1 - PRIRUBA, yb2 - 1, yf + 1, z0 + PRIRUBA, z1 - PRIRUBA]}]
     fl = []
     sv = [(x0 + PRIRUBA / 2, z0 + PRIRUBA / 2), (x1 - PRIRUBA / 2, z0 + PRIRUBA / 2), (x0 + PRIRUBA / 2, z1 - PRIRUBA / 2),
@@ -291,16 +323,16 @@ def modul(pr: dict, x0: float = 65.0, z_podlaha: float = 0.0, nazev: str = "Pult
     h4 = spojky_mech.otvor_vule(M_VIKO)
     h6 = spojky_mech.otvor_vule(M_PROFIL)
     cut_tel = [{"cyl": {"p": [x, yf - T_TELO - 1, z], "d": [0, 1, 0], "r": h4 / 2, "h": T_TELO + 2}} for x, z in sv]
-    xs6 = [x0 + 60.0, x1 - 60.0]
-    cut_tel += [{"cyl": {"p": [x, 0.0, z0 - 1], "d": [0, 0, 1], "r": h6 / 2, "h": T_TELO + 2}} for x in xs6]
+    xs6 = [x0 + 60.0, x1 - 60.0]                    # úhelníky kotvení (V4) — osy podél X
+    yu = -20.0 - UH_HORIZ / 2 - UH_T / 2             # šroub dna → vodorovné rameno úhelníku (mimo svislé rameno a matici)
+    if yu - spojky_mech.otvor_vule(M_PROFIL) / 2 < yb + T_TELO + 1.0:
+        raise ValueError("pult: šroub úhelníku mimo dno (hloubka pultu)")
+    cut_tel += [{"cyl": {"p": [x + UH_DX, yu, z0 - 1], "d": [0, 0, 1], "r": h6 / 2, "h": T_TELO + 2}} for x in xs6]
     xv, zv = x1 - 60.0, z0 + 60.0
     cut_tel.append({"cyl": {"p": [xv, yb - 1, zv], "d": [0, 1, 0], "r": OTVOR_VYVODKY / 2, "h": T_TELO + 2}})
-    # výztuha dna (pásovina navařená na dno): plech 2 mm na šroub do matice T nestačí (délka / roznášení) — ODHAD
-    vyz = []
-    cut_tel += [{"cyl": {"p": [x, 0.0, z0 - 1], "d": [0, 0, 1], "r": h6 / 2, "h": T_TELO + T_VYZTUHA + 2}} for x in xs6]
-    telesa.append({"name": "Telo", "label": f"Tělo pultu (plech t {T_TELO:g}, příruby {PRIRUBA:g}, výztuha dna {T_VYZTUHA:g}, "
+    telesa.append({"name": "Telo", "label": f"Tělo pultu (plech t {T_TELO:g}, příruby {PRIRUBA:g}, "
                    f"{W:g} × {HLOUBKA:g} × {H:g}, ODHAD)",
-                   "body": {"add": add + fl + vyz, "cut": cut + cut_tel},
+                   "body": {"add": add + fl, "cut": cut + cut_tel},
                    "props": {"Konstrukce_Typ": "dil", "Konstrukce_Material": "ocel DC01 t 2 (ODHAD)",
                              "Konstrukce_Poznamka": "vlastní konstrukce; víko snímatelné, navařovací matice M4 na přírubách (ODHAD)"}})
     # víko s výřezy
@@ -343,15 +375,25 @@ def modul(pr: dict, x0: float = 65.0, z_podlaha: float = 0.0, nazev: str = "Pult
                 it["skupina"] = "Viko"
             inst.append(it)
         txt_viko = r["text"]
-    # kotvení V4 dnem do drážky profilu
+    # kotvení V4: dva úhelníky — svislé rameno na boční drážce profilu (strana −Y, šroub + matice T), vodorovné rameno
+    # pod přesahem dna pultu (šroub dnem shora + podložka + matice ISO 4032 pod ramenem; přístup po sejmutí víka)
     v4 = []
+    uh = _spec_uhelnik()
+    dily.append(uh)
     for x in xs6:
-        r = spojky_mech.sroub_do_drazky(M_PROFIL, x, 0.0, 40.0, T_TELO + T_VYZTUHA)
+        inst.append({"model": uh["key"], "pos": [x, -20.0, 40.0], "rot": I3, "druh": "uhelnik"})
+        r = spojky_mech.sroub_do_drazky_r(M_PROFIL, [x - UH_DX, -20.0, 20.0], R_BOK_MINUS_Y, UH_T)
         if not r["ok"]:
             raise ValueError(r["text"])
         dily += r["dily"]
         inst += r["instance"]
-        v4.append(r["text"])
+        v4.append("úhelník → profil: " + r["text"])
+        r = spojky_mech.sroub_s_matici(M_PROFIL, [x + UH_DX, yu, z0 + T_TELO], [0, 0, -1], T_TELO + UH_T, podlozka=True)
+        if not r["ok"]:
+            raise ValueError(r["text"])
+        dily += r["dily"]
+        inst += r["instance"]
+        v4.append("pult → úhelník: " + r["text"])
     # přístroje
     for p in lay["pol"]:
         sp = _spec_pristroj(p)
@@ -377,9 +419,9 @@ def modul(pr: dict, x0: float = 65.0, z_podlaha: float = 0.0, nazev: str = "Pult
         hx, hz = lay["hmi_x"], lay["zc"]
         t_sp, c_sp = _spec_hmi_telo(code), _spec_hmi_celo(code)
         dily += [t_sp, c_sp]
-        inst.append({"model": t_sp["key"], "pos": [hx, yv, hz], "rot": I3, "druh": "hmi", "mount": "zavit", "skupina": "Viko",
+        inst.append({"model": t_sp["key"], "pos": [hx, yv, hz], "rot": I3, "druh": "hmi", "mount": "upinka", "skupina": "Viko",
                      "props": {"PLCdesk_Id": hmi["id"] or "", "Konstrukce_Poznamka": "drží upínky výrobce (6 ×, 0,2 N·m)"}})
-        inst.append({"model": c_sp["key"], "pos": [hx, yv, hz], "rot": I3, "druh": "hmi_celo", "mount": "zavit", "skupina": "Viko"})
+        inst.append({"model": c_sp["key"], "pos": [hx, yv, hz], "rot": I3, "druh": "hmi_celo", "mount": "upinka", "skupina": "Viko"})
         up = hd["upinky"]
         vw, vh = hd["vyrez"]["w"] + 0.5, hd["vyrez"]["h"] + 0.5
         L, hh = up["tvar"]["delka"], up["tvar"]["vyska"]
@@ -395,7 +437,7 @@ def modul(pr: dict, x0: float = 65.0, z_podlaha: float = 0.0, nazev: str = "Pult
                 else:
                     cxp = hx + vw / 2 + hh / 2 if side == "vpravo" else hx - vw / 2 - hh / 2
                     czp = hz
-                inst.append({"model": sp["key"], "pos": [cxp, yf, czp], "rot": I3, "druh": "upinka", "mount": "zavit", "skupina": "Viko"})
+                inst.append({"model": sp["key"], "pos": [cxp, yf, czp], "rot": I3, "druh": "upinka", "mount": "upinka", "skupina": "Viko"})
         ok_ = {"vlevo": hx - vw / 2 - (x0 + T_TELO), "vpravo": min([p["x"] - 15.0 for p in lay["pol"]] + [x1 - T_TELO]) - (hx + vw / 2),
                "nahore": (z1 - PRIRUBA) - (hz + vh / 2), "dole": (hz - vh / 2) - (z0 + PRIRUBA)}
         for s_, v in ok_.items():
@@ -483,7 +525,8 @@ def vzor_lavice() -> dict:
     """Výňatek manifestu: E-stop + START / STOP / RESET + volič + MTP700 (Siemens 3SU1)."""
     def part(i, cat, code, dev, brand="Siemens"):
         return {"id": f"-{dev}:{cat}", "tag": "-" + dev, "category": cat, "orderCode": code, "brand": brand, "device": dev, "qty": 1}
-    return {"devices": [{"name": "S1", "cls": "DI", "desc": "Nouzové zastavení (NC)"},
+    return {"brief": {"desc": "", "concept": {"hmi": "Dotykový panel HMI 7\" v pultu obsluhy u stroje, tlačítka Ø22 vedle něj"}},
+            "devices": [{"name": "S1", "cls": "DI", "desc": "Nouzové zastavení (NC)"},
                         {"name": "S2", "cls": "DI", "desc": "Tlačítko START cyklu"},
                         {"name": "S3", "cls": "DI", "desc": "Tlačítko STOP cyklu"},
                         {"name": "S0R", "cls": "DI", "desc": "Kvitace poruchy (RESET)"},

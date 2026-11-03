@@ -58,9 +58,9 @@
   "vyznam": {"červená": "nouze — nebezpečný stav, okamžitý zásah", "žlutá": "abnormální — blížící se kritický stav, sledovat / zasáhnout", "modrá": "povinné — stav vyžaduje zásah obsluhy", "zelená": "normální — volitelně", "bílá": "neutrální — jiné stavy, při pochybnosti; sledovat"}
  },
  "role_DO_na_barvu": {
-  "_pozn": "Mapování rolí PLCdesk (DO_ROLES: run / fault / ready / stopped / lock / auto) na barvu = ODHAD podle významu barev výše; potvrdí uživatel (zpětná vazba). Popis zařízení (Device.desc) s barvou má přednost.",
-  "fault": "červená", "run": "zelená", "ready": "bílá (ODHAD; zelená obsazena během)", "stopped": "žlutá (ODHAD — stroj stojí mimo cyklus = abnormální vůči AUTO)", "lock": "modrá (ODHAD — vyžaduje zásah, např. zavřít / odblokovat)", "auto": "bílá (ODHAD)",
-  "stav": "ODHAD"
+  "_pozn": "Mapování rolí PLCdesk (DO_ROLES: run / fault / ready / stopped / lock / auto) na barvu = výchozí PLCdesk (rozhodnutí uživatele 2026-11-03), shodně s jádrem bom.ts BEACON_ROLE_COLOR. Popis zařízení (Device.desc) s barvou má přednost.",
+  "fault": "červená", "run": "zelená", "ready": "bílá (výchozí PLCdesk — rozhodnutí uživatele; zelená obsazena během)", "stopped": "žlutá (výchozí PLCdesk — rozhodnutí uživatele; stroj stojí mimo cyklus)", "lock": "modrá (výchozí PLCdesk — rozhodnutí uživatele; vyžaduje zásah)", "auto": "bílá (výchozí PLCdesk — rozhodnutí uživatele)",
+  "stav": "rozhodnutí uživatele 2026-11-03"
  },
  "viditelnost": {
   "stav": "ODHAD",

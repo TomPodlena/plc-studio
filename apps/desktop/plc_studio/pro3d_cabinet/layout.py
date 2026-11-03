@@ -237,10 +237,15 @@ def device_geom(part: dict, parts_index: dict | None) -> dict:
 def expand(manifest: dict, parts_index: dict | None) -> tuple[list, dict | None, list]:
     """Kusy přístrojů rozvaděče v pořadí: stanice PLC (podle slotů), ostatní podle manifestu. Vrací (kusy, skříň, poznámky)."""
     parts = [p for p in manifest.get("parts") or [] if isinstance(p, dict) and p.get("location") == "cabinet"]
+    notes = []
+    hm = dvere.hmi_misto(manifest)              # HMI v pultu obsluhy (modul O1) podle konceptu → ne na dveře
+    if hm["misto"] == "pult":
+        for p in [p for p in parts if p.get("category") in dvere.HMI_KAT]:
+            notes.append(f"{p['id']}: HMI na pultu obsluhy (modul O1) podle {hm['zdroj']} — na dveřích rozvaděče není")
+        parts = [p for p in parts if p.get("category") not in dvere.HMI_KAT]
     cab = next((p for p in parts if p.get("category") == "cabinet"), None)
     by_id = {p["id"]: p for p in parts}
     used: dict = {}
-    notes = []
     out = []
 
     def mk(p, n, **kw):

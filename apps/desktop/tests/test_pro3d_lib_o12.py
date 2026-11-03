@@ -57,7 +57,11 @@ class MajakTest(unittest.TestCase):
     def test_novy_tvar_patra_z_roli(self):
         v = modul_majak.veze_z_manifestu(modul_majak.vzor_novy())[0]
         self.assertEqual([(p["device"], p["barva"]) for p in v["patra"]], [("H2", "R"), ("H1", "G"), ("H3", "W")])
-        self.assertTrue(next(p for p in v["patra"] if p["device"] == "H3")["odhad"])     # ready → bílá = ODHAD
+        h3 = next(p for p in v["patra"] if p["device"] == "H3")                         # ready → bílá = výchozí PLCdesk
+        self.assertFalse(h3["odhad"])
+        self.assertIn("výchozí PLCdesk", h3["zdroj_barvy"])
+        for role, kod in (("run", "G"), ("fault", "R"), ("ready", "W"), ("stopped", "Y"), ("lock", "B"), ("auto", "W")):
+            self.assertEqual(modul_majak.barva_z_role(role), (kod, False), role)
         self.assertFalse(any("M-02" in x for x in v["zpetna_vazba"]))
         self.assertEqual(modul_majak.volba_veze(v["patra"])["druh"], "stavebnice")       # bílá není v GN / YE / RD
 
@@ -184,6 +188,41 @@ class PultTest(unittest.TestCase):
         mat_viko = [i for i in self.m["instance"] if i["druh"] == "matice" and i["model"].startswith("ISO4032_M4")]
         self.assertEqual(len(mat_viko), 8)
         self.assertTrue(all(not i.get("skupina") for i in mat_viko))
+
+    def test_hmi_misto_jedno_rozhodnuti(self):
+        from plc_studio.pro3d_cabinet import dvere, layout
+        man = modul_pult.vzor_lavice()
+        self.assertEqual(dvere.hmi_misto(man)["misto"], "pult")
+        self.assertEqual(dvere.hmi_misto({})["misto"], "dvere")                          # výchozí = dveře (jako dosud)
+        self.assertEqual(dvere.hmi_misto({"brief": {"concept": {"hmi": "Panel HMI ve dveřích rozvaděče"}}})["misto"], "dvere")
+        self.assertEqual(dvere.hmi_misto({"brief": {"desc": "Stroj s HMI na otočném rameni u stroje."}})["misto"], "pult")
+        self.assertEqual(dvere.hmi_misto({"brief": {"concept": {"hmi": "Tlačítka na pultu"}}})["misto"], "dvere")  # bez HMI
+        # bez konceptu: HMI do pultu nejde, zůstane rozvaděči
+        bez = dict(man, brief={})
+        pr = modul_pult.pristroje_z_manifestu(bez)
+        self.assertIsNone(pr["hmi"])
+        self.assertTrue(any("HMI ve dveřích" in v for v in pr["vynechano"]))
+        # rozvaděč: HMI s location cabinet jen když není v pultu
+        hmi_row = dict(man["parts"][-1], location="cabinet", mount="panel", qty=1)
+        items_p, _c, notes = layout.expand({"brief": man["brief"], "parts": [hmi_row]}, None)
+        self.assertEqual(items_p, [])
+        self.assertTrue(any("pultu" in n for n in notes))
+        items_d, _c, _n = layout.expand({"brief": {}, "parts": [hmi_row]}, None)
+        self.assertEqual([i["cat"] for i in items_d], ["plc_hmi"])
+
+    def test_kotveni_uhelniky(self):
+        uh = [i for i in self.m["instance"] if i["druh"] == "uhelnik"]
+        self.assertEqual(len(uh), 2)
+        mods = [i["model"] for i in self.m["instance"]]
+        self.assertEqual(mods.count("MaticeT_40-8_M6"), 2)                 # boční drážka profilu
+        self.assertEqual(mods.count("ISO4032_M6"), 2)                      # pod vodorovným ramenem
+        self.assertIn("úhelník → profil", self.k["spojka_V4"])
+        sp = next(s for s in self.m["dily"] if s["key"].startswith("O1_uhelnik"))
+        self.assertTrue(sp.get("vlastni"))
+        # přístroje z katalogu = model pro3d_parts panel_22 s tloušťkou desky
+        p22 = [s for s in self.m["dily"] if s.get("gen") == "panel_22"]
+        self.assertTrue(p22)
+        self.assertTrue(all(s["params"]["deska_t"] == modul_pult.T_VIKO for s in p22))
 
     def test_bez_estopu_zpetna_vazba(self):
         man = modul_pult.vzor_lavice()

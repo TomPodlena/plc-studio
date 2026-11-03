@@ -100,10 +100,16 @@ def g_hmi_panel(p):
 
 
 def g_panel_22(p):
+    """Přístroj Ø22 na panelu: y = 0 = líc desky, hlavice do +y. ``deska_t`` (tloušťka desky, výchozí 0 = jako dřív)
+    posune držák a kontakty za zadní líc desky a otvor desky vyplní krk Ø ``krk_d`` (výchozí 22, ODHAD — otvor Ø22,3)."""
     act = cyl_y(p["act_d"] / 2, 0, p["front_h"])
     rw, rh = p["rear_w"], p["rear_h"]
-    rear = box(-rw / 2, rw / 2, -p["rear_d"], 0, -rh / 2, rh / 2)
-    return [("Ovladac", act, "dil", None), ("Teleso_za_panelem", rear, "dil", None)]
+    t = float(p.get("deska_t") or 0.0)
+    rear = box(-rw / 2, rw / 2, -t - p["rear_d"], -t, -rh / 2, rh / 2)
+    out = [("Ovladac", act, "dil", None), ("Teleso_za_panelem", rear, "dil", None)]
+    if t > 0:
+        out.insert(1, ("Krk_v_otvoru", cyl_y(float(p.get("krk_d") or 22.0) / 2, -t, 0), "dil", None))
+    return out
 
 
 def g_snimac_valec(p):
@@ -135,7 +141,19 @@ def g_snimac_kvadr(p):
 
 
 def g_valec_obalka(p):
-    return [("Teleso", cyl_z(p["d"] / 2, 0, p["h"]), "dil", None)]
+    """Válcová obálka Ø d × h; volitelně díry patky (``holes_n`` × Ø ``holes_d`` na Ø ``holes_pcd`` od úhlu ``holes_start``
+    skrz patku ``holes_t``, nad ní zahloubení Ø ``holes_cb_d`` výšky ``holes_cb_h``) — šrouby patky pak v modelu nekolidují."""
+    body = cyl_z(p["d"] / 2, 0, p["h"])
+    if p.get("holes_n"):
+        cut = []
+        for k in range(int(p["holes_n"])):
+            a = math.radians(float(p.get("holes_start", 0)) + 360.0 / int(p["holes_n"]) * k)
+            x, y = p["holes_pcd"] / 2 * math.cos(a), p["holes_pcd"] / 2 * math.sin(a)
+            cut.append(cyl_z(p["holes_d"] / 2, -1, p["holes_t"] + 0.01, x, y))
+            if p.get("holes_cb_d"):
+                cut.append(cyl_z(p["holes_cb_d"] / 2, p["holes_t"], p["holes_t"] + p.get("holes_cb_h", 0), x, y))
+        body = body.cut(Part.makeCompound(cut))
+    return [("Teleso", body, "dil", None)]
 
 
 def _socket(s, t, ztop):

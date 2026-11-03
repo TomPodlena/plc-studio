@@ -9,7 +9,7 @@ Umí oba tvary kusovníku:
 Všechny řádky jedné skupiny (``group`` / ``tower`` řádku, jinak celý stroj) = JEDNA věž, patro na každé DO; rozdíl
 proti kusovníku (N věží → 1, nevyužité patro hotové věže, dvě DO téže barvy) jde do ``zpetna_vazba`` — nic se
 neopravuje potichu. Barva patra: z popisu zařízení (cs / en / de), jinak z role (``data/veze.json``
-``role_DO_na_barvu`` = ODHAD), pořadí shora R, Y, B, G, W (IEC 60204-1 10.3.2 podle IDEC — sekundární).
+``role_DO_na_barvu`` = výchozí PLCdesk, rozhodnutí uživatele 2026-11-03 — shodně s jádrem bom.ts), pořadí shora R, Y, B, G, W (IEC 60204-1 10.3.2 podle IDEC — sekundární).
 
 Věž WERMA KombiSIGN 71: hotová věž 64924005 (GN / YE / RD, kóty výkresu 299 / 282 / 226 / 170 / 114 / 87, patka Ø70
 4 × Ø5,5 na Ø54), když se barvy pater vejdou do GN / YE / RD bez konfliktu; jinak stavebnice KS71 (přípojný prvek
@@ -92,7 +92,8 @@ def barva_z_popisu(desc: str) -> str | None:
 
 
 def barva_z_role(role: str | None) -> tuple[str | None, bool]:
-    """(kód barvy, ODHAD?) z ``veze.json role_DO_na_barvu`` (fault = R, run = G ověřeno významem barev, ostatní ODHAD)."""
+    """(kód barvy, ODHAD?) z ``veze.json role_DO_na_barvu`` (fault = R, run = G, ready = W, stopped = Y, lock = B,
+    auto = W — výchozí PLCdesk, rozhodnutí uživatele 2026-11-03; ODHAD jen u neznámé role)."""
     v = VEZE["role_DO_na_barvu"].get(str(role or ""))
     if not v:
         return None, True
@@ -118,7 +119,7 @@ def _patro(dev: dict | None, name: str, row: dict | None, extra: dict | None = N
         zdroj = "popis zařízení" if b else ""
     if not b:
         b, odhad = barva_z_role(role)
-        zdroj = f"role {role}" + (" (ODHAD)" if odhad else "") if b else ""
+        zdroj = f"role {role}" + (" (ODHAD)" if odhad else " (výchozí PLCdesk)") if b else ""
     sig = [s.get("tag") for s in d.get("signals") or [] if s.get("dir") == "DO"]
     return {"device": name, "role": role, "desc": desc, "barva": b or "W", "zdroj_barvy": zdroj or "bez barvy a role — bílá (ODHAD)",
             "odhad": odhad or not zdroj, "tag": sig[0] if sig else "", "id": (row or {}).get("id") or "",
@@ -453,7 +454,7 @@ def report_md(plan: dict) -> str:
     L += ["## ODHADY", "", f"- deska / úhelník ocel t {T_DESKA:g}, šrouby {M_PROFIL} do matic T (± {X_PROFIL:g}), {M_PATKA} do patky "
           "(výrobce šroub neuvádí)", f"- trubka stěna {STENA_TRUBKY:g}, zasunutí do základny {ZASUNUTI_ZAKLADNA:g} a do přípojného prvku "
           f"{ZASUNUTI_PRVEK:g}, svěrné šrouby výrobce nemodelovány (PLCdesk_Mount = zavit)",
-          "- mapování role → barva mimo run / fault (veze.json role_DO_na_barvu)", f"- výška spodního svícení ≥ {VYSKA_MIN:g} mm, "
+f"- výška spodního svícení ≥ {VYSKA_MIN:g} mm, "
           "kužel viditelnosti jen pro kontrolu", "- průměr kabelu podle počtu žil", ""]
     return "\n".join(L)
 

@@ -328,7 +328,7 @@ class FreeCadTest(unittest.TestCase):
         if g == "hmi_panel":
             return [p["cut_w"], p["depth"], p["cut_h"]]
         if g == "panel_22":
-            return [max(p["act_d"], p["rear_w"]), p["front_h"] + p["rear_d"], max(p["act_d"], p["rear_h"])]
+            return [max(p["act_d"], p["rear_w"]), p["front_h"] + p.get("deska_t", 0) + p["rear_d"], max(p["act_d"], p["rear_h"])]
         if g == "snimac_valec":
             nut = p.get("nut_sw", 0) / 0.8660254 if p.get("nut_sw") else p["d"]
             return [p["total"], max(nut, p["d"]), max(p.get("nut_sw", 0), p["d"])]

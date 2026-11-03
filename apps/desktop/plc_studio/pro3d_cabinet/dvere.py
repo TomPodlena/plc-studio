@@ -35,6 +35,47 @@ SKILL_MEDIA = Path(os.environ.get("PRO3D_KABELAZ_MEDIA") or
 EPS = 1e-6
 
 
+import re as _re
+
+# --- umístění HMI: pult obsluhy (modul O1) × dveře rozvaděče — JEDNO rozhodnutí pro pult i rozvaděč -------------------
+HMI_KAT = ("plc_hmi",)
+_RX_HMI = _re.compile(r"\bhmi\b|panel|dotyk|touch|display|displej|obrazov|vizualiz|bedien|terminal|ovládán|ovladan|operátor"
+                      r"|operator", _re.I)
+_RX_PULT = _re.compile(r"pult|pendant|bedienpult|bediensäule|konzol|console|stojan|stand\b|rameno|tragarm|support arm"
+                       r"|u stroje|na stroji|na rámu|at the machine|on the machine|an der maschine|ovládací (místo|stanoviště)"
+                       r"|operator (station|desk)", _re.I)
+_RX_DVERE = _re.compile(r"dveř|dveri|dvířk|rozvaděč|rozvadec|rozváděč|cabinet|enclosure|schaltschrank|schranktür|door|tür", _re.I)
+
+
+def hmi_misto(manifest: dict | None) -> dict:
+    """Kam patří HMI (kategorie ``plc_hmi``): ``{"misto": "pult" | "dvere", "zdroj", "text"}``.
+
+    Pořadí: řádek kusovníku HMI s ``mount`` / ``location`` = pult (``pult`` / ``operator_panel`` / ``pendant``), jinak
+    koncept (``brief.concept.hmi``), jinak popis stroje (``brief.desc``) — rozhoduje první věta / úsek, který zmiňuje
+    HMI a zároveň místo (pult / stojan / u stroje × dveře / rozvaděč). Bez údaje = dveře rozvaděče (dosavadní chování).
+    Volá ho ``modul_pult`` (HMI do pultu jen při „pult“) i ``layout.expand`` (HMI na dveře jen při „dvere“), takže HMI
+    nikdy není na obou místech."""
+    m = manifest or {}
+    for p in m.get("parts") or []:
+        if isinstance(p, dict) and p.get("category") in HMI_KAT:
+            v = f"{p.get('mount') or ''} {p.get('location') or ''}".lower()
+            if any(k in v for k in ("pult", "operator_panel", "pendant", "console")):
+                return {"misto": "pult", "zdroj": f"kusovník {p.get('id')}", "text": v.strip()}
+    brief = m.get("brief") or {}
+    conc = brief.get("concept") or {}
+    for zdroj, text in (("koncept (brief.concept.hmi)", conc.get("hmi") if isinstance(conc, dict) else ""),
+                        ("popis stroje (brief.desc)", brief.get("desc"))):
+        for usek in _re.split(r"[.;\n]+", str(text or "")):
+            if not _RX_HMI.search(usek):
+                continue
+            p_, d_ = _RX_PULT.search(usek), _RX_DVERE.search(usek)
+            if p_ and (not d_ or p_.start() < d_.start()):
+                return {"misto": "pult", "zdroj": zdroj, "text": usek.strip()[:160]}
+            if d_:
+                return {"misto": "dvere", "zdroj": zdroj, "text": usek.strip()[:160]}
+    return {"misto": "dvere", "zdroj": "výchozí (koncept místo HMI neuvádí)", "text": ""}
+
+
 @lru_cache(maxsize=None)
 def data() -> dict:
     return json.loads((DATA / "dvere.json").read_text(encoding="utf-8"))
