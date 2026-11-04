@@ -279,10 +279,10 @@ def main():
         def host(item):
             return subs.get(item.get("skupina")) or g
         for j, it in enumerate(m["instance"]):
-            p = os.path.join(dily_dir, it["model"] + ".FCStd")
+            p = it.get("soubor") or os.path.join(dily_dir, it["model"] + ".FCStd")   # soubor = cizí model (E1: Rozvadec.FCStd)
             if p not in ext:
                 ext[p] = App.openDocument(p)
-            tgt = ext[p].getObject("Dil")
+            tgt = ext[p].getObject(it.get("objekt") or "Dil")
             lk = doc.addObject("App::Link", f"M{i + 1}_{it['druh']}_{j}")
             lk.setLink(tgt)
             lk.LinkTransform = False

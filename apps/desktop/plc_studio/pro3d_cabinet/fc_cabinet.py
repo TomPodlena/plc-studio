@@ -265,6 +265,9 @@ def build():
     body = body.fuse(adds).removeSplitter()
     cuts = [cyl_y(s["tap"] / 2, s["y0"] - 0.5, s["y1"] + 0.5, s["x"], s["z"]) for s in hw["studs"]]
     cuts += [cyl_z(hh["d"] / 2, -1, t + 1, hh["x"], hh["y"]) for hh in hw["gland_holes"]]
+    # upevnění skříně ke konzole / stojanu E1 (pro3d_lib.modul_stojan_rozvadece.upravit_skrin; poloha = ODHAD)
+    cuts += [cyl_y(hh["d"] / 2, -1, t + 1, hh["x"], hh["z"]) for hh in hw.get("rear_holes") or []]
+    cuts += [cyl_z(hh["d"] / 2, -1, t + 1, hh["x"], hh["y"]) for hh in hw.get("floor_holes") or []]
     cuts += [cyl_z(hg["hole_r"], hg["z0"] - 1, hg["zm"] + 0.0, hg["x"], hg["y"]) for hg in hw["hinges"]]
     body = body.cut(Part.makeCompound(cuts))
     feat("Skrin_teleso", f"Skříň {cab['orderCode']} — obálka {W:.0f}×{H:.0f}×{D:.0f} (zástupný)", body, sk,
