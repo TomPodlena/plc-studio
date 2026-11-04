@@ -231,7 +231,8 @@ KUSOVNIK.csv, PROGRAM.md (program a jeho ověření), projekt.plcstudio.json.
 2. Navrhni 2–3 varianty uspořádání (rozvaděč, rám, polní prvky, místo obsluhy, kryty a přístup) se zdůvodněním
    a jednu doporuč.
 3. Doporučenou variantu postav ve FreeCADu z jednoduchých obálek (App::Part po celcích, rozměry z manifestu / ODHAD),
-   ulož {sub}/Koncept.FCStd a snímky do {sub}/snimky/.
+   ulož {sub}/Koncept.FCStd a snímky do {sub}/snimky/. Celek pracovního stolu / rámu stroje (deska + nohy) označ
+   vlastností Konstrukce_Role = stul (App::PropertyString na jeho App::Part) — generátor rámu z něj bere rozměry.
 4. Zprávu zapiš do {sub}/KONCEPT.md: varianty, doporučení, rozměry, předpoklady (ODHAD), rizika, otevřené body.""",
     "cabinet": """Postav 3D rozvaděč podle kusovníku PLCdesk (skill rozvadec-3d) ve složce {sub}/.
 Vstupy: PLCdesk_CAD.json (díly s location = cabinet, plc.stations, terminals), KUSOVNIK.csv, schválený koncept

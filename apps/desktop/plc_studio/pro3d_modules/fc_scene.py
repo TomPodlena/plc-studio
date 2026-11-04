@@ -57,7 +57,9 @@ def walk(o, plc, path, inh, docname, out, link_src):
     lab = o.Label
     kont = inh["kontext"] or "kontext" in fold(lab)
     sub = {"kontext": kont, "pohyb": pr.get("Konstrukce_Pohyb") or inh["pohyb"], "pid": pr.get("PLCdesk_Id") or inh["pid"],
-           "pkey": "/".join(path + [lab]) if pr.get("PLCdesk_Id") else inh.get("pkey", "")}
+           "pkey": "/".join(path + [lab]) if pr.get("PLCdesk_Id") else inh.get("pkey", ""),
+           # role celku konceptu (``Konstrukce_Role = stul`` = pracovní stůl / rám) — dědí se na tělesa uvnitř
+           "role": pr.get("Konstrukce_Role") or inh.get("role", "")}
     if o.TypeId in CONTAINERS:
         nplc = plc.multiply(o.Placement) if o.TypeId == "App::Part" else plc
         for c in getattr(o, "Group", []) or []:
@@ -71,7 +73,8 @@ def walk(o, plc, path, inh, docname, out, link_src):
                 nplc = nplc.multiply(lo.Placement)
             lpr = props(lo)
             lpid = pr.get("PLCdesk_Id") or lpr.get("PLCdesk_Id")
-            sub = dict(sub, pid=lpid or sub["pid"], pkey="/".join(path + [lab]) if lpid else sub["pkey"])
+            sub = dict(sub, pid=lpid or sub["pid"], pkey="/".join(path + [lab]) if lpid else sub["pkey"],
+                       role=sub["role"] or lpr.get("Konstrukce_Role") or "")
             for c in getattr(lo, "Group", []) or []:
                 walk(c, nplc, path + [lab], sub, docname, out, link_src)
             return
@@ -95,7 +98,7 @@ def walk(o, plc, path, inh, docname, out, link_src):
     rec = {"doc": docname, "name": o.Name, "label": lab, "path": "/".join(path + [lab]), "typ": pr.get("Konstrukce_Typ") or "",
            "vedeni": pr.get("Konstrukce_Vedeni") or "", "pid": pr.get("PLCdesk_Id") or "", "pid_inh": sub["pid"] or "", "pkey": sub["pkey"],
            "zona": pr.get("Konstrukce_Zona") or "", "pohyb": pr.get("Konstrukce_Pohyb") or inh["pohyb"] or "",
-           "stav": pr.get("PLCdesk_ModelStatus") or pr.get("Konstrukce_ModelStav") or "", "kontext": kont,
+           "stav": pr.get("PLCdesk_ModelStatus") or pr.get("Konstrukce_ModelStav") or "", "kontext": kont, "role": sub["role"],
            "bb": bb6(b), "vol": round(vol, 1), "grp": path[1] if len(path) > 1 else (path[0] if path else "")}
     if vol / bvol < 0.25 and max(b.XLength, b.YLength, b.ZLength) > 150:
         rec["boxes"] = wall_boxes(s)

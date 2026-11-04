@@ -53,6 +53,20 @@ class RamGenTest(unittest.TestCase):
         self.assertEqual(kw["podpory"], "patky")
         self.assertIn("koncept", pr["zdroj"])
 
+    def test_stul_podle_konstrukce_role(self):
+        """Celek konceptu s ``Konstrukce_Role = stul`` (pokyn role Koncept) má přednost před hledáním podle názvu."""
+        man = {"brief": {"desc": "Stanice"}, "parts": []}
+        obj = lambda lab, bb, role="": {"doc": "koncept", "name": lab, "label": lab, "typ": "", "pid": "", "pid_inh": "",  # noqa: E731
+                                        "kontext": False, "role": role, "bb": bb}
+        scene = {"objects": [obj("Stůl starý", [0, 0, 0, 500, 400, 700]),
+                             obj("Základna", [100, 50, 0, 1300, 850, 880], "stul"),
+                             obj("Noha", [100, 50, 0, 140, 90, 840], "stul")]}
+        kw = ram_gen.params(man, scene)["kw"]
+        self.assertEqual((kw["D"], kw["W"], kw["H"]), (1200.0, 800.0, 880.0))
+        scene["objects"][1]["role"] = scene["objects"][2]["role"] = ""
+        kw = ram_gen.params(man, scene)["kw"]
+        self.assertEqual((kw["D"], kw["W"], kw["H"]), (500.0, 400.0, 700.0), "bez role podle názvu jako dřív")
+
     def test_bez_konceptu_odhad_a_kola(self):
         man = {"brief": {"desc": "Pojízdný přípravek na kolečkách"}, "parts": [{"id": "-Y1:cylinder", "category": "cylinder"}]}
         pr = ram_gen.params(man, None)

@@ -78,8 +78,11 @@ def params(manifest: dict, scene: dict | None, pozadavky: list | None = None) ->
     odhady, zdroj = [], ""
     objs = [o for o in (scene or {}).get("objects") or [] if o.get("doc") == "koncept" and not o.get("kontext")
             and (o.get("typ") or "") not in ("zona", "pomocny", "sroub", "matice", "podlozka")]
-    table = [o for o in objs if not (o.get("pid") or o.get("pid_inh")) and TABLE_RE.search(fold(o.get("label")))]
-    table = [o for o in table if o["bb"][2] < 1.0 or o["bb"][5] > 300]            # stůl / nohy, ne drobný díl s „rám“
+    # přednostně celek konceptu s vlastností ``Konstrukce_Role = stul`` (pokyn role Koncept), jinak podle názvu
+    table = [o for o in objs if fold(o.get("role")) == "stul"]
+    if not table:
+        table = [o for o in objs if not (o.get("pid") or o.get("pid_inh")) and TABLE_RE.search(fold(o.get("label")))]
+        table = [o for o in table if o["bb"][2] < 1.0 or o["bb"][5] > 300]        # stůl / nohy, ne drobný díl s „rám“
     origin = [0.0, 0.0, 0.0]
     if table:
         bb = _union([o["bb"] for o in table])
