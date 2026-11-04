@@ -535,6 +535,7 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
             "snimky": ["iso", "iso2", "celo", "shora", "bok"], "snimky_skryt": {"shora": [f"M{mods.index(o3['modul']) + 1}_strecha"], "iso2": [f"M{mods.index(o3['modul']) + 1}_strecha"]}}
     for m in mods:                                         # pomocná pole (vysledek) do FreeCADu nejdou
         m.pop("vysledek", None)
+    _jedno_id(mods, man)
     # zpětná vazba
     if d.zpetna_vazba():
         fb += d.zpetna_vazba()["issues"]
@@ -577,6 +578,34 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
     zv = {"format": "plcdesk-cad-feedback", "version": 1, "project": {"guid": (man.get("project") or {}).get("guid", "")},
           "manifest": {"sha256": ""}, "created": "", "tool": GEN, "issues": fb}
     return {"plan": plan, "celek": celek, "zpetna_vazba": zv, "n1_params": n1p}
+
+
+def _jedno_id(mods, man=None):
+    """Řádek kusovníku = jeden díl v modelu: kabel / hadice / druhá část dílu (ovladač spínače, kabel motoru) nese stejné
+    ``PLCdesk_Id`` jako díl — v celku se u nich přejmenuje na ``PLCdesk_Ref`` (kontrola ``kusovnik`` počítá kusy)."""
+    qty = {}
+    for p in (man or {}).get("parts") or []:
+        try:
+            qty[p.get("id")] = int(round(float(p.get("qty") or 1)))
+        except (TypeError, ValueError):
+            qty[p.get("id")] = 1
+    seen = {}
+    items = []
+    for m in mods:
+        for it in m.get("instance") or []:
+            items.append((0, it.get("props") or {}))
+        for t in m.get("telesa") or []:
+            items.append((1, t.get("props") or {}))
+        for k in m.get("kabely") or []:
+            items.append((2, k.get("props") or {}))
+    for _p, pr in sorted(items, key=lambda x: x[0]):
+        pid = pr.get("PLCdesk_Id")
+        if not pid or str(pid).startswith("asm:"):
+            continue
+        if seen.get(pid, 0) >= qty.get(pid, 1) or pr.get("Konstrukce_Typ") in ("kabel", "hadice"):
+            pr["PLCdesk_Ref"] = pr.pop("PLCdesk_Id")
+        else:
+            seen[pid] = seen.get(pid, 0) + 1
 
 
 def _cabinet_dims(cab):
