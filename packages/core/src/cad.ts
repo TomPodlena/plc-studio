@@ -94,6 +94,9 @@ export const CAD_PLACEMENT: Record<string, { location: CadLocation; mount: CadMo
   /* stroj: pneumatika a hydraulika */
   valve_solenoid: { location: "field", mount: "field" },
   valve_terminal: { location: "field", mount: "field" },
+  /* lišta rozváděčů (ventilový ostrov) a ruční uzávěr přívodu: na stroji (modul P3 / P2 PLCdesk PRO) */
+  valve_manifold: { location: "field", mount: "field" },
+  air_shutoff: { location: "field", mount: "field" },
   cylinder: { location: "field", mount: "field" },
   cylinder_switch: { location: "field", mount: "field" },
   gripper: { location: "field", mount: "field" },

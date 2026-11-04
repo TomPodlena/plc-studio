@@ -120,6 +120,11 @@
       "label": "Úprava vzduchu (filtr-regulátor, uzavírací ventil)",
       "unit": "ks",
       "brands": [
+        { "brand": "Festo", "series": ["MS6"],
+          "typical": "MS6-LFR-1/2-D7-CRM-AS — filtr-regulátor G1/2, 5 µm, ruční odvod kondenzátu (řada MS6, rastr 62 mm)",
+          "orderCode": "529184", "src": "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/529184.pdf",
+          "priceLevel": "střední", "suppliers": ["Festo CZ (přímo)"],
+          "note": "Řada MS6 jako modul úpravy vzduchu PLCdesk PRO (bezpečnostní ventil MS6-SV-E je G1/2). Menší stroj: MS4-LFR (další položka)." },
         { "brand": "Festo", "series": ["MS4 / MS6", "MS-EM1 (uzavírací)", "MS-EE (elektrický uzavírací)"],
           "typical": "MS4-LFR-1/4-D6-CRM-AS — filtr-regulátor G1/4, 5 µm, ruční odvod kondenzátu",
           "orderCode": "529144", "src": "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/529144.pdf",
@@ -139,6 +144,28 @@
           "src": "http://cz.automation.camozzi.com",
           "priceLevel": "nízká", "suppliers": ["Camozzi s.r.o. Praha (přímo)"],
           "note": "Názvy řad z obecné znalosti, neověřeny v této rešerši." }
+      ]
+    },
+    "air_shutoff": {
+      "label": "Ruční uzávěr přívodu stlačeného vzduchu",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Festo", "series": ["MS6-EM1", "MS4-EM1"],
+          "typical": "MS6-EM1-1/2 — ruční 3/2 uzavírací ventil G1/2 s odvzdušněním (řada MS6)",
+          "orderCode": "541267", "src": "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/541267.pdf",
+          "priceLevel": "střední", "suppliers": ["Festo CZ (přímo)"],
+          "note": "Datový list uzamčení neuvádí — uzamykatelnost (odpojení energie, EN ISO 14118) ověřit u Festo. Menší stroj: MS4-EM1-1/4, obj. č. 541258 (https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/541258.pdf)." }
+      ]
+    },
+    "valve_manifold": {
+      "label": "Lišta rozváděčů (ventilový ostrov)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Festo", "series": ["VABM-L1-14"],
+          "typical": "VABM-L1-14… — lišta pro rozváděče VUVG-L14, rozteč 16 mm, napájení P G1/4 (počet míst podle počtu rozváděčů)",
+          "src": "https://ie.rs-online.com/web/p/manifold-bases-sub-bases-end-bases/2031407",
+          "priceLevel": "střední", "suppliers": ["Festo CZ (přímo)", "RS Components CZ"],
+          "note": "Objednací kód podle počtu míst a závitů — ověřit u Festo; G1/4: https://au.rs-online.com/web/p/manifold-bases-sub-bases-end-bases/2031462" }
       ]
     },
     "hydraulic_valve": {
@@ -249,7 +276,7 @@
   },
   "suppliers": [
     { "name": "Festo, s.r.o.", "url": "https://www.festo.com/cz/cs/", "country": "CZ", "kind": "výrobce",
-      "cats": ["plc_cpu@festo", "plc_di@festo", "plc_do@festo", "plc_ai@festo", "plc_ao@festo", "plc_coupler@festo", "valve_solenoid", "valve_terminal", "cylinder", "cylinder_switch", "air_prep", "proportional_valve"],
+      "cats": ["plc_cpu@festo", "plc_di@festo", "plc_do@festo", "plc_ai@festo", "plc_ao@festo", "plc_coupler@festo", "valve_solenoid", "valve_terminal", "cylinder", "cylinder_switch", "air_prep", "air_shutoff", "valve_manifold", "proportional_valve"],
       "note": "Web vrací robotům 403; datasheety podle obj. č. na ftp.festo.com fungují." },
     { "name": "SMC Industrial Automation CZ s.r.o.", "url": "https://www.smc.eu/cs-cz", "country": "CZ", "kind": "výrobce",
       "cats": ["valve_solenoid", "valve_terminal", "cylinder", "cylinder_switch", "air_prep", "proportional_valve"],

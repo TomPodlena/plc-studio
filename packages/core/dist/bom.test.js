@@ -206,3 +206,38 @@ test("CAD: výstupní modul → patro věže (controls), věž → patro (feeds)
     assert.equal(tier.mount, "none");
     assert.equal(tier.device, "H1");
 });
+test("pneumatika: lišta rozváděčů -WP1, uzávěr -QM1 a filtr-regulátor -HQ1 jednou na stroj; bezpečnostní ventil jen s modulem bezpečnosti", async () => {
+    const { registerSafetyModule } = await import("./safety.js");
+    setLang("cs");
+    const p = loadSampleFile(S11);
+    const lines = buildBom(p).lines;
+    const valves = lines.filter(l => l.cat === "valve_solenoid");
+    assert.ok(valves.length >= 2);
+    const wp = lines.filter(l => l.cat === "valve_manifold");
+    assert.equal(wp.length, 1);
+    assert.equal(wp[0].id, "-WP1:valve_manifold");
+    assert.ok(wp[0].desc.includes(String(valves.length)), wp[0].desc);
+    assert.deepEqual(lines.filter(l => l.cat === "air_shutoff").map(l => l.id), ["-QM1:air_shutoff"]);
+    assert.deepEqual(lines.filter(l => l.cat === "air_prep").map(l => l.id), ["-HQ1:air_prep"]);
+    assert.equal(lines.find(l => l.cat === "air_prep").orderCode, "529184"); // Festo MS6-LFR (první položka Festo)
+    assert.equal(lines.find(l => l.cat === "air_shutoff").orderCode, "541267"); // Festo MS6-EM1
+    assert.ok(!lines.some(l => l.cat === "safety_valve"), "bez modulu bezpečnosti žádný bezpečnostní ventil");
+    const off = registerSafetyModule();
+    try {
+        const ls = buildBom(p).lines;
+        /* bezpečnostní odvzdušňovací ventil (-YS1) přidává jen modul bezpečnosti podle navržených funkcí; úprava vzduchu jednou */
+        assert.ok(ls.filter(l => l.cat === "safety_valve").every(l => l.safety));
+        assert.equal(ls.filter(l => l.cat === "air_prep").length, 1);
+        assert.equal(ls.filter(l => l.cat === "air_shutoff").length, 1);
+    }
+    finally {
+        off();
+    }
+    /* stroj bez pneumatiky: nic */
+    const q = prjWith([{ cls: "DI", desc: "Díl v dorazu" }]);
+    assert.ok(!buildBom(q).lines.some(l => ["valve_manifold", "air_shutoff", "air_prep"].includes(l.cat)));
+    /* CAD: nové řádky jdou do pole */
+    const man = cadManifest(p);
+    for (const id of ["-WP1:valve_manifold", "-QM1:air_shutoff", "-HQ1:air_prep"])
+        assert.equal(man.parts.find(x => x.id === id).location, "field", id);
+});

@@ -407,6 +407,20 @@ export function buildBom(prj: Project): Bom {
       ? tr("EUROMAP: konektor a kabel podle normy rozhraní, výstupy do druhého stroje bezpotenciálovými kontakty (vazební relé) — typ doplní projektant")
       : tr("konektor, kabel a přiřazení pinů podle dokumentace druhého stroje — typ doplní projektant") });
 
+  /* --- pneumatika stroje (2026-11-04, moduly P2 / P3 PLCdesk PRO): rozváděče válců / chapadel / vakua na jedné liště
+     (-WP1, IEC 81346-2 třída W = vedení média; počet míst = počet rozváděčů) a přívod přes ruční uzávěr (-QM1)
+     a filtr-regulátor (-HQ1 = filtrování). Bezpečnostní odvzdušňovací ventil přidává modul bezpečnosti (-YS1). */
+  const pneuValves = raw.filter(x => x.cat === "valve_solenoid");
+  if (pneuValves.length) {
+    const list = pneuValves.map(x => x.tag.replace(/^-/, "")).join(", ");
+    add("-WP1", "valve_manifold", 1, tr("Lišta rozváděčů — počet míst: {n} ({list})", { n: pneuValves.length, list }), {
+      note: tr("počet míst = počet rozváděčů (rezervu míst doplní projektant); typ lišty podle počtu míst ověřit u výrobce") });
+    add("-QM1", "air_shutoff", 1, tr("Ruční uzávěr přívodu stlačeného vzduchu stroje"), {
+      note: tr("uzamykatelnost (odpojení energie, EN ISO 14118) ověřit u výrobce") });
+    add("-HQ1", "air_prep", 1, tr("Filtr-regulátor stlačeného vzduchu stroje"), {
+      note: tr("tlak a průtok podle spotřeby válců; za uzávěrem, před rozváděči") });
+  }
+
   /* --- rozvaděč */
   const sensors = prj.devices.filter(d => (d.cls === "DI" && diCat(prj, d, locks) !== "") || d.cls === "AnalogIn").length
     + prj.devices.filter(d => d.cls === "Ventil" && !bomIsInterface(d)).reduce((a, d) => a + (d.opt?.fbkOpen !== false ? 1 : 0) + (d.opt?.fbkClosed ? 1 : 0), 0)
