@@ -61,6 +61,10 @@ PAS_OBSLUHY = 230.0     # pás desky u nakládacího konce pro pult a pneumatiku
 X_NOSIC = 150.0         # osa nosného profilu pultu / pneumatiky (mimo příčník N1 x 40…80; vývod cívky ventilu −x nad deskou)
 MEZERA_MODULU = 40.0    # mezera pult ↔ pneumatika na nosném profilu (ODHAD)
 SKRIN_ODSTUP = 150.0    # ODHAD — stojan rozvaděče u hnacího konce, odstup od rámu
+VYSKA_OVLADANI = 1100.0  # ODHAD — střed ovladačů pultu nad podlahou: střed pásma 1000–1200 mm pro stojící obsluhu (skill modul-pult
+#                          references/ergonomie.md: ISO 14738 / EN 894-3 nečteny; dolní mez ovladačů ≥ 600 mm EN 60204-1 10.1.2 sekundárně)
+STOJAN_SLOUPEK = 100.0  # osa sloupku stojanu pultu od začátku nosného profilu (úhelník 303876 rameno 76 vně sloupku se vejde)
+STOJAN_MEZERA = 20.0    # mezera sloupek ↔ pult (úhelník pod příčkou stojanu je pod pultem, pult na příčce)
 # strana obsluhy u nakládacího konce: místní x modulu → +y, místní +y (čelo / ovládání) → −x
 R_PAS = cols([0, 1, 0], [-1, 0, 0], [0, 0, 1])
 
@@ -153,6 +157,66 @@ def d1_build(vst, origin, z_ramu=None, t_deska=0.0):
     return d.build()
 
 
+VALCE = json.loads((HERE.parent / "pro3d_parts" / "data" / "valce.json").read_text(encoding="utf-8"))
+E_OCEL = 210000.0      # MPa — pístnice (skill modul-valec dimenzovani.md §3)
+P_MAX_BAR = 10.0       # max. tlak sítě / ventilů (návrhová síla = F_teor při 10 bar — dimenzovani.md §5, konzervativně)
+K_VZPER = 3.0          # požadovaná bezpečnost proti vzpěru (dimenzovani.md §3 — ODHAD)
+VEDENI_VALCE = 100.0   # ODHAD — délka vedení pístnice v tělese (dimenzovani.md §3 příklad)
+
+
+def vzper_pistnice(prumer: int, zdvih: int, beta: float = 2.0) -> dict:
+    """Euler pro volnou pístnici válce na patkách (β = 2): L = zdvih + WH + vedení (ODHAD), F = p_max · A."""
+    row = VALCE["iso15552"]["rady"].get(str(prumer))
+    if not row:
+        return {"ok": False, "duvod": f"Ø{prumer} v valce.json není"}
+    d = float(row["D"])
+    I = math.pi * d ** 4 / 64.0
+    L = zdvih + float(row["WH"]) + VEDENI_VALCE
+    Fk = math.pi ** 2 * E_OCEL * I / (beta * L) ** 2
+    F = math.pi / 4 * prumer ** 2 * P_MAX_BAR / 10.0
+    k = Fk / F
+    return {"ok": k >= K_VZPER, "prumer": prumer, "zdvih": zdvih, "d_pistnice": d, "L_mm": round(L, 1), "beta": beta, "Lk_mm": round(beta * L, 1),
+            "F_k_N": round(Fk, 0), "F_N": round(F, 0), "k": round(k, 2), "k_pozad": K_VZPER,
+            "zdroj": "skill modul-valec references/dimenzovani.md §3 (Euler, β = 2 patky + volná pístnice; diagram vzpěru výrobce NEČTEN); "
+                     "F = 10 bar × A (§5); d pístnice z valce.json (SMC CP96)"}
+
+
+def zdvih_vyhazovace(vst: dict) -> dict | None:
+    """Vyhazovač P1: zdvih z požadavku D1 (pístnice za vzdálený okraj pásu) → nejbližší normalizovaný zdvih ISO 15552 ≥ potřeba
+    (``valce.json zdvihy``), vzpěr pístnice (k ≥ 3, jinak větší Ø ze stejné řady). Mění ``vst`` (vstup D1) a vrací záznam
+    pro CELEK / zpětnou vazbu, nebo None (zdvih stačí / vyhazovač není)."""
+    vy = (vst.get("vyhazovace") or [None])[0]
+    if not vy or vy.get("norma") != "ISO 15552":
+        return None
+    pre = d1_build(vst, (0.0, 0.0, 0.0))
+    v = pre.rozhrani().get("vyhazovac") or {}
+    need = v.get("zdvih_potreba")
+    if not need or int(vy["zdvih"]) >= need:
+        return None
+    zd = VALCE["iso15552"]["zdvihy"]
+    orig = {"prumer": int(vy["prumer"]), "zdvih": int(vy["zdvih"])}
+    rec = {"tag": vy["tag"], "PLCdesk_Id": vy.get("PLCdesk_Id"), "puvodni": orig, "potreba_mm": need, "zdroj_rady": zd["zdroj"],
+           "odhad_rady": zd["odhad"], "vzper": []}
+    bores = [b for b in sorted(int(k) for k in VALCE["iso15552"]["rady"]) if b >= orig["prumer"]]
+    for b in bores:
+        z = next((x for x in zd["rada"] if x >= need and x <= zd["standard_max"].get(str(b), zd["max"])), None)
+        if z is None:
+            continue
+        vz = vzper_pistnice(b, z)
+        rec["vzper"].append(vz)
+        if vz["ok"]:
+            vy["prumer"], vy["zdvih"] = b, z
+            pre2 = d1_build(vst, (0.0, 0.0, 0.0))
+            n2 = (pre2.rozhrani().get("vyhazovac") or {}).get("zdvih_potreba") or need
+            if z < n2:                                  # jiný Ø posune konec pístnice — znovu
+                need = n2
+                continue
+            rec.update(novy={"prumer": b, "zdvih": z}, ok=True)
+            return rec
+    rec.update(ok=False)
+    return rec
+
+
 def d1_obalka(d) -> dict:
     """Obálka D1 (profily, díly, tělesa bez zón, moduly P1 / S1) a dno pohonu (globálně)."""
     bs = [m["box"] for m in d.members] + [b for _n, b in d.boxes_extra]
@@ -166,30 +230,49 @@ def d1_obalka(d) -> dict:
 
 
 # --- pás obsluhy: nosný profil + pult + pneumatika ------------------------------------------------------------------
-def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float):
+def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float, p3_dovnitr: bool = True):
     """Nosný profil 40 × 40 podél +y na desce (x = ``X_NOSIC``), šrouby M6 zespodu deskou; na něm pult O1 (u přední strany)
     a za ním úprava vzduchu P2 + ostrov P3. Vrací {fixture, moduly, porty, pozadavky, obalky, info}."""
     out = {"moduly": [], "pozadavky": [], "obalky": [], "nepostaveno": [], "odhady": set(), "info": {}, "porty": {}, "elektro": {}}
     x_cursor = 20.0
-    # O1 pult
+    stojan = None
+    # O1 pult — na stojanu (dva sloupky 40 × 40 na nosném profilu + příčka 40 × 40, úhelníky 303876, dlouhé šrouby)
     pr = modul_pult.pristroje_z_manifestu(man)
     pult = None
     if pr["pristroje"]:
-        pult = modul_pult.modul(pr, x_cursor, nazev="Pult obsluhy O1 (u nakládacího konce)")
+        uh = RAM["uhelnik"]
+        x0p = STOJAN_SLOUPEK + A / 2 + STOJAN_MEZERA
+        pult = modul_pult.modul(pr, x0p, nazev="Pult obsluhy O1 na stojanu (u nakládacího konce)")
+        k = pult["kontrola"]
+        zs_ = list((k.get("vysky") or {}).values())                 # místní z ovladačů (z_podlaha 0)
+        zc = (min(zs_) + max(zs_)) / 2 if zs_ else 100.0
+        hs = max(0.0, math.floor((VYSKA_OVLADANI - zc - Hd) / 10.0 + 0.5) * 10.0)
+        if hs < 2 * uh["rameno"] + A + 20.0:                       # deska vysoko — stojan by byl kratší než úhelníky
+            hs = 0.0
+        pult = modul_pult.modul(pr, x0p, z_podlaha=Hd + hs, nazev="Pult obsluhy O1" + (" na stojanu" if hs else "") + " (u nakládacího konce)")
         k = pult["kontrola"]
         W = k["rozmer"][0]
-        pult["placement"] = {"pos": [X_NOSIC, y0, Hd], "rot": R_PAS}
+        o_p = [X_NOSIC, y0, Hd + hs]
+        pult["placement"] = {"pos": o_p, "rot": R_PAS}
         out["moduly"].append(pult)
-        loc = [x_cursor, -45.0, 40.0, x_cursor + W, 55.0, 40.0 + k["rozmer"][2]]
-        out["obalky"].append(("O1 pult", _tb(R_PAS, [X_NOSIC, y0, Hd], loc)))
+        loc = [x0p, -45.0, 40.0, x0p + W, 55.0, 40.0 + k["rozmer"][2]]
+        out["obalky"].append(("O1 pult", _tb(R_PAS, o_p, loc)))
         out["info"]["O1"] = {"pristroje": [p["tag"] for p in k["pristroje"]], "vynechano": pult.get("vynechano"),
-                             "zpetna_vazba": pult.get("zpetna_vazba"),
-                             "vyska_ovladacu_mm": {t: round(Hd + z, 1) for t, z in (k.get("vysky") or {}).items()}}
-        x_cursor += W + MEZERA_MODULU + 40.0
+                             "zpetna_vazba": pult.get("zpetna_vazba"), "stojan_mm": hs,
+                             "vyska_ovladacu_mm": {t: round(z, 1) for t, z in (k.get("vysky") or {}).items()}}
+        p2s = x0p + W + STOJAN_MEZERA + A / 2
+        if hs:
+            stojan = {"hs": hs, "sloupky": [STOJAN_SLOUPEK, p2s], "pricka": [STOJAN_SLOUPEK - A / 2, p2s + A / 2]}
+            out["odhady"].add(f"pult O1 na stojanu {hs:g} mm nad deskou: střed ovladačů {VYSKA_OVLADANI:g} mm nad podlahou (střed pásma "
+                              "1000–1200 mm pro stojící obsluhu — ODHAD, ISO 14738 / EN 894-3 nečteny, skill modul-pult ergonomie.md); "
+                              "stojan bez výpočtu tuhosti (stisk E-stopu) — ODHAD")
+            x_cursor = p2s + A / 2 + uh["rameno"] + 20.0
+        else:
+            x_cursor = x0p + W + MEZERA_MODULU + 40.0
         kb = (pult.get("kabely") or [{}])[0]
         if kb.get("path"):
             a, b = kb["path"][-1].get("line") or kb["path"][-1]["arc"][1:]
-            out["elektro"]["O1"] = {"bod": [round(v, 2) for v in _tb(R_PAS, [X_NOSIC, y0, Hd], list(b) + list(b))[:3]], "D": 2 * kb.get("r", 4.0)}
+            out["elektro"]["O1"] = {"bod": [round(v, 2) for v in _tb(R_PAS, o_p, list(b) + list(b))[:3]], "D": 2 * kb.get("r", 4.0)}
     else:
         out["nepostaveno"].append({"id": "O1", "co": "pult obsluhy", "duvod": "kusovník nemá ovládací přístroje do pultu"})
     # P2 + P3
@@ -208,9 +291,28 @@ def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float):
         ident = man_id.split(":")[0] if man_id else "-WP1"
         p2 = modul_ostrov.uprava("-P2", x_cursor, 0.0, sv=sv, ids={k: v for k, v in ids.items() if v})
         xo = p2["rozhrani"]["vystup_P"]["usti"][0] + 2 * (54 + 20.7 + 20) + 20.1 + 10 - 60.0      # = lavice_p234 (oblouky PUN-10)
-        p3 = modul_ostrov.ostrov(ident, [{"tag": v["tag"], "valec": v["valec"]} for v in vent], xo, 0.0, lista_id=man_id)
+        p3 = modul_ostrov.ostrov(ident, [{"tag": v["tag"], "valec": v["valec"]} for v in vent], 0.0 if p3_dovnitr else xo, 0.0,
+                                 lista_id=man_id)
         o = [X_NOSIC, y0, Hd + A]
         pl = {"pos": o, "rot": R_PAS}
+    if vent and p3_dovnitr:
+        # P3 dovnitř krytu k vyhazovači (kratší hadice P4) — umístí ``umistit_p3``; venku jen úprava vzduchu P2
+        out["moduly"].append(dict(p2, placement=pl))
+        out["obalky"].append(("P2 úprava vzduchu", _tb(R_PAS, o, p2["rozhrani"]["obalka"])))
+        out["info"]["P2"] = {k: p2["rozhrani"].get(k) for k in ("bezpecnost", "uzaver")}
+        out["info"]["P3"] = {"ident": ident, "ventily": [v["tag"] for v in vent], "poloha": "uvnitř krytu u vyhazovače"}
+        a_ = dict(p2["rozhrani"]["vystup_P"])
+        out["p2_vystup"] = {"usti": [round(v, 3) for v in _tb(R_PAS, o, a_["usti"] + a_["usti"])[:3]],
+                            "osa_usti": [round(v, 6) for v in _mv(R_PAS, a_["osa_usti"])], "zasun": a_["zasun"], "id": "-P2.P_out"}
+        out["p3_raw"] = p3
+        x_cursor = p2["rozhrani"]["obalka"][3] + 20.0
+        if sv and ids.get("SV"):
+            out["nepostaveno"].append({"id": f"kabel {ids['SV']}", "co": "kabel bezpečnostního ventilu MS6-SV-E (Sub-D, M8)",
+                                       "duvod": "rozhraní V2 Sub-D nedoloženo — kabel doplní stavitel; ventil = NÁVRH ke schválení"})
+        out["odhady"].add("úprava vzduchu P2 na nosném profilu u nakládacího konce mimo kryt (uzávěr dosažitelný bez otevření krytu), "
+                          "ventilový ostrov P3 uvnitř krytu u vyhazovače — polohy ODHAD k odsouhlasení")
+        vent = []
+    if vent:
         hs = [modul_ostrov.hadice_p2_p3(p2, p3)]
         p4a = {"typ": "P4 hadice", "tag": "-P4P", "nazev": "P4 — rozvod P: úprava vzduchu → lišta", "dily": [], "instance": [],
                "telesa": [], "kabely": [{k: v for k, v in h.items() if k != "vysledek"} for h in hs], "skupiny": [],
@@ -248,6 +350,27 @@ def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float):
                      zs["zdroj"], "obálka", typ="prislusenstvi", material="PA6", pozn=zs["pozn"], zastupny=True))
     for y, sgn in ((y0, -1), (y0 + L, 1)):            # pravotočivě: ex × ey = ez (ven z čela)
         fx.put(zk, [X_NOSIC, y, Hd + A / 2], cols([-sgn, 0, 0], [0, 0, 1], [0, sgn, 0]), "zaslepka")
+    if stojan:                                       # stojan pultu: sloupky na nosném profilu, příčka na sloupcích
+        hs = stojan["hs"]
+        zt = Hd + hs + A                             # horní líc příčky
+        ya, yb_ = y0 + stojan["pricka"][0], y0 + stojan["pricka"][1]
+        pr_ = fx.member("104040", A, A, yb_ - ya, [X_NOSIC, ya, Hd + hs + A / 2], [0, 0, 1], [1, 0, 0], [0, 1, 0], "pricka_stojanu",
+                        "Příčka stojanu pultu 40×40")
+        for i_, ys in enumerate(stojan["sloupky"]):
+            yg = y0 + ys
+            fx.member("104040", A, A, hs - A, [X_NOSIC, yg, Hd + A], [1, 0, 0], [0, 1, 0], [0, 0, 1], "sloupek_stojanu",
+                      f"Sloupek stojanu pultu 40×40 y {yg:.0f}")
+            fx.dlouhy_sroub(pr_, [X_NOSIC, yg, zt], [0, 0, -1], A, f"příčka stojanu → sloupek y {yg:.0f}")
+            for sg in (-1, 1):                       # pata sloupku: úhelníky na nosném profilu z obou stran
+                fx.uhelnik([X_NOSIC, yg + sg * A / 2, Hd + A], [0, 0, 1], [0, sg, 0], None, None, f"pata sloupku stojanu y {yg:.0f} ({sg:+d})")
+            sg_in = 1 if i_ == 0 else -1             # pod příčkou jen dovnitř (příčka končí na vnějším líci sloupku)
+            fx.uhelnik([X_NOSIC, yg + sg_in * A / 2, Hd + hs], [0, 0, -1], [0, sg_in, 0], None, None, f"hlava sloupku stojanu y {yg:.0f}")
+        for y, sgn in ((ya, -1), (yb_, 1)):
+            fx.put(zk, [X_NOSIC, y, Hd + hs + A / 2], cols([-sgn, 0, 0], [0, 0, 1], [0, sgn, 0]), "zaslepka")
+        out["obalky"].append(("stojan pultu", [X_NOSIC - A / 2, ya, Hd + A, X_NOSIC + A / 2, yb_, zt]))
+        out["info"]["O1"]["stojan"] = {"vyska_nad_deskou_mm": hs, "sloupky_y": [round(y0 + v, 1) for v in stojan["sloupky"]],
+                                       "pricka_y": [round(ya, 1), round(yb_, 1)], "spoje": "dlouhé šrouby ALUTEC příčka → sloupek, "
+                                       "úhelníky 303876 pata (2 ×) a hlava (1 ×) sloupku — spojka V4"}
     fx.finalize_members()
     out["fixture"] = {"typ": "nosný profil", "tag": "N2", "nazev": f"Nosný profil 40×40×{L:g} pultu a pneumatiky na desce N1",
                       "dily": list(fx.dily.values()), "instance": fx.inst, "telesa": [], "kabely": [], "skupiny": [],
@@ -263,6 +386,67 @@ def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float):
     out["chyby"] = list(fx.chyby)
     out["pult"], out["p2"], out["p3"] = pult, p2, p3
     return out
+
+
+# --- P3 uvnitř krytu ----------------------------------------------------------------------------------------------------
+VULE_P3 = 30.0         # ODHAD — vůle ostrova (vč. zón nasunutí hadic / zásuvek) od dílů a zón v krytu
+
+
+def _bx_hit(a, b, m=0.0):
+    return all(a[i] < b[i + 3] + m and b[i] < a[i + 3] + m for i in range(3))
+
+
+def umistit_p3(p3, inner, Hd, t_deska, obst, zony, nosniky, cil):
+    """Ventilový ostrov P3 na vlastním nosném profilu 40 × 40 (podél x, šrouby M6 zespodu deskou) uvnitř krytu: první volná
+    poloha (mřížka 10 mm) nejblíž bodu ``cil`` (přípojky vyhazovače), bez kolize s díly / zónami (vůle ``VULE_P3``), šrouby desky
+    mimo montážní nosníky N1. Vrací {placement, fixture, pozadavky, obalka, porty, elektro, napajeni} nebo None."""
+    ob = p3["rozhrani"]["obalka"]                       # místně: profil podél x, horní plocha profilu z = 0
+    x0l, x1l = ob[0] - 10.0, ob[3] + 10.0
+    best = None
+    for yi in range(int(inner[1] + 10 - ob[1]), int(inner[4] - ob[4]) + 1, 10):
+        for xi in range(int(inner[0] - x0l), int(inner[3] - x1l) + 1, 10):
+            box = [xi + x0l, yi + min(ob[1], -A / 2), Hd, xi + x1l, yi + max(ob[4], A / 2), Hd + A + ob[5]]
+            scr = [xi + x0l + 15.0, xi + (x0l + x1l) / 2, xi + x1l - 15.0]
+            if any(abs(x - n) < 62.0 for x in scr for n in nosniky):    # nosník 40 × 80 naležato ± 40 + zahloubení
+                continue
+            if any(_bx_hit(box, b_, VULE_P3) for b_ in obst) or any(_bx_hit(box, z, VULE_P3) for z in zony):
+                continue
+            c = [xi + (ob[0] + ob[3]) / 2, yi, Hd + A + ob[5]]
+            dd = math.dist(c, cil)
+            if best is None or dd < best[0]:
+                best = (dd, xi, yi, box, scr)
+    if best is None:
+        return None
+    _d, xi, yi, box, scr = best
+    o = [float(xi), float(yi), Hd + A]
+    pl = {"pos": o, "rot": I3}
+    L = x1l - x0l
+    fx = modul_ram.Ram(L, 100.0, Hd)
+    fx.member("104040", A, A, L, [xi + x0l, yi, Hd + A / 2], [0, 1, 0], [0, 0, 1], [1, 0, 0], "nosnik_p3", "Nosný profil ventilového ostrova P3 40×40")
+    poz = []
+    for x in scr:
+        _r, q = mk.sroub_zespodu(fx, round(x, 1), yi, Hd, t_deska, [1, 0, 0], f"nosný profil P3 → deska x {x:.0f}")
+        poz.append(dict(q, co=f"nosný profil P3: otvor M6 zespodu se zahloubením x {x:.0f}", kind="otvor_sroub"))
+    zs = RAM["zaslepka"]
+    zk = fx.dil(_lib("Zaslepka_224040", {"add": [{"box": [-A / 2, A / 2, -A / 2, A / 2, 0, zs["t"]]}]}, "Záslepka ALUTEC 224040 PA6 (zástupná)",
+                     zs["zdroj"], "obálka", typ="prislusenstvi", material="PA6", pozn=zs["pozn"], zastupny=True))
+    for x, sgn in ((xi + x0l, -1), (xi + x1l, 1)):
+        fx.put(zk, [x, yi, Hd + A / 2], cols([0, sgn, 0], [0, 0, 1], [sgn, 0, 0]), "zaslepka")
+    fx.finalize_members()
+    fixture = {"typ": "nosný profil", "tag": "N3", "nazev": f"Nosný profil 40×40×{L:g} ventilového ostrova P3 v krytu",
+               "dily": list(fx.dily.values()), "instance": fx.inst, "telesa": [], "kabely": [], "skupiny": [],
+               "props": {"Konstrukce_Generator": GEN, "Konstrukce_Modul": "N3"}}
+    porty, elektro = {}, {}
+    for q in p3["rozhrani"]["pripojky"]:
+        porty[q["id"]] = {"usti": [round(v, 3) for v in _tb(I3, o, q["usti"] + q["usti"])[:3]], "osa_usti": list(q["osa_usti"]),
+                          "zasun": q["zasun"], "id": q["id"], "cil": q["cil"], "valec": q["valec"], "ventil": q["ventil"], "R": q["R"]}
+    for e in p3["rozhrani"]["elektro"]:
+        elektro[e["signal"].split()[0] + " cívka"] = {"bod": [round(c, 2) for c in _tb(I3, o, e["zacatek"] + e["zacatek"])[:3]], "D": 4.3}
+    n_ = p3["rozhrani"]["napajeni"]
+    nap = {"usti": [round(v, 3) for v in _tb(I3, o, n_["usti"] + n_["usti"])[:3]], "osa_usti": list(n_["osa_usti"]), "zasun": n_["zasun"],
+           "id": n_["id"]}
+    return {"placement": pl, "fixture": fixture, "pozadavky": poz, "obalka": box, "porty": porty, "elektro": elektro, "napajeni": nap,
+            "profil_box": fx.members[0]["box"], "chyby": list(fx.chyby)}
 
 
 # --- kryt O3 v souřadnicích N1 -------------------------------------------------------------------------------------
@@ -350,6 +534,26 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
     vst = md.vstup_z_manifestu(man)                       # ValueError = stroj bez dopravníku
     odhady, nep, fb = set(), [], []
     poradi = []
+    zv_vyh = zdvih_vyhazovace(vst)                        # P1: zdvih podle požadavku D1 (normalizovaný, vzpěr)
+    if zv_vyh and zv_vyh.get("ok"):
+        n_, o_ = zv_vyh["novy"], zv_vyh["puvodni"]
+        vz = zv_vyh["vzper"][-1]
+        poradi.append(f"P1 {zv_vyh['tag']}: zdvih z požadavku D1 ≥ {zv_vyh['potreba_mm']} mm → ISO 15552 Ø{n_['prumer']} × {n_['zdvih']} "
+                      f"(kusovník Ø{o_['prumer']} × {o_['zdvih']}); vzpěr pístnice k = {vz['k']:g} ≥ {vz['k_pozad']:g}")
+        odhady.add(f"vyhazovač {zv_vyh['tag']}: řada zdvihů — {zv_vyh['odhad_rady']}; vzpěr Euler β = 2, vedení pístnice "
+                   f"{VEDENI_VALCE:g} mm ODHAD (diagram vzpěru výrobce nečten)")
+        why = "" if n_["prumer"] == o_["prumer"] else (f"; Ø{o_['prumer']} × {n_['zdvih']} by na vzpěr nevyhověl "
+                                                       f"(k = {zv_vyh['vzper'][0]['k']:g} < {K_VZPER:g}) → Ø{n_['prumer']}")
+        fb.append({"kind": "other", "severity": "warning", "parts": [zv_vyh["PLCdesk_Id"]] if zv_vyh.get("PLCdesk_Id") else [],
+                   "message": f"NÁVRH změny: vyhazovač {zv_vyh['tag']} ISO 15552 Ø{o_['prumer']} × {o_['zdvih']} nestačí na shoz přes pás "
+                              f"(potřeba zdvih ≥ {zv_vyh['potreba_mm']} mm) — model staví Ø{n_['prumer']} × {n_['zdvih']} (nejbližší "
+                              f"normalizovaný zdvih{why}); upravit kusovník v PLCdesk (nebo vyhazovací lopatka)",
+                   "measured": {"what": "zdvih válce", "value": o_["zdvih"], "unit": "mm", "source": "manifest PLCdesk (kusovník)"},
+                   "required": {"what": "zdvih válce", "min": zv_vyh["potreba_mm"], "unit": "mm"},
+                   "proposal": {"cylinder": f"ISO 15552 Ø{n_['prumer']} × {n_['zdvih']}", "vzper": vz}})
+    elif zv_vyh:
+        nep.append({"id": f"P1 {zv_vyh['tag']} zdvih", "co": "normalizovaný zdvih s vyhovujícím vzpěrem",
+                    "duvod": f"pro potřebu ≥ {zv_vyh['potreba_mm']} mm žádný Ø / zdvih ISO 15552 nevyhověl na vzpěr — vedená pístnice / lopatka"})
     # 1) D1 — obálka a výška desky
     pre = d1_build(vst, (0.0, 0.0, 0.0))
     ob = d1_obalka(pre)
@@ -455,11 +659,44 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
     obst += _module_boxes(o3["modul"], typy_skip=("zona",))
     obst += [b for _n, b in pas["obalky"]]
     hoses, h_info = [], []
-    prip = {}
+    prip, prip_hose = {}, {}
+    p3_in = None
+    if pas.get("p3_raw"):
+        cil = [sum(q["usti"][k] for m in p1_mods for q in m["rozhrani"]["pripojky"]) /
+               max(1, sum(len(m["rozhrani"]["pripojky"]) for m in p1_mods)) for k in range(3)] if p1_mods else \
+            [(k.X0 + k.X1) / 2, k.Y0 + 200.0, Hd]
+        inner = [k.X0 + A + 10.0, k.Y0 + A + 10.0, Hd, k.X1 - A - 10.0, k.Y1 - A - 10.0, k.Zt - A]
+        zon_ = [z["bbox"] for z in zony]
+        p3_in = umistit_p3(pas["p3_raw"], inner, Hd, t_d, obst, zon_, nos, cil)
+        if p3_in is None:
+            nep.append({"id": "P3", "co": "ventilový ostrov uvnitř krytu", "duvod": "v krytu není volné místo (vůle ODHAD) — doplní stavitel"})
+        else:
+            pas["porty"].update(p3_in["porty"])
+            pas["elektro"].update(p3_in["elektro"])
+            pas["p3"] = pas["p3_raw"]
+            poz += p3_in["pozadavky"]
+            obst.append(p3_in["obalka"])
+            poradi.append(f"P3: ventilový ostrov uvnitř krytu na nosném profilu {p3_in['profil_box'][3] - p3_in['profil_box'][0]:g} mm "
+                          f"u vyhazovače (poloha {p3_in['placement']['pos']}), venku jen úprava vzduchu P2")
+            if pas.get("p2_vystup"):
+                hP, why = route_hose("P_rozvod", pas["p2_vystup"], p3_in["napajeni"], obst, [deska_box], medium="festo_PUN_10x1.5",
+                                     nazev="Hadice PUN-10x1,5 rozvod P: úprava vzduchu P2 → ostrov P3 (deskou)", prefer=prefer)
+                if hP is None:
+                    nep.append({"id": "H P", "co": "rozvod P úprava vzduchu → ostrov", "duvod": f"trasa nenalezena ({why}) — doplní stavitel"})
+                else:
+                    hP["vysledek"].update({"od": "-P2.P_out", "do": p3_in["napajeni"]["id"]})
+                    hoses.append(hP)
+                    obst += _router().segments_boxes(hP["body"], hP["r"] + 2.0)
+                    for cr in hP["pruchody"]:
+                        b_ = cr["bod"]
+                        poz.append({"co": f"průchod Ø{2 * hP['r'] + 10:.0f} hadice rozvodu P (P2 → P3)", "bod": [b_[0], b_[1], Hd],
+                                    "d": round(2 * hP["r"] + 10, 1), "kind": "pruchod"})
+                    h_info.append(hP["vysledek"])
     if s_hadicemi and pas.get("p3") and p1_mods:
         for m in p1_mods:
             for q in modul_ostrov._p1_porty(m).values():
                 prip[(m["rozhrani"]["tag"], q["port"])] = {"usti": q["usti"], "osa_usti": q["osa_usti"], "zasun": q["zasun"], "id": q["id"]}
+                prip_hose[(m["rozhrani"]["tag"], q["port"])] = q.get("hose")
         used = []
         for pid, a in sorted(pas["porty"].items(), key=lambda kv: kv[1]["cil"] != "zadni"):
             tgt = prip.get((a["valec"], a["cil"]))
@@ -472,6 +709,10 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
                 nep.append({"id": f"H {pid}", "co": f"hadice {pid} → {a['valec']} {a['cil']}", "duvod": f"trasa nenalezena ({why}) — doplní stavitel"})
                 continue
             h["vysledek"].update({"od": pid, "do": tgt["id"]})
+            hk = (prip_hose.get((a["valec"], a["cil"])) or "")
+            if hk and hk != "festo_PUN_6x1":
+                odhady.add(f"hadice {pid} → {a['valec']} {a['cil']}: ostrov PUN-6 (QS-G1/8-6), válec má šroubení pro {hk} — přechod "
+                           "QS-8-6 / šroubení QS-G1/4-6 na válci doplní stavitel (ODHAD, není v kusovníku)")
             hoses.append(h)
             used += _router().segments_boxes(h["body"], h["r"] + 2.0)
             for cr in h["pruchody"]:
@@ -525,6 +766,9 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
     mods.append(o3["modul"])
     mods.append(pas["fixture"])
     mods += pas["moduly"]
+    if p3_in:
+        mods.append(p3_in["fixture"])
+        mods.append(dict(pas["p3_raw"], placement=p3_in["placement"]))
     if hoses:
         mods.append({"typ": "P4 hadice", "tag": "-P4", "nazev": "P4 — hadice ostrov → válce", "dily": [], "instance": [], "telesa": [],
                      "kabely": [{k: v for k, v in h.items() if k not in ("vysledek", "pruchody", "body")} for h in hoses], "skupiny": [],
@@ -573,7 +817,7 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
                     "P3": (pas.get("p3") or {}).get("rozhrani")},
         "kontrola_planu": {"chyby": d.chyby + o3["rozhrani"]["chyby"] + roz_n1.get("chyby", []) + pas["chyby"],
                            "varovani": d.varovani + o3["rozhrani"]["varovani"] + roz_n1.get("varovani", [])},
-        "pruchody_N1": pr_, "info": pas["info"],
+        "pruchody_N1": pr_, "info": pas["info"], "vyhazovac_zdvih": zv_vyh,
     }
     zv = {"format": "plcdesk-cad-feedback", "version": 1, "project": {"guid": (man.get("project") or {}).get("guid", "")},
           "manifest": {"sha256": ""}, "created": "", "tool": GEN, "issues": fb}

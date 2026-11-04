@@ -6,6 +6,10 @@
   "zdroj_popis": "SMC CP96 ISO Standard (15552), Dimensions — Basic: CP96S(D)B, str. A 133 (tabulka shodná se SMC C96 https://content2.smcetech.com/pdf/C96.pdf, str. A 164)",
   "poznamka": "Rozměry rozhraní (L8, WH, A, KK, R = TG, RT, B, VD, VA, EE) jsou dané normou ISO 15552 a platí pro všechny výrobce; obrys profilu E je rozměr SMC (Festo DSBC se může lišit o jednotky mm — viz porovnání s modelem výrobce).",
   "sloupce": {"A": "délka závitu pístnice", "B": "průměr nákružku d11", "BG": "hloubka závitu RT ve víku", "D": "průměr pístnice", "E": "šířka profilu / víka", "EE": "přípojka", "G": "délka víka", "H": "vyložení pístnice od čela (WH + A)", "KK": "závit pístnice", "L8": "délka těla bez zdvihu", "PL": "přípojka od čela víka", "R": "rozteč závitů RT (TG)", "RT": "upevňovací závity ve víkách", "SW": "klíč na pístnici", "VA": "zadní nákružek", "VD": "přední nákružek", "WH": "pístnice od čela k závitu", "ZZ": "celková délka bez zdvihu"},
+  "zdvihy": {"standard_max": {"32": 500, "40": 500, "50": 600, "63": 600, "80": 800, "100": 800}, "max": 2000,
+             "rada": [25, 50, 80, 100, 125, 160, 200, 250, 320, 400, 500, 600, 700, 800],
+             "zdroj": "skill modul-valec references/dimenzovani.md §3 (SMC CP96 str. A 130: standardní zdvihy 25 … 500 Ø32–40, … 600 Ø50–63, … 800 Ø80–100, max. 2000)",
+             "odhad": "mezilehlé hodnoty řady = přednostní zdvihy ISO 4393 (25 … 400) + 500 … 800 po 100 — tabulka CP96 nepřečtena (PDF bez textové vrstvy, 2026-11-04) → ODHAD, ověřit u výrobce"},
   "rady": {
    "32":  {"A": 22, "B": 30, "BG": 16, "D": 12, "E": 47,  "EE": "G1/8", "G": 28.9, "H": 48,  "KK": "M10x1.25", "L8": 94,  "PL": 13, "R": 32.5, "RT": "M6x1",     "SW": 10, "VA": 4, "VD": 4, "WH": 26, "ZZ": 146},
    "40":  {"A": 24, "B": 35, "BG": 16, "D": 16, "E": 54,  "EE": "G1/4", "G": 32.6, "H": 54,  "KK": "M12x1.25", "L8": 105, "PL": 14, "R": 38,   "RT": "M6x1",     "SW": 13, "VA": 4, "VD": 4, "WH": 30, "ZZ": 163},

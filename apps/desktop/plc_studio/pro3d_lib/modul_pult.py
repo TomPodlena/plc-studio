@@ -458,13 +458,14 @@ def modul(pr: dict, x0: float = 65.0, z_podlaha: float = 0.0, nazev: str = "Pult
     kab = spojky_el.kabel_vyvod([xv, yb - (row["C"] - row["D"]), zv], [0, -1, 0], [0, 0, -1], KABEL_D, R)
     # pomocná tělesa: stanoviště, kóta výšky E-stopu
     telesa.append({"name": "Stanoviste", "label": "Stanoviště obsluhy pultu (pomocné, 600 × 600 ODHAD)",
-                   "body": {"add": [{"box": [xc - 300, xc + 300, yv + 150, yv + 750, 0.0, 2.0]}]}, "props": {"Konstrukce_Typ": "pomocny"}})
+                   "body": {"add": [{"box": [xc - 300, xc + 300, yv + 150, yv + 750, -z_podlaha, -z_podlaha + 2.0]}]},
+                   "props": {"Konstrukce_Typ": "pomocny"}})            # na podlaze (místní z 0 = z_podlaha nad podlahou)
     es = [p for p in lay["pol"] if p["druh"] == "estop"]
     vysky = {p["tag"]: round(p["z"] + z_podlaha, 1) for p in lay["pol"]}
     if es:
         e = es[0]
         telesa.append({"name": "Kota_vysky", "label": f"Pomocná kóta: osa E-stopu {e['tag']} {e['z'] + z_podlaha:.0f} mm nad podlahou",
-                       "body": {"add": [{"box": [e["x"] - 1, e["x"] + 1, yv + 60, yv + 62, 0.0, e["z"]]}]}, "props": {"Konstrukce_Typ": "pomocny"}})
+                       "body": {"add": [{"box": [e["x"] - 1, e["x"] + 1, yv + 60, yv + 62, -z_podlaha, e["z"]]}]}, "props": {"Konstrukce_Typ": "pomocny"}})
     lo, hi = PULT["estop"]["vyska"]["min"] * 1000, PULT["estop"]["vyska"]["max"] * 1000
     for tg, v in vysky.items():
         if not (lo <= v <= hi):
