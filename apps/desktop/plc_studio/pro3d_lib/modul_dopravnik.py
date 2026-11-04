@@ -127,6 +127,16 @@ def parse_popis(desc: str) -> dict:
     return out
 
 
+# zadání pásu z PLCdesk (``devices[].conveyor``, krok Zařízení, od 2026-11-04) má přednost před rozměry z popisu
+CONVEYOR_KEYS = {"length": "L", "width": "b0", "height": "H", "speed": "v", "load": "m_kg"}
+
+
+def zadani_pasu(dev: dict) -> dict:
+    """Rozměry pásu zadané v PLCdesk (``conveyor``: length / width / height mm, speed m/s, load kg); nezadané pole chybí."""
+    cv = dev.get("conveyor") or {}
+    return {k: float(cv[c]) for c, k in CONVEYOR_KEYS.items() if isinstance(cv.get(c), (int, float)) and not isinstance(cv.get(c), bool)}
+
+
 def _parts_of(man: dict, dev: str) -> list[dict]:
     return [p for p in man.get("parts") or [] if p.get("device") == dev]
 
@@ -136,12 +146,13 @@ def vstup_z_manifestu(man: dict, dev: str | None = None) -> dict:
     s optickým / indukčním dílem, popis „před / na pásu“) a vyhazovač (Ventil s válcem, popis „vyhazov…“)."""
     devs = man.get("devices") or []
     cand = [d for d in devs if d.get("cls") in ("Motor", "Vfd") and (dev is None or d.get("name") == dev)]
-    cand = [d for d in cand if dev is not None or RE_PAS.search(d.get("desc") or "")] or cand
+    cand = [d for d in cand if dev is not None or d.get("conveyor") or RE_PAS.search(d.get("desc") or "")] or cand
     if not cand:
         raise ValueError("manifest nemá zařízení dopravníku (Motor / Vfd s popisem pásu)")
     d = cand[0]
     vst = {"id": d["name"], "nazev": d.get("desc") or "Pásový dopravník", "cls": d.get("cls"), "rampS": d.get("rampS"),
-           "setpoint": d.get("setpoint"), "popis": parse_popis(d.get("desc") or ""), "pohon_PLCdesk_Id": "", "pohon_typ": ""}
+           "setpoint": d.get("setpoint"), "popis": {**parse_popis(d.get("desc") or ""), **zadani_pasu(d)},
+           "pohon_PLCdesk_Id": "", "pohon_typ": ""}
     for p in _parts_of(man, d["name"]):
         if p.get("category") in ("gearmotor", "motor"):
             vst["pohon_PLCdesk_Id"], vst["pohon_typ"] = p["id"], p.get("type") or ""

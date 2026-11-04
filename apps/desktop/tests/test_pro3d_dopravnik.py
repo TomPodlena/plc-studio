@@ -54,6 +54,17 @@ class DopravnikPlanTest(unittest.TestCase):
         self.assertEqual(p, {"L": 2000.0, "b0": 400.0, "v": 0.3, "m_kg": 25.0, "H": 850.0})
         self.assertEqual(md.parse_popis("Pásový dopravník (motor s převodovkou)"), {})
 
+    def test_zadani_pasu_z_manifestu(self):
+        """``devices[].conveyor`` (PLCdesk krok Zařízení) má přednost před rozměry z popisu; nezadané pole = z popisu."""
+        man = {"devices": [{"name": "M1", "cls": "Motor", "desc": "Pás délka 2 m, šířka 400 mm",
+                            "conveyor": {"length": 2500, "width": None, "speed": 0.25, "load": None, "height": 800}}],
+               "parts": []}
+        v = md.vstup_z_manifestu(man)
+        self.assertEqual(v["popis"], {"L": 2500.0, "b0": 400.0, "v": 0.25, "H": 800.0})
+        man["devices"][0]["desc"] = "Hlavní pohon"           # bez slova „pás“: zadání dopravníku stačí
+        man["devices"].insert(0, {"name": "M0", "cls": "Motor", "desc": "Čerpadlo"})
+        self.assertEqual(md.vstup_z_manifestu(man)["id"], "M1")
+
     def test_vypocet_skillu(self):
         calc = md._calc_module()
         r = calc.vypocet({"L_m": 1.5, "b0_mm": 300, "v_m_s": 0.2, "m_kg": 10, "pas": md.VYCHOZI["pas"], "rozpeti_noh_mm": 1050})

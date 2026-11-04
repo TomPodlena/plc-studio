@@ -143,6 +143,14 @@ export interface CadDevice {
         drive: string;
     }) | null;
     libType: string | null;
+    /** pásový dopravník (Motor / Vfd s `Device.conveyor`): L, b [mm], v [m/s], zboží [kg], výška [mm]; jinak null */
+    conveyor: {
+        length: number | null;
+        width: number | null;
+        speed: number | null;
+        load: number | null;
+        height: number | null;
+    } | null;
     signals: Array<{
         sig: string;
         dir: string;

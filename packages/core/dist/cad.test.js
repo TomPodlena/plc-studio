@@ -32,7 +32,7 @@ const PART_KEYS = ["id", "tag", "category", "label", "brand", "type", "orderCode
 const TOP_KEYS = ["format", "version", "generator", "project", "platform", "brief", "devices", "sequence", "safety",
     "parts", "plc", "terminals", "relations"];
 const DEV_KEYS = ["name", "guid", "cls", "desc", "role", "unit", "range", "limits", "setpoint", "options", "rampS", "tol",
-    "tolTimeS", "selBits", "records", "travelS", "axis", "libType", "signals", "parts"];
+    "tolTimeS", "selBits", "records", "travelS", "axis", "libType", "conveyor", "signals", "parts"];
 const STEP_KEYS = ["no", "device", "deviceGuid", "act", "cond", "timeS", "sp", "rev", "rec", "pos", "posRef", "vel", "acc", "dec", "title"];
 const SF_KEYS = ["id", "ref", "kind", "title", "off", "plr", "pl", "category", "stopCategory", "inputs", "actuators", "safeState", "missing"];
 const isGuidOrNull = (v) => v === null || isGuid(v);

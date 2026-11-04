@@ -120,6 +120,25 @@ class KrytPlanTest(unittest.TestCase):
         self.assertEqual(ro["chyby"], [])
         self.assertEqual(ro["bezpecnost"]["funkce"][0]["PLr_navrh"], "d")
 
+    def test_manifest_16_jisteny_zamek_z_kusovniku(self):
+        """PLCdesk od 2026-11-04: DO zámku = ``guard_lock`` (jištěné blokovací zařízení), S2 „zavřeno a zamčeno“ = jen
+        kontakt zámku (guard_lock_contact) → O3 staví zámek bez zpětné vazby o chybějícím jištění."""
+        man = _man("16")
+        parts = man["parts"]
+        for p in parts:
+            if p.get("device") == "S2" and p.get("category") == "safety_switch":
+                p.update(id="-S2:guard_lock_contact", category="guard_lock_contact", brand="", orderCode="")
+            if p.get("device") == "H4":
+                p.update(id="-H4:guard_lock", category="guard_lock", brand="Schmersal", orderCode="103013908")
+        man["parts"] = parts
+        bl = modul_kryt.blokovani(man)
+        self.assertEqual([b["device"] for b in bl], ["S2"])
+        self.assertTrue(bl[0]["zamek"]["jisteni"])
+        ro = modul_kryt.zkusebni_sestava(man)["o3"]["rozhrani"]
+        self.assertEqual(ro["blokovani"][0]["typ"], "AZM201Z-SK-T-1P2PW-A")
+        self.assertFalse([f for f in ro["zpetna_vazba"] if f.get("kind") == "safety_part"])
+        self.assertEqual(ro["chyby"], [])
+
     def test_bez_desky_chyba(self):
         n1 = modul_ram.plan_ramu(**modul_ram.VZORY["velky"])["rozhrani"]
         with self.assertRaises(ValueError):

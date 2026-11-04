@@ -129,6 +129,8 @@ export const CAT_LABEL: Record<string, string> = {
   limit_switch: N_("Polohový spínač"),
   light_curtain: N_("Bezpečnostní světelná závora"),
   safety_switch: N_("Bezpečnostní spínač krytu"),
+  guard_lock: N_("Blokovací zařízení se zámkem (jištění krytu)"),
+  guard_lock_contact: N_("Kontakt zámku krytu (součást zámku)"),
   estop_button: N_("Tlačítko nouzového zastavení"),
   safety_relay: N_("Bezpečnostní relé"),
   pressure_transmitter: N_("Snímač tlaku"),

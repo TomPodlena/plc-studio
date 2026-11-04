@@ -14,6 +14,7 @@ import {
   updateStep, insertStep, duplicateStep, setIoTag, setIoAddr, setIoCmt,
   addDevice, setDeviceParams, deviceUsage, deleteDevice, parseRecordsForm, parseAxisPositionsForm,
   renumberIo, fixIoTags, projectIsEmpty, applyAiProposal, DEVICE_PARAM_LABEL, setSimModel, SIM_MODEL_DEFAULT, SIM_MODEL_RANGE,
+  CONVEYOR_FIELDS, CONVEYOR_CLASSES,
 } from "../../../packages/core/dist/index.js";
 import { $, card, copyText, downloadFile, downloadFiles, downloadProjectZip, saveBytesUngated, normProject, normAi, setProjectHeader, prefixedName, pageLimit, moreHtml, wireMore, readFileText } from "./util.js";
 import { approverName, setApproverName } from "./approval_step.js";
@@ -622,9 +623,13 @@ export function makeSteps(ctx) {
               }).join("") +
               "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("pojmenované polohy") + " <input type='text' data-id='" + d.id + "' data-f='axpos' value='" + esc(axisPositionsText((d.axis || {}).positions)) + "' style='width:240px' title='" + esc(tr("název @ poloha; oddělit středníkem")) + "'></label>"
             : d.cls === "DO" ? "<label style='display:inline-flex;gap:4px;align-items:center'>" + tr("vazba na stav stroje") + " <select data-id='" + d.id + "' data-f='role'>" + roleOptions(d.role || "") + "</select></label>" : "";
+        /* pásový dopravník (Motor / Vfd): rozměry pro konstrukci a export pro CAD — kód ani dokumentaci nemění */
+        const cv = CONVEYOR_CLASSES.has(d.cls) ? "<details data-cvbox='" + d.id + "' style='margin-top:4px'" + (d.conveyor ? " open" : "") + "><summary>" + esc(tr("pásový dopravník (rozměry pro konstrukci)")) + "</summary>" +
+          CONVEYOR_FIELDS.map(f => "<label style='display:inline-flex;gap:4px;align-items:center;margin-right:8px'>" + esc(tr(f.label)) + " [" + f.unit + "]" +
+            " <input type='number' step='any' min='" + f.min + "' max='" + f.max + "' data-id='" + d.id + "' data-cv='" + f.key + "' value='" + esc(Number.isFinite((d.conveyor || {})[f.key]) ? d.conveyor[f.key] : "") + "' style='width:80px'></label>").join("") + "</details>" : "";
         html += "<tr data-row='" + d.id + "'><td><input type='text' class='mono' data-id='" + d.id + "' data-f='name' value='" + esc(d.name) + "' aria-label='" + esc(tr("Označení")) + "' style='width:" + Math.max(6, d.name.length + 2) + "ch;font-weight:600'></td><td>" + tr(CLS[d.cls].label) + "</td>" +
           "<td><input type='text' data-id='" + d.id + "' data-f='desc' value='" + esc(d.desc) + "' style='min-width:200px'></td>" +
-          "<td style='font-size:.76rem;color:var(--muted)'>" + (opts || (!extra ? "—" : "")) + (extra ? "<div style='margin-top:" + (opts ? "4px" : "0") + "'>" + extra + "</div>" : "") + "</td>" +
+          "<td style='font-size:.76rem;color:var(--muted)'>" + (opts || (!extra && !cv ? "—" : "")) + (extra ? "<div style='margin-top:" + (opts ? "4px" : "0") + "'>" + extra + "</div>" : "") + cv + "</td>" +
           "<td><button class='small danger' data-del='" + d.id + "'>×</button></td></tr>";
       }
       list.innerHTML = html + "</tbody></table></div>";
@@ -713,6 +718,11 @@ export function makeSteps(ctx) {
         if (r.error) { formErr(id, r.error); return; }
         setParams(id, { axis: { positions: r.positions } });
         e.target.value = axisPositionsText(r.positions);
+      }));
+      /* pásový dopravník: pole se slučují (prázdné = nezadáno), rozsah hlídá jádro */
+      list.querySelectorAll("input[data-cv]").forEach(i => i.addEventListener("change", e => {
+        const s = e.target.value.trim(), v = s === "" ? null : Number(s);
+        setParams(+e.target.dataset.id, { conveyor: { [e.target.dataset.cv]: v } });
       }));
       list.querySelectorAll("select[data-f=role]").forEach(s => s.addEventListener("change", e => {
         setParams(+e.target.dataset.id, { role: DO_ROLES[e.target.value] ? e.target.value : null });

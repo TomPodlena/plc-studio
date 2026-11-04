@@ -9,7 +9,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { blankProject, syncIO, type Project } from "./model.js";
 import { addDevice } from "./edit.js";
-import { buildBom, bomIsInterface } from "./bom.js";
+import { buildBom, bomIsInterface, bomLineIsSafety } from "./bom.js";
 import { cadManifest } from "./cad.js";
 import { setLang } from "./i18n.js";
 import { loadSampleFile } from "./exp_util.test.js";
@@ -253,4 +253,38 @@ test("pneumatika: lišta rozváděčů -WP1, uzávěr -QM1 a filtr-regulátor -H
   const man = cadManifest(p);
   for (const id of ["-WP1:valve_manifold", "-QM1:air_shutoff", "-HQ1:air_prep"])
     assert.equal(man.parts.find(x => x.id === id)!.location, "field", id);
+});
+
+/* ---- zámek ochranného krytu = jištěné blokovací zařízení (2026-11-04, nález modulu O3 PLCdesk PRO) ---- */
+test("zámek krytu: DO zámku = guard_lock (bezpečnostní), DI „zavřeno a zamčeno“ bez vlastního spínače", () => {
+  setLang("cs");
+  const p = loadSampleFile("16_paletizacni_bunka_osy_PC-16.plcstudio.json");
+  const b = buildBom(p);
+  assert.deepEqual(catsOf(p, "-H4"), ["guard_lock"]);
+  assert.deepEqual(catsOf(p, "-S2"), ["guard_lock_contact"], "S2 = kontakt zámku, ne samostatný spínač");
+  const c = b.lines.find(x => x.id === "-S2:guard_lock_contact")!;
+  assert.ok(bomLineIsSafety(p, c) && /-H4/.test(c.note) && !c.orderCode, "kontakt bez objednacího kódu");
+  assert.deepEqual(catsOf(p, "-S3"), ["light_curtain"]);
+  const l = b.lines.find(x => x.id === "-H4:guard_lock")!;
+  assert.ok(bomLineIsSafety(p, l));
+  assert.match(l.note, /S2/);
+  assert.match(l.note, /návrh, ověřit v posouzení rizik/);
+  assert.match(l.note, /13849/);
+  assert.equal(l.brand, "Schmersal", "výchozí = první položka katalogu (zámek Siemens v katalogu není)");
+  assert.equal(l.orderCode, "103013908");
+  const m = cadManifest(p);
+  assert.equal(m.parts.find(x => x.id === "-H4:guard_lock")?.safety, true);
+  assert.equal(m.parts.find(x => x.id === "-S2:guard_lock_contact")?.mount, "none");
+  assert.ok(!m.parts.some(x => x.category === "safety_switch"));
+});
+
+test("zámek krytu bez DI „zamčeno“: blokovací spínače zůstávají, zámek má vlastní řádek", () => {
+  setLang("cs");
+  const p = loadSampleFile("00b_lisovaci_linka_LL-03.plcstudio.json");
+  assert.deepEqual(catsOf(p, "-H4"), ["guard_lock"]);
+  assert.deepEqual(catsOf(p, "-S2"), ["safety_switch"]);
+  assert.deepEqual(catsOf(p, "-S3"), ["safety_switch"]);
+  const p2 = prjWith([{ cls: "DO", desc: "Guard locking solenoid" }]);
+  const tag = "-" + p2.devices[0].name;
+  assert.deepEqual(catsOf(p2, tag), ["guard_lock"], "anglický popis zámku");
 });

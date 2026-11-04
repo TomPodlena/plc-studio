@@ -19,7 +19,7 @@
  * a projektová složka ho ukládá do 09_Exporty/CAD (`projectBundle` s volbou `cad`).
  */
 import type { Project, PlatformKey, Device } from "./model.js";
-import { modules, syncIO, hasRange, interlockDevs } from "./model.js";
+import { modules, syncIO, hasRange, interlockDevs, CONVEYOR_CLASSES } from "./model.js";
 import { buildBom, bomBeaconTowers, bomLineIsSafety, type BomLine } from "./bom.js";
 import { isGuid, derivedGuid } from "./guid.js";
 import { axisCfgOf, type AxisCfg } from "./axis.js";
@@ -124,6 +124,9 @@ export const CAD_PLACEMENT: Record<string, { location: CadLocation; mount: CadMo
   /* stroj: bezpečnost a ovládání */
   light_curtain: { location: "field", mount: "field" },
   safety_switch: { location: "field", mount: "field" },
+  guard_lock: { location: "field", mount: "field" },
+  /* kontakt „zavřeno a zamčeno“ = součást zámku krytu (samo se nemontuje, jako patro věže) */
+  guard_lock_contact: { location: "field", mount: "none" },
   estop_button: { location: "field", mount: "field" },
   two_hand_station: { location: "field", mount: "field" },
   pushbutton: { location: "field", mount: "field" },
@@ -180,6 +183,8 @@ export interface CadDevice {
   travelS: number | null;
   axis: (Omit<AxisCfg, "limNeg" | "limPos" | "drive"> & { limNeg: number | null; limPos: number | null; drive: string }) | null;
   libType: string | null;
+  /** pásový dopravník (Motor / Vfd s `Device.conveyor`): L, b [mm], v [m/s], zboží [kg], výška [mm]; jinak null */
+  conveyor: { length: number | null; width: number | null; speed: number | null; load: number | null; height: number | null } | null;
   signals: Array<{ sig: string; dir: string; tag: string }>;
   parts: string[];
 }
@@ -409,6 +414,10 @@ export function cadManifest(prj0: Project, opts: { generator?: string } = {}): C
         drive: ax.drive || "", positions: ax.positions.map(p => ({ name: p.name, pos: p.pos })),
       } : null,
       libType: d.libType || null,
+      conveyor: d.conveyor && CONVEYOR_CLASSES.has(d.cls) ? {
+        length: numOrNull(d.conveyor.length), width: numOrNull(d.conveyor.width), speed: numOrNull(d.conveyor.speed),
+        load: numOrNull(d.conveyor.load), height: numOrNull(d.conveyor.height),
+      } : null,
       signals: prj.io.filter(e => e.devId === d.id).map(e => ({ sig: e.sig, dir: e.dir, tag: e.tag })),
       parts: lines.filter(l => l.devId === d.id).map(l => l.id),
     };

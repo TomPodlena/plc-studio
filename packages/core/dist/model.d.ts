@@ -74,6 +74,11 @@ export interface Device {
      * Axis Settings, Motion Group); chybějící pole doplní `axisCfgOf` (axis.ts). Jednotky = `unit`.
      */
     axis?: Partial<AxisCfg>;
+    /**
+     * Motor / Vfd pohánějící pásový dopravník: rozměry a zatížení pro konstrukci (3D modul dopravníku PLCdesk PRO,
+     * export pro CAD `devices[].conveyor`). Jen zadání — generátor kódu ani dokumentace je nečtou.
+     */
+    conveyor?: ConveyorCfg;
     /** typ z firemní knihovny (`LibDeviceType.id`, viz library.ts) */
     libType?: string;
     /** Trvalý identifikátor (viz guid.ts) — přidělen jednou při vzniku, export ho jen čte. */
@@ -324,6 +329,33 @@ export declare function parseRecordsChecked(s: string): {
 export declare function selBitsOf(d: Device): number;
 /** Nejvyšší číslo záznamu PosDrive (2^bity − 1; záznam 0 = referenční poloha). */
 export declare function maxRecord(d: Device): number;
+/** Pásový dopravník poháněný motorem / měničem (všechna pole volitelná). */
+export interface ConveyorCfg {
+    /** osová vzdálenost bubnů L [mm] */
+    length?: number;
+    /** šířka pásu b [mm] */
+    width?: number;
+    /** rychlost pásu v [m/s] */
+    speed?: number;
+    /** hmotnost zboží na pásu celkem [kg] */
+    load?: number;
+    /** výška horní větve pásu nad podlahou [mm] */
+    height?: number;
+}
+export type ConveyorKey = keyof ConveyorCfg;
+/** Pole dopravníku pro formuláře (web i desktop) a kontrolu rozsahů; popisky jsou klíče překladu. */
+export declare const CONVEYOR_FIELDS: Array<{
+    key: ConveyorKey;
+    label: string;
+    unit: string;
+    min: number;
+    max: number;
+    zero?: boolean;
+}>;
+/** Třídy, které mohou pohánět pásový dopravník (`Device.conveyor`). */
+export declare const CONVEYOR_CLASSES: ReadonlySet<DeviceClass>;
+/** Proč hodnota pole dopravníku neplatí (`null` = v pořádku). */
+export declare function conveyorFieldProblem(key: string, v: unknown): string | null;
 /** Doba jízdy PosDrive v modelu simulace [s] (výchozí 1 s). */
 export declare function travelOf(d: Device): number;
 /**

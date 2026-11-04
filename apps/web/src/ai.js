@@ -2,7 +2,7 @@
    Pozn.: přímé volání z prohlížeče vyžaduje hlavičku anthropic-dangerous-direct-browser-access;
    v produkční verzi půjde dotaz přes vlastní backend.
    Modul importuje i desktopový most v Node — při importu nesmí sahat na DOM ani localStorage. */
-import { CLS, DO_ROLES, devById, tr, N_, getLang, LANGS } from "../../../packages/core/dist/index.js";
+import { CLS, DO_ROLES, devById, tr, N_, getLang, LANGS, CONVEYOR_FIELDS, CONVEYOR_CLASSES } from "../../../packages/core/dist/index.js";
 
 const LS_KEY = "plcstudio.ai";
 
@@ -24,7 +24,7 @@ export function aiInstructions(prj) {
   if (prj.devices.length) {
     current = "\nAKTUÁLNÍ SESTAVA (uživatel ji může chtít jen upravit — vracej vždy celou aktualizovanou):\n"
       + JSON.stringify(prj.devices.map(d => ({ name: d.name, cls: d.cls, desc: d.desc, opt: d.opt, unit: d.unit, rmin: d.rmin, rmax: d.rmax, limHi: d.limHi, limLo: d.limLo, setpoint: d.setpoint, role: d.role,
-        rampS: d.rampS, tol: d.tol, tolTimeS: d.tolTimeS, selBits: d.selBits, records: d.records, axis: d.axis }))) + "\n"
+        rampS: d.rampS, tol: d.tol, tolTimeS: d.tolTimeS, selBits: d.selBits, records: d.records, axis: d.axis, conveyor: d.conveyor }))) + "\n"
       + (Number.isFinite(prj.meta.takt) ? "Požadovaný takt: " + prj.meta.takt + " s\n" : "");
   }
   /* Prompt je česky v každém jazyce UI; cizí jazyk jen přidá na konec pokyn, jak psát texty pro uživatele. */
@@ -41,6 +41,7 @@ export function aiInstructions(prj) {
     + '- "PosDrive" (M…): elektrická polohovací osa se záznamy v řadiči (Festo CMMO/CMMT, SMC JXC přes I/O); selBits = počet bitů výběru záznamu (1–6), records = [{"no":1,"name":"…","pos":0}], volby opt.ready, opt.fault; před první jízdou krok "home"\n'
     + '- "Axis" (M…): servoosa — servoměnič se servomotorem po síti (PROFINET / EtherCAT / EtherNet/IP), řízená bloky PLCopen Motion Control; jen tam, kde je potřeba volné polohování (portál, manipulátor, posuv na libovolnou polohu); unit (typicky "mm"), axis = {"vMax","aMax","dMax","vDef","limNeg","limPos","homePos","posTol","followMax","jogVel","positions":[{"name":"vstup","pos":20}]}; před prvním absolutním pohybem krok "home". Nepodporují ji Mitsubishi, Schneider a Unitronics — tam použij PosDrive.\n'
     + '- "PropValve" (Y…): proporcionální ventil tlaku / průtoku (analogová žádaná, volitelně zpětná vazba); unit, rmin, rmax, setpoint, rampS, tol = povolená odchylka, tolTimeS = doba odchylky do poruchy; opt.fbk = analog skutečné hodnoty\n'
+    + '- Motor nebo Vfd, který pohání pásový dopravník, smí mít conveyor = {"length": osová délka L [mm], "width": šířka pásu b [mm], "speed": rychlost pásu [m/s], "load": hmotnost zboží na pásu [kg], "height": výška pásu nad podlahou [mm]} — jen hodnoty, které zadání uvádí (nic nevymýšlej, pole vynech); kód PLC nemění, slouží konstrukci (3D)\n'
     + '- "DO" (H1…): samostatný digitální výstup — signálka, houkačka, zámek; role = vazba na stav stroje: "run" (chod — sekvence běží), "fault" (porucha stroje), "ready" (připraveno ke startu), "stopped" (stop / nouzové zastavení), "lock" (zámek krytů — zamčeno během cyklu), "auto" (režim AUTO)\n'
     + 'Pravidla: vždy přidej E-stop jako DI (typicky S1 "Nouzové zastavení (NC)") a jeho název vrať v "estop"; bezpečnostní logiku NEnavrhuj. Popisy česky a stručně. U analogů odhadni rozsah a jednotku.\n'
     + 'PRIORITA JE FUNKCE: návrh musí jako stroj skutečně fungovat — každý vstup, který má na chod vliv, musí program číst a reagovat na něj. Zkontroluj, že žádné zařízení nevisí bez účelu.\n'
@@ -129,6 +130,12 @@ export function aiNorm(r) {
       if (optNum(d.travelS) > 0) nd.travelS = optNum(d.travelS);
       if (Array.isArray(d.records)) nd.records = d.records.filter(r => r && Number.isInteger(Number(r.no)) && Number(r.no) >= 1)
         .map(r => ({ ...r, no: Number(r.no), name: String(r.name || ""), ...(optNum(r.pos) !== undefined ? { pos: optNum(r.pos) } : {}) }));
+    }
+    /* pásový dopravník: jen známá pole v rozsahu (CONVEYOR_FIELDS); nic jiného se nepřenese */
+    if (CONVEYOR_CLASSES.has(d.cls) && d.conveyor && typeof d.conveyor === "object") {
+      const cv = {};
+      for (const f of CONVEYOR_FIELDS) { const v = optNum(d.conveyor[f.key]); if (v !== undefined && v >= f.min && v <= f.max) cv[f.key] = v; }
+      if (Object.keys(cv).length) nd.conveyor = cv;
     }
     if (d.cls === "DO" && Object.prototype.hasOwnProperty.call(DO_ROLES, d.role)) nd.role = d.role;
     if (typeof d.libType === "string" && d.libType) nd.libType = d.libType;   // typ z firemní knihovny

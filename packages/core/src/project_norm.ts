@@ -18,7 +18,7 @@
  * desktop dřív spadl TypeError na `program.estop` = seznam a aplikace se nespustila).
  */
 import {
-  blankProject, CLS, PLAT, DO_ROLES, ensureGuids, multiLineSafe, lineSafe,
+  blankProject, CLS, PLAT, DO_ROLES, ensureGuids, multiLineSafe, lineSafe, CONVEYOR_FIELDS, CONVEYOR_CLASSES,
   type Project, type Device, type IoEntry, type SeqStep, type Dir, type BomCfg, type BomLineCfg,
 } from "./model.js";
 import { isGuid } from "./guid.js";
@@ -222,6 +222,13 @@ function normDevice(d: Record<string, any>): Device {
         .map(x => ({ name: lineSafe(str(x.name) ? x.name : ""), pos: numOf(x.pos)! }));
       nd.axis = a as Device["axis"];
     } else delete nd.axis;
+  }
+  /* pásový dopravník (Motor / Vfd): jen známá pole jako konečná čísla; prázdné / jiná třída = pryč */
+  if (d.conveyor !== undefined) {
+    const c: Record<string, number> = {};
+    if (isObj(d.conveyor) && CONVEYOR_CLASSES.has(nd.cls))
+      for (const f of CONVEYOR_FIELDS) { const n = numOf(d.conveyor[f.key]); if (n !== undefined) c[f.key] = n; }
+    if (Object.keys(c).length) nd.conveyor = c as Device["conveyor"]; else delete nd.conveyor;
   }
   return nd;
 }

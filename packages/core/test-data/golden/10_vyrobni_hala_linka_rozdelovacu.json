@@ -793,12 +793,12 @@
    "size": 60936
   },
   "docs/09_kusovnik.csv": {
-   "sha256": "37130286aba6511ba0917c532b3b5ac34e66b5d5c88b3c7f94b012e35eb9ce3b",
-   "size": 50288
+   "sha256": "2e12673995568188de26086fad74c8a24e789a9fdf6fa56d163e55e589272777",
+   "size": 51168
   },
   "docs/09_kusovnik.md": {
-   "sha256": "b166713bd1e3d20839ad782884bab7682d7856ac4013c81899f9f37844d1383d",
-   "size": 51247
+   "sha256": "edc9af2184aa0fb4af6c8d19a911b80e56e8b5a2f491f86c6169fd10f742b6bc",
+   "size": 51335
   },
   "docs/11_schvaleni.md": {
    "sha256": "6a5b32e4b88d8e1059d0b38101922ca1036a0e3d048113ee67cc94b77c0a7f5a",
@@ -1607,12 +1607,12 @@
    "size": 59503
   },
   "docs/09_kusovnik.csv": {
-   "sha256": "9dd63179f5991846aae6f835398fd9932025bb0074007b4dd6dbc9df71fef77e",
-   "size": 49878
+   "sha256": "be06e07e90aafe4ab48af73c126c56f801607157e19be819989c8c3ee9d276fb",
+   "size": 50670
   },
   "docs/09_kusovnik.md": {
-   "sha256": "21de9db5afd4ecdad1fb9a52f01dbec9d96160c32a73e703c18d68e942e37a77",
-   "size": 50382
+   "sha256": "9d52d569cc5488a531f8aa290ce4a552fffa736592049b5cd987fb932bb6baaf",
+   "size": 50494
   },
   "docs/11_schvaleni.md": {
    "sha256": "d3fea683a0d1f88d71f6e652ae4556fd0de3259c8d14046738bb58c7d0fca63b",
@@ -2421,12 +2421,12 @@
    "size": 68286
   },
   "docs/09_kusovnik.csv": {
-   "sha256": "09d3816ab2482b692c2e6c9c81e5994c9fb936246f17c5e84de5fbf90996f9d4",
-   "size": 50478
+   "sha256": "19470268fb178e1016979f16116e036811c5f8e2c58785ad2d5fe002f4137daf",
+   "size": 51162
   },
   "docs/09_kusovnik.md": {
-   "sha256": "b14bd9b1e6b8af8769ebb369ece6f535e0ef08c61490e5032e1b1e9a90b45622",
-   "size": 50904
+   "sha256": "3099c86272772cefe4fdebc9a73a77fe6adfc2de16717bab1abd337f541e5db9",
+   "size": 50908
   },
   "docs/11_schvaleni.md": {
    "sha256": "0edd5e3416e1c121dfe6f2e5647af7c1896a772ad524984561b0e85e4e8374e0",
@@ -3235,12 +3235,12 @@
    "size": 65081
   },
   "docs/09_kusovnik.csv": {
-   "sha256": "2541a10cf77bff3fa8c5126b008af3055d76be3db39323bea18a2d4603977875",
-   "size": 52349
+   "sha256": "0be338c68090ef9dda762633bda38a0fcac499750fa888d48854dab883fb66da",
+   "size": 53317
   },
   "docs/09_kusovnik.md": {
-   "sha256": "654639f4f743ed35022eeb3c3f7d2b82f4732f3b6c624d0f2fe9afb1223f59cf",
-   "size": 52296
+   "sha256": "35ec39b80855150e404af075d21d5f7738857c6667e75f94df2fc35267fcc0f8",
+   "size": 52424
   },
   "docs/11_schvaleni.md": {
    "sha256": "0b096b846c688af8bd94d4f51529a318bccbb62eaa6f1f3d65eab96bdd2d6f50",
@@ -4049,12 +4049,12 @@
    "size": 60217
   },
   "docs/09_kusovnik.csv": {
-   "sha256": "79d41be18378c9b0432f32f3a9f4e6ebe8772ab4bd38aea5438dc406e6bb4b5e",
-   "size": 48305
+   "sha256": "1dadead5564bf50aff5890e856cbb076a2706ccd5169960cea4531495bef5c70",
+   "size": 49081
   },
   "docs/09_kusovnik.md": {
-   "sha256": "233c5f83633cd1fd66b6ce432bd62fc432a8d559ab01c52c9e008589c4e547dc",
-   "size": 49510
+   "sha256": "9e24444b14e3e191f5971b51dc3d439339d881d1ce188f84ad5a3d0d287a3c68",
+   "size": 49594
   },
   "docs/11_schvaleni.md": {
    "sha256": "adca9b93fa09cf720d68c69293502673297264b0d3c113ea9d22de19b63e68a6",

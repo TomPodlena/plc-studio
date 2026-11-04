@@ -21,7 +21,7 @@ import { axisDialect, AXIS_NET } from "./axis_gen.js";
 export { brandOptId };
 /** Kategorie kusovníku, které jsou bezpečnostními prvky samy o sobě (bez ohledu na zařízení). */
 export const BOM_SAFETY_CATS = new Set(["safety_relay", "safety_controller", "contactor_mirror",
-    "safety_valve", "two_hand_station", "light_curtain", "safety_switch", "estop_button"]);
+    "safety_valve", "two_hand_station", "light_curtain", "safety_switch", "guard_lock", "guard_lock_contact", "estop_button"]);
 /**
  * Je řádek kusovníku bezpečnostní díl? Řádek podle posouzení rizik (`BomLine.safety`), bezpečnostní kategorie
  * (`BOM_SAFETY_CATS`) nebo díl zařízení E-stopu / blokování programu. Sdílí export pro CAD (`parts[].safety`)
@@ -123,10 +123,26 @@ export function bomBeaconTowers(prj) {
         return { tag: "-PF" + (i + 1), tiers, stock };
     });
 }
+/* ---- zámek ochranného krytu (jištění, EN ISO 14119) ----
+   DO s rolí `lock` nebo s popisem zámku = cívka blokovacího zařízení se zámkem → kategorie `guard_lock` (dřív obyčejný
+   bezpečnostní spínač bez jištění; nález modulu O3 PLCdesk PRO 2026-11-04). Kontakty „zavřeno a zamčeno“ jsou součástí
+   přístroje: blokovací DI, jehož popis říká „zamčeno“ / locked / verriegelt, se spáruje se zámkem (v pořadí projektu)
+   a místo samostatného spínače dostane řádek `guard_lock_contact` (kontakt zámku, bez objednání — jako patro věže;
+   označení vstupu zůstává v kusovníku kvůli SISTEMA / výkresům). Klíčová slova jen z obsahu projektu (cs / en / de / es). */
+const LOCK_DO_RE = /zámek|zámk|lock|zuhalt|bloqueo/;
+const LOCKED_DI_RE = /zamčen|zamknut|uzamčen|locked|verriegelt|zugehalten|bloquead/;
+const isLockDo = (d) => d.cls === "DO" && (d.role === "lock" || has(d.desc || "", LOCK_DO_RE));
+/** Dvojice zámek (DO) → blokovací vstup „zavřeno a zamčeno“ (DI) téhož přístroje; nespárovaný zámek = bez vstupu. */
+function guardLockPairs(prj, locks) {
+    const lockDos = prj.devices.filter(isLockDo);
+    const lockedDis = prj.devices.filter(d => locks.has(d.id) && d.cls === "DI" && has(d.desc || "", LOCKED_DI_RE)
+        && !has(d.desc || "", /závor|mříž|curtain|lichtgitter|barrera|clona/));
+    return new Map(lockDos.map((d, i) => [d.id, lockedDis[i] || null]));
+}
 function doCat(d) {
     const t = d.desc || "";
-    if (d.role === "lock" || has(t, /zámek|zámk|lock|zuhalt|bloqueo/))
-        return "safety_switch";
+    if (isLockDo(d))
+        return "guard_lock";
     if (bomIsInterface(d))
         return "interface_relay";
     if (has(t, /houkačk|siréna|horn|hupe|bocina|sirene/))
@@ -235,6 +251,8 @@ export function buildBom(prj) {
     const plat = bomPlatform(prj);
     const cfg = prj.bom || {};
     const locks = new Set(interlockDevs(prj).map(d => d.id));
+    const lockPairs = guardLockPairs(prj, locks);
+    const lockedDi = new Set([...lockPairs.values()].filter((x) => !!x).map(x => x.id));
     const raw = [];
     const add = (tag, cat, qty, desc, extra = {}) => {
         if (qty <= 0)
@@ -339,6 +357,15 @@ export function buildBom(prj) {
             const c = diCat(prj, d, locks);
             if (!c)
                 continue;
+            if (lockedDi.has(d.id)) {
+                /* kontakt „zavřeno a zamčeno“ zámku krytu = součást přístroje zámku (řádek DO), nic se neobjednává */
+                const lk = [...lockPairs.entries()].find(([, di]) => di?.id === d.id);
+                const lkDev = prj.devices.find(x => x.id === lk[0]);
+                add(t, "guard_lock_contact", 1, desc, { devId: d.id, safety: true,
+                    note: tr("kontakt zavřeno a zamčeno blokovacího zařízení se zámkem -{lock} (součást přístroje, neobjednává se)", { lock: lkDev.name })
+                        + "; " + tr("návrh, ověřit v posouzení rizik (EN ISO 14119, EN ISO 13849)") });
+                continue;
+            }
             const safety = c === "estop_button" || c === "light_curtain" || c === "safety_switch";
             add(t, c, 1, desc, { devId: d.id, safety, note: safety ? safetyNote
                     : c === "selector_switch" ? tr("počet poloh, s klíčem / bez klíče a kontakty podle funkce — typ doplní projektant") : "" });
@@ -366,8 +393,15 @@ export function buildBom(prj) {
                                 : tr("patro věže {tower}: {color}; u hotové věže součást věže, u stavebnicové světelný prvek této barvy", { tower: tw.tag, color: cname(x) }) });
                 continue;
             }
-            add(t, c, 1, desc, { devId: d.id, safety: c === "safety_switch", note: c === "safety_switch" ? safetyNote
-                    : bomIsInterface(d) ? tr(VALVE_NOTE.interface_relay) : "" });
+            if (c === "guard_lock") {
+                const di = lockPairs.get(d.id);
+                add(t, c, 1, desc, { devId: d.id, safety: true, note: (di
+                        ? tr("blokovací zařízení se zámkem (jištění krytu, EN ISO 14119): cívka zámku = výstup {dev}, kontakt zavřeno a zamčeno = vstup {di} (bez samostatného spínače)", { dev: d.name, di: di.name })
+                        : tr("blokovací zařízení se zámkem (jištění krytu, EN ISO 14119): cívka zámku = výstup {dev}; kontakty hlídání dveří jsou součástí přístroje — samostatný spínač krytu podle posouzení rizik", { dev: d.name }))
+                        + "; " + tr("návrh, ověřit v posouzení rizik (EN ISO 14119, EN ISO 13849)") });
+                continue;
+            }
+            add(t, c, 1, desc, { devId: d.id, note: bomIsInterface(d) ? tr(VALVE_NOTE.interface_relay) : "" });
         }
     }
     /* rozhraní k jinému stroji (lis, robot…): jeden konektor s kabelem pro všechny signály výměny */
