@@ -230,7 +230,7 @@ def d1_obalka(d) -> dict:
 
 
 # --- pás obsluhy: nosný profil + pult + pneumatika ------------------------------------------------------------------
-def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float, p3_dovnitr: bool = True):
+def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float, p3_dovnitr: bool = True, hose_valcu: dict | None = None):
     """Nosný profil 40 × 40 podél +y na desce (x = ``X_NOSIC``), šrouby M6 zespodu deskou; na něm pult O1 (u přední strany)
     a za ním úprava vzduchu P2 + ostrov P3. Vrací {fixture, moduly, porty, pozadavky, obalky, info}."""
     out = {"moduly": [], "pozadavky": [], "obalky": [], "nepostaveno": [], "odhady": set(), "info": {}, "porty": {}, "elektro": {}}
@@ -291,7 +291,7 @@ def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float, p3_dovnitr: boo
         ident = man_id.split(":")[0] if man_id else "-WP1"
         p2 = modul_ostrov.uprava("-P2", x_cursor, 0.0, sv=sv, ids={k: v for k, v in ids.items() if v})
         xo = p2["rozhrani"]["vystup_P"]["usti"][0] + 2 * (54 + 20.7 + 20) + 20.1 + 10 - 60.0      # = lavice_p234 (oblouky PUN-10)
-        p3 = modul_ostrov.ostrov(ident, [{"tag": v["tag"], "valec": v["valec"]} for v in vent], 0.0 if p3_dovnitr else xo, 0.0,
+        p3 = modul_ostrov.ostrov(ident, [{"tag": v["tag"], "valec": v["valec"], "hose": (hose_valcu or {}).get(v["valec"])} for v in vent], 0.0 if p3_dovnitr else xo, 0.0,
                                  lista_id=man_id)
         o = [X_NOSIC, y0, Hd + A]
         pl = {"pos": o, "rot": R_PAS}
@@ -325,7 +325,7 @@ def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float, p3_dovnitr: boo
         for q in p3["rozhrani"]["pripojky"]:
             out["porty"][q["id"]] = {"usti": [round(v, 3) for v in _tb(R_PAS, o, q["usti"] + q["usti"])[:3]],
                                     "osa_usti": [round(v, 6) for v in _mv(R_PAS, q["osa_usti"])], "zasun": q["zasun"], "id": q["id"],
-                                    "cil": q["cil"], "valec": q["valec"], "ventil": q["ventil"], "R": q["R"]}
+                                    "cil": q["cil"], "valec": q["valec"], "ventil": q["ventil"], "R": q["R"], "hose": q.get("hose")}
         for e, v in zip(p3["rozhrani"]["elektro"], vent):
             out["elektro"][v["tag"] + " cívka"] = {"bod": [round(c, 2) for c in _tb(R_PAS, o, e["zacatek"] + e["zacatek"])[:3]], "D": 4.3}
         out["info"]["P2"] = {k: p2["rozhrani"].get(k) for k in ("bezpecnost", "uzaver")}
@@ -439,7 +439,7 @@ def umistit_p3(p3, inner, Hd, t_deska, obst, zony, nosniky, cil):
     porty, elektro = {}, {}
     for q in p3["rozhrani"]["pripojky"]:
         porty[q["id"]] = {"usti": [round(v, 3) for v in _tb(I3, o, q["usti"] + q["usti"])[:3]], "osa_usti": list(q["osa_usti"]),
-                          "zasun": q["zasun"], "id": q["id"], "cil": q["cil"], "valec": q["valec"], "ventil": q["ventil"], "R": q["R"]}
+                          "zasun": q["zasun"], "id": q["id"], "cil": q["cil"], "valec": q["valec"], "ventil": q["ventil"], "R": q["R"], "hose": q.get("hose")}
     for e in p3["rozhrani"]["elektro"]:
         elektro[e["signal"].split()[0] + " cívka"] = {"bod": [round(c, 2) for c in _tb(I3, o, e["zacatek"] + e["zacatek"])[:3]], "D": 4.3}
     n_ = p3["rozhrani"]["napajeni"]
@@ -608,7 +608,9 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
                 zony.append({"nazev": f"P1 {m['rozhrani'].get('tag', '')} {z['nazev']}", "bbox": z["bbox"]})
         o3 = kryt_build(n1_0["rozhrani"], [X0, Y0, X1, Y1], zony, man, vyska)
         poz = [dict(q) for q in o3["rozhrani"]["pozadavky_na_ram"] if q.get("bod")] + d.otvory_desky
-        pas = pas_obsluhy(man, Hd, t_d, y0_pas)
+        hose_valcu = {m["rozhrani"]["tag"]: q.get("hose") for m in d.moduly_ext if m.get("rozhrani", {}).get("pripojky")
+                      for q in modul_ostrov._p1_porty(m).values()}
+        pas = pas_obsluhy(man, Hd, t_d, y0_pas, hose_valcu=hose_valcu)
         poz += pas["pozadavky"]
         n1 = _n1(D, W, Hd, nos, poz, [], "zkouška otvorů")
         odm = n1["rozhrani"].get("pruchody", {}).get("odmitnuto") if isinstance(n1["rozhrani"].get("pruchody"), dict) else None
@@ -704,13 +706,14 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
                 nep.append({"id": f"H {pid}", "co": f"hadice {pid} → {a['valec']} {a['cil']}", "duvod": "válec v celku není"})
                 continue
             h, why = route_hose(f"{pid.lstrip('-').replace('.', '_')}_{a['valec'].lstrip('-')}_{a['cil']}", a, tgt, obst + used,
-                                [deska_box], prefer=prefer, nazev=f"Hadice PUN-6x1 {a['ventil']} port {pid.split('.')[-1]} → {a['valec']} {a['cil']}")
+                                [deska_box], prefer=prefer, medium=a.get("hose") or "festo_PUN_6x1",
+                                nazev=f"Hadice {(a.get('hose') or 'festo_PUN_6x1').replace('festo_', '')} {a['ventil']} port {pid.split('.')[-1]} → {a['valec']} {a['cil']}")
             if h is None:
                 nep.append({"id": f"H {pid}", "co": f"hadice {pid} → {a['valec']} {a['cil']}", "duvod": f"trasa nenalezena ({why}) — doplní stavitel"})
                 continue
             h["vysledek"].update({"od": pid, "do": tgt["id"]})
             hk = (prip_hose.get((a["valec"], a["cil"])) or "")
-            if hk and hk != "festo_PUN_6x1":
+            if hk and hk != (a.get("hose") or "festo_PUN_6x1"):
                 odhady.add(f"hadice {pid} → {a['valec']} {a['cil']}: ostrov PUN-6 (QS-G1/8-6), válec má šroubení pro {hk} — přechod "
                            "QS-8-6 / šroubení QS-G1/4-6 na válci doplní stavitel (ODHAD, není v kusovníku)")
             hoses.append(h)
@@ -1032,6 +1035,9 @@ def generate(manifest_path, folder, *, model="Celek", no_fc=False, slot=SLOT, ch
         summ.update(ok=True, kod=1 if c["kontrola_planu"]["chyby"] else 0)
         return summ
     fcp = out / f"{model}.FCStd"
+    bm = ((fc or {}).get("stavba") or {}).get("model")          # --nestavet: model z výsledku stavby, i když má jiné jméno než výchozí
+    if not fcp.is_file() and bm and Path(bm).is_file():
+        fcp = Path(bm)
     if not fcp.is_file():
         summ.update(kod=2, chyba="model nevznikl: " + json.dumps((fc or {}).get("stavba") or {}, ensure_ascii=False, default=str)[:800])
         return summ

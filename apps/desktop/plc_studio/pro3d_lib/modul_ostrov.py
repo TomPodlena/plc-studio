@@ -229,15 +229,17 @@ def ostrov(ident: str, ventily: list[dict], x0: float, z_profil: float = 40.0, o
         for y in (-sr["y"], sr["y"]):
             m.sroub_osa(sr["m"], [xc, y, zt + sr["dno_zahloubeni"]], [0, 0, -1], sr["dno_zahloubeni"], 10.0, "hlinik")
         H = v["obalka"]["vyska"]
+        hose_v = vt.get("hose") or "festo_PUN_6x1"     # hadice podle válce (Ø40 = PUN-8): šroubení G1/8 pro tutéž hadici
+        fit = {"festo_PUN_6x1": "QS-G1/8-6", "festo_PUN_8x1.25": "QS-G1/8-8"}.get(hose_v, "QS-G1/8-6")
         for nm, y in (("4", v["porty_poloha"]["y4"]), ("2", v["porty_poloha"]["y2"])):
-            r_, js = m.sroubeni({"id": f"{vt['tag']}.{nm}", "seat": [xc, y, zt + H], "n": [0, 0, 1], "fitting": "QS-G1/8-6",
-                                 "hose": "festo_PUN_6x1", "tower": [1, 0, 0]})
+            r_, js = m.sroubeni({"id": f"{vt['tag']}.{nm}", "seat": [xc, y, zt + H], "n": [0, 0, 1], "fitting": fit,
+                                 "hose": hose_v, "tower": [1, 0, 0]})
             m.tel.append({"name": f"Prostor_hadice_{i + 1}_{nm}", "label": f"Pomocný prostor nasunutí hadice {vt['tag']} port {nm}",
                           "body": r_["zona"], "props": {"Konstrukce_Typ": "pomocny", "Konstrukce_Zona": "hadice"},
                           "vyjimka": [f"inst:{js}"]})
             h = r_["hadice"]
             porty.append({"id": f"{vt['tag']}.{nm}", "ventil": vt["tag"], "port": nm, "seat": r_["seat"], "n": r_["n"],
-                          "thread": "G1/8", "fitting": "QS-G1/8-6", "hose": h["kod"], "usti": h["usti"], "osa_usti": r_["osa_usti"],
+                          "thread": "G1/8", "fitting": fit, "hose": h["kod"], "usti": h["usti"], "osa_usti": r_["osa_usti"],
                           "zasun": h["zasun"], "D": h["D"], "R": h["R"], "R_min": h["R_min"], "valec": vt.get("valec"),
                           "cil": "zadni" if nm == "4" else "predni",
                           "pozn": "4 → zadní přípojka (vysunutí), 2 → přední (zasunutí) — ODHAD podle zapojení 5/2 monostabilní"})
