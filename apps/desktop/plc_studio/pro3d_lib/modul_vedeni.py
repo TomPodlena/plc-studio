@@ -226,14 +226,29 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
         c, D, R = x["c"], x["D"], x["R"]
         st = [float(v) for v in c["start"]]
         sd = _unit(c["smer"])
+        if c.get("smer_odhad") or not c.get("smer"):           # směr neznámý → první osa, kterou kabel vyjde mimo překážky
+            for cd in (sd, [0, 0, 1], [0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, -1]):
+                q0 = add(st, cd, DOTYK)
+                q1 = add(q0, cd, 10.0 + R)
+                if not any(rt.point_in(q1, rt.inflate(b, D / 2 + 4)) or rt.seg_hits(q0, q1, rt.inflate(b, D / 2 + 1)) for b in obst):
+                    sd = _unit(cd)
+                    break
         p0 = add(st, sd, DOTYK)
         p1 = add(p0, sd, 10.0 + R)
         others = [b for y in det if y is not x for b in rt.segments_boxes([y["A"]] + y["pevne"][:-1], y["D"] / 2 + 2.0)]
-        ob = [b for b in obst + others + done_boxes + zlab.walls() if not (rt.point_in(p1, rt.inflate(b, D / 2 + 4)) or rt.point_in(x["A"], rt.inflate(b, D / 2 + 4)))]
+
+        def _hit(b):
+            return rt.point_in(p1, rt.inflate(b, D / 2 + 4)) or rt.point_in(x["A"], rt.inflate(b, D / 2 + 4))
         r_ = None
-        for krok in (20.0, 40.0):                              # limit uzlů na jemné mřížce → hrubší mřížka
-            r_ = rt.route(p1, sd, x["A"], [-v for v in zlab.n], ob, R=R, r_med=D / 2, clear=3.0, step=krok, margin=300.0, max_nodes=400000,
-                          plates=plates, cross_cost=400.0)
+        # nejdřív cizí kabely vždy jako překážka; nenajde-li se trasa, vyřadit překážky obsahující začátek / vstup do žlabu
+        for strikt in (True, False):
+            ob = [b for b in obst + zlab.walls() if not _hit(b)]
+            ob += (others + done_boxes) if strikt else [b for b in others + done_boxes if not _hit(b)]
+            for krok in (20.0, 40.0):                          # limit uzlů na jemné mřížce → hrubší mřížka
+                r_ = rt.route(p1, sd, x["A"], [-v for v in zlab.n], ob, R=R, r_med=D / 2, clear=3.0, step=krok, margin=300.0, max_nodes=400000,
+                              plates=plates, cross_cost=400.0)
+                if r_ is not None:
+                    break
             if r_ is not None:
                 break
         if r_ is None:
@@ -247,7 +262,7 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
         if ev["chyby"]:
             res["nepostaveno"].append({"id": c["id"], "co": f"kabel {c['id']} ({c['od']})", "duvod": "; ".join(ev["chyby"])})
             continue
-        done_boxes += rt.segments_boxes(r_["body"], D / 2 + 2.0)
+        done_boxes += rt.segments_boxes([p0] + [list(q) for q in r_["body"]], D / 2 + 2.0)
         res["vylomeni"] += 2
         res["kabely"].append({"c": c, "ev": ev, "x": x, "router": r_})
         for pr_ in r_.get("pruchody") or []:                   # průchod deskou = požadavek na rám (N1 vyvrtá)
@@ -451,7 +466,7 @@ def celek_e1_e2(n1_roz: dict, starts: list, obst: list, layout_path, *, strana: 
     p = cand[0]
     u0, u1 = max(((a, b) for a, b in p.get("volne_useky_mm") or []), key=lambda ab: ab[1] - ab[0])
     zl = Zlab(p, u0 + 10.0, u1 - 10.0, nazev=f"E2 žlab na {p['prvek']}")
-    kab = [{"id": s[0], "partId": s[1], "od": s[2], "start": list(s[3]), "D": s[4], "smer": list(s[5]) if len(s) > 5 else [0, 0, 1],
+    kab = [{"id": s[0], "partId": s[1], "od": s[2], "start": list(s[3]), "D": s[4], "smer": list(s[5]) if len(s) > 5 and s[5] else [0, 0, 1], "smer_odhad": not (len(s) > 5 and s[5]),
             "medium": "lapp_OLFLEX_CLASSIC_110" if _sil(s) else medium, "skupina": "silovy" if _sil(s) else "signal"} for s in starts]
     e2 = modul(kab, zl, e1["rozhrani"], obst + e1["boxes"], plates=plates)
     out["moduly"].append(e2["modul"])

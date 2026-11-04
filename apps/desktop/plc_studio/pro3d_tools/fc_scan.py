@@ -368,10 +368,22 @@ def _near_solids(s, bb):
     return near[0] if len(near) == 1 else Part.makeCompound(near)
 
 
+VNITREK_DOC = "Rozvadec"
+
+
+def _vnitrek(x):
+    """Díl uvnitř vloženého rozvaděče (jiný dokument než kontrolovaný celek) — dvojice vnitřek × vnitřek se v celku nekontroluje."""
+    if doc.Name == VNITREK_DOC or OPT.get("vnitrek_rozvadece") is False:
+        return False
+    return x["doc"] == VNITREK_DOC or any(str(l).startswith(VNITREK_DOC + "#") for l in x["lnk"])
+
+
 def collide(items, moved_keys=None, label=""):
     """Matice kolizí dvojic s protnutou obálkou. moved_keys: jen dvojice, kde je aspoň jeden pohyblivý."""
     chyby, povol, dotyk, n = [], [], 0, 0
     for a, b in itertools.combinations(items, 2):
+        if _vnitrek(a) and _vnitrek(b):          # uvnitř vloženého rozvaděče: vlastní kontroly Rozvadec.FCStd
+            continue
         if moved_keys is not None and not (a["key"] in moved_keys or b["key"] in moved_keys):
             continue
         box = ov_box(a["bb"], b["bb"])

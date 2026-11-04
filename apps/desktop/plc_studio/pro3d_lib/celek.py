@@ -899,22 +899,24 @@ def cable_starts(man, d, pas, o3) -> list:
     """Začátky kabelů zařízení v poli [(id, partId, od, bod, D)] — pro ODHAD délek i modul E2."""
     starts = []
     kb = d.rozhrani()["kabel_motoru"]
-    starts.append(("W-" + (kb.get("PLCdesk_Id") or "M1").split(":")[0].lstrip("-"), kb.get("PLCdesk_Id"), "pohon D1", kb["zacatek"], kb.get("D") or 9.0))
+    starts.append(("W-" + (kb.get("PLCdesk_Id") or "M1").split(":")[0].lstrip("-"), kb.get("PLCdesk_Id"), "pohon D1", kb.get("konec") or kb["zacatek"], kb.get("D") or 9.0,
+                   kb.get("smer_konce") or kb.get("smer") or [0, 0, 1]))
     for m in d.moduly_ext:
         r = m.get("rozhrani") or {}
         for e in r.get("elektro") or []:
-            starts.append((f"W-{r.get('tag', '').lstrip('-')}-{e['signal'].split()[-1]}", None, e["signal"], e["zacatek"], 4.3))
+            starts.append((f"W-{r.get('tag', '').lstrip('-')}-{e['signal'].split()[-1]}", None, e["signal"], e["zacatek"], 4.3, e.get("smer") or [0, 0, 1]))
         kk = (m.get("kontrola") or {}).get("konektor")
         if kk and (m.get("props") or {}).get("Konstrukce_Modul") == "S1":
             starts.append((f"W-{(m.get('props') or {}).get('PLCdesk_Id', 'S').split(':')[0].lstrip('-')}",
-                           (m.get("props") or {}).get("PLCdesk_Id"), "snímač S1", kk["start"], 6.0))
+                           (m.get("props") or {}).get("PLCdesk_Id"), "snímač S1", kk.get("konec") or kk["start"], 6.0,
+                           kk.get("smer_konce") or kk.get("smer") or [0, 0, 1]))
     for nm, e in pas["elektro"].items():
         starts.append((f"W-{nm.split()[0].lstrip('-')}", None, nm, e["bod"], e.get("D") or 6.0))
     for s in o3["rozhrani"].get("blokovani") or []:
         z = s.get("zona_spinace")
         if z:
             starts.append((f"W-{s['device']}", (s.get("plcdesk_id") or [None])[0] if isinstance(s.get("plcdesk_id"), list) else s.get("plcdesk_id"),
-                           f"blokovací spínač {s['device']}", [(z[0] + z[3]) / 2, z[4] - 20.0, (z[2] + z[5]) / 2], 7.0))
+                           f"blokovací spínač {s['device']}", [(z[0] + z[3]) / 2, z[4] - 20.0, (z[2] + z[5]) / 2], 7.0, None))
     return starts
 
 
@@ -925,7 +927,7 @@ def cables_estimate(man, d, pas, o3, e1, obst, deska_box, Hd) -> list:
     goal = list(e1["vstup_kabelu"])
     starts = cable_starts(man, d, pas, o3)
     out = []
-    for cid, pid, od, st, D in starts:
+    for cid, pid, od, st, D, *_ in starts:
         st = [float(v) for v in st]
         res = route_cable(cid, st, goal, obst, [deska_box], D=D)
         rec = {"id": cid, "partId": pid, "od": od, "do": e1.get("partId") or "rozvaděč", "D": D, "postaveno": False}

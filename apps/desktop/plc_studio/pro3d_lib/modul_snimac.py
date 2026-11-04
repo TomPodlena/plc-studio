@@ -191,7 +191,7 @@ def modul_valec(typ: str, cil, y_s: float = 0.0, z_p: float = 40.0, vzdalenost: 
                                                                  "Kabel_R_min": kon["kabel"]["R"]}}],
             "kontrola": {"celo": P, "osa": [0, 1, 0], "cil": [cx, cy, zs], "vzdalenost": dist, "Sa": t["Sa"], "Sn": t["Sn"],
                          "serizeni": serizeni, "drzak_z": [z_p, zt], "stojna_y": [yl, yl + T_DRZAK], "spojka_V4": txt_v4,
-                         "konektor": {"start": start, "smer": [0, -1, 0], "zona_r": kon["zona_r"], "zona_h": kon["zona_h"]},
+                         "konektor": {"start": start, "smer": [0, -1, 0], "konec": kon["kabel"]["path"][-1]["line"][1], "smer_konce": spojky_el.smer_konce(kon["kabel"]["path"], [0, -1, 0]), "zona_r": kon["zona_r"], "zona_h": kon["zona_h"]},
                          "kabel_R": kon["kabel"]["R"], "kabel_R_cesta": round(spojky_el.ohyb_z_cesty(kon["kabel"]["path"]), 2)},
             "varovani": var}
 
@@ -272,7 +272,7 @@ def modul_kvadr(typ: str, cil, y_s: float = 0.0, z_p: float = 40.0, py: float | 
                                                                  "Kabel_R_min": kon["kabel"]["R"]}}],
             "kontrola": {"celo": opt, "osa": [0, 1, 0], "cil": [opt[0], cy, opt[2]], "vzdalenost": L, "dosah": t["dosah_max"],
                          "serizeni": {"podelne": po["serizeni"]}, "spojka_V4": txt_v4, "srouby_snimace": srouby_m4,
-                         "konektor": {"start": start, "smer": [1, 0, 0], "zona_r": kon["zona_r"], "zona_h": kon["zona_h"]},
+                         "konektor": {"start": start, "smer": [1, 0, 0], "konec": kon["kabel"]["path"][-1]["line"][1], "smer_konce": spojky_el.smer_konce(kon["kabel"]["path"], [1, 0, 0]), "zona_r": kon["zona_r"], "zona_h": kon["zona_h"]},
                          "kabel_R": kon["kabel"]["R"], "kabel_R_cesta": round(spojky_el.ohyb_z_cesty(kon["kabel"]["path"]), 2)},
             "varovani": var}
 

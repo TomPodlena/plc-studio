@@ -585,7 +585,7 @@ def modul(tag: str, norma: str, prumer: int, zdvih: int, upevneni: str | None = 
         "pripojky": [dict(q, seat=G(q["seat"]), n=Gd(q["n"]), tower=Gd(q["tower"]) if q.get("tower") else None,
                           zacatek_hadice=G(q["zacatek_hadice"]), smer_hadice=Gd(q["smer_hadice"]), usti=G(q["usti"])) for q in porty],
         "elektro": [{"signal": s["signal"], "poloha_pistu": s["poloha_pistu"], "kabel": SNIMAC_TYP,
-                     "zacatek": G(s["kabel"]["path"][-1]["line"][1]), "smer": Gd([0, 1, 0]), "R": s["kabel"]["R"],
+                     "zacatek": G(s["kabel"]["path"][-1]["line"][1]), "smer": Gd(spojky_el.smer_konce(s["kabel"]["path"], [0, 1, 0])), "R": s["kabel"]["R"],
                      "konektor": s["kabel"]["konektor"], "delka_vyvodu_mm": s["kabel"]["konec_vyvodu_mm"],
                      "pozn": "konektor M8 je na konci vývodu 0,3 m — volný prostor konektoru řeší trasa (V2)"} for s in sn],
         "signaly": [{"id": f"{tag}:cylinder_switch", "inst": str(i + 1), "nazev": s["nazev"], "poloha_pistu": s["poloha_pistu"]}
@@ -702,3 +702,4 @@ def main(argv=None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

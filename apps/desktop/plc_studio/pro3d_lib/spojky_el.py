@@ -143,3 +143,14 @@ def kabel_vyvod_snimace(typ: str, start, u, w) -> dict:
     return {"typ": typ, "nazev": k["nazev"], "r": D / 2, "R": R, "path": [{"line": [a, b]}, {"arc": [b, mid, c]}, {"line": [c, e]}],
             "delka": round(delka, 1), "konec_vyvodu_mm": k.get("delka_mm"), "konektor": k.get("konektor"),
             "odhad": bool(k.get("odhad")), "zdroj": k.get("zdroj", ""), "zdroj_popis": k.get("zdroj_popis", "")}
+
+
+def smer_konce(path, vychozi):
+    """Jednotkový směr posledního úseku cesty kabelu (navazující kabel pokračuje stejným směrem)."""
+    try:
+        a, b = path[-1]["line"]
+        v = [b[i] - a[i] for i in range(3)]
+        n = sum(c * c for c in v) ** 0.5
+        return [c / n for c in v] if n > 1e-6 else list(vychozi)
+    except (KeyError, IndexError, TypeError, ValueError):
+        return list(vychozi)

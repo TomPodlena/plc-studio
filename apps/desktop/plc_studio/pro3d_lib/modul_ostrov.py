@@ -259,7 +259,7 @@ def ostrov(ident: str, ventily: list[dict], x0: float, z_profil: float = 40.0, o
                       "r": kon["kabel"]["r"], "path": kon["kabel"]["path"],
                       "props": {"Konstrukce_Typ": "kabel", "Konstrukce_Druh": "signal", "Kabel_R_min": kon["kabel"]["R"]}})
         elektro.append({"signal": f"{vt['tag']} cívka 14", "konektor": kon_t, "zacatek": kon["kabel"]["path"][-1]["line"][1],
-                        "smer": [0, 0, 1], "R": kon["kabel"]["R"], "k": "rozvaděč (V2)"})
+                        "smer": spojky_el.smer_konce(kon["kabel"]["path"], [0, 0, 1]), "R": kon["kabel"]["R"], "k": "rozvaděč (V2)"})
     m.odh += [f"obrys ventilu {v['kod']} {v['velikost']:g} × {v['obalka']['delka']:g} × {v['obalka']['vyska']:g} — šířka ze zdroje, zbytek ODHAD",
               f"lišta {Lr:g} × {W:g} × {Hr:g}, poloha portů P / 3 / 5 a šroubů {sm} ODHAD (rozteč {li['roztec']:g} ze zdroje)",
               "poloha portů 2 / 4 na horní ploše ventilu ODHAD", "zásuvka M8 na čele ventilu a zóna prstů r 8 (polovina rozteče) ODHAD",
@@ -464,6 +464,7 @@ def _p1_porty(p1: dict) -> dict:
         h = spojky_pneu.hadice_kod(q["hose"])
         out[q["port"]] = dict(q, osa_usti=u, D=h["D"])
     return out
+
 
 
 def _bez_zacatku_hadic(p1: dict) -> dict:
