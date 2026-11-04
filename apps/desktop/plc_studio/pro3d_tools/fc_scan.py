@@ -268,13 +268,7 @@ def main_cyl(s):
     return V(best.Surface.Center), V(best.Surface.Axis).normalize(), best.Surface.Radius
 
 
-def coaxial_hole(fast, other, common):
-    """Leží průnik v díře / závitu? Druhý díl má válcovou plochu souosou se šroubem (osa do 0,6 mm, poloměr ≤ šroub
-    + 0,6 mm) a průnik nepřesahuje polovinu objemu šroubu."""
-    ax = main_cyl(fast)
-    if ax is None:
-        return False, "šroub bez válcové plochy"
-    c, d, r = ax
+def _hole_on_axis(c, d, r, other):
     for fc in other.Faces:
         if fc.Surface.TypeId != "Part::GeomCylinder":
             continue
@@ -284,7 +278,30 @@ def coaxial_hole(fast, other, common):
         w = V(fc.Surface.Center) - c
         off = (w - d * w.dot(d)).Length
         if off <= 0.6 and fc.Surface.Radius <= r + 0.6:
-            return common <= 0.5 * fast.Volume, "souosá díra"
+            return True
+    return False
+
+
+def coaxial_hole(fast, other, common, cs=None):
+    """Leží průnik v díře / závitu? Druhý díl má válcovou plochu souosou se šroubem (osa do 0,6 mm, poloměr ≤ šroub
+    + 0,6 mm) a průnik nepřesahuje polovinu objemu šroubu. Osa = hlavní válec dílu; když ten souosou díru nemá (kolo
+    s čepem: největší válec je kolo, ne čep), zkusí se další válcové plochy dílu — jen ta, na jejíž ose leží střed
+    průniku ``cs`` (do r + 1 mm), aby se nezapočetla náhodně souosá plocha jinde."""
+    ax = main_cyl(fast)
+    if ax is None:
+        return False, "šroub bez válcové plochy"
+    c, d, r = ax
+    if _hole_on_axis(c, d, r, other):
+        return common <= 0.5 * fast.Volume, "souosá díra"
+    if cs is not None and not cs.isNull():
+        m = cs.BoundBox.Center
+        for fc in sorted((f for f in fast.Faces if f.Surface.TypeId == "Part::GeomCylinder"), key=lambda f: -f.Area):
+            c2, d2, r2 = V(fc.Surface.Center), V(fc.Surface.Axis).normalize(), fc.Surface.Radius
+            w = m - c2
+            if (w - d2 * w.dot(d2)).Length > r2 + 1.0:
+                continue
+            if _hole_on_axis(c2, d2, r2, other):
+                return common <= 0.5 * fast.Volume, f"souosá díra (čep Ø{2 * r2:g})"
     return False, "bez souosé díry v druhém dílu"
 
 
@@ -395,7 +412,7 @@ def collide(items, moved_keys=None, label=""):
             if kind == "zavit":
                 ok, why = v <= 0.5 * min(a["s"].Volume, b["s"].Volume), "závit šroub × matice"
             else:
-                ok, why = coaxial_hole(fa["s"], ot["s"], v)
+                ok, why = coaxial_hole(fa["s"], ot["s"], v, cs)
                 if not ok and fa["typ"] == "sroub" and THREADS:
                     ok2, why2 = in_doc_thread(fa, ot, v)          # Konstrukce_Zavit — model výrobce bez děr
                     if ok2:

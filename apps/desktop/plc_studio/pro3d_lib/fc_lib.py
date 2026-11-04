@@ -75,7 +75,41 @@ def prim(p):
         c = p["prism_x"]
         pts = [V(c["x0"], y, z) for y, z in c["pts"]]
         return Part.Face(Part.makePolygon(pts + [pts[0]])).extrude(V(c["x1"] - c["x0"], 0, 0))
+    if "profil" in p:                                 # profil ALUTEC a × b (zástupný průřez), osa Z, délka L (modul N1)
+        c = p["profil"]
+        return profil_sekce(float(c["a"]), float(c["b"])).extrude(V(0, 0, float(c["L"])))
     raise ValueError("neznámý prvek " + json.dumps(p)[:80])
+
+
+def profil_sekce(a, b, otvor=8.2, ret=4.0, hloubka=12.5, sirka=20.0, jadro=7.4, raster=40.0):
+    """ZÁSTUPNÝ průřez profilu ALUTEC a × b (násobky rastru 40, drážka 8) v rovině XY se středem v počátku: drážka
+    v každém poli rastru na všech stranách a jádro Ø 7,4 ve středu každého pole. Tvar drážky = ``fc_profil.zastupny_40_8``
+    (skill alutech-profily, kóty katalogu s. 4/4); vnitřní dutiny výrobce neokótoval (model je plnější)."""
+    ha, hb = a / 2.0, b / 2.0
+    face = Part.makePlane(a, b, V(-ha, -hb, 0))
+    cut = []
+
+    def slot(cx, h, ang):
+        pts = [V(-otvor / 2, h + 1, 0), V(otvor / 2, h + 1, 0), V(otvor / 2, h - ret, 0), V(sirka / 2, h - ret, 0),
+               V(otvor / 2, h - hloubka, 0), V(-otvor / 2, h - hloubka, 0), V(-sirka / 2, h - ret, 0),
+               V(-otvor / 2, h - ret, 0), V(-otvor / 2, h + 1, 0)]
+        f = Part.Face(Part.makePolygon(pts))
+        f.translate(V(cx, 0, 0))
+        f.rotate(V(), V(0, 0, 1), ang)
+        cut.append(f)
+    na, nb = int(round(a / raster)), int(round(b / raster))
+    for i in range(na):                                   # strany ±Y (délka a)
+        cx = -ha + raster / 2 + raster * i
+        slot(cx, hb, 0)
+        slot(-cx, hb, 180)
+    for j in range(nb):                                   # strany ±X (délka b) a jádra
+        cy = -hb + raster / 2 + raster * j
+        slot(-cy, ha, -90)
+        slot(cy, ha, 90)
+        for i in range(na):
+            cut.append(Part.Face(Part.Wire(Part.makeCircle(jadro / 2, V(-ha + raster / 2 + raster * i, cy, 0)))))
+    f = face.cut(Part.makeCompound(cut))
+    return max(f.Faces, key=lambda x: x.Area)
 
 
 def solid(body):
@@ -201,13 +235,14 @@ def main():
     root = doc.addObject("App::Part", "Lavice")
     root.Label = plan.get("nazev") or plan.get("label") or "Zkušební deska modulu S1"
     props(root, {"Konstrukce_Generator": GEN})
-    pr = plan["profil"]
-    po = doc.addObject("Part::Feature", "Profil")
-    po.Shape = profil_shape(pr["delka"])
-    po.Label = pr["label"]
-    props(po, {"Konstrukce_Typ": "profil", "Konstrukce_Material": "AlMgSi0,5 (hlinik)", "Konstrukce_Profil": pr["kod"],
-               "Konstrukce_Poznamka": "průřez zástupný z kót katalogu ALUTEC s. 4/4 (skill alutech-profily fc_profil.zastupny_40_8)"})
-    root.addObject(po)
+    pr = plan.get("profil")                           # profil zkušební desky; rám N1 ho nemá (profily jsou jeho díly)
+    if pr:
+        po = doc.addObject("Part::Feature", "Profil")
+        po.Shape = profil_shape(pr["delka"])
+        po.Label = pr["label"]
+        props(po, {"Konstrukce_Typ": "profil", "Konstrukce_Material": "AlMgSi0,5 (hlinik)", "Konstrukce_Profil": pr["kod"],
+                   "Konstrukce_Poznamka": "průřez zástupný z kót katalogu ALUTEC s. 4/4 (skill alutech-profily fc_profil.zastupny_40_8)"})
+        root.addObject(po)
     ext = {}
     for i, m in enumerate(plan["moduly"]):
         g = doc.addObject("App::Part", f"Modul_{i + 1}")
@@ -279,4 +314,5 @@ def main():
                         "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
 
-main()
+if __name__ != "fc_lib_lib":                          # načtení jako knihovna (fc_ram.py) stavbu nespouští
+    main()
