@@ -265,12 +265,16 @@ def eval_paths(vox: dict, tes_info: dict) -> dict:
                             "— dosažitelnost nevyhodnocena"})
         return res
     found = []
+    if vox.get("oblast"):
+        res["data"]["oblast"] = vox["oblast"]
+        res["info"].append({"kod": "otvory-oblast-krytu", "text": "oblast voxelů = obálka krytů / výplní a zón + 100 mm "
+                            f"{vox['oblast']} (okraj oblasti leží vně krytu)"})
     for g in vox.get("grids") or []:
-        res["data"]["mrizky"].append({k: g.get(k) for k in ("vox", "grid", "cropped", "reach", "lokalni", "secs", "skipped")} |
+        res["data"]["mrizky"].append({k: g.get(k) for k in ("vox", "grid", "cropped", "reach", "lokalni", "secs", "skipped", "oblast")} |
                                      {"cest": len(g.get("paths") or [])})
         if g.get("skipped"):
             res["varovani"].append({"kod": "otvory-mrizka", "text": f"mřížka {g['vox']} mm vynechána: {g['skipped']}"})
-        if g.get("cropped"):
+        if g.get("cropped") and not g.get("oblast"):
             res["info"].append({"kod": "otvory-oblast", "text": f"mřížka {g['vox']} mm: oblast oříznuta na zóny "
                                 f"± {g.get('reach', 1000):.0f} mm" + (" (místní — jen malé otvory)" if g.get("lokalni") else "")})
         for p in g.get("paths") or []:

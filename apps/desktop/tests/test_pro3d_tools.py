@@ -305,6 +305,25 @@ class VoxelTest(unittest.TestCase):
         self.assertGreaterEqual(p["sr_primka"], 85.0)       # rovina štěrbiny y 0..5 → zóna y 100
         self.assertTrue(p["body"])
 
+    def test_oblast_krytu_stejny_vysledek(self):
+        """Oblast = obálka krytu + 100 mm (celek stroje): stejná cesta jako přes celý model, vzdálený díl mimo oblast."""
+        v, f, fo, z, bb = self._scene(True)
+        P, F = self._box(-900, -800, 0, 300, 0, 300)          # vzdálený díl (rám, pult…) — mimo oblast
+        v2 = np.concatenate([v, P])
+        f2 = np.concatenate([f, F + len(v)])
+        fo2 = np.concatenate([fo, [fo[-1] + len(F)]])
+        z2 = np.concatenate([z, [False]])
+        bb2 = [-900, 300, 0, 300, 0, 300]
+        r0 = voxel.reach_grid(v2, f2, fo2, z2, bb2, 5.0)
+        r1 = voxel.reach_grid(v2, f2, fo2, z2, bb2, 5.0, oblast=[-100, 400, -100, 400, -100, 400])
+        self.assertEqual(len(r1["paths"]), 1)
+        self.assertEqual([(p["e"], p["sr_primka"], p["nejuzsi"]) for p in r0["paths"]],
+                         [(p["e"], p["sr_primka"], p["nejuzsi"]) for p in r1["paths"]])
+        self.assertLess(r1["grid"][0], r0["grid"][0])
+        self.assertEqual(r1["oblast"], [-100, 400, -100, 400, -100, 400])
+        v, f, fo, z, bb = self._scene(False)                  # uzavřený kryt s oblastí — bez cesty
+        self.assertEqual(voxel.reach_grid(v, f, fo, z, bb, 5.0, oblast=[-100, 400, -100, 400, -100, 400])["paths"], [])
+
 
 class RunChecksFakeTest(unittest.TestCase):
     def test_compose(self):

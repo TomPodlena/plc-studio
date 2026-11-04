@@ -1112,19 +1112,43 @@ def measure_point(p, items, along=None):
     return out
 
 
+OBLAST_OKRAJ = 100.0      # mm — okraj oblasti voxelů kolem obálky krytů (okraj leží vně krytu = „zvenku“)
+
+
+def oblast_krytu():
+    """Oblast voxelů = obálka dílů ``kryt`` / ``vypln`` ∪ obálka zón + ``OBLAST_OKRAJ`` (opts ``oblast_okraj``; ``oblast: false``
+    = celá obálka modelu). Cesta zvenku k zóně uvnitř krytu musí projít krytem, a ten je celý v oblasti — výsledek je
+    stejný jako s celým modelem, jen bez prostoru daleko od krytu (celek stroje 2,3 m: 3 mm mřížka jinak nedoběhne).
+    Bez krytů (zkušební deska modulu) None."""
+    if OPT.get("oblast") is False:
+        return None
+    kr = [x for x in REAL if x["typ"] in ("kryt", "vypln") and x["bb"].isValid()]
+    if not kr or not ZONES:
+        return None
+    m = float(OPT.get("oblast_okraj", OBLAST_OKRAJ))
+    bb = None
+    for x in kr + ZONES:
+        bb = x["bb"] if bb is None else bb.united(x["bb"])
+    b = bbl(bb)
+    return [b[0] - m, b[1] + m, b[2] - m, b[3] + m, b[4] - m, b[5] + m]
+
+
 def check_otvory():
     """Teselace → voxely (samostatný proces Pythonu FreeCADu, numpy + scipy) → změření e a Sr nalezených cest v modelu."""
     import subprocess
     t = time.time()
     tes = tessellate()
     out = {"teles": tes.get("teles", 0), "zon": tes.get("zon", 0), "zony": tes.get("zony", []), "grids": []}
+    ob = oblast_krytu()
+    if ob is not None:
+        out["oblast"] = [round(c, 1) for c in ob]
     if not tes.get("zon"):
         return dict(out, secs=round(time.time() - t, 1))
     py = os.path.join(os.path.dirname(sys.executable), "python.exe")
     if not os.path.isfile(py):
         py = os.path.join(App.getHomePath(), "bin", "python.exe")
     vo, pf = OPT["tes"] + ".vox.json", OPT["tes"] + ".prm.json"
-    json.dump({"grids": OPT.get("grids") or [5.0, 4.0, 3.0], "max_vox": OPT.get("max_vox", 64_000_000)}, open(pf, "w"))
+    json.dump({"grids": OPT.get("grids") or [5.0, 4.0, 3.0], "max_vox": OPT.get("max_vox", 64_000_000), "oblast": ob}, open(pf, "w"))
     pr = subprocess.run([py, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "voxel.py"), OPT["tes"], vo, pf],
                         capture_output=True, text=True, timeout=int(OPT.get("vox_timeout", 3000)),
                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))

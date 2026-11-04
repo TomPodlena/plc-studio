@@ -8,6 +8,10 @@ k překážce) a vzdálenost Sr od nejužšího místa k zóně (přímkou = dol
 ucpe a hledá se další (nejvýš ``max_paths`` na mřížku). Voxely jen HLEDAJÍ cesty — e a Sr jsou odhady s přesností
 kroku mřížky, vyhodnocení ISO 13857 je konzervativní (``rules.posud_otvor``) a nález je potřeba změřit v modelu.
 
+Oblast lze omezit parametrem ``oblast`` [x0, x1, y0, y1, z0, z1] (``fc_scan``: obálka krytů / výplní + zón + okraj — celek
+stroje; okraj oblasti leží VNĚ krytu, takže každá cesta zvenku krytem projde uvnitř oblasti). Vlnové hledání vzdálenosti
+pracuje jen v obálce čela vlny a končí, jakmile čelo dosáhne okraje oblasti (stačí nejkratší cesta).
+
     python voxel.py tes.npz out.json [params.json]
 """
 
@@ -31,10 +35,19 @@ LOCAL_E_MAX = 12.0        # mm — z místní mřížky se berou jen malé otvor
 
 
 def mark_triangles(arr: np.ndarray, v: np.ndarray, f: np.ndarray, org: np.ndarray, step: float, vox: float) -> None:
-    """Označí voxely, kterými prochází povrch trojúhelníků (vzorkování po ``step`` < voxel)."""
+    """Označí voxely, kterými prochází povrch trojúhelníků (vzorkování po ``step`` < voxel); trojúhelníky celé mimo
+    oblast se přeskočí (celek stroje — oblast jen kolem krytu)."""
     if len(f) == 0:
         return
     A, B, C = v[f[:, 0]], v[f[:, 1]], v[f[:, 2]]
+    hi_d = org + np.array(arr.shape, np.float32) * vox
+    tlo = np.minimum(np.minimum(A, B), C)
+    thi = np.maximum(np.maximum(A, B), C)
+    inn = np.all((thi >= org - vox) & (tlo <= hi_d + vox), axis=1)
+    if not inn.all():
+        A, B, C = A[inn], B[inn], C[inn]
+        if len(A) == 0:
+            return
     L = np.maximum(np.maximum(np.linalg.norm(B - A, axis=1), np.linalg.norm(C - A, axis=1)), np.linalg.norm(C - B, axis=1))
     n = np.maximum(1, np.ceil(L / step)).astype(int)
     shp = np.array(arr.shape)
@@ -73,20 +86,38 @@ def _edt(mask: np.ndarray) -> np.ndarray:
     return mask.astype(float)
 
 
-def _bfs_dist(comp: np.ndarray, seeds: np.ndarray) -> np.ndarray:
-    """Vzdálenost (kroky 6-okolí) od ``seeds`` v rámci ``comp`` — vektorově po vlnách."""
+def _bfs_dist(comp: np.ndarray, seeds: np.ndarray, stop: np.ndarray | None = None) -> np.ndarray:
+    """Vzdálenost (kroky 6-okolí) od ``seeds`` v rámci ``comp`` — vektorově po vlnách. Každá vlna jen v obálce čela
+    (obálka semen ± d, oříznutá na pole); se ``stop`` konec po vlně, která ``stop`` zasáhla (nejkratší cesta k okraji
+    je tím známá — vzdálenosti dál se nepočítají, zůstanou −1)."""
     dist = np.full(comp.shape, -1, np.int32)
     front = seeds & comp
     dist[front] = 0
+    if not front.any():
+        return dist
+    nz = np.argwhere(front)
+    lo0, hi0 = nz.min(0), nz.max(0) + 1
+    shp = np.array(comp.shape)
     d = 0
-    while front.any():
+    if stop is not None and (front & stop).any():
+        return dist
+    while True:
         d += 1
-        nb = np.zeros_like(front)
-        nb[1:] |= front[:-1]; nb[:-1] |= front[1:]
-        nb[:, 1:] |= front[:, :-1]; nb[:, :-1] |= front[:, 1:]
-        nb[:, :, 1:] |= front[:, :, :-1]; nb[:, :, :-1] |= front[:, :, 1:]
-        front = nb & comp & (dist < 0)
-        dist[front] = d
+        lo = np.maximum(lo0 - d, 0)
+        hi = np.minimum(hi0 + d, shp)
+        sl = np.s_[lo[0]:hi[0], lo[1]:hi[1], lo[2]:hi[2]]
+        fr = dist[sl] == d - 1
+        if not fr.any():
+            break
+        nb = np.zeros_like(fr)
+        nb[1:] |= fr[:-1]; nb[:-1] |= fr[1:]
+        nb[:, 1:] |= fr[:, :-1]; nb[:, :-1] |= fr[:, 1:]
+        nb[:, :, 1:] |= fr[:, :, :-1]; nb[:, :, :-1] |= fr[:, :, 1:]
+        dsl = dist[sl]
+        new = nb & comp[sl] & (dsl < 0)
+        dsl[new] = d
+        if stop is not None and (new & stop[sl]).any():
+            break
     return dist
 
 
@@ -111,10 +142,14 @@ def _descend(dist: np.ndarray, start: tuple) -> list[tuple]:
     return path
 
 
-def domain(bb_model, bb_zone, vox: float, reach: float = MAX_REACH):
-    """Oblast výpočtu: obálka modelu + 3 voxely, oříznutá na zónu ± ``reach``; (počátek, tvar, oříznuto)."""
+def domain(bb_model, bb_zone, vox: float, reach: float = MAX_REACH, oblast=None):
+    """Oblast výpočtu: obálka modelu + 3 voxely, oříznutá na zónu ± ``reach`` a na ``oblast`` (obálka krytu + okraj);
+    (počátek, tvar, oříznuto)."""
     lo = np.array([bb_model[0], bb_model[2], bb_model[4]], float) - 3 * vox
     hi = np.array([bb_model[1], bb_model[3], bb_model[5]], float) + 3 * vox
+    if oblast is not None:
+        lo = np.maximum(lo, np.array([oblast[0], oblast[2], oblast[4]], float))
+        hi = np.minimum(hi, np.array([oblast[1], oblast[3], oblast[5]], float))
     zlo = np.array([bb_zone[0], bb_zone[2], bb_zone[4]], float) - reach
     zhi = np.array([bb_zone[1], bb_zone[3], bb_zone[5]], float) + reach
     clo, chi = np.maximum(lo, zlo), np.minimum(hi, zhi)
@@ -124,8 +159,8 @@ def domain(bb_model, bb_zone, vox: float, reach: float = MAX_REACH):
 
 
 def reach_grid(v, f, fo, zone, bb_model, vox: float, max_paths: int = 4, max_vox: int = MAX_VOX,
-               reach: float = MAX_REACH) -> dict:
-    """Jedna mřížka: cesty z okolí k zónám (seznam nálezů s e, Sr a body cesty)."""
+               reach: float = MAX_REACH, oblast=None) -> dict:
+    """Jedna mřížka: cesty z okolí k zónám (seznam nálezů s e, Sr a body cesty); ``oblast`` = omezení oblasti."""
     t0 = time.time()
     zi = [i for i in range(len(zone)) if zone[i]]
     if not zi:
@@ -134,7 +169,7 @@ def reach_grid(v, f, fo, zone, bb_model, vox: float, max_paths: int = 4, max_vox
     zv = v[np.unique(zf)]
     bbz = [float(zv[:, 0].min()), float(zv[:, 0].max()), float(zv[:, 1].min()), float(zv[:, 1].max()),
            float(zv[:, 2].min()), float(zv[:, 2].max())]
-    org, shape, cropped = domain(bb_model, bbz, vox, reach)
+    org, shape, cropped = domain(bb_model, bbz, vox, reach, oblast)
     nvox = shape[0] * shape[1] * shape[2]
     if nvox > max_vox:
         return {"vox": vox, "skipped": f"mřížka {shape} = {nvox / 1e6:.0f} M voxelů > limit {max_vox / 1e6:.0f} M"}
@@ -164,7 +199,7 @@ def reach_grid(v, f, fo, zone, bb_model, vox: float, max_paths: int = 4, max_vox
             break
         comp = np.isin(lab, labs)
         del lab
-        dist = _bfs_dist(comp, haz)
+        dist = _bfs_dist(comp, haz, border)
         cand = np.argwhere(border & comp & (dist >= 0))
         if len(cand) == 0:
             break
@@ -224,8 +259,11 @@ def reach_grid(v, f, fo, zone, bb_model, vox: float, max_paths: int = 4, max_vox
         ii, jj, kk = np.ogrid[g0[0]:g1[0], g0[1]:g1[1], g0[2]:g1[2]]
         ball = (ii - c[0]) ** 2 + (jj - c[1]) ** 2 + (kk - c[2]) ** 2 <= rad * rad
         loc[ball & ~haz[sl]] = False
-    return {"vox": vox, "grid": list(shape), "cropped": cropped, "reach": reach, "zone_bb": [round(x, 1) for x in bbz],
-            "paths": found, "secs": round(time.time() - t0, 1)}
+    out = {"vox": vox, "grid": list(shape), "cropped": cropped, "reach": reach, "zone_bb": [round(x, 1) for x in bbz],
+           "paths": found, "secs": round(time.time() - t0, 1)}
+    if oblast is not None:
+        out["oblast"] = [round(float(x), 1) for x in oblast]
+    return out
 
 
 def run(tes_path: str, params: dict | None = None) -> dict:
@@ -236,12 +274,13 @@ def run(tes_path: str, params: dict | None = None) -> dict:
     bb = [float(x) for x in d["bb"]]
     out = {"grids": []}
     mx = int(p.get("max_vox", MAX_VOX))
+    ob = p.get("oblast")
     for g in grids:
-        r = reach_grid(v, f, fo, zone, bb, float(g), int(p.get("max_paths", 4)), mx)
+        r = reach_grid(v, f, fo, zone, bb, float(g), int(p.get("max_paths", 4)), mx, oblast=ob)
         if r.get("skipped") and "limit" in r["skipped"]:
             # jemná mřížka celé oblasti se nevejde: jen okolí zón ± LOCAL_REACH — hledá malé otvory (e ≤ LOCAL_E_MAX),
             # velké otvory najde hrubší mřížka celé oblasti; okraj místní oblasti může ležet uvnitř stroje
-            r2 = reach_grid(v, f, fo, zone, bb, float(g), int(p.get("max_paths", 4)), mx, LOCAL_REACH)
+            r2 = reach_grid(v, f, fo, zone, bb, float(g), int(p.get("max_paths", 4)), mx, LOCAL_REACH, oblast=ob)
             r2["lokalni"] = True
             r2["pozn"] = r["skipped"]
             r = r2
