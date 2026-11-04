@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import math
 import sys
 from pathlib import Path
@@ -195,10 +196,13 @@ def konzola_n1(sk: dict, n1_roz: dict, *, strana: str = "zadni", xc: float | Non
     xc = D / 2 if xc is None else float(xc)
     w, h, d = sk["w"], sk["h"], sk["d"]
     xu = [xc - w / 2 - A / 2, xc + w / 2 + A / 2]                 # osy sloupků (vně šířky skříně — vývodky u boků volné)
-    for p in fs:
-        for x in xu:
-            if not _free_x(p, x - A / 2, x + A / 2):
+    for x in xu:                                                    # příčka může být dělená (prostřední noha): stačí kus, který sloupek míjí
+        for p in fs:
+            if p.get("role") != "spodni_x" and not _free_x(p, x - A / 2, x + A / 2):
                 raise ValueError(f"E1: sloupek konzoly x {x:g} kříží obsazený úsek drážky {p['prvek']} (volné {p['volne_useky_mm']})")
+        sp = [p for p in fs if p.get("role") == "spodni_x"]
+        if sp and not any(_free_x(p, x - A / 2, x + A / 2) for p in sp):
+            raise ValueError(f"E1: sloupek konzoly x {x:g} nemá volný úsek spodní příčky")
     z_slots = sorted(p["osa_od"][2] for p in fs)
     z_lo_slot, z_hi_slot = z_slots[0], z_slots[-1]
     k = Konzola(ident, f"E1 konzola rozvaděče {sk['tag']} na rám N1 ({strana} strana)")
@@ -399,6 +403,33 @@ def stojan(sk: dict, *, pos=(0.0, 0.0), z_b: float | None = None, R_kabel: float
 
 
 # --- úprava modelu skříně (otvory pro upevnění) ----------------------------------------------------------------------
+def dopln_vyvodky(layout_path: str | Path, prumery: list[float]) -> int:
+    """Jedna vývodka SKINTOP na kabel v poli (SKINTOP = 1 kabel) podle průměru: M16 svírá tenké kabely, M20 tlustší; plus přívod M20.
+    Přepíše ``hw.glands`` / ``gland_holes`` v ``layout.json``, řady podle šířky dna. Vrací počet vývodek."""
+    lp = Path(layout_path)
+    L = json.loads(lp.read_text(encoding="utf-8"))
+    nor = json.loads((Path(__file__).resolve().parents[1] / "pro3d_parts" / "data" / "normalie.json").read_text(encoding="utf-8-sig"))["SKINTOP_ST-M"]
+    cab, hw = L["cabinet"], L.setdefault("hw", {})
+    W, Dp = float(cab["w"]), float(cab["d"])
+    prv = ["M16" if float(d or 0) <= float(re.split(r"\D+", nor["rady"]["M16"]["clamp"])[1]) else "M20" for d in prumery] + ["M20"]
+    x0, x1 = 60.0, W - 60.0
+    krok = max(nor["rady"][m]["sw"] for m in prv) * 1.4
+    na_radu = max(1, int((x1 - x0) // krok) + 1)
+    rady = max(1, -(-len(prv) // na_radu))
+    glands, holes = [], []
+    for i, m in enumerate(prv):
+        r, k = divmod(i, na_radu)
+        x, y = x0 + k * krok, Dp * (r + 1) / (rady + 1)
+        sk = nor["rady"][m]
+        co = "přívod" if i == len(prv) - 1 else f"kabel {i + 1}"
+        glands.append({"name": f"Vývodka {i + 1} SKINTOP ST-M {m} ({co}, návrh)", "x": round(x, 2), "y": round(y, 2), "thread": sk["thread"], "sw": sk["sw"],
+                       "C": sk["C"], "D": sk["D"], "zdroj": nor.get("zdroj", "")})
+        holes.append({"x": round(x, 2), "y": round(y, 2), "d": sk["thread"] + 0.2})
+    hw["glands"], hw["gland_holes"] = glands, holes
+    lp.write_text(json.dumps(L, ensure_ascii=False, indent=1), encoding="utf-8")
+    return len(glands)
+
+
 def upravit_skrin(layout_path: str | Path, otvory: list[dict], slot: str = "pro3d-cabinet", timeout: int = 900, stavet: bool = True) -> dict:
     """Zapíše otvory pro upevnění skříně do ``layout.json`` (``hw.rear_holes`` / ``hw.floor_holes`` — ``fc_cabinet`` je vyřízne)
     a znovu postaví ``Rozvadec.FCStd`` (pro3d_cabinet ``build_freecad``)."""

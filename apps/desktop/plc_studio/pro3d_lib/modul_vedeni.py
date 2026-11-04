@@ -134,18 +134,24 @@ class Zlab:
         z = self.z
         k = spojky_mech.NORM["ISO4762"]["rady"][SROUB_ZLABU]["k"]
         y0 = z["dno"] + k + 3.0
-        Dm = max(Ds) if Ds else 5.0
-        pitch = Dm + 3.0
-        per = max(1, int((z["svetlost"][0] - 2.0) // pitch))
-        out = []
-        for i in range(len(Ds)):
-            row, col = divmod(i, per)
-            n_row = min(per, len(Ds) - row * per)
-            w = (col - (n_row - 1) / 2) * pitch
-            y = y0 + Dm / 2 + row * pitch
-            if y + Dm / 2 > z["h"] - 1.0:
-                raise ValueError(f"žlab {self.typ}: {len(Ds)} kabelů Ø{Dm:g} se do průřezu nevejde")
-            out.append((round(y, 2), round(w, 2)))
+        sirka = z["svetlost"][0] - 2.0
+        poradi = sorted(range(len(Ds)), key=lambda i: -Ds[i])       # tlusté kabely dolů, tenké nad ně; pruhy podle skutečných průměrů
+        out = [None] * len(Ds)
+        y_row, i = y0, 0
+        while i < len(poradi):
+            rada, sum_w = [], 0.0
+            while i < len(poradi) and (not rada or sum_w + Ds[poradi[i]] + 3.0 <= sirka):
+                rada.append(poradi[i])
+                sum_w += Ds[poradi[i]] + 3.0
+                i += 1
+            Dr = max(Ds[k] for k in rada)
+            if y_row + Dr > z["h"] - 1.0:
+                raise ValueError(f"žlab {self.typ}: {len(Ds)} kabelů Ø{max(Ds):g} se do průřezu nevejde")
+            w = -sum_w / 2
+            for k in rada:
+                out[k] = (round(y_row + Dr / 2, 2), round(w + (Ds[k] + 3.0) / 2, 2))
+                w += Ds[k] + 3.0
+            y_row += Dr + 3.0
         return out
 
 
@@ -224,8 +230,12 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
         p1 = add(p0, sd, 10.0 + R)
         others = [b for y in det if y is not x for b in rt.segments_boxes([y["A"]] + y["pevne"][:-1], y["D"] / 2 + 2.0)]
         ob = [b for b in obst + others + done_boxes + zlab.walls() if not (rt.point_in(p1, rt.inflate(b, D / 2 + 4)) or rt.point_in(x["A"], rt.inflate(b, D / 2 + 4)))]
-        r_ = rt.route(p1, sd, x["A"], [-v for v in zlab.n], ob, R=R, r_med=D / 2, clear=3.0, step=20.0, margin=300.0, max_nodes=400000,
-                      plates=plates, cross_cost=400.0)
+        r_ = None
+        for krok in (20.0, 40.0):                              # limit uzlů na jemné mřížce → hrubší mřížka
+            r_ = rt.route(p1, sd, x["A"], [-v for v in zlab.n], ob, R=R, r_med=D / 2, clear=3.0, step=krok, margin=300.0, max_nodes=400000,
+                          plates=plates, cross_cost=400.0)
+            if r_ is not None:
+                break
         if r_ is None:
             res["nepostaveno"].append({"id": c["id"], "co": f"kabel {c['id']} ({c['od']})", "duvod": f"router nenašel trasu do žlabu ({rt.LAST.get('fail')})"})
             continue
@@ -423,8 +433,12 @@ def celek_e1_e2(n1_roz: dict, starts: list, obst: list, layout_path, *, strana: 
     sk = e1m.nacti_skrin(layout_path)
     trm = modul_ostrov.trasa_mod()
     med = trm.nacti_media()
-    R = max(float(trm.pozadovany_polomer(med[medium], "pevne", float(s[4] or med[medium]["D"]))["min"] or 43.0) for s in starts) if starts else 43.0
-    e1 = e1m.konzola_n1(sk, n1_roz, strana=strana, xc=xc, R_kabel=R)
+    def _sil(s):
+        return any(w in str(s[2]).lower() for w in ("pohon", "motor"))
+    def _med(s):
+        return med["lapp_OLFLEX_CLASSIC_110" if _sil(s) else medium]
+    R = max(float(trm.pozadovany_polomer(_med(s), "pevne", float(s[4] or _med(s)["D"]))["min"] or 43.0) for s in starts) if starts else 43.0
+    e1 = e1m.konzola_n1(sk, n1_roz, strana=strana, xc=xc, R_kabel=R, r_kabel=max((float(s_[4] or 4.3) for s_ in starts), default=4.3) / 2)
     n_in = [0, -1, 0] if strana == "zadni" else [0, 1, 0]
     cand = [p for p in n1_roz.get("plochy") or [] if p.get("role") == "podelnik" and [round(v) for v in p["normala"]] == n_in]
     cand.sort(key=lambda p: p["osa_od"][1] * n_in[1])              # vnitřní líc podélníku u rozvaděče (ne vnější líc protější strany)
@@ -437,8 +451,6 @@ def celek_e1_e2(n1_roz: dict, starts: list, obst: list, layout_path, *, strana: 
     p = cand[0]
     u0, u1 = max(((a, b) for a, b in p.get("volne_useky_mm") or []), key=lambda ab: ab[1] - ab[0])
     zl = Zlab(p, u0 + 10.0, u1 - 10.0, nazev=f"E2 žlab na {p['prvek']}")
-    def _sil(s):
-        return any(w in str(s[2]).lower() for w in ("pohon", "motor"))
     kab = [{"id": s[0], "partId": s[1], "od": s[2], "start": list(s[3]), "D": s[4], "smer": list(s[5]) if len(s) > 5 else [0, 0, 1],
             "medium": "lapp_OLFLEX_CLASSIC_110" if _sil(s) else medium, "skupina": "silovy" if _sil(s) else "signal"} for s in starts]
     e2 = modul(kab, zl, e1["rozhrani"], obst + e1["boxes"], plates=plates)

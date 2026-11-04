@@ -529,7 +529,7 @@ def n1_params(man: dict) -> dict | None:
     return c["n1_params"]
 
 
-def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> dict:
+def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layout_path=None) -> dict:
     """Plán celku (formát ``fc_lib``) + smlouvy modulů, požadavky na rám, nepostaveno, odhady, zpětná vazba."""
     vst = md.vstup_z_manifestu(man)                       # ValueError = stroj bez dopravníku
     odhady, nep, fb = set(), [], []
@@ -751,7 +751,35 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
                 "duvod": "rozvaděč staví pro3d_cabinet (rozvadec/Rozvadec.FCStd); stojan a držáky skříně nejsou modul s doloženými "
                          "rozměry — v celku jen rezervovaná poloha (ODHAD), App::Link doplní stavitel"})
     kabely = []
-    if s_kabely and e1.get("vstup_kabelu"):
+    ee = None
+    if layout_path and s_kabely:                       # rozvaděč z pro3d_cabinet: konzola E1 + žlab a kabely E2 místo odhadu
+        from . import modul_vedeni
+        nep[:] = [n for n in nep if n.get("id") != "E1"]
+        obst_k = obst + [x for h in hoses for x in _router().segments_boxes(h["body"], h["r"] + 2)]
+        from . import modul_stojan_rozvadece as e1m
+        e1m.dopln_vyvodky(layout_path, [st[4] for st in cable_starts(man, d, pas, o3)])
+        sk_ = e1m.nacti_skrin(layout_path)
+        xc = None
+        for x in sorted(range(300, int(D) - 300, 20), key=lambda v: abs(v - D / 2)):   # sloupky do volných úseků drážek
+            try:
+                e1m.konzola_n1(sk_, roz_n1, strana="zadni", xc=float(x))
+                xc = float(x)
+                break
+            except ValueError:
+                continue
+        if xc is None:
+            raise ValueError("E1: konzola rozvaděče se k zadní straně rámu nikde nevejde")
+        ee = modul_vedeni.celek_e1_e2(roz_n1, cable_starts(man, d, pas, o3), obst_k, layout_path, strana="zadni", xc=xc, plates=[deska_box])
+        poz_e = [q for q in ee["pozadavky_N1"] if q.get("bod")]
+        if poz_e:                                      # průchody kabelů deskou musí být v rámu před finální stavbou
+            n1 = _n1(D, W, Hd, nos, poz + poz_e, mods_m, str((man.get("project") or {}).get("name") or "celek"))
+            roz_n1 = n1["rozhrani"]
+        nep += ee["nepostaveno"]
+        fb += ee["zpetna_vazba"]
+        e1.update(poloha="konzola E1 na zadní straně rámu N1", box=None)
+        e2_r = ee["smlouvy"].get("E2") or {}
+        kabely = [dict(t, stav="postaveno v modelu (E2)", postaveno=True) for t in e2_r.get("trasy") or []]
+    elif s_kabely and e1.get("vstup_kabelu"):
         kabely = cables_estimate(man, d, pas, o3, e1, obst + [x for h in hoses for x in _router().segments_boxes(h["body"], h["r"] + 2)],
                                  deska_box, Hd)
         for c in kabely:
@@ -769,6 +797,8 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
     mods.append(o3["modul"])
     mods.append(pas["fixture"])
     mods += pas["moduly"]
+    if ee:
+        mods += ee["moduly"]
     if p3_in:
         mods.append(p3_in["fixture"])
         mods.append(dict(pas["p3_raw"], placement=p3_in["placement"]))
@@ -819,10 +849,10 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
         "nepostaveno": nep + pas["nepostaveno"], "odhady": sorted(odhady),
         "smlouvy": {"D1": d.rozhrani(), "N1": roz_n1, "O3": o3["rozhrani"],
                     "P1": [m["rozhrani"] for m in p1_mods], "P2": (pas.get("p2") or {}).get("rozhrani"),
-                    "P3": (pas.get("p3") or {}).get("rozhrani")},
+                    "P3": (pas.get("p3") or {}).get("rozhrani"), **((ee or {}).get("smlouvy") or {})},
         "kontrola_planu": {"chyby": d.chyby + o3["rozhrani"]["chyby"] + roz_n1.get("chyby", []) + pas["chyby"],
                            "varovani": d.varovani + o3["rozhrani"]["varovani"] + roz_n1.get("varovani", [])},
-        "pruchody_N1": pr_, "info": pas["info"], "vyhazovac_zdvih": zv_vyh,
+        "pruchody_N1": pr_, "info": pas["info"], "vyhazovac_zdvih": zv_vyh, "otvory_skrine": (ee or {}).get("otvory_skrine") or [],
     }
     zv = {"format": "plcdesk-cad-feedback", "version": 1, "project": {"guid": (man.get("project") or {}).get("guid", "")},
           "manifest": {"sha256": ""}, "created": "", "tool": GEN, "issues": fb}
@@ -865,11 +895,8 @@ def _cabinet_dims(cab):
     return [float(m.group(1)), float(m.group(2)), float(m.group(3))] if m else None
 
 
-def cables_estimate(man, d, pas, o3, e1, obst, deska_box, Hd) -> list:
-    """E2: kabel od každého zařízení v poli k vstupu rozvaděče (dno skříně) — trasa routerem (ODHAD, nestaví se)."""
-    tr = modul_ostrov.trasa_mod()
-    rz = {"pct": 10.0, "mm": 300.0, "zdroj": "ODHAD rezerva kabelu (skill kabelaz-a-hadice data kabel rezerva)"}
-    goal = list(e1["vstup_kabelu"])
+def cable_starts(man, d, pas, o3) -> list:
+    """Začátky kabelů zařízení v poli [(id, partId, od, bod, D)] — pro ODHAD délek i modul E2."""
     starts = []
     kb = d.rozhrani()["kabel_motoru"]
     starts.append(("W-" + (kb.get("PLCdesk_Id") or "M1").split(":")[0].lstrip("-"), kb.get("PLCdesk_Id"), "pohon D1", kb["zacatek"], kb.get("D") or 9.0))
@@ -888,6 +915,15 @@ def cables_estimate(man, d, pas, o3, e1, obst, deska_box, Hd) -> list:
         if z:
             starts.append((f"W-{s['device']}", (s.get("plcdesk_id") or [None])[0] if isinstance(s.get("plcdesk_id"), list) else s.get("plcdesk_id"),
                            f"blokovací spínač {s['device']}", [(z[0] + z[3]) / 2, z[4] - 20.0, (z[2] + z[5]) / 2], 7.0))
+    return starts
+
+
+def cables_estimate(man, d, pas, o3, e1, obst, deska_box, Hd) -> list:
+    """E2: kabel od každého zařízení v poli k vstupu rozvaděče (dno skříně) — trasa routerem (ODHAD, nestaví se)."""
+    tr = modul_ostrov.trasa_mod()
+    rz = {"pct": 10.0, "mm": 300.0, "zdroj": "ODHAD rezerva kabelu (skill kabelaz-a-hadice data kabel rezerva)"}
+    goal = list(e1["vstup_kabelu"])
+    starts = cable_starts(man, d, pas, o3)
     out = []
     for cid, pid, od, st, D in starts:
         st = [float(v) for v in st]
@@ -924,7 +960,7 @@ def write_outputs(res: dict, folder: Path) -> list[str]:
     put(f"O3_{s['O3']['id']}.json", s["O3"])
     for r in s.get("P1") or []:
         put(f"P1_{r['tag'].lstrip('-')}.json", r)
-    for k in ("P2", "P3"):
+    for k in ("P2", "P3", "E1", "E2"):
         if s.get(k):
             put(f"{k}_{str(s[k].get('tag') or s[k].get('id') or k).lstrip('-')}.json", s[k])
     put("celek.json", {k: v for k, v in c.items() if k != "smlouvy"})
@@ -944,9 +980,9 @@ def report_md(res: dict, fc: dict | None = None) -> str:
          f"- D1 počátek {r['D1_pocatek']} (posun x {r['D1_posun_x']} mm)", f"- pás obsluhy: {r['pas_obsluhy']}", "",
          "## Hadice P4", "", "| hadice | od → do | R | délka | s rezervou |", "|---|---|---|---|---|",
          *[f"| {h['id']} | {h.get('od')} → {h.get('do')} | {h['R']:g} | {h['delka_mm']:.0f} | {h['delka_s_rezervou_mm']:.0f} |" for h in c["hadice"]], "",
-         "## Kabely E2 (ODHAD — nestaví se)", "", f"Rozvaděč E1: {c['E1'].get('partId')} {c['E1'].get('typ') or ''} — {c['E1'].get('poloha')}, "
+         "## Kabely E2", "", f"Rozvaděč E1: {c['E1'].get('partId')} {c['E1'].get('typ') or ''} — {c['E1'].get('poloha')}, "
          f"box {c['E1'].get('box')}", "", "| kabel | od | Ø | délka | s rezervou | stav |", "|---|---|---|---|---|---|",
-         *[f"| {k['id']} | {k['od']} | {k['D']:g} | {k['delka_mm']:.0f} | {k['delka_s_rezervou_mm']:.0f} | {k['stav']} |" for k in c["kabely"]], "",
+         *[f"| {k.get('id')} | {k.get('od')} | {k.get('D')} | {k.get('delka_mm')} | {k.get('delka_s_rezervou_mm')} | {k.get('stav')} |" for k in c["kabely"]], "",
          "## Nepostaveno (doplní stavitel / rozhodne uživatel)", "", *[f"- **{n['id']}** {n.get('co') or ''}: {n['duvod']}" for n in c["nepostaveno"]], "",
          "## Odhady", "", *[f"- ODHAD: {o}" for o in c["odhady"]], "",
          "## Kontrola plánu", "", *[f"- CHYBA: {x}" for x in c["kontrola_planu"]["chyby"]], *[f"- varování: {x}" for x in c["kontrola_planu"]["varovani"]], ""]
@@ -1015,8 +1051,14 @@ def generate(manifest_path, folder, *, model="Celek", no_fc=False, slot=SLOT, ch
     except (OSError, ValueError) as exc:
         summ["chyba"] = f"manifest nelze načíst: {exc}"
         return summ
+    lay = None
+    if any(p.get("category") == "cabinet" for p in man.get("parts") or []):
+        from ..pro3d_cabinet import cli as ccli
+        cr = ccli.generate(mp, folder, no_fc=True)
+        lp = Path(cr.get("layout") or folder / "rozvadec" / "layout.json")
+        lay = lp if lp.is_file() else None
     try:
-        res = plan_celku(man, model=model)
+        res = plan_celku(man, model=model, layout_path=lay)
     except ValueError as exc:
         summ["chyba"] = f"celek nelze sestavit: {exc}"
         return summ
@@ -1026,6 +1068,11 @@ def generate(manifest_path, folder, *, model="Celek", no_fc=False, slot=SLOT, ch
     summ.update(smlouvy=files, rozmery=c["rozmery"], nepostaveno=len(c["nepostaveno"]), hadice=len(c["hadice"]), kabely=len(c["kabely"]),
                 chyby_planu=c["kontrola_planu"]["chyby"])
     fc = None
+    if lay is not None:                                # otvory upevnění do skříně; model skříně = App::Link v E1
+        from . import modul_stojan_rozvadece as e1m
+        ur = e1m.upravit_skrin(lay, c.get("otvory_skrine") or [], stavet=not no_fc and stavet)
+        if not ur.get("ok"):
+            c["kontrola_planu"]["chyby"].append(f"rozvaděč se nepostavil: {str(ur)[:300]}")
     if not no_fc:
         fc = build_fc(res, out, slot=slot, checks=checks, manifest=str(mp), shots=shots, stavet=stavet)
         (out / "fc_souhrn.json").write_text(json.dumps(fc.get("souhrn") or fc, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
