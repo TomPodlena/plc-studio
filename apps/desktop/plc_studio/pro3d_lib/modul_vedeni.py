@@ -51,6 +51,7 @@ UCHYT = {"kod": "623040", "brand": "ALUTEC", "nazev": "úchyt na kabely PA6 do d
 SROUB_ZLABU = "M5"
 ROZTEC_SROUBU = 300.0      # ODHAD — rozteč šroubů žlabu (výrobce neuvádí)
 ROZTEC_UCHYTEK = 300.0     # ODHAD — kabely.md §3: 150–300 mm, aby kabel neprověšoval
+DOTYK = 0.1               # mm — kabel leží na úchytce / navazuje na vývod modulu / končí u vývodky (kontrola souvislost: dotyk ≤ 0,2)
 REZERVA = {"pct": 10.0, "mm": 300.0, "zdroj": "ODHAD rezerva kabelu (skill kabelaz-a-hadice — rezervu volí konstruktér; jako celek E2)"}
 
 
@@ -203,7 +204,7 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
         E = zlab.glob(s_out, yl + off, wl)
         V1 = [E[0], E[1], z_pod]
         V2 = [g["bod"][0], g["bod"][1], z_pod]
-        Gp = [g["bod"][0], g["bod"][1], g["bod"][2] - 0.5]
+        Gp = [g["bod"][0], g["bod"][1], g["bod"][2] - DOTYK]
         det.append({"c": c, "D": D, "R": R, "A": A, "pevne": [L0, L1, E, V1, V2, Gp], "g": g, "lane": (yl, wl), "s": (s_in, s_out)})
     fixed_boxes = []
     for x in det:
@@ -219,7 +220,7 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
         c, D, R = x["c"], x["D"], x["R"]
         st = [float(v) for v in c["start"]]
         sd = _unit(c["smer"])
-        p0 = add(st, sd, 0.5)
+        p0 = add(st, sd, DOTYK)
         p1 = add(p0, sd, 10.0 + R)
         others = [b for y in det if y is not x for b in rt.segments_boxes([y["A"]] + y["pevne"][:-1], y["D"] / 2 + 2.0)]
         ob = [b for b in obst + others + done_boxes + zlab.walls() if not (rt.point_in(p1, rt.inflate(b, D / 2 + 4)) or rt.point_in(x["A"], rt.inflate(b, D / 2 + 4)))]
@@ -252,7 +253,7 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
             a, b = e[1], e[2]
             for nl in nosne:
                 zt = nl["osa_od"][2]
-                if abs(a[2] - b[2]) > 0.5 or abs(a[2] - (zt + UCHYT["rozmer"][2] + D / 2 + 0.5)) > 1.0:
+                if abs(a[2] - b[2]) > 0.5 or abs(a[2] - (zt + UCHYT["rozmer"][2] + D / 2 + DOTYK)) > 1.0:
                     continue
                 yl = nl["osa_od"][1]
                 if (a[1] - yl) * (b[1] - yl) > 0 or abs(b[1] - a[1]) < 1e-6:
@@ -289,7 +290,7 @@ def modul(kabely: list, zlab: Zlab, e1_roz: dict, obst: list, ident: str = "E2",
         raise ValueError("E2: smlouva E1 nemá pod_skrini.z_kabelu_max")
     nos_z = [n["osa_od"][2] for n in nos]
     D0 = max(float(c.get("D") or modul_ostrov.trasa_mod().nacti_media()[c["medium"]]["D"]) for c in kabely)
-    z_kab = (nos_z[0] + UCHYT["rozmer"][2] + D0 / 2 + 0.5) if nos_z else z_pod
+    z_kab = (nos_z[0] + UCHYT["rozmer"][2] + D0 / 2 + DOTYK) if nos_z else z_pod
     if z_kab > z_pod + 1e-6:
         raise ValueError(f"E2: kabel nad nosnou lištou (z {z_kab:.1f}) je výš než dovoluje ohyb do vývodky (z {z_pod:.1f})")
     tr = trasy(kabely, zlab, e1_roz["vstupy_kabelu"], obst, nos, z_kab, plates=plates)
