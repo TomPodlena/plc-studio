@@ -9,8 +9,8 @@ ucpe a hledá se další (nejvýš ``max_paths`` na mřížku). Voxely jen HLEDA
 kroku mřížky, vyhodnocení ISO 13857 je konzervativní (``rules.posud_otvor``) a nález je potřeba změřit v modelu.
 
 Oblast lze omezit parametrem ``oblast`` [x0, x1, y0, y1, z0, z1] (``fc_scan``: obálka krytů / výplní + zón + okraj — celek
-stroje; okraj oblasti leží VNĚ krytu, takže každá cesta zvenku krytem projde uvnitř oblasti). Vlnové hledání vzdálenosti
-pracuje jen v obálce čela vlny a končí, jakmile čelo dosáhne okraje oblasti (stačí nejkratší cesta).
+stroje; okraj oblasti leží VNĚ krytu, takže každá cesta zvenku krytem projde uvnitř oblasti). Hledání vzdálenosti = BFS
+po čele vlny (seznam indexů) a končí, jakmile čelo dosáhne okraje oblasti (stačí nejkratší cesta).
 
     python voxel.py tes.npz out.json [params.json]
 """
@@ -48,16 +48,27 @@ def mark_triangles(arr: np.ndarray, v: np.ndarray, f: np.ndarray, org: np.ndarra
         A, B, C = A[inn], B[inn], C[inn]
         if len(A) == 0:
             return
-    L = np.maximum(np.maximum(np.linalg.norm(B - A, axis=1), np.linalg.norm(C - A, axis=1)), np.linalg.norm(C - B, axis=1))
-    n = np.maximum(1, np.ceil(L / step)).astype(int)
+    # vrchol A = začátek nejkratší hrany (A→B): mřížka nu × nw podél A→C a A→B ~ plocha trojúhelníku, ne čtverec nejdelší
+    # hrany (dlouhé tenké trojúhelníky profilů / válců jinak dávaly miliony bodů na trojúhelník)
+    lab, lbc, lca = np.linalg.norm(B - A, axis=1), np.linalg.norm(C - B, axis=1), np.linalg.norm(A - C, axis=1)
+    i_bc = (lbc < lab) & (lbc <= lca)                  # nejkratší B→C: A' = B, B' = C, C' = A
+    i_ca = (lca < lab) & (lca < lbc)                   # nejkratší C→A: A' = C, B' = A, C' = B
+    A2, B2, C2 = A.copy(), B.copy(), C.copy()
+    A2[i_bc], B2[i_bc], C2[i_bc] = B[i_bc], C[i_bc], A[i_bc]
+    A2[i_ca], B2[i_ca], C2[i_ca] = C[i_ca], A[i_ca], B[i_ca]
+    A, B, C = A2, B2, C2
+    nw_ = np.maximum(1, np.ceil(np.linalg.norm(B - A, axis=1) / step)).astype(np.int64)
+    nu_ = np.maximum(1, np.ceil(np.linalg.norm(C - A, axis=1) / step)).astype(np.int64)
     shp = np.array(arr.shape)
-    for k in np.unique(n):
-        sel = n == k
-        a, b, c = A[sel], B[sel], C[sel]
-        uu, ww = np.meshgrid(np.arange(k + 1), np.arange(k + 1), indexing="ij")
-        m = (uu + ww) <= k
-        u = (uu[m] / k).astype(np.float32)
-        w = (ww[m] / k).astype(np.float32)
+    key = nu_ * 100000 + nw_
+    for kk in np.unique(key):
+        sel = key == kk
+        ku, kw = int(kk // 100000), int(kk % 100000)
+        a, b, c = A[sel], C[sel], B[sel]               # b = směr u (A→C), c = směr w (A→B)
+        uu, ww = np.meshgrid(np.arange(ku + 1), np.arange(kw + 1), indexing="ij")
+        m = (uu / ku + ww / kw) <= 1.0 + 1e-9
+        u = (uu[m] / ku).astype(np.float32)
+        w = (ww[m] / kw).astype(np.float32)
         ch = max(1, int(3e6 // len(u)))
         for s0 in range(0, len(a), ch):
             a_, b_, c_ = a[s0:s0 + ch], b[s0:s0 + ch], c[s0:s0 + ch]
@@ -87,38 +98,35 @@ def _edt(mask: np.ndarray) -> np.ndarray:
 
 
 def _bfs_dist(comp: np.ndarray, seeds: np.ndarray, stop: np.ndarray | None = None) -> np.ndarray:
-    """Vzdálenost (kroky 6-okolí) od ``seeds`` v rámci ``comp`` — vektorově po vlnách. Každá vlna jen v obálce čela
-    (obálka semen ± d, oříznutá na pole); se ``stop`` konec po vlně, která ``stop`` zasáhla (nejkratší cesta k okraji
-    je tím známá — vzdálenosti dál se nepočítají, zůstanou −1)."""
-    dist = np.full(comp.shape, -1, np.int32)
-    front = seeds & comp
+    """Vzdálenost (kroky 6-okolí) od ``seeds`` v rámci ``comp`` — BFS po čele vlny jako seznam indexů (cena ~ počet
+    navštívených voxelů, ne počet vln × celé pole). Se ``stop`` konec po vlně, která ``stop`` zasáhla (nejkratší cesta
+    k okraji je tím známá — vzdálenosti dál zůstanou −1)."""
+    sh = comp.shape
+    cp = np.pad(comp, 1).ravel()                       # okraj False → sousedé bez kontroly mezí
+    ps = (sh[0] + 2, sh[1] + 2, sh[2] + 2)
+    offs = np.array([ps[1] * ps[2], -ps[1] * ps[2], ps[2], -ps[2], 1, -1], np.int64)
+    dist = np.full(cp.size, -1, np.int32)
+    stamp = np.empty(cp.size, np.int32)
+    front = np.flatnonzero(np.pad(seeds & comp, 1).ravel())
     dist[front] = 0
-    if not front.any():
-        return dist
-    nz = np.argwhere(front)
-    lo0, hi0 = nz.min(0), nz.max(0) + 1
-    shp = np.array(comp.shape)
+    st = np.pad(stop, 1).ravel() if stop is not None else None
     d = 0
-    if stop is not None and (front & stop).any():
-        return dist
-    while True:
+    if st is not None and front.size and st[front].any():
+        front = front[:0]
+    while front.size:
         d += 1
-        lo = np.maximum(lo0 - d, 0)
-        hi = np.minimum(hi0 + d, shp)
-        sl = np.s_[lo[0]:hi[0], lo[1]:hi[1], lo[2]:hi[2]]
-        fr = dist[sl] == d - 1
-        if not fr.any():
+        nb = (front[:, None] + offs[None, :]).ravel()
+        nb = nb[cp[nb]]
+        nb = nb[dist[nb] < 0]
+        if not nb.size:
             break
-        nb = np.zeros_like(fr)
-        nb[1:] |= fr[:-1]; nb[:-1] |= fr[1:]
-        nb[:, 1:] |= fr[:, :-1]; nb[:, :-1] |= fr[:, 1:]
-        nb[:, :, 1:] |= fr[:, :, :-1]; nb[:, :, :-1] |= fr[:, :, 1:]
-        dsl = dist[sl]
-        new = nb & comp[sl] & (dsl < 0)
-        dsl[new] = d
-        if stop is not None and (new & stop[sl]).any():
+        stamp[nb] = np.arange(nb.size, dtype=np.int32)  # bez řazení: ponech jen poslední výskyt každého indexu
+        nb = nb[stamp[nb] == np.arange(nb.size, dtype=np.int32)]
+        dist[nb] = d
+        if st is not None and st[nb].any():
             break
-    return dist
+        front = nb
+    return dist.reshape(ps)[1:-1, 1:-1, 1:-1]
 
 
 _NB = ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))
