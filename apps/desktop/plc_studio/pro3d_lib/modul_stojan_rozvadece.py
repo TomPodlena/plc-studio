@@ -231,6 +231,8 @@ def konzola_n1(sk: dict, n1_roz: dict, *, strana: str = "zadni", xc: float | Non
                      f"E1 sloupek konzoly {i + 1} (x {x:g})")
         ups.append(m)
         for p in fs:                                               # průchozí šrouby do drážek rámu
+            if p.get("role") == "spodni_x" and not _free_x(p, x - A / 2, x + A / 2):     # dělená příčka: jen kus u sloupku
+                continue
             zs = p["osa_od"][2]
             k.pruchozi_sroub(m, [x, y_face_out, zs], [-v for v in n], [x, y_f, zs], [1, 0, 0],
                              f"sloupek {i + 1} → {p['prvek']} (z {zs:g})")

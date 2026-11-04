@@ -1054,7 +1054,7 @@ def generate(manifest_path, folder, *, model="Celek", no_fc=False, slot=SLOT, ch
     lay = None
     if any(p.get("category") == "cabinet" for p in man.get("parts") or []):
         from ..pro3d_cabinet import cli as ccli
-        cr = ccli.generate(mp, folder, no_fc=True)
+        cr = ccli.generate(mp, folder, no_fc=no_fc, shots=False)   # model skříně musí existovat už pro plán (App::Link v E1)
         lp = Path(cr.get("layout") or folder / "rozvadec" / "layout.json")
         lay = lp if lp.is_file() else None
     try:
