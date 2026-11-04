@@ -106,6 +106,29 @@ class RamPlanTest(unittest.TestCase):
         for m in mods:
             self.assertAlmostEqual(m["rozhrani"]["obalka"][2], z_top, delta=0.01)   # deska modulu leží na nosníku
 
+    def test_stredni_nohy(self):
+        """Dlouhý rám s průhybem podélníku > L/1000 → prostřední sloupky vpředu i vzadu, spodní věnec, pole vyhoví."""
+        p = modul_ram.plan_ramu(D=2400, W=1200, H=800, deska=True, podpory="patky", zatizeni_kg=150.0, nosniky=[700.0, 1700.0])
+        r = p["rozhrani"]
+        sn = r["nosnost"]["stredni_nohy"]
+        self.assertTrue(sn, r["nosnost"]["podelnik_svisle"])
+        self.assertFalse(r["nosnost"]["podelnik_svisle"]["cela_delka"]["vyhovuje"])
+        self.assertTrue(r["nosnost"]["podelnik_svisle"]["vyhovuje"])
+        self.assertTrue(all(q["vyhovuje"] for q in sn["pole"]))
+        self.assertGreaterEqual(sn["sloupek_vzper"]["bezpecnost"], 3.0)
+        self.assertEqual(sn["podpory"]["pocet"], 4 + 2 * len(sn["x"]))
+        inst = p["moduly"][0]["instance"]
+        self.assertEqual(sum(1 for i in inst if i["druh"] == "patka"), 4 + 2 * len(sn["x"]))
+        roles = [i["props"].get("Konstrukce_Role") for i in inst if i["druh"] == "profil"]
+        self.assertEqual(roles.count("sloupek"), 4 + 2 * len(sn["x"]))
+        self.assertEqual(roles.count("spodni_y"), 2 + len(sn["x"]))
+        self.assertEqual(roles.count("spodni_x"), 2 * (1 + len(sn["x"])))
+        for x in sn["x"]:
+            self.assertTrue(all(abs(x - n) >= 70 for n in (700.0, 1700.0)))
+        self.assertFalse(p["kontrola"]["chyby"])
+        p0 = modul_ram.plan_ramu(D=800, W=600, H=900, deska=True, podpory="patky", zatizeni_kg=30)
+        self.assertIsNone(p0["rozhrani"]["nosnost"]["stredni_nohy"])
+
     def test_uhelnik_sroub_katalog(self):
         # 200820 = M8×20 s podložkou do matice 210482: zvolená tloušťka úhelníku to musí dovolit
         r = spojky_mech.delka_do_drazky("M8", modul_ram.DATA["uhelnik"]["t"], podlozka=True)

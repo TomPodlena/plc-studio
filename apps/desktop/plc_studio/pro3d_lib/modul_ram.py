@@ -126,7 +126,7 @@ def vzper(F, L, I_cm4, A_cm2, beta=2.0):
 # --- stavitel plánu ---------------------------------------------------------------------------------------------------
 class Ram:
     def __init__(self, D, W, H, deska=True, podpory="patky", rada=None, zatizeni_kg=50.0, moduly=(), nosniky=(),
-                 p1=(), pozadavky=(), limit=None, z_spodni=None, uhelniky=True, ident="N1", nazev=""):
+                 p1=(), pozadavky=(), limit=None, z_spodni=None, uhelniky=True, ident="N1", nazev="", stredni_nohy=True):
         self.D, self.W, self.H = float(D), float(W), float(H)
         self.deska, self.podpory, self.uhelniky = bool(deska), podpory, uhelniky
         self.zatizeni = float(zatizeni_kg)
@@ -140,6 +140,8 @@ class Ram:
         self.t_deska = DATA["deska"]["t"] if self.deska else 0.0
         self.z_top = self.H - self.t_deska
         self.rada = rada
+        self.stredni_nohy = bool(stredni_nohy)   # E3: prostřední sloupky + spodní věnec, když průhyb podélníku > L / limit
+        self.stredni_x = []
         self.vypocet = {}
         self.boxes_extra = []      # (název, box) — deska, úhelníky, moduly: pro volné úseky drážek a přístup klíčem
 
@@ -268,6 +270,53 @@ class Ram:
             self.nut_screw("M8", add(C, nA, s), nA, nB, t, True, f"{label} rameno B s={s:g}")
 
     # -- stavba
+    def _podelnik_svisle(self):
+        """Svislý průhyb podélníku: celá délka, s prostředními sloupky nejhorší pole (s ``cela_delka`` pro srovnání)."""
+        sel = [r for r in self.vypocet["vyber_podelniku"] if r["kod"] == self.kod][0]
+        sn = self.vypocet.get("stredni_nohy")
+        if not sn:
+            return sel
+        w = max(sn["pole"], key=lambda r: r["f"] / max(r["limit"], 1e-9))
+        return dict(w, kod=self.kod, osa=sel.get("osa"), cela_delka={k: sel[k] for k in ("f", "limit", "vyhovuje")},
+                    pozn=f"nejhorší pole mezi sloupky (prostřední sloupky x {self.stredni_x})")
+
+    def _deska_srouby_x(self):
+        n = max(2, int(math.ceil((self.D - 200) / 300.0)) + 1)
+        return [100.0 + (self.D - 200.0) * i / (n - 1) for i in range(n)]
+
+    def _pole_podelniku(self, xs_mid, kod, F_body, q):
+        """Průhyb podélníku po polích mezi sloupky (rohové v ose A / 2 a D − A / 2 + prostřední ``xs_mid``) — každé pole
+        jako prostý nosník (šroubovaný spoj ≠ spojitý nosník; konzervativně), síly v poli posunuté k jeho začátku."""
+        p = DATA["profily"][kod]
+        I, Wm = (p["Iy_cm4"], p["Wy_cm3"]) if kod == "104080" else (p["Ix_cm4"], p["Wx_cm3"])
+        sup = [A / 2] + sorted(xs_mid) + [self.D - A / 2]
+        out = []
+        for a, b in zip(sup, sup[1:]):
+            L = b - a - (A / 2 if a > A / 2 else 0.0) - (A / 2 if b < self.D - A / 2 else 0.0)
+            x0 = a + (A / 2 if a > A / 2 else 0.0)
+            fs = [(F, x + A / 2 - x0) for F, x in F_body if x0 <= x + A / 2 <= x0 + L]
+            r = nosnik(L, I, Wm, p["Q_kg_m"], fs, q)
+            r.update(pole=[round(x0, 1), round(x0 + L, 1)], L=round(L, 1), limit=round(L / self.limit, 3))
+            r["vyhovuje"] = r["f"] <= r["limit"] and r["vyhovuje_napeti"]
+            out.append(r)
+        return out
+
+    def _stredni_polohy(self, n):
+        """Polohy ``n`` prostředních sloupků: cíl D · k / (n + 1), posunuto doprostřed mezi šrouby desky do věnce (dlouhý
+        šroub sloupku shora podélníkem) a ≥ 70 mm od montážních nosníků / příčníků (vodorovné dlouhé šrouby v podélníku)."""
+        ds = self._deska_srouby_x()
+        cand = [(a + b) / 2 for a, b in zip(ds, ds[1:])] if self.deska else [A + (self.D - 2 * A) * k / 40.0 for k in range(1, 40)]
+        bad = list(self.nosniky_x) + [1.5 * A, self.D - 1.5 * A]
+        cand = [c for c in cand if all(abs(c - x) >= 70.0 for x in bad) and 3 * A < c < self.D - 3 * A]
+        out = []
+        for k in range(1, n + 1):
+            t = A / 2 + (self.D - A) * k / (n + 1)
+            c = min((c for c in cand if c not in out), key=lambda c_: abs(c_ - t), default=None)
+            if c is None:
+                return None
+            out.append(round(c, 1))
+        return sorted(out)
+
     def vyber_profilu(self, Ls, F_body, q):
         cands = [self.rada] if self.rada else ["104040", "104080"]
         res = []
@@ -302,6 +351,20 @@ class Ram:
         for p in self.p1_in:                           # P1 se staví až po volbě profilu — hmotnost odhadem z dat modulu
             p1_mass.append(((p.get("hmotnost_kg") or 1.5) * G / 2, p["x"] - A / 2))
         kod, vyber = self.vyber_profilu(Ls, F_body + list(p1_mass), q_rail)
+        sel0 = [r for r in vyber if r["kod"] == kod][0]
+        if not sel0["vyhovuje"] and self.stredni_nohy and self.podpory != "kola":
+            for n_mid in (1, 2, 3):
+                xs_mid = self._stredni_polohy(n_mid)
+                if not xs_mid:
+                    break
+                pole = self._pole_podelniku(xs_mid, kod, F_body + list(p1_mass), q_rail)
+                if all(r["vyhovuje"] for r in pole):
+                    self.stredni_x = xs_mid
+                    self.vypocet["stredni_nohy"] = {
+                        "duvod": f"podélník {kod} přes celou délku: průhyb {sel0['f']} mm > L/{self.limit:g} = {sel0['limit']} mm",
+                        "x": xs_mid, "pole": pole, "pozn": "prostřední sloupky vpředu i vzadu + spodní věnec (příčka y mezi nimi, příčky x "
+                                                          "dělené sloupkem, úhelníky); každé pole jako prostý nosník (konzervativně)"}
+                    break
         prof = DATA["profily"][kod]
         h = float(prof["b"])                          # výška věnce (104080 na výšku)
         w = 40.0
@@ -329,6 +392,13 @@ class Ram:
                             f"sloupek ({xc:g}, {yc:g})")
             m["sx"], m["sy"], m["xc"], m["yc"] = sx, sy, xc, yc
             posts.append(m)
+        mids = []
+        for xm in self.stredni_x:
+            for yc, sy in ((A / 2, 1), (W - A / 2, -1)):
+                m = self.member("104040", A, A, Lp, [xm, yc, z0], [1, 0, 0], [0, 1, 0], [0, 0, 1], "sloupek",
+                                f"prostřední sloupek ({xm:g}, {yc:g})")
+                m["sx"], m["sy"], m["xc"], m["yc"], m["stredni"] = 0, sy, xm, yc, True
+                mids.append(m)
         front = self.member(kod, w, h, D, [0, w / 2, z_top - h / 2], [0, 1, 0], [0, 0, 1], [1, 0, 0], "podelnik", "podélník přední")
         back = self.member(kod, w, h, D, [D, W - w / 2, z_top - h / 2], [0, -1, 0], [0, 0, 1], [-1, 0, 0], "podelnik", "podélník zadní")
         # příčníky horního věnce: u sloupků + mezilehlé (rozpětí desky ≤ 600 ODHAD), ne tam, kde jsou montážní nosníky
@@ -355,11 +425,16 @@ class Ram:
         for side_x in (A / 2, D - A / 2):
             lowy.append(self.member("104040", A, A, W - 2 * A, [side_x, A, zl + A / 2], [1, 0, 0], [0, 0, -1], [0, 1, 0], "spodni_y",
                                     f"spodní příčka y x {side_x:g}"))
+        cutsx = [A] + [v for xm in self.stredni_x for v in (xm - A / 2, xm + A / 2)] + [D - A]
         for side_y in (A / 2, W - A / 2):
-            lowx.append(self.member("104040", A, A, D - 2 * A, [A, side_y, zl + 1.5 * A], [0, 1, 0], [0, 0, 1], [1, 0, 0], "spodni_x",
-                                    f"spodní příčka x y {side_y:g}"))
+            for a, b_ in zip(cutsx[::2], cutsx[1::2]):
+                lowx.append(self.member("104040", A, A, b_ - a, [a, side_y, zl + 1.5 * A], [0, 1, 0], [0, 0, 1], [1, 0, 0], "spodni_x",
+                                        f"spodní příčka x y {side_y:g}" + (f" x {a:g}…{b_:g}" if self.stredni_x else "")))
+        for xm in self.stredni_x:
+            lowy.append(self.member("104040", A, A, W - 2 * A, [xm, A, zl + A / 2], [1, 0, 0], [0, 0, -1], [0, 1, 0], "spodni_y",
+                                    f"spodní příčka y x {xm:g} (prostřední sloupky)"))
         # spoje: podélník → sloupek (svisle)
-        for pm in posts:
+        for pm in posts + mids:
             rail = front if pm["yc"] < W / 2 else back
             self.dlouhy_sroub(rail, [pm["xc"], pm["yc"], z_top], [0, 0, -1], h, f"podélník → sloupek ({pm['xc']:g}, {pm['yc']:g})")
         # příčníky a nosníky → podélníky (vodorovně přes podélník)
@@ -378,6 +453,18 @@ class Ram:
             xo = 0.0 if pm["sx"] > 0 else D
             self.dlouhy_sroub(pm, [pm["xc"], yo, zl + A / 2], [0, pm["sy"], 0], A, f"spodní příčka y → sloupek ({pm['xc']:g}, {pm['yc']:g})")
             self.dlouhy_sroub(pm, [xo, pm["yc"], zl + 1.5 * A], [pm["sx"], 0, 0], A, f"spodní příčka x → sloupek ({pm['xc']:g}, {pm['yc']:g})")
+        # prostřední sloupky: spodní příčka y dlouhým šroubem z vnějšího líce, příčky x úhelníky z obou stran (+ pod podélníkem)
+        for pm in mids:
+            yo = 0.0 if pm["sy"] > 0 else W
+            self.dlouhy_sroub(pm, [pm["xc"], yo, zl + A / 2], [0, pm["sy"], 0], A, f"spodní příčka y → prostřední sloupek ({pm['xc']:g}, {pm['yc']:g})")
+            for sx in (-1, 1):
+                xi = pm["xc"] + sx * A / 2
+                self.uhelnik([xi, pm["yc"], zl + 2 * A], [0, 0, 1], [sx, 0, 0], None, pm, f"prostřední sloupek x-z spodní ({xi:g}, {pm['yc']:g})")
+                self.uhelnik([xi, pm["yc"], zl + A], [0, 0, -1], [sx, 0, 0], None, pm, f"prostřední sloupek x-z spodní zdola ({xi:g}, {pm['yc']:g})")
+                self.uhelnik([xi, pm["yc"], zr], [0, 0, -1], [sx, 0, 0], None, pm, f"prostřední sloupek x-z horní ({xi:g}, {pm['yc']:g})")
+        if self.stredni_x:
+            self.odhady.add("prostřední sloupky rámu: poloha mezi šrouby desky, pole podélníku počítána jako prostý nosník (ODHAD na straně "
+                            "bezpečnosti); patky na nerovné podlaze seřídit, aby prostřední sloupky nesly")
         # zavětrování úhelníky
         if self.uhelniky:
             for pm in posts:
@@ -400,7 +487,7 @@ class Ram:
             for yc in (w / 2, W - w / 2):
                 self.put(zk, [x, yc, z_top - h / 2], cols([0, sgn, 0], [0, 0, 1], [sgn, 0, 0]), "zaslepka")
         # podpory
-        self.podpory_build(posts, z0)
+        self.podpory_build(posts + mids, z0)
         # deska
         if self.deska:
             self.deska_build(front, back, shorts)
@@ -585,11 +672,24 @@ class Ram:
             bn.append(r)
         self.vypocet["nosniky_modulu"] = bn
         sel = [r for r in self.vypocet["vyber_podelniku"] if r["kod"] == self.kod][0]
+        sn = self.vypocet.get("stredni_nohy")
+        if sn:
+            worst = max(sn["pole"], key=lambda r: r["f"] / max(r["limit"], 1e-9))
+            sel = dict(sel, f=worst["f"], limit=worst["limit"], vyhovuje_napeti=all(r["vyhovuje_napeti"] for r in sn["pole"]))
+            # prostřední sloupek: reakce spojitého nosníku o 2 polích = 0,625 celkového zatížení podélníku (na straně bezpečnosti)
+            F_mid = 0.625 * m_tot * G / 2.0
+            vzm = vzper(F_mid, posts[0]["L"], pp["Ix_cm4"], pp["A_cm2"], 2.0)
+            vzm["vyhovuje"] = (vzm["bezpecnost"] or 99) >= 3.0
+            sn["sloupek_vzper"] = dict(vzm, pozn="0,625 × polovina hmotnosti (reakce středu spojitého nosníku o 2 polích), Euler β = 2")
+            sn["podpory"] = {"pocet": 4 + 2 * len(self.stredni_x), "na_podporu_kg": round(m_tot / 3.0, 1),
+                             "pozn": "stále celá hmotnost na 3 podpory (nerovná podlaha) — konzervativně"}
+            if not vzm["vyhovuje"]:
+                self.varovani.append(f"prostřední sloupek: vzpěr bezpečnost {vzm['bezpecnost']} < 3")
         if sel["f"] > sel["limit"] or not sel["vyhovuje_napeti"]:
             self.varovani.append(f"podélník {self.kod}: svislý průhyb {sel['f']} mm > L/{self.limit:g} = {sel['limit']} mm")
         # dovolené přídavné zatížení podélníku uprostřed do limitu (smlouva)
         I = prof["Iy_cm4"] if self.kod == "104080" else prof["Ix_cm4"]
-        L = self.D - A
+        L = self.D - A if not sn else max(r["L"] for r in sn["pole"])
         f_res = max(sel["limit"] - sel["f"], 0.0)
         self.F_dov_podelnik = round(f_res * 48 * E * I * 1e4 / L ** 3, 0)
 
@@ -702,7 +802,8 @@ class Ram:
                        "srouby_desky": [r3(p + [self.H]) for p in getattr(self, "deska_srouby", [])],
                        "odstup_od_sroubu_mm": 15, "pozn": "závity pro moduly = požadavek na rám (díra se vyvrtá podle modulu); "
                                                           "deska je ODHAD tloušťky a materiálu"} if self.deska else None),
-            "nosnost": {"podelnik_svisle": [r for r in self.vypocet["vyber_podelniku"] if r["kod"] == self.kod][0],
+            "nosnost": {"podelnik_svisle": self._podelnik_svisle(),
+                        "stredni_nohy": self.vypocet.get("stredni_nohy"),
                         "podelnik_F_dov_uprostred_N": self.F_dov_podelnik,
                         "podelnik_vodorovne": self.vypocet.get("podelnik_vodorovne"),
                         "nosniky_modulu": self.vypocet.get("nosniky_modulu"), "sloupek_vzper": self.vypocet["sloupek_vzper"],
