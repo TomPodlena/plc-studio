@@ -75,6 +75,10 @@ def prim(p):
         c = p["prism_x"]
         pts = [V(c["x0"], y, z) for y, z in c["pts"]]
         return Part.Face(Part.makePolygon(pts + [pts[0]])).extrude(V(c["x1"] - c["x0"], 0, 0))
+    if "prism_z" in p:                                # mnohoúhelník v rovině XY vysunutý z0 → z1 (výseč dráhy dveří O3)
+        c = p["prism_z"]
+        pts = [V(x, y, c["z0"]) for x, y in c["pts"]]
+        return Part.Face(Part.makePolygon(pts + [pts[0]])).extrude(V(0, 0, c["z1"] - c["z0"]))
     if "profil" in p:                                 # profil ALUTEC a × b (zástupný průřez), osa Z, délka L (modul N1)
         c = p["profil"]
         return profil_sekce(float(c["a"]), float(c["b"])).extrude(V(0, 0, float(c["L"])))

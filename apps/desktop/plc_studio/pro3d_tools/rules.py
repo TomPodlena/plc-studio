@@ -143,7 +143,8 @@ def typ_dilu(props: dict | None, label: str = "", name: str = "") -> str:
 # i App::Link — vyjme se celý obsah odkazu. Kabely, hadice, obálky řetězu a ostatní pomocná tělesa se nekontrolují
 # (vlastní hadice / kabel zónou prochází). Nebezpečné zóny (zdvih válce…) mají jiný druh (např. ``zdvih``) nebo ``Zona_*``.
 POMOCNE_ZONY = ("konektor", "paprsek", "snimani", "hadice",
-                "ovladani")         # P2/P3 (2026-11-03): ruka na ručním uzávěru, knoflíku regulátoru, odvodu kondenzátu
+                "ovladani",         # P2/P3 (2026-11-03): ruka na ručním uzávěru, knoflíku regulátoru, odvodu kondenzátu
+                "dvere", "spinac")  # O3 (2026-11-04): dráha dveří krytu, nájezd ovladače do blokovacího spínače
 ZONY_PEVNE_SKIP = frozenset({"kabel", "hadice", "retez", "zona", "pomocny"})
 
 

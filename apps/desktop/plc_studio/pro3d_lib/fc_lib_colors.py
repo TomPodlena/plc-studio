@@ -56,6 +56,8 @@ def paint(doc):
             color(o.ViewObject, (220, 40, 40), 85)
         elif typ == "kabel":
             color(o.ViewObject, BLUE)
+        elif typ in ("vypln", "kryt") and "polykarbon" in _st(o, "Konstrukce_Material").lower():
+            color(o.ViewObject, (150, 200, 225), 55)   # čirý polykarbonát (O3) — průhledně, ať je vidět dovnitř
         elif typ == "pomocny" and str(getattr(o, "Konstrukce_Barva_RGB", "") or ""):
             rgb = tuple(int(x) for x in str(o.Konstrukce_Barva_RGB).split(","))      # barva patra / hlavice (jen náhled)
             color(o.ViewObject, rgb, int(getattr(o, "Konstrukce_Pruhlednost", 30) or 0))
@@ -133,6 +135,11 @@ try:
                     pl = o.Placement
                     pl.Base = pl.Base + App.Vector(*pm["posun"])
                     o.Placement = pl
+                    moved += 1
+                elif isinstance(pm.get("otoc"), dict):         # dveře O3: otočení kolem osy pantu (soustava rodiče)
+                    ot = pm["otoc"]
+                    r = App.Placement(App.Vector(), App.Rotation(App.Vector(*ot["osa"]), float(ot["uhel"])), App.Vector(*ot["bod"]))
+                    o.Placement = r.multiply(o.Placement)
                     moved += 1
             d.recompute()
         res["vysunuto_objektu"] = moved

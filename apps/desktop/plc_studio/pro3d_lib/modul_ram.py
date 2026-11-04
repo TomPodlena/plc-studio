@@ -488,8 +488,12 @@ class Ram:
             near = [s for s in getattr(self, "deska_srouby", []) if math.hypot(s[0] - x, s[1] - y) < d / 2 + 15]
             if self.deska and not under and not near and d / 2 + 10 < x < self.D - d / 2 - 10 and d / 2 + 10 < y < self.W - d / 2 - 10:
                 cut.append(_cyl([x, y, -1], [0, 0, 1], d / 2, self.t_deska + 2))
+                zh = p.get("zahloubeni")            # O3: šroub zespodu deskou — zahloubení hlavy ze spodu desky {d, h}
+                if zh:
+                    cut.append(_cyl([x, y, -1], [0, 0, 1], float(zh["d"]) / 2, float(zh["h"]) + 1))
                 self.pruchody["prijato"].append({"co": p.get("co"), "bod": r3([x, y, self.H]), "d": d, "kde": "pracovní deska",
-                                                 "pozn": "otvor v desce; hrana zabrousit / průchodka (V2) — ODHAD"})
+                                                 "pozn": ("otvor pro šroub zespodu se zahloubením hlavy" if zh else
+                                                          "otvor v desce; hrana zabrousit / průchodka (V2) — ODHAD")})
             else:
                 why = ("nad profilem věnce — profily se pro kabely nevrtají (oslabení, drážky); posunout průchod do pole desky "
                        "nebo vést drážkou pod krycím profilem 230818 (│45│40│, katalog s. 16/3)") if under else \
