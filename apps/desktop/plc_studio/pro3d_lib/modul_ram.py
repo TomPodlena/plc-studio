@@ -486,6 +486,13 @@ class Ram:
             under = [m for m in self.members if m["role"] in ("podelnik", "pricnik", "nosnik_modulu")
                      and m["box"][0] - d / 2 - 5 < x < m["box"][3] + d / 2 + 5 and m["box"][1] - d / 2 - 5 < y < m["box"][4] + d / 2 + 5]
             near = [s for s in getattr(self, "deska_srouby", []) if math.hypot(s[0] - x, s[1] - y) < d / 2 + 15]
+            if p.get("kind") == "otvor_drazka" and self.deska and under:
+                # E3 (celek): šroub modulu deskou do matice T drážky profilu POD deskou (stojina D1 → montážní nosník)
+                cut.append(_cyl([x, y, -1], [0, 0, 1], d / 2, self.t_deska + 2))
+                self.pruchody["prijato"].append({"co": p.get("co"), "bod": r3([x, y, self.H]), "d": d, "kde": "pracovní deska",
+                                                 "pozn": "otvor pro šroub deskou do drážky profilu pod deskou ("
+                                                         + ", ".join(sorted({m["nazev"] for m in under})) + ")"})
+                continue
             if self.deska and not under and not near and d / 2 + 10 < x < self.D - d / 2 - 10 and d / 2 + 10 < y < self.W - d / 2 - 10:
                 cut.append(_cyl([x, y, -1], [0, 0, 1], d / 2, self.t_deska + 2))
                 zh = p.get("zahloubeni")            # O3: šroub zespodu deskou — zahloubení hlavy ze spodu desky {d, h}

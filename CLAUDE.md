@@ -542,6 +542,23 @@ python scripts/build_verification.py        # data/verification.json → verific
   (fc_lib + barvy, App::Link skupina `G-pneu` v Moduly.FCStd), hadice A / B z ústí šroubení ostrova k GRLA válců vede router,
   rozvod P je v modulu. Bez smlouvy dosavadní chování. CLI `pro_pipeline --no-ai --generators` = generátory kódem bez agentů.
   Testy `tests/test_pro3d_napojeni.py`.
+- **Celek kódem E3** (2026-11-04) `plc_studio/pro3d_lib/celek.py` — moduly určí rám (ne půdorys konceptu): `python -m
+  plc_studio.pro3d_lib.celek <PLCdesk_CAD.json> <složka> [--model Celek_01] [--no-fc] [--bez-otvoru] [--kontroly k1,k2]
+  [--bez-snimku] [--bez-kontrol] [--nestavet]` → `<složka>/celek/` (`plan.json`, `<model>.FCStd`, smlouvy D1 / N1 / O3 / P1 /
+  P2 / P3, `celek.json`, `CELEK.md`, `PLCdesk_CAD_feedback_celek.json`, snímky `celek_*.png` vč. otevřených dveří, kontroly).
+  Pořadí: **D1** (obálka D1 + P1 + S1; výška desky N1 = pod stojinami, snížená tak, aby visící pohon nezasáhl desku —
+  `VULE_POHON`, stojiny D1 delší) → **O3** (vnitřek = obálka + `VULE_KRYT` + `PREPRAVKA` za pásem, ODHAD; obrys krytu se
+  nastaví přímo `Kryt.X0…Y1`) → **pás obsluhy** u nakládacího konce (x min): nosný profil 40 × 40 podél y šrouby zespodu deskou,
+  na něm pult O1 a P2 + P3 (`R_PAS`: čelo ven −x), šířka pásu = moduly vč. vývodů kabelů + 15, za rovinou pantů (dráha dveří)
+  → **N1** s deskou, montážní nosníky pod stojinami D1, otvory = požadavky modulů (šrouby krytu / nosného profilu zespodu,
+  šrouby úhelníků stojin D1 deskou do drážky nosníku = nový druh `kind: "otvor_drazka"` v `modul_ram.pruchody_vyhodnot` —
+  přijme se i nad profilem; `D1NaDesce` přidá desku do upnuté tloušťky) — D1 a pravý konec krytu se posouvají po 10 mm, dokud
+  N1 nepřijme všechny otvory → **P4** hadice ostrov → válec routerem `pro3d_modules/router.py` (deska = průchod → požadavek N1,
+  kryt ne, trasa se drží profilů rámu) → **E1 / E2**: poloha rozvaděče ODHAD (stojan za hnacím koncem), kabely routerem jen jako
+  ODHAD délek (nestaví se — stojan / držáky skříně a žlab nejsou moduly) → `nepostaveno` + zpětná vazba. O2 jen s řádkem `beacon`.
+  `ram_gen` u stroje s pásovým dopravníkem bere rozměry z `celek.n1_params` (umístění 0, zdroj „celek E3…“; `--bez-celku` /
+  `make_frame(celek=False)` = koncept jako dřív). Pult O1: úhelníky kotvení malého pultu od sebe ≥ šířka + 10 (`a6`). Testy
+  `tests/test_pro3d_celek.py` (manifest `tests/data/celek/01_PLCdesk_CAD.json`; FreeCAD jen `PRO3D_CELEK_FC=1`).
 - **Řízené RUČNÍ stahování modelů** (2026-10-24) `plc_studio/pro3d_download/` (bez Tk, bez sítě — **nic se nestahuje
   ani neskriptuje**: podmínky 3Dfindit / CADENAS čl. 12.3 (vii), TraceParts i portálů výrobců; stahuje člověk v prohlížeči).
   `vendors.json` = vzory URL (stránka produktu / hledání, `{code}` `{code_alnum}` `{query}`), `verified` + `verify_note`

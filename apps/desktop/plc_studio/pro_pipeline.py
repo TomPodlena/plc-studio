@@ -1106,8 +1106,10 @@ def make_cabinet(folder: str | Path, *, log=print, slot: str = CABINET_SLOT, tim
             "chyba": res.get("chyba") or ("" if ok else "model nevznikl")}
 
 
-def make_frame(folder: str | Path, *, log=print, slot: str = FRAME_SLOT, timeout: int = 1500) -> dict:
+def make_frame(folder: str | Path, *, log=print, slot: str = FRAME_SLOT, timeout: int = 1500, celek: bool = True) -> dict:
     """Rám kódem (``pro3d_lib/ram_gen.py`` = modul N1) nad ``PLCdesk_CAD.json`` a ``koncept/Koncept.FCStd`` →
+    (``celek`` = stroj s pásovým dopravníkem: rozměry rámu z CELKU ``pro3d_lib.celek`` — moduly kódem určí rám, ne půdorys
+    konceptu; bez dopravníku / ``celek=False`` jako dřív)
     ``ram/Ram.FCStd``, smlouva ``ram/N1_<id>.json``, ``RAM.md``, snímky. FreeCAD jen ve vlastní instanci (slot ``pro3d-frame``).
     ``ok`` = model vznikl (kód 0 / 1 — chyby kontrol posoudí stavitel / K5); kód 2 / bez modelu = stavitel staví postaru."""
     folder = Path(folder)
@@ -1116,7 +1118,8 @@ def make_frame(folder: str | Path, *, log=print, slot: str = FRAME_SLOT, timeout
         return {"ok": False, "chyba": "PLCdesk_CAD.json chybí"}
     log(_("Rám: generátor kódem…"))
     try:
-        r = subprocess.run([_python(), "-I", str(FRAME_SCRIPT), str(man), str(folder), "--slot", slot, "--timeout", str(timeout)],
+        r = subprocess.run([_python(), "-I", str(FRAME_SCRIPT), str(man), str(folder), "--slot", slot, "--timeout", str(timeout)]
+                           + ([] if celek else ["--bez-celku"]),
                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout + 1500,
                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except (OSError, subprocess.TimeoutExpired) as exc:

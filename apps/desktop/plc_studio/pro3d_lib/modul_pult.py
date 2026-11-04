@@ -323,7 +323,8 @@ def modul(pr: dict, x0: float = 65.0, z_podlaha: float = 0.0, nazev: str = "Pult
     h4 = spojky_mech.otvor_vule(M_VIKO)
     h6 = spojky_mech.otvor_vule(M_PROFIL)
     cut_tel = [{"cyl": {"p": [x, yf - T_TELO - 1, z], "d": [0, 1, 0], "r": h4 / 2, "h": T_TELO + 2}} for x, z in sv]
-    xs6 = [x0 + 60.0, x1 - 60.0]                    # úhelníky kotvení (V4) — osy podél X
+    a6 = min(60.0, (W - UH_W - 10.0) / 2.0)         # malý pult (3 přístroje, W 150): úhelníky od sebe ≥ UH_W + 10 (celek E3)
+    xs6 = [x0 + a6, x1 - a6]                        # úhelníky kotvení (V4) — osy podél X
     yu = -20.0 - UH_HORIZ / 2 - UH_T / 2             # šroub dna → vodorovné rameno úhelníku (mimo svislé rameno a matici)
     if yu - spojky_mech.otvor_vule(M_PROFIL) / 2 < yb + T_TELO + 1.0:
         raise ValueError("pult: šroub úhelníku mimo dno (hloubka pultu)")

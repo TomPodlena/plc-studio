@@ -1,5 +1,6 @@
 """Rám N1 kódem v automatickém postupu PLCdesk PRO (``pro_pipeline.make_frame``): z manifestu PLCdesk a konceptu
-(rozměry stolu z ``koncept/Koncept.FCStd`` přes ``pro3d_modules/fc_scene.py``, jinak z briefu / ODHAD) →
+(stroj s pásovým dopravníkem: rozměry z CELKU ``celek.n1_params`` — moduly kódem určí rám; jinak rozměry stolu
+z ``koncept/Koncept.FCStd`` přes ``pro3d_modules/fc_scene.py``, jinak z briefu / ODHAD) →
 ``ram/Ram.FCStd`` (``modul_ram`` + ``fc_ram.py``), smlouva ``ram/N1_<id>.json``, ``ram/RAM.md``, snímky ``ram/snimky/ram_*.png``
 a kontroly ``ram/kontroly/``.
 
@@ -173,7 +174,17 @@ def report_md(roz: dict, res: dict | None, src: str) -> str:
     return "\n".join(L)
 
 
-def generate(manifest_path, folder, *, scene_path=None, no_fc=False, slot=SLOT, timeout=1500) -> dict:
+def celek_params(man: dict) -> dict | None:
+    """Rozměry rámu z CELKU (``celek.n1_params`` — moduly kódem určí rám: D1 + P1 + S1 → kryt O3 + pás obsluhy → N1);
+    None = stroj bez pásového dopravníku nebo celek nelze sestavit (pak koncept / brief / ODHAD jako dřív)."""
+    try:
+        from . import celek
+        return celek.n1_params(man)
+    except Exception:  # noqa: BLE001 — celek je volitelný zdroj rozměrů, chyba nesmí zastavit rám
+        return None
+
+
+def generate(manifest_path, folder, *, scene_path=None, no_fc=False, slot=SLOT, timeout=1500, celek=True) -> dict:
     mp, folder = Path(manifest_path).resolve(), Path(folder).resolve()
     out = folder / SUB
     summ = {"ok": False, "kod": 2, "fcstd": "", "rozhrani": "", "md": ""}
@@ -183,10 +194,13 @@ def generate(manifest_path, folder, *, scene_path=None, no_fc=False, slot=SLOT, 
         summ["chyba"] = f"manifest nelze načíst: {exc}"
         return summ
     out.mkdir(parents=True, exist_ok=True)
+    cp = celek_params(man) if celek and not scene_path else None
     if scene_path:
         scene = json.loads(Path(scene_path).read_text(encoding="utf-8"))
-    else:
+    elif cp is None:
         scene = concept_scene(folder / "koncept" / "Koncept.FCStd", out / ".prace", slot) if not no_fc else None
+    else:
+        scene = None
     lay_p = folder / "moduly" / "layout.json"
     poz = []
     if lay_p.is_file():
@@ -194,7 +208,14 @@ def generate(manifest_path, folder, *, scene_path=None, no_fc=False, slot=SLOT, 
             poz = json.loads(lay_p.read_text(encoding="utf-8")).get("predani_n1") or []
         except ValueError:
             poz = []
-    pr = params(man, scene, poz)
+    if cp is not None:
+        kw = dict(cp["kw"])
+        kw["pozadavky"] = list(kw.get("pozadavky") or []) + [p for p in params(man, None, poz)["kw"]["pozadavky"]]
+        name = str((man.get("project") or {}).get("name") or "")
+        kw["nazev"] = f"N1 rám {kw['D']:g} × {kw['W']:g} × {kw['H']:g} (celek)" + (f" — {name}" if name else "")
+        pr = {"kw": kw, "umisteni": list(cp["umisteni"]), "zdroj": cp["zdroj"], "odhady": list(cp["odhady"])}
+    else:
+        pr = params(man, scene, poz)
     try:
         plan = modul_ram.plan_ramu(**pr["kw"])
     except Exception as exc:  # noqa: BLE001
@@ -243,8 +264,9 @@ def main(argv=None) -> int:
     ap.add_argument("--no-fc", action="store_true")
     ap.add_argument("--slot", default=SLOT)
     ap.add_argument("--timeout", type=int, default=1500)
+    ap.add_argument("--bez-celku", action="store_true", help="rozměry z konceptu / briefu i u stroje s dopravníkem (ne z celku E3)")
     a = ap.parse_args(argv)
-    s = generate(a.manifest, a.folder, scene_path=a.scena or None, no_fc=a.no_fc, slot=a.slot, timeout=a.timeout)
+    s = generate(a.manifest, a.folder, scene_path=a.scena or None, no_fc=a.no_fc, slot=a.slot, timeout=a.timeout, celek=not a.bez_celku)
     print(json.dumps(s, ensure_ascii=False))
     return int(s["kod"])
 
