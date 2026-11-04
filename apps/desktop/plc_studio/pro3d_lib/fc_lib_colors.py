@@ -111,7 +111,10 @@ try:
              "celo": (0.0001, -1.0, -0.0001), "zezadu": (0.0001, 1.0, -0.0001), "zezadu_iso": (0.6, 1.0, -0.5)}
     skryt = job.get("skryt") or {}                     # pohled → začátky jmen objektů skrytých jen pro ten snímek
     for k, p in (job.get("snimky") or {}).items():
-        hid = [o for o in doc.Objects if hasattr(o, "Visibility") and any(o.Name.startswith(x) for x in skryt.get(k, []))]
+        sk = skryt.get(k, [])                          # "@pomocny" = všechna pomocná tělesa (zóny volného prostoru, stanoviště)
+        hid = [o for o in doc.Objects if hasattr(o, "Visibility") and (
+            any(o.Name.startswith(x) for x in sk if not x.startswith("@"))
+            or ("@pomocny" in sk and getattr(o, "Konstrukce_Typ", "") == "pomocny"))]
         for o in hid:
             o.Visibility = False
         camera(v, views.get(k, (1.0, 1.0, -0.8)))

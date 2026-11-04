@@ -776,7 +776,9 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek") -> d
     plan = {"format": "pro3d-lib-plan", "verze": 1, "generator": GEN, "model": model,
             "nazev": f"Celek — {(man.get('project') or {}).get('name') or 'stroj'} (moduly kódem)",
             "dily": md._uniq([s for m in mods for s in m["dily"]]), "moduly": mods, "snimky_prefix": "celek",
-            "snimky": ["iso", "iso2", "celo", "shora", "bok"], "snimky_skryt": {"shora": [f"M{mods.index(o3['modul']) + 1}_strecha"], "iso2": [f"M{mods.index(o3['modul']) + 1}_strecha"]}}
+            "snimky": ["iso", "iso2", "celo", "shora", "bok"], "snimky_skryt": {"shora": [f"M{mods.index(o3['modul']) + 1}_strecha", "@pomocny"],
+                                                                         "iso2": [f"M{mods.index(o3['modul']) + 1}_strecha", "@pomocny"],
+                                                                         "iso": ["@pomocny"], "celo": ["@pomocny"], "bok": ["@pomocny"]}}
     for m in mods:                                         # pomocná pole (vysledek) do FreeCADu nejdou
         m.pop("vysledek", None)
     _jedno_id(mods, man)
