@@ -18,7 +18,8 @@
            "pozn": "rozměry držadla nezjištěny — ODHAD: U 152 mm, rozteč šroubů 120, výška nad lícem 36, šroub M6 shora přes otvor v rukojeti do matice T"},
  "doraz": {"kod": "620000", "nazev": "doraz PE-UHMW", "zdroj": "katalog ALUTEC s. 25/1–25/11 (skill alutech-profily prislusenstvi.md §5)", "odhad": true,
            "pozn": "tvar dorazu nezjištěn — ODHAD: destička 40 × 35 × 5 na zadním líci horního příčníku, dveře na ni dosednou zadním lícem"},
- "dvere": {"mezera": 5.0, "uhel": 95.0,
+ "dvere": {"mezera": 5.0, "uhel": 95.0, "max_kridlo": 1000.0,
+           "pozn_max_kridlo": "otvor dveří širší než 1000 mm → dvě křídla se středním sloupkem (dráha křídla před krytem, hmotnost na pantech) — ODHAD hranice, rozhodnutí uživatele 2026-11-04",
            "pozn": "mezera 5 mm (e ≤ 6 → Sr ≥ 10 mm, ISO 13857:2019 tab. 4) a úhel otevření 95° = ODHAD; dveře otevírat VEN z nebezpečného prostoru (skill ramy-a-kryty §8). Místo stlačení u zavírací hrany (ISO 13854: prsty 25 mm) — ruční lehké dveře, posoudit v posouzení rizik"},
  "spinace": {
   "3SE5232-0QV40": {"vyrobce": "Siemens", "nazev": "bezpečnostní polohový spínač s odděleným ovladačem, plast 31 mm, 1NO+2NC, M20",
@@ -32,6 +33,8 @@
                            "zdroj": "datasheet Schmersal AZM201Z-SK-T-1P2PW (RS docs.rs-online.com/f694/A700000007111498.pdf) s. 3: výška 220, délka 50, šířka 40 mm; tolerance ovladače ±5 svisle / ±3 vodorovně s. 1; ruční odjištění s. 1",
                            "odhad": "upevňovací díry, poloha štěrbiny a rozměry ovladače B1 NEZJIŠTĚNY — ODHAD (zástupně); únikové odjištění zevnitř (-LTP0 / -RTP0) jen u krytu, do kterého lze vstoupit celým tělem"}
  },
+ "zajisteni": {"sirka": 30.0, "vyska": 70.0, "hloubka": 24.0, "M": "M5", "roztec": 40.0, "odhad": true,
+                "pozn": "druhé křídlo dvoukřídlých dveří zajištěné zámkem na nástroj (čtyřhran) — otevírá se jen nástrojem jako pevný kryt (ČSN EN ISO 14120) a jen po otevření hlídaného křídla; alternativa druhý blokovací spínač (ČSN EN ISO 14119) — NÁVRH ke schválení; typ zámku nezvolen, rozměry 30 × 70 × 24 a upevnění 2 × M5 ODHAD (zástupně)"},
  "obchazeni": {"zdroj": "ČSN EN ISO 14119:2013 kap. 7 (opatření proti obcházení podle typu a kódování; souhrn SICK — skill ramy-a-kryty §5)",
                "opatreni": ["ovladač připevněn nerozebíratelně (jednocestné šrouby nebo nýty / zalepený šroub s plombou) — v modelu ISO 4762 jako zástupce",
                             "spínač mimo dosah obsluhy při otevřených dveřích jen tak, aby nešel snadno nahradit náhradním ovladačem (typ 2, nízké kódování)",

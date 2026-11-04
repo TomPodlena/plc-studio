@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
 from pathlib import Path
 
@@ -114,12 +115,17 @@ def blokovani(manifest: dict | None) -> list[dict]:
                  "zamek": None, "fn": None}]
     devs = {d.get("name"): d for d in manifest.get("devices") or []}
     parts = {p.get("device"): p for p in manifest.get("parts") or [] if p.get("category") == "safety_switch"}
+    # zámek krytu: PLCdesk od 2026-11-04 dává DO zámku řádek ``guard_lock`` (jištěné blokovací zařízení) a blokovací DI
+    # „zavřeno a zamčeno“ nemá vlastní spínač — jeho kontakt je součástí zámku
+    glock = {p.get("device"): p for p in manifest.get("parts") or [] if p.get("category") == "guard_lock"}
     funcs = (manifest.get("safety") or {}).get("functions") or []
     locks = [d for d in devs.values() if d.get("role") == "lock"]
     out = []
     for il in (manifest.get("safety") or {}).get("interlocks") or []:
         nm = il.get("device")
         p = parts.get(nm)
+        if not p and glock and not re.search(r"závor|clona|curtain|lichtgitter", (devs.get(nm) or {}).get("desc") or "", re.I):
+            p = next(iter(glock.values()))  # DI je kontakt zámku krytu (řádek zámku)
         if not p:                          # světelná závora a jiné AOPD = modul O4, ne kryt
             continue
         d = devs.get(nm) or {}
@@ -129,10 +135,11 @@ def blokovani(manifest: dict | None) -> list[dict]:
                     "brand": p.get("brand"), "signal": sig, "desc": d.get("desc") or "", "zamek": None, "fn": fn})
     for i, lk in enumerate(locks):                 # zámek přiřadit dveřím v pořadí (víc dveří = víc modulů O3)
         sig = next((s.get("tag") for s in lk.get("signals") or [] if s.get("dir") == "DO"), f"{lk.get('name')}_out")
-        lp = parts.get(lk.get("name")) or {}
+        lp = parts.get(lk.get("name")) or glock.get(lk.get("name")) or {}
         if out:
             out[min(i, len(out) - 1)]["zamek"] = {"device": lk.get("name"), "signal": sig, "id": lp.get("id"),
-                                                  "typ": (lp.get("orderCode") or "").strip(), "desc": lk.get("desc") or ""}
+                                                  "typ": (lp.get("orderCode") or "").strip(), "desc": lk.get("desc") or "",
+                                                  "jisteni": lp.get("category") == "guard_lock"}
     return out
 
 
@@ -165,7 +172,8 @@ class Kryt:
             raise ValueError("dveře zatím jen na přední straně (y min)")
         self.blk = blokovani(manifest)
         self.b = modul_ram.Ram(self.D, self.W, self.Zb)        # pomocník: profily, dlouhé šrouby, matice T, úhelníky (N1)
-        self.bd = modul_ram.Ram(self.D, self.W, self.Zb)       # totéž pro dveře (skupina s Konstrukce_Pohyb)
+        self.bd = modul_ram.Ram(self.D, self.W, self.Zb)       # totéž pro (první) křídlo dveří (skupina s Konstrukce_Pohyb)
+        self.kridla = []                                        # křídla: {bd, skupina, s (+1 pant vlevo / −1 vpravo), osa, geom…}
         self.tel, self.odhady, self.zdroje, self.varovani, self.chyby = [], set(), {SRC_KAT}, [], []
         self.pozadavky, self.vypln_pole = [], []
         self.fb = []                                            # zpětná vazba do PLCdesk
@@ -275,12 +283,13 @@ class Kryt:
             self.pole(b, "x", xc, "y", Y0 + A, Y1 - A, "z", Zb + A, Zt - A, nm)
         self.pole(b, "y", Y1 - A / 2, "x", X0 + A, X1 - A, "z", Zb + A, Zt - A, "záda")
         self.strecha(rails_x, rails_y)
-        self.dvere(posts, rails_x)
+        self.dvere(posts, rails_x, sills_x)
         b.finalize_members()
-        self.bd.finalize_members()
-        for it in self.bd.inst:
-            it["skupina"] = "Dvere"
-        for bb in (self.b, self.bd):
+        for kr in self.kridla:
+            kr["bd"].finalize_members()
+            for it in kr["bd"].inst:
+                it["skupina"] = kr["skupina"]
+        for bb in [self.b] + [kr["bd"] for kr in self.kridla]:
             self.odhady |= bb.odhady
             self.zdroje |= bb.zdroje
             self.chyby += bb.chyby
@@ -311,54 +320,124 @@ class Kryt:
         self.vypln_pole.append({"pole": "střecha", "rovina": f"z = {Zt:g} (na věnci)", "rozmer_mm": [X1 - X0, Y1 - Y0], "vypln": vp["kod"],
                                 "druh": vp["nazev"]})
 
-    def dvere(self, posts, rails_x):
-        bd, b = self.bd, self.b
-        dv, pa, ma = DATA["dvere"], DATA["pant"], DATA["madlo"]
+    @staticmethod
+    def _mx(body, s):
+        """Tělo dílu zrcadlené v místním x (s = −1; pant pravého křídla), s = +1 beze změny."""
+        if s > 0:
+            return body
+        out = {}
+        for k in ("add", "cut"):
+            lst = []
+            for p in body.get(k, []):
+                if "box" in p:
+                    b = p["box"]
+                    lst.append(_box(-b[1], -b[0], b[2], b[3], b[4], b[5]))
+                else:
+                    c = dict(p["cyl"])
+                    c["p"] = [-c["p"][0], c["p"][1], c["p"][2]]
+                    c["d"] = [-c["d"][0], c["d"][1], c["d"][2]]
+                    lst.append({"cyl": c})
+            out[k] = lst
+        return out
+
+    def dvere(self, posts, rails_x, sills_x=None):
+        """Dveře v přední stěně: jedno křídlo, nebo — když je otvor širší než ``DATA.dvere.max_kridlo`` (dráha křídla) —
+        dvě křídla se středním sloupkem (pevný, dlouhé šrouby do spodní příčky a horního podélníku jako rohové sloupky).
+        Levé křídlo hlídá blokovací spínač (na středním sloupku), pravé je zajištěné zámkem na nástroj (ISO 14120 / 14119 —
+        NÁVRH ke schválení)."""
+        dv = DATA["dvere"]
         g, zs = dv["mezera"], RAM["zaslepka"]["t"]
         X0, X1, Y0, Zb, Zt = self.X0, self.X1, self.Y0, self.Zb, self.Zt
         yc = Y0 + A / 2
-        xl, xr = X0 + A + g, X1 - A - g                       # vnější hrany dveřního rámu
+        xl, xr = X0 + A + g, X1 - A - g                       # vnější hrany otvoru dveří (mezera g od sloupků)
         zd0, zd1 = Zb + A + g + zs, Zt - A - g - zs            # stojiny bez záslepek
         self.d_geom = {"x": [xl, xr], "z": [zd0 - zs, zd1 + zs], "y": [Y0, Y0 + A]}
-        stl = bd.member("104040", A, A, zd1 - zd0, [xl + A / 2, yc, zd0], [1, 0, 0], [0, 1, 0], [0, 0, 1], "o3_dvere_stojina", "O3 dveře stojina levá (pant)")
-        str_ = bd.member("104040", A, A, zd1 - zd0, [xr - A / 2, yc, zd0], [1, 0, 0], [0, 1, 0], [0, 0, 1], "o3_dvere_stojina", "O3 dveře stojina pravá (zavírací)")
+        self.panty, self.madla = [], []
+        maxk = float(dv.get("max_kridlo", 1000.0))
+        if not ((xr - xl) > maxk and sills_x):
+            self.kridla = [self._kridlo(self.bd, "Dvere", +1, X0 + A, xl, xr, zd0, zd1, X1 - A - 140.0)]
+        else:
+            xm = round((X0 + X1) / 2, 1)
+            mm = self.b.member("104040", A, A, self.Hk - 2 * A, [xm, yc, Zb + A], [1, 0, 0], [0, 1, 0], [0, 0, 1], "o3_sloupek_stredni",
+                               f"O3 střední sloupek dveří x {xm:g}")
+            self.b.dlouhy_sroub(sills_x[0], [xm, yc, Zb], [0, 0, 1], A, f"O3 střední sloupek x {xm:g} ← spodní příčka x")
+            self.b.dlouhy_sroub(rails_x[0], [xm, yc, Zt], [0, 0, -1], A, f"O3 horní podélník → střední sloupek x {xm:g}")
+            self.sloupek_stredni = {"x": xm}
+            _ = mm
+            bd2 = modul_ram.Ram(self.D, self.W, self.Zb)
+            kl = self._kridlo(self.bd, "Dvere", +1, X0 + A, xl, xm - A / 2 - g, zd0, zd1, xm - A / 2 - g - 140.0)
+            kp = self._kridlo(bd2, "Dvere_P", -1, X1 - A, xr, xm + A / 2 + g, zd0, zd1, xm + A / 2 + g + 140.0)
+            self.kridla = [kl, kp]
+            self.odhady.add(f"dveře dvoukřídlé: otvor {xr - xl:.0f} mm > {maxk:g} mm (dráha křídla, ODHAD) — střední sloupek 40 × 40, "
+                            f"křídla {abs(kl['x'][1] - kl['x'][0]):.0f} / {abs(kp['x'][1] - kp['x'][0]):.0f} mm")
+            self._zajisteni(kp, zd0, zd1)
+        self.osa = self.kridla[0]["osa"]
+        # blokovací spínač na zavíracím sloupku (jedno křídlo) / na středním sloupku u levého křídla (dvě křídla)
+        self.spinace = []
+        if self.blk:
+            k0 = self.kridla[0]
+            xs = X1 - A / 2 if len(self.kridla) == 1 else self.sloupek_stredni["x"]
+            self.spinac(self.blk[0], posts, k0["x"][1], xs=xs, bd=k0["bd"])
+        for extra in self.blk[1:]:
+            self.varovani.append(f"blokování {extra['device']}: modul O3 hlídá jedno křídlo — další spínač patří dalšímu krytu / dveřím")
+
+    def _kridlo(self, bd, skupina, s, x_post, xh, xc, zd0, zd1, xdz):
+        """Jedno křídlo: rám 40 × 40 mezi hranou u pantu ``xh`` a zavírací hranou ``xc`` (s = +1 pant vlevo, −1 vpravo),
+        výplň PC, 2 panty na sloupku s vnitřním lícem ``x_post``, madlo na zavírací stojině, doraz na horním podélníku v x ``xdz``."""
+        b = self.b
+        pa, ma, dz_ = DATA["pant"], DATA["madlo"], DATA["doraz"]
+        g = DATA["dvere"]["mezera"]
+        Y0, Zt = self.Y0, self.Zt
+        yc = Y0 + A / 2
+        lo_, hi_ = min(xh, xc), max(xh, xc)
+        sth = bd.member("104040", A, A, zd1 - zd0, [xh + s * A / 2, yc, zd0], [1, 0, 0], [0, 1, 0], [0, 0, 1], "o3_dvere_stojina",
+                        f"O3 dveře {skupina} stojina u pantu")
+        stc = bd.member("104040", A, A, zd1 - zd0, [xc - s * A / 2, yc, zd0], [1, 0, 0], [0, 1, 0], [0, 0, 1], "o3_dvere_stojina",
+                        f"O3 dveře {skupina} stojina zavírací")
         for z, nm in ((zd0 + A / 2, "dolní"), (zd1 - A / 2, "horní")):
-            bd.member("104040", A, A, xr - xl - 2 * A, [xl + A, yc, z], [0, 1, 0], [0, 0, 1], [1, 0, 0], "o3_dvere_prapor", f"O3 dveře příčka {nm}")
-            bd.dlouhy_sroub(stl, [xl, yc, z], [1, 0, 0], A, f"O3 dveře příčka {nm} ← stojina levá")
-            bd.dlouhy_sroub(str_, [xr, yc, z], [-1, 0, 0], A, f"O3 dveře příčka {nm} ← stojina pravá")
-        for m in (stl, str_):
+            bd.member("104040", A, A, hi_ - lo_ - 2 * A, [lo_ + A, yc, z], [0, 1, 0], [0, 0, 1], [1, 0, 0], "o3_dvere_prapor",
+                      f"O3 dveře {skupina} příčka {nm}")
+            bd.dlouhy_sroub(sth, [xh, yc, z], [s, 0, 0], A, f"O3 dveře {skupina} příčka {nm} ← stojina u pantu")
+            bd.dlouhy_sroub(stc, [xc, yc, z], [-s, 0, 0], A, f"O3 dveře {skupina} příčka {nm} ← stojina zavírací")
+        for m in (sth, stc):
             self.zaslepka(bd, [m["o"][0], yc, zd0], [0, 0, -1])
             self.zaslepka(bd, [m["o"][0], yc, zd1], [0, 0, 1])
-        self.pole(bd, "y", yc, "x", xl + A, xr - A, "z", zd0 + A, zd1 - A, "dveře", druh="vypln")
+        self.pole(bd, "y", yc, "x", lo_ + A, hi_ - A, "z", zd0 + A, zd1 - A, "dveře" if s > 0 else "dveře pravé křídlo", druh="vypln")
         # panty — osa 0,5 mm před lícem, mezi sloupkem a stojinou
         r, hh, tl = pa["r"], pa["vyska"], pa["t"]
-        xa, ya = X0 + A + g / 2, Y0 - r - 0.5
-        self.osa = [xa, ya]
-        fl = X0 + A / 2 - 15 - xa                              # pevné rameno od x = osa sloupku − 15
-        mr = xl + A / 2 + 15 - xa
-        y_l0, y_l1 = Y0 - tl - ya, Y0 - ya                     # rameno na líci (y Y0 − t … Y0)
-        hole_f = X0 + A / 2 - xa
-        hole_m = xl + A / 2 - xa
-        k_f = b.dil(_lib("Pant_614040_pevny", {"add": [_box(fl, -r - 0.3, y_l0, y_l1, 0, hh), _box(-r - 0.3, 0, y_l0, y_l1 - 0.5, 0, hh / 2),
-                                                       {"cyl": {"p": [0, 0, 0], "d": [0, 0, 1], "r": r, "h": hh / 2}}],
-                                               "cut": [_cyl([hole_f, y_l0 - 1, hh / 2], [0, 1, 0], spojky_mech.otvor_vule(pa["M"]) / 2, tl + 2)]},
-                              f"Pant ALUTEC {pa['kod']} pevná polovina (zástupný)", pa["zdroj"], "obálka", material="Al", pozn=pa["pozn"], zastupny=True))
-        k_m = bd.dil(_lib("Pant_614040_dvere", {"add": [_box(r + 0.3, mr, y_l0, y_l1, 0, hh), _box(0, r + 0.3, y_l0, y_l1 - 0.5, hh / 2, hh),
-                                                        {"cyl": {"p": [0, 0, hh / 2], "d": [0, 0, 1], "r": r, "h": hh / 2}}],
-                                                "cut": [_cyl([hole_m, y_l0 - 1, hh / 2], [0, 1, 0], spojky_mech.otvor_vule(pa["M"]) / 2, tl + 2)]},
-                               f"Pant ALUTEC {pa['kod']} polovina dveří (zástupný)", pa["zdroj"], "obálka", material="Al", pozn=pa["pozn"], zastupny=True))
-        self.panty = []
+        xa, ya = x_post + s * g / 2, Y0 - r - 0.5
+        xp_c = x_post - s * A / 2                              # osa drážky sloupku
+        fl = abs(xp_c - 15 * s - xa)                           # pevné rameno od osy sloupku − 15 (směrem od dveří)
+        mr = abs(xh + s * A / 2 + 15 * s - xa)
+        y_l0, y_l1 = Y0 - tl - ya, Y0 - ya
+        hole_f, hole_m = abs(xp_c - xa), abs(xh + s * A / 2 - xa)
+        sfx = "" if s > 0 else "_P"
+        prav = " (pravé křídlo)" if s < 0 else ""
+        k_f = b.dil(_lib("Pant_614040_pevny" + sfx,
+                         self._mx({"add": [_box(-fl, -r - 0.3, y_l0, y_l1, 0, hh), _box(-r - 0.3, 0, y_l0, y_l1 - 0.5, 0, hh / 2),
+                                           {"cyl": {"p": [0, 0, 0], "d": [0, 0, 1], "r": r, "h": hh / 2}}],
+                                   "cut": [_cyl([-hole_f, y_l0 - 1, hh / 2], [0, 1, 0], spojky_mech.otvor_vule(pa["M"]) / 2, tl + 2)]}, s),
+                         f"Pant ALUTEC {pa['kod']} pevná polovina{prav} (zástupný)", pa["zdroj"], "obálka", material="Al", pozn=pa["pozn"],
+                         zastupny=True))
+        k_m = bd.dil(_lib("Pant_614040_dvere" + sfx,
+                          self._mx({"add": [_box(r + 0.3, mr, y_l0, y_l1, 0, hh), _box(0, r + 0.3, y_l0, y_l1 - 0.5, hh / 2, hh),
+                                            {"cyl": {"p": [0, 0, hh / 2], "d": [0, 0, 1], "r": r, "h": hh / 2}}],
+                                    "cut": [_cyl([hole_m, y_l0 - 1, hh / 2], [0, 1, 0], spojky_mech.otvor_vule(pa["M"]) / 2, tl + 2)]}, s),
+                          f"Pant ALUTEC {pa['kod']} polovina dveří{prav} (zástupný)", pa["zdroj"], "obálka", material="Al", pozn=pa["pozn"],
+                          zastupny=True))
+        panty = []
         for z0 in (zd0 + 80.0, zd1 - 80.0 - hh):
             b.put(k_f, [xa, ya, z0], I3, "pant_pevny")
             bd.put(k_m, [xa, ya, z0], I3, "pant_dvere")
-            b.nut_screw(pa["M"], [X0 + A / 2, Y0, z0 + hh / 2], [0, 0, 1], [0, -1, 0], tl, False, f"O3 pant z {z0:g} → sloupek")
-            bd.nut_screw(pa["M"], [xl + A / 2, Y0, z0 + hh / 2], [0, 0, 1], [0, -1, 0], tl, False, f"O3 pant z {z0:g} → stojina")
-            self.panty.append({"z": [round(z0, 1), round(z0 + hh, 1)], "osa": r3([xa, ya, z0])})
+            b.nut_screw(pa["M"], [xp_c, Y0, z0 + hh / 2], [0, 0, 1], [0, -1, 0], tl, False, f"O3 pant {skupina} z {z0:g} → sloupek")
+            bd.nut_screw(pa["M"], [xh + s * A / 2, Y0, z0 + hh / 2], [0, 0, 1], [0, -1, 0], tl, False, f"O3 pant {skupina} z {z0:g} → stojina")
+            panty.append({"z": [round(z0, 1), round(z0 + hh, 1)], "osa": r3([xa, ya, z0]), "kridlo": skupina})
+        self.panty += panty
         self.odhady.add(pa["pozn"])
         self.zdroje.add(pa["zdroj"])
         # madlo na zavírací stojině (U, šrouby shora přes otvor v rukojeti)
         h_m, rz = ma["vyska"], ma["roztec"] / 2
-        xm, zm = xr - A / 2, (zd0 + zd1) / 2 - 80.0
+        xm, zm = xc - s * A / 2, (zd0 + zd1) / 2 - 80.0
         hd = NORM["ISO4762"]["rady"][ma["M"]]
         mb = {"add": [_box(-8, 8, -h_m, 0, -rz - 8, -rz + 8), _box(-8, 8, -h_m, 0, rz - 8, rz + 8), _box(-6, 6, -h_m - 8, -h_m + 2, -rz - 16, rz + 16)],
               "cut": []}
@@ -369,32 +448,53 @@ class Kryt:
                            pozn=ma["pozn"], zastupny=True))
         bd.put(k_ma, [xm, Y0, zm], I3, "madlo")
         for zz in (-rz, rz):
-            bd.nut_screw(ma["M"], [xm, Y0, zm + zz], [0, 0, 1], [0, -1, 0], h_m, False, f"O3 madlo → stojina z {zm + zz:g}")
+            bd.nut_screw(ma["M"], [xm, Y0, zm + zz], [0, 0, 1], [0, -1, 0], h_m, False, f"O3 madlo {skupina} → stojina z {zm + zz:g}")
         self.odhady.add(ma["pozn"])
-        self.madlo = r3([xm, Y0 - h_m - 8, zm])
-        # doraz na zadním líci předního horního podélníku (dveře dosednou zadním lícem)
-        dz_ = DATA["doraz"]
-        xdz = X1 - A - 140.0
+        madlo = r3([xm, Y0 - h_m - 8, zm])
+        self.madla.append(madlo)
+        if s > 0:
+            self.madlo = madlo
+        # doraz na zadním líci předního horního podélníku (křídlo dosedne zadním lícem)
         k_dz = b.dil(_lib("Doraz_620000", {"add": [_box(-20, 20, 0, 5, -35, 15)], "cut": [_cyl([0, -1, 0], [0, 1, 0], spojky_mech.otvor_vule("M6") / 2, 7)]},
                           f"Doraz ALUTEC {dz_['kod']} PE-UHMW (zástupný)", dz_["zdroj"], "obálka", material="PE-UHMW", pozn=dz_["pozn"], zastupny=True))
-        # díra M6 v ose drážky zadního líce podélníku (z = Zt − 20) → destička z ⟨Zt − 55, Zt − 20⟩ … přesah pod podélník 15 mm
         b.put(k_dz, [xdz, Y0 + A, Zt - 20.0], I3, "doraz")
-        b.nut_screw("M6", [xdz, Y0 + A, Zt - 20.0], [1, 0, 0], [0, 1, 0], 5.0, False, "O3 doraz → horní podélník přední")
+        b.nut_screw("M6", [xdz, Y0 + A, Zt - 20.0], [1, 0, 0], [0, 1, 0], 5.0, False, f"O3 doraz {skupina} → horní podélník přední")
         self.odhady.add(dz_["pozn"])
-        # blokovací spínač na zavíracím sloupku + ovladač na stojině
-        self.spinace = []
-        if self.blk:
-            self.spinac(self.blk[0], posts, xr)
-        for extra in self.blk[1:]:
-            self.varovani.append(f"blokování {extra['device']}: modul O3 má jedny dveře — další spínač patří dalšímu krytu / dveřím")
+        zs = RAM["zaslepka"]["t"]
+        return {"bd": bd, "skupina": skupina, "s": s, "osa": [xa, ya], "x": [xh, xc], "z": [zd0 - zs, zd1 + zs],
+                "uhel": -s * DATA["dvere"]["uhel"], "panty": panty, "madlo": madlo}
 
-    def spinac(self, bl, posts, xr):
-        b, bd = self.b, self.bd
+    def _zajisteni(self, kr, zd0, zd1):
+        """Zajištění nehlídaného křídla: zámek na nástroj (čtyřhran) na zavírací stojině — zástupně (typ nezvolen)."""
+        bd, s = kr["bd"], kr["s"]
+        zj = DATA["zajisteni"]
+        w, h, d = zj["sirka"], zj["vyska"], zj["hloubka"]
+        xz = kr["x"][1] - s * A / 2
+        zz = round((zd0 + zd1) / 2 + 60.0, 1)
+        body = {"add": [_box(-w / 2, w / 2, -d, 0, -h / 2, h / 2)],
+                "cut": [_cyl([0, -d - 1, z], [0, 1, 0], spojky_mech.otvor_vule(zj["M"]) / 2, d + 2) for z in (-zj["roztec"] / 2, zj["roztec"] / 2)]}
+        k = bd.dil(_lib("Zamek_kridla_ctyrhran", body, "Zámek křídla na nástroj (čtyřhran) — zajištění druhého křídla (zástupný)",
+                        [DATA["obchazeni"]["zdroj"]], "obálka", material="Zn", pozn=zj["pozn"], zastupny=True))
+        bd.put(k, [xz, self.Y0, zz], I3, "zajisteni", {"Konstrukce_Poznamka": zj["pozn"], "Konstrukce_Bezpecnost": "NÁVRH ke schválení"})
+        for dz in (-zj["roztec"] / 2, zj["roztec"] / 2):
+            bd.nut_screw(zj["M"], [xz, self.Y0, zz + dz], [0, 0, 1], [0, -1, 0], d, False, f"O3 zámek křídla {kr['skupina']} → stojina z {zz + dz:g}")
+        self.odhady.add(zj["pozn"])
+        self.zajisteni = {"kridlo": kr["skupina"], "poloha": r3([xz, self.Y0 - d / 2, zz]), "pozn": zj["pozn"]}
+
+    def spinac(self, bl, posts, xr, xs=None, bd=None):
+        b, bd = self.b, bd or self.bd
         X1, Y0 = self.X1, self.Y0
         typ = bl["typ"]
         sw = DATA["spinace"].get(typ)
         zamek = bl.get("zamek")
-        if zamek and not (sw and sw["zamek"]):
+        if zamek and zamek.get("jisteni") and not (sw and sw["zamek"]):
+            # kusovník už má jištěné blokovací zařízení (guard_lock) — bez zpětné vazby; rozměry AZM201 (Schmersal
+            # 103013908 = AZM201Z-SK-T-1P2PW), jiný typ zástupně v obálce AZM201
+            if (zamek.get("typ") or typ) not in ("103013908", "AZM201Z-SK-T-1P2PW-A"):
+                self.varovani.append(f"zámek {zamek['device']}: rozměry typu {zamek.get('typ') or typ} v data/kryt.json nejsou — "
+                                     "zástupně v obálce AZM201 (ODHAD)")
+            typ, sw = "AZM201Z-SK-T-1P2PW-A", DATA["spinace"]["AZM201Z-SK-T-1P2PW-A"]
+        elif zamek and not (sw and sw["zamek"]):
             self.fb.append({"kind": "safety_part", "partId": zamek.get("id") or bl["id"],
                             "zprava": f"zámek dveří {zamek['device']} ({zamek['signal']}, DO) je v kusovníku jako {zamek.get('typ') or typ} — "
                                       "spínač bez jištění; navrhnout zámek krytu (např. Schmersal AZM201, Siemens 3SE5 s jištěním) — NÁVRH ke schválení"})
@@ -404,7 +504,7 @@ class Kryt:
             self.varovani.append(f"spínač {typ}: rozměry v data/kryt.json nejsou — zástupně jako 3SE5232 (ODHAD)")
             sw = DATA["spinace"]["3SE5232-0QV40"]
         w, Ls, d, M = sw["sirka"], sw["delka"], sw["hloubka"], sw["M"]
-        xs = X1 - A / 2                                          # osa drážky předního líce zavíracího sloupku
+        xs = X1 - A / 2 if xs is None else xs                    # osa drážky předního líce zavíracího (středního) sloupku
         zs = round((self.d_geom["z"][0] + self.d_geom["z"][1]) / 2 + 60.0, 1)
         zt_ = Ls - 20.0                                          # osa jazýčku od spodku spínače
         slot = {"x": [-2.25, 2.25], "z": [zt_ - 8, zt_ + 8], "y": [-d, -d + 20]}
@@ -450,29 +550,52 @@ class Kryt:
                              "inst_spinac": si, "inst_ovladac": oi,
                              "zona_spinace": [xs - w / 2 - 1, Y0 + yb - 6, zo - 14, xs + w / 2 + 1, Y0 - d, zo + 14]})
 
+    def _inst_offset(self, kr):
+        off = len(self.b.inst)
+        for k in self.kridla:
+            if k is kr:
+                return off
+            off += len(k["bd"].inst)
+        raise KeyError(kr["skupina"])
+
     def zony_pomocne(self):
-        """Pomocné zóny: dráha dveří (výseč 10°–95° kolem osy pantu) a přístup ovladače ke spínači — výjimky = díly dveří."""
-        xa, ya = self.osa
-        g = self.d_geom
-        R = 0.0
-        for x in g["x"]:
-            for y in (g["y"][0] - 60.0, g["y"][1]):
-                R = max(R, math.hypot(x - xa, y - ya))
-        R += 10.0
-        pts = [(xa + 15 * math.cos(math.radians(a)), ya + 15 * math.sin(math.radians(a))) for a in range(-10, -96, -5)]
-        pts += [(xa + R * math.cos(math.radians(a)), ya + R * math.sin(math.radians(a))) for a in range(-95, -9, 5)]
-        dvere = [f"inst:{j}" for j in range(len(self.b.inst), len(self.b.inst) + len(self.bd.inst))]
-        self.tel.append({"name": "Prostor_dveri", "label": f"Pomocný prostor dráhy dveří {self.ident} (10°–{DATA['dvere']['uhel']:g}°)",
-                         "body": {"add": [{"prism_z": {"pts": [[round(x, 2), round(y, 2)] for x, y in pts], "z0": round(g["z"][0], 2),
-                                                       "z1": round(g["z"][1], 2)}}]},
-                         "props": {"Konstrukce_Typ": "pomocny", "Konstrukce_Zona": "dvere"}, "vyjimka": dvere})
-        self.zona_dveri = {"osa": r3([xa, ya, 0]), "R": round(R, 1), "uhly": [-10, -DATA["dvere"]["uhel"]], "z": r3(g["z"])}
-        for s in self.spinace:
-            z = s["zona_spinace"]
-            self.tel.append({"name": f"Prostor_spinace_{s['device']}", "label": f"Pomocný prostor nájezdu ovladače {s['device']}",
+        """Pomocné zóny: dráha každého křídla (výseč 10°–95° kolem osy pantu) a přístup ovladače ke spínači — výjimky = díly
+        křídla (u spínače díly hlídaného křídla)."""
+        self.zony_dveri = []
+        uhel = DATA["dvere"]["uhel"]
+        for kr in self.kridla:
+            xa, ya = kr["osa"]
+            s = kr["s"]
+            R = 0.0
+            for x in kr["x"]:
+                for y in (self.d_geom["y"][0] - 60.0, self.d_geom["y"][1]):
+                    R = max(R, math.hypot(x - xa, y - ya))
+            R += 10.0
+            th0 = 0.0 if s > 0 else 180.0
+            angs = [th0 - s * a for a in range(10, 96, 5)]
+            pts = [(xa + 15 * math.cos(math.radians(a)), ya + 15 * math.sin(math.radians(a))) for a in angs]
+            pts += [(xa + R * math.cos(math.radians(a)), ya + R * math.sin(math.radians(a))) for a in reversed(angs)]
+            if s < 0:
+                pts.reverse()
+            off = self._inst_offset(kr)
+            dvere = [f"inst:{j}" for j in range(off, off + len(kr["bd"].inst))]
+            nm = "Prostor_dveri" if kr["skupina"] == "Dvere" else f"Prostor_dveri_{kr['skupina']}"
+            self.tel.append({"name": nm, "label": f"Pomocný prostor dráhy dveří {self.ident} {kr['skupina']} (10°–{uhel:g}°)",
+                             "body": {"add": [{"prism_z": {"pts": [[round(x, 2), round(y, 2)] for x, y in pts], "z0": round(kr["z"][0], 2),
+                                                           "z1": round(kr["z"][1], 2)}}]},
+                             "props": {"Konstrukce_Typ": "pomocny", "Konstrukce_Zona": "dvere"}, "vyjimka": dvere})
+            uh = [-10, -uhel] if s > 0 else [th0 + 10, th0 + uhel]
+            self.zony_dveri.append({"kridlo": kr["skupina"], "osa": r3([xa, ya, 0]), "R": round(R, 1), "uhly": uh, "z": r3(kr["z"])})
+        self.zona_dveri = self.zony_dveri[0]
+        k0 = self.kridla[0]
+        off0 = self._inst_offset(k0)
+        dv0 = [f"inst:{j}" for j in range(off0, off0 + len(k0["bd"].inst))]
+        for s_ in self.spinace:
+            z = s_["zona_spinace"]
+            self.tel.append({"name": f"Prostor_spinace_{s_['device']}", "label": f"Pomocný prostor nájezdu ovladače {s_['device']}",
                              "body": {"add": [_box(z[0], z[3], z[1], z[4], z[2], z[5])]},
                              "props": {"Konstrukce_Typ": "pomocny", "Konstrukce_Zona": "spinac"},
-                             "vyjimka": [f"inst:{s['inst_spinac']}", f"inst:{len(self.b.inst) + s['inst_ovladac']}"] + dvere})
+                             "vyjimka": [f"inst:{s_['inst_spinac']}", f"inst:{off0 + s_['inst_ovladac']}"] + dv0})
 
     def vyhodnoceni(self):
         """ISO 13857 tab. 4: mezery dveří a volba výplně stěn podle vzdálenosti od zón (výpočet; model měří ``otvory``)."""
@@ -523,7 +646,13 @@ class Kryt:
             "vyplne": self.vypln_pole, "volba_vyplne": self.volba, "mezery": self.mezery,
             "dvere": {"otvor_mm": [self.X1 - self.X0 - 2 * A, self.Hk - 2 * A], "kridlo": {"x": r3(self.d_geom["x"]), "z": r3(self.d_geom["z"]),
                       "y": self.d_geom["y"]}, "osa_pantu": {"bod": r3(self.osa + [0]), "smer": [0, 0, 1]}, "uhel_otevreni": -DATA["dvere"]["uhel"],
-                      "otevirani": "ven (−y)", "panty": self.panty, "madlo": self.madlo, "zona_drahy": self.zona_dveri},
+                      "otevirani": "ven (−y)", "panty": self.panty, "madlo": self.madlo, "zona_drahy": self.zona_dveri,
+                      "pocet_kridel": len(self.kridla), "max_kridlo_mm": DATA["dvere"].get("max_kridlo"),
+                      "kridla": [{"skupina": k["skupina"], "x": r3(sorted(k["x"])), "pant": "vlevo" if k["s"] > 0 else "vpravo",
+                                  "osa_pantu": r3(k["osa"] + [0]), "uhel_otevreni": k["uhel"], "madlo": k["madlo"],
+                                  "hlidane": i == 0 and bool(self.spinace)} for i, k in enumerate(self.kridla)],
+                      "zony_drahy": self.zony_dveri, "stredni_sloupek_x": (getattr(self, "sloupek_stredni", None) or {}).get("x"),
+                      "zajisteni_druheho_kridla": getattr(self, "zajisteni", None)},
             "blokovani": [{k: v for k, v in s.items() if not k.startswith("inst_")} for s in self.spinace],
             "zony_nebezpeci": self.zony,
             "pozadavky_na_ram": self.pozadavky + [{"co": "pracovní deska N1 = dno krytu (bez otvorů mimo průchodky)", "kind": "deska"}],
@@ -542,25 +671,32 @@ class Kryt:
 
     def hmotnost(self):
         m = 0.0
-        for bb in (self.b, self.bd):
+        bbs = [self.b] + [k["bd"] for k in self.kridla]
+        for bb in bbs:
             m += sum(RAM["profily"]["104040"]["Q_kg_m"] * mm["L"] / 1000.0 for mm in bb.members)
         for v in self.vypln_pole:
             m += v["rozmer_mm"][0] * v["rozmer_mm"][1] * 1e-6 * DATA["vyplne"]["pc4"]["kg_m2"]
-        return round(m + 0.03 * (len(self.b.inst) + len(self.bd.inst)), 1)
+        return round(m + 0.03 * sum(len(bb.inst) for bb in bbs), 1)
 
     def modul(self):
         dily = {}
-        for bb in (self.b, self.bd):
+        bbs = [self.b] + [k["bd"] for k in self.kridla]
+        for bb in bbs:
             for k, s in bb.dily.items():
                 dily.setdefault(k, s)
-        osa = self.osa
+        sk = []
+        for kr in self.kridla:
+            osa = kr["osa"]
+            prav = kr["skupina"] != "Dvere"
+            lab = f"Dveře krytu {self.ident}" + (" — pravé křídlo" if prav else (" — levé křídlo" if len(self.kridla) > 1 else ""))
+            sk.append({"name": kr["skupina"], "label": lab,
+                       "props": {"Konstrukce_Typ": "dil", "PLCdesk_Id": f"asm:{self.ident}-dvere" + ("-p" if prav else ""),
+                                 "Konstrukce_Pohyb": json.dumps({"nazev": f"dveře otevřené {DATA['dvere']['uhel']:g}°",
+                                                                  "otoc": {"osa": [0, 0, 1], "bod": [osa[0], osa[1], 0.0], "uhel": kr["uhel"]}},
+                                                                 ensure_ascii=False)}})
         return {"typ": "O3 kryt", "tag": self.ident, "nazev": self.nazev, "dily": list(dily.values()),
-                "instance": self.b.inst + self.bd.inst, "telesa": self.tel, "kabely": [],
-                "skupiny": [{"name": "Dvere", "label": f"Dveře krytu {self.ident}",
-                             "props": {"Konstrukce_Typ": "dil", "PLCdesk_Id": f"asm:{self.ident}-dvere",
-                                       "Konstrukce_Pohyb": json.dumps({"nazev": f"dveře otevřené {DATA['dvere']['uhel']:g}°",
-                                                                        "otoc": {"osa": [0, 0, 1], "bod": [osa[0], osa[1], 0.0],
-                                                                                 "uhel": -DATA["dvere"]["uhel"]}}, ensure_ascii=False)}}],
+                "instance": [it for bb in bbs for it in bb.inst], "telesa": self.tel, "kabely": [],
+                "skupiny": sk,
                 "props": {"Konstrukce_Generator": GEN, "Konstrukce_Modul": "O3", "PLCdesk_Id": f"asm:{self.ident}"}}
 
 

@@ -101,6 +101,28 @@ class CelekPlanTest(unittest.TestCase):
         p1 = next(m for m in self.plan["moduly"] if m.get("props", {}).get("Konstrukce_Modul") == "P1")
         self.assertFalse([k for k in p1["kabely"] if k["props"].get("Konstrukce_Typ") == "hadice"], "začátky hadic P1 staví P4")
 
+    def test_dvere_dvoukridle(self):
+        dv = self.c["smlouvy"]["O3"]["dvere"]
+        self.assertGreater(dv["otvor_mm"][0], dv["max_kridlo_mm"])
+        self.assertEqual(dv["pocet_kridel"], 2)
+        kl, kp = dv["kridla"]
+        self.assertTrue(kl["hlidane"])
+        self.assertFalse(kp["hlidane"])
+        self.assertEqual((kl["pant"], kp["pant"]), ("vlevo", "vpravo"))
+        self.assertEqual(kl["uhel_otevreni"], -kp["uhel_otevreni"])
+        for k in (kl, kp):
+            self.assertLessEqual(k["x"][1] - k["x"][0], dv["max_kridlo_mm"])
+        self.assertIn("NÁVRH", dv["zajisteni_druheho_kridla"]["pozn"])
+        o3 = next(m for m in self.plan["moduly"] if m.get("props", {}).get("Konstrukce_Modul") == "O3")
+        self.assertEqual([s["name"] for s in o3["skupiny"]], ["Dvere", "Dvere_P"])
+        zony = [t for t in o3["telesa"] if t["props"].get("Konstrukce_Zona") == "dvere"]
+        self.assertEqual(len(zony), 2)
+        for z, sk in zip(zony, ("Dvere", "Dvere_P")):
+            idx = {int(x.split(":")[1]) for x in z["vyjimka"]}
+            self.assertEqual(idx, {j for j, i in enumerate(o3["instance"]) if i.get("skupina") == sk})
+        self.assertTrue(any(i["druh"] == "zajisteni" and i.get("skupina") == "Dvere_P" for i in o3["instance"]))
+        self.assertTrue(any(i["druh"] == "ovladac" and i.get("skupina") == "Dvere" for i in o3["instance"]))
+
     def test_kabely_e2_odhad(self):
         ks = self.c["kabely"]
         self.assertGreaterEqual(len(ks), 6)
