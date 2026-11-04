@@ -26,6 +26,22 @@ def md(lay: dict, fc: dict | None) -> str:
               + (f"; chyby FreeCADu: {'; '.join(fc.get('chyby') or [])[:400]}" if fc.get("chyby") else "") + ".", ""]
         if fc.get("snimky"):
             L += ["Snímky: " + ", ".join(f"`{p}`" for p in fc["snimky"]), ""]
+    pn = lay.get("pneu")
+    if pn:
+        bz = pn.get("bezpecnost") or {}
+        L += ["## Pneumatika — ostrov P3 a úprava vzduchu P2 (pro3d_lib.modul_ostrov)", "",
+              f"- `moduly/Pneumatika.FCStd` (App::Link ve skupině G-pneu): ostrov {pn['ident']} s rozváděči {', '.join(pn['ventily'])}, "
+              f"úprava vzduchu MS6 {'uzávěr → filtr-regulátor → bezpečnostní ventil MS6-SV-E (NÁVRH ke schválení)' if pn['sv'] else 'uzávěr → filtr-regulátor (stroj bez modulu bezpečnosti — bez MS6-SV-E)'}",
+              f"- místo: volný úsek drážky „{pn['prvek']}“ podle smlouvy N1 (ODHAD k odsouhlasení), obálka {pn['box']}",
+              f"- uzávěr: {(pn.get('uzaver') or {}).get('pozn', '')}",
+              f"- bezpečnost: {bz.get('stav', '')}",
+              "- hadice P4 ostrov → válce vede router (oddíl Hadice a kabely); rozvod P je součástí modulu", ""]
+    sm = lay.get("smlouva_n1")
+    if sm:
+        L += ["## Smlouva rámu N1", "", f"- soubor `{sm['soubor']}`: šrouby do drážek podle volných úseků smlouvy, obsazené místo "
+              f"{sm['drazky_obsazene']}×, závity do pracovní desky (vrtá výrobce rámu podle modulu) {sm['zavity_deska']}×",
+              f"- průchody požadované moduly {sm['pruchody']}, v rámu už {sm['pruchody_v_ramu']}, chybí {sm['pruchody_chybi']} — "
+              "požadavky ve formátu N1 v `layout.json` `predani_n1` (další stavba rámu je převezme)", ""]
     L += ["## Pneumatika — válce", "", "| zařízení | model | upevnění | směr pístnice | přípojky |", "|---|---|---|---|---|"]
     for it in lay["items"]:
         if it["druh"] == "valec":

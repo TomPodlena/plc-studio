@@ -41,6 +41,7 @@ for _d in (HERE, HERE.parent / "pro3d_parts", HERE.parent / "pro3d_tools"):
     if str(_d) not in sys.path:
         sys.path.insert(0, str(_d))
 import router  # noqa: E402
+import pneu  # noqa: E402  (smlouva N1 a pneumatika P2 / P3 / P4)
 try:
     import catalog_map as cm  # type: ignore  # noqa: E402  (sourozenec pro3d_parts)
 except Exception:  # noqa: BLE001
@@ -293,6 +294,8 @@ class Plan:
         self.busy = []            # obsazené kvádry (naše díly) — pro kontrolu kolizí v plánu
         self.n = 0
         self.parts = {p.get("id"): p for p in manifest.get("parts") or [] if isinstance(p, dict)}
+        self.n1 = None            # smlouva rámu N1 (ram/N1_<id>.json) — kam šroubovat; bez ní odhad ze scény
+        self.pneu = None          # ostrov P3 + úprava vzduchu P2 (pneu.island)
 
     # --- pomocné -----------------------------------------------------------------------------------------------------
     def nid(self, pre):
@@ -454,7 +457,21 @@ class Plan:
             head = list(p)
             if kind == "ram":
                 o, bx = target[1], target[2]
-                if o["typ2"] == "profil":
+                sn = pneu.snap(self.n1, head, n_dir, bx) if self.n1 and o["typ2"] == "profil" else None
+                if sn and not sn["ok"]:
+                    self.predani.append({"grp": grp, "co": f"drážka „{sn['prvek']}“ v místě {sn['s']:g} mm obsazená (smlouva N1)",
+                                         "bod": r3(sub(head, mul(n_dir, t))), "smlouva": "drazka_obsazena",
+                                         "proc": f"upevnění {label}: přesunout díl na volný úsek drážky podle {self.n1.get('_soubor')}"})
+                    self.screw(grp, M, round(t, 1), head, n_dir, f"{label} (drážka obsazená — požadavek na rám)", predani=True)
+                elif sn:
+                    head = list(sn["p"])
+                    head = [head[i] + (-n_dir[i]) * t if abs(n_dir[i]) > 0.5 else head[i] for i in range(3)]
+                    L = self.screw_len(t, 9.0)
+                    self.screw(grp, M, L, head, n_dir, f"{label} do matice v drážce „{sn['prvek']}“ (smlouva N1)")
+                    nut_c = add(head, mul(n_dir, t + 7.0))
+                    self.item(druh="matice", skupina=grp, M=M, stred=r3(nut_c), n=r3(mul(n_dir, -1)),
+                              label=f"Matice M{M} v drážce „{o['label']}“", cil=o["name"])
+                elif o["typ2"] == "profil":
                     lines = self.slot_lines(o, 2, 1)
                     best = None
                     for along, a, c in lines:
@@ -474,8 +491,16 @@ class Plan:
                         self.item(druh="matice", skupina=grp, M=M, stred=r3(nut_c), n=r3(mul(n_dir, -1)),
                                   label=f"Matice M{M} v drážce „{o['label']}“", cil=o["name"])
                 else:
-                    self.predani.append({"grp": grp, "co": f"závit M{M}×{int(data()['geom']['zavit_zaber'])} v „{o['label']}“",
-                                         "bod": r3(add(head, mul(n_dir, t))), "proc": f"upevnění {label}"})
+                    dk = pneu.deska_info(self.n1, head, n_dir, t) if self.n1 else None
+                    rec = {"grp": grp, "co": f"závit M{M}×{int(data()['geom']['zavit_zaber'])} v „{o['label']}“",
+                           "bod": r3(add(head, mul(n_dir, t))), "proc": f"upevnění {label}"}
+                    if dk:
+                        zz = dk["zavity"].get(f"M{M}") or "?"
+                        rec.update(smlouva="deska", proc=rec["proc"] + f" — pracovní deska N1: závit M{M} {zz} vrtá výrobce rámu podle "
+                                                                      f"modulu (smlouva {dk['soubor']}, deska.zavity)")
+                        if dk["odstup"] < dk["odstup_min"] + M / 2:
+                            rec["proc"] += f"; POZOR odstup od šroubu desky {dk['odstup']:g} mm < {dk['odstup_min']:g} + d/2 — posunout"
+                    self.predani.append(rec)
                     self.screw(grp, M, round(t, 1), head, n_dir, f"{label} (díra v rámu = požadavek na rám)", predani=True)
                     self.odhady.add("šrouby do desek rámu bez díry: dřík končí na ploše rámu — díra se závitem je požadavek na rám")
             else:
@@ -1137,8 +1162,20 @@ class Plan:
             if not vs or not cs:
                 continue
             v, c = vs[0], cs[0]
+            if v["src"] == "ostrov" and c.get("ports") and self.pneu:
+                for vport, cport in (("4", 0), ("2", 1)):
+                    fa = self.pneu["ports"].get(f"{v['tag']}.{vport}")
+                    cp = c["ports"][cport]
+                    fb = self.fitting(cp, "grla", c.get("grp") or f"G-{c['pid']}#{c['inst']}", c.get("item"))
+                    if fa is None or fb is None:
+                        continue
+                    h = cp["hose"]
+                    self.hoses.append({"id": f"H-{c['tag'].lstrip('-')}-{'A' if vport == '4' else 'B'}", "medium": h["medium"],
+                                       "od": fa["id"], "do": cp["id"], "a": fa, "b": fb, "skupina": "pneu", "pohyb": False,
+                                       "zasun": data()["qs"]["zasun"]})
+                continue
             if v["src"] != "koncept" or not c.get("ports") or not v.get("item"):
-                why = ("rozváděč není stavěn kódem" if v["src"] != "koncept" or not v.get("item") else "válec bez přípojek (nestavěn)")
+                why = ("rozváděč není stavěn kódem" if v["src"] not in ("koncept", "ostrov") or not v.get("item") else "válec bez přípojek (nestavěn)")
                 self.nepostaveno.append({"id": f"hadice {r['from']} → {r['to']}", "co": "hadice A / B", "duvod": why})
                 continue
             vp = valves_done.get(v["pid"]) or self.valve_ports(v)
@@ -1162,6 +1199,8 @@ class Plan:
                 for name, su in self.supports.items():
                     if su["zast"] and rests_on(d["bb"], su["obj"]["bb"]) > 0:
                         rails.setdefault(name, []).append(d)
+        if self.pneu:                    # rozvod P je součástí modulu P2 / P3 (pneu.island)
+            sv, rails = [], {}
         if sv and rails:
             s0 = sv[-1]
             rail = sorted(rails, key=lambda n: math.dist(center(self.supports[n]["obj"]["bb"]), center(s0["bb"])))[0]
@@ -1342,7 +1381,7 @@ class Plan:
             self.odhady.add("vstup kabelů do rozvaděče: pod dnem je deska / konzola rámu — kabely zadní stěnou dole (ODHAD, vývodky "
                             "v zadní stěně = zpětná vazba rozvaděči)")
         for d in self.devices:
-            if d["cat"] not in sig | pwr or d["src"] in ("chybi", "chybi_drzak", "ram_bez_id", "valec") or \
+            if d["cat"] not in sig | pwr or d["src"] in ("chybi", "chybi_drzak", "ram_bez_id", "valec", "ostrov_bez_kabelu") or \
                     (d["cat"] == "cylinder_switch" and d["src"] != "ram" and not d.get("item")):
                 continue
             key = (d["pid"], d["inst"])
@@ -1423,6 +1462,7 @@ class Plan:
             s["grp"] = f"S-{name}"
             self.groups[s["grp"]] = {"co": s["obj"]["label"], "pid": ""}
         self.cylinders()
+        self.pneu = pneu.island(self)            # ostrov P3 + P2 na rám podle smlouvy N1 (rozváděče pak nestaví others)
         self.others()
         # nosné konstrukce: šrouby k podkladu (po zařízeních — díry zařízení známe)
         for name, s in self.supports.items():
@@ -1529,8 +1569,9 @@ def dedupe(pts):
 
 
 def plan(manifest: dict, scene: dict, *, folder: str | Path, parts_index: dict | None = None, cab_layout: dict | None = None,
-         manifest_path: str | Path | None = None, require_models: bool = True) -> dict:
+         manifest_path: str | Path | None = None, require_models: bool = True, n1: dict | None = None) -> dict:
     pl = Plan(manifest, scene, folder, parts_index, cab_layout)
+    pl.n1 = n1
     REQUIRE_MODELS[0] = require_models          # False = jen rozmístění (testy bez modelů dily/)
     try:
         pl.run()
@@ -1569,6 +1610,9 @@ def plan(manifest: dict, scene: dict, *, folder: str | Path, parts_index: dict |
                        "trasa": r["trasa"], "vysledek": {k: v for k, v in r["vysledek"].items()}} for r in routes],
            "oddeleni": (vys or {}).get("oddeleni") or [], "nepostaveno": pl.nepostaveno, "predani": pl.predani,
            "odhady": sorted(pl.odhady), "kabelaz_skill": str(skill_scripts()), "trasa_ok": tr is not None}
+    out["smlouva_n1"] = pneu.compare(n1, pl.predani) if n1 else None
+    out["predani_n1"] = pneu.pozadavky_n1(pl.predani)
+    out["pneu"] = pl.pneu
     out["souhrn"] = summary(out)
     out["zpetna_vazba"] = feedback(out, manifest, manifest_path, tr, vys)
     return out

@@ -149,11 +149,34 @@ class ManifestTest(unittest.TestCase):
         fb = mo.zpetna_vazba(man)
         self.assertEqual(fb["format"], "plcdesk-cad-feedback")
         kinds = {i["id"] for i in fb["issues"]}
-        self.assertIn("p2-sv-1", kinds)
-        self.assertIn("p3-lista-1", kinds)
         for i in fb["issues"]:
             self.assertTrue(set(i["parts"]) <= ids)
             self.assertTrue(i["measured"]["source"])
+        # bezpečnostní ventil -YS1:safety_valve kusovník vzoru 20 už má (modul bezpečnosti) → zpětná vazba ho nenavrhuje
+        self.assertIn("safety_valve", {p["category"] for p in man["parts"]})
+        self.assertNotIn("p2-sv-1", kinds)
+        self.assertIn("p3-lista-1", kinds)
+        # starší manifest bez řádků úpravy vzduchu: uzávěr a filtr-regulátor ano; bez modulu bezpečnosti SV ne
+        m2 = dict(man, safety=None, parts=[p for p in man["parts"] if p["category"] != "safety_valve"])
+        k2 = {i["id"] for i in mo.zpetna_vazba(m2)["issues"]}
+        self.assertTrue({"p2-em1-1", "p2-lfr-1"} <= k2)
+        self.assertNotIn("p2-sv-1", k2)
+        # nový kusovník jádra (lišta -WP1, uzávěr -QM1, filtr-regulátor -HQ1) → žádná zpětná vazba P2 / P3
+        m3 = dict(man, parts=man["parts"] + [{"id": i, "category": c} for i, c in
+                                              (("-WP1:valve_manifold", "valve_manifold"), ("-QM1:air_shutoff", "air_shutoff"),
+                                               ("-HQ1:air_prep", "air_prep"))])
+        self.assertEqual([i["id"] for i in mo.zpetna_vazba(m3)["issues"]], [])
+
+    def test_uprava_bez_sv(self):
+        a = mo.uprava("-P2", 0.0, 0.0)
+        b = mo.uprava("-P2", 0.0, 0.0, sv=False, ids={"EM1": "-QM1:air_shutoff", "LFR": "-HQ1:air_prep"})
+        pids = [i["props"].get("PLCdesk_Id") for i in b["instance"] if (i.get("props") or {}).get("PLCdesk_Id")]
+        self.assertEqual(pids, ["-QM1:air_shutoff", "-HQ1:air_prep"])
+        self.assertLess(b["rozhrani"]["vystup_P"]["usti"][0], a["rozhrani"]["vystup_P"]["usti"][0])   # o jeden rastr 62 kratší
+        self.assertAlmostEqual(a["rozhrani"]["vystup_P"]["usti"][0] - b["rozhrani"]["vystup_P"]["usti"][0], 62.0, 3)
+        self.assertIsNone(b["rozhrani"]["bezpecnost"]["zarizeni"])
+        self.assertNotIn("Konstrukce_Bezpecnost", b["props"])
+        self.assertEqual(b["rozhrani"]["elektro"], [])
 
 
 @unittest.skipIf(os.environ.get("PRO3D_SKIP_FC") or not bench.available(), "FreeCAD (run_fc.ps1) není k dispozici")

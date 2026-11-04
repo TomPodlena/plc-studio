@@ -95,11 +95,22 @@ def katalog_spec(code: str) -> dict | None:
             "material": it["material"], "poznamka": it.get("poznamka", "")}
 
 
+# řádky pneumatiky kusovníku jádra, které staví modul P2 / P3 (pro3d_lib.modul_ostrov) jako zástupné obálky s doloženými
+# rozhraními — rozměrové výkresy Festo (VABM, MS6) nedostupné (ftp.festo.com nemá rozměry)
+MODUL_P2_P3 = {
+    "valve_manifold": "lišta rozváděčů = modul P3 (pro3d_lib.modul_ostrov) — rozteč 16 ze zdroje, obrys zástupný (výkres Festo nedostupný)",
+    "air_shutoff": "uzávěr MS6-EM1 = modul P2 (pro3d_lib.modul_ostrov) — rastr 62 a porty ze zdroje, obrys zástupný (výkres nedostupný)",
+    "air_prep": "filtr-regulátor MS6-LFR = modul P2 (pro3d_lib.modul_ostrov) — rastr 62 a porty ze zdroje, obrys zástupný (výkres nedostupný)",
+}
+
+
 def spec_for_part(part: dict) -> tuple[dict | None, str]:
     """Řádek manifestu → (spec, "") nebo (None, důvod, proč díl zůstane zástupný)."""
     cat = part.get("category") or ""
     code = part.get("orderCode") or ""
     typ = part.get("type") or ""
+    if cat in MODUL_P2_P3:      # lišta / uzávěr / filtr-regulátor (2026-11-04): tvar staví modul P2 / P3, ne generátor dílů
+        return None, MODUL_P2_P3[cat]
     if code:
         s = katalog_spec(code)
         if s:

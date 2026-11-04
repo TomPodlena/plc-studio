@@ -176,7 +176,7 @@ def spec_tlumic(kod: str, D_, L, zavit, th) -> dict:
                 material="PE / mosaz")
 
 
-def ostrov(ident: str, ventily: list[dict], x0: float, z_profil: float = 40.0, obj: str = "574371") -> dict:
+def ostrov(ident: str, ventily: list[dict], x0: float, z_profil: float = 40.0, obj: str = "574371", lista_id: str = "") -> dict:
     """P3: montážní deska na profilu (2 × M6 matice T), lišta s ``len(ventily)`` místy, ventily, QS-G1/8-6 na 2 / 4,
     zásuvky M8, šroubení P a tlumiče odfuků. ``ventily`` = [{tag, valec}] (pořadí na liště). Globální souřadnice:
     profil podél X, horní plocha ``z_profil``; deska začíná v ``x0``."""
@@ -203,7 +203,7 @@ def ostrov(ident: str, ventily: list[dict], x0: float, z_profil: float = 40.0, o
                   "body": {"add": [{"box": [x0, xd1, -W / 2 - 10, W / 2 + 10, zd0, zd1]}], "cut": cut},
                   "props": {"Konstrukce_Typ": "dil", "Konstrukce_Material": "ocel S235 (ODHAD)",
                             "Konstrukce_Poznamka": f"tloušťka a obrys ODHAD; závity {sm} pro lištu, 2 × {M_PROFIL} do drážky profilu"}})
-    m.link(lista, [xr, 0, zd1], druh="lista", props={"PLCdesk_Id": f"asm:P3{ident}:manifold"})
+    m.link(lista, [xr, 0, zd1], druh="lista", props={"PLCdesk_Id": lista_id or f"asm:P3{ident}:manifold"})   # lista_id = řádek kusovníku valve_manifold
     zt = zd1 + Hr
     # port P (napájení) a odfuky
     pP, jP = m.sroubeni({"id": f"{ident}.P", "seat": [xr, li["port_P_y"], zd1 + Hr / 2], "n": [-1, 0, 0], "fitting": "QS-G1/4-10",
@@ -284,22 +284,26 @@ def ostrov(ident: str, ventily: list[dict], x0: float, z_profil: float = 40.0, o
 
 # --- P2 — úprava vzduchu ------------------------------------------------------------------------------------------------
 
-def uprava(ident: str, x0: float, z_profil: float = 40.0) -> dict:
+def uprava(ident: str, x0: float, z_profil: float = 40.0, sv: bool = True, ids: dict | None = None) -> dict:
     """P2: konzola (úhelník) na profilu, MS6-EM1 → MS6-LFR → MS6-SV-E v ose X (proud +X), nádobka LFR dolů; výstup
-    SV přes redukci G1/2 → G1/4 + QS-G1/4-10; tlumič G1 na odfuk 3 SV. Bezpečnostní ventil = NÁVRH ke schválení."""
+    SV přes redukci G1/2 → G1/4 + QS-G1/4-10; tlumič G1 na odfuk 3 SV. Bezpečnostní ventil = NÁVRH ke schválení.
+    ``sv=False`` (stroj bez modulu bezpečnosti — manifest ``safety`` = null, rozhodnutí uživatele 2026-11-04): jen uzávěr
+    a filtr-regulátor, výstup z LFR. ``ids`` = PLCdesk_Id jednotek podle řádků kusovníku ({"EM1": "-QM1:air_shutoff", …})."""
     u = D["uprava"]
     pr = D["prostor"]
     m = _Mod()
     g = u["rastr"]
     dep = u["hloubka"]
-    jed = u["jednotky"]
+    jed = [j for j in u["jednotky"] if sv or j["id"] != "SV"]
+    nj = len(jed)
+    ids = ids or {}
     kz = u["konzola"]
     t = kz["t"]
     yb = 20.0                                             # zadní líc jednotek = přední líc svislé stěny konzoly
     yc = yb - dep / 2
     lfr = jed[1]["obalka"]
     z_ax = z_profil + t + lfr["nadobka_h"] + lfr["pod"] + 45.0   # ODHAD — volno pod nádobkou pro odvod kondenzátu
-    x1 = x0 + 3 * g
+    x1 = x0 + nj * g
     ztop = z_profil + kz["vyska"]
     if ztop < z_ax + 60:
         ztop = z_ax + 60
@@ -309,7 +313,7 @@ def uprava(ident: str, x0: float, z_profil: float = 40.0) -> dict:
     for x in (x0 + 10.0, x1 - 10.0):
         cut.append(_cz(x, 0, spojky_mech.otvor_vule(M_PROFIL) / 2, z_profil - 1, z_profil + t + 1))
         m.put(spojky_mech.sroub_do_drazky(M_PROFIL, x, 0.0, z_profil, t))
-    for i in range(3):
+    for i in range(nj):
         xc = x0 + (i + 0.5) * g
         for dx in (-15.0, 15.0):
             cut.append(_cy(xc + dx, yb - 1, yb + t + 1, z_ax, spojky_mech.otvor_vule(sj["m"]) / 2))
@@ -318,7 +322,7 @@ def uprava(ident: str, x0: float, z_profil: float = 40.0) -> dict:
                   "body": {"add": [{"box": [x0, x1, -20.0, yb + t, z_profil, z_profil + t]},
                                    {"box": [x0, x1, yb, yb + t, z_profil, ztop]}], "cut": cut},
                   "props": {"Konstrukce_Typ": "dil", "Konstrukce_Material": "ocel S235 (ODHAD)",
-                            "Konstrukce_Poznamka": kz["_pozn"] + f"; 2 × {M_PROFIL} do drážky profilu, 6 × {sj['m']} do jednotek"}})
+                            "Konstrukce_Poznamka": kz["_pozn"] + f"; 2 × {M_PROFIL} do drážky profilu, {2 * nj} × {sj['m']} do jednotek"}})
     tels = []
     for i, j in enumerate(jed):
         ob = j["obalka"]
@@ -329,16 +333,18 @@ def uprava(ident: str, x0: float, z_profil: float = 40.0) -> dict:
         if j["id"] == "LFR":
             add.append(_cz(xc, yc, ob["nadobka_D"] / 2, z_ax - ob["pod"] - ob["nadobka_h"], z_ax - ob["pod"]))
             add.append(_cz(xc, yc, ob["knoflik_D"] / 2, z_ax + ob["nad"], z_ax + ob["nad"] + ob["knoflik_h"]))
-        if j["id"] == "SV":
+        if i == nj - 1:                                  # výstup G1/2 posledního článku (SV, bez SV = LFR)
             hl = u["port_hloubka"]
             cut.append(_cx(xb - hl, xb + 1, yc, z_ax, _port_hole("G1/2") / 2))
+        if j["id"] == "SV":
+            hl = u["port_hloubka"]
             cut.append(_cz(xc, yc, (u["zavit_G1_d"] - 1.2) / 2, z_ax - ob["pod"] - 1, z_ax - ob["pod"] + hl))
         body = {"add": add, "cut": cut}
         bez = j.get("bezpecnost")
         sp = _lib(f"MS6_{j['id']}_{j['obj']}", body, f"Festo {j['kod']} ({j['obj']}) — zástupná obálka", _src(j["zdroj"]),
                   f"rastr {g:g} a porty {', '.join(f'{k} {v}' for k, v in j['porty'].items())} ze zdroje; hloubka {dep:g} a výšky ODHAD"
                   + (f"; {bez}" if bez else ""), material="hliník tlakově litý")
-        props = {"PLCdesk_Id": f"asm:P2{ident}:{j['id']}", "Konstrukce_Funkce": j["funkce"]}
+        props = {"PLCdesk_Id": ids.get(j["id"]) or f"asm:P2{ident}:{j['id']}", "Konstrukce_Funkce": j["funkce"]}
         if bez:
             props["Konstrukce_Bezpecnost"] = bez
         tels.append(m.link(sp, [0, 0, 0], druh=j["id"], props=props))
@@ -359,10 +365,11 @@ def uprava(ident: str, x0: float, z_profil: float = 40.0) -> dict:
     m.tel.append({"name": "Prostor_hadice_vystup", "label": f"Pomocný prostor nasunutí hadice výstupu P {ident}", "body": pO["zona"],
                   "props": {"Konstrukce_Typ": "pomocny", "Konstrukce_Zona": "hadice"}, "vyjimka": [f"inst:{jO}"]})
     tl = u["tlumic_G1"]
-    sv = jed[2]["obalka"]
-    xsv = x0 + 2.5 * g
-    m.link(spec_tlumic("Tlumic_G1_ODHAD", tl["D"], tl["L"], tl["zavit"], u["zavit_G1_d"]), [xsv, yc, z_ax - sv["pod"]],
-           spojky_mech.rot_z_na([0, 0, -1]), druh="tlumic_SV")
+    if sv:
+        svo = jed[2]["obalka"]
+        xsv = x0 + 2.5 * g
+        m.link(spec_tlumic("Tlumic_G1_ODHAD", tl["D"], tl["L"], tl["zavit"], u["zavit_G1_d"]), [xsv, yc, z_ax - svo["pod"]],
+               spojky_mech.rot_z_na([0, 0, -1]), druh="tlumic_SV")
     # zóny ovládání (ruka) — uzávěr čelem, knoflík regulátoru shora, odvod kondenzátu zespodu
     xe, xl = x0 + 0.5 * g, x0 + 1.5 * g
     em = jed[0]["obalka"]
@@ -380,8 +387,11 @@ def uprava(ident: str, x0: float, z_profil: float = 40.0) -> dict:
                       "vyjimka": [f"inst:{k}" for k in exc]})
     m.odh += ["obrysy MS6-EM1 / LFR / SV — rastr 62 ze zdroje, hloubka 62 a výšky ODHAD (výkres nedostupný)",
               "spojení jednotek modulovými spojkami MS6 nemodelováno (dotyk čel) — ODHAD",
-              f"konzola S235 t {t:g}, výška {ztop - z_profil:g}, 6 × {sj['m']} do jednotek — ODHAD, tuhost neověřena",
-              "redukce G1/2 → G1/4 a tlumič G1 — typ a obálka ODHAD", "poloha odfuku 3 SV (dole) ODHAD",
+              f"konzola S235 t {t:g}, výška {ztop - z_profil:g}, {2 * nj} × {sj['m']} do jednotek — ODHAD, tuhost neověřena",
+              "redukce G1/2 → G1/4" + (" a tlumič G1" if sv else "") + " — typ a obálka ODHAD"]
+    if sv:
+        m.odh.append("poloha odfuku 3 SV (dole) ODHAD")
+    m.odh += [
               jed[0]["uzamykatelny_pozn"], "zóny ovládání (ruka) ODHAD"]
     rozhrani = {"format": "plcdesk-pro-modul", "modul": "P2", "verze": 1, "id": ident, "generator": GEN,
                 "jednotky": [{k: j.get(k) for k in ("id", "kod", "obj", "funkce", "porty", "prutok_l_min", "tlak_bar", "hmotnost_g")}
@@ -391,18 +401,21 @@ def uprava(ident: str, x0: float, z_profil: float = 40.0) -> dict:
                 "vystup_P": {"seat": seat_qs, "n": [1, 0, 0], "thread": "G1/4", "fitting": "QS-G1/4-10", "hose": "festo_PUN_10x1.5",
                              "usti": pO["usti"], "osa_usti": pO["osa_usti"], "zasun": pO["hadice"]["zasun"], "D": pO["hadice"]["D"],
                              "R": pO["hadice"]["R"], "R_min": pO["hadice"]["R_min"], "prutok_l_min": min(j["prutok_l_min"] for j in jed)},
-                "elektro": [{"zarizeni": "SV", "rozhrani": jed[2]["elektro"], "pozn": "kabel nemodelován (Sub-D — data V2 chybí)"}],
+                "elektro": [{"zarizeni": "SV", "rozhrani": jed[2]["elektro"], "pozn": "kabel nemodelován (Sub-D — data V2 chybí)"}] if sv else [],
                 "uzaver": {"kod": jed[0]["kod"], "uzamykatelny": jed[0]["uzamykatelny"], "pozn": jed[0]["uzamykatelny_pozn"]},
-                "bezpecnost": {"zarizeni": jed[2]["kod"], "stav": "NÁVRH ke schválení", "text": jed[2]["bezpecnost"],
-                               "zdroj": _src(jed[2]["zdroj"])},
+                "bezpecnost": ({"zarizeni": jed[2]["kod"], "stav": "NÁVRH ke schválení", "text": jed[2]["bezpecnost"],
+                                "zdroj": _src(jed[2]["zdroj"])} if sv else
+                               {"zarizeni": None, "stav": "bez bezpečnostního ventilu — stroj nemá modul bezpečnosti (manifest safety = null)"}),
                 "kotveni": [{"pos": [x, 0.0, z_profil], "osa": [0, 0, -1], "M": M_PROFIL, "druh": "matice T drážka 40/8"} for x in (x0 + 10.0, x1 - 10.0)],
                 "obalka": [x0, yb - dep - 60, z_profil, x1 + re_["delka"] + 25, yb + t, ztop + 60],
                 "hmotnost_kg": round(sum(j["hmotnost_g"] for j in jed) / 1000.0, 3), "odhady": m.odh,
                 "zdroje": sorted({_src(j["zdroj"]) for j in jed})}
-    return {"typ": "P2 MS6", "tag": ident, "nazev": f"P2 {ident} — úprava vzduchu MS6 + bezpečnostní odvzdušnění (návrh)",
+    mp = {"Konstrukce_Generator": GEN, "Konstrukce_Modul": "P2", "PLCdesk_Id": f"asm:P2{ident}"}
+    if sv:
+        mp["Konstrukce_Bezpecnost"] = "NÁVRH ke schválení (EN ISO 13849-1)"
+    return {"typ": "P2 MS6", "tag": ident, "nazev": f"P2 {ident} — úprava vzduchu MS6" + (" + bezpečnostní odvzdušnění (návrh)" if sv else ""),
             "dily": m.dily, "instance": m.inst, "telesa": m.tel, "kabely": m.kab, "skupiny": [],
-            "props": {"Konstrukce_Generator": GEN, "Konstrukce_Modul": "P2", "PLCdesk_Id": f"asm:P2{ident}",
-                      "Konstrukce_Bezpecnost": "NÁVRH ke schválení (EN ISO 13849-1)"},
+            "props": mp,
             "rozhrani": rozhrani, "kontrola": {"srouby": m.text, "z_osa": z_ax}, "varovani": [jed[0]["uzamykatelny_pozn"]]}
 
 
@@ -524,18 +537,21 @@ def z_manifestu(man: dict) -> dict:
     cats = {p.get("category") for p in parts.values()}
     issues = []
     anchor = [ventily[0]["partId"]] if ventily else []
-    if ventily and "valve_terminal" not in cats:
+    if ventily and not cats & {"valve_terminal", "valve_manifold"}:
         issues.append({"id": "p3-lista-1", "kind": "other", "severity": "info", "parts": anchor,
                        "measured": {"what": "rozváděčů na liště", "value": len(ventily), "unit": "ks", "source": "PLCdesk_CAD.json (valve_solenoid)"},
                        "required": {"what": "řádek lišty rozváděčů", "min": 1, "unit": "ks", "basis": "modul P3 — rozteč 16 mm (" + _src("RS_VABM_14") + ")"},
                        "message": f"Kusovník nemá lištu rozváděčů pro {len(ventily)} ventilů VUVG-L14 — návrh: lišta Festo VABM-L1-14… s {len(ventily)} místy (typ doplní projektant).",
                        "suggestion": {"line": {"type": f"lišta rozváděčů VABM-L1-14… {len(ventily)} míst", "orderCode": "", "brand": "Festo", "qty": 1,
                                                "note": "NÁVRH PLCdesk PRO P3 — kód podle počtu míst ověřit u Festo"}}})
-    if ventily and "air_prep" not in cats:
+    need = {"EM1": "air_shutoff", "LFR": "air_prep", "SV": "safety_valve"}       # řádek kusovníku jádra pro jednotku P2
+    if ventily:
         for i, j in enumerate(D["uprava"]["jednotky"]):
+            if need[j["id"]] in cats or (j["id"] == "SV" and man.get("safety") is None):
+                continue          # řádek v kusovníku je; bezpečnostní ventil jen u stroje s modulem bezpečnosti
             issues.append({"id": f"p2-{j['id'].lower()}-1", "kind": "other", "severity": "warn" if j["id"] == "SV" else "info",
                            "parts": anchor,
-                           "measured": {"what": "řádek úpravy vzduchu v kusovníku", "value": 0, "unit": "ks", "source": "PLCdesk_CAD.json (air_prep chybí)"},
+                           "measured": {"what": "řádek úpravy vzduchu v kusovníku", "value": 0, "unit": "ks", "source": f"PLCdesk_CAD.json ({need[j['id']]} chybí)"},
                            "required": {"what": j["funkce"], "min": 1, "unit": "ks", "basis": _src(j["zdroj"])},
                            "message": f"Stroj s pneumatikou nemá v kusovníku {j['kod']} — návrh modulu P2" + (
                                " (bezpečnostní odvzdušnění: NÁVRH ke schválení, EN ISO 13849-1)" if j["id"] == "SV" else "")

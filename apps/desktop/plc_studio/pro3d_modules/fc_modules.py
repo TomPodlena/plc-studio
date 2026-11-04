@@ -344,7 +344,9 @@ try:
         for o in bodies + [o for o in made if str(getattr(o, "Konstrukce_Typ", "")) == "sroubeni"]:
             try:
                 s = Part.getShape(o, "", needSubElement=False, transform=True) if o.TypeId == "App::Link" else o.Shape
-                accepted.append((o.Label, s, s.BoundBox, "dil"))
+                # ostrov P2 / P3 (pneu.island): hadice a kabely v něm začínají (zasunutí do šroubení, zásuvka) — trasy se
+                # proti němu nekontrolují zde, ale kontrolami kódem vse (fc_scan.in_fitting)
+                accepted.append((o.Label, s, s.BoundBox, "modul" if o.Name == ((LAY.get("pneu") or {}).get("item") or "") else "dil"))
             except Exception:  # noqa: BLE001
                 pass
 

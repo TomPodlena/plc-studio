@@ -261,7 +261,10 @@ python scripts/build_verification.py        # data/verification.json → verific
   „tower B“, „Turm 2“ → -PF1, -PF2). `bomBeaconTowers` sdílí kusovník i `cad.ts`. **Volič** (volič / přepínač / selector /
   Wahlschalter) = kategorie `selector_switch` (dřív `pushbutton`), bez položky katalogu (kód voliče 3SU1 rešerší nedoložen — typ doplní
   projektant). `pro3d_cabinet` čte kategorie jádra (`pushbutton`, `estop_button`, `selector_switch`; `dvere.core_cat` převádí starší
-  `push_button` / `emergency_stop`). Volba uživatele v `prj.bom.lines` má dál
+  `push_button` / `emergency_stop`). **Pneumatika** (2026-11-04, moduly P2 / P3 PRO): stroj s rozváděči `valve_solenoid` má jednou
+  `-WP1:valve_manifold` (lišta rozváděčů, počet míst = počet rozváděčů, Festo VABM-L1-14 bez kódu), `-QM1:air_shutoff` (ruční
+  uzávěr MS6-EM1 541267, uzamykatelnost ověřit) a `-HQ1:air_prep` (filtr-regulátor MS6-LFR 529184); bezpečnostní odvzdušňovací
+  ventil `-YS1:safety_valve` dál jen z modulu bezpečnosti (navržené funkce). Golden: změna jen 09_kusovnik. Volba uživatele v `prj.bom.lines` má dál
   přednost. Testy `bom.test.ts`. Výstupy `bomCsv` (středník, BOM
   pro český Excel), `bomMd`; v dokumentaci `09_kusovnik.md/.csv`.
 - Volby uživatele `prj.bom` = `{ plat, brand: {catKey: optId|vlastní}, lines: {id: {brand, type,
@@ -525,6 +528,20 @@ python scripts/build_verification.py        # data/verification.json → verific
   11 / 14 snímačů, rozváděče na liště, 25 kabelů a 9 hadic spočteno — většina tras vede deskou stolu / skříňkou pneumatiky
   (rám průchody nemá → požadavky na rám). Testy `tests/test_pro3d_modules.py` (vzory 01 / 03 / 16 / 20 z `tests/data/moduly/`,
   FreeCAD na vzoru 20 + `kolize` / `souvislost`), `test_pro_pipeline.ModulesGenTest`.
+- **Rám N1 a pneumatika P2 / P3 / P4 v postupu** (2026-11-04, schváleno uživatelem): `make_frame` před 1. kolem stavitele části
+  rám a kryty (jen s generátory dílů, `GEN_FNS`) = `pro3d_lib/ram_gen.py` — rozměry stolu z `koncept/Koncept.FCStd` (fc_scene,
+  objekty „deska / noha stolu / rám…“ bez PLCdesk_Id), jinak půdorys konceptu, jinak ODHAD 1000 × 800 × 900; kola podle briefu;
+  pracovní deska Al 15 (5083) výchozí; `modul_ram` + `fc_ram.py` → `ram/Ram.FCStd` (posunutý o `rozmery.umisteni`), smlouva
+  `ram/N1_<id>.json`, `RAM.md` (rozhodnutí: dlouhý šroub = standard, zahloubení ODHAD; kola + válce → doporučení diagonál / MKP),
+  snímky `ram/snimky/ram_*.png`, kontroly `ram/kontroly/`; `units.frame.generated`, `FRAME_GEN_PROMPT` (nepřestavovat, doplnit
+  kryty a co chybí, nálezy → `PLCdesk_CAD_feedback_ram.json`), PREHLED.md „Rám kódem“. Požadavky modulů na rám z `moduly/layout.json`
+  `predani_n1` převezme další stavba rámu. Generátor modulů čte smlouvu (`pro3d_modules/pneu.py`): šrouby dolů do drážek jen na
+  volné úseky smlouvy (obsazené = požadavek), šroub na desku = závit podle `deska.zavity` + kontrola odstupu od šroubů desky,
+  `smlouva_n1` (průchody v rámu × chybí). Pneumatika: ostrov P3 (rozváděče s `actuates`, lišta = `-WP1`) + P2 (uzávěr → LFR →
+  MS6-SV-E **jen s `safety` manifestu**, `uprava(sv=…, ids=…)`) na volném úseku drážky shora nejblíž válcům → `moduly/Pneumatika.FCStd`
+  (fc_lib + barvy, App::Link skupina `G-pneu` v Moduly.FCStd), hadice A / B z ústí šroubení ostrova k GRLA válců vede router,
+  rozvod P je v modulu. Bez smlouvy dosavadní chování. CLI `pro_pipeline --no-ai --generators` = generátory kódem bez agentů.
+  Testy `tests/test_pro3d_napojeni.py`.
 - **Řízené RUČNÍ stahování modelů** (2026-10-24) `plc_studio/pro3d_download/` (bez Tk, bez sítě — **nic se nestahuje
   ani neskriptuje**: podmínky 3Dfindit / CADENAS čl. 12.3 (vii), TraceParts i portálů výrobců; stahuje člověk v prohlížeči).
   `vendors.json` = vzory URL (stránka produktu / hledání, `{code}` `{code_alnum}` `{query}`), `verified` + `verify_note`

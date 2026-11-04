@@ -123,6 +123,30 @@ def build_freecad(lay_path: Path, fcstd: Path, folder: Path, slot: str, timeout:
     return out
 
 
+def build_pneu(plan: dict, out_dir: Path, slot: str, timeout: int, shots: bool) -> dict:
+    """Ostrov P3 + úprava vzduchu P2 (plán pneu.island) → ``moduly/Pneumatika.FCStd`` týmž kódem jako zkušební desky
+    (``pro3d_lib/fc_lib.py`` + barvy ``fc_lib_colors.py`` přes ``pro3d_lib.bench``; díly do ``moduly/dily/``)."""
+    root = str(HERE.parents[1])
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    try:
+        from plc_studio.pro3d_lib import bench  # type: ignore  # noqa: E402
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "chyba": f"pro3d_lib nelze načíst: {exc}"}
+    work = out_dir / ".prace" / "pneu"
+    work.mkdir(parents=True, exist_ok=True)
+    b = bench.build(plan, out_dir, timeout=timeout, slot=slot + "-pneu")
+    model = out_dir / (plan["model"] + ".FCStd")
+    if not model.is_file():
+        return {"ok": False, "chyba": "; ".join(b.get("chyby") or []) or "model nevznikl", "fc": b.get("fc")}
+    sh = {k: out_dir / "snimky" / f"{plan.get('snimky_prefix', 'pneumatika')}_{k}.png" for k in plan.get("snimky") or ["iso"]} if shots else {}
+    if sh:
+        (out_dir / "snimky").mkdir(parents=True, exist_ok=True)
+    c = bench.colors_and_shots(model, b.get("soubory_dilu") or [], sh, slot=slot + "-pneu")
+    return {"ok": bool(b.get("ok")), "model": str(model), "chyby": b.get("chyby") or [], "barvy": bool((c or {}).get("ok")),
+            "snimky": [str(p) for p in sh.values()]}
+
+
 def generate(manifest_path, folder, *, slot: str = DEFAULT_SLOT, timeout: int = 1500, no_fc: bool = False, shots: bool = True,
              scene_path=None, runner=subprocess.run) -> dict:
     mp, folder = Path(manifest_path).resolve(), Path(folder).resolve()
@@ -162,13 +186,16 @@ def generate(manifest_path, folder, *, slot: str = DEFAULT_SLOT, timeout: int = 
         scene = sc
     cab_p = folder / "rozvadec" / "layout.json"
     cab = json.loads(cab_p.read_text(encoding="utf-8")) if cab_p.is_file() else None
-    lay = L.plan(manifest, scene, folder=folder, parts_index=pidx, cab_layout=cab, manifest_path=mp)
+    n1 = L.pneu.load_n1(folder)              # smlouva rámu N1 (ram/N1_<id>.json) — kam šroubovat, průchody
+    lay = L.plan(manifest, scene, folder=folder, parts_index=pidx, cab_layout=cab, manifest_path=mp, n1=n1)
     lp = out_dir / "layout.json"
     lp.write_text(json.dumps(lay, ensure_ascii=False, indent=1), encoding="utf-8")
     (out_dir / FEEDBACK).write_text(json.dumps(lay["zpetna_vazba"], ensure_ascii=False, indent=1), encoding="utf-8")
     summary.update(layout=str(lp), md=str(out_dir / "MODULY.md"), souhrn=lay["souhrn"], feedback=str(out_dir / FEEDBACK))
     fc = None
     fcstd = out_dir / "Moduly.FCStd"
+    if not no_fc and lay.get("pneu"):
+        summary["pneumatika"] = build_pneu(lay["pneu"]["plan"], out_dir, slot, timeout, shots)
     if not no_fc:
         fc = build_freecad(lp, fcstd, folder, slot, timeout, shots, runner)
     (out_dir / "MODULY.md").write_text(report.md(lay, fc), encoding="utf-8")

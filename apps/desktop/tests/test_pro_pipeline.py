@@ -841,7 +841,8 @@ class CabinetGenTest(unittest.TestCase):
         d = tmpdir()
         r = FakeRunner(verdicts or {})
         p = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=r, parts=parts,
-                        parts_fn=lambda folder, log=print: {"souhrn": None, "chyba": ""}, cabinet_fn=cab)
+                        parts_fn=lambda folder, log=print: {"souhrn": None, "chyba": ""}, cabinet_fn=cab,
+                        frame_fn=lambda folder, log=print: {"ok": False, "chyba": "test"})
         self.assertEqual(p.run(), "done")
         return d, p, calls
 
@@ -917,7 +918,8 @@ class ModulesGenTest(unittest.TestCase):
         r = FakeRunner(verdicts or {})
         p = pp.Pipeline(d, PRJ01, inputs_fn=fake_inputs, runner=r, parts=parts,
                         parts_fn=lambda folder, log=print: {"souhrn": None, "chyba": ""},
-                        cabinet_fn=lambda folder, log=print: {"ok": False, "chyba": "test"}, modules_fn=mod)
+                        cabinet_fn=lambda folder, log=print: {"ok": False, "chyba": "test"}, modules_fn=mod,
+                        frame_fn=lambda folder, log=print: {"ok": False, "chyba": "test"})
         self.assertEqual(p.run(), "done")
         return d, p, calls
 
