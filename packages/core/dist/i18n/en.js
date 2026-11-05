@@ -6596,7 +6596,7 @@ const d = {
     "průvodce, prohlídka, úvod, první spuštění, tour": "wizard, tour, introduction, first start, walkthrough",
     "páry vstupů v ESTOP/MON (Discrepancy)": "input pairs in ESTOP/MON (Discrepancy)",
     "pásový dopravník (rozměry pro konstrukci)": "belt conveyor (dimensions for design)",
-    "pólovost / fáze: doplní projektant": "poles / phases: designer to add",
+    "pólovost / fáze:": "poles / phases:",
     "přechod": "transition",
     "přechod: zpětné hlášení": "transition: feedback",
     "přechod: čas": "transition: time",

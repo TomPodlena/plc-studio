@@ -6596,7 +6596,7 @@ const d = {
     "průvodce, prohlídka, úvod, první spuštění, tour": "Assistent, Rundgang, Einführung, erster Start, Tour",
     "páry vstupů v ESTOP/MON (Discrepancy)": "Eingangspaare in ESTOP/MON (Discrepancy)",
     "pásový dopravník (rozměry pro konstrukci)": "Gurtband (Abmessungen für die Konstruktion)",
-    "pólovost / fáze: doplní projektant": "Polzahl / Phasen: Planer ergaenzt",
+    "pólovost / fáze:": "Polzahl / Phasen:",
     "přechod": "Übergang",
     "přechod: zpětné hlášení": "Transition: Rückmeldung",
     "přechod: čas": "Transition: Zeit",

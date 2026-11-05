@@ -157,7 +157,7 @@ export function powerSheetOps(prj: Project, page: number, total: number, feeders
     Tx(cx, 440, cut(f.name, 16), { anchor: "middle", k: "b", size: 9 });
     Tx(cx, 452, trx("Jištění, průřez:"), { anchor: "middle", k: "m", size: 8 });
     Tx(cx, 463, TBD(), { anchor: "middle", k: "m", size: 8 });
-    Tx(cx, 475, trx("pólovost / fáze: doplní projektant"), { anchor: "middle", k: "m", size: 7 });
+    Tx(cx, 473, trx("pólovost / fáze:"), { anchor: "middle", k: "m", size: 7 }); Tx(cx, 482, trx("doplní projektant"), { anchor: "middle", k: "m", size: 7 });
     c.setDev(undefined);
   });
   /* řízení: jistič řízení → zdroj 24 V */
@@ -181,7 +181,7 @@ export function powerSheetOps(prj: Project, page: number, total: number, feeders
     Tx(cx, 440, trx("Řízení 24 V DC"), { anchor: "middle", k: "b", size: 9 });
     Tx(cx, 452, trx("Jištění, průřez:"), { anchor: "middle", k: "m", size: 8 });
     Tx(cx, 463, TBD(), { anchor: "middle", k: "m", size: 8 });
-    Tx(cx, 475, trx("pólovost / fáze: doplní projektant"), { anchor: "middle", k: "m", size: 7 });
+    Tx(cx, 473, trx("pólovost / fáze:"), { anchor: "middle", k: "m", size: 7 }); Tx(cx, 482, trx("doplní projektant"), { anchor: "middle", k: "m", size: 7 });
   }
   Ci(60, peY, 3);
   Tx(40, 560 + 0, trx("Symboly dle IEC 60617: jistič (křížek na pólu), stykač (oblouk u pólu), motor M, měnič ~/~; jednočárově."), { k: "m", size: 9 });

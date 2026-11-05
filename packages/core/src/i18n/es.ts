@@ -6596,7 +6596,7 @@ const d: Record<string, string> = {
   "průvodce, prohlídka, úvod, první spuštění, tour": "asistente, recorrido, introducción, primer inicio, tour",
   "páry vstupů v ESTOP/MON (Discrepancy)": "pares de entradas en ESTOP/MON (Discrepancy)",
   "pásový dopravník (rozměry pro konstrukci)": "cinta transportadora (dimensiones para el diseño)",
-  "pólovost / fáze: doplní projektant": "polos / fases: lo completa el proyectista",
+  "pólovost / fáze:": "polos / fases:",
   "přechod": "transición",
   "přechod: zpětné hlášení": "transición: señal de confirmación",
   "přechod: čas": "transición: tiempo",
