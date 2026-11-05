@@ -229,6 +229,7 @@ const SRC: Src[] = [
       N_("Projdi **Blokové schéma systému**: zdroje signálů → moduly PLC → akční členy."),
       N_("Otevři **Elektrické zapojení I/O** — jeden list na modul; stáhni / ulož SVG nebo DXF pro EPLAN, AutoCAD či LibreCAD."),
       N_("Zkontroluj **Svorkovnici** (svorka, vodič, tag) a stáhni ji jako CSV."),
+      N_("Dole najdeš **Silové schéma** (přívod, hlavní vypínač, vývody motorů, měničů a servoměničů) a **Rozvod napájení 24 V DC** (zdroj, větve PLC a modulů, ventily, značka větve E-stopu). Označení jsou z kusovníku; proudy, průřezy a nastavení jističů zadání neobsahuje, proto je na listu „doplní projektant“ — je to návrh k ověření elektroprojektantem (EN 60204-1)."),
     ],
     tips: [
       N_("Čísla vodičů odpovídají svorkovnici: X1:1 = -W101, X2:3 = -W203."),

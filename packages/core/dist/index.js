@@ -7,6 +7,7 @@ export * from "./logix.js";
 export * from "./importers.js";
 export * from "./reverse.js";
 export * from "./drawing.js";
+export * from "./power_sheet.js";
 export * from "./sim.js";
 export * from "./flow.js";
 export * from "./docs.js";

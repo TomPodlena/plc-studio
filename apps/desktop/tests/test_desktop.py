@@ -914,7 +914,7 @@ class GuiTest(unittest.TestCase):
         self.app.load_sample("small")
         self.goto(5)
         views = self.find(SvgView)
-        self.assertEqual(len(views), 3)              # blokové schéma, funkční diagram, zapojení
+        self.assertEqual(len(views), 4)              # blokové schéma, funkční diagram, zapojení, silové schéma
         for v in views:
             self.assertGreater(len(v.canvas.find_all()), 20)
         before = len(views[2].canvas.find_all())
@@ -933,7 +933,8 @@ class GuiTest(unittest.TestCase):
         names = sorted(os.listdir(out))
         self.assertIn("00_blokove_schema.svg", names)
         self.assertIn("00_funkcni_diagram.svg", names)
-        self.assertEqual(sum(n.endswith(".dxf") for n in names), len(sheet_combo.cget("values")))
+        self.assertEqual(sum(n.endswith(".dxf") and not n.startswith("00_") for n in names), len(sheet_combo.cget("values")))
+        self.assertTrue(any(n.startswith("00_silove_schema") and n.endswith(".dxf") for n in names))
         self.assertTrue(Path(out, names[1]).read_text(encoding="utf-8").strip())
 
     # --- interaktivní schémata a odkazy ---------------------------------------------
