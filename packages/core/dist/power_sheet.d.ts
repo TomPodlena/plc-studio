@@ -7,7 +7,7 @@
  */
 import { Project } from "./model.js";
 import { BomLine } from "./bom.js";
-import { SheetOps, SheetMeta } from "./drawing.js";
+import { Op, SheetOps, SheetMeta } from "./drawing.js";
 export interface PowerSheet {
     kind: "power" | "supply";
     /** základ jména souboru bez přípony: `silove_schema_1`, `rozvod_napajeni_1` */
@@ -24,6 +24,27 @@ interface Feeder {
     name: string;
     parts: Partial<Record<FeedKind, BomLine>>;
 }
+export declare function makeCtx(W: number, H: number): {
+    O: Op[];
+    setDev: (d?: number) => void;
+    Ln: (x1: number, y1: number, x2: number, y2: number, k?: string) => number;
+    Ci: (cx: number, cy: number, r: number) => number;
+    Re: (x: number, y: number, w: number, h: number, k?: string) => number;
+    Tx: (x: number, y: number, s: unknown, o?: Partial<{
+        size: number;
+        anchor: string;
+        k: string;
+    }>) => number;
+    W: number;
+    H: number;
+};
+export type Ctx = ReturnType<typeof makeCtx>;
+export declare function frame(c: Ctx, prj: Project, title: string, drawing: string, page: number, total: number, meta?: SheetMeta, texts?: {
+    warn: string;
+    hint: string;
+}): void;
+export declare const hasBand: (prj: Project, meta?: SheetMeta) => number;
+export declare const cut: (s: string, n: number) => string;
 export declare function powerSheetOps(prj: Project, page: number, total: number, feeders: Feeder[], bom: BomLine[], first: boolean, meta?: SheetMeta): SheetOps;
 interface Branch {
     title: string;

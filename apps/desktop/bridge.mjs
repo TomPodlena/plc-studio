@@ -248,7 +248,7 @@ const OPS = {
         svg: core.sheetSVG(prj, m, i + 1, i + 1, mods.length),
         dxf: core.sheetDXF(prj, m, i + 1, i + 1, mods.length),
       })),
-      power: core.powerSheets(prj).map(s => ({ title: s.title, base: "00_" + s.base, svg: s.svg, dxf: s.dxf })),
+      power: core.powerSheets(prj).concat(core.pneuSheets(prj)).map(s => ({ title: s.title, base: "00_" + s.base, svg: s.svg, dxf: s.dxf })),
       rows,
       csv: core.svorkyCSV(prj),
     };

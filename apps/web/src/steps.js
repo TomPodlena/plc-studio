@@ -3,7 +3,7 @@
 import {
   PLAT, CLS, escHtml as esc, newProject, devById, nextName, syncIO, autoAddr, modules, wireNo,
   validateProject, sanitizeTag, genFor, allProjectFiles, licensedGen, licensedProjectFiles,
-  svgBlock, sheetSVG, sheetDXF, powerSheets, svorkyCSV,
+  svgBlock, sheetSVG, sheetDXF, powerSheets, pneuSheets, svorkyCSV,
   tr, N_, getLang, DO_ROLES, stepTitle, projectFileName, projectFolderName, projectNumberProblem,
   devDefaults, isMotionClass, hasRange, ACTS_FOR, maxRecord, recordsText, parseRecords,
   buildBom, bomOptions, bomPlatform, bomCsv, bomTableText, bomQtyInput, bomSuppliers, BOM_QTY_MAX, cadManifestJson, CAD_FILE,
@@ -872,7 +872,7 @@ export function makeSteps(ctx) {
     }));
     /* silové schéma a rozvod napájení 24 V DC (power_sheet.ts): označení z kusovníku, hodnoty doplní projektant */
     let pw = [];
-    try { pw = powerSheets(p); } catch (e) { pw = []; }
+    try { pw = powerSheets(p).concat(pneuSheets(p)); } catch (e) { pw = []; }
     if (pw.length) {
       let pin = "";
       pw.forEach((s, i) => {

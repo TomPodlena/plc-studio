@@ -46,7 +46,7 @@ function feedersOf(lines: BomLine[], prj: Project): Feeder[] {
   return [...by.values()].filter(f => f.parts.TA?.cat !== "positioning_drive").filter(f => f.parts.M || f.parts.TA || f.parts.K).sort((a, b) => a.devId - b.devId);
 }
 
-function makeCtx(W: number, H: number) {
+export function makeCtx(W: number, H: number) {
   const O: Op[] = [];
   let dev: number | undefined;
   const ref = () => dev !== undefined ? { dev } : {};
@@ -60,9 +60,9 @@ function makeCtx(W: number, H: number) {
     W, H,
   };
 }
-type Ctx = ReturnType<typeof makeCtx>;
+export type Ctx = ReturnType<typeof makeCtx>;
 
-function frame(c: Ctx, prj: Project, title: string, drawing: string, page: number, total: number, meta?: SheetMeta): void {
+export function frame(c: Ctx, prj: Project, title: string, drawing: string, page: number, total: number, meta?: SheetMeta, texts?: { warn: string; hint: string }): void {
   const { W, H, Re, Ln, Tx } = c;
   const ref0 = projectRef(prj);
   const number = meta?.number ?? ref0.number, customer = meta?.customer ?? ref0.customer, startDate = meta?.startDate ?? ref0.startDate;
@@ -73,16 +73,16 @@ function frame(c: Ctx, prj: Project, title: string, drawing: string, page: numbe
     date: meta?.date ?? todayCz(), rev: meta?.rev ?? sheetRevOf(prj) ?? "0.1", number, customer, startDate });
   Tx(40, 52, title, { k: "b", size: 12 });
   Re(38, 58, 330, 18, "r");
-  Tx(46, 71, trx("Návrh — ověří elektroprojektant (EN 60204-1)"), { k: "b", size: 10 });
-  Tx(40, 92, trx("Proudy, průřezy a nastavení jističů zadání neobsahuje — doplní projektant. Označení podle kusovníku (IEC 81346)."), { k: "m", size: 9 });
+  Tx(46, 71, texts ? texts.warn : trx("Návrh — ověří elektroprojektant (EN 60204-1)"), { k: "b", size: 10 });
+  Tx(40, 92, texts ? texts.hint : trx("Proudy, průřezy a nastavení jističů zadání neobsahuje — doplní projektant. Označení podle kusovníku (IEC 81346)."), { k: "m", size: 9 });
 }
 
-const hasBand = (prj: Project, meta?: SheetMeta): number => {
+export const hasBand = (prj: Project, meta?: SheetMeta): number => {
   const r = projectRef(prj);
   return (meta?.number ?? r.number) || (meta?.customer ?? r.customer) || (meta?.startDate ?? r.startDate) ? REF_BAND : 0;
 };
 
-const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "~" : s);
+export const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "~" : s);
 const TBD = () => trx("doplní projektant");
 
 /* ------------------------------------------------------------ symboly IEC 60617 */
