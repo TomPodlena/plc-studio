@@ -381,6 +381,23 @@ class SvgTest(unittest.TestCase):
         sheet = parse_svg(s["sheets"][0]["svg"])
         self.assertEqual(len([m for m in sheet["metas"] if "io" in m]), 6)   # 6 kanálů DI
 
+    def test_schema_separates_power_and_pneumatic_sheets(self):
+        b = CoreBridge()
+        try:
+            prj = b.call("sampleSmall")
+            s = b.request("schema", prj=prj)
+            ids = {d["id"] for d in prj["devices"] if d["cls"] == "Ventil"}
+            prj["devices"] = [d for d in prj["devices"] if d["id"] not in ids]
+            prj["io"] = [e for e in prj["io"] if e["devId"] not in ids]
+            prj["seq"] = [x for x in prj.get("seq", []) if x.get("dev") not in ids]
+            none = b.request("schema", prj=prj)
+        finally:
+            b.close()
+        self.assertTrue(s["pneu"])
+        self.assertTrue(all("neumat" in x["title"] for x in s["pneu"]))
+        self.assertFalse(any("neumat" in x["title"] for x in s["power"]))
+        self.assertEqual(none["pneu"], [])            # bez rozvadecu zadna pneumaticka zalozka
+
     def test_parse_resolves_theme_colors(self):
         b = CoreBridge()
         try:
@@ -914,7 +931,7 @@ class GuiTest(unittest.TestCase):
         self.app.load_sample("small")
         self.goto(5)
         views = self.find(SvgView)
-        self.assertEqual(len(views), 4)              # blokové schéma, funkční diagram, zapojení, silové schéma
+        self.assertEqual(len(views), 5)              # blokové schéma, funkční diagram, zapojení, silové schéma, pneumatické schéma
         for v in views:
             self.assertGreater(len(v.canvas.find_all()), 20)
         before = len(views[2].canvas.find_all())

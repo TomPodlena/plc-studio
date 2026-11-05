@@ -13,7 +13,7 @@ from ..svgview import SvgView
 from ..widgets import trace
 from ..widgets import Table, card, link, note_box, save_file, save_many, wrap_label
 
-TAB_BLOCK, TAB_FLOW, TAB_WIRING, TAB_TERMS, TAB_POWER = range(5)
+TAB_BLOCK, TAB_FLOW, TAB_WIRING, TAB_TERMS, TAB_POWER, TAB_PNEU = range(6)
 
 
 def render(app, parent) -> None:
@@ -317,42 +317,51 @@ def render(app, parent) -> None:
          ).pack(side="left", padx=(12, 0))
     tbl.tv.bind("<Double-1>", open_sheet, add="+")
 
-    # ------------------------------------------------------------ silové schéma a napájení
-    t5 = ttk.Frame(nb, padding=10)
-    nb.add(t5, text=_("Silové schéma a napájení"))
-    power = data.get("power", [])
-    if not power:
-        wrap_label(t5, _("Projekt zatím nemá motory, měniče ani zdroj 24 V, ze kterých by se silové "
-                         "schéma a rozvod napájení daly sestavit."))
-    else:
-        ptitles = [s["title"] for s in power]
-        var_power = tk.StringVar(value=ptitles[min(ui.get("power_sheet", 0), len(ptitles) - 1)])
-        ptop = ttk.Frame(t5)
-        ptop.pack(fill="x", pady=(0, 6))
-        ttk.Label(ptop, text=_("List:")).pack(side="left")
-        ttk.Combobox(ptop, textvariable=var_power, values=ptitles, state="readonly", width=34
+    # ------------------------------------------------------------ silové schéma a napájení, pneumatika
+    def sheet_tab(tab_title: str, sheets: list, empty: str, note: str, key: str) -> None:
+        tab = ttk.Frame(nb, padding=10)
+        nb.add(tab, text=tab_title)
+        if not sheets:
+            wrap_label(tab, empty)
+            return
+        titles = [s["title"] for s in sheets]
+        var = tk.StringVar(value=titles[min(ui.get(key, 0), len(titles) - 1)])
+        top = ttk.Frame(tab)
+        top.pack(fill="x", pady=(0, 6))
+        ttk.Label(top, text=_("List:")).pack(side="left")
+        ttk.Combobox(top, textvariable=var, values=titles, state="readonly", width=34
                      ).pack(side="left", padx=(6, 12))
-        pcur = lambda: power[ptitles.index(var_power.get())]  # noqa: E731
-        ttk.Button(ptop, text=_("Uložit SVG…"),
-                   command=lambda: save_file(app, pcur()["base"] + ".svg", pcur()["svg"], "vykresy")
+        cur = lambda: sheets[titles.index(var.get())]  # noqa: E731
+        ttk.Button(top, text=_("Uložit SVG…"),
+                   command=lambda: save_file(app, cur()["base"] + ".svg", cur()["svg"], "vykresy")
                    ).pack(side="left")
-        ttk.Button(ptop, text=_("Uložit DXF…"),
-                   command=lambda: save_file(app, pcur()["base"] + ".dxf", pcur()["dxf"], "vykresy")
+        ttk.Button(top, text=_("Uložit DXF…"),
+                   command=lambda: save_file(app, cur()["base"] + ".dxf", cur()["dxf"], "vykresy")
                    ).pack(side="left", padx=(6, 0))
-        note_box(t5, _("Návrh — ověří elektroprojektant (EN 60204-1). Označení jsou z kusovníku; "
-                       "proudy, průřezy a nastavení jističů zadání neobsahuje, proto jsou na listu "
-                       "„doplní projektant“."), warn=True, side="bottom")
-        view_power = SvgView(t5, band=True)
-        view_power.pack(fill="both", expand=True)
+        note_box(tab, note, warn=True, side="bottom")
+        view = SvgView(tab, band=True)
+        view.pack(fill="both", expand=True)
 
-        def show_power(*_a) -> None:
-            ui["power_sheet"] = ptitles.index(var_power.get())
-            view_power.show(pcur()["svg"])
+        def show(*_a) -> None:
+            ui[key] = titles.index(var.get())
+            view.show(cur()["svg"])
 
-        trace(var_power, show_power, view_power)
-        show_power()
+        trace(var, show, view)
+        show()
+
+    sheet_tab(_("Silové schéma a napájení"), data.get("power", []),
+              _("Projekt zatím nemá motory, měniče ani zdroj 24 V, ze kterých by se silové "
+                "schéma a rozvod napájení daly sestavit."),
+              _("Návrh — ověří elektroprojektant (EN 60204-1). Označení jsou z kusovníku; "
+                "proudy, průřezy a nastavení jističů zadání neobsahuje, proto jsou na listu "
+                "„doplní projektant“."), "power_sheet")
+    if data.get("pneu"):  # záložka jen u projektu s rozváděči
+        sheet_tab(_("Pneumatické schéma"), data["pneu"], "",
+                  _("Návrh — ověří konstruktér pneumatiky (ISO 1219). Označení jsou z kusovníku; "
+                    "tlak, světlost hadic a typ funkce ventilů zadání neobsahuje, proto jsou na "
+                    "listu „doplní projektant“."), "pneu_sheet")
 
     # zapamatuj si otevřenou záložku mezi překresleními
-    nb.select(min(ui.get("schema_tab", 0), TAB_POWER))
+    nb.select(min(ui.get("schema_tab", 0), nb.index("end") - 1))
     nb.bind("<<NotebookTabChanged>>",
             lambda _e: ui.__setitem__("schema_tab", nb.index(nb.select())))

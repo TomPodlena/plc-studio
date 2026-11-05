@@ -195,6 +195,7 @@ const SRC = [
         ],
         tips: [
             N_("Čísla vodičů odpovídají svorkovnici: X1:1 = -W101, X2:3 = -W203."),
+            N_("Pneumatické schéma má vlastní kartu (web) / záložku (desktop), jen když projekt má rozváděče. Na silovém i pneumatickém schématu je u zařízení odkaz na svorku a vodič řízení (např. X2:3, -W203) ze svorkovnice; kde signál v sestavě není, se odkaz nekreslí."),
             N_("Moduly ve schématu jsou ze sestavy hardwaru — stejné jako v kusovníku."),
             web(N_("Na webu klik na zařízení nebo signál ve schématu otevře pod ním úpravu popisu, tagu, adresy a komentáře.")),
             desk(N_("V desktopu jsou schémata klikací: klik na zařízení ukáže panel s jeho signály a kroky programu, odkazy vedou do I/O, zapojení a programu.")),

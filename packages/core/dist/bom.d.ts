@@ -142,3 +142,11 @@ export declare function bomMd(prj: Project): string;
  * `prj.bom.cadFeedback`); bez historie prázdný — výstup beze změny (golden).
  */
 export declare function cadFeedbackMd(prj: Project): string;
+/**
+ * Jediná vazba rozvaděč → válec / chapadlo téhož zařízení (kusovník `ls` = řádky jednoho zařízení).
+ * Používá ji export pro CAD (`actuates`) i pneumatické schéma (`pneuCircuits`).
+ */
+export declare function valveCylinder(ls: BomLine[]): {
+    valve?: BomLine;
+    cyl?: BomLine;
+};

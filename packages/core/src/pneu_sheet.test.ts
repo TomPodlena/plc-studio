@@ -12,6 +12,7 @@ import { cableListCsv } from "./cable_list.js";
 import { svorkyCSV, allProjectFiles } from "./docs.js";
 import { projectFileFolder, PROJECT_DIRS } from "./project_folder.js";
 import { sampleNames, loadSampleFile } from "./exp_util.test.js";
+import { cadProject } from "./cad.js";
 
 const sample = (prefix: string): Project => loadSampleFile(sampleNames().find(n => n.startsWith(prefix))!);
 const hasValves = (p: Project) => buildBom(p).lines.some(l => l.cat === "valve_solenoid");
@@ -82,4 +83,23 @@ test("projektova slozka: pneu list do vykresu, kabelovy seznam do dokumentace", 
   for (const f of pn) assert.equal(projectFileFolder(f.save, f.dir), f.name.endsWith("dxf") ? PROJECT_DIRS.dxf : PROJECT_DIRS.svg);
   const cl = files.find(f => f.save === "03_kabelovy_seznam.csv")!;
   assert.equal(projectFileFolder(cl.save, cl.dir), projectFileFolder("03_svorkovnice.csv", "dokumentace"));
+});
+
+test("pneu schema: odkazy na svorky = svorkyCSV, druh dilu u oznaceni, bez ventilu zadna karta", () => {
+  setLang("cs");
+  const p = cadProject(sample("20_"));
+  const rows = svorkyCSV(p).split("\n").slice(1).map(r => r.split(";"));
+  const svg = pneuSheets(p).map(s => s.svg).join("\n");
+  assert.ok(svg.includes("válec") || svg.includes("chapadlo"));
+  assert.ok(svg.includes("snímač polohy"));
+  let n = 0;
+  for (const d of p.devices.filter(x => x.cls === "Ventil")) {
+    const doRows = p.io.filter(e => e.devId === d.id && e.dir === "DO").map(e => rows.find(r => r[4] === e.tag)!).filter(Boolean);
+    if (!doRows.length || !buildBom(p).lines.some(l => l.devId === d.id && l.cat === "valve_solenoid")) continue;
+    assert.ok(doRows.some(r => svg.includes("cívka: " + esc(r[4]) + " " + r[0] + " (" + r[5] + ")")), "chybi odkaz civky " + d.name);
+    n++;
+  }
+  assert.ok(n > 0);
+  const noValves = { ...p, devices: p.devices.filter(d => d.cls !== "Ventil"), io: p.io.filter(e => p.devices.find(d => d.id === e.devId)?.cls !== "Ventil") };
+  assert.equal(pneuSheets(noValves).length, 0);
 });

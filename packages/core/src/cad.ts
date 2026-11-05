@@ -20,7 +20,7 @@
  */
 import type { Project, PlatformKey, Device } from "./model.js";
 import { modules, syncIO, hasRange, interlockDevs, CONVEYOR_CLASSES } from "./model.js";
-import { buildBom, bomBeaconTowers, bomLineIsSafety, type BomLine } from "./bom.js";
+import { buildBom, bomBeaconTowers, bomLineIsSafety, valveCylinder, type BomLine } from "./bom.js";
 import { isGuid, derivedGuid } from "./guid.js";
 import { axisCfgOf, type AxisCfg } from "./axis.js";
 import { stepTitle } from "./sim.js";
@@ -364,7 +364,7 @@ export function cadManifest(prj0: Project, opts: { generator?: string } = {}): C
     } else if (d.cls === "Axis") {
       rel(pick(ls, "servo_drive"), pick(ls, "servo_motor"), "feeds");
     } else if (d.cls === "Ventil") {
-      const v = pick(ls, "valve_solenoid", "hydraulic_valve", "process_valve"), cyl = pick(ls, "cylinder", "gripper");
+      const vc = valveCylinder(ls), v = vc.valve?.id, cyl = vc.cyl?.id;
       rel(v, cyl, "actuates");
       const sw = pick(ls, "cylinder_switch");
       if (sw) rel(sw, cyl, "senses");

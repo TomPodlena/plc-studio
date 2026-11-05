@@ -5,7 +5,7 @@
  * `hwLayout`; proudy, průřezy a nastavení jističů zadání neobsahuje → „doplní projektant“.
  * Texty výkresu jdou přes `trx` (latinka — totéž se píše do DXF).
  */
-import { devById } from "./model.js";
+import { devById, modules, wireNo } from "./model.js";
 import { buildBom, bomPlatform } from "./bom.js";
 import { hwLayout, hwTypeText } from "./hardware.js";
 import { trx } from "./i18n.js";
@@ -75,6 +75,20 @@ export const hasBand = (prj, meta) => {
 };
 export const cut = (s, n) => (s.length > n ? s.slice(0, n - 1) + "~" : s);
 const TBD = () => trx("doplní projektant");
+export function ioRefsOf(prj) {
+    const out = new Map();
+    modules(prj).forEach((m, mi) => m.ch.forEach((e, i) => {
+        const a = out.get(e.devId) || [];
+        a.push({ dir: e.dir, tag: e.tag, term: "X" + (mi + 1) + ":" + (i + 1), wire: wireNo(mi + 1, i) });
+        out.set(e.devId, a);
+    }));
+    return out;
+}
+/** Řádky odkazů na svorky zařízení (směry `dirs`), např. „řízení: M1_run X2:3 (-W203)“; nic, co by nebylo v `modules()`. */
+export function ioRefLines(refs, devId, dirs, label, max, width) {
+    return (refs?.get(devId) || []).filter(r => dirs.includes(r.dir)).slice(0, max)
+        .map(r => cut(label + " " + r.tag + " " + r.term + " (" + r.wire + ")", width));
+}
 /* ------------------------------------------------------------ symboly IEC 60617 */
 /** Jednopólové (jednočárové) svislé vedení od y1 do y2 — pólovost a fáze zadání neurčuje. */
 function tri(c, cx, y1, y2) { c.Ln(cx, y1, cx, y2); }
@@ -122,7 +136,7 @@ function fedSymbol(c, cx, y, k, l) {
 }
 /* ------------------------------------------------------------ silové schéma */
 const PER_PAGE = 6, X0 = 150, DX = 130;
-export function powerSheetOps(prj, page, total, feeders, bom, first, meta) {
+export function powerSheetOps(prj, page, total, feeders, bom, first, meta, x) {
     const W = 980, H = 640 + hasBand(prj, meta);
     const c = makeCtx(W, H);
     frame(c, prj, trx("Silové schéma"), trx("Silové schéma"), page, total, meta);
@@ -166,6 +180,7 @@ export function powerSheetOps(prj, page, total, feeders, bom, first, meta) {
         Tx(cx, 463, TBD(), { anchor: "middle", k: "m", size: 8 });
         Tx(cx, 473, trx("pólovost / fáze:"), { anchor: "middle", k: "m", size: 7 });
         Tx(cx, 482, trx("doplní projektant"), { anchor: "middle", k: "m", size: 7 });
+        ioRefLines(x?.io, f.devId, ["DO", "AO"], trx("řízení:"), 2, 30).forEach((t, j) => Tx(cx, 516 + j * 10, t, { anchor: "middle", k: "m", size: 7 }));
         c.setDev(undefined);
     });
     /* řízení: jistič řízení → zdroj 24 V */
@@ -191,7 +206,7 @@ export function powerSheetOps(prj, page, total, feeders, bom, first, meta) {
             Tx(cx + 36, y + 26, cut(t.type, 12), { k: "m", size: 8 });
             Ln(cx, y + 40, cx, y + 56);
             Tx(cx, y + 70, "L+ / M", { anchor: "middle", k: "m", size: 9 });
-            Tx(cx, y + 82, trx("viz rozvod napájení"), { anchor: "middle", k: "m", size: 8 });
+            Tx(cx, y + 82, x && x.supplyN > 0 ? trx("→ Rozvod napájení, list") + " 1/" + x.supplyN : trx("viz rozvod napájení"), { anchor: "middle", k: "m", size: 8 });
         }
         Tx(cx, 440, trx("Řízení 24 V DC"), { anchor: "middle", k: "b", size: 9 });
         Tx(cx, 452, trx("Jištění, průřez:"), { anchor: "middle", k: "m", size: 8 });
@@ -255,7 +270,7 @@ function branchesOf(prj, bom) {
             lines: [trx("jen značka vstupu"), trx("do bezpečnostního"), trx("okruhu (viz výkres)")] });
     return out;
 }
-export function supplySheetOps(prj, page, total, branches, bom, meta) {
+export function supplySheetOps(prj, page, total, branches, bom, meta, nTerm = 0) {
     const W = 980, H = 640 + hasBand(prj, meta);
     const c = makeCtx(W, H);
     frame(c, prj, trx("Rozvod napájení 24 V DC"), trx("Rozvod napájení"), page, total, meta);
@@ -291,6 +306,8 @@ export function supplySheetOps(prj, page, total, branches, bom, meta) {
             Ln(cx + 52, 215, cx + 52, peY, "w");
     });
     Tx(40, 560, trx("L+ / M: napájení větví; jištění větví, průřezy a rozdělení zátěže doplní projektant. PE přípojnice dole."), { k: "m", size: 9 });
+    if (nTerm > 0)
+        Tx(40, 576, trx("Vstupy a výstupy PLC: svorky X1 až X{n}, viz listy I/O a svorkovnice.", { n: nTerm }), { k: "m", size: 9 });
     return { W, H, O: c.O };
 }
 /* ------------------------------------------------------------ veřejné API */
@@ -299,6 +316,9 @@ export function powerSheets(prj, meta) {
     const bom = buildBom(prj).lines;
     const out = [];
     const feeders = feedersOf(bom, prj);
+    const io = ioRefsOf(prj);
+    const br = branchesOf(prj, bom);
+    const supplyN = Math.ceil(br.length / PER_PAGE);
     const ctrl = bom.some(l => l.cat === "power_supply_24v" || l.cat === "main_switch");
     if (feeders.length || ctrl) {
         const pages = [];
@@ -310,16 +330,15 @@ export function powerSheets(prj, meta) {
         if (pages[pages.length - 1].length >= PER_PAGE && bom.some(l => l.cat === "power_supply_24v"))
             pages.push([]);
         pages.forEach((fp, i) => {
-            const sh = powerSheetOps(prj, i + 1, pages.length, fp, bom, i === 0, meta);
+            const sh = powerSheetOps(prj, i + 1, pages.length, fp, bom, i === 0, meta, { io, supplyN });
             const label = trx("Silové schéma");
             out.push({ kind: "power", base: "silove_schema_" + (i + 1), title: label + " " + (i + 1) + "/" + pages.length, svg: opsToSVG(sh, label), dxf: opsToDXF(sh) });
         });
     }
-    const br = branchesOf(prj, bom);
     if (br.length) {
-        const n = Math.ceil(br.length / PER_PAGE);
+        const n = supplyN;
         for (let i = 0; i < n; i++) {
-            const sh = supplySheetOps(prj, i + 1, n, br.slice(i * PER_PAGE, (i + 1) * PER_PAGE), bom, meta);
+            const sh = supplySheetOps(prj, i + 1, n, br.slice(i * PER_PAGE, (i + 1) * PER_PAGE), bom, meta, modules(prj).length);
             const label = trx("Rozvod napájení 24 V DC");
             out.push({ kind: "supply", base: "rozvod_napajeni_" + (i + 1), title: label + " " + (i + 1) + "/" + n, svg: opsToSVG(sh, label), dxf: opsToDXF(sh) });
         }

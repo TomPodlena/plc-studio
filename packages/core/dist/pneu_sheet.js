@@ -6,10 +6,10 @@
  * Vazba rozváděč → válec = tatáž jako `actuates` v cad.ts (díly téhož zařízení: `valve_solenoid` → `cylinder`).
  */
 import { devById } from "./model.js";
-import { buildBom } from "./bom.js";
+import { buildBom, valveCylinder } from "./bom.js";
 import { trx } from "./i18n.js";
 import { opsToSVG, opsToDXF } from "./drawing.js";
-import { makeCtx, frame, hasBand, cut } from "./power_sheet.js";
+import { makeCtx, frame, hasBand, cut, ioRefsOf, ioRefLines } from "./power_sheet.js";
 const PER_PAGE = 4, X0 = 200, DX = 190;
 const TBD = () => trx("doplní projektant");
 /** Rozváděč nese údaj 5/2 monostabilní (cívka + pružina)? Jinak se funkce nedomýšlí. */
@@ -26,7 +26,7 @@ export function pneuCircuits(prj, lines) {
         seen.add(v.devId);
         const ls = lines.filter(l => l.devId === v.devId);
         out.push({ devId: v.devId, name: devById(prj, v.devId)?.name || "", valve: v,
-            cyl: ls.find(l => l.cat === "cylinder" || l.cat === "gripper"), sw: ls.filter(l => l.cat === "cylinder_switch") });
+            cyl: valveCylinder(ls).cyl, sw: ls.filter(l => l.cat === "cylinder_switch") });
     }
     return out;
 }
@@ -62,7 +62,7 @@ export function pneuSheetOps(prj, page, total, cs, lines, first, meta) {
     const c = makeCtx(W, H);
     frame(c, prj, trx("Pneumatické schéma"), trx("Pneumatické schéma"), page, total, meta, { warn: trx("Návrh — ověří konstruktér pneumatiky"), hint: trx("Tlak, světlost hadic a typ funkce ventilů zadání neobsahuje — doplní projektant. Označení podle kusovníku (IEC 81346).") });
     const { Ln, Tx, Re } = c;
-    const busY = 196;
+    const busY = 196, io = ioRefsOf(prj);
     /* úprava vzduchu: přívod → uzávěr -QM1 → filtr-regulátor -HQ1 → (-YS1) → lišta -WP1 */
     const by = (cat) => lines.find(l => l.cat === cat);
     const chain = [by("air_shutoff"), by("air_prep"), by("safety_valve")].filter((l) => !!l);
@@ -134,7 +134,7 @@ export function pneuSheetOps(prj, page, total, cs, lines, first, meta) {
             Ln(cx - 8, yb, cx - 8, 330, "w");
             Ln(cx + 8, yb, cx + 8, 330, "w");
         }
-        Tx(cx - 34, y0 - 14, ci.valve.tag, { k: "b", size: 10 });
+        Tx(cx - 34, y0 - 14, ci.valve.tag + " " + trx("rozváděč"), { k: "b", size: 10 });
         Tx(cx - 34, y0 - 3, cut(ci.valve.type, 14), { k: "m", size: 8 });
         if (!mono) {
             Tx(cx + 34, y0 + 12, trx("funkce ventilu:"), { size: 7, k: "m" });
@@ -146,25 +146,27 @@ export function pneuSheetOps(prj, page, total, cs, lines, first, meta) {
             Ln(cx - 16, 352, cx + 16, 352);
             Ln(cx, 352, cx, 420, "w");
             Ln(cx - 8, 420, cx + 8, 420, "w");
-            Tx(cx + 22, 346, ci.cyl.tag, { k: "b", size: 10 });
+            Tx(cx + 22, 346, ci.cyl.tag + " " + trx("válec"), { k: "b", size: 10 });
             Tx(cx + 22, 358, cut(ci.cyl.type, 14), { k: "m", size: 8 });
         }
         else if (ci.cyl) {
             Re(cx - 24, 330, 48, 40, "chip");
             Tx(cx, 354, cut(ci.cyl.item, 10), { anchor: "middle", size: 8 });
-            Tx(cx + 30, 346, ci.cyl.tag, { k: "b", size: 10 });
+            Tx(cx + 30, 346, ci.cyl.tag + " " + trx("chapadlo"), { k: "b", size: 10 });
         }
         else
             Tx(cx - 20, 346, trx("válec: není v kusovníku"), { k: "m", size: 8 });
         let sy = 372;
         for (const s of ci.sw) {
-            Tx(cx + 22, sy + 16, s.tag, { size: 9 });
+            Tx(cx + 22, sy + 16, s.tag + " " + trx("snímač polohy"), { size: 9 });
             Tx(cx + 22, sy + 27, cut(s.type, 14), { k: "m", size: 7 });
             sy += 22;
         }
         Tx(cx, 452, cut(ci.name, 16), { anchor: "middle", k: "b", size: 9 });
         Tx(cx, 466, trx("porty 2 / 4: přiřazení ověřit"), { anchor: "middle", k: "m", size: 7 });
         Tx(cx, 477, trx("Ø hadic:") + " " + TBD(), { anchor: "middle", k: "m", size: 7 });
+        ioRefLines(io, ci.devId, ["DO"], trx("cívka:"), 1, 34).concat(ioRefLines(io, ci.devId, ["DI"], trx("snímač:"), 3, 34))
+            .forEach((t, j) => Tx(cx, 490 + j * 10, t, { anchor: "middle", k: "m", size: 7 }));
         c.setDev(undefined);
     });
     Tx(40, 560, trx("Symboly dle ISO 1219-1: rozváděč 5/2 s cívkou a pružinou, dvojčinný válec, filtr-regulátor, uzávěr, tlumič; porty 1 / 2 / 3 / 4 / 5."), { k: "m", size: 9 });

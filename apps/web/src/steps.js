@@ -871,19 +871,24 @@ export function makeSteps(ctx) {
       downloadFile(String(i + 1).padStart(2, "0") + "_" + mods[i].dir + mods[i].idx + "_X" + (i + 1) + ".dxf", sheetDXF(p, mods[i], i + 1, i + 1, mods.length));
     }));
     /* silové schéma a rozvod napájení 24 V DC (power_sheet.ts): označení z kusovníku, hodnoty doplní projektant */
-    let pw = [];
-    try { pw = powerSheets(p).concat(pneuSheets(p)); } catch (e) { pw = []; }
-    if (pw.length) {
+    const sheetCard = (list, title, note) => {
+      if (!list.length) return;
       let pin = "";
-      pw.forEach((s, i) => {
+      list.forEach((s, i) => {
         pin += "<h3>" + s.title + "</h3><div class='tablewrap sheetwrap'><figure style='margin:0'>" + s.svg + "</figure></div>" +
           "<div class='row'><button class='small' data-psvg='" + i + "'>" + tr("Stáhnout SVG") + "</button><button class='small' data-pdxf='" + i + "'>" + tr("Stáhnout DXF") + "</button></div>";
       });
-      const c3 = card(el, "·", tr("Silové schéma a rozvod napájení"), pin +
-        "<p class='warnbox'>" + tr("Návrh — ověří elektroprojektant (EN 60204-1). Označení jsou z kusovníku; proudy, průřezy a nastavení jističů zadání neobsahuje, proto jsou na listu „doplní projektant“.") + "</p>");
-      c3.querySelectorAll("[data-psvg]").forEach(b => b.addEventListener("click", () => { const s = pw[+b.dataset.psvg]; downloadFile("00_" + s.base + ".svg", s.svg); }));
-      c3.querySelectorAll("[data-pdxf]").forEach(b => b.addEventListener("click", () => { const s = pw[+b.dataset.pdxf]; downloadFile("00_" + s.base + ".dxf", s.dxf); }));
-    }
+      const cx = card(el, "·", title, pin + "<p class='warnbox'>" + note + "</p>");
+      cx.querySelectorAll("[data-psvg]").forEach(b => b.addEventListener("click", () => { const s = list[+b.dataset.psvg]; downloadFile("00_" + s.base + ".svg", s.svg); }));
+      cx.querySelectorAll("[data-pdxf]").forEach(b => b.addEventListener("click", () => { const s = list[+b.dataset.pdxf]; downloadFile("00_" + s.base + ".dxf", s.dxf); }));
+    };
+    let pw = [], pn = [];
+    try { pw = powerSheets(p); } catch (e) { pw = []; }
+    try { pn = pneuSheets(p); } catch (e) { pn = []; }
+    sheetCard(pw, tr("Silové schéma a rozvod napájení"),
+      tr("Návrh — ověří elektroprojektant (EN 60204-1). Označení jsou z kusovníku; proudy, průřezy a nastavení jističů zadání neobsahuje, proto jsou na listu „doplní projektant“."));
+    sheetCard(pn, tr("Pneumatické schéma"),
+      tr("Návrh — ověří konstruktér pneumatiky (ISO 1219). Označení jsou z kusovníku; tlak, světlost hadic a typ funkce ventilů zadání neobsahuje, proto jsou na listu „doplní projektant“."));
     /* svorkovnice: u velkého projektu tisíce řádků → prvních PAGE (util.js pageLimit), zvýrazněná svorka vždy vidět */
     const terms = [];
     mods.forEach((m, mi) => m.ch.forEach((e, i) => terms.push([m, mi, e, i])));

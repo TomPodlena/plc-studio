@@ -12,6 +12,9 @@ import { powerSheets } from "./power_sheet.js";
 import { allProjectFiles } from "./docs.js";
 import { projectFileFolder, PROJECT_DIRS } from "./project_folder.js";
 import { sampleSmall } from "./samples.js";
+import { cadProject } from "./cad.js";
+import { svorkyCSV } from "./docs.js";
+import { modules } from "./model.js";
 import { sampleNames, loadSampleFile } from "./exp_util.test.js";
 
 const sample = (prefix: string): Project => loadSampleFile(sampleNames().find(n => n.startsWith(prefix))!);
@@ -128,4 +131,18 @@ test("polohovaci radic: neni na silovem listu, je na rozvodu napajeni", () => {
   }
   assert.ok(!power.includes("400 V"));
   assert.ok(supply.includes("doplní projektant"));
+});
+
+test("silove schema: odkaz na svorku rizeni = svorkyCSV, zdroj odkazuje na rozvod napajeni", () => {
+  setLang("cs");
+  const p = cadProject(loadSampleFile(sampleNames().find(n => n.startsWith("01_"))!));
+  const rows = svorkyCSV(p).split("\n").slice(1).map(r => r.split(";"));
+  const sh = powerSheets(p);
+  const svg = sh.filter(s => s.kind === "power").map(s => s.svg).join("\n");
+  const wires = [...svg.matchAll(/řízení: \S+ (X\d+:\d+) \((-W\d+)\)/g)];
+  assert.ok(wires.length > 0, "zadny odkaz na svorku");
+  for (const m of wires) assert.ok(rows.some(r => r[0] === m[1] && r[5] === m[2]), "odkaz mimo svorkovnici " + m[0]);
+  const supplyN = sh.filter(s => s.kind === "supply").length;
+  if (supplyN) assert.ok(svg.includes("→ Rozvod napájení, list 1/" + supplyN));
+  assert.ok(sh.filter(s => s.kind === "supply").every(s => s.svg.includes("X1 až X" + modules(p).length)));
 });

@@ -45,14 +45,27 @@ export declare function frame(c: Ctx, prj: Project, title: string, drawing: stri
 }): void;
 export declare const hasBand: (prj: Project, meta?: SheetMeta) => number;
 export declare const cut: (s: string, n: number) => string;
-export declare function powerSheetOps(prj: Project, page: number, total: number, feeders: Feeder[], bom: BomLine[], first: boolean, meta?: SheetMeta): SheetOps;
+/** Svorka kanálu zařízení: stejný zdroj jako `svorkyCSV` (`modules()` + `wireNo`). */
+export interface IoRef {
+    dir: string;
+    tag: string;
+    term: string;
+    wire: string;
+}
+export declare function ioRefsOf(prj: Project): Map<number, IoRef[]>;
+/** Řádky odkazů na svorky zařízení (směry `dirs`), např. „řízení: M1_run X2:3 (-W203)“; nic, co by nebylo v `modules()`. */
+export declare function ioRefLines(refs: Map<number, IoRef[]> | undefined, devId: number, dirs: string[], label: string, max: number, width: number): string[];
+export declare function powerSheetOps(prj: Project, page: number, total: number, feeders: Feeder[], bom: BomLine[], first: boolean, meta?: SheetMeta, x?: {
+    io: Map<number, IoRef[]>;
+    supplyN: number;
+}): SheetOps;
 interface Branch {
     title: string;
     sub: string;
     lines: string[];
     marker?: boolean;
 }
-export declare function supplySheetOps(prj: Project, page: number, total: number, branches: Branch[], bom: BomLine[], meta?: SheetMeta): SheetOps;
+export declare function supplySheetOps(prj: Project, page: number, total: number, branches: Branch[], bom: BomLine[], meta?: SheetMeta, nTerm?: number): SheetOps;
 /** Listy silového schématu a rozvodu napájení (prázdné pole, když projekt nemá co kreslit). */
 export declare function powerSheets(prj: Project, meta?: SheetMeta): PowerSheet[];
 export {};

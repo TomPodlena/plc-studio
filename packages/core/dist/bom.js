@@ -609,3 +609,13 @@ export function cadFeedbackMd(prj) {
         "",
     ].join("\n");
 }
+/**
+ * Jediná vazba rozvaděč → válec / chapadlo téhož zařízení (kusovník `ls` = řádky jednoho zařízení).
+ * Používá ji export pro CAD (`actuates`) i pneumatické schéma (`pneuCircuits`).
+ */
+export function valveCylinder(ls) {
+    return {
+        valve: ls.find(l => l.cat === "valve_solenoid" || l.cat === "hydraulic_valve" || l.cat === "process_valve"),
+        cyl: ls.find(l => l.cat === "cylinder" || l.cat === "gripper"),
+    };
+}

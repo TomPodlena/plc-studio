@@ -5,7 +5,7 @@
  * `hwLayout`; proudy, průřezy a nastavení jističů zadání neobsahuje → „doplní projektant“.
  * Texty výkresu jdou přes `trx` (latinka — totéž se píše do DXF).
  */
-import { Project, devById } from "./model.js";
+import { Project, devById, modules, wireNo } from "./model.js";
 import { buildBom, bomPlatform, BomLine } from "./bom.js";
 import { hwLayout, hwTypeText } from "./hardware.js";
 import { trx } from "./i18n.js";
@@ -85,6 +85,25 @@ export const hasBand = (prj: Project, meta?: SheetMeta): number => {
 export const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "~" : s);
 const TBD = () => trx("doplní projektant");
 
+/** Svorka kanálu zařízení: stejný zdroj jako `svorkyCSV` (`modules()` + `wireNo`). */
+export interface IoRef { dir: string; tag: string; term: string; wire: string; }
+
+export function ioRefsOf(prj: Project): Map<number, IoRef[]> {
+  const out = new Map<number, IoRef[]>();
+  modules(prj).forEach((m, mi) => m.ch.forEach((e, i) => {
+    const a = out.get(e.devId) || [];
+    a.push({ dir: e.dir, tag: e.tag, term: "X" + (mi + 1) + ":" + (i + 1), wire: wireNo(mi + 1, i) });
+    out.set(e.devId, a);
+  }));
+  return out;
+}
+
+/** Řádky odkazů na svorky zařízení (směry `dirs`), např. „řízení: M1_run X2:3 (-W203)“; nic, co by nebylo v `modules()`. */
+export function ioRefLines(refs: Map<number, IoRef[]> | undefined, devId: number, dirs: string[], label: string, max: number, width: number): string[] {
+  return (refs?.get(devId) || []).filter(r => dirs.includes(r.dir)).slice(0, max)
+    .map(r => cut(label + " " + r.tag + " " + r.term + " (" + r.wire + ")", width));
+}
+
 /* ------------------------------------------------------------ symboly IEC 60617 */
 
 /** Jednopólové (jednočárové) svislé vedení od y1 do y2 — pólovost a fáze zadání neurčuje. */
@@ -122,7 +141,7 @@ function fedSymbol(c: Ctx, cx: number, y: number, k: FeedKind, l: BomLine): numb
 
 const PER_PAGE = 6, X0 = 150, DX = 130;
 
-export function powerSheetOps(prj: Project, page: number, total: number, feeders: Feeder[], bom: BomLine[], first: boolean, meta?: SheetMeta): SheetOps {
+export function powerSheetOps(prj: Project, page: number, total: number, feeders: Feeder[], bom: BomLine[], first: boolean, meta?: SheetMeta, x?: { io: Map<number, IoRef[]>; supplyN: number }): SheetOps {
   const W = 980, H = 640 + hasBand(prj, meta);
   const c = makeCtx(W, H);
   frame(c, prj, trx("Silové schéma"), trx("Silové schéma"), page, total, meta);
@@ -158,6 +177,7 @@ export function powerSheetOps(prj: Project, page: number, total: number, feeders
     Tx(cx, 452, trx("Jištění, průřez:"), { anchor: "middle", k: "m", size: 8 });
     Tx(cx, 463, TBD(), { anchor: "middle", k: "m", size: 8 });
     Tx(cx, 473, trx("pólovost / fáze:"), { anchor: "middle", k: "m", size: 7 }); Tx(cx, 482, trx("doplní projektant"), { anchor: "middle", k: "m", size: 7 });
+    ioRefLines(x?.io, f.devId, ["DO", "AO"], trx("řízení:"), 2, 30).forEach((t, j) => Tx(cx, 516 + j * 10, t, { anchor: "middle", k: "m", size: 7 }));
     c.setDev(undefined);
   });
   /* řízení: jistič řízení → zdroj 24 V */
@@ -176,7 +196,7 @@ export function powerSheetOps(prj: Project, page: number, total: number, feeders
     if (t) {
       Re(cx - 30, y, 60, 40, "chip"); Tx(cx, y + 18, "AC / DC", { anchor: "middle", size: 9 }); Tx(cx, y + 31, "24 V", { anchor: "middle", size: 9 });
       Tx(cx + 36, y + 14, t.tag, { k: "b", size: 10 }); Tx(cx + 36, y + 26, cut(t.type, 12), { k: "m", size: 8 });
-      Ln(cx, y + 40, cx, y + 56); Tx(cx, y + 70, "L+ / M", { anchor: "middle", k: "m", size: 9 }); Tx(cx, y + 82, trx("viz rozvod napájení"), { anchor: "middle", k: "m", size: 8 });
+      Ln(cx, y + 40, cx, y + 56); Tx(cx, y + 70, "L+ / M", { anchor: "middle", k: "m", size: 9 }); Tx(cx, y + 82, x && x.supplyN > 0 ? trx("→ Rozvod napájení, list") + " 1/" + x.supplyN : trx("viz rozvod napájení"), { anchor: "middle", k: "m", size: 8 });
     }
     Tx(cx, 440, trx("Řízení 24 V DC"), { anchor: "middle", k: "b", size: 9 });
     Tx(cx, 452, trx("Jištění, průřez:"), { anchor: "middle", k: "m", size: 8 });
@@ -236,7 +256,7 @@ function branchesOf(prj: Project, bom: BomLine[]): Branch[] {
   return out;
 }
 
-export function supplySheetOps(prj: Project, page: number, total: number, branches: Branch[], bom: BomLine[], meta?: SheetMeta): SheetOps {
+export function supplySheetOps(prj: Project, page: number, total: number, branches: Branch[], bom: BomLine[], meta?: SheetMeta, nTerm = 0): SheetOps {
   const W = 980, H = 640 + hasBand(prj, meta);
   const c = makeCtx(W, H);
   frame(c, prj, trx("Rozvod napájení 24 V DC"), trx("Rozvod napájení"), page, total, meta);
@@ -265,6 +285,7 @@ export function supplySheetOps(prj: Project, page: number, total: number, branch
     if (!b.marker) Ln(cx + 52, 215, cx + 52, peY, "w");
   });
   Tx(40, 560, trx("L+ / M: napájení větví; jištění větví, průřezy a rozdělení zátěže doplní projektant. PE přípojnice dole."), { k: "m", size: 9 });
+  if (nTerm > 0) Tx(40, 576, trx("Vstupy a výstupy PLC: svorky X1 až X{n}, viz listy I/O a svorkovnice.", { n: nTerm }), { k: "m", size: 9 });
   return { W, H, O: c.O };
 }
 
@@ -275,6 +296,9 @@ export function powerSheets(prj: Project, meta?: SheetMeta): PowerSheet[] {
   const bom = buildBom(prj).lines;
   const out: PowerSheet[] = [];
   const feeders = feedersOf(bom, prj);
+  const io = ioRefsOf(prj);
+  const br = branchesOf(prj, bom);
+  const supplyN = Math.ceil(br.length / PER_PAGE);
   const ctrl = bom.some(l => l.cat === "power_supply_24v" || l.cat === "main_switch");
   if (feeders.length || ctrl) {
     const pages: Feeder[][] = [];
@@ -283,16 +307,15 @@ export function powerSheets(prj: Project, meta?: SheetMeta): PowerSheet[] {
     /* sloupec řízení potřebuje volné místo; jinak na další list */
     if (pages[pages.length - 1].length >= PER_PAGE && bom.some(l => l.cat === "power_supply_24v")) pages.push([]);
     pages.forEach((fp, i) => {
-      const sh = powerSheetOps(prj, i + 1, pages.length, fp, bom, i === 0, meta);
+      const sh = powerSheetOps(prj, i + 1, pages.length, fp, bom, i === 0, meta, { io, supplyN });
       const label = trx("Silové schéma");
       out.push({ kind: "power", base: "silove_schema_" + (i + 1), title: label + " " + (i + 1) + "/" + pages.length, svg: opsToSVG(sh, label), dxf: opsToDXF(sh) });
     });
   }
-  const br = branchesOf(prj, bom);
   if (br.length) {
-    const n = Math.ceil(br.length / PER_PAGE);
+    const n = supplyN;
     for (let i = 0; i < n; i++) {
-      const sh = supplySheetOps(prj, i + 1, n, br.slice(i * PER_PAGE, (i + 1) * PER_PAGE), bom, meta);
+      const sh = supplySheetOps(prj, i + 1, n, br.slice(i * PER_PAGE, (i + 1) * PER_PAGE), bom, meta, modules(prj).length);
       const label = trx("Rozvod napájení 24 V DC");
       out.push({ kind: "supply", base: "rozvod_napajeni_" + (i + 1), title: label + " " + (i + 1) + "/" + n, svg: opsToSVG(sh, label), dxf: opsToDXF(sh) });
     }
