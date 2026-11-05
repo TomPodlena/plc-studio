@@ -16,6 +16,98 @@ from ..widgets import Table, card, link, note_box, save_file, save_many, wrap_la
 TAB_BLOCK, TAB_FLOW, TAB_WIRING, TAB_TERMS, TAB_POWER, TAB_PNEU = range(6)
 
 
+_CAB_CACHE: dict = {}  # otisk manifestu -> {"svg": str} | {"error": str}
+
+
+def cabinet_svg(manifest_json: str, home, nazev: str) -> str:
+    """Výpočet rozložení rozvaděče bez FreeCADu do dočasné složky v ``home`` (volat ve vlákně)."""
+    import json
+    import shutil
+    import tempfile
+    from pathlib import Path
+
+    from ..pro3d_cabinet import cli
+    from ..rozvadec_2d import layout_svg
+
+    tmp = Path(tempfile.mkdtemp(prefix="rozvadec_", dir=str(home)))
+    try:
+        (tmp / "PLCdesk_CAD.json").write_text(manifest_json, encoding="utf-8")
+        cli.generate(tmp / "PLCdesk_CAD.json", tmp, no_fc=True)
+        layout = json.loads((tmp / "rozvadec" / "layout.json").read_text(encoding="utf-8"))
+        return layout_svg(layout, nazev)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def cabinet_tab(app, nb, prj) -> None:
+    """Záložka „Rozložení rozvaděče“ — jen u projektu se skříní; výpočet ve vlákně."""
+    import hashlib
+    import json
+    import threading
+
+    from ..rozvadec_2d import has_cabinet
+
+    try:
+        man_json = app.bridge.request("cad", prj=prj)["json"]
+        manifest = json.loads(man_json)
+    except Exception:  # noqa: BLE001 — bez manifestu záložka prostě není
+        return
+    if not has_cabinet(manifest):
+        return
+    key = hashlib.sha256(man_json.encode("utf-8")).hexdigest()
+    tab = ttk.Frame(nb, padding=10)
+    nb.add(tab, text=_("Rozložení rozvaděče"))
+    top = ttk.Frame(tab)
+    top.pack(fill="x", pady=(0, 6))
+    holder = ttk.Frame(tab)
+    holder.pack(fill="both", expand=True)
+    nazev = (prj.get("meta") or {}).get("name") or prj.get("name") or ""
+
+    def done() -> None:
+        for c in holder.winfo_children():
+            c.destroy()
+        res = _CAB_CACHE[key]
+        if "error" in res:
+            wrap_label(holder, _("Rozložení rozvaděče se nepodařilo sestavit: {err}", err=res["error"]))
+            return
+        svg = res["svg"]
+        if not svg:
+            wrap_label(holder, _("Rozvaděč zatím nemá co kreslit."))
+            return
+        ttk.Button(top, text=_("Uložit SVG…"),
+                   command=lambda: save_file(app, "01_rozlozeni_rozvadece.svg", svg, "vykresy")
+                   ).pack(side="left")
+        note_box(holder, _("Návrh — ověří elektroprojektant. Kreslí jen hodnoty z výpočtu rozvaděče; "
+                           "rozměry přístrojů označené * jsou ODHAD."), warn=True, side="bottom")
+        view = SvgView(holder, band=True)
+        view.pack(fill="both", expand=True)
+        view.show(svg)
+
+    if key in _CAB_CACHE:
+        done()
+        return
+    wrap_label(holder, _("Počítám rozložení rozvaděče…"))
+
+    def work() -> None:
+        try:
+            _CAB_CACHE[key] = {"svg": cabinet_svg(man_json, app.home, nazev)}
+        except Exception as e:  # noqa: BLE001
+            _CAB_CACHE[key] = {"error": str(e)}
+
+    th = threading.Thread(target=work, daemon=True)
+    th.start()
+
+    def poll() -> None:
+        if not holder.winfo_exists():
+            return
+        if th.is_alive():
+            holder.after(300, poll)
+        else:
+            done()
+
+    holder.after(300, poll)
+
+
 def render(app, parent) -> None:
     data = app.bridge.request("schema", prj=app.prj)
     app.prj = data["prj"]
@@ -360,6 +452,8 @@ def render(app, parent) -> None:
                   _("Návrh — ověří konstruktér pneumatiky (ISO 1219). Označení jsou z kusovníku; "
                     "tlak, světlost hadic a typ funkce ventilů zadání neobsahuje, proto jsou na "
                     "listu „doplní projektant“."), "pneu_sheet")
+
+    cabinet_tab(app, nb, data["prj"])
 
     # zapamatuj si otevřenou záložku mezi překresleními
     nb.select(min(ui.get("schema_tab", 0), nb.index("end") - 1))

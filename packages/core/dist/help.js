@@ -199,6 +199,7 @@ const SRC = [
             N_("Moduly ve schématu jsou ze sestavy hardwaru — stejné jako v kusovníku."),
             web(N_("Na webu klik na zařízení nebo signál ve schématu otevře pod ním úpravu popisu, tagu, adresy a komentáře.")),
             desk(N_("V desktopu jsou schémata klikací: klik na zařízení ukáže panel s jeho signály a kroky programu, odkazy vedou do I/O, zapojení a programu.")),
+            desk(N_("Jen v desktopu: má-li kusovník rozvaděč, přibude záložka **Rozložení rozvaděče** — 2D výkres montážní desky (lišty, žlaby, přístroje s označením), dveří a dna s vývodkami v měřítku. Kreslí jen hodnoty z výpočtu rozvaděče (rozměry přístrojů označené hvězdičkou jsou ODHAD); návrh k ověření elektroprojektantem. Web tento výpočet nemá.")),
             desk(N_("Jen v desktopu: **Funkční diagram cyklu** ukazuje krok za krokem akce, podmínky přechodu a časy běžného cyklu.")),
             N_("DXF ve tarifu Free není k dispozici (tarif Pro)."),
         ],
