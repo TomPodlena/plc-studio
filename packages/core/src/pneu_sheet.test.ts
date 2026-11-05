@@ -67,6 +67,7 @@ for (const pre of ["01_", "11_", "20_"]) {
       assert.equal(r[4], sv[i][0]);     // svorka
       assert.equal(r[5], sv[i][5]);     // vodic
       assert.equal(r[2], sv[i][4]);     // tag
+      assert.equal(r.length, 10, "pocet sloupcu CSV: " + r.join(";"));
       assert.equal(r[7], ""); assert.equal(r[8], "");
       assert.ok(r[9].includes("doplní projektant"));
     });

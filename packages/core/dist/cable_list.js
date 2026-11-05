@@ -17,7 +17,7 @@ export function cableListCsv(prj0) {
         const cab = cables.find(l => l.devId === e.devId);
         rows.push([
             "-WK" + w.slice(2), d?.name || "", e.tag, d?.name || "", "X" + (mi + 1) + ":" + (i + 1), w,
-            cab ? (cab.orderCode || cab.type) : "", "", "", tbd + (cab ? "" : "; " + tr("typ kabelu")),
+            cab ? (cab.orderCode || cab.type) : "", "", "", tbd + (cab ? "" : ", " + tr("typ kabelu")),
         ].map(lineSafe).join(";"));
     }));
     return rows.join("\n");
