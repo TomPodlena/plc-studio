@@ -14,12 +14,15 @@ import { projectFileFolder, PROJECT_DIRS } from "./project_folder.js";
 import { sampleSmall } from "./samples.js";
 import { sampleNames, loadSampleFile } from "./exp_util.test.js";
 const sample = (prefix) => loadSampleFile(sampleNames().find(n => n.startsWith(prefix)));
+const posDevs = (prj) => new Set(buildBom(prj).lines.filter(l => l.cat === "positioning_drive" && l.devId !== undefined).map(l => l.devId));
 /** První řádek každého druhu (-Q / -K / -TA / -M) u zařízení se silovým vývodem — to musí být na listu. */
 function expectedParts(prj) {
     const by = new Map();
     for (const l of buildBom(prj).lines) {
         const m = /^-(Q|K|TA|M)\d/.exec(l.tag);
         if (l.devId === undefined || !m)
+            continue;
+        if (posDevs(prj).has(l.devId))
             continue;
         const g = by.get(l.devId) || new Map();
         if (!g.has(m[1]))
@@ -52,6 +55,7 @@ for (const [what, pre] of CASES) {
             assert.ok(s.dxf.startsWith("0\nSECTION") && s.dxf.endsWith("EOF"));
         }
         assert.ok(svg.includes("doplní projektant"));
+        assert.ok(!svg.includes("400 V") && !svg.includes(">3~<"));
     });
 }
 test("rozvod napajeni: stanice a zdroj z kusovniku + znacka E-stop vetve", () => {
@@ -88,7 +92,7 @@ test("bez motoru: jen rozvod napajeni, nic nespadne", () => {
 });
 test("jazyky: stejna geometrie, bez ceskych textu mimo obsah projektu", () => {
     const p = sample("12_");
-    const czech = ["Silové schéma", "Přívod", "doplní projektant", "Jištění", "Rozvod napájení", "Návrh — ověří", "Symboly dle", "Zdroj 24 V DC"];
+    const czech = ["Silové schéma", "Přívod", "doplní projektant", "Jištění", "Rozvod napájení", "Návrh — ověří", "Symboly dle", "Zdroj 24 V DC", "pólovost", "Řadiče polohování", "napájení podle"];
     const langs = ["en", "de", "es", "zh"];
     try {
         setLang("cs");
@@ -116,4 +120,17 @@ test("projektova slozka: vykresy do 02_Vykresy SVG / DXF, nic nezarazeneho", () 
         assert.equal(f.dir, "vykresy");
         assert.equal(projectFileFolder(f.save, f.dir), f.kind === "dxf" ? PROJECT_DIRS.dxf : PROJECT_DIRS.svg);
     }
+});
+test("polohovaci radic: neni na silovem listu, je na rozvodu napajeni", () => {
+    const p = sample("11_");
+    const pd = [...new Set(buildBom(p).lines.filter(l => l.cat === "positioning_drive").map(l => l.tag))];
+    assert.ok(pd.length > 0);
+    const power = powerSheets(p).filter(s => s.kind === "power").map(s => s.svg).join("\n");
+    const supply = powerSheets(p).filter(s => s.kind === "supply").map(s => s.svg).join("\n");
+    for (const tag of pd) {
+        assert.ok(!power.includes(">" + esc(tag) + "<"), "na silovem listu: " + tag);
+        assert.ok(supply.includes(esc(tag)), "chybi na rozvodu: " + tag);
+    }
+    assert.ok(!power.includes("400 V"));
+    assert.ok(supply.includes("doplní projektant"));
 });

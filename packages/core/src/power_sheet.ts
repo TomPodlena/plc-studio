@@ -42,7 +42,8 @@ function feedersOf(lines: BomLine[], prj: Project): Feeder[] {
     if (!f) { f = { devId: l.devId, name: devById(prj, l.devId)?.name || "", parts: {} }; by.set(l.devId, f); }
     if (!f.parts[k]) f.parts[k] = l;
   }
-  return [...by.values()].filter(f => f.parts.M || f.parts.TA || f.parts.K).sort((a, b) => a.devId - b.devId);
+  /* nízkonapěťové polohovací řadiče nejsou silový vývod — jdou do rozvodu napájení */
+  return [...by.values()].filter(f => f.parts.TA?.cat !== "positioning_drive").filter(f => f.parts.M || f.parts.TA || f.parts.K).sort((a, b) => a.devId - b.devId);
 }
 
 function makeCtx(W: number, H: number) {
@@ -86,19 +87,19 @@ const TBD = () => trx("doplní projektant");
 
 /* ------------------------------------------------------------ symboly IEC 60617 */
 
-/** Tři pólová svislá vedení (L1 L2 L3) od y1 do y2 kolem osy cx. */
-function tri(c: Ctx, cx: number, y1: number, y2: number): void { for (const dx of [-10, 0, 10]) c.Ln(cx + dx, y1, cx + dx, y2); }
+/** Jednopólové (jednočárové) svislé vedení od y1 do y2 — pólovost a fáze zadání neurčuje. */
+function tri(c: Ctx, cx: number, y1: number, y2: number): void { c.Ln(cx, y1, cx, y2); }
 
 /** Třípólový přístroj: stykač (oblouk u pólu) nebo jistič (křížek na pólu); výška 34. */
 function poles(c: Ctx, cx: number, y: number, kind: "contactor" | "breaker" | "switch"): number {
-  for (const dx of [-10, 0, 10]) {
+  for (const dx of [0]) {
     const x = cx + dx;
     c.Ln(x, y, x, y + 9); c.Ln(x, y + 9, x - 6, y + 25, "s"); c.Ln(x, y + 25, x, y + 34);
     if (kind === "contactor") c.Ci(x, y + 9, 2);
     if (kind === "breaker") { c.Ln(x - 3, y + 3, x + 3, y + 9, "s"); c.Ln(x + 3, y + 3, x - 3, y + 9, "s"); }
   }
-  c.Ln(cx - 13, y + 17, cx + 7, y + 17, "r0");                 // mechanická vazba
-  if (kind === "switch") c.Ln(cx + 9, y + 17, cx + 20, y + 17, "r0");
+  c.Ln(cx - 8, y + 17, cx + 4, y + 17, "r0");                  // mechanická vazba
+  if (kind === "switch") c.Ln(cx + 6, y + 17, cx + 16, y + 17, "r0");
   return y + 34;
 }
 
@@ -109,7 +110,7 @@ function fedSymbol(c: Ctx, cx: number, y: number, k: FeedKind, l: BomLine): numb
   else if (k === "TA") {
     tri(c, cx, y, y + 6); c.Re(cx - 20, y + 6, 40, 32); c.Tx(cx, y + 26, "~ / ~", { anchor: "middle", size: 9 }); tri(c, cx, y + 38, y + 44); end = y + 44;
   } else {
-    tri(c, cx, y, y + 4); c.Ci(cx, y + 22, 18); c.Tx(cx, y + 22, "M", { anchor: "middle", size: 11, k: "b" }); c.Tx(cx, y + 34, "3~", { anchor: "middle", size: 8 });
+    tri(c, cx, y, y + 4); c.Ci(cx, y + 22, 18); c.Tx(cx, y + 22, "M", { anchor: "middle", size: 11, k: "b" });
     end = y + 44;
   }
   c.Tx(cx + 24, y + 12, l.tag, { k: "b", size: 10 });
@@ -129,13 +130,11 @@ export function powerSheetOps(prj: Project, page: number, total: number, feeders
   const busY = 170, peY = 500;
   /* přívod a hlavní vypínač */
   const q0 = bom.find(l => l.cat === "main_switch");
-  Tx(40, 108, trx("Přívod 3× 400 V + PE"), { k: "b", size: 10 });
+  Tx(40, 108, trx("Přívod + PE — napětí doplní projektant"), { k: "b", size: 10 });
   const busEnd = X0 + DX * Math.max(0, feeders.length + (ctrlCols(bom, feeders) ? 0 : -1)) + 40;
-  for (const [i, n] of ["L1", "L2", "L3"].entries()) {
-    Tx(40, busY + 4 + i * 12, n, { size: 9, k: "m" });
-    Ln(70 + i * 10, busY + i * 12, busEnd, busY + i * 12);
-    if (first && q0) Ln(70 + i * 10, 146, 70 + i * 10, busY + i * 12);
-  }
+  Tx(40, busY + 4, "L", { size: 9, k: "m" });
+  Ln(80, busY, busEnd, busY);
+  if (first && q0) Ln(80, 146, 80, busY);
   if (first && q0) {
     Tx(104, 124, q0.tag, { k: "b", size: 10 }); Tx(104, 136, cut(q0.type, 14), { k: "m", size: 8 });
     poles(c, 80, 112, "switch");                                   // hlavní vypínač v přívodu
@@ -145,7 +144,7 @@ export function powerSheetOps(prj: Project, page: number, total: number, feeders
   feeders.forEach((f, i) => {
     const cx = X0 + i * DX;
     c.setDev(f.devId);
-    for (const dx of [-10, 0, 10]) Ln(cx + dx, busY + (dx / 10 + 1) * 12, cx + dx, 190);
+    Ln(cx, busY, cx, 190);
     let y = 190;
     for (const k of FEED_ORDER) {
       const l = f.parts[k];
@@ -158,13 +157,14 @@ export function powerSheetOps(prj: Project, page: number, total: number, feeders
     Tx(cx, 440, cut(f.name, 16), { anchor: "middle", k: "b", size: 9 });
     Tx(cx, 452, trx("Jištění, průřez:"), { anchor: "middle", k: "m", size: 8 });
     Tx(cx, 463, TBD(), { anchor: "middle", k: "m", size: 8 });
+    Tx(cx, 475, trx("pólovost / fáze: doplní projektant"), { anchor: "middle", k: "m", size: 7 });
     c.setDev(undefined);
   });
   /* řízení: jistič řízení → zdroj 24 V */
   const cc = ctrlCols(bom, feeders);
   if (cc) {
     const cx = X0 + feeders.length * DX;
-    for (const dx of [-10, 0, 10]) Ln(cx + dx, busY + (dx / 10 + 1) * 12, cx + dx, 190);
+    Ln(cx, busY, cx, 190);
     let y = 190;
     const fs = bom.filter(l => l.devId === undefined && /^-F\d/.test(l.tag) && l.cat === "mcb");
     for (const l of fs.slice(0, 1)) {
@@ -181,9 +181,10 @@ export function powerSheetOps(prj: Project, page: number, total: number, feeders
     Tx(cx, 440, trx("Řízení 24 V DC"), { anchor: "middle", k: "b", size: 9 });
     Tx(cx, 452, trx("Jištění, průřez:"), { anchor: "middle", k: "m", size: 8 });
     Tx(cx, 463, TBD(), { anchor: "middle", k: "m", size: 8 });
+    Tx(cx, 475, trx("pólovost / fáze: doplní projektant"), { anchor: "middle", k: "m", size: 7 });
   }
   Ci(60, peY, 3);
-  Tx(40, 560 + 0, trx("Symboly dle IEC 60617: jistič (křížek na pólu), stykač (oblouk u pólu), motor M 3~, měnič ~/~."), { k: "m", size: 9 });
+  Tx(40, 560 + 0, trx("Symboly dle IEC 60617: jistič (křížek na pólu), stykač (oblouk u pólu), motor M, měnič ~/~; jednočárově."), { k: "m", size: 9 });
   return { W, H, O: c.O };
 }
 
@@ -219,6 +220,14 @@ function branchesOf(prj: Project, bom: BomLine[]): Branch[] {
   if (sens.count) out.push({ title: trx("Snímače"), sub: sens.count + " " + trx("ks"), lines: sens.lines });
   const valves = list(/^-Y\d/, 9);
   if (valves.count) out.push({ title: trx("Ventily"), sub: valves.count + " " + trx("ks"), lines: valves.lines });
+  const pd = [...new Set(bom.filter(l => l.cat === "positioning_drive").map(l => l.tag))];
+  if (pd.length) {
+    const lines: string[] = [];
+    for (let i = 0; i < Math.min(pd.length, 9); i += 3) lines.push(pd.slice(i, i + 3).join(" "));
+    if (pd.length > 9) lines.push("+" + (pd.length - 9));
+    out.push({ title: trx("Řadiče polohování"), sub: pd.length + " " + trx("ks"),
+      lines: [...lines, trx("napájení podle"), trx("dokumentace řadiče"), trx("— doplní projektant")] });
+  }
   const bc = bom.find(l => l.cat === "beacon");
   if (bc) out.push({ title: bc.tag, sub: trx("signální věž"), lines: [] });
   const es = bom.filter(l => l.cat === "safety_relay" || l.cat === "estop_button");
