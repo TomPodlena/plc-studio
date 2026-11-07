@@ -649,3 +649,53 @@ def bbox_center(bb) -> list[float]:
 
 def dist(a, b) -> float:
     return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+
+
+# --- kabel bez opory (kontrola souvislost, varování ``kabel-bez-opory``) --------------------------------------------
+OPORA_MAX = 300.0     # mm — nejdelší úsek kabelu bez opory (ODHAD rozteče úchytek)
+OPORA_DOSAH = 30.0    # mm — opora (žlab / úchytka / profil / deska) do této vzdálenosti od osy kabelu
+
+
+def unsupported_runs(segments, supported, step: float = 10.0, join: float = 80.0):
+    """Úseky kabelu bez opory. ``segments`` = rovné úseky osy [(p0, p1), …] (mm), ``supported(point) -> bool``.
+    Osa se vzorkuje po ``step``; vzorky bez opory sousedící po ose (nebo přes ohyb mezi konci úseků do ``join``) tvoří
+    jeden úsek. Vrací [(délka, střed)] sestupně podle délky."""
+    pts, par = [], []
+
+    def g(i):
+        while par[i] != i:
+            par[i] = par[par[i]]
+            i = par[i]
+        return i
+
+    seg_ids = []
+    for p0, p1 in segments:
+        L = sum((a - b) ** 2 for a, b in zip(p0, p1)) ** 0.5
+        n = max(1, int(L // step))
+        ids = []
+        for k in range(n + 1):
+            t = k / n
+            pt = tuple(a + (b - a) * t for a, b in zip(p0, p1))
+            pts.append((pt, supported(pt)))
+            par.append(len(par))
+            ids.append(len(pts) - 1)
+        for a, b in zip(ids, ids[1:]):
+            if not pts[a][1] and not pts[b][1]:
+                par[g(a)] = g(b)
+        seg_ids.append(ids)
+    for i, a in enumerate(seg_ids):
+        for b in seg_ids[i + 1:]:
+            for ea in (a[0], a[-1]):
+                for eb in (b[0], b[-1]):
+                    if not pts[ea][1] and not pts[eb][1] and \
+                            sum((x - y) ** 2 for x, y in zip(pts[ea][0], pts[eb][0])) ** 0.5 <= join:
+                        par[g(ea)] = g(eb)
+    comps = {}
+    for i, (pt, ok) in enumerate(pts):
+        if not ok:
+            comps.setdefault(g(i), []).append(pt)
+    out = []
+    for c in comps.values():
+        ctr = tuple(sum(p[k] for p in c) / len(c) for k in range(3))
+        out.append(((len(c) - 1) * step if len(c) > 1 else 0.0, ctr))
+    return sorted(out, key=lambda r: -r[0])

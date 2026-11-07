@@ -24,6 +24,8 @@ V = App.Vector
 MODEL, OUTF, OPTF = sys.argv[1:4]
 OPT = json.load(open(OPTF, encoding="utf-8"))
 CHECKS = OPT.get("checks") or ["kolize", "souvislost", "zasunuti", "kopie", "zony", "otvory", "kusovnik", "step"]
+OPORA_MAX = rules.OPORA_MAX
+OPORA_DOSAH = rules.OPORA_DOSAH
 TOL = float(OPT.get("tol", 0.2))              # mm — dotyk
 VOL_TOL = float(OPT.get("vol_tol", 0.5))      # mm³ — průnik pod touto mezí = dotyk (zaokrouhlení booleanu)
 R = {"model": MODEL, "checks": {}, "t": {}}
@@ -923,6 +925,55 @@ def check_kopie():
     return res
 
 
+def _osa_kabelu(sh):
+    """Rovné úseky osy kabelu / hadice z válcových ploch (ohyby = torus, spojí je ``unsupported_runs``)."""
+    seg = []
+    for f in sh.Faces:
+        sf = f.Surface
+        if type(sf).__name__ != "Cylinder":
+            continue
+        ax, c = sf.Axis, sf.Center
+        ts = [(v.Point - c).dot(ax) for v in f.Vertexes]
+        if ts and max(ts) - min(ts) > 1.0:
+            a, b = c + ax * min(ts), c + ax * max(ts)
+            seg.append(((a.x, a.y, a.z), (b.x, b.y, b.z)))
+    return seg
+
+
+def check_kabel_opora(items, res):
+    """Úsek kabelu delší než OPORA_MAX, který není celý do OPORA_DOSAH od žlabu / profilu / desky = varování."""
+    sup = [x for x in items if x["typ"] in ("zlab", "profil", "retez") or "deska" in rules.fold(x["label"])]
+    n = 0
+    for x in items:
+        if x["typ"] != "kabel":
+            continue
+        seg = _osa_kabelu(x["s"])
+        if not seg:
+            continue
+        near = [o for o in sup if o["key"] != x["key"]]
+
+        def ok(pt, near=near):
+            v = V(*pt)
+            for o in near:
+                bb = o["bb"]
+                if (bb.XMin - OPORA_DOSAH <= pt[0] <= bb.XMax + OPORA_DOSAH and bb.YMin - OPORA_DOSAH <= pt[1] <= bb.YMax + OPORA_DOSAH
+                        and bb.ZMin - OPORA_DOSAH <= pt[2] <= bb.ZMax + OPORA_DOSAH):
+                    try:
+                        if o["s"].distToShape(Part.Vertex(v))[0] <= OPORA_DOSAH:
+                            return True
+                    except Exception:  # noqa: BLE001
+                        return True
+            return False
+
+        runs = rules.unsupported_runs(seg, ok)
+        if runs and runs[0][0] > OPORA_MAX:
+            n += 1
+            res["varovani"].append(f_("kabel-bez-opory", f"{x['label']}: úsek {runs[0][0]:.0f} mm bez opory (žlab / úchytka / profil / "
+                                      f"deska do {OPORA_DOSAH:.0f} mm; rozteč úchytek {OPORA_MAX:.0f} mm je ODHAD) — doplnit úchytky",
+                                      list(runs[0][1]), [x["path"]]))
+    return n
+
+
 def check_souvislost():
     t = time.time()
     res = {"chyby": [], "varovani": [], "info": [], "data": {}}
@@ -1039,9 +1090,13 @@ def check_souvislost():
                 free_ends.append(f_("volne-celo", f"{x['label']}: volné čelo profilu (bez krytky / spoje)",
                                     [(l + h) / 2 for l, h in zip(lo, hi)], [x["path"]]))
     res["varovani"] += free_ends[:15]
+    try:
+        n_opora = check_kabel_opora(items, res)
+    except Exception:  # noqa: BLE001
+        n_opora = -1
     res["data"] = {"teles": len(items), "komponent": len(comps), "ve_vzduchu": sum(len(c) for c in air),
                    "sroubu_bez_zaberu": len(dead),
-                   "bez_spoje": len(loose), "zlab_bez_spoje": len(trays), "volnych_cel": len(free_ends),
+                   "bez_spoje": len(loose), "zlab_bez_spoje": len(trays), "volnych_cel": len(free_ends), "kabelu_bez_opory": n_opora,
                    "podlaha_z": round(floor, 2),
                    "na_podlaze": sum(1 for i in range(len(items)) if FL in nb[i])}
     res["secs"] = round(time.time() - t, 1)

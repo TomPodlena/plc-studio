@@ -197,21 +197,51 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
     Ds = [float(c.get("D") or media[c["medium"]]["D"]) for c in ks]
     lanes = zlab.pruhy(Ds)
     Rs = [float(tr.pozadovany_polomer(media[c["medium"]], "pevne", D)["min"] or 6 * D) for c, D in zip(ks, Ds)]
-    det = []
+    def _mk(gls):
+        det = []
+        for c, D, R, (yl, wl), g in zip(ks, Ds, Rs, lanes, gls):
+            s_out = min(max(zlab.s_of(g["bod"]), 2 * R + 5), zlab.L - 2 * R - 5)
+            s_in = min(max(zlab.s_of(c["start"]), 5.0), zlab.L - 5.0)
+            if abs(s_in - s_out) < 2 * R + 5:
+                s_in = s_out - (2 * R + 5) if s_out - (2 * R + 5) >= 5.0 else s_out + 2 * R + 5
+            off = zlab.z["h"] - yl + 2 * R + 10.0               # výstup / vstup otvorem kolmo na dno o 2 R + 10 za otvor
+            A = zlab.glob(s_in, yl + off, wl)
+            L0, L1 = zlab.glob(s_in, yl, wl), zlab.glob(s_out, yl, wl)
+            E = zlab.glob(s_out, yl + off, wl)
+            V1 = [E[0], E[1], z_pod]
+            V2 = [g["bod"][0], g["bod"][1], z_pod]
+            Gp = [g["bod"][0], g["bod"][1], g["bod"][2] - DOTYK]
+            det.append({"c": c, "D": D, "R": R, "A": A, "pevne": [L0, L1, E, V1, V2, Gp], "g": g, "lane": (yl, wl), "s": (s_in, s_out)})
+        return det
+
+    def _sd2(a, b, c, d):
+        best = 1e18
+        for i in range(21):
+            p = [a[0] + (b[0] - a[0]) * i / 20, a[1] + (b[1] - a[1]) * i / 20]
+            for j in range(21):
+                q = [c[0] + (d[0] - c[0]) * j / 20, c[1] + (d[1] - c[1]) * j / 20]
+                best = min(best, math.dist(p, q))
+        return best
+
+    def _cena(det):
+        n = 0
+        for i, x in enumerate(det):      # vodorovné úseky pod skříní (všechny ve stejné výšce) se nesmí křížit ani dotýkat
+            for y in det[i + 1:]:
+                if _sd2(x["pevne"][3], x["pevne"][4], y["pevne"][3], y["pevne"][4]) < (x["D"] + y["D"]) / 2 + 6.0:
+                    n += 1
+        return (n, sum(math.dist(x["pevne"][3], x["pevne"][4]) for x in det))
+
+    det = _mk(gl[:len(ks)])
+    if 1 < len(ks) <= 7 and _cena(det)[0]:
+        import itertools
+        best = (_cena(det), det)
+        for perm in itertools.permutations(gl, len(ks)):
+            dd = _mk(list(perm))
+            cc = _cena(dd)
+            if cc < best[0]:
+                best = (cc, dd)
+        det = best[1]
     # 1) pevné části tras (ve žlabu a pod skříní)
-    for c, D, R, (yl, wl), g in zip(ks, Ds, Rs, lanes, gl):
-        s_out = min(max(zlab.s_of(g["bod"]), 2 * R + 5), zlab.L - 2 * R - 5)
-        s_in = min(max(zlab.s_of(c["start"]), 5.0), zlab.L - 5.0)
-        if abs(s_in - s_out) < 2 * R + 5:
-            s_in = s_out - (2 * R + 5) if s_out - (2 * R + 5) >= 5.0 else s_out + 2 * R + 5
-        off = zlab.z["h"] - yl + 2 * R + 10.0               # výstup / vstup otvorem kolmo na dno o 2 R + 10 za otvor
-        A = zlab.glob(s_in, yl + off, wl)
-        L0, L1 = zlab.glob(s_in, yl, wl), zlab.glob(s_out, yl, wl)
-        E = zlab.glob(s_out, yl + off, wl)
-        V1 = [E[0], E[1], z_pod]
-        V2 = [g["bod"][0], g["bod"][1], z_pod]
-        Gp = [g["bod"][0], g["bod"][1], g["bod"][2] - DOTYK]
-        det.append({"c": c, "D": D, "R": R, "A": A, "pevne": [L0, L1, E, V1, V2, Gp], "g": g, "lane": (yl, wl), "s": (s_in, s_out)})
     fixed_boxes = []
     for x in det:
         fixed_boxes += rt.segments_boxes([x["A"]] + x["pevne"][:-1], x["D"] / 2 + 2.0)

@@ -362,6 +362,22 @@ class RunChecksFakeTest(unittest.TestCase):
 
 @unittest.skipIf(os.environ.get("PLCDESK_SKIP_FC") == "1" or run.run_fc_path() is None or run.freecad_bin() is None,
                  "FreeCAD / run_fc.ps1 není (nebo PLCDESK_SKIP_FC=1)")
+class KabelOporaTest(unittest.TestCase):
+    def test_unsupported_runs(self):
+        from plc_studio.pro3d_tools import rules
+        seg = [((0, 0, 0), (500, 0, 0)), ((500, 0, 0), (500, 200, 0))]
+        # bez opory: 700 mm souvislý úsek přes ohyb
+        r = rules.unsupported_runs(seg, lambda p: False)
+        self.assertEqual(len(r), 1)
+        self.assertAlmostEqual(r[0][0], 700, delta=20)
+        # opora uprostřed první rovné: dva úseky, delší < 300
+        r = rules.unsupported_runs(seg, lambda p: 240 <= p[0] <= 260 and p[1] == 0)
+        self.assertEqual(len(r), 2)
+        self.assertLessEqual(r[1][0], 300)
+        # vše podepřeno
+        self.assertEqual(rules.unsupported_runs(seg, lambda p: True), [])
+
+
 class FreeCADSynthTest(unittest.TestCase):
     """Syntetický model se známými nálezy (pro3d_synth_build.py) — FreeCAD jen ve vlastní instanci (slot pro3d-test)."""
 
