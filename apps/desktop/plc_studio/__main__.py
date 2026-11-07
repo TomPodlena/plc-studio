@@ -93,7 +93,7 @@ def _smoke(app: App, shots: Path | None) -> int:
         return [("", {})]
 
     def walk(label: str) -> None:
-        for step in [*range(len(STEPS)), *(["pro"] if app.pro_enabled() else []), "help"]:
+        for step in [*range(len(STEPS)), "help"]:
             for suffix, ui in views(step):
                 app.ui.update(ui)
                 app.goto(step)

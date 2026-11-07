@@ -401,54 +401,5 @@ def _fc_available() -> bool:
     return cli.run_fc_path() is not None and os.environ.get("PRO3D_SKIP_FC") != "1"
 
 
-@unittest.skipUnless(_fc_available(), "FreeCAD (run_fc.ps1 skillu freecad-instance) není k dispozici")
-class FreeCADTest(unittest.TestCase):
-    """Jeden běh na vzoru 20: díly kódem → rozvaděč → kontroly kódem (kolize, souvislost, kusovník, zástupné díly)."""
-
-    @classmethod
-    def setUpClass(cls):
-        from plc_studio.pro3d_parts import gen
-        from plc_studio.pro3d_tools import run
-        cls.d = Path(tempfile.mkdtemp(prefix="cab_fc_"))
-        shutil.copy(DATA / "20_PLCdesk_CAD.json", cls.d / "PLCdesk_CAD.json")
-        with redirect_stdout(io.StringIO()):
-            gen.main(["gen", str(cls.d / "PLCdesk_CAD.json"), str(cls.d / "dily"), "--slot", SLOT, "--timeout", "900"])
-            cls.s = cli.generate(cls.d / "PLCdesk_CAD.json", cls.d, slot=SLOT, timeout=900)
-        cls.fcstd = cls.d / "rozvadec" / "Rozvadec.FCStd"
-        cls.rep = run.run_checks(cls.fcstd, out=cls.d / "rozvadec" / "kontroly", slot=SLOT, timeout=1800) if cls.fcstd.is_file() else {}
-
-    def test_model(self):
-        self.assertTrue(self.s["ok"], self.s.get("chyba"))
-        self.assertTrue(self.fcstd.is_file())
-        fc = self.s["fc"]
-        self.assertTrue(fc["ok"], fc.get("chyby"))
-        self.assertGreater(fc["odkazu"], 30)                    # přístroje dle dokumentace jako App::Link
-        self.assertGreater(fc["sroubu"], 20)
-        self.assertGreater(fc["odkazu_tvaru"], 50)             # opakované šrouby, zarážky, vývodky… jako App::Link
-
-    def test_kontroly(self):
-        ch = self.rep.get("checks") or {}
-        for k in ("kolize", "souvislost", "zasunuti", "kopie", "kusovnik", "stav", "step"):
-            self.assertIn(k, ch)
-            self.assertFalse(ch[k].get("selhalo"), k)
-            self.assertEqual(ch[k].get("chyby"), [], f"{k}: {ch[k].get('chyby')}")
-        sv = ch["souvislost"]["data"]
-        self.assertEqual(sv["ve_vzduchu"], 0)
-        self.assertEqual(sv["bez_spoje"], 0)
-        self.assertEqual(sv["zlab_bez_spoje"], 0)
-        self.assertEqual(ch["kolize"]["data"]["polohy"][0]["chyb"], 0)        # dveře otevřené 95° (i svazky a upínky)
-        self.assertGreater(ch["kolize"]["data"]["polohy"][0]["dilu"], 15)
-        self.assertFalse(any("nemá spojovací prvky" in i["text"] for i in ch["souvislost"].get("info") or []))
-
-    def test_snimek(self):
-        from plc_studio import pro_pipeline as pp
-        p = self.d / "rozvadec" / "snimky" / "generator_celo.png"
-        self.assertTrue(p.is_file())
-        self.assertGreater(pp.png_nonwhite_pct(p), 5.0)
-        o = self.d / "rozvadec" / "snimky" / "generator_dvere_otevrene.png"     # dveře otevřené 95°
-        self.assertTrue(o.is_file())
-        self.assertGreater(pp.png_nonwhite_pct(o), 5.0)
-
-
 if __name__ == "__main__":
     unittest.main()

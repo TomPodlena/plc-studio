@@ -44,8 +44,6 @@ def chapter(app, cid: str) -> dict | None:
 
 def chapter_for_step(app, step) -> str:
     ids = help_data(app)["stepIds"]
-    if step == "pro":                       # krok 3D agent (PRO) — kapitola náhledu
-        return "pro3d"
     return ids[step] if isinstance(step, int) and 0 <= step < len(ids) else "start"
 
 

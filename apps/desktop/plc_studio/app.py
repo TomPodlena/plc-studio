@@ -23,16 +23,13 @@ from tkinter import font as tkfont
 from . import i18n, project, theme
 from .bridge import BridgeError, DualBridge, Job, Pending
 from .i18n import N_, _, _n
-from .steps import RENDERERS, render_help, render_pro
+from .steps import RENDERERS, render_help
 
 STEPS = [N_("Projekt"), N_("AI návrh"), N_("Platformy"), N_("Zařízení"), N_("I/O"),
          N_("Schéma"), N_("Program"), N_("Generovat"), N_("Dokumentace"), N_("Kusovník"),
          N_("Bezpečnost"), N_("Schválení"), N_("Oživení")]
 STEP_SAFETY, STEP_APPROVAL, STEP_COMMISSION = 10, 11, 12
 STEP_GEN, STEP_DOCS, STEP_BOM = 7, 8, 9
-# krok „3D agent (PRO)“ (steps/pro3d.py) — náhled PLCdesk PRO, v liště za Kusovníkem; id řetězcem jako „help“,
-# čísla ostatních kroků (stav, nápověda, web) se nemění. TODO(PRO licence): zapínat licencí PRO, ne jen náhledem.
-STEP_PRO = "pro"
 # zkrácení popisků neaktivních kroků, když se lišta nevejde (None = celé, 0 = jen číslo)
 NAV_LEVELS = (None, *range(24, 2, -1), 0)
 PROJECT_EXT = ".plcstudio.json"
@@ -520,12 +517,8 @@ class App:
                 "je uložený jako {path}.", exc=exc, path=bak or path)))
             return
         step = d.get("step", 0)
-        self.step = step if step == "help" or (step == STEP_PRO and self.pro_enabled()) or (
+        self.step = step if step == "help" or (
             isinstance(step, int) and 0 <= step < len(STEPS)) else 0
-
-    def pro_enabled(self) -> bool:
-        """Náhled PLCdesk PRO (krok 3D agent): ``settings.json`` ``pro_preview: true`` nebo ``PLCDESK_PRO=1``."""
-        return self.settings.get("pro_preview") is True or os.environ.get("PLCDESK_PRO") == "1"
 
     def set_project(self, prj: dict, ai: dict | None = None) -> None:
         """Nahradí projekt; chybějící části doplní z prázdného projektu.
@@ -665,11 +658,6 @@ class App:
                            command=lambda i=i: self.goto(i))
             b.pack(side="left", padx=(0, 3))
             self._step_btns.append(b)
-        self._pro_btn = None
-        if self.pro_enabled():                     # náhled PRO: krok za Kusovníkem (bez čísla)
-            self._pro_btn = ttk.Button(nav, text="3D · " + _("3D agent (PRO)"), style="Step.TButton",
-                                       command=lambda: self.goto(STEP_PRO))
-            self._pro_btn.pack(side="left", padx=(0, 3), after=self._step_btns[STEP_BOM])
         self._help_btn = ttk.Button(nav, text="? " + _("Nápověda"), style="Step.TButton",
                                     command=lambda: self.goto("help"))
         self._help_btn.pack(side="right")
@@ -750,8 +738,6 @@ class App:
     def goto(self, step) -> None:
         if isinstance(step, int) and not 0 <= step < len(STEPS):
             return
-        if step == STEP_PRO and not self.pro_enabled():
-            return
         if isinstance(self.step, int):
             self._last_step = self.step
         self.step = step
@@ -811,8 +797,6 @@ class App:
             self._commit_focused()
             if isinstance(self.step, int):
                 self.goto(self.step + delta)        # mimo rozsah goto nic neudělá
-            elif self.step == STEP_PRO:             # krok PRO leží mezi Kusovníkem a Bezpečností
-                self.goto(STEP_BOM if delta < 0 else STEP_BOM + 1)
             elif delta < 0:
                 self.goto(self._last_step)          # z Nápovědy zpět do kroku
             else:                                   # Alt+→ z Nápovědy: krok za posledním (L7)
@@ -924,8 +908,6 @@ class App:
         if width <= 1:
             return
         room = width - self._help_btn.winfo_reqwidth() - 12
-        if self._pro_btn is not None:
-            room -= self._pro_btn.winfo_reqwidth() + 3
         fonts = (tkfont.Font(font=theme.FONT_UI), tkfont.Font(font=theme.FONT_ACCENT))
         if self._nav_extra is None:
             # vycpávka stylu a rámeček změřené na tlačítkách (medián — po změně popisku
@@ -966,8 +948,6 @@ class App:
                         else "StepDone.TButton" if done else "Step.TButton",
                         text=self._step_text(i, self._nav_level))
         self._help_btn.configure(style="StepOn.TButton" if self.step == "help" else "Step.TButton")
-        if self._pro_btn is not None:
-            self._pro_btn.configure(style="StepOn.TButton" if self.step == STEP_PRO else "Step.TButton")
         from .helppanel import Tour             # zvýraznění průvodce přežije překreslení lišty
         if Tour.current is not None:
             Tour.current.rehighlight()
@@ -1066,11 +1046,10 @@ class App:
         if self._page_step != self.step:          # jiný krok začíná nahoře; překreslení téhož polohu drží
             self._page_step = self.step
             self._page.reset()
-        renderer = (render_help if self.step == "help" else render_pro if self.step == STEP_PRO
-                    else RENDERERS[self.step])
+        renderer = (render_help if self.step == "help" else RENDERERS[self.step])
         self._license_banner()
         from . import helppanel, widgets
-        if num or self.step == STEP_PRO:           # tlačítko ? v záhlaví první karty kroku
+        if num:           # tlačítko ? v záhlaví první karty kroku
             step = self.step
             widgets.CARD_HOOK = lambda head: helppanel.step_help_button(self, head, step)
         # otevřený panel nápovědy: po přechodu na jiný krok kapitola nového kroku
@@ -1347,12 +1326,6 @@ class App:
             try:
                 if wiz.win.winfo_exists():
                     wiz.persist()
-            except Exception:  # noqa: BLE001 — zavření okna nesmí selhat
-                self._log(traceback.format_exc())
-        pipe = getattr(self, "pro_pipe", None)  # běžící postup 3D agenta (PRO) nesmí přežít okno a dál čerpat tarif
-        if pipe is not None:
-            try:
-                pipe.stop()
             except Exception:  # noqa: BLE001 — zavření okna nesmí selhat
                 self._log(traceback.format_exc())
         self._closing = True              # pracovní proces ruší výpočty, okno už nic nedokreslí
