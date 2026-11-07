@@ -144,7 +144,8 @@ class CadFeedbackDialog:
             var = tk.StringVar(value="-")   # „-“ = nerozhodnuto (prázdné by tk kreslilo jako napůl zvolené)
             self.vars[it["id"]] = var
             if it.get("proposal"):
-                first = _("Přijmout návrh") + " — " + it["partId"] + ": " + it["proposalText"] + "\n" + it["proposal"]["why"]
+                target = "" if it["proposal"].get("reserveOnly") else it["partId"] + ": "   # rezerva I/O nemění řádek
+                first = _("Přijmout návrh") + " — " + target + it["proposalText"] + "\n" + it["proposal"]["why"]
             else:
                 first = _("Přijmout (vzít na vědomí)") + " — " + _("bez změny kusovníku")
             def radio(text: str, value: str, var=var) -> None:
@@ -199,6 +200,61 @@ def _line_cfg(app, lid: str) -> dict:
 def _line_cfg_peek(app, lid: str) -> dict:
     """Volby řádku bez zakládání prázdných záznamů."""
     return ((app.prj.get("bom") or {}).get("lines") or {}).get(lid) or {}
+
+
+RES_KEYS = ("pct", "DI", "DO", "AI", "AO")
+
+
+def set_reserve(app, key: str, text: str) -> None:
+    """Rezerva I/O sestavy (``prj.bom.ioReserve``, core hardware.ts): procento obsazených kanálů nebo minimum
+    volných kanálů směru; prázdné / 0 = bez rezervy. Stejné pravidlo jako web (kladné číslo, % ≤ 100)."""
+    old = dict(_cfg(app).get("ioReserve") or {})
+    r = dict(old)
+    try:
+        v = float(str(text).replace(",", ".").strip() or 0)
+    except ValueError:
+        v = 0
+    if v > 0:
+        r[key] = min(100, v) if key == "pct" else int(-(-v // 1))
+        if key == "pct" and r[key] == int(r[key]):
+            r[key] = int(r[key])
+    else:
+        r.pop(key, None)
+    if r == old:
+        return                                            # beze změny (FocusOut po Enter) — nepřekreslovat
+    if r:
+        _cfg(app)["ioReserve"] = r
+    else:
+        _cfg(app).pop("ioReserve", None)
+    _changed(app)
+
+
+def _reserve_bar(app, body, data: dict, after) -> None:
+    """Řádek „Rezerva I/O“ pod lištou: % a minimum volných kanálů DI / DO / AI / AO, stav volných kanálů sestavy."""
+    row = ttk.Frame(body)
+    row.pack(fill="x", pady=(0, 6), after=after)
+    ttk.Label(row, text=_("Rezerva I/O")).pack(side="left")
+    res = data.get("reserve") or {}
+    for key in RES_KEYS:
+        if key != "pct":
+            ttk.Label(row, text=key + " ≥").pack(side="left", padx=(10, 0))
+        var = tk.StringVar(value=str(res.get(key, "")))
+        ent = ttk.Entry(row, textvariable=var, width=5)
+        ent._var = var                                    # držet proměnnou naživu (GC)
+        ent.pack(side="left", padx=(4, 0))
+        if key == "pct":
+            ttk.Label(row, text="%").pack(side="left", padx=(2, 0))
+
+        def commit(_e=None, key=key, var=var) -> None:
+            if str(var.get()).strip() != str(res.get(key, "")):
+                set_reserve(app, key, var.get())
+
+        ent.bind("<Return>", commit)
+        ent.bind("<FocusOut>", commit)
+    free = data.get("free") or {}
+    used = ", ".join(d + " " + str(free[d]["free"]) + "/" + str(free[d]["cap"]) for d in RES_KEYS[1:] if free.get(d, {}).get("cap"))
+    ttk.Label(row, text=_("Volné kanály: {list}. PLCdesk podle rezervy zvolí CPU a karty; prázdné = bez rezervy.",
+                          list=used or "—"), style="Dim.TLabel").pack(side="left", padx=(12, 0))
 
 
 def _changed(app) -> None:
@@ -277,6 +333,7 @@ def render(app, parent) -> None:
         _changed(app)
 
     ttk.Button(bar, text=_("Obnovit výchozí volby"), command=reset).pack(side="left", padx=(6, 0))
+    _reserve_bar(app, body, data, bar)
     # počet na vlastním řádku — vedle tlačítek se v úzkém okně uřízl („36“; forenzní test M1)
     ttk.Label(body, text=_("{n} položek · {c} s objednacím kódem", n=len(lines),
                            c=sum(1 for ln in lines if ln["orderCode"])),

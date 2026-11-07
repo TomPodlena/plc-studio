@@ -17,7 +17,7 @@
  * Pravidla vznikla sjednocením web `normProject` a desktop `project.normalize` (test odolnosti 2026-10-08:
  * desktop dřív spadl TypeError na `program.estop` = seznam a aplikace se nespustila).
  */
-import { blankProject, CLS, PLAT, DO_ROLES, ensureGuids, multiLineSafe, lineSafe, } from "./model.js";
+import { blankProject, CLS, PLAT, DO_ROLES, ensureGuids, multiLineSafe, lineSafe, CONVEYOR_FIELDS, CONVEYOR_CLASSES, } from "./model.js";
 import { isGuid } from "./guid.js";
 import { isIsoDate } from "./project_meta.js";
 const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -150,6 +150,18 @@ export function normalizeProject(raw) {
             if (recs.length)
                 b.cadFeedback = recs;
         }
+        /* rezerva I/O sestavy (hardware.ts): jen kladná čísla, procento ≤ 100 */
+        if (isObj(raw.bom.ioReserve)) {
+            const r = {};
+            const num = (v) => typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0;
+            if (num(raw.bom.ioReserve.pct))
+                r.pct = Math.min(100, num(raw.bom.ioReserve.pct));
+            for (const d of ["DI", "DO", "AI", "AO"])
+                if (num(raw.bom.ioReserve[d]))
+                    r[d] = Math.min(1000, Math.ceil(num(raw.bom.ioReserve[d])));
+            if (Object.keys(r).length)
+                b.ioReserve = r;
+        }
         if (Object.keys(b).length)
             p.bom = b;
     }
@@ -255,6 +267,20 @@ function normDevice(d) {
         }
         else
             delete nd.axis;
+    }
+    /* pásový dopravník (Motor / Vfd): jen známá pole jako konečná čísla; prázdné / jiná třída = pryč */
+    if (d.conveyor !== undefined) {
+        const c = {};
+        if (isObj(d.conveyor) && CONVEYOR_CLASSES.has(nd.cls))
+            for (const f of CONVEYOR_FIELDS) {
+                const n = numOf(d.conveyor[f.key]);
+                if (n !== undefined)
+                    c[f.key] = n;
+            }
+        if (Object.keys(c).length)
+            nd.conveyor = c;
+        else
+            delete nd.conveyor;
     }
     return nd;
 }

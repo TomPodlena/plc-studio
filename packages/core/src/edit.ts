@@ -15,7 +15,7 @@ import { tr, N_, withLang, LANGS, type Lang } from "./i18n.js";
 import {
   PLAT, CLS, ACTS_FOR, DO_ROLES, devById, devSignals, syncIO, autoAddr, hasRange, maxRecord, validateProject,
   nextName, sanitizeTag, parseRecordsChecked, limitsRangeProblem,
-  oneLine, lineSafe, canonIoAddr, MIN_STEP_S, REAL_MAX,
+  oneLine, lineSafe, canonIoAddr, MIN_STEP_S, REAL_MAX, CONVEYOR_CLASSES, conveyorFieldProblem, type ConveyorCfg,
   type Project, type Device, type DeviceClass, type DoRole, type PosRecord, type Dir, type IoEntry, type SeqStep, type SeqAct,
   type SeqCond, type ValidationIssue,
 } from "./model.js";
@@ -448,6 +448,8 @@ export interface DeviceParams {
   unit?: string | null;
   records?: PosRecord[] | null;
   axis?: { [K in keyof AxisCfg]?: AxisCfg[K] | null } | null;
+  /** jen Motor / Vfd pásového dopravníku: pole se slučují (`null` u pole = odebrat), `null` celé = odebrat vše */
+  conveyor?: { [K in keyof ConveyorCfg]?: number | null } | null;
 }
 
 const isSet = (v: unknown) => v !== undefined && v !== null && v !== "";
@@ -472,6 +474,15 @@ export function deviceParamsProblem(d: Pick<Device, "cls"> & Partial<Device>, p:
     if (k === "records") { if (d.cls !== "PosDrive" || !Array.isArray(p.records)) return noParam(d, k); continue; }
     if (k === "unit") { if (d.cls !== "Axis" || typeof p.unit !== "string") return noParam(d, k); continue; }
     if (k === "axis") { if (d.cls !== "Axis" || typeof p.axis !== "object") return noParam(d, k); continue; }
+    if (k === "conveyor") {
+      if (!CONVEYOR_CLASSES.has(d.cls) || typeof p.conveyor !== "object") return noParam(d, k);
+      for (const [ck, cv] of Object.entries(p.conveyor as object)) {
+        if (!isSet(cv)) continue;
+        const pr = conveyorFieldProblem(ck, cv);
+        if (pr) return pr;
+      }
+      continue;
+    }
     if (!keys.includes(k as DeviceParamKey)) return noParam(d, k);
     const v = p[k] as number, label = tr(DEVICE_PARAM_LABEL[k as DeviceParamKey]);
     if (typeof v !== "number" || !Number.isFinite(v)) return tr("Neplatné číslo v poli „{field}“.", { field: label });
@@ -518,6 +529,10 @@ function applyParams(d: Device, p: DeviceParams): void {
         else ax[ak] = ak === "drive" ? oneLine(String(av)) : clone(av);
       }
       d.axis = ax as Partial<AxisCfg>;
+    } else if (k === "conveyor") {
+      const c: Record<string, unknown> = { ...(isSet(v) ? d.conveyor || {} : {}) };
+      if (isSet(v)) for (const [ck, cv] of Object.entries(v as object)) { if (!isSet(cv)) delete c[ck]; else c[ck] = cv; }
+      if (Object.keys(c).length) d.conveyor = c as ConveyorCfg; else delete d.conveyor;
     } else if (k === "unit") d.unit = oneLine(String(v ?? "")) || "mm";
     else if (!isSet(v)) delete (d as any)[k];
     else (d as any)[k] = clone(v);
@@ -742,6 +757,11 @@ export function applyAiProposal(prj: Project, pr: AiProposal): EditResult {
     for (const f of AI_DEV_FIELDS[a.cls] || []) if (finite(a[f])) nd[f] = a[f];
     if (a.cls === "DO" && a.role && Object.prototype.hasOwnProperty.call(DO_ROLES, a.role)) nd.role = a.role;
     if (a.cls === "PosDrive" && Array.isArray(a.records)) nd.records = clone(a.records);
+    /* pásový dopravník: jen platná pole; AI bez údaje nechá původní zadání */
+    if (CONVEYOR_CLASSES.has(a.cls) && a.conveyor && typeof a.conveyor === "object") {
+      const cv = Object.fromEntries(Object.entries(a.conveyor).filter(([k, v]) => conveyorFieldProblem(k, v) === null));
+      if (Object.keys(cv).length) nd.conveyor = { ...(nd.conveyor || {}), ...cv };
+    }
     if (typeof a.libType === "string" && a.libType) nd.libType = a.libType;
     /* konfigurace osy: pole, která AI neposlala (pohon, ryv…), zůstanou z původní */
     if (a.cls === "Axis" && a.axis && typeof a.axis === "object") nd.axis = { ...(nd.axis || {}), ...clone(a.axis) };

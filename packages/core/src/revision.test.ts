@@ -10,6 +10,7 @@ import { docFiles } from "./docs.js";
 import { sheetSVG, sheetDXF } from "./drawing.js";
 import { sampleSmall } from "./samples.js";
 import { attachLibrary, blankLibrary } from "./library.js";
+import { buildBom } from "./bom.js";
 import {
   createRevision, listRevisions, revisionSnapshot, revisionContent, nextRevisionId, latestRevision, modifiedSinceRevision,
   revisionLabel, diffProjects, diffRevisions, changesSinceRevision, retestScope, changesMd, revisionTableMd, CHANGES_FILE,
@@ -193,6 +194,31 @@ test("diff: přejmenování popisu a komentáře → kosmetická, nic nezneplatn
   const ch = diffProjects(a, b).changes.find(c => c.area === "device")!;
   assert.equal(ch.field, "desc");
   assert.match(ch.text, /Jiný popis/);
+});
+
+test("diff: kusovník — změna bezpečnostního dílu (E-stop, bezpečnostní kategorie, řádek modulu bezpečnosti) → bezpečnostní, jiný díl kosmetická", () => {
+  const a = loadSample("11_podavaci_lisovaci_stanice_PS-11");
+  const lines = buildBom(a).lines;
+  const es = lines.find(l => l.cat === "estop_button")!;          // díl zařízení E-stopu
+  const vfd = lines.find(l => l.cat === "vfd")!;                   // běžný díl
+  const b = clone(a);
+  b.bom = { lines: { [es.id]: { orderCode: "XY-ESTOP" }, [vfd.id]: { orderCode: "XY-VFD" } }, brand: { safety_switch: "x", motor: "y" } };
+  const d = diffProjects(a, b);
+  const of = (f: string) => d.changes.find(c => c.area === "bom" && c.field === f)!;
+  assert.equal(of("line." + es.id + ".orderCode").cls, "safety");
+  assert.equal(of("line." + vfd.id + ".orderCode").cls, "cosmetic");
+  assert.equal(of("brand.safety_switch").cls, "safety");
+  assert.equal(of("brand.motor").cls, "cosmetic");
+  assert.equal(d.cls, "safety");
+  /* řádek z modulu bezpečnosti (BomLine.safety) */
+  withSafety(() => {
+    const sl = buildBom(a).lines.find(l => l.safety && l.devId === undefined)!;
+    assert.ok(sl, "řádek modulu bezpečnosti");
+    const c = clone(a);
+    c.bom = { lines: { [sl.id]: { qty: 3 } } };
+    assert.equal(diffProjects(a, c).changes.find(x => x.field === "line." + sl.id + ".qty")!.cls, "safety");
+    assert.equal(diffProjects(c, a).cls, "safety", "i opačný směr");
+  });
 });
 
 test("diff: změna PLr → bezpečnostní, dotčená funkce a její validace (fáze 10)", () => {

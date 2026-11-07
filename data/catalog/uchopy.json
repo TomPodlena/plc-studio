@@ -1,0 +1,249 @@
+{
+  "categories": {
+    "suction_cup": {
+      "label": "Vakuová přísavka",
+      "unit": "ks",
+      "brands": [
+        {
+          "brand": "Festo",
+          "series": [
+            "ESS (plochá)",
+            "ESV / VAS / VASB"
+          ],
+          "typical": "ESS-40-SN — plochá kruhová přísavka Ø40, NBR 60 Shore, připojení M6 nahoře, přídržná síla 69,6 N při −70 kPa",
+          "orderCode": "189304",
+          "src": "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/189304.pdf",
+          "priceLevel": "nízká",
+          "suppliers": [
+            "Festo CZ (přímo)",
+            "RS Components CZ"
+          ],
+          "note": "Boční síla 60 N při −70 kPa, objem 1,566 cm³, min. poloměr dílu 230 mm, 16,3 g (datový list). Síla z katalogu je 79 % teoretické p·A — počítat s katalogovou."
+        },
+        {
+          "brand": "Schmalz",
+          "series": [
+            "SPB1 (měchová 1,5 záhybu)",
+            "SPU / SAB / FSG"
+          ],
+          "typical": "SPB1 40 ED-65 G1/4-IG — měchová přísavka Ø40, 1,5 záhybu, Elastodur 65 Shore A, vnitřní závit G1/4, síla 35,9 N při −0,6 bar",
+          "orderCode": "10.01.06.03499",
+          "src": "https://www.schmalz.com/en-es/vacuum-technology-for-automation/vacuum-components/vacuum-suction-cups/bellows-suction-cups-round/bellows-suction-cups-spb1-1-5-folds-400788/10.01.06.03499",
+          "priceLevel": "střední",
+          "suppliers": [
+            "J. Schmalz GmbH (pobočka CZ)"
+          ],
+          "note": "Zdvih měchu 16 mm, výška 47,2 mm, Dmax 48 mm (stránka produktu). Měch vyrovná nerovnost a zdvihne díl, síla je ale jen asi polovina teoretické p·A."
+        }
+      ]
+    },
+    "vacuum_ejector": {
+      "label": "Vakuová tryska (ejektor)",
+      "unit": "ks",
+      "brands": [
+        {
+          "brand": "Festo",
+          "series": [
+            "OVEM (kompaktní s ventilem a spínačem)",
+            "VN (inline)"
+          ],
+          "typical": "OVEM-07-H-B-GO-CE-N-1P — kompaktní ejektor, tryska 0,7 mm, vysoké vakuum 93 %, ventil sání NC a odfukový impuls, zpětný ventil, spínač podtlaku PNP, M12 5pin, G1/4",
+          "orderCode": "540026",
+          "src": "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/540026.pdf",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Festo CZ (přímo)"
+          ],
+          "note": "Sací výkon 16 l/min, provozní tlak 2–8 bar (max. vakuum při 4,1 bar), 325 g, IP65 (datový list). Ventil NC = bez signálu nesaje: při výpadku napájení drží jen zpětný ventil a únik vakuum postupně sníží. Spínač podtlaku je integrovaný — samostatný řádek vacuum_switch vypustit."
+        },
+        {
+          "brand": "Schmalz",
+          "series": [
+            "SCPi / SCPb (kompaktní s úsporou vzduchu)",
+            "SBP / SEP"
+          ],
+          "typical": "SCPi 25 NO RD M12-5 — kompaktní ejektor, tryska 2,5 mm, max. −850 mbar, 195 l/min, ventil NO, IO-Link, úsporný režim, M12 5pin",
+          "orderCode": "10.02.02.03369",
+          "src": "https://www.schmalz.com/en-us/products/automation-743270/vacuum-generators-307617/pneumatic-vacuum-generators-739752/compact-ejectors-307841/10.02.02.03369",
+          "priceLevel": "vysoká",
+          "suppliers": [
+            "J. Schmalz GmbH (pobočka CZ)"
+          ],
+          "note": "Spotřeba vzduchu při sání 290 l/min, provozní tlak 4–7 bar, 118,5 × 22 × 181,5 mm, 0,56 kg (stránka produktu). Ventil NO = saje i bez signálu, při výpadku napájení díl drží (Schmalz, ventily EMV). Spínač podtlaku a monitorování IO-Link integrované."
+        }
+      ]
+    },
+    "vacuum_switch": {
+      "label": "Spínač podtlaku",
+      "unit": "ks",
+      "brands": [
+        {
+          "brand": "Festo",
+          "series": [
+            "SPAN-V",
+            "SPAU-V",
+            "SDE5-V"
+          ],
+          "typical": "SPAN-V1R-Q4-PN-PN-L1 — elektronický spínač podtlaku 0 až −1 bar, displej, 2× PNP/NPN přepínatelné, hadice Ø4",
+          "orderCode": "8035554",
+          "src": "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/8035554.pdf",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Festo CZ (přímo)"
+          ],
+          "note": "Konektor = vzor L1J, 4 piny (ne M8 / M12 — k řádku kabelu doplnit kabel Festo pro L1J), přesnost 1,5 % FS, IP40 (datový list) — do skříně nebo chráněného místa, na nástroj robota spíš ejektor s integrovaným spínačem."
+        },
+        {
+          "brand": "ifm",
+          "series": [
+            "PN (s displejem)",
+            "PQ"
+          ],
+          "typical": "PN7594 — elektronický spínač tlaku 0 až −1 bar s displejem, 2 programovatelné výstupy, M12, G1/4",
+          "orderCode": "PN7594",
+          "src": "https://www.eurosensor.com/en/product/Ifm-pn7594-pn-010-reg14-qfrkg-us-v-pressure-sensor",
+          "priceLevel": "střední",
+          "suppliers": [
+            "ifm electronic CZ (přímo)"
+          ],
+          "note": "Ověřeno na stránce distributora (kód a rozsah); logiku výstupu PNP ověřit v datovém listu ifm před objednáním."
+        }
+      ]
+    },
+    "gripper": {
+      "label": "Pneumatické chapadlo (paralelní)",
+      "unit": "ks",
+      "brands": [
+        {
+          "brand": "Festo",
+          "series": [
+            "DHPS (paralelní)",
+            "HGPT / HGPL"
+          ],
+          "typical": "DHPS-16-A — paralelní chapadlo vel. 16, zdvih 5 mm na čelist, síla na čelist 96 N zavírání / 105 N otevírání při 6 bar",
+          "orderCode": "1254043",
+          "src": "https://www.landefeld.com/shop/media/festo/gruppendatenblaetter/dhps_en.pdf",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Festo CZ (přímo)",
+            "Landefeld (distributor)"
+          ],
+          "note": "Datový list řady DHPS (Festo 2013/08, přetisk distributora): max. prst 150 g, Fz 150 N, Mx = My = Mz 8 Nm, 184 g, připojka M3, snímání SMT-8G / SMAT-8M. Síla klesá s ramenem — graf s. 10."
+        },
+        {
+          "brand": "Festo",
+          "series": [
+            "DHPS-…-NC (držení síly pružinou)"
+          ],
+          "typical": "DHPS-16-A-NC — jako DHPS-16-A, s pružinou držící sílu při zavírání (ztráta tlaku: díl zůstane sevřený)",
+          "orderCode": "1254045",
+          "src": "https://www.landefeld.com/shop/media/festo/gruppendatenblaetter/dhps_en.pdf",
+          "priceLevel": "střední",
+          "suppliers": [
+            "Festo CZ (přímo)"
+          ],
+          "note": "Min. provozní tlak 4 bar (varianta -N); síla pružiny F_Ftotal = −0,08·x + 0,5·F_F na prst (s. 13). Varianta -NO (1254044, datový list https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/1254044.pdf) drží sílu při otevírání (vnitřní úchop)."
+        },
+        {
+          "brand": "Schunk",
+          "series": [
+            "PGN-plus-P",
+            "JGP-P (cenově výhodná)"
+          ],
+          "typical": "PGN-plus-P 80-1 — univerzální paralelní chapadlo vel. 80, zdvih 8 mm na čelist, síla 550 N zavírání / 610 N otevírání",
+          "orderCode": "318520",
+          "src": "https://schunk.com/ch/it/sistemi-di-presa/pinza-parallela/pgn-plus-p/pgn-plus-p-80-1/p/000000000000318520",
+          "priceLevel": "vysoká",
+          "suppliers": [
+            "SCHUNK Intec s.r.o. (CZ)"
+          ],
+          "dims": {
+            "w": 96,
+            "h": 49,
+            "d": 42,
+            "src": "https://schunk.com/ch/it/sistemi-di-presa/pinza-parallela/pgn-plus-p/pgn-plus-p-80-1/p/000000000000318520"
+          },
+          "note": "Doporučená hmotnost dílu 2,75 kg, 0,51 kg (stránka produktu; Schunk počítá doporučenou hmotnost pro třecí úchop μ 0,1, S 2)."
+        },
+        {
+          "brand": "Zimmer",
+          "series": [
+            "GPP5000",
+            "GEP5000 (elektrické)"
+          ],
+          "typical": "GPP5008N-00-A — 2čelisťové paralelní chapadlo, zdvih 8 mm na čelist, síla 520 N zavírání / 560 N otevírání, 3–8 bar",
+          "orderCode": "GPP5008N-00-A",
+          "src": "https://www.zimmer-group.com/en/products/components/handling-technology/2-jaw-parallel-grippers/series-gpp5000/products/gpp5008n-00-a",
+          "priceLevel": "vysoká",
+          "suppliers": [
+            "Zimmer Group (přímo)"
+          ],
+          "note": "0,53 kg, jmenovitý tlak 6 bar (stránka produktu)."
+        }
+      ]
+    }
+  },
+  "suppliers": [
+    {
+      "name": "Festo, s.r.o.",
+      "url": "https://www.festo.com/cz/cs/",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "suction_cup",
+        "vacuum_ejector",
+        "vacuum_switch",
+        "gripper"
+      ],
+      "note": ""
+    },
+    {
+      "name": "ifm electronic",
+      "url": "https://www.ifm.com/cz/cs/",
+      "country": "CZ",
+      "kind": "výrobce",
+      "cats": [
+        "vacuum_switch"
+      ],
+      "note": ""
+    },
+    {
+      "name": "J. Schmalz GmbH",
+      "url": "https://www.schmalz.com/",
+      "country": "DE",
+      "kind": "výrobce",
+      "cats": [
+        "suction_cup",
+        "vacuum_ejector"
+      ],
+      "note": "Česká pobočka v této rešerši neověřena."
+    },
+    {
+      "name": "SCHUNK",
+      "url": "https://schunk.com/",
+      "country": "DE",
+      "kind": "výrobce",
+      "cats": [
+        "gripper"
+      ],
+      "note": "Česká pobočka v této rešerši neověřena."
+    },
+    {
+      "name": "Zimmer Group",
+      "url": "https://www.zimmer-group.com/",
+      "country": "DE",
+      "kind": "výrobce",
+      "cats": [
+        "gripper"
+      ],
+      "note": "Česká pobočka v této rešerši neověřena."
+    }
+  ],
+  "notes": [
+    "Rešerše 2026-10-29 (skill uchopy-a-vakuum, references/zdroje.md): kódy ověřeny čtením datového listu nebo stránky výrobce či distributora (src = kde ověřeno). Ceny se neuvádějí.",
+    "Katalogová přídržná síla přísavek je 50–80 % teoretické p·A — počítat s katalogovou hodnotou.",
+    "Nepřevzato: SMC MHZ2-16D — stránka distributora ukazuje variantu 11-MHZ2-16D3 (čistá řada), čistý kód neověřen; SMC ZP3 / ZPT, ZK2, ZSE10 / ZSE20 — kód neověřen (smcpneumatics.com 403 / 404).",
+    "Nepřevzato: Piab (piGRIP, piINLINE, piCOMPACT) — objednací kód na žádné načtené stránce nenalezen.",
+    "Nepřevzato: Schmalz VS-V-PNP 10.06.02.00191 a SPB1 40 ED-65 G1/4-AG 10.01.06.03498, Festo OVEM-…-2P 540006 — jen z výsledků hledání, stránka nenačtena."
+  ]
+}

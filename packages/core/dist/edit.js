@@ -12,7 +12,7 @@
  * - GUID a adresy (připnutí v sestavě hardwaru) se nemění; schválení se zneplatní samo otiskem.
  */
 import { tr, N_, withLang, LANGS } from "./i18n.js";
-import { PLAT, CLS, ACTS_FOR, DO_ROLES, devById, devSignals, syncIO, autoAddr, hasRange, maxRecord, validateProject, nextName, sanitizeTag, parseRecordsChecked, limitsRangeProblem, oneLine, lineSafe, canonIoAddr, MIN_STEP_S, REAL_MAX, } from "./model.js";
+import { PLAT, CLS, ACTS_FOR, DO_ROLES, devById, devSignals, syncIO, autoAddr, hasRange, maxRecord, validateProject, nextName, sanitizeTag, parseRecordsChecked, limitsRangeProblem, oneLine, lineSafe, canonIoAddr, MIN_STEP_S, REAL_MAX, CONVEYOR_CLASSES, conveyorFieldProblem, } from "./model.js";
 import { axisCfgOf, parseAxisPositionsChecked } from "./axis.js";
 import { AXIS_FIELDS } from "./axis_gen.js";
 import { canonAddr } from "./importers.js";
@@ -468,6 +468,18 @@ export function deviceParamsProblem(d, p) {
                 return noParam(d, k);
             continue;
         }
+        if (k === "conveyor") {
+            if (!CONVEYOR_CLASSES.has(d.cls) || typeof p.conveyor !== "object")
+                return noParam(d, k);
+            for (const [ck, cv] of Object.entries(p.conveyor)) {
+                if (!isSet(cv))
+                    continue;
+                const pr = conveyorFieldProblem(ck, cv);
+                if (pr)
+                    return pr;
+            }
+            continue;
+        }
         if (!keys.includes(k))
             return noParam(d, k);
         const v = p[k], label = tr(DEVICE_PARAM_LABEL[k]);
@@ -531,6 +543,20 @@ function applyParams(d, p) {
                     ax[ak] = ak === "drive" ? oneLine(String(av)) : clone(av);
             }
             d.axis = ax;
+        }
+        else if (k === "conveyor") {
+            const c = { ...(isSet(v) ? d.conveyor || {} : {}) };
+            if (isSet(v))
+                for (const [ck, cv] of Object.entries(v)) {
+                    if (!isSet(cv))
+                        delete c[ck];
+                    else
+                        c[ck] = cv;
+                }
+            if (Object.keys(c).length)
+                d.conveyor = c;
+            else
+                delete d.conveyor;
         }
         else if (k === "unit")
             d.unit = oneLine(String(v ?? "")) || "mm";
@@ -756,6 +782,12 @@ export function applyAiProposal(prj, pr) {
             nd.role = a.role;
         if (a.cls === "PosDrive" && Array.isArray(a.records))
             nd.records = clone(a.records);
+        /* pásový dopravník: jen platná pole; AI bez údaje nechá původní zadání */
+        if (CONVEYOR_CLASSES.has(a.cls) && a.conveyor && typeof a.conveyor === "object") {
+            const cv = Object.fromEntries(Object.entries(a.conveyor).filter(([k, v]) => conveyorFieldProblem(k, v) === null));
+            if (Object.keys(cv).length)
+                nd.conveyor = { ...(nd.conveyor || {}), ...cv };
+        }
         if (typeof a.libType === "string" && a.libType)
             nd.libType = a.libType;
         /* konfigurace osy: pole, která AI neposlala (pohon, ryv…), zůstanou z původní */

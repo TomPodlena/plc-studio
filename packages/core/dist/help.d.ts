@@ -34,10 +34,11 @@ export declare const HELP_GROUPS: Record<HelpGroup, string>;
 export declare const HELP_STEP_IDS: string[];
 /** Kapitola k aktuálnímu kroku (číslo kroku; krok Nápověda / neznámý = „start“). */
 export declare function helpForStep(step: unknown): string;
-/** Všechny kapitoly v jazyce `lang` (výchozí = nastavený); `client` vynechá položky jiného klienta. */
-export declare function helpChapters(lang?: string, client?: HelpClient): HelpChapter[];
+/** Všechny kapitoly v jazyce `lang` (výchozí = nastavený); `client` vynechá položky jiného klienta,
+ *  `preview` přidá kapitoly náhledu (PLCdesk PRO — jen desktop se zapnutým náhledem). */
+export declare function helpChapters(lang?: string, client?: HelpClient, preview?: boolean): HelpChapter[];
 /** Jedna kapitola (nebo null). */
-export declare function helpChapter(id: string, lang?: string, client?: HelpClient): HelpChapter | null;
+export declare function helpChapter(id: string, lang?: string, client?: HelpClient, preview?: boolean): HelpChapter | null;
 /** Česká zdrojová data kapitol (klíče překladu) — pro testy a sběr textů. */
 export declare function helpSourceTexts(): string[];
 export interface HelpTourStop {
@@ -94,7 +95,7 @@ export interface HelpHit {
  * v kapitole (AND). Váha: nadpis 10, klíčová slova 6, shrnutí 3, ostatní text 1 (na slovo).
  * Hledá v jazyce `lang`; mimo češtinu i v českých klíčových slovech (nižší váha).
  */
-export declare function searchHelp(query: string, lang?: string, client?: HelpClient, limit?: number): HelpHit[];
+export declare function searchHelp(query: string, lang?: string, client?: HelpClient, limit?: number, preview?: boolean): HelpHit[];
 /** Adresa kapitoly na webu PLCdesk (/napoveda/<id>/; bez id rozcestník) v jazyce UI (web má cs / en / de / zh). */
 export declare function helpSiteUrl(id?: string, lang?: string): string;
 /** Jazyky, ve kterých existuje videoprůvodce (web /video/, přepínač jazyka videa `?v=`). */
@@ -104,5 +105,5 @@ export declare const HELP_VIDEO_LANGS: string[];
  * `/de/video/?v=de`, `/zh/video/?v=zh`; web nemá es — vede na anglickou stránku s videem `?v=es`.
  */
 export declare function helpVideoUrl(lang?: string): string;
-/** Id všech kapitol (pro web a testy). */
+/** Id všech kapitol (pro web a testy; bez kapitol náhledu — ty web nemá). */
 export declare const HELP_IDS: string[];

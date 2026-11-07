@@ -93,6 +93,37 @@ def read_text_any(path: Path) -> str:
     return text
 
 
+def _virtual_screen() -> tuple[int, int, int, int] | None:
+    """Plocha všech připojených monitorů (x, y, šířka, výška) z Windows; jinde None."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        gm = ctypes.windll.user32.GetSystemMetrics
+        return gm(76), gm(77), gm(78), gm(79)   # SM_X/YVIRTUALSCREEN, SM_CX/CYVIRTUALSCREEN
+    except (AttributeError, OSError):
+        return None
+
+
+def _onscreen_geometry(geo: str | None, screen: tuple[int, int, int, int] | None = None) -> str | None:
+    """Uložená geometrie okna; poloha mimo připojené monitory (odpojený druhý monitor) se zahodí
+    a zůstane jen velikost — jinak by okno běželo neviditelně mimo obrazovku."""
+    if not geo:
+        return geo
+    m = re.fullmatch(r"(\d+x\d+)([+-]-?\d+)([+-]-?\d+)", geo)
+    if not m:
+        return geo
+    scr = screen if screen is not None else _virtual_screen()
+    if not scr:
+        return geo
+    x, y = int(m.group(2).replace("+", "", 1)), int(m.group(3).replace("+", "", 1))
+    vx, vy, vw, vh = scr
+    # záhlaví okna (aspoň 120 × 40 px) musí ležet na ploše monitorů, jinak se okno nedá chytit
+    if vx - 40 <= x <= vx + vw - 120 and vy - 10 <= y <= vy + vh - 40:
+        return geo
+    return m.group(1)
+
+
 def _bad_number(name: str):
     raise ValueError(_("soubor obsahuje neplatné číslo {value} (JSON nepovoluje NaN ani nekonečno) — "
                        "oprav hodnotu v souboru, třeba na 0.", value=name))
@@ -164,7 +195,7 @@ class App:
         # licence (license.py): ověření uloženého licenčního souboru jádrem — síť až na pozadí
         self.lic = signed_license(self)
 
-        self.prj: dict = self.core("blankProject")
+        self.prj: dict = self.core("newProject")   # nový projekt = výchozí rezerva I/O 20 %
         self.ai: dict = new_ai()
         self.step: int | str = 0
         # první spuštění (ještě bez uloženého stavu) → úvodní průvodce (helppanel.maybe_start_tour)
@@ -182,7 +213,7 @@ class App:
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         default = f"{min(int(1240 * self.ui_scale), sw - 40)}x{min(int(820 * self.ui_scale), sh - 80)}"
         try:                                     # neplatná geometrie v settings.json nesmí shodit start
-            root.geometry(self.settings.get("geometry") or default)
+            root.geometry(_onscreen_geometry(self.settings.get("geometry")) or default)
         except tk.TclError:
             self.settings.pop("geometry", None)
             root.geometry(default)
@@ -478,7 +509,7 @@ class App:
             self.set_project(d.get("prj") or {}, d.get("ai"))
         except Exception as exc:  # noqa: BLE001 — poškozený stav nesmí zabránit startu
             # nečitelný / poškozený stav: odložit jako state.json.corrupt, začít prázdně a říct to
-            self.prj, self.ai = self.core("blankProject"), new_ai()
+            self.prj, self.ai = self.core("newProject"), new_ai()
             bak = self._backup_corrupt("state.json")
             self._log(traceback.format_exc())
             self._startup_notes.append((_("Rozpracovaný návrh nejde načíst"), _(
@@ -486,7 +517,8 @@ class App:
                 "je uložený jako {path}.", exc=exc, path=bak or path)))
             return
         step = d.get("step", 0)
-        self.step = step if step == "help" or (isinstance(step, int) and 0 <= step < len(STEPS)) else 0
+        self.step = step if step == "help" or (
+            isinstance(step, int) and 0 <= step < len(STEPS)) else 0
 
     def set_project(self, prj: dict, ai: dict | None = None) -> None:
         """Nahradí projekt; chybějící části doplní z prázdného projektu.
@@ -1014,10 +1046,10 @@ class App:
         if self._page_step != self.step:          # jiný krok začíná nahoře; překreslení téhož polohu drží
             self._page_step = self.step
             self._page.reset()
-        renderer = render_help if self.step == "help" else RENDERERS[self.step]
+        renderer = (render_help if self.step == "help" else RENDERERS[self.step])
         self._license_banner()
         from . import helppanel, widgets
-        if num:                                    # tlačítko ? v záhlaví první karty kroku
+        if num:           # tlačítko ? v záhlaví první karty kroku
             step = self.step
             widgets.CARD_HOOK = lambda head: helppanel.step_help_button(self, head, step)
         # otevřený panel nápovědy: po přechodu na jiný krok kapitola nového kroku
@@ -1146,7 +1178,7 @@ class App:
             self.render()
 
     def reset_project(self) -> None:
-        self.prj = self.core("blankProject")
+        self.prj = self.core("newProject")
         self.ai = new_ai()
         self._suggest_number()
         self.save()

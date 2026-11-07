@@ -1,0 +1,38 @@
+{
+ "_popis": "Pneumatické válce — rozměry z katalogů výrobců (mm). Každá řada nese zdroj; rozměr bez zdroje v tabulce NENÍ. Sloupce = značení katalogu SMC.",
+ "iso15552": {
+  "norma": "ISO 15552",
+  "zdroj": "https://content2.smcetech.com/pdf/CP96.pdf",
+  "zdroj_popis": "SMC CP96 ISO Standard (15552), Dimensions — Basic: CP96S(D)B, str. A 133 (tabulka shodná se SMC C96 https://content2.smcetech.com/pdf/C96.pdf, str. A 164)",
+  "poznamka": "Rozměry rozhraní (L8, WH, A, KK, R = TG, RT, B, VD, VA, EE) jsou dané normou ISO 15552 a platí pro všechny výrobce; obrys profilu E je rozměr SMC (Festo DSBC se může lišit o jednotky mm — viz porovnání s modelem výrobce).",
+  "sloupce": {"A": "délka závitu pístnice", "B": "průměr nákružku d11", "BG": "hloubka závitu RT ve víku", "D": "průměr pístnice", "E": "šířka profilu / víka", "EE": "přípojka", "G": "délka víka", "H": "vyložení pístnice od čela (WH + A)", "KK": "závit pístnice", "L8": "délka těla bez zdvihu", "PL": "přípojka od čela víka", "R": "rozteč závitů RT (TG)", "RT": "upevňovací závity ve víkách", "SW": "klíč na pístnici", "VA": "zadní nákružek", "VD": "přední nákružek", "WH": "pístnice od čela k závitu", "ZZ": "celková délka bez zdvihu"},
+  "zdvihy": {"standard_max": {"32": 500, "40": 500, "50": 600, "63": 600, "80": 800, "100": 800}, "max": 2000,
+             "rada": [25, 50, 80, 100, 125, 160, 200, 250, 320, 400, 500, 600, 700, 800],
+             "zdroj": "skill modul-valec references/dimenzovani.md §3 (SMC CP96 str. A 130: standardní zdvihy 25 … 500 Ø32–40, … 600 Ø50–63, … 800 Ø80–100, max. 2000)",
+             "odhad": "mezilehlé hodnoty řady = přednostní zdvihy ISO 4393 (25 … 400) + 500 … 800 po 100 — tabulka CP96 nepřečtena (PDF bez textové vrstvy, 2026-11-04) → ODHAD, ověřit u výrobce"},
+  "rady": {
+   "32":  {"A": 22, "B": 30, "BG": 16, "D": 12, "E": 47,  "EE": "G1/8", "G": 28.9, "H": 48,  "KK": "M10x1.25", "L8": 94,  "PL": 13, "R": 32.5, "RT": "M6x1",     "SW": 10, "VA": 4, "VD": 4, "WH": 26, "ZZ": 146},
+   "40":  {"A": 24, "B": 35, "BG": 16, "D": 16, "E": 54,  "EE": "G1/4", "G": 32.6, "H": 54,  "KK": "M12x1.25", "L8": 105, "PL": 14, "R": 38,   "RT": "M6x1",     "SW": 13, "VA": 4, "VD": 4, "WH": 30, "ZZ": 163},
+   "50":  {"A": 32, "B": 40, "BG": 16, "D": 20, "E": 66,  "EE": "G1/4", "G": 32,   "H": 69,  "KK": "M16x1.5",  "L8": 106, "PL": 14, "R": 46.5, "RT": "M8x1.25",  "SW": 17, "VA": 4, "VD": 4, "WH": 37, "ZZ": 179},
+   "63":  {"A": 32, "B": 45, "BG": 16, "D": 20, "E": 77,  "EE": "G3/8", "G": 38.6, "H": 69,  "KK": "M16x1.5",  "L8": 121, "PL": 16, "R": 56.5, "RT": "M8x1.25",  "SW": 17, "VA": 4, "VD": 4, "WH": 37, "ZZ": 194},
+   "80":  {"A": 40, "B": 45, "BG": 17, "D": 25, "E": 99,  "EE": "G3/8", "G": 38.4, "H": 86,  "KK": "M20x1.5",  "L8": 128, "PL": 16, "R": 72,   "RT": "M10x1.5",  "SW": 22, "VA": 4, "VD": 4, "WH": 46, "ZZ": 218},
+   "100": {"A": 40, "B": 55, "BG": 17, "D": 25, "E": 118, "EE": "G1/2", "G": 42.9, "H": 91,  "KK": "M20x1.5",  "L8": 138, "PL": 18, "R": 89,   "RT": "M10x1.5",  "SW": 22, "VA": 4, "VD": 4, "WH": 51, "ZZ": 233},
+   "125": {"A": 54, "B": 60, "BG": 20, "D": 32, "E": 144, "EE": "G1/2", "G": 58,   "H": 119, "KK": "M27x2",    "L8": 160, "PL": 19, "R": 110,  "RT": "M12x1.75", "SW": 27, "VA": 6, "VD": 6, "WH": 65, "ZZ": 285}
+  }
+ },
+ "iso6432": {
+  "norma": "ISO 6432",
+  "zdroj": "https://content2.smcetech.com/pdf/C85.pdf",
+  "zdroj_popis": "SMC C85 ISO Standards Air Cylinder, Dimensions — Double acting, Single rod, Rubber bumper C85N, str. 8",
+  "poznamka": "Víka: plocha NA × NA s rohy oříznutými kružnicí D (výkres). Trubka mezi víky není okótovaná — tělo je modelované průřezem víka po celé délce S (obálka).",
+  "sloupce": {"AM": "délka závitu pístnice", "BE": "závit nákružku (upevňovací matice)", "C": "průměr pístnice", "CD": "otvor oka H9", "D": "průměr přes rohy víka", "EE": "přípojka", "EW": "šířka oka d13", "F": "délka nákružku / oka", "H": "vyložení pístnice od čela těla", "KK": "závit pístnice", "NA": "šířka víka přes plochy", "ND": "průměr nákružku h8", "RR": "střed oka od konce", "S": "délka těla bez zdvihu", "ZZ": "celková délka bez zdvihu"},
+  "rady": {
+   "8":  {"AM": 12, "BE": "M12x1.25", "C": 4,  "CD": 4, "D": 16.7, "EE": "M5x0.8", "EW": 8,  "F": 12, "H": 28, "KK": "M4x0.7",   "NA": 15,   "ND": 12, "RR": 10,   "S": 46, "ZZ": 86},
+   "10": {"AM": 12, "BE": "M12x1.25", "C": 4,  "CD": 4, "D": 16.7, "EE": "M5x0.8", "EW": 8,  "F": 12, "H": 28, "KK": "M4x0.7",   "NA": 15,   "ND": 12, "RR": 10, "S": 46, "ZZ": 86},
+   "12": {"AM": 16, "BE": "M16x1.5",  "C": 6,  "CD": 6, "D": 19.7, "EE": "M5x0.8", "EW": 12, "F": 17, "H": 38, "KK": "M6x1",     "NA": 18.3, "ND": 16, "RR": 14,   "S": 50, "ZZ": 105},
+   "16": {"AM": 16, "BE": "M16x1.5",  "C": 6,  "CD": 6, "D": 19.7, "EE": "M5x0.8", "EW": 12, "F": 17, "H": 38, "KK": "M6x1",     "NA": 18.3, "ND": 16, "RR": 13,   "S": 56, "ZZ": 111},
+   "20": {"AM": 20, "BE": "M22x1.5",  "C": 8,  "CD": 8, "D": 28,   "EE": "G1/8",   "EW": 16, "F": 20, "H": 44, "KK": "M8x1.25",  "NA": 24,   "ND": 22, "RR": 11,   "S": 62, "ZZ": 126},
+   "25": {"AM": 22, "BE": "M22x1.5",  "C": 10, "CD": 8, "D": 33.5, "EE": "G1/8",   "EW": 16, "F": 22, "H": 50, "KK": "M10x1.25", "NA": 30,   "ND": 22, "RR": 11,   "S": 65, "ZZ": 137}
+  }
+ }
+}

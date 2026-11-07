@@ -13,7 +13,7 @@ import { projectRef, formatIsoDate } from "./project_meta.js";
    zůstat v latince (při čínštině angličtina). Značení dle norem se nepřekládá. */
 
 /** `io` = klíč signálu, ke kterému prvek patří (interaktivní náhledy; DXF ho ignoruje). */
-type Ref = { io?: string };
+type Ref = { io?: string; dev?: number };
 export type Op =
   | ({ t: "l"; x1: number; y1: number; x2: number; y2: number; k: string } & Ref)
   | ({ t: "c"; cx: number; cy: number; r: number } & Ref)
@@ -27,14 +27,14 @@ export interface SheetOps { W: number; H: number; O: Op[]; }
 export interface SheetMeta { projectName: string; date: string; rev?: string; number?: string; customer?: string; startDate?: string; }
 
 /** Výška pruhu „Číslo projektu / Zákazník / Zahájeno“ nad popisovým polem (jen když je některý údaj vyplněn). */
-const REF_BAND = 26;
+export const REF_BAND = 26;
 
 /**
  * Popisové pole výkresu (společné pro listy zapojení a bezpečnostní okruh). Bez čísla projektu
  * a zákazníka přesně původní tvar; s nimi navíc pruh nad polem (volající zvětší list o `REF_BAND`).
  * Hodnoty jsou obsah projektu (nepřekládají se); do DXF jdou přes `dxfText` jako ostatní texty.
  */
-function titleBlock(Re: (x: number, y: number, w: number, h: number, k?: string) => void,
+export function titleBlock(Re: (x: number, y: number, w: number, h: number, k?: string) => void,
   Ln: (x1: number, y1: number, x2: number, y2: number, k?: string) => void,
   Tx: (x: number, y: number, s: unknown, o?: Partial<{ size: number; anchor: string; k: string }>) => void,
   W: number, H: number, f: { project: string; drawing: string; sheet: string; date: string; rev: string; number: string; customer: string; startDate: string }): void {
@@ -59,7 +59,9 @@ function titleBlock(Re: (x: number, y: number, w: number, h: number, k?: string)
 let sheetRev: ((prj: Project) => string | undefined) | null = null;
 export function setSheetRevision(fn: ((prj: Project) => string | undefined) | null): void { sheetRev = fn; }
 
-function todayCz(): string { return today(true); }
+export function todayCz(): string { return today(true); }
+/** Označení revize pro popisové pole (z `setSheetRevision`, jinak undefined). */
+export function sheetRevOf(prj: Project): string | undefined { return sheetRev?.(prj); }
 
 /** Text pro DXF R12: bez diakritiky a jen ASCII — typografické znaky nahradí nejbližší ASCII. */
 function dxfText(s: string): string {
@@ -171,7 +173,7 @@ export function opsToSVG(sh: SheetOps, label: string): string {
     o.k === "f" ? "var(--line, #999)" : o.k === "r" ? "var(--warn, #b45309)" : o.k === "r0" ? "var(--muted, #777)" : "currentColor";
   let s = "";
   for (const o of sh.O) {
-    const io = o.io ? ' data-io="' + esc(o.io) + '"' : "";
+    const io = (o.io ? ' data-io="' + esc(o.io) + '"' : "") + (o.dev !== undefined ? ' data-dev="' + o.dev + '"' : "");
     if (o.t === "l") s += '<line' + io + ' x1="' + o.x1 + '" y1="' + o.y1 + '" x2="' + o.x2 + '" y2="' + o.y2 + '" stroke="' + strokeFor(o) + '" stroke-width="' + ((o.k === "r" || o.k === "r0") ? 2 : (o.k === "f" ? 1 : 1.2)) + '"/>';
     else if (o.t === "c") s += '<circle' + io + ' cx="' + o.cx + '" cy="' + o.cy + '" r="' + o.r + '" fill="none" stroke="currentColor" stroke-width="1.2"/>';
     else if (o.t === "r") s += '<rect' + io + ' x="' + o.x + '" y="' + o.y + '" width="' + o.w + '" height="' + o.h + '" fill="' + (o.k === "chip" ? "var(--chip, #eee)" : "none") + '" stroke="' + (o.k === "chip" || o.k === "f" ? "var(--line, #999)" : "currentColor") + '" stroke-width="' + (o.k === "f" ? 1 : 1.2) + '"/>';

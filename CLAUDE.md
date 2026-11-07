@@ -235,7 +235,37 @@ python scripts/build_verification.py        # data/verification.json → verific
   Unitronics: HMI v CPU, kombinovaný AI/AO modul), ke každému zařízení jeho díly
   (motor → `-Q` jistič motoru + `-K` stykač, válec → rozváděč + válec + snímače polohy, analog podle
   jednotky a popisu…), rozvaděč. Bezpečnostní prvky jen jako HW řádek `safety` s výhradou
-  „EN ISO 13849, návrh k revizi" — **žádná bezpečnostní logika**. Výstupy `bomCsv` (středník, BOM
+  „EN ISO 13849, návrh k revizi" — **žádná bezpečnostní logika**.
+  **Díly podle popisu zařízení** (2026-10-15, nálezy funkčního rozboru nad manifestem CAD v2; klíčová slova JEN z obsahu
+  projektu — `Device.desc` v jazyce vzniku, cs + en + de —, nikdy z přeloženého UI; regexy v `bom.ts`): **rozhraní
+  k jinému stroji** (`bomIsInterface`: „euromap“, „rozhraní“ / interface / Schnittstelle, handshake, „signál z / do / od /
+  pro …“, signal from / to, Signal von / an / zum …, popis začíná „Robot“, „z / do robota“, from / to robot, vom / zum
+  Roboter; samotné „povolení“ ne) → DI bez fyzického dílu, Ventil / DO = `interface_relay` (bezpotenciálový kontakt),
+  hlášení ventilu = kontakt druhého stroje, a jeden řádek `-XG1:machine_interface` se seznamem signálů (EUROMAP → poznámka
+  k normě; bez kódu — typ doplní projektant); E-stop, blokování a tlačítka mají přednost. Ventil: hydraulika → **vakuum**
+  (vakuu / vakuov / podtlak / ejektor / přísav / vacuum / suction / Sauger) = rozváděč + `vacuum_ejector` + `suction_cup`
+  + `vacuum_switch` (místo „koncových poloh“) → **chapadlo** (chapad / úchop / gripper / Greifer) = rozváděč + `gripper`
+  + `cylinder_switch` → procesní armatura → válec. **Pohyb** (zdvih / pojezd / posuv / otoč / dolů / nahoru / lift /
+  stroke / Hub / heben / schwenk…) má přednost před vakuem i chapadlem — „zdvih chapadla“ je válec. Kategorie úchopů
+  (suction_cup, vacuum_ejector, vacuum_switch, gripper) mají položky v `data/catalog/uchopy.json` (2026-10-29, 10 položek
+  Festo / Schmalz / Schunk / Zimmer / ifm z rešerše skillu uchopy-a-vakuum, kód jen s URL zdroje; výchozí = Festo, u
+  platformy Festo shodná značka) — poznámky řádků říkají „typ z katalogu je výchozí návrh“; `machine_interface` zatím
+  bez položek katalogu. Kabely M12 jen ke skutečným snímačům (ne k signálům rozhraní). **Signální věž** (2026-11-03, nálezy modulů
+  pult / maják PRO): DO majáku (`beacon` z popisu jako dřív) = JEDNA věž `-PF1:beacon` (IEC 81346-2 třída P; označení nezávisí na
+  jménech DO → id i GUID pro CAD přežijí přejmenování / smazání DO; řádek bez `devId`, katalog = hotová věž R/Y/G Werma 64924005…)
+  + patro `-<DO>:beacon_light` na každý DO (`devId`, bez kódu, CAD `mount: none`, vazby `controls` výstupní modul → patro a `feeds`
+  věž → patro), patra shora R / Y / B / G / W (IEC 60204-1 10.3.2). Barva z popisu (cs / en / de / es), jinak z role (fault R, run G;
+  ready / auto W, stopped Y, lock B = výchozí PLCdesk, rozhodnutí uživatele 2026-11-03, poznámka „výchozí PLCdesk podle role“
+  — shodně skill modul-majak `data/veze.json`); barvy mimo R/Y/G, duplicitní nebo > 3 patra
+  → poznámka „stavebnicová věž, typ doplní projektant“ (kódy světelných prvků v katalogu nejsou). Víc věží jen podle popisu („věž A“,
+  „tower B“, „Turm 2“ → -PF1, -PF2). `bomBeaconTowers` sdílí kusovník i `cad.ts`. **Volič** (volič / přepínač / selector /
+  Wahlschalter) = kategorie `selector_switch` (dřív `pushbutton`), bez položky katalogu (kód voliče 3SU1 rešerší nedoložen — typ doplní
+  projektant). `pro3d_cabinet` čte kategorie jádra (`pushbutton`, `estop_button`, `selector_switch`; `dvere.core_cat` převádí starší
+  `push_button` / `emergency_stop`). **Pneumatika** (2026-11-04, moduly P2 / P3 PRO): stroj s rozváděči `valve_solenoid` má jednou
+  `-WP1:valve_manifold` (lišta rozváděčů, počet míst = počet rozváděčů, Festo VABM-L1-14 bez kódu), `-QM1:air_shutoff` (ruční
+  uzávěr MS6-EM1 541267, uzamykatelnost ověřit) a `-HQ1:air_prep` (filtr-regulátor MS6-LFR 529184); bezpečnostní odvzdušňovací
+  ventil `-YS1:safety_valve` dál jen z modulu bezpečnosti (navržené funkce). Golden: změna jen 09_kusovnik. Volba uživatele v `prj.bom.lines` má dál
+  přednost. Testy `bom.test.ts`. Výstupy `bomCsv` (středník, BOM
   pro český Excel), `bomMd`; v dokumentaci `09_kusovnik.md/.csv`.
 - Volby uživatele `prj.bom` = `{ plat, brand: {catKey: optId|vlastní}, lines: {id: {brand, type,
   orderCode, supplier, qty, note}} }`; `BomLine.id` (označení + kategorie) je stabilní — naváže na
@@ -247,9 +277,21 @@ python scripts/build_verification.py        # data/verification.json → verific
 
 ## Export pro CAD (`cad.ts`)
 
-- `cadManifest(prj, opts?)` / `cadManifestJson(prj)` → `PLCdesk_CAD.json`, formát `plcdesk-cad` verze 1 — závazné
-  schéma `C:\CLAUDE\plcdesk_freecad\MANIFEST_SCHEMA.md` (každý klíč vždy, prázdné "" / null; nové pole = verze 2,
-  schéma neměnit samostatně — čte ho FreeCAD i FreeCAD PLM). Díly = VŠECHNY řádky `buildBom` (id = `BomLine.id`,
+- `cadManifest(prj, opts?)` / `cadManifestJson(prj)` → `PLCdesk_CAD.json`, formát `plcdesk-cad` **verze 2** (2026-10-15;
+  nadmnožina v1) — schéma `C:\CLAUDE\plcdesk_freecad\MANIFEST_SCHEMA.md` (každý klíč vždy, prázdné "" / null / [];
+  nové pole = nová verze, schéma neměnit samostatně — čte ho FreeCAD i FreeCAD PLM; návrh v2 čeká v
+  `.claude/plcdesk_freecad_staging/schema_v2/` na odsouhlasení). **Počítá se nad `cadProject(prj)`** = kopie se `syncIO`
+  (příklady ukládají `io: []` — bez toho manifest neměl I/O karty, svorky ani vazby `controls`); vstup se nemění, GUID
+  jen čte ze vstupu (co kopie při synchronizaci vytvoří, export nepoužije → null). Totéž platí pro web, most desktopu
+  (`cad`), `projectBundle` i `cadFeedbackReview` (řádky jako v manifestu). v2 navíc: `project.revision` (poslední revize:
+  id, datum, kdo, otisk, `approved {valid, required}` z `approvalsAt`, `current` = obsah = revize), `parts[].guid`
+  (`derivedGuid(Device.guid, "bom:"+kat[+":"+n])`, karty `derivedGuid(prj.guid, "bom:"+kat+":"+stanice)`, ostatní
+  `derivedGuid(prj.guid, "bom:"+id)` — přežije přejmenování), `deviceGuid`, `safety` (`bomLineIsSafety`: `BomLine.safety`,
+  `BOM_SAFETY_CATS`, díl E-stopu / blokování), `instances` (kusy karet a hlav z `moduleGuids`), `guid` stanic a modulů,
+  a ZADÁNÍ pro hrubý 3D koncept: `brief` (popis, takt, datum, režimy, platformy, `concept`), `devices[]` (třída, rozsah,
+  meze, žádaná, volby, rampa, tolerance, záznamy, `travelS`, `axisCfgOf`, signály, řádky), `sequence[]` (kroky s parametry,
+  `stepTitle`), `safety` (E-stop, blokování, `proposeSafety` souhrn jen s modulem bezpečnosti, jinak null). Nic se
+  nevymýšlí — jen data projektu. Díly = VŠECHNY řádky `buildBom` (id = `BomLine.id`,
   `device` = jméno zařízení z `devId`), `location` / `mount` z tabulky `CAD_PLACEMENT` (jediné místo; test hlídá každou
   kategorii katalogu, `CAT_LABEL` i řádků modulu bezpečnosti; neznámá kategorie knihovny = field / none), `plc.stations`
   = `hwLayout` (hlava = CPU / hlava stanice, I/O karty v pořadí slotů → řádek skupiny `bomTag:cat`; vestavěné I/O jsou
@@ -261,7 +303,10 @@ python scripts/build_verification.py        # data/verification.json → verific
   `09_Exporty/CAD` (`projectBundle(prj, { cad: true })` — volba, výchozí sada beze změny; klienti ji zapínají).
   Licence: manifest = data projektu jako `.plcstudio.json` → `licenseFileKind` „own“ (bez brány i nad limitem).
   Modely z CADu (.FCStd / .step / .stp) patří do `02_Vykresy/3D` (`PROJECT_DIRS.model3d`; PLCdesk je zatím nevyrábí).
-  Testy `cad.test.ts` (28 vzorů + sampleSmall / Complex, s modulem bezpečnosti i bez).
+  Testy `cad.test.ts` (28 vzorů tak, jak jsou uložené (`io: []`) + sampleSmall / Complex, s modulem bezpečnosti
+  i bez; klíče v2 vždy, vstup beze změny, GUID stabilní při přejmenování, bez GUID ve vstupu null, revize, determinismus).
+- Revize: změna řádku kusovníku bezpečnostního dílu (`bomLineIsSafety` v kterémkoli stavu) nebo značky bezpečnostní
+  kategorie = třída **bezpečnostní** (`revision.ts` rawDiff), ostatní kusovník kosmetická.
 
 ### Zpětná vazba z CAD (`cad_feedback.ts`)
 
@@ -269,13 +314,15 @@ python scripts/build_verification.py        # data/verification.json → verific
   a uživatel návrhy přijme / odmítne po položkách; nic automaticky. Formát `PLCdesk_CAD_feedback.json`
   (`plcdesk-cad-feedback` v1) je závazný: `C:\CLAUDE\plcdesk_freecad\FEEDBACK_SCHEMA.md` (neměnit samostatně).
 - `parseCadFeedback(text)` → `{ fb | null, errors }` (validace podle schématu, chyby s cestou `issues[2].severity`,
-  `measured.source` povinný — jen doložená fakta). `cadFeedbackReview(prj, fb)` → položky (závažnost, zpráva,
+  `measured.source` povinný — jen doložená fakta; druhy `part_obsolete` / `part_not_orderable` (2026-10-15, doplněk v1)
+  musí nést `vendorStatus {code, date?, source}` a aspoň jeden díl — přehled nabídne nástupce z CAD a až 3 jiné položky
+  katalogu téže kategorie jen jako alternativy). `cadFeedbackReview(prj, fb)` → položky (závažnost, zpráva,
   naměřeno / požadováno, dotčené řádky, návrh + alternativy převedené na volbu `prj.bom.lines[id]` — shoda
   s katalogem = výběr položky `brand: brandOptId`, jinak vlastní typ / kód / množství; u `cabinet_too_small`
   nejmenší větší skříň z katalogu podle `dims` a `required.min` (hloubka / šířka / výška / plocha desky, vnější
   rozměr — užitný ověř v CAD), stav `usable` / `stale` (otisk `manifest.sha256` ≠ `cadManifestSha256` v žádném
   jazyce UI — jen varování) / `invalid` (partId v kusovníku chybí nebo jiný `prj.guid` — nelze přijmout)).
-  `applyCadFeedback(prj, fb, přijaté["id" | "id#n"], kdo, { rejected })` mění JEN `prj.bom.lines` (žádný paralelní
+  `applyCadFeedback(prj, fb, přijaté["id" | "id#n"], kdo, { rejected })` mění JEN `prj.bom.lines` (+ `prj.bom.ioReserve` u `plc_io_capacity`) (žádný paralelní
   stav) a zapíše historii `prj.bom.cadFeedback` (id, otisk, created, kdo, kdy, přijato / odmítnuto, změna) —
   kusovník, oddíl „Změny ze zpětné vazby CAD“ v `09_kusovnik.md` (`cadFeedbackMd`, jen s historií) i další export
   manifestu se přepočítají samy. Idempotentní (totéž rozhodnutí podruhé nic nepřidá; skříň, která požadavek už
@@ -284,11 +331,25 @@ python scripts/build_verification.py        # data/verification.json → verific
   čtení `util.js readFileText`), desktop okno `kusovnik.py` `CadFeedbackDialog` (operace mostu `cadfb`,
   `cadfbApply`); jméno „Rozhodl“ = jméno schvalovatele (web `plcstudio.approver`, desktop `settings.approver`).
   Po použití hláška „Exportuj znovu pro CAD“. Testy `cad_feedback.test.ts`.
+- **Málo kanálů I/O PLC (`plc_io_capacity`, doplněk v1 2026-10-16; podnět stroj 01 — DI 8/8 po -S4):** směr DI / DO /
+  AI / AO povinný v `measured.what` nebo `required.what` (velkými písmeny, samostatné slovo — české „do“ se nesplete),
+  volitelné `measured.capacity`, `required.min` = volné kanály (`ch`) nebo % obsazených (`%`), bez required 1 volný.
+  `cadFeedbackReview` přepočítá stav podle `hwLayout(cadProject(prj))` (`hwFreeChannels`), cílový řádek = CPU
+  (`-A1:plc_cpu`); návrhy ověřené na kopii (rezerva zbude, nic se nepřelije): hlavní = rezerva I/O (`reserveOnly`,
+  `reserve` → `prj.bom.ioReserve`, PLCdesk přidá kartu / zvolí CPU), alternativy = větší CPU téže `hw.family` (≤ 3,
+  řádek CPU + táž rezerva), návrh řádku z CAD dostane rezervu také. Splněno = `applied`, žádný návrh. **`applyCadFeedback`
+  tedy mění `prj.bom.lines` a `prj.bom.ioReserve`** (obojí volby kusovníku) a po změně hardwaru doplní GUID nových
+  modulů (`fillGuids` nad sestavou synchronizovaných I/O — manifest nese GUID karty hned). Schéma: doplněk v
+  `.claude/plcdesk_freecad_staging/schema_v2/FEEDBACK_SCHEMA.md` (čeká na přenos do `C:\CLAUDE\plcdesk_freecad`).
 - **Opravy kusovníku odhalené ve 3D (2026-10-14):** svorky = jeden řádek `-X<n>:terminal_block` na svorkovnici
   výkresu (počet = kanály skupiny = `svorkyCSV` = `terminals` manifestu; dřív odhad I/O × 1,2 + 10, napájecí svorky
   a rezervu doplní projektant — poznámka u -X1); typ v katalogu = jedna položka (alternativy jako samostatné záznamy
   téže značky — Siemens V20 / G120C, 3RA23, VEGA, KSB; test hlídá vzor „…; Typ —“); `dims` (mm + URL) u skříní
   (Rittal AX 500×500×210 … 1000×1400×300, Schneider S3D) a měničů Siemens.
+
+## PLCdesk PRO — 3D (odloženo)
+
+3D prototyp PLCdesk PRO je ve větvi `plcdesk-pro-3d-agent`; v této větvi zůstal jen výpočet rozvaděče (`pro3d_cabinet`, `pro3d_parts`) pro 2D rozložení.
 
 ## Sestava hardwaru (hardware.ts)
 
@@ -331,6 +392,22 @@ python scripts/build_verification.py        # data/verification.json → verific
   `normProject` značku zachovává.
 - **GUID modulů:** klíč `S<stanice>.<slot>` v `prj.moduleGuids` (karty a hlavy); vestavěné I/O, CPU,
   BusAdapter a server odvozeně. Dřívější klíče `DI1…` převede `fillGuids` (n-tá karta téhož směru).
+- **Rezerva I/O** (2026-10-16): `prj.bom.ioReserve = { pct?, DI?, DO?, AI?, AO? }` (`IoReserve`, model.ts) — % obsazených
+  kanálů každého použitého směru (nahoru) a / nebo minimum volných kanálů směru; platí větší (`ioReserveFor`,
+  čištění `ioReserveOf`: % ≤ 100, kanály celé 0–1000; `normalizeProject` zachová, revize = kosmetická změna kusovníku).
+  `build` volí CPU (`localFits`) i karty (`plan`) pro signály + rezervu; nesplnitelná rezerva (rack plný, bez vzdálených
+  I/O) = `warn` „Rezerva I/O nesplněna“, bez nastavené rezervy plně obsazený směr = `info` (where „<platforma> DI“).
+  **Výchozí = bez rezervy → sestava i všechny výstupy beze změny (golden)**; hodnotu volí uživatel (web i desktop
+  krok Kusovník: pole „Rezerva I/O“ s volnými kanály `hwFreeChannels`, most `bom` vrací `reserve` / `free`).
+  Připnuté adresy zůstávají (nová karta jen přidá kanály). **Rezerva NIKDY nepřidá vzdálenou stanici** (rozhodnutí
+  uživatele 2026-10-16): auto CPU nejdřív to, kam se signály + rezerva vejdou lokálně, jinak výběr jako bez rezervy;
+  plán s rezervou, který by měl víc stanic než plán jen pro signály, se zahodí (sestava jako bez rezervy) a `warn`
+  „Rezerva I/O nesplněna…“ nabídne větší CPU téže řady, kam se rezerva vejde lokálně. Karty navíc do vzdálené stanice,
+  kterou si vynutily skutečné signály, rezerva přidat smí. **Výchozí rezerva 20 % jen u NOVÉHO projektu**
+  (`newProject()` = `blankProject` + `bom.ioReserve {pct: NEW_PROJECT_IO_RESERVE_PCT}`; web Nový projekt / první
+  návštěva / poškozený stav, desktop start / `reset_project` / poškozený stav). `blankProject` zůstává bez rezervy
+  (normalizace načtených projektů, vzory, golden, testy) a **import stávajícího stroje (`inferProject`, průvodce
+  importu) je bez rezervy** — hardware už existuje; `applyAiProposal` rezervu nemění; nic se nemigruje.
 - Testy `hardware.test.ts`: 13 příkladů × 10 platforem — signál právě na jednom kanálu, bez kolize
   adres, kanály = katalog, limity racků, kusovník = sestava, výkresy / svorkovnice / EPLAN shodné,
   validateEplan bez chyb; pravidla Siemens / FX5 / Rockwell / Omron / Unitronics, „nevejde se“,

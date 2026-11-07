@@ -1,4 +1,4 @@
-import { type Project, type Device, type DeviceClass, type DoRole, type PosRecord, type Dir, type SeqStep, type ValidationIssue } from "./model.js";
+import { type ConveyorCfg, type Project, type Device, type DeviceClass, type DoRole, type PosRecord, type Dir, type SeqStep, type ValidationIssue } from "./model.js";
 import { type AxisCfg, type AxisPos } from "./axis.js";
 export interface EditResult {
     ok: boolean;
@@ -127,6 +127,10 @@ export interface DeviceParams {
     records?: PosRecord[] | null;
     axis?: {
         [K in keyof AxisCfg]?: AxisCfg[K] | null;
+    } | null;
+    /** jen Motor / Vfd pásového dopravníku: pole se slučují (`null` u pole = odebrat), `null` celé = odebrat vše */
+    conveyor?: {
+        [K in keyof ConveyorCfg]?: number | null;
     } | null;
 }
 /**

@@ -86,6 +86,36 @@ test("deviceParamsProblem a rangeProblem: meze shodné s kontrolou návrhu", () 
     assert.match(rangeProblem(0, NaN), /číslo/);
     assert.match(rangeProblem(-1e39, 0), /REAL/);
 });
+test("pásový dopravník (Device.conveyor): sloučení polí, kontrola rozsahů, normalizace, manifest CAD, kód beze změny", async () => {
+    const { normalizeProject } = await import("./project_norm.js");
+    const { cadManifest } = await import("./cad.js");
+    const { genFor } = await import("./codegen.js");
+    const p = small();
+    const m1 = byName(p, "M1");
+    const code0 = JSON.stringify(genFor(p, "siemens"));
+    assert.equal(setDeviceParams(p, m1.id, { conveyor: { length: 2000, width: 400, speed: 0.3 } }).ok, true);
+    assert.deepEqual(m1.conveyor, { length: 2000, width: 400, speed: 0.3 });
+    assert.equal(setDeviceParams(p, m1.id, { conveyor: { speed: null, load: 25 } }).ok, true);
+    assert.deepEqual(m1.conveyor, { length: 2000, width: 400, load: 25 });
+    assert.match(setDeviceParams(p, m1.id, { conveyor: { width: 5 } }).error, /šířka pásu b musí být 20 až 3000 mm/);
+    assert.match(setDeviceParams(p, m1.id, { conveyor: { speed: NaN } }).error, /Neplatné číslo/);
+    assert.match(setDeviceParams(p, byName(p, "H1").id, { conveyor: { length: 1000 } }).error, /nemá parametr/);
+    assert.equal(JSON.stringify(genFor(p, "siemens")), code0, "kód PLC dopravník nečte");
+    /* manifest: klíč vždy, nezadané pole null */
+    const dev = cadManifest(p).devices.find(d => d.name === "M1");
+    assert.deepEqual(dev.conveyor, { length: 2000, width: 400, speed: null, load: 25, height: null });
+    assert.equal(cadManifest(p).devices.find(d => d.name === "H1").conveyor, null);
+    /* normalizace: text a neznámé klíče pryč, jiná třída pryč */
+    const raw = JSON.parse(JSON.stringify(p));
+    raw.devices.find((d) => d.name === "M1").conveyor = { length: "x", width: 300, foo: 1 };
+    raw.devices.find((d) => d.name === "H1").conveyor = { length: 1000 };
+    const n = normalizeProject(raw);
+    assert.deepEqual(n.devices.find(d => d.name === "M1").conveyor, { width: 300 });
+    assert.equal(n.devices.find(d => d.name === "H1").conveyor, undefined);
+    /* null celé = odebrat */
+    assert.equal(setDeviceParams(p, m1.id, { conveyor: null }).ok, true);
+    assert.equal("conveyor" in m1, false);
+});
 test("deviceUsage a deleteDevice: kroky, E-stop, blokování", () => {
     const p = small();
     const m1 = byName(p, "M1"), s1 = byName(p, "S1"), s2 = byName(p, "S2"), h1 = byName(p, "H1");
