@@ -694,7 +694,21 @@ def _router():
     return router
 
 
-def route_hose(hid, a, b, obst, plates, medium="festo_PUN_6x1", nazev="", prefer=None):
+def route_hose(hid, a, b, obst, plates, medium="festo_PUN_6x1", nazev="", prefer=None, svazek=None):
+    """Se ``svazek`` (seznam [(body, r)] dříve položených hadic) se hadice vede jako součást svazku: po profilech rámu
+    (``prefer``), dříve položené hadice nejsou překážka a překrývající se úseky se rozloží do pruhů (``svazek.rozloz_pruhy``);
+    nejde-li to, klasická trasa mimo dříve položené hadice."""
+    if svazek is not None:
+        from . import svazek as sv
+        h, why = _route_hose(hid, a, b, obst, plates, medium, nazev, prefer, sv_pruh=svazek)
+        if h is not None:
+            return h, why
+        extra = [x for hb, hr in svazek for x in _router().segments_boxes(hb, hr)]
+        return _route_hose(hid, a, b, obst + extra, plates, medium, nazev, prefer)
+    return _route_hose(hid, a, b, obst, plates, medium, nazev, prefer)
+
+
+def _route_hose(hid, a, b, obst, plates, medium, nazev, prefer, sv_pruh=None):
     """Hadice ústí ``a`` → ústí ``b`` routerem (pevné uložení, poloměr podle média) + zaoblení ``modul_ostrov.hadice``."""
     rt = _router()
     tr = modul_ostrov.trasa_mod()
@@ -708,14 +722,30 @@ def route_hose(hid, a, b, obst, plates, medium="festo_PUN_6x1", nazev="", prefer
     infl = D / 2 + 3.0 + 0.15 * R + 0.5
     obs = [bx for bx in obst if not (rt.point_in(p1, rt.inflate(bx, infl)) or rt.point_in(p2, rt.inflate(bx, infl)))]
     res = None
-    for krok in ((20.0, 40.0, 60.0) if math.dist(p1, p2) < 900 else (40.0, 60.0)):   # limit uzlů → hrubší mřížka
+    marg = 350.0
+    for krok, marg in ([(k_, 350.0) for k_ in ((20.0, 40.0, 60.0) if math.dist(p1, p2) < 900 else (40.0, 60.0))] + [(40.0, 900.0), (60.0, 1500.0)]):
+        # limit uzlů → hrubší mřížka; "bez cesty" → širší oblast hledání (obejití překážky mimo obálku start-cíl)
+        kw = {}
+        if sv_pruh is not None:
+            from . import svazek as sv
+            kw = {"pref_w": sv.PREF_W, "pref_margin": sv.PREF_DOSAH}
         res = rt.route(p1, a["osa_usti"], p2, [-c for c in b["osa_usti"]], obs, R=R, r_med=D / 2, clear=3.0 + 0.15 * R, step=krok,
-                       plates=plates, margin=350.0, max_nodes=900000, cross_cost=400.0, prefer=prefer)
-        if res is not None or rt.LAST.get("fail") != "limit uzlu":
+                       plates=plates, margin=marg, max_nodes=900000, cross_cost=400.0, prefer=prefer, **kw)
+        if res is not None or rt.LAST.get("fail") not in ("limit uzlu", "bez cesty"):
             break
     if res is None:
         return None, f"router: {rt.LAST.get('fail')}"
     via = res["body"]
+    if sv_pruh:
+        from . import svazek as sv
+        # celá čára vč. rovných úseků od přípojek: první a poslední úsek (přípojka → konec výstupního úseku) se nehýbou,
+        # první a poslední bod trasy ale smí po ose přípojky (výška / délka výstupního úseku)
+        full = [list(modul_ostrov._konec(a))] + [list(v) for v in via] + [list(modul_ostrov._konec(b))]
+        via2 = sv.rozloz_pruhy(full, D / 2 + 2.0, sv_pruh, obs, minL=2.0 * float(req["min"] or R) + 2.0)   # sousední ohyby smí mít poloměr až na minimum výrobce
+        if via2 is None:
+            return None, "svazek: pruhy se nedaji rozlozit"
+        via = via2[1:-1]
+        res = dict(res, pruchody=res["pruchody"])
     try:
         h = modul_ostrov.hadice(hid, a, b, via, medium, nazev)
     except ValueError as exc:
@@ -932,6 +962,7 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
     obst += _module_boxes(o3["modul"], typy_skip=("zona",))
     obst += [b for _n, b in pas["obalky"]]
     hoses, h_info = [], []
+    sv_list = []                                              # svazek hadic: [(body, r)] dříve položených (rozvod P + P4)
     prip, prip_hose = {}, {}
     p3_in = None
     if pas.get("p3_raw"):
@@ -953,13 +984,13 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
                           f"u vyhazovače (poloha {p3_in['placement']['pos']}), venku jen úprava vzduchu P2")
             if pas.get("p2_vystup"):
                 hP, why = route_hose("P_rozvod", pas["p2_vystup"], p3_in["napajeni"], obst, [deska_box], medium="festo_PUN_10x1.5",
-                                     nazev="Hadice PUN-10x1,5 rozvod P: úprava vzduchu P2 → ostrov P3 (deskou)", prefer=prefer)
+                                     nazev="Hadice PUN-10x1,5 rozvod P: úprava vzduchu P2 → ostrov P3 (deskou)", prefer=prefer, svazek=sv_list)
                 if hP is None:
                     nep.append({"id": "H P", "co": "rozvod P úprava vzduchu → ostrov", "duvod": f"trasa nenalezena ({why}) — doplní stavitel"})
                 else:
                     hP["vysledek"].update({"od": "-P2.P_out", "do": p3_in["napajeni"]["id"]})
                     hoses.append(hP)
-                    obst += _router().segments_boxes(hP["body"], hP["r"] + 2.0)
+                    sv_list.append((hP["body"], hP["r"] + 2.0))
                     for cr in hP["pruchody"]:
                         b_ = cr["bod"]
                         poz.append({"co": f"průchod Ø{2 * hP['r'] + 10:.0f} hadice rozvodu P (P2 → P3)", "bod": [b_[0], b_[1], Hd],
@@ -976,8 +1007,8 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
             if not tgt:
                 nep.append({"id": f"H {pid}", "co": f"hadice {pid} → {a['valec']} {a['cil']}", "duvod": "válec v celku není"})
                 continue
-            h, why = route_hose(f"{pid.lstrip('-').replace('.', '_')}_{a['valec'].lstrip('-')}_{a['cil']}", a, tgt, obst + used,
-                                [deska_box], prefer=prefer, medium=a.get("hose") or "festo_PUN_6x1",
+            h, why = route_hose(f"{pid.lstrip('-').replace('.', '_')}_{a['valec'].lstrip('-')}_{a['cil']}", a, tgt, obst,
+                                [deska_box], prefer=prefer, svazek=sv_list, medium=a.get("hose") or "festo_PUN_6x1",
                                 nazev=f"Hadice {(a.get('hose') or 'festo_PUN_6x1').replace('festo_', '')} {a['ventil']} port {pid.split('.')[-1]} → {a['valec']} {a['cil']}")
             if h is None:
                 nep.append({"id": f"H {pid}", "co": f"hadice {pid} → {a['valec']} {a['cil']}", "duvod": f"trasa nenalezena ({why}) — doplní stavitel"})
@@ -988,7 +1019,7 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
                 odhady.add(f"hadice {pid} → {a['valec']} {a['cil']}: ostrov PUN-6 (QS-G1/8-6), válec má šroubení pro {hk} — přechod "
                            "QS-8-6 / šroubení QS-G1/4-6 na válci doplní stavitel (ODHAD, není v kusovníku)")
             hoses.append(h)
-            used += _router().segments_boxes(h["body"], h["r"] + 2.0)
+            sv_list.append((h["body"], h["r"] + 2.0))
             for cr in h["pruchody"]:
                 b_ = cr["bod"]
                 poz.append({"co": f"průchod Ø{2 * h['r'] + 10:.0f} hadice {pid} → {a['valec']} {a['cil']}", "bod": [b_[0], b_[1], Hd],
@@ -1058,8 +1089,8 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
             nep += ee["nepostaveno"]
             fb += ee["zpetna_vazba"]
             e1.update(poloha="konzola E1 na zadní straně rámu N1", box=None)
-            e2_r = ee["smlouvy"].get("E2") or {}
-            kabely = [dict(t, stav="postaveno v modelu (E2)", postaveno=True) for t in e2_r.get("trasy") or []]
+            kabely = [dict(t, stav=f"postaveno v modelu ({ek})", postaveno=True)
+                      for ek in ("E2", "E3") for t in (ee["smlouvy"].get(ek) or {}).get("trasy") or []]
 
     elif s_kabely and e1.get("vstup_kabelu"):
         kabely = cables_estimate(man, d, pas, o3, e1, obst + [x for h in hoses for x in _router().segments_boxes(h["body"], h["r"] + 2)],
@@ -1085,7 +1116,12 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
         mods.append(p3_in["fixture"])
         mods.append(dict(pas["p3_raw"], placement=p3_in["placement"]))
     if hoses:
-        mods.append({"typ": "P4 hadice", "tag": "-P4", "nazev": "P4 — hadice ostrov → válce", "dily": [], "instance": [], "telesa": [],
+        from . import svazek as _sv
+        u_dily, u_inst, u_stat = _sv.uchytky_hadic(hoses, prefer)
+        if u_stat["bez_opory_mm"] > 0:
+            odhady.add(f"hadice P4: {u_stat['bez_opory_mm']:.0f} mm úseků je dál než {_sv.UCHYT_DOSAH:g} mm od líce profilu — bez úchytky, "
+                       "doplní stavitel (kontrola kabel-bez-opory)")
+        mods.append({"typ": "P4 hadice", "tag": "-P4", "nazev": "P4 — hadice ostrov → válce", "dily": u_dily, "instance": u_inst, "telesa": [],
                      "kabely": [{k: v for k, v in h.items() if k not in ("vysledek", "pruchody", "body")} for h in hoses], "skupiny": [],
                      "props": {"Konstrukce_Generator": GEN, "Konstrukce_Modul": "P4"}})
     plan = {"format": "pro3d-lib-plan", "verze": 1, "generator": GEN, "model": model,

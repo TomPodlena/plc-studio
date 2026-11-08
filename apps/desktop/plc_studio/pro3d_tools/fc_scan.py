@@ -942,10 +942,11 @@ def _osa_kabelu(sh):
 
 def check_kabel_opora(items, res):
     """Úsek kabelu delší než OPORA_MAX, který není celý do OPORA_DOSAH od žlabu / profilu / desky = varování."""
-    sup = [x for x in items if x["typ"] in ("zlab", "profil", "retez") or "deska" in rules.fold(x["label"])]
+    sup = [x for x in items if x["typ"] in ("zlab", "profil", "retez") or "deska" in rules.fold(x["label"])
+           or "uchytk" in rules.fold(x["label"]) or "uchyt" in rules.fold(x["label"])]
     n = 0
     for x in items:
-        if x["typ"] != "kabel":
+        if x["typ"] not in ("kabel", "hadice"):                       # hadice (svazek P4 / rozvod P) se podpírá stejně jako kabel
             continue
         seg = _osa_kabelu(x["s"])
         if not seg:
@@ -968,7 +969,7 @@ def check_kabel_opora(items, res):
         runs = rules.unsupported_runs(seg, ok)
         if runs and runs[0][0] > OPORA_MAX:
             n += 1
-            res["varovani"].append(f_("kabel-bez-opory", f"{x['label']}: úsek {runs[0][0]:.0f} mm bez opory (žlab / úchytka / profil / "
+            res["varovani"].append(f_("kabel-bez-opory", f"{x['typ']} {x['label']}: úsek {runs[0][0]:.0f} mm bez opory (žlab / úchytka / profil / "
                                       f"deska do {OPORA_DOSAH:.0f} mm; rozteč úchytek {OPORA_MAX:.0f} mm je ODHAD) — doplnit úchytky",
                                       list(runs[0][1]), [x["path"]]))
     return n

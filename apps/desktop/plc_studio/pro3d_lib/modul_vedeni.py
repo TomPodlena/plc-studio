@@ -498,13 +498,48 @@ def celek_e1_e2(n1_roz: dict, starts: list, obst: list, layout_path, *, strana: 
     zl = Zlab(p, u0 + 10.0, u1 - 10.0, nazev=f"E2 žlab na {p['prvek']}")
     kab = [{"id": s[0], "partId": s[1], "od": s[2], "start": list(s[3]), "D": s[4], "smer": list(s[5]) if len(s) > 5 and s[5] else [0, 0, 1], "smer_odhad": not (len(s) > 5 and s[5]),
             "medium": "lapp_OLFLEX_CLASSIC_110" if _sil(s) else medium, "skupina": "silovy" if _sil(s) else "signal"} for s in starts]
-    e2 = modul(kab, zl, e1["rozhrani"], obst + e1["boxes"], plates=plates)
-    out["moduly"].append(e2["modul"])
-    out["smlouvy"]["E2"] = e2["rozhrani"]
-    out["nepostaveno"] += [{"id": "E2", "co": n["co"], "duvod": n["duvod"]} for n in e2["rozhrani"]["nepostaveno"]]
-    out["zpetna_vazba"] += e2["zpetna_vazba"]
-    out["pozadavky_N1"] += [x for x in e2["rozhrani"]["pozadavky_na_ram"] if x.get("kind") == "pruchod"]
+    try:
+        e2 = modul(kab, zl, e1["rozhrani"], obst + e1["boxes"], plates=plates)
+        e2s = [("E2", e2)]
+    except ValueError as exc:
+        e2s = _dva_zlaby(exc, kab, p, u0, u1, zl, e1, obst, plates)          # nevejde se do jednoho žlabu → druhý žlab (kap. 4 návrhu)
+        if not e2s:
+            raise
+    for ident, e2 in e2s:
+        out["moduly"].append(e2["modul"])
+        out["smlouvy"][ident] = e2["rozhrani"]
+        out["nepostaveno"] += [{"id": ident, "co": n["co"], "duvod": n["duvod"]} for n in e2["rozhrani"]["nepostaveno"]]
+        out["zpetna_vazba"] += e2["zpetna_vazba"]
+        out["pozadavky_N1"] += [x for x in e2["rozhrani"]["pozadavky_na_ram"] if x.get("kind") == "pruchod"]
     return out
+
+
+def _dva_zlaby(exc, kab, p, u0, u1, zl, e1, obst, plates):
+    """Kabely se nevejdou do jednoho žlabu: rozdělit na dvě skupiny (silové × signálové, jinak podle průměru napůl) a druhou
+    vést druhým žlabem na dalším volném úseku téhož líce profilu (``E3``). Nelze-li, vrací [] (volající zvedne původní chybu)."""
+    if "nevejde" not in str(exc) or len(kab) < 2:
+        return []
+    sil = [k for k in kab if k["skupina"] == "silovy"]
+    sig = [k for k in kab if k["skupina"] != "silovy"]
+    if not sil or not sig:
+        srt = sorted(kab, key=lambda k: -float(k["D"] or 0))
+        sil, sig = srt[0::2], srt[1::2]
+    L2 = sorted(((a, b) for a, b in p.get("volne_useky_mm") or [] if (a, b) != (u0, u1) and b - a >= 400.0), key=lambda ab: ab[0] - ab[1])
+    if not L2 and (u1 - u0) >= 2 * 500.0:                        # jediný dlouhý úsek: žlaby za sebou, každý polovinu
+        mid = (u0 + u1) / 2
+        zl_a = Zlab(p, u0 + 10.0, mid - 10.0, nazev=f"E2 žlab na {p['prvek']}")
+        zl_b = Zlab(p, mid + 10.0, u1 - 10.0, nazev=f"E3 žlab na {p['prvek']}")
+    elif L2:
+        zl_a = zl
+        zl_b = Zlab(p, L2[0][0] + 10.0, L2[0][1] - 10.0, nazev=f"E3 žlab na {p['prvek']}")
+    else:
+        return []
+    try:
+        ea = modul(sil, zl_a, e1["rozhrani"], obst + e1["boxes"], plates=plates)
+        eb = modul(sig, zl_b, e1["rozhrani"], obst + e1["boxes"] + [zl_a.box()], ident="E3", nazev="E3 — druhý kabelový žlab", plates=plates)
+    except ValueError:
+        return []
+    return [("E2", ea), ("E3", eb)]
 
 
 # --- zkušební sestava N1 + E1 + S1 + P1 + E2 --------------------------------------------------------------------------------

@@ -64,7 +64,7 @@ def _bucket(boxes, cell=100.0):
 
 
 def route(start, s_dir, goal, g_dir, obstacles, *, R, clear=3.0, r_med=3.0, step=20.0, margin=300.0, plates=None,
-          prefer=None, max_nodes=150000, cross_cost=600.0):
+          prefer=None, max_nodes=150000, cross_cost=600.0, pref_w=0.7, pref_margin=25.0):
     """Trasa z bodu ``start`` (konec výstupního úseku, směr ``s_dir`` = směr, kterým trasa z konce odchází) do ``goal``
     (konec vstupního úseku, ``g_dir`` = směr, kterým trasa do cíle přichází — dál pokračuje k přípojce).
 
@@ -74,7 +74,7 @@ def route(start, s_dir, goal, g_dir, obstacles, *, R, clear=3.0, r_med=3.0, step
     infl = r_med + clear
     obs = [inflate(b, infl) for b in obstacles]
     pl = [inflate(b, infl) for b in (plates or [])]
-    pref = [inflate(b, infl + 25.0) for b in (prefer or [])]
+    pref = [inflate(b, infl + pref_margin) for b in (prefer or [])]
     lo = [min(start[k], goal[k]) - margin for k in range(3)]
     hi = [max(start[k], goal[k]) + margin for k in range(3)]
     keep = [b for b in obs if all(b[k] < hi[k] and b[k + 3] > lo[k] for k in range(3))]
@@ -164,7 +164,7 @@ def route(start, s_dir, goal, g_dir, obstacles, *, R, clear=3.0, r_med=3.0, step
                 continue
             p, q = grid.pt(node), grid.pt(nn)
             L = abs(q[ax] - p[ax])
-            cost = L * (0.7 if nearpref(q) else 1.0) + (30.0 if nd != d else 0.0)
+            cost = L * (pref_w if nearpref(q) else 1.0) + (30.0 if nd != d else 0.0)
             ncr = nc
             if cr is not None:
                 if plates is None:
