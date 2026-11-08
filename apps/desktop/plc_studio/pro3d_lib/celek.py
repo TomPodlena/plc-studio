@@ -907,16 +907,27 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
                 continue
         if xc is None:
             raise ValueError("E1: konzola rozvaděče se k zadní straně rámu nikde nevejde")
-        ee = modul_vedeni.celek_e1_e2(roz_n1, cable_starts(man, d, pas, o3), obst_k, layout_path, strana="zadni", xc=xc, plates=[deska_box])
-        poz_e = [q for q in ee["pozadavky_N1"] if q.get("bod")]
-        if poz_e:                                      # průchody kabelů deskou musí být v rámu před finální stavbou
-            n1 = _n1(D, W, Hd, nos, poz + poz_e, mods_m, str((man.get("project") or {}).get("name") or "celek"))
-            roz_n1 = n1["rozhrani"]
-        nep += ee["nepostaveno"]
-        fb += ee["zpetna_vazba"]
-        e1.update(poloha="konzola E1 na zadní straně rámu N1", box=None)
-        e2_r = ee["smlouvy"].get("E2") or {}
-        kabely = [dict(t, stav="postaveno v modelu (E2)", postaveno=True) for t in e2_r.get("trasy") or []]
+        try:
+            ee = modul_vedeni.celek_e1_e2(roz_n1, cable_starts(man, d, pas, o3), obst_k, layout_path, strana="zadni", xc=xc, plates=[deska_box])
+        except ValueError as exc_e2:                   # např. víc kabelů, než pojme jediný katalogový žlab 40 × 40 — nic se nevymýšlí
+            ee = None
+            nep.append({"id": "E2", "co": "žlab a kabely k rozvaděči", "duvod": f"{exc_e2} — větší žlab / víc žlabů katalog nemá, "
+                                                                                  "kabely jen ODHAD délek routerem (nestaví se), doplní stavitel"})
+            nep.append({"id": "E1", "co": f"konzola rozvaděče {e1.get('partId') or ''}".strip(),
+                        "duvod": "konzola E1 se staví spolu s žlabem E2 — doplní stavitel"})
+            kabely = cables_estimate(man, d, pas, o3, dict(e1, vstup_kabelu=[D + SKRIN_ODSTUP, W / 2, 400.0]),
+                                     obst_k, deska_box, Hd)
+        if ee:
+            poz_e = [q for q in ee["pozadavky_N1"] if q.get("bod")]
+            if poz_e:                                      # průchody kabelů deskou musí být v rámu před finální stavbou
+                n1 = _n1(D, W, Hd, nos, poz + poz_e, mods_m, str((man.get("project") or {}).get("name") or "celek"))
+                roz_n1 = n1["rozhrani"]
+            nep += ee["nepostaveno"]
+            fb += ee["zpetna_vazba"]
+            e1.update(poloha="konzola E1 na zadní straně rámu N1", box=None)
+            e2_r = ee["smlouvy"].get("E2") or {}
+            kabely = [dict(t, stav="postaveno v modelu (E2)", postaveno=True) for t in e2_r.get("trasy") or []]
+
     elif s_kabely and e1.get("vstup_kabelu"):
         kabely = cables_estimate(man, d, pas, o3, e1, obst + [x for h in hoses for x in _router().segments_boxes(h["body"], h["r"] + 2)],
                                  deska_box, Hd)
@@ -1096,7 +1107,10 @@ def write_outputs(res: dict, folder: Path) -> list[str]:
         p.write_text(json.dumps(obj, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
         out.append(str(p))
     s = c["smlouvy"]
-    put(f"D1_{s['D1']['id']}.json", s["D1"])
+    if s["D1"].get("modul") == "STUL":
+        put("STUL.json", s["D1"])
+    else:
+        put(f"D1_{s['D1']['id']}.json", s["D1"])
     put(f"N1_{s['N1'].get('id', 'N1')}.json", s["N1"])
     put(f"O3_{s['O3']['id']}.json", s["O3"])
     for r in s.get("P1") or []:
