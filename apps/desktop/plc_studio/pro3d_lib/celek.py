@@ -619,8 +619,12 @@ def route_hose(hid, a, b, obst, plates, medium="festo_PUN_6x1", nazev="", prefer
     p2 = [b["usti"][k] + b["osa_usti"][k] * stub for k in range(3)]
     infl = D / 2 + 3.0 + 0.15 * R + 0.5
     obs = [bx for bx in obst if not (rt.point_in(p1, rt.inflate(bx, infl)) or rt.point_in(p2, rt.inflate(bx, infl)))]
-    res = rt.route(p1, a["osa_usti"], p2, [-c for c in b["osa_usti"]], obs, R=R, r_med=D / 2, clear=3.0 + 0.15 * R, step=20.0 if math.dist(p1, p2) < 900 else 40.0,
-                   plates=plates, margin=350.0, max_nodes=900000, cross_cost=400.0, prefer=prefer)
+    res = None
+    for krok in ((20.0, 40.0, 60.0) if math.dist(p1, p2) < 900 else (40.0, 60.0)):   # limit uzlů → hrubší mřížka
+        res = rt.route(p1, a["osa_usti"], p2, [-c for c in b["osa_usti"]], obs, R=R, r_med=D / 2, clear=3.0 + 0.15 * R, step=krok,
+                       plates=plates, margin=350.0, max_nodes=900000, cross_cost=400.0, prefer=prefer)
+        if res is not None or rt.LAST.get("fail") != "limit uzlu":
+            break
     if res is None:
         return None, f"router: {rt.LAST.get('fail')}"
     via = res["body"]
