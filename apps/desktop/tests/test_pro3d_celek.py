@@ -192,6 +192,25 @@ class CelekPlanTest(unittest.TestCase):
         self.assertIsNone(celek.n1_params(m20))
         self.assertIn("STŮL bez dopravníku", " ".join(celek.plan_celku(m20)["celek"]["poradi"]))   # stůl bez D1 (viz CelekStulBezDopravnikuTest)
 
+    def test_dopravnik_dalsi_valce_a_zastupne_dily(self):
+        """Stroj s dopravníkem: ostatní válce P1 jsou v plánu (ne „válec v celku není“), zařízení bez modulu má zástupnou obálku."""
+        m03 = _load(DATA / "moduly" / "03_PLCdesk_CAD.json")
+        self.assertTrue(celek.celek_s_dopravnikem(m03))
+        res = celek.plan_celku(m03)
+        c = res["celek"]
+        tagy = {m["rozhrani"]["tag"] for m in res["plan"]["moduly"] if (m.get("props") or {}).get("Konstrukce_Modul") == "P1"}
+        valce = {p.get("tag") or "-" + str(p.get("device")) for p in m03["parts"] if p.get("category") == "cylinder"}
+        self.assertGreater(len(valce), 1)
+        self.assertTrue(valce <= tagy, (valce, tagy))
+        self.assertFalse([n for n in c["nepostaveno"] if "válec v celku není" in n["duvod"] or "válce P1 v celku nejsou" in n["duvod"]])
+        zast = [it for m in res["plan"]["moduly"] for it in m.get("instance") or [] if it["druh"] == "zastupny"]
+        ids = {it["props"]["PLCdesk_Id"] for it in zast}
+        self.assertTrue(ids)
+        dily = {k: v for k, v in ((v["key"], v) for v in res["plan"]["dily"])}
+        for it in zast:
+            self.assertTrue(dily[it["model"]]["zastupny"])
+        self.assertFalse([n for n in c["nepostaveno"] if "bez modulu kódem" in n["duvod"]])
+
     def test_ram_gen_z_celku(self):
         d = Path(tempfile.mkdtemp())
         try:
