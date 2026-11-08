@@ -270,5 +270,34 @@ class CelekFreeCADTest(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
 
+@unittest.skipUnless(SKILL_OK and TRASA_OK, "chybí skill dopravníky / trasa")
+class CelekBezSkrineAMajakTest(unittest.TestCase):
+    """Layout rozvaděče bez skříně nesmí celek shodit (E1 / E2 do nepostaveno); věž O2 je na střeše krytu O3."""
+
+    VSE = Path(__file__).resolve().parents[3] / ".claude" / "e3" / "vse"
+
+    def test_vzor_09_bez_skrine(self):
+        p = MAN01
+        if not p.is_file():
+            self.skipTest("chybí manifest vzoru 09")
+        with tempfile.TemporaryDirectory() as td:
+            lay = Path(td) / "layout.json"
+            lay.write_text(json.dumps({"chyba": "výbava se nevejde do žádné skříně"}), encoding="utf-8")
+            pl = celek.plan_celku(_load(p), model="t", layout_path=str(lay))
+        ids = {n["id"]: n for n in pl["celek"]["nepostaveno"]}
+        self.assertIn("E1", ids)
+        self.assertIn("E2", ids)
+        self.assertIn("nevejde", ids["E1"]["duvod"])
+
+    def test_vzor_03_vez_o2_v_planu(self):
+        p = self.VSE / "03_nytovaci_lis_NL-1.json"
+        if not p.is_file():
+            self.skipTest("chybí manifest vzoru 03")
+        pl = celek.plan_celku(_load(p), model="t")
+        moduly = [m.get("props", {}).get("Konstrukce_Modul") for m in pl["plan"]["moduly"]]
+        self.assertIn("O2", moduly)
+        self.assertFalse(any(n["id"] == "O2" for n in pl["celek"]["nepostaveno"]), "věž nesmí zůstat v nepostaveno")
+
+
 if __name__ == "__main__":
     unittest.main()

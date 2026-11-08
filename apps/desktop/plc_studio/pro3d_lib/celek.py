@@ -922,9 +922,33 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
         nep.append({"id": "N1 otvor", "co": p.get("co"), "duvod": f"N1 otvor odmítl: {p.get('duvod')}"})
     # 4) O2 maják — jen s řádkem beacon
     vez = modul_majak.veze_z_manifestu(man)
+    o2_mods = []
     if vez:
-        nep.append({"id": "O2", "co": "signální věž", "duvod": "umístění věže na kryt O3 zatím celek neumí (horní věnec nese střechu) — "
-                                                               "doplní stavitel podle smlouvy O2"})
+        kr_ = o3["kryt"]
+        t_str = 4.0                                   # tloušťka střechy PC 4
+        for i_, v_ in enumerate(vez):
+            try:
+                x_s = kr_.X0 + 60.0 + i_ * 220.0
+                y_c = kr_.Y1 - 130.0
+                z_p = kr_.Zt + t_str
+                mm = modul_majak.modul(v_, montaz="deska", cx=100.0, nazev=f"O2 věž {i_ + 1} na střeše krytu O3",
+                                       z_podlaha=z_p + 40.0 + Hd * 0)
+                fx2 = modul_ram.Ram(200.0, 100.0, z_p)
+                fx2.member("104040", A, A, 200.0, [x_s, y_c, z_p + A / 2], [0, 1, 0], [0, 0, 1], [1, 0, 0],
+                           f"o2_profil_{i_ + 1}", f"Nosný profil 40×40×200 věže O2 na střeše krytu O3 ({i_ + 1})")
+                fx2.finalize_members()
+                fix2 = {"typ": "nosný profil", "tag": f"N4.{i_ + 1}", "nazev": f"Nosný profil věže O2 {i_ + 1} (na střeše krytu)",
+                        "dily": list(fx2.dily.values()), "instance": fx2.inst, "telesa": [], "kabely": [], "skupiny": [],
+                        "props": {"Konstrukce_Generator": GEN, "Konstrukce_Modul": "O2"}}
+                mm["placement"] = {"pos": [x_s, y_c, z_p], "rot": I3}
+                o2_mods += [fix2, mm]
+                nep.append({"id": f"O2 upevnění {i_ + 1}", "co": "šrouby nosný profil věže → horní věnec krytu skrz střechu",
+                            "duvod": "profil věže leží na střeše krytu O3 nad věncem; šrouby M6 skrz profil a střechu do matic T věnce "
+                                     "(poloha ODHAD) doplní stavitel — v modelu zatím jen dosedá"})
+            except Exception as exc_o2:               # noqa: BLE001 — věž nesmí shodit celek
+                nep.append({"id": "O2", "co": "signální věž", "duvod": f"věž na střechu krytu O3 nepostavena: {exc_o2} — doplní stavitel podle smlouvy O2"})
+        if o2_mods:
+            odhady.add("signální věž O2 na střeše krytu O3 u nakládacího konce (nad krytem = viditelnost zachována), profil 40×40 ODHAD")
     nep += [n for n in getattr(d, "nepostaveno", []) if n not in nep]
     for p_ in man.get("parts") or []:                    # zařízení v poli bez modulu mají zástupnou obálku (StulBezDopravniku._zastupne)
         tag_ = p_.get("tag") or p_.get("id")
@@ -1054,6 +1078,20 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
                          "rozměry — v celku jen rezervovaná poloha (ODHAD), App::Link doplní stavitel"})
     kabely = []
     ee = None
+    chybi_skrin = None
+    if layout_path and s_kabely:                       # layout bez skříně (rozvaděč se nevešel) → E1 / E2 do nepostaveno
+        try:
+            _L = json.loads(Path(layout_path).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            _L = {}
+        if not isinstance(_L.get("cabinet"), dict):
+            chybi_skrin = _L.get("chyba") or "generátor rozvaděče nevrátil skříň"
+            layout_path = None
+            nep[:] = [n for n in nep if n.get("id") != "E1"]
+            nep.append({"id": "E1", "co": f"rozvaděč {e1.get('partId') or ''} {e1.get('typ') or ''}".strip(),
+                        "duvod": f"rozvaděč nepostaven: {chybi_skrin}; poloha v celku jen rezerva (ODHAD)"})
+            nep.append({"id": "E2", "co": "žlab a kabely k rozvaděči",
+                        "duvod": f"bez skříně rozvaděče nelze vést kabely ({chybi_skrin}) — doplní stavitel po vyřešení rozvaděče"})
     if layout_path and s_kabely:                       # rozvaděč z pro3d_cabinet: konzola E1 + žlab a kabely E2 místo odhadu
         from . import modul_vedeni
         nep[:] = [n for n in nep if n.get("id") != "E1"]
@@ -1110,6 +1148,7 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
     mods.append(o3["modul"])
     mods.append(pas["fixture"])
     mods += pas["moduly"]
+    mods += o2_mods
     if ee:
         mods += ee["moduly"]
     if p3_in:
