@@ -44,7 +44,7 @@ if __package__ in (None, ""):
 
 from . import modul_dopravnik as md  # noqa: E402
 from . import modul_kryt as mk  # noqa: E402
-from . import modul_majak, modul_ostrov, modul_pult, modul_ram, modul_valec, spojky_mech  # noqa: E402
+from . import modul_majak, modul_ostrov, modul_pripravek, modul_pult, modul_ram, modul_valec, spojky_mech  # noqa: E402
 from .modul_ram import _lib, cols, r3  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -251,8 +251,9 @@ class StulBezDopravniku:
     z kusovníku = modul P1 na adaptérové desce na vlastním profilu 40 × 40 (podél y), profil šrouby zespodu deskou N1 (požadavky
     na desku). Válce v mřížce ``STUL_SLOUPCU`` sloupců. Cokoli bez modulu zůstává v ``nepostaveno`` (viz ``plan_celku``)."""
 
-    def __init__(self, man, origin=(0.0, 0.0, 0.0), z_ramu=None, t_deska=0.0):
+    def __init__(self, man, origin=(0.0, 0.0, 0.0), z_ramu=None, t_deska=0.0, dil=None):
         self.man, self.o = man, [float(c) for c in origin]
+        self.dil, self.t1 = dil, None
         self.z0_ram = float(z_ramu or STUL_VYSKA)
         self.t_deska = float(t_deska)
         self.moduly_ext, self.members, self.boxes_extra, self.tel, self.zony, self.kotvy = [], [], [], [], [], []
@@ -286,6 +287,28 @@ class StulBezDopravniku:
         zk = fx.dil(_lib("Zaslepka_224040", {"add": [{"box": [-A / 2, A / 2, -A / 2, A / 2, 0, zs["t"]]}]}, "Záslepka ALUTEC 224040 PA6 (zástupná)",
                          zs["zdroj"], "obálka", typ="prislusenstvi", material="PA6", pozn=zs["pozn"], zastupny=True))
         y_row, row_len, mass = 0.0, 0.0, 0.0
+        desc = {d_.get("name"): d_.get("desc") or "" for d_ in man.get("devices") or [] if isinstance(d_, dict)}
+        dev_of = {p.get("tag") or "-" + str(p.get("device") or "Y"): p.get("device") for p in cyl}
+        roles = {v[0]: modul_pripravek.role_valce(desc.get(dev_of.get(v[0]), "")) for v in plan_v}
+        t1_v = [v for v in plan_v if roles[v[0]] in (modul_pripravek.ROLE_UPIN, modul_pripravek.ROLE_TESN)]
+        self.roles = roles
+        if t1_v:                                          # modul T1: přípravek s dílem, upínací a těsnicí válce míří na díl
+            Dd = modul_pripravek.dil_obalka(self.dil)
+            ext = max(modul_pripravek.rozmer_vlevo(v[3], modul_pripravek.sonda_valce(v[1], v[2], v[3])[0]) for v in t1_v)
+            cx = self.o[0] + 10.0 + ext + Dd["L"] / 2
+            cy = self.o[1] + 10.0 + ext + Dd["W"] / 2
+            t1 = modul_pripravek.postav(fx, zk, t1_v, (cx, cy), Hd, self.t_deska or 15.0, A, self.dil, roles)
+            self.t1 = t1
+            self.moduly_ext += t1["moduly"]
+            self.tel += t1["tel"]
+            self.otvory_desky += t1["otvory"]
+            self.chyby += t1["chyby"]
+            self.boxes_extra += t1["boxes"]
+            self.boxes_extra += [("T1 deska a díl", [t1["obalka"][0], t1["obalka"][1], Hd, t1["obalka"][3], t1["obalka"][4], t1["obalka"][5]])]
+            self.zony += t1["zony"]
+            mass += 6.0 + 3.0 * len(t1["moduly"])
+            y_row = t1["obalka"][4] - self.o[1] + 40.0
+            plan_v = [v for v in plan_v if v not in t1_v]
         for i, (tag, norma, pr, zd, pa, spec) in enumerate(plan_v):
             col = i % STUL_SLOUPCU
             if col == 0 and i:
@@ -322,12 +345,14 @@ class StulBezDopravniku:
     def plan(self):
         fx = self.fx
         return {"typ": "N3 profily válců", "tag": "N3", "nazev": "Profily 40×40 pod válci P1 na desce N1 (pracovní stůl bez dopravníku)",
-                "dily": list(fx.dily.values()), "instance": fx.inst, "telesa": [], "kabely": [], "skupiny": [],
+                "dily": list(fx.dily.values()),
+                "instance": fx.inst, "telesa": list(self.tel), "kabely": [], "skupiny": [],
                 "props": {"Konstrukce_Generator": GEN, "Konstrukce_Modul": "N3"}}
 
     def rozhrani(self):
         return {"format": "plcdesk-pro-modul", "modul": "STUL", "verze": 1, "generator": GEN, "pocatek": r3(self.o),
-                "valce": self.cyl_tags, "vyska_desky": self.z0_ram, "nebezpecna_mista": self.zony,
+                "valce": self.cyl_tags, "vyska_desky": self.z0_ram, "role": getattr(self, "roles", {}),
+                "T1": (self.t1 or {}).get("rozhrani"), "nebezpecna_mista": self.zony,
                 "odhady": [f"výška desky {STUL_VYSKA:g} mm, rozteč válců {STUL_ROZTEC_X:g} mm, mezera řad {STUL_MEZERA_Y:g} mm — ODHAD"],
                 "varovani": self.varovani, "chyby": self.chyby}
 
@@ -996,7 +1021,7 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
                     "D1_pocatek": r3(d.o), "D1_posun_x": dlt, "pas_obsluhy": {"x": [0, X0], "nosic_x": X_NOSIC, "L": pas["L"]}},
         "hadice": h_info, "kabely": kabely, "E1": e1,
         "nepostaveno": nep + pas["nepostaveno"], "odhady": sorted(odhady),
-        "smlouvy": {"D1": d.rozhrani(), "N1": roz_n1, "O3": o3["rozhrani"],
+        "smlouvy": {"D1": d.rozhrani(), "T1": (d.rozhrani().get("T1") if not dopr else None), "N1": roz_n1, "O3": o3["rozhrani"],
                     "P1": [m["rozhrani"] for m in p1_mods], "P2": (pas.get("p2") or {}).get("rozhrani"),
                     "P3": (pas.get("p3") or {}).get("rozhrani"), **((ee or {}).get("smlouvy") or {})},
         "kontrola_planu": {"chyby": d.chyby + o3["rozhrani"]["chyby"] + roz_n1.get("chyby", []) + pas["chyby"],
@@ -1111,6 +1136,8 @@ def write_outputs(res: dict, folder: Path) -> list[str]:
         put("STUL.json", s["D1"])
     else:
         put(f"D1_{s['D1']['id']}.json", s["D1"])
+    if s.get("T1"):
+        put("T1_pripravek.json", s["T1"])
     put(f"N1_{s['N1'].get('id', 'N1')}.json", s["N1"])
     put(f"O3_{s['O3']['id']}.json", s["O3"])
     for r in s.get("P1") or []:
