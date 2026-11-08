@@ -229,6 +229,112 @@ def d1_obalka(d) -> dict:
     return {"bb": _u(bs), "pohon_dno": min(b[2] for b in poh) if poh else None, "boxes": bs}
 
 
+# --- pracovní stůl bez dopravníku: válce P1 na krátkých profilech na desce N1 ---------------------------------------------
+STUL_VYSKA = 900.0       # ODHAD — výška pracovní desky stolu (ergonomie obsluhy vestoje / vsedě na vysoké židli; EN 894 nečtena)
+STUL_ROZTEC_X = 200.0    # ODHAD — rozteč válců napříč (šířka těla + patky + vývody hadic / zóna nasunutí)
+STUL_SLOUPCU = 4         # válce v mřížce po 4 sloupcích; řady ve směru y
+STUL_REZERVA_P3 = 330.0  # ODHAD — hloubka volné řady u přední hrany pro ostrov P3 (ostrov + vůle zón nasunutí hadic)
+STUL_MEZERA_Y = 220.0    # ODHAD — mezera mezi řadami za koncem pístnice (zóna zdvihu + šroubení)
+
+
+def celek_s_dopravnikem(man: dict) -> bool:
+    """Jediné místo rozhodnutí: stroj s pásovým dopravníkem (D1 určí výšku desky a obálku) × pracovní stůl bez dopravníku."""
+    try:
+        md.vstup_z_manifestu(man)
+        return True
+    except ValueError:
+        return False
+
+
+class StulBezDopravniku:
+    """Pracovní stůl bez D1 se stejným rozhraním jako ``Dopravnik`` (to, co čte ``plan_celku``): každý válec ISO 15552 s patkami
+    z kusovníku = modul P1 na adaptérové desce na vlastním profilu 40 × 40 (podél y), profil šrouby zespodu deskou N1 (požadavky
+    na desku). Válce v mřížce ``STUL_SLOUPCU`` sloupců. Cokoli bez modulu zůstává v ``nepostaveno`` (viz ``plan_celku``)."""
+
+    def __init__(self, man, origin=(0.0, 0.0, 0.0), z_ramu=None, t_deska=0.0):
+        self.man, self.o = man, [float(c) for c in origin]
+        self.z0_ram = float(z_ramu or STUL_VYSKA)
+        self.t_deska = float(t_deska)
+        self.moduly_ext, self.members, self.boxes_extra, self.tel, self.zony, self.kotvy = [], [], [], [], [], []
+        self.otvory_desky, self.chyby, self.varovani, self.nepostaveno = [], [], [], []
+        self.geo = {"H": self.z0_ram}
+        self.p = {"m_kg": 0.0, "stojina": 0.0}
+        self.hmotnost = {"celkem_kg": 0.0}
+        self.fx = None
+        self.build()
+
+    def build(self):
+        man, Hd = self.man, self.z0_ram
+        cyl = [p for p in man.get("parts") or [] if p.get("category") == "cylinder"]
+        plan_v = []
+        for p in cyl:
+            t = p.get("type") or ""
+            tag = p.get("tag") or "-" + str(p.get("device") or "Y")
+            norma = "ISO 6432" if "6432" in t else "ISO 15552"
+            pr = int(md._num(r"Ø\s*" + md.RE_NUM, t) or 32)
+            zd = int(md._num(r"zdvih\s*" + md.RE_NUM, t) or 100)
+            pa = modul_valec.patka_ms1(pr) if norma == "ISO 15552" else None
+            spec, why = modul_valec.catalog_map.cylinder_spec(norma, pr, zd) if pa else (None, f"{norma}: bez patek ISO 15552")
+            if not spec:
+                self.nepostaveno.append({"id": f"P1 {tag}", "co": f"válec {tag} {norma} Ø{pr} × {zd}",
+                                         "duvod": f"modul P1 na desce zatím jen ISO 15552 s patkami ({why}) — doplní stavitel"})
+                continue
+            plan_v.append((tag, norma, pr, zd, pa, spec))
+        self.cyl_tags = [v[0] for v in plan_v]
+        fx = modul_ram.Ram(1000.0, 100.0, Hd)
+        zs = RAM["zaslepka"]
+        zk = fx.dil(_lib("Zaslepka_224040", {"add": [{"box": [-A / 2, A / 2, -A / 2, A / 2, 0, zs["t"]]}]}, "Záslepka ALUTEC 224040 PA6 (zástupná)",
+                         zs["zdroj"], "obálka", typ="prislusenstvi", material="PA6", pozn=zs["pozn"], zastupny=True))
+        y_row, row_len, mass = 0.0, 0.0, 0.0
+        for i, (tag, norma, pr, zd, pa, spec) in enumerate(plan_v):
+            col = i % STUL_SLOUPCU
+            if col == 0 and i:
+                y_row += row_len + STUL_MEZERA_Y
+                row_len = 0.0
+            xi = self.o[0] + 120.0 + col * STUL_ROZTEC_X
+            Lc = spec["params"]["L8"] + zd
+            x0, x1 = -pa["delka"] - modul_valec.PREKRYV, Lc + pa["delka"] + modul_valec.PREKRYV
+            y_p0 = self.o[1] + y_row
+            pos_y = y_p0 + 5.0 - x0
+            Lp = x1 - x0 + 10.0
+            fx.member("104040", A, A, Lp, [xi, y_p0, Hd + A / 2], [0, 0, 1], [1, 0, 0], [0, 1, 0], "nosnik_valce", f"Profil 40×40 pod válcem {tag}")
+            for y in (y_p0 + 15.0, y_p0 + Lp / 2, y_p0 + Lp - 15.0):
+                _r, q = mk.sroub_zespodu(fx, xi, round(y, 1), Hd, self.t_deska or 15.0, [0, 1, 0], f"profil válce {tag} → deska y {y:.0f}")
+                self.otvory_desky.append(dict(q, co=f"profil válce {tag}: otvor M6 zespodu se zahloubením y {y:.0f}", kind="otvor_sroub"))
+            for y, sgn in ((y_p0, -1), (y_p0 + Lp, 1)):
+                fx.put(zk, [xi, y, Hd + A / 2], cols([-sgn, 0, 0], [0, 0, 1], [0, sgn, 0]), "zaslepka")
+            m = modul_valec.modul(tag, norma, pr, zd, "patky", "nic", "deska", pos=[xi, pos_y, Hd + A + pa["AH"] + modul_valec.T_DESKA],
+                                  rot=modul_valec.RZ90, nazev=f"P1 {tag} {norma} Ø{pr}×{zd} na stole N1", profil=40)
+            self.moduly_ext.append(m)
+            for z_ in (m.get("rozhrani") or {}).get("zony") or []:      # zóna zdvihu pístnice patří do obálky stolu (kryt ji obejde)
+                self.boxes_extra.append((f"zóna {tag} {z_['nazev']}", list(z_["bbox"])))
+            row_len = max(row_len, Lp + zd)
+            mass += 3.0
+        if plan_v:                                          # volná řada u přední hrany pro ventilový ostrov P3 (není překážka routeru)
+            xs = [b[i] for _n, b in self.boxes_extra for i in (0, 3)] + [m_["box"][i] for m_ in fx.members for i in (0, 3)]
+            self.boxes_extra.append(("rezerva P3 (ostrov uvnitř krytu)", [min(xs), self.o[1] - STUL_REZERVA_P3, Hd, max(xs), self.o[1] - 10.0, Hd + 150.0]))
+        fx.finalize_members()
+        self.fx = fx
+        self.members = fx.members
+        self.chyby += list(fx.chyby)
+        self.hmotnost = {"celkem_kg": mass}
+
+    def plan(self):
+        fx = self.fx
+        return {"typ": "N3 profily válců", "tag": "N3", "nazev": "Profily 40×40 pod válci P1 na desce N1 (pracovní stůl bez dopravníku)",
+                "dily": list(fx.dily.values()), "instance": fx.inst, "telesa": [], "kabely": [], "skupiny": [],
+                "props": {"Konstrukce_Generator": GEN, "Konstrukce_Modul": "N3"}}
+
+    def rozhrani(self):
+        return {"format": "plcdesk-pro-modul", "modul": "STUL", "verze": 1, "generator": GEN, "pocatek": r3(self.o),
+                "valce": self.cyl_tags, "vyska_desky": self.z0_ram, "nebezpecna_mista": self.zony,
+                "odhady": [f"výška desky {STUL_VYSKA:g} mm, rozteč válců {STUL_ROZTEC_X:g} mm, mezera řad {STUL_MEZERA_Y:g} mm — ODHAD"],
+                "varovani": self.varovani, "chyby": self.chyby}
+
+    def zpetna_vazba(self):
+        return None
+
+
 # --- pás obsluhy: nosný profil + pult + pneumatika ------------------------------------------------------------------
 def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float, p3_dovnitr: bool = True, hose_valcu: dict | None = None):
     """Nosný profil 40 × 40 podél +y na desce (x = ``X_NOSIC``), šrouby M6 zespodu deskou; na něm pult O1 (u přední strany)
@@ -531,10 +637,14 @@ def n1_params(man: dict) -> dict | None:
 
 def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layout_path=None) -> dict:
     """Plán celku (formát ``fc_lib``) + smlouvy modulů, požadavky na rám, nepostaveno, odhady, zpětná vazba."""
-    vst = md.vstup_z_manifestu(man)                       # ValueError = stroj bez dopravníku
+    dopr = celek_s_dopravnikem(man)                       # jediné rozhodnutí: s dopravníkem D1 × pracovní stůl
+    vst = md.vstup_z_manifestu(man) if dopr else None
+
+    def _zdroj(origin, z_ramu=None, t_deska=0.0):
+        return d1_build(vst, origin, z_ramu, t_deska) if dopr else StulBezDopravniku(man, origin, z_ramu, t_deska)
     odhady, nep, fb = set(), [], []
     poradi = []
-    zv_vyh = zdvih_vyhazovace(vst)                        # P1: zdvih podle požadavku D1 (normalizovaný, vzpěr)
+    zv_vyh = zdvih_vyhazovace(vst) if dopr else None                        # P1: zdvih podle požadavku D1 (normalizovaný, vzpěr)
     if zv_vyh and zv_vyh.get("ok"):
         n_, o_ = zv_vyh["novy"], zv_vyh["puvodni"]
         vz = zv_vyh["vzper"][-1]
@@ -555,7 +665,8 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
         nep.append({"id": f"P1 {zv_vyh['tag']} zdvih", "co": "normalizovaný zdvih s vyhovujícím vzpěrem",
                     "duvod": f"pro potřebu ≥ {zv_vyh['potreba_mm']} mm žádný Ø / zdvih ISO 15552 nevyhověl na vzpěr — vedená pístnice / lopatka"})
     # 1) D1 — obálka a výška desky
-    pre = d1_build(vst, (0.0, 0.0, 0.0))
+    pre = _zdroj((0.0, 0.0, 0.0))
+    nep += pre.nepostaveno if not dopr else []
     ob = d1_obalka(pre)
     t_d = float(RAM["deska"]["t"])
     Hd = pre.z0_ram
@@ -564,13 +675,22 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
         odhady.add(f"výška desky N1 {Hd:.1f} mm = dno visícího pohonu D1 {ob['pohon_dno']:.1f} − vůle {VULE_POHON:g} (ODHAD); stojiny D1 "
                    f"{pre.geo['boc_bot'] - Hd:.0f} mm místo {pre.p['stojina']:g}")
     Hd = round(Hd, 2)
-    poradi.append(f"D1: pás H {pre.geo['H']:g}, L {pre.geo['L']:g}, b0 {pre.geo['b0']:g}; obálka D1 + P1 + S1 {[round(v) for v in ob['bb']]}; "
-                  f"deska N1 z {Hd:g} (pod stojinami, pohon nad deskou)")
+    if dopr:
+        poradi.append(f"D1: pás H {pre.geo['H']:g}, L {pre.geo['L']:g}, b0 {pre.geo['b0']:g}; obálka D1 + P1 + S1 {[round(v) for v in ob['bb']]}; "
+                      f"deska N1 z {Hd:g} (pod stojinami, pohon nad deskou)")
+    else:
+        poradi.append(f"STŮL bez dopravníku: {len(pre.moduly_ext)} válců P1 na profilech 40×40 v mřížce po {STUL_SLOUPCU} sloupcích, obálka "
+                      f"{[round(v) for v in ob['bb']]}; deska N1 z {Hd:g} (výchozí výška stolu {STUL_VYSKA:g} mm ODHAD, bez nosníků pod stojinami)")
+        odhady.add(f"výška pracovní desky stolu {STUL_VYSKA:g} mm, rozteč válců {STUL_ROZTEC_X:g} mm, mezera řad {STUL_MEZERA_Y:g} mm — ODHAD")
     bb = ob["bb"]
     # 2) kryt kolem obálky (vnitřní líce = obálka + vůle; vzadu přepravka)
-    yb_rear = max(bb[4], pre.geo["yb"] + 40.0 + PREPRAVKA)
-    odhady.add(f"kryt O3: vůle {VULE_KRYT:g} mm od obálky D1 / P1 / S1 a {PREPRAVKA:g} mm za pásem pro přepravku / skluz (ODHAD — "
-               "přepravka není v kusovníku)")
+    if dopr:
+        yb_rear = max(bb[4], pre.geo["yb"] + 40.0 + PREPRAVKA)
+        odhady.add(f"kryt O3: vůle {VULE_KRYT:g} mm od obálky D1 / P1 / S1 a {PREPRAVKA:g} mm za pásem pro přepravku / skluz (ODHAD — "
+                   "přepravka není v kusovníku)")
+    else:
+        yb_rear = bb[4]
+        odhady.add(f"kryt O3: vůle {VULE_KRYT:g} mm od obálky válců P1 (zdvih včetně pístnice) — ODHAD")
     inner_x = bb[3] - bb[0] + 2 * VULE_KRYT
     inner_y = yb_rear - bb[1] + 2 * VULE_KRYT
     Lk = math.ceil((inner_x + 2 * A) / 10.0) * 10.0
@@ -599,7 +719,7 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
         X1 = X0 + Lk
         D = X1 + inset_x
         oy = Y0 + A + VULE_KRYT - bb[1]
-        d = d1_build(vst, (ox, oy, 0.0), z_ramu=Hd, t_deska=t_d)
+        d = _zdroj((ox, oy, 0.0), z_ramu=Hd, t_deska=t_d)
         nos = sorted({k["nosnik_N1_x"] for k in d.kotvy})
         n1_0 = _n1(D, W, Hd, nos, [], [], "předběžný")
         zony = [{"nazev": z["nazev"], "bbox": z["bbox"]} for z in d.zony]
@@ -632,6 +752,24 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
     if vez:
         nep.append({"id": "O2", "co": "signální věž", "duvod": "umístění věže na kryt O3 zatím celek neumí (horní věnec nese střechu) — "
                                                                "doplní stavitel podle smlouvy O2"})
+    if not dopr:                                          # zařízení v poli bez modulu: zástupná obálka se nestaví, jen se zapíše
+        nep += [n for n in d.nepostaveno if n not in nep]
+        kryte = {"cylinder", "cylinder_switch", "valve_solenoid", "valve_manifold", "air_shutoff", "air_prep", "safety_valve", "beacon",
+                 "estop_button"}
+        for p_ in man.get("parts") or []:
+            c_ = p_.get("category")
+            if p_.get("location") != "field" or c_ in kryte or c_ in ("cable_sensor",):
+                continue
+            tag_ = p_.get("tag") or p_.get("id")
+            if c_ == "pushbutton" and tag_ in (pas["info"].get("O1") or {}).get("pristroje", []):
+                continue
+            if c_ == "pushbutton":
+                nep.append({"id": f"O1 {tag_}", "co": f"tlačítko {tag_} ({(p_.get('desc') or p_.get('type') or '')[:50]})",
+                            "duvod": "pult O1 ho z popisu nepoznal jako ovladač pultu (např. dvouruční ovládání = výstup bezpečnostního modulu) — "
+                                     "umístění doplní stavitel / projektant"})
+                continue
+            nep.append({"id": f"{c_} {tag_}", "co": f"{c_} {tag_}", "duvod": "bez modulu kódem — zástupná obálka se v celku nestaví (poloha ODHAD "
+                                                                          "podle zařízení, doplní stavitel)"})
     # 5) P4 hadice ostrov → válce (router), průchody deskou → požadavky N1
     p1_mods = [m for m in d.moduly_ext if (m.get("props") or {}).get("Konstrukce_Modul") != "S1" and m.get("rozhrani", {}).get("pripojky")]
     s1_mods = [m for m in d.moduly_ext if m not in p1_mods]
@@ -648,7 +786,7 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
     for m in ram_b.members:
         obst.append([m["box"][0] - 6, m["box"][1] - 6, m["box"][2], m["box"][3] + 6, m["box"][4] + 6, m["box"][5]])
     obst += [b for _n, b in ram_b.boxes_extra if _n != "pracovní deska"]
-    obst += [m["box"] for m in d.members] + [b for _n, b in d.boxes_extra]
+    obst += [m["box"] for m in d.members] + [b for _n, b in d.boxes_extra if not _n.startswith("rezerva")]
     obst += [_body_box(t["body"]) for t in d.tel if (t.get("props") or {}).get("Konstrukce_Typ") not in ("zona",)]
     for m in d.moduly_ext:
         obst += _module_boxes(m)
@@ -898,9 +1036,10 @@ def _cabinet_dims(cab):
 def cable_starts(man, d, pas, o3) -> list:
     """Začátky kabelů zařízení v poli [(id, partId, od, bod, D)] — pro ODHAD délek i modul E2."""
     starts = []
-    kb = d.rozhrani()["kabel_motoru"]
-    starts.append(("W-" + (kb.get("PLCdesk_Id") or "M1").split(":")[0].lstrip("-"), kb.get("PLCdesk_Id"), "pohon D1", kb.get("konec") or kb["zacatek"], kb.get("D") or 9.0,
-                   kb.get("smer_konce") or kb.get("smer") or [0, 0, 1]))
+    kb = d.rozhrani().get("kabel_motoru")
+    if kb:
+        starts.append(("W-" + (kb.get("PLCdesk_Id") or "M1").split(":")[0].lstrip("-"), kb.get("PLCdesk_Id"), "pohon D1", kb.get("konec") or kb["zacatek"], kb.get("D") or 9.0,
+                       kb.get("smer_konce") or kb.get("smer") or [0, 0, 1]))
     for m in d.moduly_ext:
         r = m.get("rozhrani") or {}
         for e in r.get("elektro") or []:

@@ -190,8 +190,7 @@ class CelekPlanTest(unittest.TestCase):
     def test_bez_dopravniku(self):
         m20 = _load(DATA / "moduly" / "20_PLCdesk_CAD.json")
         self.assertIsNone(celek.n1_params(m20))
-        with self.assertRaises(ValueError):
-            celek.plan_celku(m20)
+        self.assertIn("STŮL bez dopravníku", " ".join(celek.plan_celku(m20)["celek"]["poradi"]))   # stůl bez D1 (viz CelekStulBezDopravnikuTest)
 
     def test_ram_gen_z_celku(self):
         d = Path(tempfile.mkdtemp())
