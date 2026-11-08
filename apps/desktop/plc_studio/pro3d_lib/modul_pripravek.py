@@ -195,6 +195,8 @@ def postav(fx, zk, valce, stred, Hd, t_deska, A, dil=None, role_map=None):
         out["tel"].append(_box_telo(f"{nm}_{tag.strip('-')}", f"{'Těsnicí hlava' if nm == 'tesnici_hlava' else 'Upínací čelist'} {tag} (zástupná, ODHAD)",
                                     [a0, a1, b0, b1, ax_z - PAD_W / 2, ax_z + PAD_W / 2],
                                     {"Konstrukce_Typ": "dil", "PLCdesk_ModelStatus": "placeholder",
+                                     "PLCdesk_Mount": "zavit",          # našroubovaná na závit pístnice
+
                                      "Konstrukce_Poznamka": "tvar a rozměr čelisti / hlavy doplní konstruktér — ODHAD"}))
         zb = [min(p0[0], lim[0]), min(p0[1], lim[1]), ax_z - PAD_W / 2, max(p0[0], lim[0]), max(p0[1], lim[1]), ax_z + PAD_W / 2]
         zb[0], zb[3] = (min(p0[0] - 0.0, lim[0]), max(p0[0], lim[0])) if d[0] else (p0[0] - PAD_W / 2, p0[0] + PAD_W / 2)

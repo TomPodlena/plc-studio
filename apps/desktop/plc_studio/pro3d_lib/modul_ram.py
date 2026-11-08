@@ -308,6 +308,9 @@ class Ram:
         cand = [(a + b) / 2 for a, b in zip(ds, ds[1:])] if self.deska else [A + (self.D - 2 * A) * k / 40.0 for k in range(1, 40)]
         bad = list(self.nosniky_x) + [1.5 * A, self.D - 1.5 * A]
         cand = [c for c in cand if all(abs(c - x) >= 70.0 for x in bad) and 3 * A < c < self.D - 3 * A]
+        # požadované otvory deskou (šrouby modulů zespodu, průchody) nesmí ležet nad příčkou prostředních sloupků
+        holes = [float(p["bod"][0]) for p in self.poz if p.get("bod") and p.get("kind") != "otvor_drazka"]
+        cand = [c for c in cand if all(abs(c - x) >= A / 2 + 15.0 for x in holes)] or cand
         out = []
         for k in range(1, n + 1):
             t = A / 2 + (self.D - A) * k / (n + 1)
