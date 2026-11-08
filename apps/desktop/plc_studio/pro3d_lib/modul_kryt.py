@@ -143,6 +143,23 @@ def blokovani(manifest: dict | None) -> list[dict]:
     return out
 
 
+ZAKAZANE_OTVORY = []      # (x, y) otvory, které N1 odmítl (nad profilem věnce) — plní celek při opakovaném plánu
+
+
+def posun_otvoru(x, y, osa, lo, hi, krok=20.0, tol=12.0):
+    """Souřadnice šroubu zespodu na vlastním profilu dílu (osa "x" / "y") posunutá po ``krok`` (± k · krok, v mezích
+    ``lo`` … ``hi`` profilu) mimo místa, která N1 už odmítl jako ``nad profilem věnce`` (``ZAKAZANE_OTVORY``)."""
+    for k in range(0, 9):
+        for sg in ((1,) if k == 0 else (1, -1)):
+            t = (x if osa == "x" else y) + k * krok * sg
+            if not lo <= t <= hi:
+                continue
+            px, py = (t, y) if osa == "x" else (x, t)
+            if all(math.hypot(px - bx, py - by) > tol for bx, by in ZAKAZANE_OTVORY):
+                return t
+    return x if osa == "x" else y
+
+
 def sroub_zespodu(b, x, y, z_lic, t_deska, along, label, M="M6"):
     """ISO 4762 zespodu deskou N1 do matice T spodní drážky profilu na desce: hlava v zahloubení ze spodu desky (hloubka
     = výška hlavy k, Ø dk + 1 — ODHAD), upnutá tloušťka t − k. Vrací (instance šroubu, požadavek na desku N1)."""

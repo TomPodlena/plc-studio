@@ -361,6 +361,7 @@ class StulBezDopravniku:
             Lp = x1 - x0 + 10.0
             fx.member("104040", A, A, Lp, [xi, y_p0, Hd + A / 2], [0, 0, 1], [1, 0, 0], [0, 1, 0], "nosnik_valce", f"Profil 40×40 pod válcem {tag}")
             for y in (y_p0 + 15.0, y_p0 + Lp / 2, y_p0 + Lp - 15.0):
+                y = mk.posun_otvoru(xi, y, "y", y_p0 + 10.0, y_p0 + Lp - 10.0)
                 _r, q = mk.sroub_zespodu(fx, xi, round(y, 1), Hd, self.t_deska or 15.0, [0, 1, 0], f"profil válce {tag} → deska y {y:.0f}")
                 self.otvory_desky.append(dict(q, co=f"profil válce {tag}: otvor M6 zespodu se zahloubením y {y:.0f}", kind="otvor_sroub"))
             for y, sgn in ((y_p0, -1), (y_p0 + Lp, 1)):
@@ -410,6 +411,7 @@ class StulBezDopravniku:
             y_p0 = self.o[1] + y_row
             fx.member("104040", A, A, Lp, [xi, y_p0, Hd + A / 2], [0, 0, 1], [1, 0, 0], [0, 1, 0], "nosnik_zastupne", f"Profil 40×40 pod {tag}")
             for y in (y_p0 + 15.0, y_p0 + Lp - 15.0):
+                y = mk.posun_otvoru(xi, y, "y", y_p0 + 10.0, y_p0 + Lp - 10.0)
                 _r, q = mk.sroub_zespodu(fx, xi, round(y, 1), Hd, self.t_deska or 15.0, [0, 1, 0], f"profil {tag} → deska y {y:.0f}")
                 self.otvory_desky.append(dict(q, co=f"zástupný díl {tag}: otvor M6 zespodu se zahloubením y {y:.0f}", kind="otvor_sroub"))
             key = f"Zastupny_{c_ or 'dil'}_{w:g}x{dd:g}x{h:g}".replace(".", "_")
@@ -558,6 +560,7 @@ def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float, p3_dovnitr: boo
     fx.member("104040", A, A, L, [X_NOSIC, y0, Hd + A / 2], [0, 0, 1], [1, 0, 0], [0, 1, 0], "nosnik_obsluhy",
               "Nosný profil pultu a pneumatiky 40×40")
     for y in (y0 + 15.0, y0 + L / 2, y0 + L - 15.0):
+        y = mk.posun_otvoru(X_NOSIC, y, "y", y0 + 10.0, y0 + L - 10.0)
         _r, q = mk.sroub_zespodu(fx, X_NOSIC, round(y, 1), Hd, t_deska, [0, 1, 0], f"nosný profil obsluhy → deska y {y:.0f}")
         out["pozadavky"].append(dict(q, co=f"nosný profil obsluhy: otvor M6 zespodu se zahloubením y {y:.0f}", kind="otvor_sroub"))
     zs = RAM["zaslepka"]
@@ -640,6 +643,7 @@ def umistit_p3(p3, inner, Hd, t_deska, obst, zony, nosniky, cil):
     fx.member("104040", A, A, L, [xi + x0l, yi, Hd + A / 2], [0, 1, 0], [0, 0, 1], [1, 0, 0], "nosnik_p3", "Nosný profil ventilového ostrova P3 40×40")
     poz = []
     for x in scr:
+        x = mk.posun_otvoru(x, yi, "x", x0l + xi + 10.0, x1l + xi - 10.0)
         _r, q = mk.sroub_zespodu(fx, round(x, 1), yi, Hd, t_deska, [1, 0, 0], f"nosný profil P3 → deska x {x:.0f}")
         poz.append(dict(q, co=f"nosný profil P3: otvor M6 zespodu se zahloubením x {x:.0f}", kind="otvor_sroub"))
     zs = RAM["zaslepka"]
@@ -826,7 +830,11 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
     # 3) poloha D1 v x — posun po 10 mm, dokud N1 přijme všechny otvory
     best = None
     Lk0 = Lk
-    for dlt, dx_ex in [(a_, b_) for a_ in range(0, 210, 10) for b_ in ((0.0, -30.0, -60.0) if dopr else (0.0,))]:
+    mk.ZAKAZANE_OTVORY.clear()
+    _kand = [(a_, b_) for a_ in range(0, 210, 10) for b_ in ((0.0, -30.0, -60.0) if dopr else (0.0,))]
+    _ki, _pokus = 0, 0
+    while _ki < len(_kand):
+        dlt, dx_ex = _kand[_ki]
         ox = X0 + A + VULE_KRYT - bb[0] + dlt           # D1 i pravý konec krytu o dlt dál (vnitřek beze změny vůlí)
         Lk = Lk0 + dlt
         X1 = X0 + Lk
@@ -854,10 +862,32 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
             best = cand
         if not odm:
             break
+        # šroub zespodu nad profilem věnce: opakovat tutéž polohu s posunem šroubů po profilu dílu (mk.posun_otvoru)
+        nove = [p for p in odm if "nad profilem" in str(p.get("duvod")) and p.get("bod")
+                and not any(math.hypot(p["bod"][0] - bx, p["bod"][1] - by) < 1.0 for bx, by in mk.ZAKAZANE_OTVORY)]
+        if nove and _pokus < 3:
+            mk.ZAKAZANE_OTVORY += [(p["bod"][0], p["bod"][1]) for p in nove]
+            _pokus += 1
+            continue
+        _pokus = 0
+        _ki += 1
+        mk.ZAKAZANE_OTVORY.clear()
     nodm, dlt, d, o3, pas, poz, nos, zony, odm, X1, D, Lk = best
     if dlt:
         poradi.append(f"D1 posunut o {dlt} mm v x a kryt o tolik delší ({Lk:g}), aby otvory krytu a stojin nebyly nad nosníky / "
                       f"příčníky N1 → N1 {D:g} × {W:g}")
+    odm2 = []
+    for p in odm:                      # zbylý šroub nad profilem věnce: shora skrz profil dílu do matice T drážky profilu rámu
+        q_ = next((q for q in poz if q.get("kind") == "otvor_sroub" and p.get("bod") and q.get("bod")
+                   and math.hypot(q["bod"][0] - p["bod"][0], q["bod"][1] - p["bod"][1]) < 0.5), None)
+        if q_ is not None and "nad profilem" in str(p.get("duvod")):
+            q_["kind"] = "otvor_drazka"
+            q_.pop("zahloubeni", None)
+            q_["co"] = str(q_.get("co")) + " (nad profilem rámu → šroub shora do matice T drážky)"
+            odhady.add(f"kotvení {q_['co']}: model zatím drží šroub zespodu — správně shora do matice T, doplní stavitel")
+        else:
+            odm2.append(p)
+    odm = odm2
     for p in odm:
         nep.append({"id": "N1 otvor", "co": p.get("co"), "duvod": f"N1 otvor odmítl: {p.get('duvod')}"})
     # 4) O2 maják — jen s řádkem beacon

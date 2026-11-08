@@ -211,6 +211,25 @@ class CelekPlanTest(unittest.TestCase):
             self.assertTrue(dily[it["model"]]["zastupny"])
         self.assertFalse([n for n in c["nepostaveno"] if "bez modulu kódem" in n["duvod"]])
 
+    def test_posun_otvoru_mimo_odmitnute(self):
+        from plc_studio.pro3d_lib import modul_kryt as mk
+        mk.ZAKAZANE_OTVORY.clear()
+        try:
+            self.assertEqual(mk.posun_otvoru(100.0, 215.0, "y", 205.0, 400.0), 215.0)
+            mk.ZAKAZANE_OTVORY.append((100.0, 215.0))
+            self.assertEqual(mk.posun_otvoru(100.0, 215.0, "y", 205.0, 400.0), 235.0)       # + krok, v mezích profilu
+            mk.ZAKAZANE_OTVORY.append((100.0, 235.0))
+            self.assertEqual(mk.posun_otvoru(100.0, 215.0, "y", 205.0, 400.0), 255.0)      # 215/235 zakázané → +40
+        finally:
+            mk.ZAKAZANE_OTVORY.clear()
+
+    def test_n1_bez_otvoru_nad_profilem_vencu(self):
+        """Šrouby zespodu na vlastním profilu dílu se posunou mimo profily rámu (nebo jdou shora do matice T) — N1 žádný neodmítne."""
+        for nm in ("03", "20"):
+            c = celek.plan_celku(_load(DATA / "moduly" / f"{nm}_PLCdesk_CAD.json"))["celek"]
+            pr = c["pruchody_N1"]
+            self.assertFalse([o for o in pr["odmitnuto"] if "nad profilem" in o["duvod"]], (nm, pr["odmitnuto"]))
+
     def test_ram_gen_z_celku(self):
         d = Path(tempfile.mkdtemp())
         try:
