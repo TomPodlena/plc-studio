@@ -1,0 +1,31 @@
+{
+ "_popis": "Rozměry přístrojů (mm, š × v × h) pro díly, které tabulky pro3d_parts (data/katalog.json) nemají. Přednost: model z dily/parts_index.json (dle dokumentace) → tento soubor (doloženo) → dims katalogu PLCdesk (data/catalog) → ODHAD podle kategorie (označený, DOLOŽIT). Rozměr ODHAD nesmí rozhodnout o bezpečnosti — jen o místě.",
+ "polozky": {
+  "6ES7214-1AF40-0XB0": {"w": 110, "h": 100, "d": 75, "stav": "doloženo", "nazev": "S7-1200F CPU 1214FC DC/DC/DC",
+   "zdroj": {"dokument": "Siemens Data sheet 6ES7214-1AF40-0XB0 (2023-11-22), oddíl Dimensions: Width 110 mm, Height 100 mm, Depth 75 mm", "url": "https://docs.rs-online.com/d04f/A700000006981255.pdf"}}
+ },
+ "kategorie_odhad": {
+  "_pozn": "ODHAD pracovních obálek podle kategorie, když kód / rozměr chybí. Není to údaj výrobce.",
+  "contactor_mirror": {"w": 45, "h": 58, "d": 73, "pozn": "analogie 3RT2016-1BB41 (S00) — typ v manifestu bez velikosti"},
+  "contactor": {"w": 45, "h": 58, "d": 73, "pozn": "analogie 3RT2016-1BB41 (S00)"},
+  "motor_protection": {"w": 45, "h": 97, "d": 97, "pozn": "analogie 3RV2011 (S00)"},
+  "mcb": {"w": 18, "h": 90, "d": 76, "pozn": "1 modul"},
+  "safety_relay": {"w": 22.5, "h": 100, "d": 122, "pozn": "analogie 3SK1111"},
+  "safety_controller": {"w": 110, "h": 100, "d": 75, "pozn": "analogie S7-1200F"},
+  "interface_relay": {"w": 6.2, "h": 94, "d": 80, "pozn": "vazební relé 6,2 mm"},
+  "power_supply_24v": {"w": 45, "h": 135, "d": 125, "pozn": "analogie SITOP 10 A"},
+  "positioning_drive": {"w": 50, "h": 200, "d": 160, "pozn": "řadič polohovacího pohonu (Festo CMMT-ST bez objednacího kódu — rozměr nedoložen)"},
+  "servo_drive": {"w": 60, "h": 200, "d": 200, "pozn": "servoměnič — rozměr nedoložen"},
+  "vfd": {"w": 90, "h": 200, "d": 150, "pozn": "měnič — rozměr nedoložen"},
+  "plc_cpu": {"w": 80, "h": 125, "d": 100, "pozn": "kompaktní CPU"},
+  "plc_di": {"w": 30, "h": 125, "d": 100, "pozn": "signálový modul"},
+  "plc_do": {"w": 30, "h": 125, "d": 100, "pozn": "signálový modul"},
+  "plc_ai": {"w": 30, "h": 125, "d": 100, "pozn": "signálový modul"},
+  "plc_ao": {"w": 30, "h": 125, "d": 100, "pozn": "signálový modul"},
+  "terminal_block": {"w": 5.2, "h": 48.5, "d": 39.5, "pozn": "analogie WAGO 2002-1201"},
+  "plc_hmi": {"w": 197, "h": 141, "d": 36, "pozn": "analogie MTP700 (tělo za panelem)"},
+  "main_switch": {"w": 67, "h": 84, "d": 93, "pozn": "analogie 3LD2103"},
+  "_jine_din": {"w": 45, "h": 90, "d": 75, "pozn": "přístroj na lištu — nedoloženo"},
+  "_jine_panel": {"w": 100, "h": 200, "d": 150, "pozn": "přístroj na desku — nedoloženo"}
+ }
+}

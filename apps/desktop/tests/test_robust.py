@@ -116,6 +116,17 @@ class StartupTest(unittest.TestCase):
             finally:
                 h.close()
 
+    def test_offscreen_geometry(self):
+        """Poloha z odpojeného druhého monitoru se zahodí, velikost zůstane."""
+        g, scr = appmod._onscreen_geometry, (0, 0, 1536, 960)
+        self.assertEqual(g("1792x950+-2321+0", scr), "1792x950")
+        self.assertEqual(g("1500x900+3000+0", scr), "1500x900")
+        self.assertEqual(g("1500x900+10+20", scr), "1500x900+10+20")
+        self.assertEqual(g("1500x900+-8+-8", scr), "1500x900+-8+-8")     # maximalizované okno
+        self.assertEqual(g("1500x900+-1800+0", (-1920, 0, 3456, 1080)), "1500x900+-1800+0")
+        self.assertEqual(g("1500x900", scr), "1500x900")
+        self.assertIsNone(g(None, scr))
+
 
 class RuntimeTest(unittest.TestCase):
     @classmethod
@@ -229,6 +240,30 @@ class RuntimeTest(unittest.TestCase):
             params = zarizeni.read_params({key: sv(val), "_app": self.app})
             self.assertTrue(self.app.core("deviceParamsProblem", {"cls": cls}, params), key)
         self.assertEqual(zarizeni.read_params({"selBits": sv("3"), "_app": self.app})["selBits"], 3)
+
+    def test_conveyor_params(self):
+        """Pásový dopravník (Motor / Vfd): pole panelu parametrů → ``conveyor``, rozsahy hlídá jádro, uložení přes most."""
+        frm = ttk.Frame(self.root)
+        r = self.app.edit("addDevice", {"cls": "Motor", "desc": "Pásový dopravník"})
+        self.assertTrue(r["ok"], r)
+        m = self.app.dev_by_id(r["id"])
+        vars_ = zarizeni.param_fields(self.app, frm, "Motor", m)
+        self.assertIn("cv:length", vars_)
+        vars_["cv:length"].set("2500")
+        vars_["cv:width"].set("400")
+        params = zarizeni.read_params(vars_)
+        self.assertEqual(params["conveyor"], {"length": 2500, "width": 400, "speed": None, "load": None, "height": None})
+        self.assertIsNone(self.app.core("deviceParamsProblem", {"cls": "Motor"}, params))
+        self.assertTrue(self.app.core("deviceParamsProblem", {"cls": "Motor"}, {"conveyor": {"width": 1}}))
+        res = self.app.edit("setDeviceParams", m["id"], params)
+        self.assertTrue(res["ok"], res)
+        m2 = self.app.dev_by_id(m["id"])
+        self.assertEqual(m2.get("conveyor"), {"length": 2500, "width": 400})
+        self.assertTrue(zarizeni.params_unchanged(m2, params))
+        self.assertNotIn("cv:length", zarizeni.param_fields(self.app, frm, "Motor", {"cls": "Motor"}),
+                         "formulář nového zařízení bez polí dopravníku")
+        frm.destroy()
+        self.app.edit("deleteDevice", m["id"])
 
     def test_takt_invalid_is_reported(self):
         self.app.goto(0)

@@ -74,6 +74,11 @@ export interface Device {
      * Axis Settings, Motion Group); chybějící pole doplní `axisCfgOf` (axis.ts). Jednotky = `unit`.
      */
     axis?: Partial<AxisCfg>;
+    /**
+     * Motor / Vfd pohánějící pásový dopravník: rozměry a zatížení pro konstrukci (3D modul dopravníku PLCdesk PRO,
+     * export pro CAD `devices[].conveyor`). Jen zadání — generátor kódu ani dokumentace je nečtou.
+     */
+    conveyor?: ConveyorCfg;
     /** typ z firemní knihovny (`LibDeviceType.id`, viz library.ts) */
     libType?: string;
     /** Trvalý identifikátor (viz guid.ts) — přidělen jednou při vzniku, export ho jen čte. */
@@ -210,8 +215,23 @@ export interface BomCfg {
     plat?: PlatformKey;
     brand?: Record<string, string>;
     lines?: Record<string, BomLineCfg>;
-    /** rozhodnutí o zpětné vazbě z CAD (`cad_feedback.ts` `applyCadFeedback`) — historie, kusovník mění jen `lines` */
+    /** rozhodnutí o zpětné vazbě z CAD (`cad_feedback.ts` `applyCadFeedback`) — historie; kusovník mění jen `lines`
+     *  a `ioReserve` */
     cadFeedback?: CadFeedbackRecord[];
+    /** rezerva I/O sestavy (`hardware.ts`): volné kanály, které musí v sestavě zbýt; bez ní = bez rezervy (výchozí) */
+    ioReserve?: IoReserve;
+}
+/**
+ * Rezerva I/O: `pct` = procento obsazených kanálů každého použitého směru (zaokrouhleno nahoru), `DI` / `DO` /
+ * `AI` / `AO` = minimum volných kanálů směru (i nepoužitého). Platí větší z obou. `hwLayout` podle ní volí CPU
+ * a karty; nesplnitelná rezerva = varování validace.
+ */
+export interface IoReserve {
+    pct?: number;
+    DI?: number;
+    DO?: number;
+    AI?: number;
+    AO?: number;
 }
 /**
  * Záznam rozhodnutí o položce zpětné vazby z CAD (PLCdesk_CAD_feedback.json): kdo, kdy, přijato / odmítnuto,
@@ -309,6 +329,33 @@ export declare function parseRecordsChecked(s: string): {
 export declare function selBitsOf(d: Device): number;
 /** Nejvyšší číslo záznamu PosDrive (2^bity − 1; záznam 0 = referenční poloha). */
 export declare function maxRecord(d: Device): number;
+/** Pásový dopravník poháněný motorem / měničem (všechna pole volitelná). */
+export interface ConveyorCfg {
+    /** osová vzdálenost bubnů L [mm] */
+    length?: number;
+    /** šířka pásu b [mm] */
+    width?: number;
+    /** rychlost pásu v [m/s] */
+    speed?: number;
+    /** hmotnost zboží na pásu celkem [kg] */
+    load?: number;
+    /** výška horní větve pásu nad podlahou [mm] */
+    height?: number;
+}
+export type ConveyorKey = keyof ConveyorCfg;
+/** Pole dopravníku pro formuláře (web i desktop) a kontrolu rozsahů; popisky jsou klíče překladu. */
+export declare const CONVEYOR_FIELDS: Array<{
+    key: ConveyorKey;
+    label: string;
+    unit: string;
+    min: number;
+    max: number;
+    zero?: boolean;
+}>;
+/** Třídy, které mohou pohánět pásový dopravník (`Device.conveyor`). */
+export declare const CONVEYOR_CLASSES: ReadonlySet<DeviceClass>;
+/** Proč hodnota pole dopravníku neplatí (`null` = v pořádku). */
+export declare function conveyorFieldProblem(key: string, v: unknown): string | null;
 /** Doba jízdy PosDrive v modelu simulace [s] (výchozí 1 s). */
 export declare function travelOf(d: Device): number;
 /**
@@ -358,6 +405,14 @@ export declare const xmlEsc: typeof esc;
 /** HTML klientů: escapuje i apostrof — web vkládá hodnoty i do atributů v apostrofech (value='…'); test odolnosti 2026-10-08. */
 export declare function escHtml(s: unknown): string;
 export declare function blankProject(): Project;
+/** Výchozí rezerva I/O NOVÉHO projektu v % obsazených kanálů (rozhodnutí uživatele 2026-10-16). */
+export declare const NEW_PROJECT_IO_RESERVE_PCT = 20;
+/**
+ * Nový projekt uživatele (tlačítko Nový projekt, první spuštění, prázdný start po poškozeném stavu): `blankProject`
+ * + výchozí rezerva I/O 20 %. `blankProject` zůstává bez rezervy — staví z něj normalizace načtených projektů,
+ * vzory, import stávajícího stroje (skutečný hardware) a testy; existující projekty se nemigrují.
+ */
+export declare function newProject(): Project;
 export declare function devById(prj: Project, id: number | ""): Device | undefined;
 export declare function nextName(prj: Project, cls: DeviceClass): string;
 /** Instance bloku zařízení (`instM1`) — names.ts. */

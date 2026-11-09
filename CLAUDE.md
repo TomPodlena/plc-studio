@@ -235,7 +235,37 @@ python scripts/build_verification.py        # data/verification.json → verific
   Unitronics: HMI v CPU, kombinovaný AI/AO modul), ke každému zařízení jeho díly
   (motor → `-Q` jistič motoru + `-K` stykač, válec → rozváděč + válec + snímače polohy, analog podle
   jednotky a popisu…), rozvaděč. Bezpečnostní prvky jen jako HW řádek `safety` s výhradou
-  „EN ISO 13849, návrh k revizi" — **žádná bezpečnostní logika**. Výstupy `bomCsv` (středník, BOM
+  „EN ISO 13849, návrh k revizi" — **žádná bezpečnostní logika**.
+  **Díly podle popisu zařízení** (2026-10-15, nálezy funkčního rozboru nad manifestem CAD v2; klíčová slova JEN z obsahu
+  projektu — `Device.desc` v jazyce vzniku, cs + en + de —, nikdy z přeloženého UI; regexy v `bom.ts`): **rozhraní
+  k jinému stroji** (`bomIsInterface`: „euromap“, „rozhraní“ / interface / Schnittstelle, handshake, „signál z / do / od /
+  pro …“, signal from / to, Signal von / an / zum …, popis začíná „Robot“, „z / do robota“, from / to robot, vom / zum
+  Roboter; samotné „povolení“ ne) → DI bez fyzického dílu, Ventil / DO = `interface_relay` (bezpotenciálový kontakt),
+  hlášení ventilu = kontakt druhého stroje, a jeden řádek `-XG1:machine_interface` se seznamem signálů (EUROMAP → poznámka
+  k normě; bez kódu — typ doplní projektant); E-stop, blokování a tlačítka mají přednost. Ventil: hydraulika → **vakuum**
+  (vakuu / vakuov / podtlak / ejektor / přísav / vacuum / suction / Sauger) = rozváděč + `vacuum_ejector` + `suction_cup`
+  + `vacuum_switch` (místo „koncových poloh“) → **chapadlo** (chapad / úchop / gripper / Greifer) = rozváděč + `gripper`
+  + `cylinder_switch` → procesní armatura → válec. **Pohyb** (zdvih / pojezd / posuv / otoč / dolů / nahoru / lift /
+  stroke / Hub / heben / schwenk…) má přednost před vakuem i chapadlem — „zdvih chapadla“ je válec. Kategorie úchopů
+  (suction_cup, vacuum_ejector, vacuum_switch, gripper) mají položky v `data/catalog/uchopy.json` (2026-10-29, 10 položek
+  Festo / Schmalz / Schunk / Zimmer / ifm z rešerše skillu uchopy-a-vakuum, kód jen s URL zdroje; výchozí = Festo, u
+  platformy Festo shodná značka) — poznámky řádků říkají „typ z katalogu je výchozí návrh“; `machine_interface` zatím
+  bez položek katalogu. Kabely M12 jen ke skutečným snímačům (ne k signálům rozhraní). **Signální věž** (2026-11-03, nálezy modulů
+  pult / maják PRO): DO majáku (`beacon` z popisu jako dřív) = JEDNA věž `-PF1:beacon` (IEC 81346-2 třída P; označení nezávisí na
+  jménech DO → id i GUID pro CAD přežijí přejmenování / smazání DO; řádek bez `devId`, katalog = hotová věž R/Y/G Werma 64924005…)
+  + patro `-<DO>:beacon_light` na každý DO (`devId`, bez kódu, CAD `mount: none`, vazby `controls` výstupní modul → patro a `feeds`
+  věž → patro), patra shora R / Y / B / G / W (IEC 60204-1 10.3.2). Barva z popisu (cs / en / de / es), jinak z role (fault R, run G;
+  ready / auto W, stopped Y, lock B = výchozí PLCdesk, rozhodnutí uživatele 2026-11-03, poznámka „výchozí PLCdesk podle role“
+  — shodně skill modul-majak `data/veze.json`); barvy mimo R/Y/G, duplicitní nebo > 3 patra
+  → poznámka „stavebnicová věž, typ doplní projektant“ (kódy světelných prvků v katalogu nejsou). Víc věží jen podle popisu („věž A“,
+  „tower B“, „Turm 2“ → -PF1, -PF2). `bomBeaconTowers` sdílí kusovník i `cad.ts`. **Volič** (volič / přepínač / selector /
+  Wahlschalter) = kategorie `selector_switch` (dřív `pushbutton`), bez položky katalogu (kód voliče 3SU1 rešerší nedoložen — typ doplní
+  projektant). `pro3d_cabinet` čte kategorie jádra (`pushbutton`, `estop_button`, `selector_switch`; `dvere.core_cat` převádí starší
+  `push_button` / `emergency_stop`). **Pneumatika** (2026-11-04, moduly P2 / P3 PRO): stroj s rozváděči `valve_solenoid` má jednou
+  `-WP1:valve_manifold` (lišta rozváděčů, počet míst = počet rozváděčů, Festo VABM-L1-14 bez kódu), `-QM1:air_shutoff` (ruční
+  uzávěr MS6-EM1 541267, uzamykatelnost ověřit) a `-HQ1:air_prep` (filtr-regulátor MS6-LFR 529184); bezpečnostní odvzdušňovací
+  ventil `-YS1:safety_valve` dál jen z modulu bezpečnosti (navržené funkce). Golden: změna jen 09_kusovnik. Volba uživatele v `prj.bom.lines` má dál
+  přednost. Testy `bom.test.ts`. Výstupy `bomCsv` (středník, BOM
   pro český Excel), `bomMd`; v dokumentaci `09_kusovnik.md/.csv`.
 - Volby uživatele `prj.bom` = `{ plat, brand: {catKey: optId|vlastní}, lines: {id: {brand, type,
   orderCode, supplier, qty, note}} }`; `BomLine.id` (označení + kategorie) je stabilní — naváže na
@@ -247,9 +277,21 @@ python scripts/build_verification.py        # data/verification.json → verific
 
 ## Export pro CAD (`cad.ts`)
 
-- `cadManifest(prj, opts?)` / `cadManifestJson(prj)` → `PLCdesk_CAD.json`, formát `plcdesk-cad` verze 1 — závazné
-  schéma `C:\CLAUDE\plcdesk_freecad\MANIFEST_SCHEMA.md` (každý klíč vždy, prázdné "" / null; nové pole = verze 2,
-  schéma neměnit samostatně — čte ho FreeCAD i FreeCAD PLM). Díly = VŠECHNY řádky `buildBom` (id = `BomLine.id`,
+- `cadManifest(prj, opts?)` / `cadManifestJson(prj)` → `PLCdesk_CAD.json`, formát `plcdesk-cad` **verze 2** (2026-10-15;
+  nadmnožina v1) — schéma `C:\CLAUDE\plcdesk_freecad\MANIFEST_SCHEMA.md` (každý klíč vždy, prázdné "" / null / [];
+  nové pole = nová verze, schéma neměnit samostatně — čte ho FreeCAD i FreeCAD PLM; návrh v2 čeká v
+  `.claude/plcdesk_freecad_staging/schema_v2/` na odsouhlasení). **Počítá se nad `cadProject(prj)`** = kopie se `syncIO`
+  (příklady ukládají `io: []` — bez toho manifest neměl I/O karty, svorky ani vazby `controls`); vstup se nemění, GUID
+  jen čte ze vstupu (co kopie při synchronizaci vytvoří, export nepoužije → null). Totéž platí pro web, most desktopu
+  (`cad`), `projectBundle` i `cadFeedbackReview` (řádky jako v manifestu). v2 navíc: `project.revision` (poslední revize:
+  id, datum, kdo, otisk, `approved {valid, required}` z `approvalsAt`, `current` = obsah = revize), `parts[].guid`
+  (`derivedGuid(Device.guid, "bom:"+kat[+":"+n])`, karty `derivedGuid(prj.guid, "bom:"+kat+":"+stanice)`, ostatní
+  `derivedGuid(prj.guid, "bom:"+id)` — přežije přejmenování), `deviceGuid`, `safety` (`bomLineIsSafety`: `BomLine.safety`,
+  `BOM_SAFETY_CATS`, díl E-stopu / blokování), `instances` (kusy karet a hlav z `moduleGuids`), `guid` stanic a modulů,
+  a ZADÁNÍ pro hrubý 3D koncept: `brief` (popis, takt, datum, režimy, platformy, `concept`), `devices[]` (třída, rozsah,
+  meze, žádaná, volby, rampa, tolerance, záznamy, `travelS`, `axisCfgOf`, signály, řádky), `sequence[]` (kroky s parametry,
+  `stepTitle`), `safety` (E-stop, blokování, `proposeSafety` souhrn jen s modulem bezpečnosti, jinak null). Nic se
+  nevymýšlí — jen data projektu. Díly = VŠECHNY řádky `buildBom` (id = `BomLine.id`,
   `device` = jméno zařízení z `devId`), `location` / `mount` z tabulky `CAD_PLACEMENT` (jediné místo; test hlídá každou
   kategorii katalogu, `CAT_LABEL` i řádků modulu bezpečnosti; neznámá kategorie knihovny = field / none), `plc.stations`
   = `hwLayout` (hlava = CPU / hlava stanice, I/O karty v pořadí slotů → řádek skupiny `bomTag:cat`; vestavěné I/O jsou
@@ -261,7 +303,10 @@ python scripts/build_verification.py        # data/verification.json → verific
   `09_Exporty/CAD` (`projectBundle(prj, { cad: true })` — volba, výchozí sada beze změny; klienti ji zapínají).
   Licence: manifest = data projektu jako `.plcstudio.json` → `licenseFileKind` „own“ (bez brány i nad limitem).
   Modely z CADu (.FCStd / .step / .stp) patří do `02_Vykresy/3D` (`PROJECT_DIRS.model3d`; PLCdesk je zatím nevyrábí).
-  Testy `cad.test.ts` (28 vzorů + sampleSmall / Complex, s modulem bezpečnosti i bez).
+  Testy `cad.test.ts` (28 vzorů tak, jak jsou uložené (`io: []`) + sampleSmall / Complex, s modulem bezpečnosti
+  i bez; klíče v2 vždy, vstup beze změny, GUID stabilní při přejmenování, bez GUID ve vstupu null, revize, determinismus).
+- Revize: změna řádku kusovníku bezpečnostního dílu (`bomLineIsSafety` v kterémkoli stavu) nebo značky bezpečnostní
+  kategorie = třída **bezpečnostní** (`revision.ts` rawDiff), ostatní kusovník kosmetická.
 
 ### Zpětná vazba z CAD (`cad_feedback.ts`)
 
@@ -269,13 +314,15 @@ python scripts/build_verification.py        # data/verification.json → verific
   a uživatel návrhy přijme / odmítne po položkách; nic automaticky. Formát `PLCdesk_CAD_feedback.json`
   (`plcdesk-cad-feedback` v1) je závazný: `C:\CLAUDE\plcdesk_freecad\FEEDBACK_SCHEMA.md` (neměnit samostatně).
 - `parseCadFeedback(text)` → `{ fb | null, errors }` (validace podle schématu, chyby s cestou `issues[2].severity`,
-  `measured.source` povinný — jen doložená fakta). `cadFeedbackReview(prj, fb)` → položky (závažnost, zpráva,
+  `measured.source` povinný — jen doložená fakta; druhy `part_obsolete` / `part_not_orderable` (2026-10-15, doplněk v1)
+  musí nést `vendorStatus {code, date?, source}` a aspoň jeden díl — přehled nabídne nástupce z CAD a až 3 jiné položky
+  katalogu téže kategorie jen jako alternativy). `cadFeedbackReview(prj, fb)` → položky (závažnost, zpráva,
   naměřeno / požadováno, dotčené řádky, návrh + alternativy převedené na volbu `prj.bom.lines[id]` — shoda
   s katalogem = výběr položky `brand: brandOptId`, jinak vlastní typ / kód / množství; u `cabinet_too_small`
   nejmenší větší skříň z katalogu podle `dims` a `required.min` (hloubka / šířka / výška / plocha desky, vnější
   rozměr — užitný ověř v CAD), stav `usable` / `stale` (otisk `manifest.sha256` ≠ `cadManifestSha256` v žádném
   jazyce UI — jen varování) / `invalid` (partId v kusovníku chybí nebo jiný `prj.guid` — nelze přijmout)).
-  `applyCadFeedback(prj, fb, přijaté["id" | "id#n"], kdo, { rejected })` mění JEN `prj.bom.lines` (žádný paralelní
+  `applyCadFeedback(prj, fb, přijaté["id" | "id#n"], kdo, { rejected })` mění JEN `prj.bom.lines` (+ `prj.bom.ioReserve` u `plc_io_capacity`) (žádný paralelní
   stav) a zapíše historii `prj.bom.cadFeedback` (id, otisk, created, kdo, kdy, přijato / odmítnuto, změna) —
   kusovník, oddíl „Změny ze zpětné vazby CAD“ v `09_kusovnik.md` (`cadFeedbackMd`, jen s historií) i další export
   manifestu se přepočítají samy. Idempotentní (totéž rozhodnutí podruhé nic nepřidá; skříň, která požadavek už
@@ -284,11 +331,257 @@ python scripts/build_verification.py        # data/verification.json → verific
   čtení `util.js readFileText`), desktop okno `kusovnik.py` `CadFeedbackDialog` (operace mostu `cadfb`,
   `cadfbApply`); jméno „Rozhodl“ = jméno schvalovatele (web `plcstudio.approver`, desktop `settings.approver`).
   Po použití hláška „Exportuj znovu pro CAD“. Testy `cad_feedback.test.ts`.
+- **Málo kanálů I/O PLC (`plc_io_capacity`, doplněk v1 2026-10-16; podnět stroj 01 — DI 8/8 po -S4):** směr DI / DO /
+  AI / AO povinný v `measured.what` nebo `required.what` (velkými písmeny, samostatné slovo — české „do“ se nesplete),
+  volitelné `measured.capacity`, `required.min` = volné kanály (`ch`) nebo % obsazených (`%`), bez required 1 volný.
+  `cadFeedbackReview` přepočítá stav podle `hwLayout(cadProject(prj))` (`hwFreeChannels`), cílový řádek = CPU
+  (`-A1:plc_cpu`); návrhy ověřené na kopii (rezerva zbude, nic se nepřelije): hlavní = rezerva I/O (`reserveOnly`,
+  `reserve` → `prj.bom.ioReserve`, PLCdesk přidá kartu / zvolí CPU), alternativy = větší CPU téže `hw.family` (≤ 3,
+  řádek CPU + táž rezerva), návrh řádku z CAD dostane rezervu také. Splněno = `applied`, žádný návrh. **`applyCadFeedback`
+  tedy mění `prj.bom.lines` a `prj.bom.ioReserve`** (obojí volby kusovníku) a po změně hardwaru doplní GUID nových
+  modulů (`fillGuids` nad sestavou synchronizovaných I/O — manifest nese GUID karty hned). Schéma: doplněk v
+  `.claude/plcdesk_freecad_staging/schema_v2/FEEDBACK_SCHEMA.md` (čeká na přenos do `C:\CLAUDE\plcdesk_freecad`).
 - **Opravy kusovníku odhalené ve 3D (2026-10-14):** svorky = jeden řádek `-X<n>:terminal_block` na svorkovnici
   výkresu (počet = kanály skupiny = `svorkyCSV` = `terminals` manifestu; dřív odhad I/O × 1,2 + 10, napájecí svorky
   a rezervu doplní projektant — poznámka u -X1); typ v katalogu = jedna položka (alternativy jako samostatné záznamy
   téže značky — Siemens V20 / G120C, 3RA23, VEGA, KSB; test hlídá vzor „…; Typ —“); `dims` (mm + URL) u skříní
   (Rittal AX 500×500×210 … 1000×1400×300, Schneider S3D) a měničů Siemens.
+
+## PLCdesk PRO — 3D agent (prototyp)
+
+- **Jen desktop, jen náhled:** krok „3D agent (PRO)“ (`steps/pro3d.py`, id kroku `"pro"` jako `"help"` — čísla ostatních
+  kroků se nemění, v liště za Kusovníkem) se ukáže jen při `settings.json` `pro_preview: true` nebo `PLCDESK_PRO=1`
+  (`App.pro_enabled`); jinak se PLCdesk nemění. **TODO: licence PRO** (nárok `cad3d` / `product: "pro"`) místo náhledu.
+- `plc_studio/pro_agent.py`: Claude Code CLI headless — `claude -p --output-format stream-json --verbose --permission-mode
+  acceptEdits --strict-mcp-config --tools <nástroje role> --allowedTools <role> --disallowedTools <zákazy>
+  --append-system-prompt <pravidla role + pravidla postupu> --add-dir … [--model] [--max-budget-usd]`, pokyn na stdin,
+  cwd = složka stroje (výchozí `<projektová složka>/02_Vykresy/3D`, volba `settings.pro3d_dirs[guid]`).
+  **Oprávnění zúžená** (2026-10-21): `--tools` = jen Read / Write / Edit / Glob / Grep / Skill / Bash / PowerShell (K5 bez Edit),
+  Bash / PowerShell jen s prefixem `SHELL_ALLOW` (`Bash(python *)`, `PowerShell(powershell *)`… — powershell, pwsh, python, py,
+  node, freecadcmd), zákazy `DENY_TOOLS` (web, Agent, rm / del / taskkill / Remove-Item / Stop-Process / curl…, Edit / Write do
+  skillů a PLM `//C:/…/**`), bez MCP; zápis souborů CLI v acceptEdits omezí na pracovní složky = složka stroje + `--add-dir`
+  (`~/.claude/skills`, `C:\CLAUDE\freecad_plm`, instalace FreeCADu). Omezení: prefix hlídá jen začátek příkazu (python / powershell
+  smí spustit cokoli dalšího), vzory zatím neověřené naostro (běh agenta stojí kredity).
+  Role Stavitel / Kontrolor K5 (bez Edit, píše KONTROLA_K5_*.md) / Koncept; pravidla (vlastní slot FreeCADu `plcdesk-pro`,
+  App::Part + App::Link, zástupné oranžově, povolené kolize, nic ve vzduchu, prohlédnout snímky, PLCdesk = zdroj pravdy kusovníku
+  → zpětná vazba, bez skriptů na 3Dfindit, bezpečnost ke schválení, hotovo až po K5 jinou rolí) česky jako prompt AI návrháře.
+  `parse_event` = stream-json → řádky logu, `AgentRun.result` = událost `result` (cena / tokeny),
+  Zastavit = `taskkill /T` jen nad vlastním PID (i při zavření okna). **Spuštění = placené → vždy dialog souhlasu.**
+  Otevřít ve FreeCADu = `run_fc.ps1 gui-start / gui-run` skillu freecad-instance (slot `plcdesk-pro`, limit 4 h).
+- **Automatický postup** `plc_studio/pro_pipeline.py` (stavový automat bez Tk; schváleno uživatelem 2026-10-21): fáze
+  ① Vstupy z PLCdesk (BEZ AI, vlastní `CoreBridge`: `normalizeProject` → `projekt.plcstudio.json`, `PLCdesk_CAD.json`
+  (cadManifestJson), `KUSOVNIK.csv` (bomCsv), `program/<hwPlatform>/` (genFor) + `PROGRAM.md` (emulateCompile + emulateRunMany),
+  `ROZBOR.md` (`~/.claude/skills/automatizacni-technika/scripts/rozbor_zadani.py`), `STAV.md` jen když chybí) → ② Koncept →
+  ③ Stavba po částech (`UNITS`: rozvaděč `rozvadec/`, rám a kryty `ram/`, moduly `moduly/`, celek + PLM `celek/`). Každá AI
+  část: stavitel (1. kolo konceptu role Koncept) → K5 → protokol `<podsložka>/KONTROLA_K5_<předmět>_kolo<N>.md` (`parse_verdict`
+  = `verdict_text` + `verdict_kind`; chybí / nečitelný = jako VRÁCENO), nejvýš `max_rounds` (3) kol; **neschválený koncept
+  postup zastaví** (status `rejected`), neschválená část stavby se zapíše a pokračuje se. SHA-256 všech FCStd před / po K5 —
+  kontrolor, který model změní, má verdikt neplatný (`k5Modified`). Pravidla postupu `PIPELINE_RULES` (ODHAD místo otázek,
+  zpětná vazba `PLCdesk_CAD_feedback_<předmět>.json` jen sepsat — v automatu se NEPOUŽIJE, `plm scan` 1× za kolo, šetřit paměť,
+  ISO 13857 měřením, oranžová RGB 255,140,0 + vlastnost…), šablony `DEFAULT_PROMPTS` (bez specifik stroje 01, `{sub}`),
+  `FIX_PROMPT` (kolo > 1 → body poslední K5), `K5_PROMPT` (proti zadání a manifestu, ne proti zprávě stavitele, nic neopravovat),
+  TEST (`test_safety`) = pravidlo M + `TEST_MARK` „TEST – schválení předpokládáno“ v pokynech a PREHLED.md. Stav `pipeline.json`
+  (navázání od posledního hotového kroku i uprostřed kola — hotový stavitel → jen K5; `run(from_unit)` = krok a další znovu,
+  stará kola do `history`, staré výstupy podsložek a logy resetovaných částí se PŘESUNOU do `_archiv/<YYYYMMDD-HHMMSS>/`
+  (`state.archives`, odkaz v PREHLED.md) a stavitel kola 1 dostane `REBUILD_PROMPT` „postav znovu, díly z `dily/` jako
+  App::Link“; K5 bez `kontroly.json` nebo se stavem SELHALO = VRÁCENO „(bez kontrol skriptem)“ s automatickým bodem
+  v protokolu (`autoPoints`, `k5NoChecks`); K5 s `error_max_turns` = jedno pokračování `K5_CONTINUE_PROMPT`, druhé = failed), logy `logy/NN_<krok>_kolo<N>_<role>.log`, `PREHLED.md` (`write_summary`: tabulka fází / kol /
+  verdiktů, cena a tokeny, vstupy, logy, ODHADY z *.md, zpětná vazba, snímky). `runner` = `agent_runner()` (AgentRun, frontu
+  vybírá vlákno postupu) nebo podvržený v testech. **CLI** `python -m plc_studio.pro_pipeline --sample <.plcstudio.json>
+  --out <složka> [--from-phase X] [--max-rounds 3] [--test-safety] [--no-ai] [--model] [--budget]` (výstup průběhu na stdout).
+- Krok (`steps/pro3d.py`): pruh fází ①②③ se stavem (`phase_state` / `state_label`: čeká / běží / kontrola K5, kolo n /
+  schváleno / neschváleno / zastaveno), Spustit celý postup / Spustit od fáze… (Combobox kroků) / Zastavit, TEST, model a limit
+  ceny na běh, celkový ukazatel (`progress`, `overall_text` fáze × kolo × role) + ukazatel běžícího agenta (PRŮBĚH k/N), Pokyny
+  fází (rozbalitelná šablona `settings.pro3d_prompts[guid][krok]`, doplňující pokyn `settings.pro3d_extra[guid][krok]`), Přehled
+  postupu, Otevřít ve FreeCADu, zpětná vazba z CAD. Postup ve vlákně (`app.pro_pipe` / `app.pro_thread`), `_poll` přes `after`
+  jen čte `pipe.events` / `run.lines` a při změně stavu překreslí krok; zavření okna postup zastaví.
+- Nápověda: kapitola `pro3d` s `preview: true` (help.ts) — `helpChapters` / `helpChapter` / `searchHelp` ji vrací jen
+  s `preview` (most `help` `preview`, desktop jen se zapnutým náhledem), web plcdesk ani `HELP_IDS` ji nemají.
+  Testy `apps/desktop/tests/test_pro_agent.py` a `test_pro_pipeline.py` (bez volání AI: vstupy na vzoru 01, automat kol, navázání,
+  zastavení, K5 mění model, PREHLED.md, CLI `--no-ai`). Zbývá: licence PRO, interaktivní náhled 3D, ověřit vzory oprávnění naostro.
+- **Cena (2026-10-21):** model a limit kol PODLE ROLE — `pro_agent.ROLE_MODELS` (koncept `claude-opus-5-5`, stavitel a kontrolor
+  `claude-sonnet-5-5`), `ROLE_TURNS` (60 / 60 / 80, CLI `--max-turns`); priorita výchozí < `pipeline.json` (`models`,
+  `maxTurns`) < volba (krok: Combobox každé role = `ai_client.KNOWN_MODELS` s poznámkou o relativní ceně + vlastní ID,
+  `settings.pro3d_models[guid]`, výchozí `settings.pro_models`; CLI `--model-concept / --model-build / --model-check`,
+  `--turns-*`, `--model` = všechny role). `PREHLED.md` tabulka Běhy agentů: model, kola / limit, skutečná cena a tokeny.
+- **Skilly stroj-stavitel / stroj-kontrolor a brána K5** (2026-10-29, návrh `.claude/skills_staging/NAVRH_INTEGRACE.md`;
+  skilly instaluje uživatel do `~/.claude/skills`): obecná pravidla modelu / provozu / kontroly žijí ve skillech, pokyny
+  (`pro_pipeline`) nesou jen specifika běhu — `UNITS` začínají skillem `stroj-stavitel`, K5 dostane `stroj-kontrolor` +
+  odborné skilly části (`system_extra(unit, test, role)`), `K5_SECTION` (K / R / F / M / C) = oddíl kontrolního seznamu,
+  `K5_MIN` = minimum kót / snímků / tvrzení na kolo. **Bez nainstalovaného skillu** (`skill_installed`) jde do pokynu
+  vestavěné znění (`MODEL_RULES_INLINE`, `CONVENTIONS_INLINE`, `K5_FALLBACK` s `K5_ITEMS` = zkrácený seznam; test hlídá
+  shodu ID se seznamem skillu). **Brána `k5_audit`** (po `parse_verdict`, jen u SCHVÁLENO; smí jen VRACET): ID ze skillu
+  (`k5_ids`: `references/kontrolni-seznam.md`, jinak `K5_ITEMS`) — chybějící řádek, NESPLNĚNO, SPLNĚNO bez důkazu, víc řádků
+  „Verdikt“, „Povinných bodů: n > 0“, minima tabulek 3.1 / 3.2 / 3.5 a kap. 5, snímek chybí / prázdný (`png_nonwhite_pct`,
+  zlib bez závislostí, < 1 % nebílých), `data.bez_spoje` > 15 neposouzeno, info „vynechána“, bez zón a V3 SPLNĚNO
+  (`k5_checks` nese `bezSpoje` / `zony` / `bezZon` / `vynechano`) → VRÁCENO „(brána K5)“, `k5Audit` + `autoPoints`
+  + oddíl „Automatický bod PLCdesk“ v protokolu. **`approvedSha`** = SHA modelů části při schválení; při startu K5 další
+  části `approved_changes` (změněný schválený model jiné části → upozornění v pokynu, automatický bod V13 / C1, VRÁCENO
+  „(změněn schválený model)“, `approvedChanged`); `approved_list` → `{approved}` v `K5_PROMPT`. **Max. kol podle části**
+  `pipeline.json` `unitRounds` (`UNIT_ROUNDS`: rám a kryty 5, ostatní `MAX_ROUNDS` 3; `rounds_for`), volba `max_rounds` /
+  CLI `--max-rounds` platí všem částem. TEST: bezpečnostní NÁVRH se kontroluje stejně přísně, předpokládá se jen podpis.
+  `PREHLED.md` oddíl „Kontrola K5 — brána a povinné body“ (počet bodů z řádku „Povinných bodů: n (blokující b, závažné z)“
+  → `r["points"]`). Kalibrace brány: `tests/data/k5_kalibrace/` (protokoly + kontroly.json kola 1 příkladů 01 a 03 —
+  všech 7 SCHVÁLENO bránou neprojde). Placené ověření (`--k5-only`, `k5_mer.py` naostro) zatím neproběhlo.
+- **Kabeláž a hadice v kontrolách** (skill `kabelaz-a-hadice`): `rules.TYPES` + `zlab` / `retez` / `sroubeni`,
+  `Konstrukce_Vedeni` = zlab / retez má přednost před `Konstrukce_Typ`; povolené `kabel|hadice × zlab|retez` (vedení),
+  `hadice × sroubeni` = zasunutí (`fc_scan.in_fitting`: průnik ≤ `ZASUN_MAX` 30 mm a čelo hadice v průniku), šroubení
+  × díl / profil = díra; obálka řetězu × cokoli jiného = chyba, není zábranou pro otvory a nepočítá se do souvislosti;
+  žlab bez šroubu k rámu = chyba `zlab-bez-spoje` (nosný díl), test `pro3d_synth_vedeni.py`.
+- **Zásada: co jde kódem, ne AI.** Kontroly modelu = `plc_studio/pro3d_tools/` (`pro3d.ps1 <kontrola> <FCStd>` → `run.py`;
+  Python FreeCADu má numpy / scipy; FreeCAD jen vlastní instance `run_fc.ps1`, model se jen čte, nic z `plc_studio`
+  neimportuje): `fc_scan.py` (headless: průchod App::Part / App::Link / externí dokumenty, kolize s kalibrací známým průnikem,
+  povolené jen šroub × souosá díra / závit, matice × drážka profilu, skryté průniky mřížkou, polohy `Konstrukce_Pohyb`;
+  souvislost — graf dotyků k podlaze, díly bez spoje, volná čela profilů; otvory — teselace → `voxel.py` (5 / 4 / 3 mm,
+  cesta k zónám `Zona_*`, ucpání celého otvoru a hledání dalšího) → změření e (d1 + paprsek, délka napříč → štěrbina /
+  čtverec) a Sr v modelu → ISO 13857 tab. 4 (`rules.ISO13857_TAB4`, zdroj skill ramy-a-kryty); kusovník `PLCdesk_Id` ×
+  manifest; STEP export + zpětné načtení), `run.check_stav` (zástupné díly z GuiDocument.xml bez FreeCADu), `fc_shots.py`
+  (GUI: iso ×2, půdorys, čelo, výřezy). `vse` → `kontroly.json` + `KONTROLY.md` (≤ 40 řádků), kód 0 / 1 chyby / 2 selhalo.
+  Konvence modelu v `rules.py` (`Konstrukce_Typ`, `Konstrukce_Pohyb`, `Konstrukce_Zona`). Stavitel je spouští před
+  odevzdáním (`BUILD_CHECKS`), kontrolor K5 nezávisle do `<část>/k5_kolo<N>/` a AI posuzuje jen soulad se zadáním,
+  vyrobitelnost, montáž, bezpečnostní koncepci (`K5_CHECKS`); `k5_checks` — SCHVÁLENO s chybou / SELHALO postup zneplatní.
+  Testy `test_pro3d_tools.py` (pravidla, barvy, voxely, syntetický model ve FreeCADu `pro3d_synth_build.py`).
+  Kontroly `kopie` (shodná tělesa mimo App::Link podle objemu, plochy, hlavních momentů a vrcholů po otočení = chyba,
+  vlastní `PLCdesk_Id` patří na odkaz) a `zasunuti` (dřík šroubu v závitu / matici ≥ max(k·d, 3 mm), k ze skillu
+  spoje-sroubove kap. 6; do vzduchu / jen průchozí díry / krátký = chyba a není spojem pro souvislost) jsou od 2026-11-03
+  ve `vse` (V12 a V4 / M1 z analýzy K5; `pro3d_cabinet` staví opakované tvary jako Link, test `pro3d_synth_kopie.py`).
+  Kandidáti na další deterministické generátory (AI jen koncept, nestandardní mechanika a posouzení) — `.claude/plcdesk_pro/NAVRH_PLCdesk_PRO.md`.
+- **Konvence modulů schválené 2026-11-03** (`pro3d_tools/rules.py` KONVENCE, skilly stroj-stavitel / stroj-kontrolor V5 /
+  modul-*): pomocné zóny volného prostoru (`Konstrukce_Zona` + `Konstrukce_ZonaVyjimka`, kontrola `zony`) jsou ZÁVAZNÉ pro
+  všechny moduly; `Konstrukce_Zavit` = doložený závit (`M6x1;hloubka 12;poloha x,y,z;osa dx,dy,dz;zdroj URL`, záznamy `|`,
+  souřadnice cíle odkazu, zdroj povinný) na App::Link k modelu bez děr — `zasunuti` ho uzná, `kolize` povolí šroub v něm;
+  `MOUNT_SELF` + `bajonet`, `upinka`; na zkušebních deskách (`pro3d_lib.bench`) je `otvory` jen varování
+  (`run.py --otvory-varovani`). P1: výchozí patky na adaptérové desce (profil 80, když ho rám má), příruba MF1 šrouby DIN 7984
+  (`normalie.json`). O1: kotvení dvěma úhelníky, `g_panel_22 deska_t`; umístění HMI pult × dveře jedním rozhodnutím
+  `pro3d_cabinet/dvere.py hmi_misto` (kusovník mount / location → `brief.concept.hmi` → `brief.desc`, bez údaje dveře).
+- **Normalizované díly kódem** (2026-10-24) `plc_studio/pro3d_parts/` (bez importu z `plc_studio`, vzor `alutech-profily/fc_profil.py`):
+  tabulky `data/valce.json` (ISO 15552 Ø32–125 z SMC CP96 / C96, ISO 6432 Ø8–25 z SMC C85), `katalog.json` (podle
+  objednacího kódu: Siemens S7-1200 G2, 3RT / 3RV / 5SL / 3SK / SITOP / 3LD / V20 / V90 / MTP700 / 3SU1 z datových listů
+  `teddatasheet`, ifm IFS204 / PT5404, SICK WL12 / CM18, Werma KS71, WAGO 2002-1201), `normalie.json` (ISO 4762 / 7380 /
+  10642 / 4032 / 7089, TS35 7,5 / 15, Lapp SKINTOP ST-M) — **zdroj (URL) u každé řady; rozměr bez zdroje v tabulce není →
+  díl zůstane zástupný** (Festo DSBC = rozhraní ISO 15552 z tabulky SMC, obrys E se liší o 2 mm; Festo VUVG / SMT-8M,
+  3SE5232, motory, skříně, kabely zatím bez zdroje — festo.com a Siemens mall blokují, datové listy ftp.festo.com nemají
+  rozměry). `typy.py` (Festo DSBC / DSNU, SMC CP96 / C96 / C85 / CJ2, popis „ISO 15552, Ø32, zdvih 100“), `catalog_map.py`
+  (řádek manifestu → spec, `coverage`), `fc_parts.py` (FreeCAD: App::Part + tělesa, `Konstrukce_Typ` sroub / matice /
+  podlozka / dil, `Konstrukce_ModelStav = "dle dokumentace"`, `Konstrukce_Zdroj`, `Konstrukce_Detail` tvar / obálka,
+  `Rozmer_*`; pístnice v podčásti s `Konstrukce_Pohyb`, závitové otvory Ø d − P; **barva jednotně žlutá RGB 255,215,0**
+  (`rules.YELLOW` vedle oranžové zástupné; headless barvy neukládá → po stavbě `color_freecad`: gui-start / gui-run
+  `fc_colors.py` / gui-stop téhož slotu obarví díly „dle dokumentace“, zviditelní je a uloží bez .FCBak, `barva: true`
+  v indexu, starší modely bez ní se obarví při dalším `gen`; kontrola `stav`: díl dle dokumentace ≠ žlutá = chyba, i v cíli
+  odkazu App::Link a odkaz s OverrideMaterial; žlutý bez vlastnosti = varování; legenda barev v PREHLED.md a DILY.md),
+  `gen.py` / `pro3d_parts.ps1 gen <manifest> <složka>` → `parts_index.json` (id → FCStd, stav, zdroj / důvod) + `DILY.md`,
+  `part "ISO4762 M6x20" "TS35 7.5x450" …`, `map` (bez FreeCADu); FreeCAD slot `pro3d-parts`, hotové modely podle otisku
+  spec se nepřestavují. Postup: `make_parts` před první částí stavby (jen s AI nebo `--parts`) → `dily/`; `PARTS_RULES`
+  v pokynu stavitele (díl „dle dokumentace“ = App::Link, zástupný jen zbytek), K5 to kontroluje, PREHLED.md souhrn.
+  Pokrytí řádků kusovníku: vzor 01 70 %, 03 65 %, 11 68 %, 17 58 %, 20 67 %. Test `tests/test_pro3d_parts.py` (FreeCAD
+  vzorek 23 dílů, obálka ± 0,1; porovnání s modely výrobců na disku jen ke čtení — V20 a IFS204 shodné, DSBC +2 / +0,9 mm).
+- **Rozvaděč kódem** (2026-11-02) `plc_studio/pro3d_cabinet/` (bez importu z `plc_studio`; `catalog_map` z `pro3d_parts`
+  jako sourozenec): `python -m plc_studio.pro3d_cabinet <PLCdesk_CAD.json> <složka stroje> [--rezerva 20] [--tamb 35] [--tin 40]
+  [--montaz stena|volne] [--no-fc]` → `rozvadec/layout.json`, `ROZVADEC.md`, `Rozvadec.FCStd`; kód 0 / 1 nevyhovuje (nevejde
+  se nikam / rezerva / bilance) / 2 selhalo. `layout.py` (čistý Python): kusy `location: cabinet` (stanice PLC v pořadí slotů,
+  svorky po svorkách se zarážkami), rozměry dily `modely[].bbox` → `catalog_map` → `data/rozmery.json` → ODHAD kategorie,
+  skupiny (napájení + silová / pohony na desce — smí sdílet pás / řízení / svorky / dveře), lišty TS35 s rezervou ≥ 20 % na
+  každé, žlaby 30 × 40 (ODHAD) mezi pásy + svislé, mezery `data/mezery.json` (zóna stanice / svorkovnice jako celek),
+  hloubka × vnitřní líc dveří, přístroje na dveřích bez kolize hloubkou; skříň = z manifestu, nevejde-li se, nejmenší
+  z `data/catalog/plc.json` (záloha `data/skrine.json`) + zpětná vazba `cabinet_too_small`; souřadnice X zleva při pohledu
+  zepředu po `_mirror_x`, Y k dveřím, Z nahoru; `hardware()` = díry, sloupky, šrouby ISO 4762 (deska M6, lišty / žlaby /
+  zarážky M4, přístroje na desce a ve dveřích M4 / M5 tečně — poloha ODHAD), panty (−95°), vývodky SKINTOP; tepelná bilance
+  Qs = k · A · ΔT (k = 5,5 Rittal TSH s. 6, A = geometrická plocha bez součinitelů b IEC TR 60890 — ODHAD metody),
+  Ti = min(`--tin`, nejnižší Tmax přístrojů), Qv jen z `data/ztraty.json` (stav doloženo / výtah / chybí — nic se
+  nedopočítává; chybí-li a Qv ≤ Qs → „nelze rozhodnout“), opatření jen návrh (ventilátor V = f · Qv / ΔT, chlazení,
+  větší skříň). Data 2026-11-02: ztráty S7-1200 G2 CPU / SM1221 / SM1231 / SM1232, 1214FC, MTP700, 3RT2016, 3RV2011,
+  5SL6110-7, 3SK1111, 3LD2103, PSU6200 z datových listů Siemens (kopie docs.rs-online.com, teddatasheet vrací 400),
+  V20 výtah; chybí SM1222 DQ16 G2, G120C, 1214C G2, 3RT2015, WAGO 2002, Festo CMMT-ST. `fc_cabinet.py` (headless, slot
+  `pro3d-cabinet`): App::Part `asm:cabinet`, skříň / dveře zástupné, deska na sloupcích, lišty / šrouby / vývodky „dle
+  dokumentace“, přístroje App::Link na `dily/` (jinak oranžová obálka), dveře s `Konstrukce_Pohyb`, zóny `Mezera …` /
+  `Rezerva …` = pomocny; `fc_cabinet_colors.py` (GUI) barvy + snímky `snimky/generator_celo.png` / `generator_iso.png`.
+  `fc_scan` dědí `PLCdesk_Mount` z odkazu / kontejneru (přístroj na liště z `dily/` = klip). Vzory: 20 → AX 1076.000,
+  16 → AX 1180.000 (obě změna proti 1050.000), kontroly `vse` bez chyb i varování, bilance nevyhovuje (40 °C S7-1200 G2
+  při plné specifikaci, okolí 35 °C). **Postup:** `make_cabinet` před 1. kolem stavitele rozvaděče (jen s generátory dílů),
+  výsledek `units.cabinet.generated` (reset části ho smaže); úspěch → `CABINET_GEN_PROMPT` (zkontroluj, doplň kabeláž / PE /
+  popisky, NEPŘESTAVUJ, nálezy do zpětné vazby), jinak starý pokyn; PREHLED.md oddíl „Rozvaděč kódem“. Testy
+  `tests/test_pro3d_cabinet.py` (data, layout 01 / 03 / 16 / 20, hardware, CLI, FreeCAD 20 + kontroly + snímek),
+  `test_pro_pipeline.CabinetGenTest`.
+  **Dveře, kabeláž ke dveřím, oddělení tras, PE / N a ventilátor kódem** (2026-11-02, `dvere.py` + `data/dvere.json`, nálezy K5 vzorů 16 / 20): výřezy / vrtací obrazce / upínky dveřních přístrojů z dokumentace (3LD2 4 × Ø5 na 48 × 48, MTP700 197 × 141 + 6 upínek), svazky ke dveřím (větve po dveřích, kmen v ose pantu, volný úsek ≥ 1,1 × dráha konců v 0–95°, R z `kabelaz-a-hadice/data/media.json`), žlaby silové / signálové / smíšené s uzemněnými přepážkami a dělicími plechy u pantu (≥ 250 mm nebo přepážka, G120C přes skill), PE vodivě na desce a N na izolátorech bez kovové cesty, filtrační ventilátor Rittal SK 3237–3239 .124 s vlastním příkonem v Q a rezervou ≥ 2 K (jinak varování); stavitel (`CABINET_GEN_PROMPT`) doplňuje jen kabeláž ve žlabech a popisky.
+- **Moduly kódem** (2026-11-03) `plc_studio/pro3d_modules/` (bez importu z `plc_studio`; sourozenci `pro3d_parts.catalog_map`,
+  `pro3d_tools.rules`, skill kabelaz-a-hadice `scripts/trasa.py` / `fc_trasa.py`): `python -m plc_studio.pro3d_modules
+  <PLCdesk_CAD.json> <složka stroje> [--no-fc --scena X]` → `moduly/layout.json`, `MODULY.md`, `Moduly.FCStd`,
+  `PLCdesk_CAD_feedback_moduly_kod.json`; kód 0 / 1 (něco nepostaveno — doplní stavitel) / 2 selhalo. ① `fc_scene.py` (headless,
+  jen čte) → scéna: listy `ram/Ram.FCStd` bez kontextu konceptu a `koncept/Koncept.FCStd` s obálkami, `PLCdesk_Id` (i zděděné z odkazu,
+  `pkey`), duté díly jako stěny (`boxes`). ② `layout.py` (čistý Python): zařízení v poli — v rámu (jen kabel) / z konceptu / CHYBÍ;
+  nosné konstrukce konceptu (tělesa, na kterých zařízení stojí / o která se válec opírá čelem; kolize s rámem = nepřevzít; podpěra pod
+  válcem s patkami se nepřebírá); válce ISO 15552 (model `dily/`, osa a pístnice z konceptu, patky L ven / pod tělo do horních závitů
+  RT, nebo čelo 4 × RT; přípojky EE na horní ploše — `fc_parts` je nově vrtá, zastaralé modely CLI přegeneruje `pro3d_parts gen`),
+  snímače polohy v drážce (`PLCdesk_Mount = drazka`), snímače se závitem v držáku s podélnými otvory ± 5 mm (`zavit`), snímač tlaku na
+  rozvodném bloku, ostatní zástupně (obálka konceptu) se šrouby skrz / úchytkami; šrouby ISO 4762 do vlastního dílu = závit, do profilu
+  rámu = matice v drážce (rastr 40), do desky rámu bez díry = dřík jen přes náš díl + **požadavek na rám** (předání); šroubení QS / GRLA
+  zástupně s rozhraním ze skillu festo-pneumatics (závit zvlášť = souosý s přípojkou); hadice rozváděč → válec (4 → zadní, 2 → přední,
+  ODHAD), rozvod P, kabely ke každému zařízení k rozvaděči (vstup dnem, stojí-li na desce, zadní stěnou); `router.py` = A* na
+  nepravidelné mřížce s rovným úsekem ≥ 2 R mezi ohyby, vůle 3 + 0,15 R; nenalezená trasa = ODHAD délky pravoúhlou spojnicí
+  a průchody deskami rámu na ní = požadavky na rám (trasa se nestaví); poloměry, délky, rezerva a zpětná vazba z `trasa.py`. Vše
+  nesestavitelné → `nepostaveno` s důvodem. ③ `fc_modules.py`: rám = App::Link na části `Ram.FCStd`, každá skupina se ověří průnikem
+  s rámem a přijatými díly (koliduje → odebrat celou, `odebrano`), trasy `fc_trasa.stavej_trasu`; `fc_modules_colors.py` barvy + snímky
+  `moduly/snimky/generator_*.png`. `pro3d_tools`: `Konstrukce_Pohyb` se převádí z rodiče do globálu (`pohyb_global` — pístnice
+  natočeného válce), `rules.MOUNT_SELF` (din / rack / drazka / zavit) a díl z více těles v odkazu (`comp`) nejsou „bez spoje“.
+  **Postup:** `make_modules` před 1. kolem stavitele modulů (jen s generátory dílů), `units.modules.generated`, úspěch →
+  `MODULES_GEN_PROMPT` (nepřestavovat, doplnit jen „Nepostaveno“), PREHLED.md „Moduly kódem“. Vzor 20: 4 válce s patkami / čelem,
+  11 / 14 snímačů, rozváděče na liště, 25 kabelů a 9 hadic spočteno — většina tras vede deskou stolu / skříňkou pneumatiky
+  (rám průchody nemá → požadavky na rám). Testy `tests/test_pro3d_modules.py` (vzory 01 / 03 / 16 / 20 z `tests/data/moduly/`,
+  FreeCAD na vzoru 20 + `kolize` / `souvislost`), `test_pro_pipeline.ModulesGenTest`.
+- **Rám N1 a pneumatika P2 / P3 / P4 v postupu** (2026-11-04, schváleno uživatelem): `make_frame` před 1. kolem stavitele části
+  rám a kryty (jen s generátory dílů, `GEN_FNS`) = `pro3d_lib/ram_gen.py` — rozměry stolu z `koncept/Koncept.FCStd` (fc_scene,
+  objekty „deska / noha stolu / rám…“ bez PLCdesk_Id), jinak půdorys konceptu, jinak ODHAD 1000 × 800 × 900; kola podle briefu;
+  pracovní deska Al 15 (5083) výchozí; `modul_ram` + `fc_ram.py` → `ram/Ram.FCStd` (posunutý o `rozmery.umisteni`), smlouva
+  `ram/N1_<id>.json`, `RAM.md` (rozhodnutí: dlouhý šroub = standard, zahloubení ODHAD; kola + válce → doporučení diagonál / MKP),
+  snímky `ram/snimky/ram_*.png`, kontroly `ram/kontroly/`; `units.frame.generated`, `FRAME_GEN_PROMPT` (nepřestavovat, doplnit
+  kryty a co chybí, nálezy → `PLCdesk_CAD_feedback_ram.json`), PREHLED.md „Rám kódem“. Požadavky modulů na rám z `moduly/layout.json`
+  `predani_n1` převezme další stavba rámu. Generátor modulů čte smlouvu (`pro3d_modules/pneu.py`): šrouby dolů do drážek jen na
+  volné úseky smlouvy (obsazené = požadavek), šroub na desku = závit podle `deska.zavity` + kontrola odstupu od šroubů desky,
+  `smlouva_n1` (průchody v rámu × chybí). Pneumatika: ostrov P3 (rozváděče s `actuates`, lišta = `-WP1`) + P2 (uzávěr → LFR →
+  MS6-SV-E **jen s `safety` manifestu**, `uprava(sv=…, ids=…)`) na volném úseku drážky shora nejblíž válcům → `moduly/Pneumatika.FCStd`
+  (fc_lib + barvy, App::Link skupina `G-pneu` v Moduly.FCStd), hadice A / B z ústí šroubení ostrova k GRLA válců vede router,
+  rozvod P je v modulu. Bez smlouvy dosavadní chování. CLI `pro_pipeline --no-ai --generators` = generátory kódem bez agentů.
+  Testy `tests/test_pro3d_napojeni.py`.
+- **Celek kódem E3** (2026-11-04) `plc_studio/pro3d_lib/celek.py` — moduly určí rám (ne půdorys konceptu): `python -m
+  plc_studio.pro3d_lib.celek <PLCdesk_CAD.json> <složka> [--model Celek_01] [--no-fc] [--bez-otvoru] [--kontroly k1,k2]
+  [--bez-snimku] [--bez-kontrol] [--nestavet]` → `<složka>/celek/` (`plan.json`, `<model>.FCStd`, smlouvy D1 / N1 / O3 / P1 /
+  P2 / P3, `celek.json`, `CELEK.md`, `PLCdesk_CAD_feedback_celek.json`, snímky `celek_*.png` vč. otevřených dveří, kontroly).
+  Pořadí: **D1** (obálka D1 + P1 + S1; výška desky N1 = pod stojinami, snížená tak, aby visící pohon nezasáhl desku —
+  `VULE_POHON`, stojiny D1 delší) → **O3** (vnitřek = obálka + `VULE_KRYT` + `PREPRAVKA` za pásem, ODHAD; obrys krytu se
+  nastaví přímo `Kryt.X0…Y1`) → **pás obsluhy** u nakládacího konce (x min): nosný profil 40 × 40 podél y šrouby zespodu deskou,
+  na něm pult O1 a P2 + P3 (`R_PAS`: čelo ven −x), šířka pásu = moduly vč. vývodů kabelů + 15, za rovinou pantů (dráha dveří)
+  → **N1** s deskou, montážní nosníky pod stojinami D1, otvory = požadavky modulů (šrouby krytu / nosného profilu zespodu,
+  šrouby úhelníků stojin D1 deskou do drážky nosníku = nový druh `kind: "otvor_drazka"` v `modul_ram.pruchody_vyhodnot` —
+  přijme se i nad profilem; `D1NaDesce` přidá desku do upnuté tloušťky) — D1 a pravý konec krytu se posouvají po 10 mm, dokud
+  N1 nepřijme všechny otvory → **P4** hadice ostrov → válec routerem `pro3d_modules/router.py` (deska = průchod → požadavek N1,
+  kryt ne, trasa se drží profilů rámu) → **E1 / E2**: poloha rozvaděče ODHAD (stojan za hnacím koncem), kabely routerem jen jako
+  ODHAD délek (nestaví se — stojan / držáky skříně a žlab nejsou moduly) → `nepostaveno` + zpětná vazba. O2 jen s řádkem `beacon`.
+  `ram_gen` u stroje s pásovým dopravníkem bere rozměry z `celek.n1_params` (umístění 0, zdroj „celek E3…“; `--bez-celku` /
+  `make_frame(celek=False)` = koncept jako dřív). Pult O1: úhelníky kotvení malého pultu od sebe ≥ šířka + 10 (`a6`). Testy
+  `tests/test_pro3d_celek.py` (manifest `tests/data/celek/01_PLCdesk_CAD.json`; FreeCAD jen `PRO3D_CELEK_FC=1`).
+- **Řízené RUČNÍ stahování modelů** (2026-10-24) `plc_studio/pro3d_download/` (bez Tk, bez sítě — **nic se nestahuje
+  ani neskriptuje**: podmínky 3Dfindit / CADENAS čl. 12.3 (vii), TraceParts i portálů výrobců; stahuje člověk v prohlížeči).
+  `vendors.json` = vzory URL (stránka produktu / hledání, `{code}` `{code_alnum}` `{query}`), `verified` + `verify_note`
+  (čtení veřejné HTML 2026-10-24: ověřeno WAGO, ifm, Werma a Schmersal hledání; 403 Festo / Phoenix / P+F / Weidmüller,
+  SPA Siemens / SMC / SICK / Lapp / TraceParts, 404 Rittal / ALUTEC), registrace, formát, `library_ok` s citací podmínek
+  (`terms`, `terms_src`; true jen Siemens „für interne Zwecke“ a Phoenix Contact čl. 3.3.2; CADENAS / TraceParts /
+  neznámé = false), fallback hledání TraceParts, `no_cad` (LUKAS, JSP). `listing.py`: `download_list(manifest,
+  parts_index, models_dir)` (jeden řádek = jeden soubor, stejný výrobce + kód sdílí model, kabely a díly „dle dokumentace“
+  vynechány — bez `parts_index` podle `catalog_map.map_manifest`), stavy registered / downloaded / library / missing /
+  placeholder, `write_lists` → `STAHNOUT.md` + tisknutelné klikací `STAHNOUT.html` ve složce stroje, `find_downloads`
+  (models/manual + volitelně Stažené soubory `PLCDESK_DOWNLOADS` / ~/Downloads, i ZIP: jméno `partId-safe` = jisté, jinak
+  kód / typ v názvu nebo v hlavičce STEP FILE_NAME / PRODUCT = návrh, uživatel potvrdí), `accept` (kopie pod přesné jméno),
+  knihovna `%APPDATA%\PLCStudio\model_library\<výrobce>\<kód>.stp` (+ .json s podmínkami; `library_add` / `lookup` jen
+  `library_ok`, stav „v knihovně“ → Převzít z knihovny), `register_downloads` = `register_manual.register(plan=…)` (převzato
+  ze stagingu plcdesk_freecad s `models_index` a `check_step`: hlavička, schéma, FreeCAD objem > 0 přes run_fc slot
+  `pro3d-dl`) + obálka × rozměry z popisu („500×500×210“ → varování) + knihovna + `replace_placeholders` (jen když FCStd
+  stroje obsahuje partId: záloha `.FCStd.bak`, `fc_replace.py` STEP → `models/manual/<id>.FCStd`, zástupný
+  `PLCdesk_ModelStatus = placeholder` → App::Link ve stejném rodiči, střed obálky = střed zástupného — zkontrolovat; `fcstd`
+  do indexu). Postup: fáze ① zapíše STAHNOUT.* (`write_download_list`), po `make_parts` znovu; `PARTS_RULES`: zaevidovaný
+  model výrobce má přednost (model výrobce → dle dokumentace → zástupný). Krok: karta „Modely ke stažení“ (tabulka, Otevřít
+  = webbrowser, Otevřít složku, Načíst stažené ve vlákně, Převzít z knihovny, STAHNOUT.html, volba `settings.pro3d_downloads`).
+  Testy `tests/test_pro3d_download.py` (vzory 01 / 03 / 20, párování, knihovna, registrace, 1 headless běh FreeCADu:
+  syntetický STEP → index → App::Link) a `tests/test_register_manual.py` (testy stagingu přes adaptér unittest).
 
 ## Sestava hardwaru (hardware.ts)
 
@@ -331,6 +624,22 @@ python scripts/build_verification.py        # data/verification.json → verific
   `normProject` značku zachovává.
 - **GUID modulů:** klíč `S<stanice>.<slot>` v `prj.moduleGuids` (karty a hlavy); vestavěné I/O, CPU,
   BusAdapter a server odvozeně. Dřívější klíče `DI1…` převede `fillGuids` (n-tá karta téhož směru).
+- **Rezerva I/O** (2026-10-16): `prj.bom.ioReserve = { pct?, DI?, DO?, AI?, AO? }` (`IoReserve`, model.ts) — % obsazených
+  kanálů každého použitého směru (nahoru) a / nebo minimum volných kanálů směru; platí větší (`ioReserveFor`,
+  čištění `ioReserveOf`: % ≤ 100, kanály celé 0–1000; `normalizeProject` zachová, revize = kosmetická změna kusovníku).
+  `build` volí CPU (`localFits`) i karty (`plan`) pro signály + rezervu; nesplnitelná rezerva (rack plný, bez vzdálených
+  I/O) = `warn` „Rezerva I/O nesplněna“, bez nastavené rezervy plně obsazený směr = `info` (where „<platforma> DI“).
+  **Výchozí = bez rezervy → sestava i všechny výstupy beze změny (golden)**; hodnotu volí uživatel (web i desktop
+  krok Kusovník: pole „Rezerva I/O“ s volnými kanály `hwFreeChannels`, most `bom` vrací `reserve` / `free`).
+  Připnuté adresy zůstávají (nová karta jen přidá kanály). **Rezerva NIKDY nepřidá vzdálenou stanici** (rozhodnutí
+  uživatele 2026-10-16): auto CPU nejdřív to, kam se signály + rezerva vejdou lokálně, jinak výběr jako bez rezervy;
+  plán s rezervou, který by měl víc stanic než plán jen pro signály, se zahodí (sestava jako bez rezervy) a `warn`
+  „Rezerva I/O nesplněna…“ nabídne větší CPU téže řady, kam se rezerva vejde lokálně. Karty navíc do vzdálené stanice,
+  kterou si vynutily skutečné signály, rezerva přidat smí. **Výchozí rezerva 20 % jen u NOVÉHO projektu**
+  (`newProject()` = `blankProject` + `bom.ioReserve {pct: NEW_PROJECT_IO_RESERVE_PCT}`; web Nový projekt / první
+  návštěva / poškozený stav, desktop start / `reset_project` / poškozený stav). `blankProject` zůstává bez rezervy
+  (normalizace načtených projektů, vzory, golden, testy) a **import stávajícího stroje (`inferProject`, průvodce
+  importu) je bez rezervy** — hardware už existuje; `applyAiProposal` rezervu nemění; nic se nemigruje.
 - Testy `hardware.test.ts`: 13 příkladů × 10 platforem — signál právě na jednom kanálu, bez kolize
   adres, kanály = katalog, limity racků, kusovník = sestava, výkresy / svorkovnice / EPLAN shodné,
   validateEplan bez chyb; pravidla Siemens / FX5 / Rockwell / Omron / Unitronics, „nevejde se“,

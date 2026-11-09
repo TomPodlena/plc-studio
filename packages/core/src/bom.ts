@@ -52,6 +52,21 @@ export interface BomLine {
   excluded?: boolean;
 }
 
+/** Kategorie kusovníku, které jsou bezpečnostními prvky samy o sobě (bez ohledu na zařízení). */
+export const BOM_SAFETY_CATS: ReadonlySet<string> = new Set(["safety_relay", "safety_controller", "contactor_mirror",
+  "safety_valve", "two_hand_station", "light_curtain", "safety_switch", "guard_lock", "guard_lock_contact", "estop_button"]);
+
+/**
+ * Je řádek kusovníku bezpečnostní díl? Řádek podle posouzení rizik (`BomLine.safety`), bezpečnostní kategorie
+ * (`BOM_SAFETY_CATS`) nebo díl zařízení E-stopu / blokování programu. Sdílí export pro CAD (`parts[].safety`)
+ * a klasifikace změn revize (změna takového řádku = bezpečnostní změna).
+ */
+export function bomLineIsSafety(prj: Project, l: Pick<BomLine, "safety" | "cat" | "devId">): boolean {
+  if (l.safety || BOM_SAFETY_CATS.has(l.cat)) return true;
+  if (l.devId === undefined) return false;
+  return l.devId === prj.program?.estop || interlockDevs(prj).some(d => d.id === l.devId);
+}
+
 export interface Bom {
   plat: PlatformKey;
   lines: BomLine[];
@@ -74,29 +89,155 @@ function diCat(prj: Project, d: Device, locks: Set<number>): string {
   const t = d.desc || "";
   if (prj.program.estop === d.id) return "estop_button";
   if (locks.has(d.id)) return has(t, /závor|mříž|curtain|lichtgitter|barrera|clona/) ? "light_curtain" : "safety_switch";
-  if (has(t, /tlačítk|start|kvit|button|taster|pulsador|přepína|selector/)) return "pushbutton";
+  if (has(t, SELECTOR_RE)) return "selector_switch";
+  if (has(t, /tlačítk|start|kvit|button|taster|pulsador/)) return "pushbutton";
+  if (bomIsInterface(d)) return "";   // kontakt druhého stroje: jen pin konektoru rozhraní (řádek machine_interface)
   if (has(t, /hladin|kapacit|level|capacit/)) return "sensor_capacitive";
   if (has(t, /optick|reflex|závor|fotobu|optical|light|licht|óptic/)) return "sensor_optical";
   if (has(t, /koncák|koncov|limit|endschalter|final de carrera/)) return "limit_switch";
   return "sensor_inductive";
 }
 
+/** Volič / přepínač (režim AUTO / RUČNĚ, seřizování…) — vlastní kategorie, ne tlačítko (pult: drážka proti pootočení). */
+const SELECTOR_RE = /volič|přepínač|přepína|selector|wahlschalter|schlüsselschalter|conmutador/;
+
+/* ---- signální věž (maják): jedna věž s patry, patro na každý DO ----
+   Dřív dostal každý DO majáku vlastní celou věž (vzor 03: -H1 a -H2 = 2 × Werma 64924005). Věž je ve skutečnosti
+   jedna se světelnými patry → řádek věže `-PF<n>:beacon` (IEC 81346-2 třída P = zobrazení informace; označení
+   nezávisí na jménech zařízení, takže id řádku i GUID pro CAD přežijí přejmenování / smazání kteréhokoli DO)
+   + patro `-<DO>:beacon_light` na každý výstup (devId → vazba `controls` z výstupního modulu jde na patro).
+   Víc věží jen když to popis zařízení výslovně říká („věž A“, „tower B“, „Turm 2“…). */
+export type BeaconColor = "red" | "yellow" | "blue" | "green" | "white";
+/** Pořadí pater shora podle IEC 60204-1 čl. 10.3.2 (sekundárně IDEC LD6A; skill modul-majak `data/veze.json`). */
+export const BEACON_ORDER: BeaconColor[] = ["red", "yellow", "blue", "green", "white"];
+const BEACON_COLOR_TEXT: Record<BeaconColor, string> = {
+  red: N_("červená"), yellow: N_("žlutá"), blue: N_("modrá"), green: N_("zelená"), white: N_("bílá"),
+};
+/** Barva z popisu zařízení (obsah projektu cs / en / de / es — nikdy z přeloženého UI). */
+const BEACON_COLOR_RE: Array<[BeaconColor, RegExp]> = [
+  ["red", /červen|\bred\b|\brot\b|\brojo|\broja\b/],
+  ["yellow", /žlut|oranž|jantar|yellow|amber|orange|gelb|amarillo|ámbar/],
+  ["blue", /modr|\bblue\b|\bblau|\bazul/],
+  ["green", /zelen|green|grün|gruen|\bverde\b/],
+  ["white", /bíl|white|weiß|weiss|\bblanc/],
+];
+/**
+ * Barva podle role DO, když ji popis neříká — výchozí PLCdesk (rozhodnutí uživatele 2026-11-03; shodně s
+ * `pro3d_lib/data/veze.json` `role_DO_na_barvu`): fault / run podle významu barev, ready / stopped / lock / auto
+ * (`def` = výchozí volba, poznámka to říká) bílá / žlutá / modrá / bílá.
+ */
+const BEACON_ROLE_COLOR: Record<string, { c: BeaconColor; def: boolean }> = {
+  fault: { c: "red", def: false }, run: { c: "green", def: false },
+  ready: { c: "white", def: true }, stopped: { c: "yellow", def: true }, lock: { c: "blue", def: true }, auto: { c: "white", def: true },
+};
+/** Barvy hotové věže z katalogu (Werma 64924005, PATLITE LR6-…-RYG, Eaton SL7 RYG, Auer CT5 RAG). */
+const BEACON_STOCK: ReadonlySet<BeaconColor> = new Set(["red", "yellow", "green"]);
+const TOWER_RE = /(?:věž|věže|věži|tower|turm|säule|torre)\s+([a-z0-9])\b/;
+
+/** `roleDefault` = barva z role podle výchozí volby PLCdesk (ne z popisu ani z významu barvy). */
+export interface BeaconTier { dev: Device; color: BeaconColor | null; roleDefault: boolean; }
+export interface BeaconTower { tag: string; tiers: BeaconTier[]; stock: boolean; }
+
+/**
+ * Signální věže projektu: DO s kategorií `beacon` seskupené do věží (jedna, pokud popisy nejmenují víc věží),
+ * patra seřazená shora (R / Y / B / G / W, neurčená barva dole). `stock` = patra se vejdou do hotové věže
+ * červená / žlutá / zelená z katalogu (barvy určené, různé, nejvýš 3). Sdílí kusovník i export pro CAD.
+ */
+export function bomBeaconTowers(prj: Project): BeaconTower[] {
+  const groups = new Map<string, Device[]>();
+  for (const d of prj.devices) if (d.cls === "DO" && doCat(d) === "beacon") {
+    const k = (TOWER_RE.exec((d.desc || "").toLowerCase())?.[1] || "");
+    groups.set(k, [...(groups.get(k) || []), d]);
+  }
+  return [...groups.values()].map((devs, i) => {
+    const tiers = devs.map(dev => {
+      const t = (dev.desc || "").toLowerCase();
+      const byDesc = BEACON_COLOR_RE.find(([, re]) => re.test(t))?.[0];
+      const byRole = !byDesc && dev.role ? BEACON_ROLE_COLOR[dev.role] : undefined;
+      return { dev, color: byDesc || byRole?.c || null, roleDefault: !byDesc && !!byRole?.def };
+    });
+    const rank = (c: BeaconColor | null) => c ? BEACON_ORDER.indexOf(c) : BEACON_ORDER.length;
+    tiers.sort((a, b) => rank(a.color) - rank(b.color));   // stabilní: stejná barva v pořadí zařízení
+    const cs = tiers.map(x => x.color);
+    const stock = tiers.length <= 3 && cs.every(c => c && BEACON_STOCK.has(c)) && new Set(cs).size === cs.length;
+    return { tag: "-PF" + (i + 1), tiers, stock };
+  });
+}
+
+/* ---- zámek ochranného krytu (jištění, EN ISO 14119) ----
+   DO s rolí `lock` nebo s popisem zámku = cívka blokovacího zařízení se zámkem → kategorie `guard_lock` (dřív obyčejný
+   bezpečnostní spínač bez jištění; nález modulu O3 PLCdesk PRO 2026-11-04). Kontakty „zavřeno a zamčeno“ jsou součástí
+   přístroje: blokovací DI, jehož popis říká „zamčeno“ / locked / verriegelt, se spáruje se zámkem (v pořadí projektu)
+   a místo samostatného spínače dostane řádek `guard_lock_contact` (kontakt zámku, bez objednání — jako patro věže;
+   označení vstupu zůstává v kusovníku kvůli SISTEMA / výkresům). Klíčová slova jen z obsahu projektu (cs / en / de / es). */
+const LOCK_DO_RE = /zámek|zámk|lock|zuhalt|bloqueo/;
+const LOCKED_DI_RE = /zamčen|zamknut|uzamčen|locked|verriegelt|zugehalten|bloquead/;
+const isLockDo = (d: Device) => d.cls === "DO" && (d.role === "lock" || has(d.desc || "", LOCK_DO_RE));
+/** Dvojice zámek (DO) → blokovací vstup „zavřeno a zamčeno“ (DI) téhož přístroje; nespárovaný zámek = bez vstupu. */
+function guardLockPairs(prj: Project, locks: Set<number>): Map<number, Device | null> {
+  const lockDos = prj.devices.filter(isLockDo);
+  const lockedDis = prj.devices.filter(d => locks.has(d.id) && d.cls === "DI" && has(d.desc || "", LOCKED_DI_RE)
+    && !has(d.desc || "", /závor|mříž|curtain|lichtgitter|barrera|clona/));
+  return new Map(lockDos.map((d, i) => [d.id, lockedDis[i] || null]));
+}
+
 function doCat(d: Device): string {
   const t = d.desc || "";
-  if (d.role === "lock" || has(t, /zámek|zámk|lock|zuhalt|bloqueo/)) return "safety_switch";
+  if (isLockDo(d)) return "guard_lock";
+  if (bomIsInterface(d)) return "interface_relay";
   if (has(t, /houkačk|siréna|horn|hupe|bocina|sirene/)) return "horn";
   if (has(t, /maják|věž|beacon|signalsäule|baliza|signálka.*(zelen|červen|žlut)/)) return "beacon";
   if (has(t, /signálk|kontrolk|pilot|leuchtmelder|piloto|indikac/)) return "pilot_light";
   return "interface_relay";
 }
 
-function valveCats(d: Device): string[] {
-  const t = d.desc || "";
-  if (has(t, /hydraul/)) return ["hydraulic_valve"];
-  if (has(t, /přísav|vakuu|vacuum|sauger|ventosa/)) return ["valve_solenoid"];
-  if (has(t, /šoupát|klapk|kohout|uzávěr|potrubí|armatur|damper|klappe|schieber|válvula de proceso/)) return ["process_valve"];
-  return ["valve_solenoid", "cylinder"];
+/**
+ * Signálová výměna s jiným strojem (lis, robot, nadřazená linka) — zařízení projektu je kontakt rozhraní,
+ * ne fyzický snímač ani akční člen. Pozná se JEN z obsahu projektu (popis zařízení je v jazyce, ve kterém
+ * projekt vznikl), nikdy z přeloženého textu UI. Klíčová slova (malými písmeny):
+ *   cs: „euromap“, „rozhraní“, „signál z / ze / do / od / pro / k …“, popis začíná „Robot“, „z / od / do robota“;
+ *   en: „euromap“, „interface“, „handshake“, „signal from / to …“, „from / to (the) robot“;
+ *   de: „euromap“, „Schnittstelle“, „Handshake“, „Signal von / vom / an / zum / zur …“, „vom / zum Roboter“, začíná „Roboter“.
+ * Samotné „povolení“ / „enable“ záměrně ne — bývá i vnitřní povel stroje (povolení měniče).
+ */
+const IFACE_RE = /euromap|rozhraní|schnittstelle|\binterface\b|handshake|sign[aá]l[uy]? (z|ze|do|od|pro|k|ke) |\bsignal (from|to|von|vom|an|zum|zur|zu) |^robot(er)?\b|(z|ze|od|do) robota|(from|to) (the )?robot|(vom|zum|an den) roboter/;
+/** Je zařízení (DI / DO / Ventil) jen signál rozhraní k jinému stroji? */
+export function bomIsInterface(d: Device): boolean {
+  return (d.cls === "DI" || d.cls === "DO" || d.cls === "Ventil") && IFACE_RE.test((d.desc || "").toLowerCase());
 }
+/** Pohyb nesoucí chapadlo / přísavky (zdvih, pojezd, otočení…) — to je válec, ne chapadlo ani ejektor. */
+const MOTION_RE = /zdvih|pojezd|posuv|přesuv|výsuv|vysun|zasun|otoč|dolů|nahoru|zved|\blift|stroke|travel|slide|rotat|\braise|\blower|\bhub\b|heben|senk|verfahr|schwenk|dreh/;
+/** Vakuový úchop (ejektor, přísavky, podtlak). */
+const VACUUM_RE = /vakuu|vakuov|podtlak|ejektor|přísav|vacuum|suction|ejector|sauger|ventosa/;
+/** Pneumatické chapadlo (sevřít / uvolnit). */
+const GRIPPER_RE = /chapad|úchop|uchop|gripper|\bgrip|greifer|pinza/;
+
+type ValveKind = "interface" | "hydraulic" | "vacuum" | "gripper" | "process" | "cylinder";
+function valveKind(d: Device): ValveKind {
+  const t = (d.desc || "").toLowerCase();
+  if (bomIsInterface(d)) return "interface";
+  if (/hydraul/.test(t)) return "hydraulic";
+  const motion = MOTION_RE.test(t);
+  if (!motion && VACUUM_RE.test(t)) return "vacuum";
+  if (!motion && GRIPPER_RE.test(t)) return "gripper";
+  if (has(t, /šoupát|klapk|kohout|uzávěr|potrubí|armatur|damper|klappe|schieber|válvula de proceso/)) return "process";
+  return "cylinder";
+}
+/** Poznámky řádků dílů ventilu (klíče překladu). */
+const VALVE_NOTE: Record<string, string> = {
+  interface_relay: N_("bezpotenciálový kontakt do druhého stroje (signál rozhraní, ne akční člen)"),
+  vacuum_ejector: N_("typ z katalogu je výchozí návrh — ověř sací výkon a vakuum podle dílu; ejektor může mít vlastní ventil a spínač podtlaku (pak rozváděč a spínač vypustit)"),
+  suction_cup: N_("počet, průměr a tvar přísavek podle dílu — typ z katalogu je výchozí návrh, přídržnou sílu ověř výpočtem"),
+  gripper: N_("paralelní chapadlo; síla a zdvih čelistí podle dílu — typ z katalogu je výchozí návrh, ověř výpočtem"),
+};
+const VALVE_CATS: Record<ValveKind, string[]> = {
+  interface: ["interface_relay"],
+  hydraulic: ["hydraulic_valve"],
+  vacuum: ["valve_solenoid", "vacuum_ejector", "suction_cup"],
+  gripper: ["valve_solenoid", "gripper"],
+  process: ["process_valve"],
+  cylinder: ["valve_solenoid", "cylinder"],
+};
 
 function motorCat(d: Device): string {
   const t = d.desc || "";
@@ -156,6 +297,8 @@ export function buildBom(prj: Project): Bom {
   const plat = bomPlatform(prj);
   const cfg: BomCfg = prj.bom || {};
   const locks = new Set(interlockDevs(prj).map(d => d.id));
+  const lockPairs = guardLockPairs(prj, locks);
+  const lockedDi = new Set([...lockPairs.values()].filter((x): x is Device => !!x).map(x => x.id));
   type Raw = Omit<BomLine, "pos" | "brand" | "type" | "orderCode" | "supplier" | "item" | "optId" | "src"> & {
     item?: string; preset?: BomExtra["preset"];
     /** položka zvolená sestavou hardwaru (hardware.ts) — kusovník ji nevybírá znovu */
@@ -203,6 +346,7 @@ export function buildBom(prj: Project): Bom {
 
   /* --- zařízení */
   let nMotor = 0;
+  const towers = bomBeaconTowers(prj), towersDone = new Set<string>();
   for (const d of prj.devices) {
     const t = "-" + d.name, desc = d.desc || d.name;
     if (d.cls === "Motor") {
@@ -212,11 +356,14 @@ export function buildBom(prj: Project): Bom {
       add("-Q" + n, "motor_protection", 1, tr("Jištění {dev}", { dev: d.name }), { devId: d.id, note: d.opt?.fault ? tr("pomocný kontakt = vstup poruchy") : "" });
       add("-K" + n, "contactor", 1, tr("Spínání {dev}", { dev: d.name }), { devId: d.id, note: d.opt?.fbk !== false ? tr("pomocný kontakt = zpětné hlášení běhu") : "" });
     } else if (d.cls === "Ventil") {
-      const cats = valveCats(d);
-      for (const c of cats) add(t, c, 1, desc, { devId: d.id });
+      const kind = valveKind(d);
       const sw = (d.opt?.fbkOpen !== false ? 1 : 0) + (d.opt?.fbkClosed ? 1 : 0);
-      if (cats.includes("cylinder")) add(t, "cylinder_switch", sw, tr("Poloha {dev}", { dev: d.name }), { devId: d.id });
-      else if (sw) add(t, "limit_switch", sw, tr("Koncové polohy {dev}", { dev: d.name }), { devId: d.id, note: tr("u procesní armatury často součástí pohonu") });
+      for (const c of VALVE_CATS[kind]) add(t, c, 1, desc, { devId: d.id, note: VALVE_NOTE[c] ? tr(VALVE_NOTE[c]) : "" });
+      /* hlášení: snímače polohy válce / chapadla, spínač podtlaku, u armatury koncové spínače;
+         u rozhraní je hlášení kontakt druhého stroje (pin konektoru rozhraní) */
+      if (kind === "cylinder" || kind === "gripper") add(t, "cylinder_switch", sw, tr("Poloha {dev}", { dev: d.name }), { devId: d.id });
+      else if (kind === "vacuum") add(t, "vacuum_switch", sw ? 1 : 0, tr("Hlášení podtlaku {dev}", { dev: d.name }), { devId: d.id, note: tr("typ z katalogu je výchozí návrh") });
+      else if (kind !== "interface" && sw) add(t, "limit_switch", sw, tr("Koncové polohy {dev}", { dev: d.name }), { devId: d.id, note: tr("u procesní armatury často součástí pohonu") });
     } else if (d.cls === "AnalogIn") {
       add(t, analogCat(d), 1, desc + (d.unit ? " [" + d.unit + "]" : "") + " " + d.rmin + "–" + d.rmax, { devId: d.id });
     } else if (d.cls === "AnalogOut") {
@@ -244,17 +391,74 @@ export function buildBom(prj: Project): Bom {
         note: ioOf(prj, d).rawAct ? tr("žádaná 0–10 V / 4–20 mA, analogový výstup skutečné hodnoty") : tr("žádaná 0–10 V / 4–20 mA") });
     } else if (d.cls === "DI") {
       const c = diCat(prj, d, locks);
+      if (!c) continue;
+      if (lockedDi.has(d.id)) {
+        /* kontakt „zavřeno a zamčeno“ zámku krytu = součást přístroje zámku (řádek DO), nic se neobjednává */
+        const lk = [...lockPairs.entries()].find(([, di]) => di?.id === d.id)!;
+        const lkDev = prj.devices.find(x => x.id === lk[0])!;
+        add(t, "guard_lock_contact", 1, desc, { devId: d.id, safety: true,
+          note: tr("kontakt zavřeno a zamčeno blokovacího zařízení se zámkem -{lock} (součást přístroje, neobjednává se)", { lock: lkDev.name })
+            + "; " + tr("návrh, ověřit v posouzení rizik (EN ISO 14119, EN ISO 13849)") });
+        continue;
+      }
       const safety = c === "estop_button" || c === "light_curtain" || c === "safety_switch";
-      add(t, c, 1, desc, { devId: d.id, safety, note: safety ? safetyNote : "" });
+      add(t, c, 1, desc, { devId: d.id, safety, note: safety ? safetyNote
+        : c === "selector_switch" ? tr("počet poloh, s klíčem / bez klíče a kontakty podle funkce — typ doplní projektant") : "" });
     } else if (d.cls === "DO") {
       const c = doCat(d);
-      add(t, c, 1, desc, { devId: d.id, safety: c === "safety_switch", note: c === "safety_switch" ? safetyNote : "" });
+      if (c === "beacon") {
+        /* věž se zapíše u prvního jejího DO (řádek věže + všechna patra shora), další DO téže věže už nic */
+        const tw = towers.find(w => w.tiers.some(x => x.dev.id === d.id))!;
+        if (towersDone.has(tw.tag)) continue;
+        towersDone.add(tw.tag);
+        const cname = (x: BeaconTier) => x.color ? tr(BEACON_COLOR_TEXT[x.color]) : "?";
+        add(tw.tag, "beacon", 1, tr("Signální věž: {list}", { list: tw.tiers.map(x => x.dev.name + " " + cname(x)).join(", ") }), {
+          note: tw.stock && tw.tiers.length === 3
+            ? tr("jedna věž, patro na každý výstup (pořadí shora červená / žlutá / modrá / zelená / bílá); hotová věž červená / žlutá / zelená z katalogu; montáž (patka / trubka / držák) podle místa na stroji")
+            : tw.stock
+            ? tr("jedna věž, patro na každý výstup (pořadí shora červená / žlutá / modrá / zelená / bílá); hotová věž červená / žlutá / zelená z katalogu — nepoužité patro zůstane rezervou; montáž (patka / trubka / držák) podle místa na stroji")
+            : tr("jedna věž, patro na každý výstup (pořadí shora červená / žlutá / modrá / zelená / bílá); barvy pater hotová věž z katalogu (červená / žlutá / zelená) nepokryje — stavebnicová věž (přípojný prvek, světelné prvky, montáž), typ doplní projektant") });
+        for (const x of tw.tiers) add("-" + x.dev.name, "beacon_light", 1, x.dev.desc || x.dev.name, { devId: x.dev.id,
+          note: !x.color ? tr("patro věže {tower}: barvu doplní projektant (popis ani role ji neurčují)", { tower: tw.tag })
+            : x.roleDefault ? tr("patro věže {tower}: {color} — výchozí PLCdesk podle role {role} (rozhodnutí uživatele); u hotové věže součást věže, u stavebnicové světelný prvek této barvy", { tower: tw.tag, color: cname(x), role: x.dev.role || "" })
+            : tr("patro věže {tower}: {color}; u hotové věže součást věže, u stavebnicové světelný prvek této barvy", { tower: tw.tag, color: cname(x) }) });
+        continue;
+      }
+      if (c === "guard_lock") {
+        const di = lockPairs.get(d.id);
+        add(t, c, 1, desc, { devId: d.id, safety: true, note: (di
+          ? tr("blokovací zařízení se zámkem (jištění krytu, EN ISO 14119): cívka zámku = výstup {dev}, kontakt zavřeno a zamčeno = vstup {di} (bez samostatného spínače)", { dev: d.name, di: di.name })
+          : tr("blokovací zařízení se zámkem (jištění krytu, EN ISO 14119): cívka zámku = výstup {dev}; kontakty hlídání dveří jsou součástí přístroje — samostatný spínač krytu podle posouzení rizik", { dev: d.name }))
+          + "; " + tr("návrh, ověřit v posouzení rizik (EN ISO 14119, EN ISO 13849)") });
+        continue;
+      }
+      add(t, c, 1, desc, { devId: d.id, note: bomIsInterface(d) ? tr(VALVE_NOTE.interface_relay) : "" });
     }
+  }
+  /* rozhraní k jinému stroji (lis, robot…): jeden konektor s kabelem pro všechny signály výměny */
+  const iface = prj.devices.filter(d => bomIsInterface(d) && (d.cls !== "DI" || diCat(prj, d, locks) === ""));
+  if (iface.length) add("-XG1", "machine_interface", 1, tr("Rozhraní k jinému stroji: {list}", { list: iface.map(d => d.name).join(", ") }), {
+    note: iface.some(d => /euromap/i.test(d.desc || ""))
+      ? tr("EUROMAP: konektor a kabel podle normy rozhraní, výstupy do druhého stroje bezpotenciálovými kontakty (vazební relé) — typ doplní projektant")
+      : tr("konektor, kabel a přiřazení pinů podle dokumentace druhého stroje — typ doplní projektant") });
+
+  /* --- pneumatika stroje (2026-11-04, moduly P2 / P3 PLCdesk PRO): rozváděče válců / chapadel / vakua na jedné liště
+     (-WP1, IEC 81346-2 třída W = vedení média; počet míst = počet rozváděčů) a přívod přes ruční uzávěr (-QM1)
+     a filtr-regulátor (-HQ1 = filtrování). Bezpečnostní odvzdušňovací ventil přidává modul bezpečnosti (-YS1). */
+  const pneuValves = raw.filter(x => x.cat === "valve_solenoid");
+  if (pneuValves.length) {
+    const list = pneuValves.map(x => x.tag.replace(/^-/, "")).join(", ");
+    add("-WP1", "valve_manifold", 1, tr("Lišta rozváděčů — počet míst: {n} ({list})", { n: pneuValves.length, list }), {
+      note: tr("počet míst = počet rozváděčů (rezervu míst doplní projektant); typ lišty podle počtu míst ověřit u výrobce") });
+    add("-QM1", "air_shutoff", 1, tr("Ruční uzávěr přívodu stlačeného vzduchu stroje"), {
+      note: tr("uzamykatelnost (odpojení energie, EN ISO 14118) ověřit u výrobce") });
+    add("-HQ1", "air_prep", 1, tr("Filtr-regulátor stlačeného vzduchu stroje"), {
+      note: tr("tlak a průtok podle spotřeby válců; za uzávěrem, před rozváděči") });
   }
 
   /* --- rozvaděč */
-  const sensors = prj.devices.filter(d => d.cls === "DI" || d.cls === "AnalogIn").length
-    + prj.devices.filter(d => d.cls === "Ventil").reduce((a, d) => a + (d.opt?.fbkOpen !== false ? 1 : 0) + (d.opt?.fbkClosed ? 1 : 0), 0)
+  const sensors = prj.devices.filter(d => (d.cls === "DI" && diCat(prj, d, locks) !== "") || d.cls === "AnalogIn").length
+    + prj.devices.filter(d => d.cls === "Ventil" && !bomIsInterface(d)).reduce((a, d) => a + (d.opt?.fbkOpen !== false ? 1 : 0) + (d.opt?.fbkClosed ? 1 : 0), 0)
     + prj.devices.filter(d => d.cls === "PropValve" || d.cls === "PosDrive").length;   // kabel M12 k ventilu, I/O kabel k řadiči pohonu
   const safetyDevs = (prj.program.estop ? 1 : 0) + locks.size;
   if (safetyDevs) add("-K0", "safety_relay", 1, tr("Vyhodnocení E-stopu a blokování"), { safety: true, note: safetyNote });
@@ -447,3 +651,14 @@ export function cadFeedbackMd(prj: Project): string {
   ].join("\n");
 }
 
+
+/**
+ * Jediná vazba rozvaděč → válec / chapadlo téhož zařízení (kusovník `ls` = řádky jednoho zařízení).
+ * Používá ji export pro CAD (`actuates`) i pneumatické schéma (`pneuCircuits`).
+ */
+export function valveCylinder(ls: BomLine[]): { valve?: BomLine; cyl?: BomLine } {
+  return {
+    valve: ls.find(l => l.cat === "valve_solenoid" || l.cat === "hydraulic_valve" || l.cat === "process_valve"),
+    cyl: ls.find(l => l.cat === "cylinder" || l.cat === "gripper"),
+  };
+}

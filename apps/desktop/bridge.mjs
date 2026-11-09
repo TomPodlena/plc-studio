@@ -130,11 +130,11 @@ const OPS = {
   /* Nápověda (help.ts) v jazyce `lang` pro desktop: kapitoly, průvodce, popisky UI, skupiny, kapitola
      kroku a adresy na webu PLCdesk — jedna operace, desktop si ji drží v cache podle jazyka.
      Hledání jde přes `call` (searchHelp). */
-  help({ lang } = {}) {
+  help({ lang, preview = false } = {}) {
     const l = core.isLang(lang) ? lang : core.getLang();   // jazyk procesu mostu se nemění
     return core.withLang(l, () => ({
       lang: l,
-      chapters: core.helpChapters(l, "desktop"),
+      chapters: core.helpChapters(l, "desktop", !!preview),   // preview = kapitoly náhledu PLCdesk PRO
       tour: core.helpTour(l),
       ui: Object.fromEntries(Object.entries(core.HELP_UI).map(([k, v]) => [k, core.tr(v)])),
       groups: Object.fromEntries(Object.entries(core.HELP_GROUPS).map(([k, v]) => [k, core.tr(v)])),
@@ -175,7 +175,9 @@ const OPS = {
     };
     return { plat: b.plat, lines: b.lines.map(l => ({ ...l, key: core.catKey(l.cat, b.plat), supOpts: supOpts(l) })), options,
       suppliers: core.bomSuppliers(prj), date: core.CATALOG_DATE,
-      csv: core.bomCsv(prj), tsv: core.bomTableText(prj), qtyMax: core.BOM_QTY_MAX };
+      csv: core.bomCsv(prj), tsv: core.bomTableText(prj), qtyMax: core.BOM_QTY_MAX,
+      /* rezerva I/O sestavy (hardware.ts) a volné kanály podle směru — pole „Rezerva I/O“ (jako web) */
+      reserve: core.ioReserveOf(prj) || {}, free: core.hwFreeChannels(core.hwLayout(prj)) };
   },
 
   /* Export pro CAD (cad.ts): PLCdesk_CAD.json — díly kusovníku, sestava PLC, svorky, vazby. Rychlá operace
@@ -246,6 +248,8 @@ const OPS = {
         svg: core.sheetSVG(prj, m, i + 1, i + 1, mods.length),
         dxf: core.sheetDXF(prj, m, i + 1, i + 1, mods.length),
       })),
+      power: core.powerSheets(prj).map(s => ({ title: s.title, base: "00_" + s.base, svg: s.svg, dxf: s.dxf })),
+      pneu: core.pneuSheets(prj).map(s => ({ title: s.title, base: "00_" + s.base, svg: s.svg, dxf: s.dxf })),
       rows,
       csv: core.svorkyCSV(prj),
     };

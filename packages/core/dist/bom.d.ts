@@ -1,4 +1,4 @@
-import { PlatformKey, Project } from "./model.js";
+import { Device, PlatformKey, Project } from "./model.js";
 import { CatalogBrand, brandOptId } from "./catalog.js";
 export { brandOptId };
 export interface BomLine {
@@ -29,10 +29,40 @@ export interface BomLine {
     /** uživatel nastavil množství 0 — řádek zůstává v přehledu, do CSV / dokumentu nejde */
     excluded?: boolean;
 }
+/** Kategorie kusovníku, které jsou bezpečnostními prvky samy o sobě (bez ohledu na zařízení). */
+export declare const BOM_SAFETY_CATS: ReadonlySet<string>;
+/**
+ * Je řádek kusovníku bezpečnostní díl? Řádek podle posouzení rizik (`BomLine.safety`), bezpečnostní kategorie
+ * (`BOM_SAFETY_CATS`) nebo díl zařízení E-stopu / blokování programu. Sdílí export pro CAD (`parts[].safety`)
+ * a klasifikace změn revize (změna takového řádku = bezpečnostní změna).
+ */
+export declare function bomLineIsSafety(prj: Project, l: Pick<BomLine, "safety" | "cat" | "devId">): boolean;
 export interface Bom {
     plat: PlatformKey;
     lines: BomLine[];
 }
+export type BeaconColor = "red" | "yellow" | "blue" | "green" | "white";
+/** Pořadí pater shora podle IEC 60204-1 čl. 10.3.2 (sekundárně IDEC LD6A; skill modul-majak `data/veze.json`). */
+export declare const BEACON_ORDER: BeaconColor[];
+/** `roleDefault` = barva z role podle výchozí volby PLCdesk (ne z popisu ani z významu barvy). */
+export interface BeaconTier {
+    dev: Device;
+    color: BeaconColor | null;
+    roleDefault: boolean;
+}
+export interface BeaconTower {
+    tag: string;
+    tiers: BeaconTier[];
+    stock: boolean;
+}
+/**
+ * Signální věže projektu: DO s kategorií `beacon` seskupené do věží (jedna, pokud popisy nejmenují víc věží),
+ * patra seřazená shora (R / Y / B / G / W, neurčená barva dole). `stock` = patra se vejdou do hotové věže
+ * červená / žlutá / zelená z katalogu (barvy určené, různé, nejvýš 3). Sdílí kusovník i export pro CAD.
+ */
+export declare function bomBeaconTowers(prj: Project): BeaconTower[];
+/** Je zařízení (DI / DO / Ventil) jen signál rozhraní k jinému stroji? */
+export declare function bomIsInterface(d: Device): boolean;
 /** Nabídka katalogu pro řádek kusovníku (kategorie + platforma). */
 export declare function bomOptions(cat: string, plat: PlatformKey): Array<{
     id: string;
@@ -112,3 +142,11 @@ export declare function bomMd(prj: Project): string;
  * `prj.bom.cadFeedback`); bez historie prázdný — výstup beze změny (golden).
  */
 export declare function cadFeedbackMd(prj: Project): string;
+/**
+ * Jediná vazba rozvaděč → válec / chapadlo téhož zařízení (kusovník `ls` = řádky jednoho zařízení).
+ * Používá ji export pro CAD (`actuates`) i pneumatické schéma (`pneuCircuits`).
+ */
+export declare function valveCylinder(ls: BomLine[]): {
+    valve?: BomLine;
+    cyl?: BomLine;
+};

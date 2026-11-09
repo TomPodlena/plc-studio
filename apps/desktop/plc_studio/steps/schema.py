@@ -13,7 +13,99 @@ from ..svgview import SvgView
 from ..widgets import trace
 from ..widgets import Table, card, link, note_box, save_file, save_many, wrap_label
 
-TAB_BLOCK, TAB_FLOW, TAB_WIRING, TAB_TERMS = range(4)
+TAB_BLOCK, TAB_FLOW, TAB_WIRING, TAB_TERMS, TAB_POWER, TAB_PNEU = range(6)
+
+
+_CAB_CACHE: dict = {}  # otisk manifestu -> {"svg": str} | {"error": str}
+
+
+def cabinet_svg(manifest_json: str, home, nazev: str) -> str:
+    """Výpočet rozložení rozvaděče bez FreeCADu do dočasné složky v ``home`` (volat ve vlákně)."""
+    import json
+    import shutil
+    import tempfile
+    from pathlib import Path
+
+    from ..pro3d_cabinet import cli
+    from ..rozvadec_2d import layout_svg
+
+    tmp = Path(tempfile.mkdtemp(prefix="rozvadec_", dir=str(home)))
+    try:
+        (tmp / "PLCdesk_CAD.json").write_text(manifest_json, encoding="utf-8")
+        cli.generate(tmp / "PLCdesk_CAD.json", tmp, no_fc=True)
+        layout = json.loads((tmp / "rozvadec" / "layout.json").read_text(encoding="utf-8"))
+        return layout_svg(layout, nazev)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def cabinet_tab(app, nb, prj) -> None:
+    """Záložka „Rozložení rozvaděče“ — jen u projektu se skříní; výpočet ve vlákně."""
+    import hashlib
+    import json
+    import threading
+
+    from ..rozvadec_2d import has_cabinet
+
+    try:
+        man_json = app.bridge.request("cad", prj=prj)["json"]
+        manifest = json.loads(man_json)
+    except Exception:  # noqa: BLE001 — bez manifestu záložka prostě není
+        return
+    if not has_cabinet(manifest):
+        return
+    key = hashlib.sha256(man_json.encode("utf-8")).hexdigest()
+    tab = ttk.Frame(nb, padding=10)
+    nb.add(tab, text=_("Rozložení rozvaděče"))
+    top = ttk.Frame(tab)
+    top.pack(fill="x", pady=(0, 6))
+    holder = ttk.Frame(tab)
+    holder.pack(fill="both", expand=True)
+    nazev = (prj.get("meta") or {}).get("name") or prj.get("name") or ""
+
+    def done() -> None:
+        for c in holder.winfo_children():
+            c.destroy()
+        res = _CAB_CACHE[key]
+        if "error" in res:
+            wrap_label(holder, _("Rozložení rozvaděče se nepodařilo sestavit: {err}", err=res["error"]))
+            return
+        svg = res["svg"]
+        if not svg:
+            wrap_label(holder, _("Rozvaděč zatím nemá co kreslit."))
+            return
+        ttk.Button(top, text=_("Uložit SVG…"),
+                   command=lambda: save_file(app, "01_rozlozeni_rozvadece.svg", svg, "vykresy")
+                   ).pack(side="left")
+        note_box(holder, _("Návrh — ověří elektroprojektant. Kreslí jen hodnoty z výpočtu rozvaděče; "
+                           "rozměry přístrojů označené * jsou ODHAD."), warn=True, side="bottom")
+        view = SvgView(holder, band=True)
+        view.pack(fill="both", expand=True)
+        view.show(svg)
+
+    if key in _CAB_CACHE:
+        done()
+        return
+    wrap_label(holder, _("Počítám rozložení rozvaděče…"))
+
+    def work() -> None:
+        try:
+            _CAB_CACHE[key] = {"svg": cabinet_svg(man_json, app.home, nazev)}
+        except Exception as e:  # noqa: BLE001
+            _CAB_CACHE[key] = {"error": str(e)}
+
+    th = threading.Thread(target=work, daemon=True)
+    th.start()
+
+    def poll() -> None:
+        if not holder.winfo_exists():
+            return
+        if th.is_alive():
+            holder.after(300, poll)
+        else:
+            done()
+
+    holder.after(300, poll)
 
 
 def render(app, parent) -> None:
@@ -167,7 +259,7 @@ def render(app, parent) -> None:
         files = [("00_blokove_schema.svg", data["block"])]
         if seq:
             files.append(("00_funkcni_diagram.svg", data["flow"]))
-        for s in sheets:
+        for s in list(sheets) + list(data.get("power", [])):
             files += [(s["base"] + ".svg", s["svg"]), (s["base"] + ".dxf", s["dxf"])]
         save_many(app, files, _("výkresy"), "vykresy")
 
@@ -317,7 +409,53 @@ def render(app, parent) -> None:
          ).pack(side="left", padx=(12, 0))
     tbl.tv.bind("<Double-1>", open_sheet, add="+")
 
+    # ------------------------------------------------------------ silové schéma a napájení, pneumatika
+    def sheet_tab(tab_title: str, sheets: list, empty: str, note: str, key: str) -> None:
+        tab = ttk.Frame(nb, padding=10)
+        nb.add(tab, text=tab_title)
+        if not sheets:
+            wrap_label(tab, empty)
+            return
+        titles = [s["title"] for s in sheets]
+        var = tk.StringVar(value=titles[min(ui.get(key, 0), len(titles) - 1)])
+        top = ttk.Frame(tab)
+        top.pack(fill="x", pady=(0, 6))
+        ttk.Label(top, text=_("List:")).pack(side="left")
+        ttk.Combobox(top, textvariable=var, values=titles, state="readonly", width=34
+                     ).pack(side="left", padx=(6, 12))
+        cur = lambda: sheets[titles.index(var.get())]  # noqa: E731
+        ttk.Button(top, text=_("Uložit SVG…"),
+                   command=lambda: save_file(app, cur()["base"] + ".svg", cur()["svg"], "vykresy")
+                   ).pack(side="left")
+        ttk.Button(top, text=_("Uložit DXF…"),
+                   command=lambda: save_file(app, cur()["base"] + ".dxf", cur()["dxf"], "vykresy")
+                   ).pack(side="left", padx=(6, 0))
+        note_box(tab, note, warn=True, side="bottom")
+        view = SvgView(tab, band=True)
+        view.pack(fill="both", expand=True)
+
+        def show(*_a) -> None:
+            ui[key] = titles.index(var.get())
+            view.show(cur()["svg"])
+
+        trace(var, show, view)
+        show()
+
+    sheet_tab(_("Silové schéma a napájení"), data.get("power", []),
+              _("Projekt zatím nemá motory, měniče ani zdroj 24 V, ze kterých by se silové "
+                "schéma a rozvod napájení daly sestavit."),
+              _("Návrh — ověří elektroprojektant (EN 60204-1). Označení jsou z kusovníku; "
+                "proudy, průřezy a nastavení jističů zadání neobsahuje, proto jsou na listu "
+                "„doplní projektant“."), "power_sheet")
+    if data.get("pneu"):  # záložka jen u projektu s rozváděči
+        sheet_tab(_("Pneumatické schéma"), data["pneu"], "",
+                  _("Návrh — ověří konstruktér pneumatiky (ISO 1219). Označení jsou z kusovníku; "
+                    "tlak, světlost hadic a typ funkce ventilů zadání neobsahuje, proto jsou na "
+                    "listu „doplní projektant“."), "pneu_sheet")
+
+    cabinet_tab(app, nb, data["prj"])
+
     # zapamatuj si otevřenou záložku mezi překresleními
-    nb.select(min(ui.get("schema_tab", 0), TAB_TERMS))
+    nb.select(min(ui.get("schema_tab", 0), nb.index("end") - 1))
     nb.bind("<<NotebookTabChanged>>",
             lambda _e: ui.__setitem__("schema_tab", nb.index(nb.select())))

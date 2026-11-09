@@ -8,6 +8,7 @@ import { Project, IoModule } from "./model.js";
 /** `io` = klíč signálu, ke kterému prvek patří (interaktivní náhledy; DXF ho ignoruje). */
 type Ref = {
     io?: string;
+    dev?: number;
 };
 export type Op = ({
     t: "l";
@@ -52,7 +53,31 @@ export interface SheetMeta {
     customer?: string;
     startDate?: string;
 }
+/** Výška pruhu „Číslo projektu / Zákazník / Zahájeno“ nad popisovým polem (jen když je některý údaj vyplněn). */
+export declare const REF_BAND = 26;
+/**
+ * Popisové pole výkresu (společné pro listy zapojení a bezpečnostní okruh). Bez čísla projektu
+ * a zákazníka přesně původní tvar; s nimi navíc pruh nad polem (volající zvětší list o `REF_BAND`).
+ * Hodnoty jsou obsah projektu (nepřekládají se); do DXF jdou přes `dxfText` jako ostatní texty.
+ */
+export declare function titleBlock(Re: (x: number, y: number, w: number, h: number, k?: string) => void, Ln: (x1: number, y1: number, x2: number, y2: number, k?: string) => void, Tx: (x: number, y: number, s: unknown, o?: Partial<{
+    size: number;
+    anchor: string;
+    k: string;
+}>) => void, W: number, H: number, f: {
+    project: string;
+    drawing: string;
+    sheet: string;
+    date: string;
+    rev: string;
+    number: string;
+    customer: string;
+    startDate: string;
+}): void;
 export declare function setSheetRevision(fn: ((prj: Project) => string | undefined) | null): void;
+export declare function todayCz(): string;
+/** Označení revize pro popisové pole (z `setSheetRevision`, jinak undefined). */
+export declare function sheetRevOf(prj: Project): string | undefined;
 export declare function sheetOps(prj: Project, mod: IoModule, xnum: number, page: number, total: number, meta?: SheetMeta): SheetOps;
 /** Render ops do SVG; barvy přes CSS proměnné stránky (téma). */
 export declare function opsToSVG(sh: SheetOps, label: string): string;

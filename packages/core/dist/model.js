@@ -159,6 +159,27 @@ export function selBitsOf(d) {
 }
 /** Nejvyšší číslo záznamu PosDrive (2^bity − 1; záznam 0 = referenční poloha). */
 export function maxRecord(d) { return (1 << selBitsOf(d)) - 1; }
+/** Pole dopravníku pro formuláře (web i desktop) a kontrolu rozsahů; popisky jsou klíče překladu. */
+export const CONVEYOR_FIELDS = [
+    { key: "length", label: N_("délka osová L"), unit: "mm", min: 100, max: 100000 },
+    { key: "width", label: N_("šířka pásu b"), unit: "mm", min: 20, max: 3000 },
+    { key: "speed", label: N_("rychlost pásu v"), unit: "m/s", min: 0.001, max: 10 },
+    { key: "load", label: N_("hmotnost zboží na pásu"), unit: "kg", min: 0, max: 50000, zero: true },
+    { key: "height", label: N_("výška pásu nad podlahou"), unit: "mm", min: 0, max: 5000, zero: true },
+];
+/** Třídy, které mohou pohánět pásový dopravník (`Device.conveyor`). */
+export const CONVEYOR_CLASSES = new Set(["Motor", "Vfd"]);
+/** Proč hodnota pole dopravníku neplatí (`null` = v pořádku). */
+export function conveyorFieldProblem(key, v) {
+    const f = CONVEYOR_FIELDS.find(x => x.key === key);
+    if (!f)
+        return tr("Neznámé pole dopravníku: {key}.", { key });
+    if (typeof v !== "number" || !Number.isFinite(v))
+        return tr("Neplatné číslo v poli „{field}“.", { field: tr(f.label) });
+    if (v < f.min || v > f.max)
+        return tr("{field} musí být {min} až {max} {unit}.", { field: tr(f.label), min: f.min, max: f.max, unit: f.unit });
+    return null;
+}
 /** Doba jízdy PosDrive v modelu simulace [s] (výchozí 1 s). */
 export function travelOf(d) { const t = Number(d.travelS); return Number.isFinite(t) && t > 0 ? t : 1; }
 /**
@@ -334,6 +355,18 @@ export function blankProject() {
         concept: null,
         guid: newGuid(),
     };
+}
+/** Výchozí rezerva I/O NOVÉHO projektu v % obsazených kanálů (rozhodnutí uživatele 2026-10-16). */
+export const NEW_PROJECT_IO_RESERVE_PCT = 20;
+/**
+ * Nový projekt uživatele (tlačítko Nový projekt, první spuštění, prázdný start po poškozeném stavu): `blankProject`
+ * + výchozí rezerva I/O 20 %. `blankProject` zůstává bez rezervy — staví z něj normalizace načtených projektů,
+ * vzory, import stávajícího stroje (skutečný hardware) a testy; existující projekty se nemigrují.
+ */
+export function newProject() {
+    const p = blankProject();
+    p.bom = { ioReserve: { pct: NEW_PROJECT_IO_RESERVE_PCT } };
+    return p;
 }
 export function devById(prj, id) {
     return prj.devices.find(d => d.id === id);
@@ -638,6 +671,13 @@ export function validateProject(prj) {
         /* doba jízdy = model stroje simulace (sim.ts simBlockers): nad hodinu by ověření běželo hodiny */
         if (d.cls === "PosDrive" && d.travelS !== undefined && !(Number(d.travelS) > 0 && Number(d.travelS) <= 3600))
             out.push({ level: "error", where: d.name, msg: tr("Doba jízdy {dev} (model simulace) musí být kladná a nejvýš 3600 s.", { dev: d.name }) });
+        /* rozměry pásového dopravníku (jen zadání pro konstrukci): mimo rozsah = varování, výstupy kódu je nečtou */
+        if (d.conveyor && CONVEYOR_CLASSES.has(d.cls))
+            for (const [k, v] of Object.entries(d.conveyor)) {
+                const pr = conveyorFieldProblem(k, v);
+                if (pr)
+                    out.push({ level: "warn", where: d.name, msg: pr });
+            }
         if (d.cls === "PropValve" && d.opt?.fbk !== false && d.tol !== undefined && !(Number(d.tol) > 0))
             out.push({ level: "error", where: d.name, msg: tr("Povolená odchylka proporcionálního ventilu musí být kladná.") });
         /* odchylka pod rozlišením analogu: AO i AI se kvantují (každá platforma jinak) a rozhodnutí „v toleranci“

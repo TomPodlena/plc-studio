@@ -1,0 +1,604 @@
+{
+ "version": 1,
+ "format": "plcdesk-pro3d-parts",
+ "created": "2026-10-24T12:56:47",
+ "manifest": "C:\\Users\\podlenat\\AppData\\Roaming\\PLCStudio\\pro3d\\01_pasovy_dopravnik_vyhazovac\\PLCdesk_CAD.json",
+ "manifestSha256": "97bb7828d8ae611cd0262e02ac732b71089744308d9944a462d40881dbf56f0f",
+ "souhrn": {
+  "radku": 24,
+  "dle_dokumentace": 15,
+  "zastupne": 9,
+  "pokryti_pct": 62.5,
+  "kusu": 39,
+  "kusu_dle_dokumentace": 25,
+  "modelu": 14
+ },
+ "parts": {
+  "-A1:plc_cpu": {
+   "category": "plc_cpu",
+   "type": "CPU 1212C DC/DC/DC (S7-1200 G2) – napájení 24 V DC, 8 DI 24 V DC / 6 DO 24 V DC, 2× PROFINET, STEP 7 V21+",
+   "orderCode": "6ES7212-1AG50-0XB0",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "cabinet",
+   "stav": "dle dokumentace",
+   "model": "6ES7212-1AG50-0XB0",
+   "zdroj": [
+    "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=6ES72121AG500XB0&language=en"
+   ],
+   "detail": "obálka",
+   "generator": "skrinka_din",
+   "file": "modely/6ES7212-1AG50-0XB0.FCStd"
+  },
+  "-P1:plc_hmi": {
+   "category": "plc_hmi",
+   "type": "MTP700 Unified Basic – 7\" dotykový, 800×480, PROFINET, WinCC Unified Basic V18 Upd. 3+",
+   "orderCode": "6AV2123-3GB32-0AW0",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "cabinet",
+   "stav": "dle dokumentace",
+   "model": "6AV2123-3GB32-0AW0",
+   "zdroj": [
+    "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=6AV21233GB320AW0&language=en"
+   ],
+   "detail": "obálka",
+   "generator": "hmi_panel",
+   "file": "modely/6AV2123-3GB32-0AW0.FCStd"
+  },
+  "-M1:gearmotor": {
+   "category": "gearmotor",
+   "type": "SIMOGEAR čelní převodový motor 2KJ3…-Z s motorem 1LE IE3; řada pokrývá 0,25–1,5 kW",
+   "orderCode": "",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "field",
+   "stav": "zástupný",
+   "duvod": "gearmotor: typ / kód „SIMOGEAR čelní převodový motor 2KJ3…-Z s motorem 1LE IE3; řada pokrývá 0,25–1,5 kW“ není v tabulkách rozměrů se zdrojem"
+  },
+  "-Q1:motor_protection": {
+   "category": "motor_protection",
+   "type": "3RV2011-1AA10 — vel. S00, 1,1–1,6 A, (0,55 kW), třída 10, šroubové svorky",
+   "orderCode": "3RV2011-1AA10",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "cabinet",
+   "stav": "dle dokumentace",
+   "model": "3RV2011-1AA10",
+   "zdroj": [
+    "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=3RV20111AA10&language=en"
+   ],
+   "detail": "obálka",
+   "generator": "skrinka_din",
+   "file": "modely/3RV2011-1AA10.FCStd"
+  },
+  "-K1:contactor": {
+   "category": "contactor",
+   "type": "3RT2016-1BB41 — 9 A AC-3, 4 kW/400 V, 1 NO, cívka 24 V DC, vel. S00, šroubové svorky",
+   "orderCode": "3RT2016-1BB41",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "cabinet",
+   "stav": "dle dokumentace",
+   "model": "3RT2016-1BB41",
+   "zdroj": [
+    "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=3RT20161BB41&language=en"
+   ],
+   "detail": "obálka",
+   "generator": "skrinka_din",
+   "file": "modely/3RT2016-1BB41.FCStd"
+  },
+  "-Y1:valve_solenoid": {
+   "category": "valve_solenoid",
+   "type": "VUVG-L14-M52-MT-G18-1P3 — 5/2 monostabilní, G1/8, 24 V DC, vnitřní pilot",
+   "orderCode": "574371",
+   "brand": "Festo",
+   "qty": 1,
+   "location": "field",
+   "stav": "zástupný",
+   "duvod": "valve_solenoid: typ / kód „574371“ není v tabulkách rozměrů se zdrojem"
+  },
+  "-Y1:cylinder": {
+   "category": "cylinder",
+   "type": "DSBC-32-100-PPVA-N3 — ISO 15552, Ø32, zdvih 100 mm, nastavitelné tlumení, magnet",
+   "orderCode": "1376426",
+   "brand": "Festo",
+   "qty": 1,
+   "location": "field",
+   "stav": "dle dokumentace",
+   "model": "ISO15552_32x100",
+   "zdroj": [
+    "https://content2.smcetech.com/pdf/CP96.pdf",
+    "https://ftp.festo.com/public/PNEUMATIC/SOFTWARE_SERVICE/DataSheet/EN_GB/1376426.pdf (DSBC-32-100-PPVA-N3: ISO 15552, píst 32 mm, zdvih 100 mm, M10x1.25)"
+   ],
+   "detail": "tvar",
+   "generator": "valec_iso15552",
+   "file": "modely/ISO15552_32x100.FCStd"
+  },
+  "-Y1:cylinder_switch": {
+   "category": "cylinder_switch",
+   "type": "SMT-8M-A-PS-24V-E-0,3-M8D — PNP, NO, kabel 0,3 m s M8 3pin, T-drážka",
+   "orderCode": "574334",
+   "brand": "Festo",
+   "qty": 2,
+   "location": "field",
+   "stav": "zástupný",
+   "duvod": "cylinder_switch: typ / kód „574334“ není v tabulkách rozměrů se zdrojem"
+  },
+  "-S1:estop_button": {
+   "category": "estop_button",
+   "type": "3SU1150-1HB20-1CH0 — hřibové tlačítko nouzového zastavení, kov, 40 mm, uvolnění pootočením, 1 NC, s držákem",
+   "orderCode": "3SU1150-1HB20-1CH0",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "field",
+   "stav": "dle dokumentace",
+   "model": "3SU1150-1HB20-1CH0",
+   "zdroj": [
+    "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=3SU11501HB201CH0&language=en"
+   ],
+   "detail": "obálka",
+   "generator": "panel_22",
+   "file": "modely/3SU1150-1HB20-1CH0.FCStd"
+  },
+  "-S2:safety_switch": {
+   "category": "safety_switch",
+   "type": "3SE5232-0QV40 — bezpečnostní polohový spínač s odděleným ovladačem, plast 31 mm, 1NO+2NC, M20",
+   "orderCode": "3SE5232-0QV40",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "field",
+   "stav": "zástupný",
+   "duvod": "safety_switch: typ / kód „3SE5232-0QV40“ není v tabulkách rozměrů se zdrojem"
+  },
+  "-S3:sensor_optical": {
+   "category": "sensor_optical",
+   "type": "WL12-3P2431 — reflexní závora s polarizačním filtrem, dosah 0–7 m, PNP, M12 4pin",
+   "orderCode": "1041436",
+   "brand": "SICK",
+   "qty": 1,
+   "location": "field",
+   "stav": "dle dokumentace",
+   "model": "1041436",
+   "zdroj": [
+    "https://www.sick.com/media/pdf/0/10/310/dataSheet_WL12-3P2431_1041436_en.pdf"
+   ],
+   "detail": "tvar",
+   "generator": "snimac_kvadr",
+   "file": "modely/1041436.FCStd"
+  },
+  "-H1:pilot_light": {
+   "category": "pilot_light",
+   "type": "3SU1102-6AA40-1AA0 — signálka Ø22, plast, zelená hladká čočka, s držákem a LED modulem 24 V AC/DC, šroubové svorky",
+   "orderCode": "3SU1102-6AA40-1AA0",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "field",
+   "stav": "dle dokumentace",
+   "model": "3SU1102-6AA40-1AA0",
+   "zdroj": [
+    "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=3SU11026AA401AA0&language=en"
+   ],
+   "detail": "obálka",
+   "generator": "panel_22",
+   "file": "modely/3SU1102-6AA40-1AA0.FCStd"
+  },
+  "-Q0:main_switch": {
+   "category": "main_switch",
+   "type": "3LD2103-0TK53 – hlavní / nouzový vypínač 3pól. 25 A (9,5 kW AC-23A/400 V), červeno-žlutá rukojeť, čelní montáž 4 otvory, uzamykatelný, IP65",
+   "orderCode": "3LD2103-0TK53",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "cabinet",
+   "stav": "dle dokumentace",
+   "model": "3LD2103-0TK53",
+   "zdroj": [
+    "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=3LD21030TK53&language=en"
+   ],
+   "detail": "obálka",
+   "generator": "skrinka",
+   "file": "modely/3LD2103-0TK53.FCStd"
+  },
+  "-F1:mcb": {
+   "category": "mcb",
+   "type": "5SL6110-7 – jistič 1pól, 10 A, char. C, 6 kA",
+   "orderCode": "5SL6110-7",
+   "brand": "Siemens",
+   "qty": 2,
+   "location": "cabinet",
+   "stav": "dle dokumentace",
+   "model": "5SL6110-7",
+   "zdroj": [
+    "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=5SL61107&language=en"
+   ],
+   "detail": "obálka",
+   "generator": "skrinka_din",
+   "file": "modely/5SL6110-7.FCStd"
+  },
+  "-T1:power_supply_24v": {
+   "category": "power_supply_24v",
+   "type": "SITOP PSU6200 24 V / 10 A, vstup 120–230 V AC, diagnostické rozhraní",
+   "orderCode": "6EP3334-7SB00-3AX0",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "cabinet",
+   "stav": "dle dokumentace",
+   "model": "6EP3334-7SB00-3AX0",
+   "zdroj": [
+    "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=6EP33347SB003AX0&language=en"
+   ],
+   "detail": "obálka",
+   "generator": "skrinka_din",
+   "file": "modely/6EP3334-7SB00-3AX0.FCStd"
+  },
+  "-X1:terminal_block": {
+   "category": "terminal_block",
+   "type": "2002-1201 – průchozí svorka 2,5 mm², 2 vodiče, Push-in CAGE CLAMP, šedá",
+   "orderCode": "2002-1201",
+   "brand": "WAGO",
+   "qty": 7,
+   "location": "cabinet",
+   "stav": "dle dokumentace",
+   "model": "2002-1201",
+   "zdroj": [
+    "https://www.wago.com/global/rail-mount-terminal-blocks/2-conductor-through-terminal-block/p/2002-1201"
+   ],
+   "detail": "obálka",
+   "generator": "skrinka_din",
+   "file": "modely/2002-1201.FCStd"
+  },
+  "-X2:terminal_block": {
+   "category": "terminal_block",
+   "type": "2002-1201 – průchozí svorka 2,5 mm², 2 vodiče, Push-in CAGE CLAMP, šedá",
+   "orderCode": "2002-1201",
+   "brand": "WAGO",
+   "qty": 3,
+   "location": "cabinet",
+   "stav": "dle dokumentace",
+   "model": "2002-1201",
+   "zdroj": [
+    "https://www.wago.com/global/rail-mount-terminal-blocks/2-conductor-through-terminal-block/p/2002-1201"
+   ],
+   "detail": "obálka",
+   "generator": "skrinka_din",
+   "file": "modely/2002-1201.FCStd"
+  },
+  "-W1xx:cable_sensor": {
+   "category": "cable_sensor",
+   "type": "EVC002 – kabel se zásuvkou M12 přímou, 4pól., 5 m, PUR, bezhalogenový, pozlacené kontakty, IP67/68/69K",
+   "orderCode": "EVC002",
+   "brand": "ifm electronic",
+   "qty": 5,
+   "location": "field",
+   "stav": "zástupný",
+   "duvod": "cable_sensor: typ / kód „EVC002“ není v tabulkách rozměrů se zdrojem"
+  },
+  "+1:cabinet": {
+   "category": "cabinet",
+   "type": "AX 1050.000 – ocelová kompaktní skříň 500×500×210 mm",
+   "orderCode": "1050.000",
+   "brand": "Rittal",
+   "qty": 1,
+   "location": "cabinet",
+   "stav": "zástupný",
+   "duvod": "cabinet: typ / kód „1050.000“ není v tabulkách rozměrů se zdrojem"
+  },
+  "-K0:safety_relay": {
+   "category": "safety_relay",
+   "type": "3SK1111-1AB30 — základní jednotka Standard, 3 NO bezp. + 1 NC pomocný, 24 V AC/DC",
+   "orderCode": "3SK1111-1AB30",
+   "brand": "Siemens",
+   "qty": 2,
+   "location": "cabinet",
+   "stav": "dle dokumentace",
+   "model": "3SK1111-1AB30",
+   "zdroj": [
+    "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=3SK11111AB30&language=en"
+   ],
+   "detail": "obálka",
+   "generator": "skrinka_din",
+   "file": "modely/3SK1111-1AB30.FCStd"
+  },
+  "-KS1:contactor_mirror": {
+   "category": "contactor_mirror",
+   "type": "SIRIUS 3RT20 / 3RT2 — Stykač se zrcadlovými pomocnými kontakty (IEC 60947-4-1 příl. F)",
+   "orderCode": "",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "cabinet",
+   "stav": "zástupný",
+   "duvod": "contactor_mirror: typ / kód „SIRIUS 3RT20 / 3RT2“ není v tabulkách rozměrů se zdrojem"
+  },
+  "-KS2:contactor_mirror": {
+   "category": "contactor_mirror",
+   "type": "SIRIUS 3RT20 / 3RT2 — Stykač se zrcadlovými pomocnými kontakty (IEC 60947-4-1 příl. F)",
+   "orderCode": "",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "cabinet",
+   "stav": "zástupný",
+   "duvod": "contactor_mirror: typ / kód „SIRIUS 3RT20 / 3RT2“ není v tabulkách rozměrů se zdrojem"
+  },
+  "-YS1:safety_valve": {
+   "category": "safety_valve",
+   "type": "MS6-SV-E — Bezpečnostní ventil plnění/odvzdušnění (soft-start / rychloodvzdušnění), 3/2 NC, G1/2, s tlakovým senzorem",
+   "orderCode": "562580",
+   "brand": "Festo",
+   "qty": 1,
+   "location": "field",
+   "stav": "zástupný",
+   "duvod": "safety_valve: typ / kód „562580“ není v tabulkách rozměrů se zdrojem"
+  },
+  "-S0R:pushbutton": {
+   "category": "pushbutton",
+   "type": "3SU1100-0AB40-1BA0 — kompletní tlačítko Ø22, plast, zelené ploché, s návratem, s držákem a 1 NO, šroubové svorky, IP66/67/69K",
+   "orderCode": "3SU1100-0AB40-1BA0",
+   "brand": "Siemens",
+   "qty": 1,
+   "location": "field",
+   "stav": "dle dokumentace",
+   "model": "3SU1100-0AB40-1BA0",
+   "zdroj": [
+    "https://support.industry.siemens.com/teddatasheet/?format=pdf&mlfbs=3SU11000AB401BA0&language=en"
+   ],
+   "detail": "obálka",
+   "generator": "panel_22",
+   "file": "modely/3SU1100-0AB40-1BA0.FCStd"
+  }
+ },
+ "modely": {
+  "6ES7212-1AG50-0XB0": {
+   "file": "modely/6ES7212-1AG50-0XB0.FCStd",
+   "hash": "fc2a9c3bb32f42de",
+   "ok": true,
+   "bbox": [
+    -35.0,
+    35.0,
+    0.0,
+    100.0,
+    -62.5,
+    62.5
+   ],
+   "objem": 875000.0,
+   "telesa": 1,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "6AV2123-3GB32-0AW0": {
+   "file": "modely/6AV2123-3GB32-0AW0.FCStd",
+   "hash": "6a4fa9f0dafd0e0e",
+   "ok": true,
+   "bbox": [
+    -98.5,
+    98.5,
+    -36.0,
+    0.0,
+    -70.5,
+    70.5
+   ],
+   "objem": 999972.0,
+   "telesa": 1,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "3RV2011-1AA10": {
+   "file": "modely/3RV2011-1AA10.FCStd",
+   "hash": "c1772e6a49525731",
+   "ok": true,
+   "bbox": [
+    -22.5,
+    22.5,
+    0.0,
+    97.0,
+    -48.5,
+    48.5
+   ],
+   "objem": 423405.0,
+   "telesa": 1,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "3RT2016-1BB41": {
+   "file": "modely/3RT2016-1BB41.FCStd",
+   "hash": "2aadfe826eaac5fd",
+   "ok": true,
+   "bbox": [
+    -22.5,
+    22.5,
+    0.0,
+    73.0,
+    -29.0,
+    29.0
+   ],
+   "objem": 190530.0,
+   "telesa": 1,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "ISO15552_32x100": {
+   "file": "modely/ISO15552_32x100.FCStd",
+   "hash": "00b3e33da082922f",
+   "ok": true,
+   "bbox": [
+    -4.0,
+    242.0,
+    -23.5,
+    23.5,
+    -23.5,
+    23.5
+   ],
+   "objem": 435903.61,
+   "telesa": 4,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "3SU1150-1HB20-1CH0": {
+   "file": "modely/3SU1150-1HB20-1CH0.FCStd",
+   "hash": "047de0276f31f361",
+   "ok": true,
+   "bbox": [
+    -20.0,
+    20.0,
+    -48.6,
+    46.4,
+    -20.0,
+    20.0
+   ],
+   "objem": 116627.96,
+   "telesa": 2,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "1041436": {
+   "file": "modely/1041436.FCStd",
+   "hash": "be6dcec2749a64ab",
+   "ok": true,
+   "bbox": [
+    0.0,
+    42.0,
+    0.0,
+    15.6,
+    0.0,
+    48.5
+   ],
+   "objem": 31344.94,
+   "telesa": 1,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "3SU1102-6AA40-1AA0": {
+   "file": "modely/3SU1102-6AA40-1AA0.FCStd",
+   "hash": "66ba4455f38a4b92",
+   "ok": true,
+   "bbox": [
+    -15.0,
+    15.0,
+    -49.7,
+    11.8,
+    -20.0,
+    20.0
+   ],
+   "objem": 67677.9,
+   "telesa": 2,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "3LD2103-0TK53": {
+   "file": "modely/3LD2103-0TK53.FCStd",
+   "hash": "77ff9e794cbc7ad9",
+   "ok": true,
+   "bbox": [
+    -33.5,
+    33.5,
+    0.0,
+    93.0,
+    -42.0,
+    42.0
+   ],
+   "objem": 523404.0,
+   "telesa": 1,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "5SL6110-7": {
+   "file": "modely/5SL6110-7.FCStd",
+   "hash": "feff90640cf5ebf5",
+   "ok": true,
+   "bbox": [
+    -9.0,
+    9.0,
+    0.0,
+    76.0,
+    -45.0,
+    45.0
+   ],
+   "objem": 123120.0,
+   "telesa": 1,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "6EP3334-7SB00-3AX0": {
+   "file": "modely/6EP3334-7SB00-3AX0.FCStd",
+   "hash": "90aa511a85604c09",
+   "ok": true,
+   "bbox": [
+    -22.5,
+    22.5,
+    0.0,
+    125.0,
+    -67.5,
+    67.5
+   ],
+   "objem": 759375.0,
+   "telesa": 1,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "2002-1201": {
+   "file": "modely/2002-1201.FCStd",
+   "hash": "fad6b2c553129482",
+   "ok": true,
+   "bbox": [
+    -2.6,
+    2.6,
+    0.0,
+    39.5,
+    -24.25,
+    24.25
+   ],
+   "objem": 9961.9,
+   "telesa": 1,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "3SK1111-1AB30": {
+   "file": "modely/3SK1111-1AB30.FCStd",
+   "hash": "7db669defe4df150",
+   "ok": true,
+   "bbox": [
+    -11.25,
+    11.25,
+    0.0,
+    121.6,
+    -50.0,
+    50.0
+   ],
+   "objem": 273600.0,
+   "telesa": 1,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  },
+  "3SU1100-0AB40-1BA0": {
+   "file": "modely/3SU1100-0AB40-1BA0.FCStd",
+   "hash": "6436d40378ce1b71",
+   "ok": true,
+   "bbox": [
+    -15.0,
+    15.0,
+    -49.7,
+    11.0,
+    -20.0,
+    20.0
+   ],
+   "objem": 67132.96,
+   "telesa": 2,
+   "chyba": "",
+   "znovu": false,
+   "barva": true
+  }
+ },
+ "chyba": ""
+}
