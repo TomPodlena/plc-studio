@@ -85,7 +85,7 @@ def _rot(d):
 def _box_telo(id_, label, box, props, cut=None, add=None):
     x0, x1, y0, y1, z0, z1 = box
     return {"name": id_, "label": label, "body": {"add": [{"box": [x0, x1, y0, y1, z0, z1]}] + (add or []), "cut": cut or []},
-            "props": dict(props, PLCdesk_Id=f"T1:{id_}")}
+            "props": dict(props, Konstrukce_Id=f"T1:{id_}")}
 
 
 def sonda_valce(norma, pr, zd):
