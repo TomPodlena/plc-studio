@@ -337,7 +337,7 @@ class StulBezDopravniku:
             ext = max(modul_pripravek.rozmer_vlevo(v[3], modul_pripravek.sonda_valce(v[1], v[2], v[3])[0]) for v in t1_v)
             cx = self.o[0] + 10.0 + ext + Dd["L"] / 2
             cy = self.o[1] + 10.0 + ext + Dd["W"] / 2
-            t1 = modul_pripravek.postav(fx, zk, t1_v, (cx, cy), Hd, self.t_deska or 15.0, A, self.dil, roles)
+            t1 = modul_pripravek.postav(fx, zk, t1_v, (cx, cy), Hd, self.t_deska or 15.0, A, self.dil, roles, snimace={v_[0]: pocet_snimacu(man, v_[0]) for v_ in t1_v})
             self.t1 = t1
             self.moduly_ext += t1["moduly"]
             self.tel += t1["tel"]
@@ -368,7 +368,7 @@ class StulBezDopravniku:
             for y, sgn in ((y_p0, -1), (y_p0 + Lp, 1)):
                 fx.put(zk, [xi, y, Hd + A / 2], cols([-sgn, 0, 0], [0, 0, 1], [0, sgn, 0]), "zaslepka")
             m = modul_valec.modul(tag, norma, pr, zd, "patky", "nic", "deska", pos=[xi, pos_y, Hd + A + pa["AH"] + modul_valec.T_DESKA],
-                                  rot=modul_valec.RZ90, nazev=f"P1 {tag} {norma} Ø{pr}×{zd} na stole N1", profil=40)
+                                  snimace=pocet_snimacu(man, tag), rot=modul_valec.RZ90, nazev=f"P1 {tag} {norma} Ø{pr}×{zd} na stole N1", profil=40)
             self.moduly_ext.append(m)
             for z_ in (m.get("rozhrani") or {}).get("zony") or []:      # zóna zdvihu pístnice patří do obálky stolu (kryt ji obejde)
                 self.boxes_extra.append((f"zóna {tag} {z_['nazev']}", list(z_["bbox"])))
@@ -490,7 +490,11 @@ def pas_obsluhy(man: dict, Hd: float, t_deska: float, y0: float, p3_dovnitr: boo
         kb = (pult.get("kabely") or [{}])[0]
         if kb.get("path"):
             a, b = kb["path"][-1].get("line") or kb["path"][-1]["arc"][1:]
-            out["elektro"]["O1"] = {"bod": [round(v, 2) for v in _tb(R_PAS, o_p, list(b) + list(b))[:3]], "D": 2 * kb.get("r", 4.0)}
+            pa_ = [v for v in _tb(R_PAS, o_p, list(a) + list(a))[:3]]
+            pb_ = [v for v in _tb(R_PAS, o_p, list(b) + list(b))[:3]]
+            dv_ = [q - p for p, q in zip(pa_, pb_)]
+            ln_ = math.sqrt(sum(v * v for v in dv_)) or 1.0
+            out["elektro"]["O1"] = {"bod": [round(v, 2) for v in pb_], "D": 2 * kb.get("r", 4.0), "smer": [round(v / ln_, 4) for v in dv_]}
     else:
         out["nepostaveno"].append({"id": "O1", "co": "pult obsluhy", "duvod": "kusovník nemá ovládací přístroje do pultu"})
     # P2 + P3
@@ -1223,7 +1227,7 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
         mods.append(dict(pas["p3_raw"], placement=p3_in["placement"]))
     if hoses:
         from . import svazek as _sv
-        u_dily, u_inst, u_stat = _sv.uchytky_hadic(hoses, prefer)
+        u_dily, u_inst, u_stat = _sv.uchytky_hadic(hoses, prefer, [list(deska_box)])
         if u_stat["bez_opory_mm"] > 0:
             odhady.add(f"hadice P4: {u_stat['bez_opory_mm']:.0f} mm úseků je dál než {_sv.UCHYT_DOSAH:g} mm od líce profilu — bez úchytky, "
                        "doplní stavitel (kontrola kabel-bez-opory)")
@@ -1319,6 +1323,14 @@ def _cabinet_dims(cab):
     return [float(m.group(1)), float(m.group(2)), float(m.group(3))] if m else None
 
 
+def pocet_snimacu(man, tag) -> int:
+    """Počet snímačů polohy válce = množství řádku ``<tag>:cylinder_switch`` manifestu (0 bez řádku, nejvýš 2)."""
+    for p in man.get("parts") or []:
+        if p.get("id") == f"{tag}:cylinder_switch":
+            return max(0, min(2, int(p.get("qty") or 1)))
+    return 0
+
+
 def cable_starts(man, d, pas, o3) -> list:
     """Začátky kabelů zařízení v poli [(id, partId, od, bod, D)] — pro ODHAD délek i modul E2."""
     starts = []
@@ -1336,7 +1348,7 @@ def cable_starts(man, d, pas, o3) -> list:
                            (m.get("props") or {}).get("PLCdesk_Id"), "snímač S1", kk.get("konec") or kk["start"], 6.0,
                            kk.get("smer_konce") or kk.get("smer") or [0, 0, 1]))
     for nm, e in pas["elektro"].items():
-        starts.append((f"W-{nm.split()[0].lstrip('-')}", None, nm, e["bod"], e.get("D") or 6.0))
+        starts.append((f"W-{nm.split()[0].lstrip('-')}", None, nm, e["bod"], e.get("D") or 6.0, e.get("smer")))
     for s in o3["rozhrani"].get("blokovani") or []:
         z = s.get("zona_spinace")
         if z:

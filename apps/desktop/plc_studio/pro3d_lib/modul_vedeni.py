@@ -178,6 +178,11 @@ def _seg_ok(rt, a, b, obst, infl):
     return not any(rt.seg_hits(a, b, rt.inflate(bx, infl)) for bx in obst)
 
 
+def _kolize_kabelu(boxes, cizi, tol=0.5):
+    """Pravda, když některý kvádr trasy proniká do kvádru cizího kabelu (pevné pořadí: dřívější kabel má přednost)."""
+    return any(all(a[k] < b[k + 3] - tol and a[k + 3] > b[k] + tol for k in range(3)) for a in boxes for b in cizi)
+
+
 def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_pod: float, plates=None) -> dict:
     """Trasy kabelů ``kabely`` = [{id, od, start, smer, medium, D?, skupina, partId}] přes ``zlab`` do vývodek ``vyvodky``
     (E1 ``vstupy_kabelu``: bod = konec šestihranu pod dnem, osa +z). ``obst`` = kvádry překážek, ``nosne`` = nosné lišty
@@ -279,6 +284,11 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
                               plates=plates, cross_cost=400.0)
                 if r_ is not None:
                     break
+            if r_ is not None and not strikt:                  # záložní průchod smí vynechat jen překážky u začátku / vstupu, ne protnout cizí kabel
+                rb = rt.segments_boxes([p0] + [list(q) for q in r_["body"]], D / 2 + 2.0)
+                if _kolize_kabelu(rb[1:-1], others + done_boxes):
+                    r_ = None
+                    res["varovani"].append(f"{c['id']}: záložní trasa by protnula jiný kabel — kabel nepostaven (doplní stavitel)")
             if r_ is not None:
                 break
         if r_ is None:

@@ -130,7 +130,7 @@ def _d2(p, a, b):
     return math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)
 
 
-def uchytky_hadic(hoses: list, profily: list):
+def uchytky_hadic(hoses: list, profily: list, desky: list | None = None):
     """Úchytky po ≤ ``ROZTEC_UCHYTEK`` na úsecích hadic do ``UCHYT_DOSAH`` od líce profilu. Vrací (dily, instance, statistika)."""
     dily, inst, stat = {}, [], {"hadic": 0, "uchytek": 0, "bez_opory_mm": 0.0}
     for h in hoses:
@@ -176,6 +176,15 @@ def uchytky_hadic(hoses: list, profily: list):
                     continue
                 pos = list(p)
                 pos[ax] = bx[ax + 3] if sg > 0 else bx[ax]
+                if ax == 2 and sg > 0:                               # nad profilem leží pracovní deska: patka stojky stojí NA desce, ne skrz
+                    dsk = next((q for q in (desky or []) if q[0] <= p[0] <= q[3] and q[1] <= p[1] <= q[4]
+                                and q[2] <= pos[2] + 0.5 and q[5] > pos[2] + 0.5), None)
+                    if dsk is not None:
+                        dist -= dsk[5] - pos[2]
+                        pos[2] = dsk[5]
+                        if dist - r < 3.0:
+                            stat["bez_opory_mm"] += L / n if reg else 0.0
+                            continue
                 sp = spec_uchytky(r, dist - r)
                 dily[sp["key"]] = sp
                 nrm = [0, 0, 0]

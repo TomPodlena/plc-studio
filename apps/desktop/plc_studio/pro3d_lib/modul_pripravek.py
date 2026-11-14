@@ -92,10 +92,10 @@ def sonda_valce(norma, pr, zd):
     """Špička zasunuté pístnice (mm od počátku v ose) a výška osy nad dosedací rovinou profilu (A + AH + T_DESKA)."""
     pa = modul_valec.patka_ms1(pr)
     m = modul_valec.modul("-T", norma, pr, zd, "patky", "nic", "deska", pos=[0.0, 0.0, 100.0], rot=modul_valec.RZ90, profil=40)
-    return float(m["rozhrani"]["obalka"][4]), pa
+    return float(m["kontrola"]["konec"]), pa
 
 
-def postav(fx, zk, valce, stred, Hd, t_deska, A, dil=None, role_map=None):
+def postav(fx, zk, valce, stred, Hd, t_deska, A, dil=None, role_map=None, snimace=None):
     """Postaví přípravek ve ``fx`` (Ram) kolem ``stred`` = (cx, cy). ``valce`` = [(tag, norma, pr, zd, pa, spec)], ``role_map``
     tag → role. Vrací slovník: moduly, tel, zony, boxes, otvory, rozhrani, varovani, chyby."""
     D = dil_obalka(dil)
@@ -171,7 +171,8 @@ def postav(fx, zk, valce, stred, Hd, t_deska, A, dil=None, role_map=None):
         for (px, py, sg) in ((s[0], s[1], -1), (s[0] + d[0] * Lp, s[1] + d[1] * Lp, 1)):
             fx.put(zk, [px, py, Hd + A / 2], cols([-sg * d[1], sg * d[0], 0.0], [0.0, 0.0, 1.0], [sg * d[0], sg * d[1], 0.0]), "zaslepka")
         m = modul_valec.modul(tag, norma, pr, zd, "patky", "nic", "deska", pos=[ox_, oy_, ax_z], rot=_rot(d),
-                              nazev=f"P1 {tag} {norma} Ø{pr}×{zd} — {ROLE_TEXT[role_map[tag]]} (přípravek T1)", profil=40)
+                              nazev=f"P1 {tag} {norma} Ø{pr}×{zd} — {ROLE_TEXT[role_map[tag]]} (přípravek T1)", profil=40,
+                              snimace=2 if snimace is None else snimace.get(tag, 0))
         # zóna zdvihu končí na ploše dílu: oříznout modulové zóny na plochu − mezera
         lim = (ox_ + d[0] * (dist - MEZERA), oy_ + d[1] * (dist - MEZERA))
         for z in (m["rozhrani"].get("zony") or []):

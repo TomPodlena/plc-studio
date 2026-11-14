@@ -104,5 +104,26 @@ class Celek20Test(unittest.TestCase):
         self.assertEqual(c["smlouvy"]["T1"]["role_celkem"][mp.ROLE_UPIN], 2)
 
 
+    def test_snimace_podle_manifestu(self):
+        """Počet snímačů polohy každého válce T1 = množství řádku cylinder_switch v manifestu (žádný navíc)."""
+        for m in self.t1["moduly"]:
+            tag = m["tag"]
+            n_mod = len((m.get("kontrola") or {}).get("snimace") or [])
+            self.assertEqual(n_mod, celek.pocet_snimacu(self.man, tag), tag)
+
+    def test_sonda_valce_je_spicka_pistnice(self):
+        """Čelist navazuje na špičku pístnice, ne na obálku modulu (ta je o 5 mm dál)."""
+        tip, _ = mp.sonda_valce("ISO 15552", 32, 100)
+        from plc_studio.pro3d_lib import modul_valec
+        m = modul_valec.modul("-T", "ISO 15552", 32, 100, "patky", "nic", "deska", pos=[0.0, 0.0, 100.0], rot=modul_valec.RZ90, profil=40)
+        self.assertAlmostEqual(tip, m["kontrola"]["konec"], places=6)
+        self.assertLess(tip, m["rozhrani"]["obalka"][4])
+
+    def test_kolize_kabelu_pomucka(self):
+        from plc_studio.pro3d_lib import modul_vedeni
+        self.assertTrue(modul_vedeni._kolize_kabelu([(0, 0, 0, 10, 10, 10)], [(5, 5, 5, 15, 15, 15)]))
+        self.assertFalse(modul_vedeni._kolize_kabelu([(0, 0, 0, 10, 10, 10)], [(10, 0, 0, 20, 10, 10)]))
+
+
 if __name__ == "__main__":
     unittest.main()
