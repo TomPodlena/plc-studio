@@ -49,8 +49,12 @@ class Vzor20Test(unittest.TestCase):
         self.assertFalse([n for n in nep if "bez cesty" in str(n["duvod"])], nep)
         p4 = [m for m in self.res["plan"]["moduly"] if m.get("tag") == "-P4"]
         self.assertEqual(len(p4), 1)
-        self.assertGreaterEqual(len(p4[0]["kabely"]), 11)
-        self.assertLessEqual(len(nep), 4)
+        # všech 14 hadic ostrov → válce postaveno pevnou dráhou; rozvod P (úprava vzduchu mimo kryt → ostrov uvnitř, přes stěnu
+        # krytu / pod deskou) zatím jen klasickým routerem a ten na vzoru 20 končí limitem uzlů (viz zpráva commitu)
+        self.assertEqual([n["id"] for n in nep], ["H P"] if nep else [], nep)
+        names = [k["name"] for k in p4[0]["kabely"]]
+        self.assertGreaterEqual(len(names), 14, names)
+        self.assertGreater(len(p4[0]["instance"]), 0)               # úchytky na profilu
 
     def test_svazek_bez_kolizi_mezi_hadicemi(self):
         p4 = next(m for m in self.res["plan"]["moduly"] if m.get("tag") == "-P4")

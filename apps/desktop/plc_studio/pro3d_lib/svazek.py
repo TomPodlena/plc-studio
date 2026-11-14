@@ -16,7 +16,7 @@ PREF_W = 0.35               # cena jednotky délky u profilu (router; 1,0 = jind
 PREF_DOSAH = 14.0           # mm — pás kolem profilu, ve kterém je trasa levná (osa hadice pak do ~30 mm od líce)
 MEZERA = 2.0                # mm — vůle mezi hadicemi ve svazku (zadání: D + 2 mm)
 ROZTEC_UCHYTEK = 280.0      # mm — rozteč úchytek (ODHAD, ≤ 300 mm OPORA_MAX; zdroj výrobce nečten)
-UCHYT_DOSAH = 32.0          # mm — největší vzdálenost osy hadice od líce profilu, ze které se úchytka staví
+UCHYT_DOSAH = 250.0         # mm — největší vzdálenost osy hadice od líce profilu, ze které se úchytka staví
 I3 = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 ROT_NA_NORMALU = {          # otočení místní osy +z na normálu líce
     (0, 0, 1): I3, (0, 0, -1): [[1, 0, 0], [0, -1, 0], [0, 0, -1]],
@@ -122,6 +122,14 @@ def _nejblizsi_profil(p, profily):
     return best
 
 
+def _d2(p, a, b):
+    """Vzdálenost bodu od úsečky v půdorysu (x, y)."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L2 = dx * dx + dy * dy
+    t = 0.0 if L2 < 1e-9 else max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2))
+    return math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)
+
+
 def uchytky_hadic(hoses: list, profily: list):
     """Úchytky po ≤ ``ROZTEC_UCHYTEK`` na úsecích hadic do ``UCHYT_DOSAH`` od líce profilu. Vrací (dily, instance, statistika)."""
     dily, inst, stat = {}, [], {"hadic": 0, "uchytek": 0, "bez_opory_mm": 0.0}
@@ -135,17 +143,36 @@ def uchytky_hadic(hoses: list, profily: list):
             if L < 1e-6:
                 continue
             n = max(1, int(math.ceil(L / ROZTEC_UCHYTEK)))
-            for j in range(n):
-                t = (j + 0.5) / n
-                p = [a[k] + t * (b[k] - a[k]) for k in range(3)]
+            cands = [([a[k] + ((j + 0.5) / n) * (b[k] - a[k]) for k in range(3)], True) for j in range(n)]
+            if abs(b[2] - a[2]) < 1e-6:                          # úsek přejíždějící profil: úchytka v místě přejezdu (jinak by minula)
+                for bx in profily:
+                    lo, hi = 0.0, 1.0
+                    for k in (0, 1):
+                        d_ = b[k] - a[k]
+                        if abs(d_) < 1e-9:
+                            if not (bx[k] + 3.0 <= a[k] <= bx[k + 3] - 3.0):
+                                hi = -1.0
+                        else:
+                            t0, t1 = sorted(((bx[k] + 3.0 - a[k]) / d_, (bx[k + 3] - 3.0 - a[k]) / d_))
+                            lo, hi = max(lo, t0), min(hi, t1)
+                    if hi > lo:
+                        tm = (lo + hi) / 2
+                        cands.append(([a[k] + tm * (b[k] - a[k]) for k in range(3)], False))
+            for p, reg in cands:
                 nb = _nejblizsi_profil(p, profily)
                 if nb is None or nb[0] > UCHYT_DOSAH or nb[0] - r < 3.0:
-                    stat["bez_opory_mm"] += L / n
+                    stat["bez_opory_mm"] += L / n if reg else 0.0
                     continue
                 dist, ax, sg, bx = nb
                 o = [k for k in range(3) if k != ax]
                 if any(not (bx[k] + 3.0 <= p[k] <= bx[k + 3] - 3.0) for k in o):
-                    stat["bez_opory_mm"] += L / n
+                    stat["bez_opory_mm"] += L / n if reg else 0.0
+                    continue
+                if ax == 2 and sg > 0 and any(                       # stojka úchytky nesmí projít jinou hadicí pod touto
+                        o is not h and o.get("body") and any(
+                            min(a2[2], b2[2]) < p[2] and _d2(p, a2, b2) < r + o["r"] + 1.0 for a2, b2 in zip(o["body"], o["body"][1:]))
+                        for o in hoses):
+                    stat["bez_opory_mm"] += L / n if reg else 0.0
                     continue
                 pos = list(p)
                 pos[ax] = bx[ax + 3] if sg > 0 else bx[ax]

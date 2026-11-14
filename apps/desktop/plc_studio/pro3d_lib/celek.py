@@ -35,6 +35,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -755,6 +756,55 @@ def _route_hose(hid, a, b, obst, plates, medium, nazev, prefer, sv_pruh=None):
     return h, ""
 
 
+def _hose_spec(hid, a, b, medium, nazev):
+    tr = modul_ostrov.trasa_mod()
+    med = tr.nacti_media()[medium]
+    req = tr.pozadovany_polomer(med, "pevne", med["D"])
+    R = float(req["doporuceny"] or req["min"])
+    stub = 15.0 + R + 4.0
+    p1 = [a["usti"][k] + a["osa_usti"][k] * stub for k in range(3)]
+    p2 = [b["usti"][k] + b["osa_usti"][k] * stub for k in range(3)]
+    return {"hid": hid, "a": a, "b": b, "medium": medium, "nazev": nazev, "p1": p1, "p2": p2, "r": float(med["D"]) / 2, "R": R,
+            "up": a["osa_usti"][2] > 0.99 and b["osa_usti"][2] > 0.99}
+
+
+def svazek_hadic(p4_specs, rozvod_spec, obst, prefer, deska_box):
+    """Pevná dráha svazku (``svazek_drah``): rozvod P a hadice P4 v jedné dávce bez routeru. Vrací {hid: hadice (jako route_hose)};
+    co dráha nezvládne, v něm chybí a řeší to klasický ``route_hose``."""
+    from . import svazek_drah as sd
+    obs = list(obst) + [deska_box]
+    if os.environ.get("SVAZEK_DUMP"):                               # ladění: vstupy dráhy do JSON
+        import json as _j
+        _cl = lambda s: {k: v for k, v in s.items() if k not in ("a", "b")} if s else None
+        open(os.environ["SVAZEK_DUMP"], "w", encoding="utf-8").write(_j.dumps(
+            {"p4": [_cl(s) for s in p4_specs], "roz": _cl(rozvod_spec), "obst": obs, "prefer": prefer,
+             "rozax": [rozvod_spec["a"]["osa_usti"], rozvod_spec["b"]["osa_usti"]] if rozvod_spec else None}))
+    res, fixed = {}, []
+
+    def _build(s, via):
+        try:
+            h = modul_ostrov.hadice(s["hid"], s["a"], s["b"], via, s["medium"], s["nazev"])
+        except ValueError:
+            return None
+        h["pruchody"] = []
+        h["body"] = via
+        return h
+
+    if rozvod_spec and rozvod_spec["a"]["osa_usti"][1] > 0.99 and rozvod_spec["b"]["osa_usti"][0] < -0.99 \
+            and rozvod_spec["p2"][1] > rozvod_spec["p1"][1]:
+        via = sd.plan_rozvod(dict(rozvod_spec, arrive=1), obs, fixed)
+        h = _build(rozvod_spec, via) if via else None
+        if h:
+            res[rozvod_spec["hid"]] = h
+            fixed.append((via, rozvod_spec["r"] + 2.0))
+    for hid, via in sd.plan_svazek(p4_specs, obs, prefer, fixed).items():
+        s = next(x for x in p4_specs if x["hid"] == hid)
+        h = _build(s, via)
+        if h:
+            res[hid] = h
+    return res
+
+
 def route_cable(cid, start, goal, obst, plates, D=6.0, R=None):
     """Kabel (ODHAD trasy) bod → bod routerem; vrací {body, delka, pruchody} nebo None."""
     rt = _router()
@@ -989,6 +1039,7 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
     sv_list = []                                              # svazek hadic: [(body, r)] dříve položených (rozvod P + P4)
     prip, prip_hose = {}, {}
     p3_in = None
+    bundle = {}
     if pas.get("p3_raw"):
         cil = [sum(q["usti"][k] for m in p1_mods for q in m["rozhrani"]["pripojky"]) /
                max(1, sum(len(m["rozhrani"]["pripojky"]) for m in p1_mods)) for k in range(3)] if p1_mods else \
@@ -1006,8 +1057,23 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
             obst.append(p3_in["obalka"])
             poradi.append(f"P3: ventilový ostrov uvnitř krytu na nosném profilu {p3_in['profil_box'][3] - p3_in['profil_box'][0]:g} mm "
                           f"u vyhazovače (poloha {p3_in['placement']['pos']}), venku jen úprava vzduchu P2")
+            if s_hadicemi and p1_mods:
+                _pr = {}
+                for m in p1_mods:
+                    for q in modul_ostrov._p1_porty(m).values():
+                        _pr[(m["rozhrani"]["tag"], q["port"])] = {"usti": q["usti"], "osa_usti": q["osa_usti"], "zasun": q["zasun"], "id": q["id"]}
+                _sp = []
+                for pid, a in sorted(pas["porty"].items(), key=lambda kv: kv[1]["cil"] != "zadni"):
+                    tgt = _pr.get((a["valec"], a["cil"]))
+                    if tgt:
+                        _m = a.get("hose") or "festo_PUN_6x1"
+                        _sp.append(_hose_spec(f"{pid.lstrip('-').replace('.', '_')}_{a['valec'].lstrip('-')}_{a['cil']}", a, tgt, _m,
+                                              f"Hadice {_m.replace('festo_', '')} {a['ventil']} port {pid.split('.')[-1]} → {a['valec']} {a['cil']}"))
+                _rs = _hose_spec("P_rozvod", pas["p2_vystup"], p3_in["napajeni"], "festo_PUN_10x1.5",
+                                 "Hadice PUN-10x1,5 rozvod P: úprava vzduchu P2 → ostrov P3 (deskou)") if pas.get("p2_vystup") else None
+                bundle = svazek_hadic(_sp, _rs, obst, prefer, deska_box)
             if pas.get("p2_vystup"):
-                hP, why = route_hose("P_rozvod", pas["p2_vystup"], p3_in["napajeni"], obst, [deska_box], medium="festo_PUN_10x1.5",
+                hP, why = (bundle["P_rozvod"], "") if "P_rozvod" in bundle else route_hose("P_rozvod", pas["p2_vystup"], p3_in["napajeni"], obst, [deska_box], medium="festo_PUN_10x1.5",
                                      nazev="Hadice PUN-10x1,5 rozvod P: úprava vzduchu P2 → ostrov P3 (deskou)", prefer=prefer, svazek=sv_list)
                 if hP is None:
                     nep.append({"id": "H P", "co": "rozvod P úprava vzduchu → ostrov", "duvod": f"trasa nenalezena ({why}) — doplní stavitel"})
@@ -1031,7 +1097,8 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
             if not tgt:
                 nep.append({"id": f"H {pid}", "co": f"hadice {pid} → {a['valec']} {a['cil']}", "duvod": "válec v celku není"})
                 continue
-            h, why = route_hose(f"{pid.lstrip('-').replace('.', '_')}_{a['valec'].lstrip('-')}_{a['cil']}", a, tgt, obst,
+            _hid = f"{pid.lstrip('-').replace('.', '_')}_{a['valec'].lstrip('-')}_{a['cil']}"
+            h, why = (bundle[_hid], "") if _hid in bundle else route_hose(_hid, a, tgt, obst,
                                 [deska_box], prefer=prefer, svazek=sv_list, medium=a.get("hose") or "festo_PUN_6x1",
                                 nazev=f"Hadice {(a.get('hose') or 'festo_PUN_6x1').replace('festo_', '')} {a['ventil']} port {pid.split('.')[-1]} → {a['valec']} {a['cil']}")
             if h is None:
