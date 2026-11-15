@@ -9,13 +9,13 @@ import { hwAddrText, hwLayout, hwSignalText, hwTypeText } from "./hardware.js";
 import { trx, N_, today } from "./i18n.js";
 import { projectRef, formatIsoDate } from "./project_meta.js";
 /** Výška pruhu „Číslo projektu / Zákazník / Zahájeno“ nad popisovým polem (jen když je některý údaj vyplněn). */
-const REF_BAND = 26;
+export const REF_BAND = 26;
 /**
  * Popisové pole výkresu (společné pro listy zapojení a bezpečnostní okruh). Bez čísla projektu
  * a zákazníka přesně původní tvar; s nimi navíc pruh nad polem (volající zvětší list o `REF_BAND`).
  * Hodnoty jsou obsah projektu (nepřekládají se); do DXF jdou přes `dxfText` jako ostatní texty.
  */
-function titleBlock(Re, Ln, Tx, W, H, f) {
+export function titleBlock(Re, Ln, Tx, W, H, f) {
     const tx = W - 26 - 420, ty = H - 26 - 52;
     Re(tx, ty, 420, 52, "f");
     Ln(tx, ty + 26, tx + 420, ty + 26, "f");
@@ -50,7 +50,9 @@ function titleBlock(Re, Ln, Tx, W, H, f) {
 /* Označení revize projektu pro sloupec „Rev“ popisového pole — dodá revision.ts (bez revize undefined → „0.1“). */
 let sheetRev = null;
 export function setSheetRevision(fn) { sheetRev = fn; }
-function todayCz() { return today(true); }
+export function todayCz() { return today(true); }
+/** Označení revize pro popisové pole (z `setSheetRevision`, jinak undefined). */
+export function sheetRevOf(prj) { return sheetRev?.(prj); }
 /** Text pro DXF R12: bez diakritiky a jen ASCII — typografické znaky nahradí nejbližší ASCII. */
 function dxfText(s) {
     /* jeden řádek: DXF R12 je dvojice řádků kód / hodnota — konec řádku v textu posune celý zbytek souboru */
@@ -185,7 +187,7 @@ export function opsToSVG(sh, label) {
     const strokeFor = (o) => o.k === "f" ? "var(--line, #999)" : o.k === "r" ? "var(--warn, #b45309)" : o.k === "r0" ? "var(--muted, #777)" : "currentColor";
     let s = "";
     for (const o of sh.O) {
-        const io = o.io ? ' data-io="' + esc(o.io) + '"' : "";
+        const io = (o.io ? ' data-io="' + esc(o.io) + '"' : "") + (o.dev !== undefined ? ' data-dev="' + o.dev + '"' : "");
         if (o.t === "l")
             s += '<line' + io + ' x1="' + o.x1 + '" y1="' + o.y1 + '" x2="' + o.x2 + '" y2="' + o.y2 + '" stroke="' + strokeFor(o) + '" stroke-width="' + ((o.k === "r" || o.k === "r0") ? 2 : (o.k === "f" ? 1 : 1.2)) + '"/>';
         else if (o.t === "c")

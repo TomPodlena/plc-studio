@@ -1,0 +1,44 @@
+{
+ "_popis": "Spojka V4 mechanická (kotvení modulu): drážka profilu, matice T, díry s vůlí, délky šroubů. mm. U každé hodnoty zdroj; 'odhad': true = ODHAD (nedoloženo, ověřit).",
+ "drazky": {
+  "40/8": {"otvor": 8.2, "ret": 4.0, "hloubka": 12.5, "sirka_pod_rty": 20.0, "rozteč": 40,
+           "profily": ["104040", "104040L", "124040"],
+           "zdroj": "skill alutech-profily references/profily.md §4 (katalog ALUTEC s. 4/2, 4/4: https://www.aluteckk.cz/files/katalog-tlac-ver-cz-30102023.pdf)",
+           "tvar_dna": "dno drážky zúžené na šířku otvoru v hloubce 12,5 — tvar dna výrobce neokótoval (zástupný průřez fc_profil.zastupny_40_8)",
+           "sroub_nesmi_na_dno": "skill alutech-profily references/prislusenstvi.md §7 (web ALUTEC kratky-sroub-matice)"},
+  "45/8": {"otvor": 8.2, "ret": 4.0, "hloubka": 15.0, "sirka_pod_rty": 13.7, "rozteč": 45,
+           "profily": ["104545", "104545L", "104560", "104513"],
+           "zdroj": "skill alutech-profily references/profily.md §4 (katalog ALUTEC s. 6/8)"}
+ },
+ "matice_t": {
+  "40/8": {
+   "M4": {"kod": "210442", "druh": "matice s pružinou"},
+   "M5": {"kod": "210452", "druh": "matice s pružinou"},
+   "M6": {"kod": "210462", "druh": "matice s pružinou"},
+   "M8": {"kod": "210482", "druh": "matice s pružinou", "rozmer": "20 × 13,5 × 7,2"},
+   "_zdroj": "skill alutech-profily references/spoje.md §8 (katalog ALUTEC s. 12/1–12/7): kódy │40│ M4–M8; rozměr 20 × 13,5 × 7,2 jen u M8 210482",
+   "L": 20.0, "B": 13.5, "H_katalog": 7.2,
+   "H_model": 6.5, "H_horni": 4.0, "vule_bok": 0.3,
+   "_odhad": "Rozměry M4–M6 výrobce neuvádí → stejné tělo jako M8 (ODHAD). Tvar: horní obdélník 13,5 × 4 (pod rty), spodek zkosený rovnoběžně s boky drážky; výška 6,5 (ODHAD — katalogových 7,2 zřejmě s kuličkou / pružinou, která se nemodeluje)."
+  }
+ },
+ "iso273": {
+  "_zdroj": "ISO 273:1979 Průchozí díry pro šrouby, řady jemná (f) / střední (m) / hrubá (c) — hodnoty normy převzaté z paměti, URL v této relaci neověřeno (ODHAD do ověření).",
+  "odhad": true,
+  "f": {"M3": 3.2, "M4": 4.3, "M5": 5.3, "M6": 6.4, "M8": 8.4, "M10": 10.5, "M12": 13.0, "M16": 17.0, "M18": 19.0, "M20": 21.0},
+  "m": {"M3": 3.4, "M4": 4.5, "M5": 5.5, "M6": 6.6, "M8": 9.0, "M10": 11.0, "M12": 13.5, "M16": 17.5, "M18": 20.0, "M20": 22.0},
+  "c": {"M3": 3.6, "M4": 4.8, "M5": 5.8, "M6": 7.0, "M8": 10.0, "M10": 12.0, "M12": 14.5, "M16": 18.5, "M18": 21.0, "M20": 24.0}
+ },
+ "delky_iso4762": {
+  "_zdroj": "ISO 4762 — doporučené jmenovité délky l (řada norem; ODHAD do ověření dostupnosti u dodavatele)",
+  "odhad": true,
+  "l": [6, 8, 10, 12, 16, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100]
+ },
+ "zasroubovani": {
+  "_zdroj": "skill spoje-sroubove kap. 6 Hloubka zašroubování (ocel 1·d, litina 1,25·d, Al / mosaz 1,5·d, plast 2·d); stejné pravidlo kontroluje pro3d_tools rules.posud_sroub (ZASROUB_K, ZASROUB_MIN_MM 3 = ODHAD)",
+  "k": {"ocel": 1.0, "litina": 1.25, "hlinik": 1.5, "plast": 2.0},
+  "min_mm": 3.0
+ },
+ "rezerva_dna_mm": {"hodnota": 0.5, "odhad": true, "_pozn": "konec šroubu nejméně 0,5 mm nad dnem drážky (ODHAD — výrobce jen „nesmí dosednout na dno“)"},
+ "podelny_otvor": {"serizeni_mm": 5.0, "_zdroj": "katalog modulů PLCdesk PRO (MODULY_KATALOG.md S1: seřízení ± 5 mm) — požadavek, ne norma"}
+}

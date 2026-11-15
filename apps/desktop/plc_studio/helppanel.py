@@ -24,10 +24,18 @@ _CACHE: dict[str, dict] = {}
 
 def help_data(app) -> dict:
     """Nápověda z jádra v jazyce aplikace (cache podle jazyka)."""
-    d = _CACHE.get(app.lang)
+    preview = _preview(app)
+    key = f"{app.lang}:{int(preview)}"
+    d = _CACHE.get(key)
     if d is None:
-        d = _CACHE[app.lang] = app.bridge.request("help", lang=app.lang)
+        d = _CACHE[key] = app.bridge.request("help", lang=app.lang, preview=preview)
     return d
+
+
+def _preview(app) -> bool:
+    """Kapitoly náhledu PLCdesk PRO jen se zapnutým náhledem (``App.pro_enabled``)."""
+    fn = getattr(app, "pro_enabled", None)
+    return bool(fn()) if callable(fn) else False
 
 
 def chapter(app, cid: str) -> dict | None:
@@ -36,13 +44,15 @@ def chapter(app, cid: str) -> dict | None:
 
 def chapter_for_step(app, step) -> str:
     ids = help_data(app)["stepIds"]
+    if step == "pro":                       # krok 3D agent (PRO) — kapitola náhledu
+        return "pro3d"
     return ids[step] if isinstance(step, int) and 0 <= step < len(ids) else "start"
 
 
 def search(app, query: str) -> list[dict]:
     if not query.strip():
         return []
-    return app.core("searchHelp", query, app.lang, "desktop") or []
+    return app.core("searchHelp", query, app.lang, "desktop", 20, _preview(app)) or []
 
 
 # --- vykreslení do tk.Text ---------------------------------------------------------------

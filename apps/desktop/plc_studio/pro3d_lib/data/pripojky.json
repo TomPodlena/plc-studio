@@ -1,0 +1,67 @@
+{
+ "_popis": "Spojka V1 pneumatická — rozhraní přípojek (mm). Každá hodnota nese zdroj; co zdroj nemá, je null nebo ODHAD s příznakem. Hadice (Ø, poloměry) se NEOPISUJÍ — jsou v ~/.claude/skills/kabelaz-a-hadice/data/media.json (klíč 'medium'). Čteno 2026-11-03.",
+ "_zdroje": {
+  "BSP_WIKI": "https://en.wikipedia.org/wiki/British_Standard_Pipe — tabulka G/R: TPI, stoupání, vnější a malý průměr, gauge length (G = ISO 228-1 válcový, R = ISO 7 kuželový)",
+  "FESTO_DS": "https://ftp.festo.com/public/pneumatic/SOFTWARE_SERVICE/DataSheet/EN_US/<objednací číslo>.pdf — datový list Festo (stav 10/8/26), textové hodnoty",
+  "FESTO_SKILL": "~/.claude/skills/festo-pneumatics/SKILL.md, oddíl Mating konstanty — změřeno ve STEP výrobce (QS-G1/8-6, GRLA-1/8)",
+  "SMC_KQ2": "https://content2.smcetech.com/pdf/KQ2.pdf — SMC Series KQ2 (US vydání), str. 2.1-13 „Male connector: KQ2H“ (metrické hadice, závit R = kuželový ISO 7, ne G!)",
+  "SMC_CP96": "https://content2.smcetech.com/pdf/CP96.pdf str. A 130 — velikost přípojek válců ISO 15552"
+ },
+ "zavity": {
+  "G1/8": {"norma": "ISO 228-1", "TPI": 28, "stoupani": 0.907, "d": 9.728, "d1": 8.566, "gauge_R": 4.0, "zdroj": "BSP_WIKI"},
+  "G1/4": {"norma": "ISO 228-1", "TPI": 19, "stoupani": 1.337, "d": 13.157, "d1": 11.445, "gauge_R": 6.0, "zdroj": "BSP_WIKI"},
+  "G3/8": {"norma": "ISO 228-1", "TPI": 19, "stoupani": 1.337, "d": 16.662, "d1": 14.950, "gauge_R": 6.4, "zdroj": "BSP_WIKI"},
+  "G1/2": {"norma": "ISO 228-1", "TPI": 14, "stoupani": 1.814, "d": 20.955, "d1": 18.631, "gauge_R": 8.2, "zdroj": "BSP_WIKI"},
+  "M5":   {"norma": "ISO 261 / port ISO 16030", "stoupani": 0.8, "d": 5.0, "zdroj": "označení závitu M5x0,8 (valce.json EE ISO 6432 = 'M5x0.8', SMC C85 str. 9)"},
+  "M7":   {"norma": "ISO 261 / port ISO 16030", "stoupani": 1.0, "d": 7.0, "zdroj": "ODHAD — M7x1 je běžná přípojka malých ventilů (Festo UO-M7 197582 existuje — FESTO_DS); stoupání z označení ISO metrického jemného závitu, nečteno v normě"},
+  "_pozn": "gauge_R = měrná délka kuželového závitu R (ISO 7), ne délka závitu G. Délka zašroubování / hloubka díry G a M5 v portu (ISO 16030 / ISO 1179-1) NEČTENO — v modelu brát délku závitu šroubení (níže) a díru o ≥ 2 mm hlubší (ODHAD)."
+ },
+ "qs_festo": {
+  "_pozn": "Festo QS (standard) / QSM (mini) přímé šroubení s vnějším závitem. zasun = 'Tubing insertion depth', sw = 'External hexagon', dn = 'Nominal width', moment = 'Nominal tightening torque' (±20 %), tlak −0,95…6 bar pro celý rozsah teplot (do 14 bar podle teploty). Obálka (průměr pouzdra, celková výška) v listu NENÍ — pro G1/8-6 změřeno ve STEP (FESTO_SKILL): závit 4,2 mm pod dosedem límce, ústí soketu 16,4 mm nad dosedem.",
+  "QSM-M5-4":   {"kod": "153304", "zavit": "M5",   "hadice": 4,  "zasun": 11.5, "sw": 8,  "dn": 2.2, "moment_Nm": 1.2,  "hmotnost_g": 3.2, "zdroj": "FESTO_DS 153304"},
+  "QS-G1/8-6":  {"kod": "186096", "zavit": "G1/8", "hadice": 6,  "zasun": 17,   "sw": 13, "dn": 5,   "moment_Nm": 5.4,  "hmotnost_g": 8.3, "zavit_pod_dosedem": 4.2, "soket_nad_dosedem": 16.4, "zdroj": "FESTO_DS 186096; geometrie FESTO_SKILL"},
+  "QS-G1/8-8":  {"kod": "186098", "zavit": "G1/8", "hadice": 8,  "zasun": 18.2, "sw": 14, "dn": 6,   "moment_Nm": 5.4,  "hmotnost_g": 13,  "zdroj": "FESTO_DS 186098"},
+  "QS-G1/4-8":  {"kod": "186099", "zavit": "G1/4", "hadice": 8,  "zasun": 18.2, "sw": 17, "dn": 7,   "moment_Nm": 9,    "hmotnost_g": 15,  "zdroj": "FESTO_DS 186099"},
+  "QS-G1/4-10": {"kod": "186101", "zavit": "G1/4", "hadice": 10, "zasun": 20.7, "sw": 17, "dn": 8.5, "moment_Nm": 9,    "zdroj": "FESTO_DS 186101"},
+  "QS-G3/8-8":  {"kod": "186100", "zavit": "G3/8", "hadice": 8,  "zasun": 18.2, "sw": 19, "dn": 7,   "moment_Nm": 15.5, "zdroj": "FESTO_DS 186100"},
+  "QS-G3/8-10": {"kod": "186102", "zavit": "G3/8", "hadice": 10, "zasun": 20.7, "sw": 19, "dn": 9,   "moment_Nm": 15.5, "zdroj": "FESTO_DS 186102"},
+  "QS-G3/8-12": {"kod": "186103", "zavit": "G3/8", "hadice": 12, "zasun": 23.3, "sw": 21, "dn": 11,  "moment_Nm": 15.5, "zdroj": "FESTO_DS 186103"},
+  "QS-G1/2-12": {"kod": null, "zavit": "G1/2", "hadice": 12, "zasun": null, "stav": "NEČTENO — objednací číslo nedohledáno; použij QS-G3/8-12 s redukcí nebo doplň z listu"}
+ },
+ "kq2h_smc": {
+  "_pozn": "SMC KQ2H male connector, závit R (kuželový, ISO 7) se sealantem — G provedení má jiné rozměry (nečteno). Sloupce: H = šestihran, D = max. průměr (jen u M5/M6), L = celková délka, A = výška nad čelem portu po zašroubování (referenční, R), M = rozměr podle výkresu (výklad: od horního konce k čelu šestihranu — nejistý), ef_plocha = efektivní plocha mm² (nylon / PU hadice).",
+  "KQ2H04-M5":  {"zavit": "M5x0.8", "hadice": 4,  "H": 8,  "D": 8,  "L": 17,   "A": 13.9, "M": 12.7, "ef_plocha": [4, 4]},
+  "KQ2H04-01S": {"zavit": "R1/8",   "hadice": 4,  "H": 10, "D": null, "L": 22,   "A": 18,   "M": 16,   "ef_plocha": [5.6, 4]},
+  "KQ2H06-M5":  {"zavit": "M5x0.8", "hadice": 6,  "H": 10, "D": 10, "L": 17.8, "A": 14.7, "M": 13.5, "ef_plocha": [4, 4]},
+  "KQ2H06-01S": {"zavit": "R1/8",   "hadice": 6,  "H": 12, "D": null, "L": 22.5, "A": 18.5, "M": 17,   "ef_plocha": [13.1, 10.4]},
+  "KQ2H06-02S": {"zavit": "R1/4",   "hadice": 6,  "H": 14, "D": null, "L": 23,   "A": 17,   "M": 17,   "ef_plocha": [13.1, 10.4]},
+  "KQ2H08-01S": {"zavit": "R1/8",   "hadice": 8,  "H": 14, "D": null, "L": 28,   "A": 24,   "M": 18.5, "ef_plocha": [26.1, 18.0]},
+  "KQ2H08-02S": {"zavit": "R1/4",   "hadice": 8,  "H": 14, "D": null, "L": 26.5, "A": 20.5, "M": 18.5, "ef_plocha": [26.1, 18.0]},
+  "KQ2H10-02S": {"zavit": "R1/4",   "hadice": 10, "H": 17, "D": null, "L": 33.5, "A": 27.5, "M": 21,   "ef_plocha": [41.5, 29.5]},
+  "KQ2H10-03S": {"zavit": "R3/8",   "hadice": 10, "H": 17, "D": null, "L": 29,   "A": 22.5, "M": 21,   "ef_plocha": [41.5, 29.5]},
+  "KQ2H12-03S": {"zavit": "R3/8",   "hadice": 12, "H": 19, "D": null, "L": 30,   "A": 23.5, "M": 22,   "ef_plocha": [58.3, 46.1]},
+  "KQ2H12-04S": {"zavit": "R1/2",   "hadice": 12, "H": 22, "D": null, "L": 30,   "A": 22,   "M": 22,   "ef_plocha": [58.3, 46.1]},
+  "zdroj": "SMC_KQ2 str. 2.1-13 (PDF strana 18)",
+  "zasun": "NEČTENO — hloubka zasunutí hadice pro KQ2 v přečtené stránce není; ODHAD jako Festo QS téže hadice"
+ },
+ "grla_festo": {
+  "GRLA-1/8-QS-6-RS-D": {"kod": "197581", "zavit": "G1/8", "hadice": 6, "tlak_bar": "0,2–10", "moment_Nm": 6, "hmotnost_g": 23, "material_klouby": "Zn tlakový odlitek",
+                          "rameno_dosedu": 13.45, "vez_od_osy_zavitu": 24.6, "zdroj": "FESTO_DS 197581; geometrie FESTO_SKILL (změřeno ve STEP: osa věže 13,45 mm od dosedu ramene, ústí soketu věže 24,6 mm od osy závitu)",
+                          "pozn": "RS = škrcení výstupu (odvětrání) — patří do přípojky válce; věž se smí natočit kolem osy závitu (FESTO_SKILL)"},
+  "ostatni": "GRLA-M5 / -1/4 / -3/8 / -1/2: objednací čísla a rozměry NEČTENO — pro3d_modules moduly.json je vede jako ODHAD podle téže řady"
+ },
+ "tlumice_festo": {
+  "U-1/8":  {"kod": "2307",   "zavit": "G1/8", "prutok_l_min": 2000, "hluk_dBA": 74, "hmotnost_g": 2.3, "zdroj": "FESTO_DS 2307"},
+  "UO-1/8": {"kod": "197583", "zavit": "G1/8", "hmotnost_g": 5, "zdroj": "FESTO_DS 197583 (průtok / hluk v textu listu nenalezeny)"},
+  "UO-M7":  {"kod": "197582", "zavit": "M7",   "zdroj": "FESTO_DS 197582 (jen označení)"},
+  "_pozn": "Tlumič na odfuky 3 / 5 ventilu; rozměry obálky v listech nejsou — ve 3D zástupný válec Ø ≈ 1,2 × d závitu, délka ODHAD; nesmí foukat do obsluhy ani na snímače."
+ },
+ "valec_pripojka_hadice": {
+  "_pozn": "Doporučená hadice k přípojce válce. Velikost přípojky z normy válce (SMC CP96 str. A 130 / valce.json EE). Volba Ø hadice = ODHAD podle běžné řady (shodně pro3d_modules moduly.json hadice_podle_pripojky) — ověřit průtokem (references/prutok.md).",
+  "M5":   {"hadice": 4,  "qs": "QSM-M5-4",   "stav": "šroubení doloženo (FESTO_DS 153304), volba Ø ODHAD"},
+  "G1/8": {"hadice": 6,  "qs": "QS-G1/8-6",  "grla": "GRLA-1/8-QS-6-RS-D", "stav": "šroubení a GRLA doloženy (FESTO_DS), volba Ø ODHAD"},
+  "G1/4": {"hadice": 8,  "qs": "QS-G1/4-8",  "stav": "šroubení doloženo (FESTO_DS 186099), volba Ø ODHAD"},
+  "G3/8": {"hadice": 10, "qs": "QS-G3/8-10", "stav": "šroubení doloženo (FESTO_DS 186102), volba Ø ODHAD"},
+  "G1/2": {"hadice": 12, "qs": null, "stav": "šroubení G1/2-12 NEČTENO — ODHAD"}
+ }
+}

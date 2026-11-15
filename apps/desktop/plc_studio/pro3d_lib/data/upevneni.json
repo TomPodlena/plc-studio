@@ -1,0 +1,265 @@
+{
+ "_popis": "Upevnění pneumatických válců ISO 15552 (Ø32–125) a ISO 6432 (Ø8–25): rozměry upevňovacích prvků a příslušenství pístnice (mm). Doplňuje pro3d_parts/data/valce.json (tělo válce, závity RT ve vících, rozteč R = TG, nákružek B / VD). Každá tabulka nese zdroj (katalog, strana); rozměr bez zdroje v tabulce NENÍ. Čteno 2026-11-03 z PDF katalogů SMC (text + vykreslené stránky). Rozměry rozhraní jsou dané normou ISO 15552 (patky, příruby, čepy) a ISO 8139 / 8140 (příslušenství pístnice) a platí i pro Festo HNC / FNC / SNC… — obrys (tvar, zaoblení, tloušťky mimo normu) je SMC. Výklad písmen sloupců = z výkresu katalogu; kde je výklad nejistý, je to u sloupce uvedeno.",
+ "_zdroje": {
+  "SMC_CP96": "https://content2.smcetech.com/pdf/CP96.pdf — SMC CP96 ISO Standard (15552), katalogové strany A 130–131 (specifikace, síly, hmotnosti), A 137–138 (Mounting Brackets, Pivot Brackets), A 140 (Piston Rod Accessories), A 145 (Auto Switch Mounting)",
+  "SMC_C85": "https://content2.smcetech.com/pdf/C85.pdf — SMC Series C85 ISO Standards (6432), str. 1 (objednací kódy upevnění), str. 9 (rozměry základního provedení), str. 10 (patky, příruby, čepy, vidlice), str. 15 (příslušenství pístnice)",
+  "FESTO_DS": "https://ftp.festo.com/public/pneumatic/SOFTWARE_SERVICE/DataSheet/EN_US/<objednací číslo>.pdf — datové listy Festo (stav 10/8/26): jen hodnoty v textu (norma, nosnost, hmotnost, materiál); rozměrové výkresy v listech NEJSOU"
+ },
+ "iso15552": {
+  "patka_L_MS1": {
+   "nazev": "patka (axial foot) — 2 ks + 4 šrouby; ISO 15552 tvar MS1; Festo HNC",
+   "zdroj": "SMC_CP96 str. A 137, tabulka „Axial foot (L)“",
+   "sloupce": {
+    "AB": "průměr díry pro šroub do rámu",
+    "TG": "rozteč děr pro šrouby do víka (±0,2) = valce.json R",
+    "E": "šířka patky (svislá stěna)",
+    "TR": "rozteč děr AB napříč",
+    "AO": "díra AB od volného konce nohy (výklad výkresu)",
+    "AU": "díra AB od čela víka válce (výklad výkresu: kóta od svislé stěny / čela víka ke středu díry)",
+    "AH": "výška osy válce nad dosedací plochou patky",
+    "AT": "tloušťka plechu patky",
+    "R2": "poloměr výřezu pro nákružek",
+    "sroub": "šrouby patka → víko válce (dodávají se)"
+   },
+   "rady": {
+    "32":  {"kod_SMC": "L5032", "AB": 7,    "TG": 32.5, "E": 48,  "TR": 32, "AO": 10, "AU": 24, "AH": 32, "AT": 4.5, "R2": 15,   "sroub": "M6x16"},
+    "40":  {"kod_SMC": "L5040", "AB": 10,   "TG": 38,   "E": 55,  "TR": 36, "AO": 11, "AU": 28, "AH": 36, "AT": 4.5, "R2": 17.5, "sroub": "M6x16"},
+    "50":  {"kod_SMC": "L5050", "AB": 10,   "TG": 46.5, "E": 68,  "TR": 45, "AO": 12, "AU": 32, "AH": 45, "AT": 5.5, "R2": 20,   "sroub": "M8x20"},
+    "63":  {"kod_SMC": "L5063", "AB": 10,   "TG": 56.5, "E": 80,  "TR": 50, "AO": 12, "AU": 32, "AH": 50, "AT": 5.5, "R2": 22.5, "sroub": "M8x20"},
+    "80":  {"kod_SMC": "L5080", "AB": 12,   "TG": 72,   "E": 100, "TR": 63, "AO": 14, "AU": 41, "AH": 63, "AT": 6.5, "R2": 22.5, "sroub": "M10x20"},
+    "100": {"kod_SMC": "L5100", "AB": 14.5, "TG": 89,   "E": 120, "TR": 75, "AO": 16, "AU": 41, "AH": 71, "AT": 6.5, "R2": 27.5, "sroub": "M10x20"},
+    "125": {"kod_SMC": "L5125", "AB": 16,   "TG": 110,  "E": 157, "E_pozn": "max.", "TR": 90, "AO": 25, "AO_pozn": "max.", "AU": 45, "AH": 90, "AT": 8, "R2": 30, "sroub": "M12x25"}
+   }
+  },
+  "priruba_F_MF1_MF2": {
+   "nazev": "příruba (rod flange F = MF1 na předním víku, head flange G = MF2 na zadním) + 4 šrouby; Festo FNC",
+   "zdroj": "SMC_CP96 str. A 137, tabulka „Flange (F, G)“ (řádek 125 str. A 137 dole)",
+   "sloupce": {
+    "D": "středicí díra pro nákružek válce (H11)",
+    "FB": "průměr děr pro šrouby do rámu",
+    "TG": "rozteč šroubů do víka (±0,2)",
+    "E": "výška příruby (kratší strana)",
+    "R": "rozteč děr FB na kratší straně",
+    "MF": "tloušťka příruby",
+    "TF": "rozteč děr FB na delší straně",
+    "UF": "délka příruby (delší strana)",
+    "L4": "hloubka zahloubení pro hlavu šroubu do víka (výklad výkresu)",
+    "sroub": "šrouby příruba → víko (dodávají se)"
+   },
+   "rady": {
+    "32":  {"kod_SMC": "F5032", "D": 30, "FB": 7,  "TG": 32.5, "E": 50,  "R": 32, "MF": 10, "TF": 64,  "UF": 79,  "L4": 5,    "sroub": "M6x20"},
+    "40":  {"kod_SMC": "F5040", "D": 35, "FB": 9,  "TG": 38,   "E": 55,  "R": 36, "MF": 10, "TF": 72,  "UF": 90,  "L4": 5,    "sroub": "M6x20"},
+    "50":  {"kod_SMC": "F5050", "D": 40, "FB": 9,  "TG": 46.5, "E": 70,  "R": 45, "MF": 12, "TF": 90,  "UF": 110, "L4": 6.5,  "sroub": "M8x20"},
+    "63":  {"kod_SMC": "F5063", "D": 45, "FB": 9,  "TG": 56.5, "E": 80,  "R": 50, "MF": 12, "TF": 100, "UF": 120, "L4": 6.5,  "sroub": "M8x20"},
+    "80":  {"kod_SMC": "F5080", "D": 45, "FB": 12, "TG": 72,   "E": 100, "R": 63, "MF": 16, "TF": 126, "UF": 153, "L4": 9,    "sroub": "M10x25"},
+    "100": {"kod_SMC": "F5100", "D": 55, "FB": 14, "TG": 89,   "E": 120, "R": 75, "MF": 16, "TF": 150, "UF": 178, "L4": 9,    "sroub": "M10x25"},
+    "125": {"kod_SMC": "F5125", "D": 60, "FB": 16, "TG": 110,  "E": 157, "E_pozn": "max.", "R": 90, "MF": 20, "TF": 180, "UF": 224, "UF_pozn": "max.", "L4": 10.5, "sroub": "M12x25"}
+   }
+  },
+  "vidlice_zadni_D_MP2": {
+   "nazev": "dvojitá vidlice na zadním víku (double clevis D) = ISO 15552 MP2 + čep + 4 šrouby; Festo SNCB (neověřeno — list nečten)",
+   "zdroj": "SMC_CP96 str. A 138, tabulka „Double clevis (D)“",
+   "sloupce": {
+    "TG1": "rozteč šroubů do víka", "FL": "čelo zadního víka → osa čepu", "l1": "tloušťka základny (výklad)", "L": "osa čepu → konec oka (výklad)",
+    "l2": "hloubka vybrání / zahloubení (výklad)", "d1": "středicí nákružek (H11)", "CD": "průměr čepu (H9)", "MR": "poloměr oka",
+    "d2": "díra šroubu", "R1": "poloměr rohu", "E2": "čtverec základny", "UB": "vnější šířka vidlice (h14)", "CB": "mezera vidlice (H14)"
+   },
+   "rady": {
+    "32":  {"kod_SMC": "D5032", "TG1": 32.5, "FL": 22, "l1": 5, "L": 12, "l2": 5.5, "d1": 30, "CD": 10, "MR": 9.5, "d2": 6.6, "R1": 6.5, "E2": 48,  "UB": 45,  "CB": 26},
+    "40":  {"kod_SMC": "D5040", "TG1": 38,   "FL": 25, "l1": 5, "L": 15, "l2": 5.5, "d1": 35, "CD": 12, "MR": 12,  "d2": 6.6, "R1": 6.5, "E2": 56,  "UB": 52,  "CB": 28},
+    "50":  {"kod_SMC": "D5050", "TG1": 46.5, "FL": 27, "l1": 5, "L": 15, "l2": 6.5, "d1": 40, "CD": 12, "MR": 12,  "d2": 9,   "R1": 8.5, "E2": 64,  "UB": 60,  "CB": 32},
+    "63":  {"kod_SMC": "D5063", "TG1": 56.5, "FL": 32, "l1": 5, "L": 20, "l2": 6.5, "d1": 45, "CD": 16, "MR": 16,  "d2": 9,   "R1": 8.5, "E2": 75,  "UB": 70,  "CB": 40},
+    "80":  {"kod_SMC": "D5080", "TG1": 72,   "FL": 36, "l1": 5, "L": 20, "l2": 10,  "d1": 45, "CD": 16, "MR": 16,  "d2": 11,  "R1": 11,  "E2": 95,  "UB": 90,  "CB": 50},
+    "100": {"kod_SMC": "D5100", "TG1": 89,   "FL": 41, "l1": 5, "L": 25, "l2": 10,  "d1": 55, "CD": 20, "MR": 20,  "d2": 11,  "R1": 12,  "E2": 115, "UB": 110, "CB": 60},
+    "125": {"kod_SMC": "D5125", "TG1": 110,  "FL": 50, "l1": 7, "L": 30, "l2": 10,  "d1": 60, "CD": 25, "MR": 26,  "d2": 13.5,"R1": 10,  "E2": 157, "E2_pozn": "max.", "UB": 130, "CB": 70}
+   }
+  },
+  "oko_zadni_C_MP4": {
+   "nazev": "jednoduché oko na zadním víku (single clevis C) = ISO 15552 MP4 + 4 šrouby; protikus = kozlík E; Festo SNCL (SNCL-32 = 174404 „Clevis flange“, nosnost 0,9 kN, Al tlakový odlitek — FESTO_DS 174404)",
+   "zdroj": "SMC_CP96 str. A 137, tabulka „Single clevis (C)“",
+   "sloupce": {"E1": "čtverec základny", "EW": "šířka oka (tolerance −0,2 / −0,6; 125: −0,5 / −1,2)", "TG1": "rozteč šroubů do víka", "FL": "čelo zadního víka → osa čepu",
+               "l1": "tloušťka základny (výklad)", "L": "osa čepu → konec oka (výklad)", "l2": "hloubka zahloubení (výklad)", "d1": "středicí nákružek (H11)", "CD": "díra čepu (H9)",
+               "MR": "poloměr oka", "d2": "díra šroubu", "R1": "poloměr rohu"},
+   "rady": {
+    "32":  {"kod_SMC": "C5032", "E1": 45,  "EW": 26, "TG1": 32.5, "FL": 22, "l1": 5, "L": 12, "l2": 5.5, "d1": 30, "CD": 10, "MR": 9.5, "d2": 6.6,  "R1": 6.5},
+    "40":  {"kod_SMC": "C5040", "E1": 51,  "EW": 28, "TG1": 38,   "FL": 25, "l1": 5, "L": 15, "l2": 5.5, "d1": 35, "CD": 12, "MR": 12,  "d2": 6.6,  "R1": 6.5},
+    "50":  {"kod_SMC": "C5050", "E1": 64,  "EW": 32, "TG1": 46.5, "FL": 27, "l1": 5, "L": 15, "l2": 6.5, "d1": 40, "CD": 12, "MR": 12,  "d2": 9,    "R1": 8.5},
+    "63":  {"kod_SMC": "C5063", "E1": 74,  "EW": 40, "TG1": 56.5, "FL": 32, "l1": 5, "L": 20, "l2": 6.5, "d1": 45, "CD": 16, "MR": 16,  "d2": 9,    "R1": 8.5},
+    "80":  {"kod_SMC": "C5080", "E1": 94,  "EW": 50, "TG1": 72,   "FL": 36, "l1": 5, "L": 20, "l2": 10,  "d1": 45, "CD": 16, "MR": 16,  "d2": 11,   "R1": 11},
+    "100": {"kod_SMC": "C5100", "E1": 113, "EW": 60, "TG1": 89,   "FL": 41, "l1": 5, "L": 25, "l2": 10,  "d1": 55, "CD": 20, "MR": 20,  "d2": 11,   "R1": 12},
+    "125": {"kod_SMC": "C5125", "E1": 157, "E1_pozn": "max.", "EW": 70, "TG1": 110, "FL": 50, "l1": 7, "L": 30, "l2": 10, "d1": 60, "CD": 25, "MR": 26, "d2": 13.5, "R1": 10}
+   }
+  },
+  "kozlik_E": {
+   "nazev": "kozlík pro oko C (clevis pivot bracket E) — kotví se do rámu",
+   "zdroj": "SMC_CP96 str. A 138, tabulka „Clevis pivot bracket (E)“",
+   "sloupce": {"d2": "průměr nákružku čepu (výklad)", "CK": "díra čepu (H9)", "S5": "díra šroubu do rámu", "K1": "rozteč děr S5", "K2": "délka základny (max.)",
+               "l3": "výška nálitku (max., výklad)", "G1": "rozměr podle výkresu (výklad nejistý)", "l1": "rozměr podle výkresu (výklad nejistý)", "G2": "rozteč děr v druhém směru (výklad)",
+               "EM": "šířka mezery pro oko (−0,2 / −0,6)", "G3": "šířka základny (max.)", "CA": "výška osy čepu nad dosedací plochou", "H6": "tloušťka základny", "R1": "poloměr"},
+   "rady": {
+    "32":  {"kod_SMC": "E5032", "d2": 11, "CK": 10, "S5": 6.6, "K1": 38, "K2": 51,  "l3": 10, "G1": 21, "l1": 7,    "G2": 18, "EM": 26, "G3": 31, "CA": 32, "H6": 8,  "R1": 10},
+    "40":  {"kod_SMC": "E5040", "d2": 11, "CK": 12, "S5": 6.6, "K1": 41, "K2": 54,  "l3": 10, "G1": 24, "l1": 9,    "G2": 22, "EM": 28, "G3": 35, "CA": 36, "H6": 10, "R1": 11},
+    "50":  {"kod_SMC": "E5050", "d2": 15, "CK": 12, "S5": 9,   "K1": 50, "K2": 65,  "l3": 12, "G1": 33, "l1": 11,   "G2": 30, "EM": 32, "G3": 45, "CA": 45, "H6": 12, "R1": 12},
+    "63":  {"kod_SMC": "E5063", "d2": 15, "CK": 16, "S5": 9,   "K1": 52, "K2": 67,  "l3": 14, "G1": 37, "l1": 11,   "G2": 35, "EM": 40, "G3": 50, "CA": 50, "H6": 12, "R1": 15},
+    "80":  {"kod_SMC": "E5080", "d2": 18, "CK": 16, "S5": 11,  "K1": 66, "K2": 86,  "l3": 18, "G1": 47, "l1": 12.5, "G2": 40, "EM": 50, "G3": 60, "CA": 63, "H6": 14, "R1": 15},
+    "100": {"kod_SMC": "E5100", "d2": 18, "CK": 20, "S5": 11,  "K1": 76, "K2": 96,  "l3": 20, "G1": 55, "l1": 13.5, "G2": 50, "EM": 60, "G3": 70, "CA": 71, "H6": 15, "R1": 19},
+    "125": {"kod_SMC": "E5125", "d2": 20, "CK": 25, "S5": 14,  "K1": 94, "K2": 124, "l3": 30, "G1": 70, "l1": 17,   "G2": 60, "EM": 70, "G3": 90, "CA": 90, "H6": 20, "R1": 22.5}
+   }
+  },
+  "pistnice_vidlice_GKM_ISO8140": {
+   "nazev": "vidlice pístnice (rod clevis, ISO 8140) + čep; Festo SG (SG-M10x1,25 = 6144, DIN 71752, nosnost 0,9 kN, 103 g — FESTO_DS 6144)",
+   "zdroj": "SMC_CP96 str. A 140, tabulka „Rod clevis: GKM (ISO 8140)“",
+   "sloupce": {"e": "vnitřní závit = KK pístnice", "b": "šířka mezery (+0,5 / +0,15)", "d": "konec závitu → osa čepu (výklad)", "f": "čep (h11) / díra (H9)",
+               "l1": "celková délka", "c": "délka vidlice (min.)", "a": "výška (max.)"},
+   "rady": {
+    "32":     {"kod_SMC": "GKM10-20", "e": "M10x1.25", "b": 10, "d": 40,  "f": 10, "l1": 52,  "c": 20, "a": 20},
+    "40":     {"kod_SMC": "GKM12-24", "e": "M12x1.25", "b": 12, "d": 48,  "f": 12, "l1": 62,  "c": 24, "a": 24},
+    "50,63":  {"kod_SMC": "GKM16-32", "e": "M16x1.5",  "b": 16, "d": 64,  "f": 16, "l1": 83,  "c": 32, "a": 32},
+    "80,100": {"kod_SMC": "GKM20-40", "e": "M20x1.5",  "b": 20, "d": 80,  "f": 20, "l1": 105, "c": 40, "a": 40},
+    "125":    {"kod_SMC": "GKM30-54", "e": "M27x2",    "b": 30, "d": 110, "f": 30, "l1": 148, "c": 54, "a": 55}
+   }
+  },
+  "pistnice_oko_KJ_ISO8139": {
+   "nazev": "kloubová hlava pístnice (rod end, ISO 8139, kulový kloub ±4°); Festo SGS (SGS-M10x1,25 = 9261, nosnost 0,9 kN, 88 g — FESTO_DS 9261)",
+   "zdroj": "SMC_CP96 str. A 140, tabulka „Rod end: KJ (ISO 8139)“",
+   "sloupce": {"d3": "vnitřní závit = KK", "d1": "díra kloubu (H9)", "h": "osa kloubu → čelo hlavy u pístnice (výklad)", "d6": "průměr oka (max.)",
+               "b1": "šířka kloubu (h12)", "l": "délka závitu (min.)", "alfa": "výkyv kloubu °", "l3": "rozměr podle výkresu (výklad nejistý)"},
+   "rady": {
+    "32":     {"kod_SMC": "KJ10D", "d3": "M10x1.25", "d1": 10, "h": 43,  "d6": 28, "b1": 14, "l": 20, "alfa": 4, "l3": 15},
+    "40":     {"kod_SMC": "KJ12D", "d3": "M12x1.25", "d1": 12, "h": 50,  "d6": 32, "b1": 16, "l": 22, "alfa": 4, "l3": 17},
+    "50,63":  {"kod_SMC": "KJ16D", "d3": "M16x1.5",  "d1": 16, "h": 64,  "d6": 42, "b1": 21, "l": 28, "alfa": 4, "l3": 23},
+    "80,100": {"kod_SMC": "KJ20D", "d3": "M20x1.5",  "d1": 20, "h": 77,  "d6": 50, "b1": 25, "l": 33, "alfa": 4, "l3": 27},
+    "125":    {"kod_SMC": "KJ27D", "d3": "M27x2",    "d1": 30, "h": 110, "d6": 70, "b1": 37, "l": 51, "alfa": 4, "l3": 36}
+   }
+  },
+  "pistnice_plovouci_JA": {
+   "nazev": "plovoucí spojka pístnice (floating joint, vyrovná nesouosost); Festo FK (nečteno)",
+   "zdroj": "SMC_CP96 str. A 140, tabulka „Floating joint: JA“",
+   "sloupce": {"M": "závit", "A": "celková délka", "B": "délka závitového čepu", "C": "rozměr podle výkresu", "D": "průměr těla", "E": "mezera / délka podle výkresu",
+               "F": "šestihran čepu", "G": "hloubka vnitřního závitu (výklad)", "H": "šestihran těla", "P": "rozměr podle výkresu", "U": "dovolená výstřednost",
+               "zatizeni_kN": "dovolené zatížení", "hmotnost_g": "hmotnost", "uhel": "dovolený úhel"},
+   "rady": {
+    "32":     {"kod_SMC": "JA30-10-125",  "M": "M10x1.25", "A": 49.5, "B": 19.5, "C": null, "D": 24,   "E": 5,    "F": 8,  "G": 8,    "H": 17, "P": 9,  "U": 0.5,  "zatizeni_kN": 2.5, "hmotnost_g": 70,   "uhel": "±0,5°"},
+    "40":     {"kod_SMC": "JA40-12-125",  "M": "M12x1.25", "A": 60,   "B": 20,   "C": null, "D": 31,   "E": 6,    "F": 11, "G": 11,   "H": 22, "P": 13, "U": 0.75, "zatizeni_kN": 4.4, "hmotnost_g": 160,  "uhel": "±0,5°"},
+    "50,63":  {"kod_SMC": "JA50-16-150",  "M": "M16x1.5",  "A": 71.5, "B": 22,   "C": null, "D": 41,   "E": 7.5,  "F": 14, "G": 13.5, "H": 27, "P": 15, "U": 1,    "zatizeni_kN": 11,  "hmotnost_g": 300,  "uhel": "±0,5°"},
+    "80,100": {"kod_SMC": "JAH50-20-150", "M": "M20x1.5",  "A": 101,  "B": 28,   "C": 31,   "D": 59.5, "E": 11.5, "F": 24, "G": 16,   "H": 32, "P": 18, "U": 2,    "zatizeni_kN": 18,  "hmotnost_g": 1080, "uhel": "±0,5°"},
+    "125":    {"kod_SMC": "JA125-27-200", "M": "M27x2",    "A": 123,  "B": 34,   "C": 38,   "D": 66,   "E": 13,   "F": 27, "G": 20,   "H": 41, "P": 24, "U": 2,    "zatizeni_kN": 28,  "hmotnost_g": 1500, "uhel": "±0,5°"}
+   }
+  },
+  "hmotnosti_SMC_kg": {
+   "zdroj": "SMC_CP96 str. A 131, tabulka „Weight (Guide)“",
+   "zaklad": {"32": 0.46, "40": 0.66, "50": 1.14, "63": 1.48, "80": 2.42, "100": 3.25, "125": 6.82},
+   "s_patkami": {"32": 0.62, "40": 0.86, "50": 1.52, "63": 1.94, "80": 3.31, "100": 4.34, "125": 9.42},
+   "s_prirubou": {"32": 0.66, "40": 0.89, "50": 1.61, "63": 2.06, "80": 3.72, "100": 5.06, "125": 10.92},
+   "s_okem_C": {"32": 0.62, "40": 0.89, "50": 1.51, "63": 2.08, "80": 3.49, "100": 4.98, "125": 10.97},
+   "s_vidlici_D": {"32": 0.66, "40": 0.98, "50": 1.59, "63": 2.19, "80": 3.70, "100": 5.36, "125": 11.07},
+   "na_50mm_zdvihu": {"32": 0.14, "40": 0.18, "50": 0.30, "63": 0.32, "80": 0.49, "100": 0.54, "125": 0.84},
+   "pozn": "hmotnost = základ (s upevněním) + na_50mm_zdvihu × zdvih / 50 (příklad katalogu: CP96SD40-100 = 0,98 + 0,18 × 2 = 1,34 kg)"
+  },
+  "festo_doplnky": {
+   "zdroj": "FESTO_DS (objednací číslo v klíči), čteno 2026-11-03; rozměry v listech nejsou → rozhraní podle ISO 15552 = tabulky SMC výše",
+   "HNC": {"_pozn": "Foot mounting HNC, ISO 15552, ocel pozinkovaná, CRC 1, −40…150 °C; hodnota = 1 ks (Festo HNC se prodává jako 1 ks? — v listu neuvedeno, ověřit)",
+           "32":  {"kod": "174369", "nosnost_kN": 0.9, "hmotnost_g": 144},
+           "40":  {"kod": "174370", "nosnost_kN": 1.5, "hmotnost_g": 193},
+           "50":  {"kod": "174371", "nosnost_kN": 2.5, "hmotnost_g": 353},
+           "63":  {"kod": "174372", "nosnost_kN": 4,   "hmotnost_g": 436},
+           "80":  {"kod": "174373", "nosnost_kN": 6,   "hmotnost_g": 829},
+           "100": {"kod": "174374", "nosnost_kN": 9,   "hmotnost_g": 1009},
+           "125": {"kod": "174375", "nosnost_kN": null, "hmotnost_g": 1902, "pozn": "nosnost v listu neuvedena"}},
+   "FNC": {"_pozn": "Flange mounting FNC, ISO 15552, ocel pozinkovaná; nosnost v listu neuvedena",
+           "32": {"kod": "174376", "hmotnost_g": 220},
+           "50": {"kod": "174378", "hmotnost_g": 540}},
+   "SNCL": {"32": {"kod": "174404", "nosnost_kN": 0.9, "hmotnost_g": 71, "material": "Al tlakový odlitek", "pozn": "Clevis flange = oko MP4"}},
+   "SG":  {"M10x1.25": {"kod": "6144", "norma": "DIN 71752", "nosnost_kN": 0.9, "hmotnost_g": 103}},
+   "SGS": {"M10x1.25": {"kod": "9261", "nosnost_kN": 0.9, "hmotnost_g": 88}},
+   "varovani": "Nosnost Festo příslušenství Ø32 / M10 = 0,9 kN je MENŠÍ než teoretická síla Ø32 při 10 bar (804 N je pod, ale s rázem v koncové poloze ne) — u lisování / doražení na tvrdý doraz kontrolovat sílu × nosnost (modul-valec references/dimenzovani.md)."
+  }
+ },
+ "iso6432": {
+  "patka_L": {
+   "nazev": "patka (rod foot / head foot) C85L…A = 1 ks, C85L…B = 2 ks + matice nákružku; přišroubuje se maticí na nákružek BE",
+   "zdroj": "SMC_C85 str. 10 (rozměry), str. 1 (objednací kódy)",
+   "sloupce": {"AB": "díry do rámu (4 × na pár)", "AO": "díra od volného konce (výklad)", "AV": "délka nákružku pod patkou (výklad)", "LS": "rozteč děr předních a zadních patek bez zdvihu (+ zdvih)",
+               "LT": "tloušťka plechu", "NH": "výška osy nad dosedací plochou", "TR": "rozteč děr napříč (JS14)", "UR": "výška patky", "US": "šířka patky",
+               "W": "čelo předního nákružku → díra (výklad)", "XL": "rozměr bez zdvihu (+ zdvih), výklad: konec pístnice → díra zadní patky", "XS": "konec pístnice → díra přední patky (výklad)"},
+   "rady": {
+    "8":  {"kod_SMC": "C85L10", "AB": 4.5, "AO": 5, "AV": 11, "LS": 68, "LT": 3.2, "NH": 16, "TR": 25, "UR": 26, "US": 35, "W": 12.8, "XL": 73,  "XS": 23.8},
+    "10": {"kod_SMC": "C85L10", "AB": 4.5, "AO": 5, "AV": 11, "LS": 68, "LS_vzduch": 75, "LT": 3.2, "NH": 16, "TR": 25, "UR": 26, "US": 35, "W": 12.8, "XL": 73, "XL_vzduch": 80, "XS": 23.8},
+    "12": {"kod_SMC": "C85L16", "AB": 5.5, "AO": 6, "AV": 14, "LS": 78, "LS_vzduch": 82, "LT": 4, "NH": 20, "TR": 32, "UR": 33, "US": 42, "W": 18, "XL": 86, "XL_vzduch": 90, "XS": 32},
+    "16": {"kod_SMC": "C85L16", "AB": 5.5, "AO": 6, "AV": 14, "LS": 84, "LS_vzduch": 84, "LT": 4, "NH": 20, "TR": 32, "UR": 33, "US": 42, "W": 18, "XL": 92, "XL_vzduch": 92, "XS": 32},
+    "20": {"kod_SMC": "C85L25", "AB": 6.6, "AO": 8, "AV": 17, "LS": 96, "LT": 5, "NH": 25, "TR": 40, "UR": 42, "US": 54, "W": 19, "XL": 103, "XS": 36},
+    "25": {"kod_SMC": "C85L25", "AB": 6.6, "AO": 8, "AV": 17, "LS": 99, "LT": 5, "NH": 25, "TR": 40, "UR": 42, "US": 54, "W": 23, "XL": 110, "XS": 40}
+   }
+  },
+  "priruba_F": {
+   "nazev": "příruba (rod flange / head flange) C85F…; nasazuje se na nákružek ND a drží maticí",
+   "zdroj": "SMC_C85 str. 10",
+   "sloupce": {"FB": "díry do rámu (H13)", "FT": "tloušťka", "TF": "rozteč děr", "UF": "délka příruby", "UR": "šířka příruby", "W": "čelo nákružku → příruba (výklad)", "WL": "rozměr pro zadní přírubu bez zdvihu (+ zdvih)"},
+   "rady": {
+    "8":  {"kod_SMC": "C85F10", "FB": 4.5, "FT": 3.2, "TF": 30, "UF": 40, "UR": 22, "W": 12.8, "WL": 65.2},
+    "10": {"kod_SMC": "C85F10", "FB": 4.5, "FT": 3.2, "TF": 30, "UF": 40, "UR": 22, "W": 12.8, "WL": 65.2, "WL_vzduch": 72.2},
+    "12": {"kod_SMC": "C85F16", "FB": 5.5, "FT": 4,   "TF": 40, "UF": 52, "UR": 30, "W": 18,   "WL": 76, "WL_vzduch": 80},
+    "16": {"kod_SMC": "C85F16", "FB": 5.5, "FT": 4,   "TF": 40, "UF": 52, "UR": 30, "W": 18,   "WL": 82, "WL_vzduch": 82},
+    "20": {"kod_SMC": "C85F25", "FB": 6.6, "FT": 5,   "TF": 50, "UF": 66, "UR": 40, "W": 19,   "WL": 91},
+    "25": {"kod_SMC": "C85F25", "FB": 6.6, "FT": 5,   "TF": 50, "UF": 66, "UR": 40, "W": 23,   "WL": 98}
+   }
+  },
+  "kozlik_C": {
+   "nazev": "kozlík pro integrované oko zadního víka (clevis C85C…) — provedení N má oko CD / EW ve víku (valce.json)",
+   "zdroj": "SMC_C85 str. 10",
+   "sloupce": {"AB": "díry do rámu (2 ×)", "AE": "šířka mezery (výklad)", "AO": "rozměr podle výkresu", "AU": "šířka základny (výklad)", "CD": "čep (H9)", "LG": "délka základny",
+               "LT": "tloušťka", "NH": "výška osy čepu nad plochou", "TR": "rozteč děr", "XC": "konec pístnice → osa čepu bez zdvihu (+ zdvih)"},
+   "rady": {
+    "8":  {"kod_SMC": "C85C10", "AB": 4.5, "AE": 8.1,  "AO": 1.5, "AU": 13.1, "CD": 4, "LG": 20, "LT": 2.5, "NH": 24, "TR": 12.5, "XC": 64},
+    "10": {"kod_SMC": "C85C10", "AB": 4.5, "AE": 8.1,  "AO": 1.5, "AU": 13.1, "CD": 4, "LG": 20, "LT": 2.5, "NH": 24, "TR": 12.5, "XC": 64, "XC_vzduch": 71},
+    "12": {"kod_SMC": "C85C16", "AB": 5.5, "AE": 12.1, "AO": 2,   "AU": 18.5, "CD": 6, "LG": 25, "LT": 3.2, "NH": 27, "TR": 15,   "XC": 75, "XC_vzduch": 79},
+    "16": {"kod_SMC": "C85C16", "AB": 5.5, "AE": 12.1, "AO": 2,   "AU": 18.5, "CD": 6, "LG": 25, "LT": 3.2, "NH": 27, "TR": 15,   "XC": 82, "XC_vzduch": 82},
+    "20": {"kod_SMC": "C85C25", "AB": 6.6, "AE": 16.1, "AO": 4,   "AU": 24.1, "CD": 8, "LG": 32, "LT": 4,   "NH": 30, "TR": 20,   "XC": 95},
+    "25": {"kod_SMC": "C85C25", "AB": 6.6, "AE": 16.1, "AO": 4,   "AU": 24.1, "CD": 8, "LG": 32, "LT": 4,   "NH": 30, "TR": 20,   "XC": 104}
+   }
+  },
+  "pistnice_oko_KJ": {
+   "nazev": "kloubová hlava pístnice (single knuckle joint)",
+   "zdroj": "SMC_C85 str. 15",
+   "sloupce": {"b1": "šířka", "b3": "šířka kloubu", "d": "díra (H7? — sloupec dh7 / díra)", "d6": "průměr oka", "d7": "šestihran / průměr krku", "h": "osa → konec", "l": "délka závitu", "l3": "rozměr podle výkresu", "d3": "závit", "alfa": "výkyv °"},
+   "rady": {
+    "8,10":  {"kod_SMC": "KJ4D",  "b1": 8,  "b3": 6.0,  "d": 5,  "d6": 18, "d7": 11, "h": 27, "l": 10, "l3": 10, "d3": "M4x0.7",   "alfa": 7.5},
+    "12,16": {"kod_SMC": "KJ6D",  "b1": 9,  "b3": 6.75, "d": 6,  "d6": 20, "d7": 13, "h": 30, "l": 12, "l3": 10, "d3": "M6x1",     "alfa": 6.5},
+    "20":    {"kod_SMC": "KJ8D",  "b1": 12, "b3": 9,    "d": 8,  "d6": 24, "d7": 16, "h": 36, "l": 16, "l3": 12, "d3": "M8x1.25",  "alfa": 13},
+    "25":    {"kod_SMC": "KJ10D", "b1": 14, "b3": 10.5, "d": 10, "d6": 28, "d7": 19, "h": 43, "l": 20, "l3": 14, "d3": "M10x1.25", "alfa": 13}
+   }
+  },
+  "pistnice_vidlice_GKM": {
+   "nazev": "vidlice pístnice (double knuckle joint)",
+   "zdroj": "SMC_C85 str. 15",
+   "sloupce": {"b": "mezera", "c": "délka vidlice", "d": "osa čepu → konec", "f": "čep", "g": "výška", "j": "průměr krku", "e": "závit", "l": "celková délka"},
+   "rady": {
+    "8,10":  {"kod_SMC": "GKM4-8",   "b": 4,  "c": 8,  "d": 16, "f": 4,  "g": 8,  "j": 6,  "e": "M4x0.7",   "l": 21},
+    "12,16": {"kod_SMC": "GKM6-12",  "b": 6,  "c": 12, "d": 24, "f": 6,  "g": 10, "j": 8,  "e": "M6x1",     "l": 31},
+    "20":    {"kod_SMC": "GKM8-16",  "b": 8,  "c": 16, "d": 32, "f": 8,  "g": 12, "j": 10, "e": "M8x1.25",  "l": 42},
+    "25":    {"kod_SMC": "GKM10-20", "b": 10, "c": 20, "d": 40, "f": 10, "g": 18, "j": 12, "e": "M10x1.25", "l": 52}
+   }
+  },
+  "pozn_festo": "Festo DSNU (ISO 6432): upevnění HBN (patka), FBN (příruba), SBN (kozlík) — datové listy NEČTENY (objednací čísla nedohledána); rozhraní = nákružek BE / ND a oko podle ISO 6432 (valce.json), tedy tabulky SMC výše platí pro díry a výšky osy jen jako ODHAD pro Festo."
+ },
+ "snimace_v_drazce": {
+  "SMC_D-M9": {
+   "zdroj": "SMC_CP96 str. A 145 „Auto Switch Proper Mounting Position (Detection at stroke end)“, „Minimum Stroke…“, „Operating Range“; str. A 146 (montáž, utahovací moment)",
+   "poloha_A_B": {"_pozn": "A = od čela předního víka (strana pístnice) ke konci snímače, B = od čela zadního víka — výklad výkresu; vždy seřídit na stroji",
+                  "D-M9": {"32": [14, 10.5], "40": [14, 14], "50": [15.5, 14.5], "63": [16.5, 15.5], "80": [21.5, 18], "100": [21.5, 19], "125": [16, 16]},
+                  "D-A9": {"32": [10, 6.5], "40": [10, 10], "50": [11.5, 10.5], "63": [12.5, 11.5], "80": [17.5, 14], "100": [17.5, 15], "125": [12, 12]}},
+   "pracovni_rozsah_mm": {"D-M9": {"32": 4, "40": 4, "50": 5, "63": 6, "80": 5.5, "100": 6, "125": 7},
+                          "D-A9": {"32": 7, "40": 8, "50": 8.5, "63": 9.5, "80": 9.5, "100": 10.5, "125": 12.5}},
+   "min_zdvih_mm": {"D-M9 2 ks na téže ploše": 50, "D-M9 1–2 ks na různých plochách": 10, "D-M9 n ks": "10 + 40 (n − 2)",
+                    "D-M9V 2 ks téže plochy (Ø32–63)": 40},
+   "utahovaci_moment_Nm": {"D-M9 / M9W / A9": "0,05–0,15", "D-M9A": "0,05–0,10"},
+   "pozn": "D-M9 a A9 nejdou do čtvercové drážky CP96 (jen do drážky profilu) — str. A 128 „How to Order“ poznámka; D-M9V jen Ø32–63."
+  },
+  "Festo_SMT-8M": {
+   "zdroj": "FESTO_DS 574334 (SMT-8M-A-PS-24V-E-0,3-M8D)",
+   "hodnoty": {"drazka": "T-slot (For T-slot)", "princip": "magnetorezistivní", "opakovatelnost_mm": 0.2, "vystup": "PNP NO", "konektor": "M8x1 A-kódovaný 3 pin, kabel 0,3 m, vhodný do řetězu",
+               "max_moment_Nm": 0.6, "hmotnost_g": 8.9, "doba_vypnuti_ms": 7.3, "max_frekvence_Hz": 130},
+   "rozmery": "V listu NEJSOU. Změřeno v modelu výrobce DSBC-32 (1376426, pilot 11): drážka otevřená délka 138 mm, ústí 6,0, krček 5,2, hloubka 4,5, střed drážky 6,85 mm od osy — skill automatizacni-technika references/pneumatika.md. Obrys snímače: ODHAD 25 × 6 × 6 (pro3d_modules moduly.json geom.snimac_valce)."
+  }
+ }
+}

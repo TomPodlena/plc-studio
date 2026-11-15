@@ -85,7 +85,7 @@ test("projektová složka: název <číslo>_<Název>, bez diakritiky, jen [A-Za-
 });
 
 /** Dokumenty, které smějí být v 01_Dokumentace — nový dokument musí dostat místo vědomě. */
-const DOCS_KNOWN = new Set(["00_prehled_dokumentace.md", "01_funkcni_specifikace_FDS.md", "02_io_list.csv", "03_svorkovnice.csv",
+const DOCS_KNOWN = new Set(["00_prehled_dokumentace.md", "01_funkcni_specifikace_FDS.md", "02_io_list.csv", "03_svorkovnice.csv", "03_kabelovy_seznam.csv",
   "04_seznam_alarmu.csv", "06_navod_k_obsluze.md", "07_softwarova_dokumentace.md", "08_overeni_simulaci.md", CONCEPT_FILE, EMU_DOC_FILE]);
 const DIR_RE = new RegExp("^(" + [
   PROJECT_DIRS.docs, PROJECT_DIRS.svg, PROJECT_DIRS.dxf, PROJECT_DIRS.code + "/[A-Za-z0-9_-]+", PROJECT_DIRS.hmi,

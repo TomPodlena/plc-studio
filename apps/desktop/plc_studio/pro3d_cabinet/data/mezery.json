@@ -1,0 +1,29 @@
+{
+ "_popis": "Montážní mezery přístrojů (mm): nad, pod, bok (každá strana), pred (od čela přístroje k vnitřnímu líci dveří). Klíč = objednací kód (přesná shoda) nebo předpona kódu v 'rady' (nejdelší shoda vyhrává). stav: 'doloženo' = přečteno v dokumentu výrobce; 'doloženo (skill)' = hodnota s citací ve skillu rozvadec-3d (references/rozmisteni.md §4, ověřeno 2026-10-14), dokument nepřečten znovu; 'výtah' = text výtahu vyhledávače z citovaného dokumentu (PDF > 10 MB neotevřeno — ověřit); null u strany = výrobce stranu neuvádí. Pro přístroj bez záznamu použije generátor ODHAD 'vychozi' a označí ho (DOLOŽIT).",
+ "_precteno": "2026-11-02",
+ "vychozi": {"nad": 30, "pod": 30, "bok": 0, "pred": 20, "stav": "ODHAD", "pozn": "bez dokladu výrobce — konzervativní pracovní hodnota pro prostor vodičů; DOLOŽIT z návodu přístroje"},
+ "polozky": {
+  "6EP3334-7SB00-3AX0": {"nad": 45, "pod": 45, "bok": 0, "pred": null, "stav": "doloženo",
+   "text": "A clearance of at least 45 mm must always be maintained above and below the device (max. cable channel depth, 50 mm). Lateral clearances do not have to be maintained.",
+   "zdroj": {"dokument": "SITOP PSU6200 1ph Equipment Manual, 06.2021, A5E44623264-2-76", "strana": "23 (kap. 4.1 Standard mounting position)", "url": "https://docs.rs-online.com/45b1/A700000008774457.pdf"}},
+  "6ES7214-1AF40-0XB0": {"nad": 25, "pod": 25, "bok": null, "pred": 25, "stav": "doloženo (skill)",
+   "text": "S7-1200 (CPU, SM, CM): 25 mm nad a pod, 25 mm před čelem do skříně",
+   "zdroj": {"dokument": "Siemens S7-1200 Easy Book 01/2015, A5E02486774-AG, kap. 1.5 (citováno ve skillu rozvadec-3d references/rozmisteni.md §4)", "strana": "kap. 1.5", "url": "https://cache.industry.siemens.com/dl/files/145/39710145/att_5787/v1/s71200_easy_book_en-US_en-US.pdf"}},
+  "6EP1333-3BA10": {"nad": 50, "pod": 50, "bok": null, "pred": null, "stav": "doloženo (skill)", "text": "SITOP PSU200M 5 A: 50 mm nad a pod",
+   "zdroj": {"dokument": "SITOP PSU200M návod A5E42154138, 2017-09 (citováno ve skillu rozvadec-3d)", "strana": "neuvedena", "url": ""}},
+  "6EP1334-3BA10": {"nad": 50, "pod": 50, "bok": null, "pred": null, "stav": "doloženo (skill)", "text": "SITOP PSU200M 10 A: 50 mm nad a pod",
+   "zdroj": {"dokument": "SITOP PSU200M návod A5E42154138, 2017-09 (citováno ve skillu rozvadec-3d)", "strana": "neuvedena", "url": ""}}
+ },
+ "rady": {
+  "6ES721": {"nad": 25, "pod": 25, "bok": 25, "pred": 25, "stav": "výtah", "plati": "S7-1200 G2 (CPU 6ES721x-xxx50)", "jen_g2": true,
+   "text": "For proper cooling, allow at least 25 mm of clearance above, below, and on both sides of the system. Also, allow at least 25 mm of depth between the front of the modules and the inside of the enclosure.",
+   "zdroj": {"dokument": "SIMATIC S7-1200 G2 System Manual V1.0.1, 04/2025, A5E52923928-AB (výtah vyhledávače; PDF > 10 MB neotevřeno — OVĚŘIT kapitolu Installation)", "strana": "neověřeno", "url": "https://cache.industry.siemens.com/dl/files/293/109988293/att_1327503/v1/S71200_G2_system_manual_en-US_en-US.pdf"}},
+  "6ES722": {"nad": 25, "pod": 25, "bok": 25, "pred": 25, "stav": "výtah", "plati": "S7-1200 G2 SM 122x (6ES722x-xxx50)", "jen_g2": true, "ref": "6ES721"},
+  "6ES723": {"nad": 25, "pod": 25, "bok": 25, "pred": 25, "stav": "výtah", "plati": "S7-1200 G2 SM 123x (6ES723x-xxx50)", "jen_g2": true, "ref": "6ES721"},
+  "6SL3210-5BE": {"nad": 100, "pod": 100, "bok": 0, "pred": null, "stav": "výtah", "plati": "SINAMICS V20 400 V",
+   "text": "min. 100 mm nad a 100 mm pod (FSA s ventilátorem 85 mm pod), bok 0 mm, montáž nad sebou nepřípustná — generátor bere 100 mm pod (horší případ)",
+   "zdroj": {"dokument": "SINAMICS V20 Operating Instructions 05/2022, A5E34559884-015 (výtah vyhledávače; PDF > 10 MB neotevřeno — OVĚŘIT stranu)", "strana": "neověřeno", "url": "https://cache.industry.siemens.com/dl/files/111/109811111/att_1105033/v1/V20_op_instr_0522_en-US.pdf"}},
+  "6SL3210-1KE": {"nad": 80, "pod": 100, "bok": 0, "pred": null, "stav": "doloženo (skill)", "plati": "SINAMICS G120C FSAA–FSC", "text": "80 mm nad, 100 mm pod, vedle sebe bez mezery",
+   "zdroj": {"dokument": "SINAMICS G120C Operating Instructions 09/2017, A5E34263257B AF, obr. 4-8 (citováno ve skillu rozvadec-3d)", "strana": "obr. 4-8", "url": ""}}
+ }
+}

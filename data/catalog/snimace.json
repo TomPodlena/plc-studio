@@ -117,6 +117,21 @@
           "suppliers": ["Conrad.cz", "RS Components CZ (0498927)", "elektrosms.cz"], "note": "Ovladač (klíč) se objednává zvlášť. Volba a zapojení podle posouzení rizik (EN ISO 13849), návrh k revizi." }
       ]
     },
+    "guard_lock": {
+      "label": "Blokovací zařízení se zámkem (jištění krytu)",
+      "unit": "ks",
+      "brands": [
+        { "brand": "Schmersal", "series": ["AZM201"], "typical": "AZM201Z-SK-T-1P2PW — zámek ochranného krytu s RFID, power to unlock, OSSD",
+          "orderCode": "103013908", "src": "https://products.schmersal.com/en_US/azm201z-sk-t-1p2pw-103013908.html", "priceLevel": "vysoká",
+          "suppliers": ["MERCOM COMPONENTA s.r.o. (Schmersal)", "TME"], "note": "Kontakty hlídání dveří a zamčení jsou součástí přístroje; ovladač AZ/AZM201-B1 podle montáže. Návrh, ověřit v posouzení rizik (EN ISO 14119, EN ISO 13849)." },
+        { "brand": "Euchner", "series": ["CTM-L2-BR"], "typical": "CTM-L2-BR — transpondérový zámek s jištěním (bistabilní), M12, Multicode",
+          "orderCode": "166870", "src": "https://www.euchner.com/en-us/a/166870/", "priceLevel": "vysoká",
+          "suppliers": ["EUCHNER electric s.r.o."], "note": "Ovladač se objednává zvlášť. Návrh, ověřit v posouzení rizik (EN ISO 14119, EN ISO 13849)." },
+        { "brand": "SICK", "series": ["i10 Lock"], "typical": "i10-M0233 Lock — elektromechanický zámek ochranného krytu, 3 NC + 1 NO, M20",
+          "orderCode": "6022580", "src": "https://www.sick.com/media/pdf/3/93/493/dataSheet_i10-M0233-Lock_6022580_en.pdf", "priceLevel": "střední",
+          "suppliers": ["SICK (přes distributory)"], "note": "Ovladač se objednává zvlášť. Návrh, ověřit v posouzení rizik (EN ISO 14119, EN ISO 13849)." }
+      ]
+    },
     "estop_button": {
       "label": "Tlačítko nouzového zastavení",
       "unit": "ks",

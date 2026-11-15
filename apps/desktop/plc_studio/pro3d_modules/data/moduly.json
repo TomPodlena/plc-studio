@@ -1,0 +1,51 @@
+{
+ "_popis": "Data generátoru modulů (mm). Každá hodnota nese zdroj, nebo je ODHAD návrhu (geometrie bez dokladu výrobce — v MODULY.md jako ODHAD s příznakem). Rozměry válců, snímačů a spojovacího materiálu bere generátor z pro3d_parts (valce.json, katalog.json, normalie.json), poloměry ohybu a délky tras ze skillu kabelaz-a-hadice (data/media.json, scripts/trasa.py).",
+ "zavity_G": {
+  "_zdroj": "ISO 228-1:2000 tab. 1 — vnější průměr závitu G (Whitworth trubkový): G1/8 9,728; G1/4 13,157; G3/8 16,662; G1/2 20,955 mm",
+  "G1/8": 9.728, "G1/4": 13.157, "G3/8": 16.662, "G1/2": 20.955, "M5": 5.0
+ },
+ "hadice_podle_pripojky": {
+  "_zdroj": "skill festo-pneumatics (QS-G1/8-6 186096 = G1/8 → Ø6, GRLA-1/8-QS-6-RS-D 197581; PUN-H-8 pro rozvod P/R); větší přípojky ODHAD podle téže řady (QS-G1/4-8, QS-G3/8-10, QS-G1/2-12) — ověřit v katalogu Festo",
+  "M5": {"medium": "festo_PUN_4x0.75", "qs": "QS-M5-4", "grla": "GRLA-M5-QS-4-D", "stav": "ODHAD"},
+  "G1/8": {"medium": "festo_PUN_6x1", "qs": "QS-G1/8-6", "qs_kod": "186096", "grla": "GRLA-1/8-QS-6-RS-D", "grla_kod": "197581", "stav": "skill festo-pneumatics"},
+  "G1/4": {"medium": "festo_PUN_8x1.25", "qs": "QS-G1/4-8", "grla": "GRLA-1/4-QS-8-RS-D", "stav": "ODHAD"},
+  "G3/8": {"medium": "festo_PUN_10x1.5", "qs": "QS-G3/8-10", "grla": "GRLA-3/8-QS-10-RS-D", "stav": "ODHAD"},
+  "G1/2": {"medium": "festo_PUN_12x2", "qs": "QS-G1/2-12", "grla": "GRLA-1/2-QS-12-RS-D", "stav": "ODHAD"}
+ },
+ "rozvod_P": {"medium": "festo_PUN_8x1.25", "zdroj": "skill festo-pneumatics (PUN-H-8×1,25 pro rozvod P/R)"},
+ "qs": {
+  "_zdroj": "skill festo-pneumatics, Mating konstanty (změřeno ve STEP QS-G1/8-6): závit +4,2 mm za dosedem límce, dosed límce −0,2, ústí soketu 16,4 mm nad dosedem; zásuv hadice 17 mm (datový list). Šestihran SW13 (tabulka skillu). Průměry límce a pouzdra = ODHAD.",
+  "zavit": 4.2, "nad_dosedem": 16.4, "zasun": 15.0, "zasun_list": 17.0, "sw": 13.0, "sestihran_h": 7.0, "pouzdro_r_navic": 1.5
+ },
+ "grla": {
+  "_zdroj": "skill festo-pneumatics, Mating konstanty (GRLA STEP): osa věže 13,45 mm od dosedu ramene, ústí soketu věže 24,6 mm od osy závitu. Tvar ramene a průměr věže = ODHAD.",
+  "rameno": 13.45, "vez": 24.6, "zavit": 6.0, "rameno_s": 12.0, "vez_r": 6.5, "zasun": 15.0
+ },
+ "hadice": {"rezerva": {"pct": 5, "mm": 50, "zdroj": "ODHAD — 5 % + 50 mm (zkrácení při montáži), skill kabelaz-a-hadice references/pneumatika.md: rezervu volí konstruktér"}},
+ "kabel": {
+  "rezerva": {"pct": 10, "mm": 200, "zdroj": "ODHAD — 10 % + 200 mm na připojení ve svorkovnici (skill kabelaz-a-hadice references/kabely.md)"},
+  "medium_snimac": "ifm_EVC002",
+  "medium_motor": {"id": "lapp_OLFLEX_CLASSIC_110", "D": 6.5, "D_zdroj": "skill kabelaz-a-hadice data/media.json lapp_OLFLEX_CLASSIC_110: '4G1,0 ~ 6,5 mm podle RS' (průřez podle motoru doplní projektant — ODHAD)"},
+  "medium_ventil": {"typ": "kabel", "nazev": "kabel cívky ventilu M8 (v kusovníku chybí — ODHAD)", "D": 4.3, "pevne": {"x": 10}, "pohyblive": {"x": 10}, "retez": {"x": 10},
+                    "zdroj": "ODHAD — jako ifm EVC002 (skill kabelaz-a-hadice data/media.json), kusovník PLCdesk kabel ventilu nemá", "stav": "neovereno"},
+  "vstup_rozvadec_mm": 40.0, "rozteč_vstupu": 15.0, "upevneni": "stahovací pásky / úchytky na profil po ≤ 300 mm (ODHAD, nekreslí se)"
+ },
+ "kategorie_kabel": {
+  "_popis": "Kategorie řádků manifestu, které mají kabel do rozvaděče (skupina pro oddělení silových a signálových tras; konektor podle typu řádku).",
+  "signal": ["sensor_inductive", "sensor_optical", "sensor_capacitive", "sensor_ultrasonic", "cylinder_switch", "pressure_transmitter", "pressure_switch",
+             "temperature_sensor", "level_sensor", "flow_sensor", "light_curtain", "safety_switch", "estop_button", "pushbutton", "selector_switch",
+             "pilot_light", "beacon", "valve_solenoid", "proportional_valve", "vacuum_switch", "vacuum_ejector", "camera", "encoder", "load_cell", "safety_mat"],
+  "silovy": ["motor", "gearmotor", "servo_motor", "pump", "fan", "heater", "linear_axis"]
+ },
+ "geom": {
+  "_popis": "Konstrukční díly generátoru (návrh k odsouhlasení — rozměry ODHAD, materiál Al EN AW-6082 / ocel S235; pevnost neověřena výpočtem).",
+  "patka_t": 8.0, "patka_l": 40.0, "patka_nad_rt": 12.0, "patka_vule_nakruzku": 1.0,
+  "uchytka_t": 3.0, "uchytka_l": 22.0, "uchytka_s": 20.0, "uchytka_h": 25.0,
+  "drzak_t": 3.0, "drzak_sirka": 30.0, "drzak_noha": 30.0, "drzak_drazka": 5.0,
+  "blok_tlak": [32.0, 32.0, 24.0],
+  "zavit_zaber": 12.0, "srouby": "ISO 4762", "matice_drazka": "matice do drážky 40/8 (model jako v rámu: M6 12×17×5, M8 15,5×17×6 — ALUTEC, ODHAD tvaru)",
+  "snimac_valce": [25.0, 6.0, 6.0], "snimac_valce_zdroj": "ODHAD 25 × 6 × 6 (Festo SMT-8M — rozměry bez dokladu, festo.com blokuje)",
+  "snimac_valce_x": 3.0
+ },
+ "stav": "2026-11-03"
+}

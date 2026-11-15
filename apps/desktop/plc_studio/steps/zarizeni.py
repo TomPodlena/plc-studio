@@ -25,6 +25,13 @@ AXIS_FIELDS = (("vMax", N_("max. rychlost")), ("aMax", N_("max. zrychlení")), (
                ("followMax", N_("max. chyba sledování")), ("jogVel", N_("rychlost ručního pojezdu")),
                ("startPos", N_("poloha po zapnutí (model)")))
 
+# pásový dopravník (Motor / Vfd): rozměry pro konstrukci a export pro CAD (shodně s CONVEYOR_FIELDS v jádře; rozsahy
+# hlídá jádro deviceParamsProblem) — kód ani dokumentaci nemění
+CONVEYOR_CLS = ("Motor", "Vfd")
+CONVEYOR_FIELDS = (("length", N_("délka osová L"), "mm"), ("width", N_("šířka pásu b"), "mm"),
+                   ("speed", N_("rychlost pásu v"), "m/s"), ("load", N_("hmotnost zboží na pásu"), "kg"),
+                   ("height", N_("výška pásu nad podlahou"), "mm"))
+
 
 def _opts_text(app, d: dict) -> str:
     cls = app.CLS[d["cls"]]
@@ -59,7 +66,8 @@ def _opts_text(app, d: dict) -> str:
 PARAM_LABEL = {"limLo": N_("mez min"), "limHi": N_("mez max"), "setpoint": N_("žádaná hodnota"),
                "rampS": N_("rampa [s]"), "tol": N_("tolerance ±"), "tolTimeS": N_("doba odchylky [s]"),
                "selBits": N_("bity výběru záznamu"), "travelS": N_("doba jízdy (model) [s]"),
-               **{"ax:" + k: lbl for k, lbl in AXIS_FIELDS}}
+               **{"ax:" + k: lbl for k, lbl in AXIS_FIELDS},
+               **{"cv:" + k: lbl for k, lbl, _u in CONVEYOR_FIELDS}}
 
 
 def _opt_num(value: str, key: str = ""):
@@ -135,6 +143,18 @@ def param_fields(app, parent, cls: str, d: dict | None = None) -> dict:
         cb.current(keys.index(d.get("role") or "") if (d.get("role") or "") in keys else 0)
         cb.pack(side="left", padx=(6, 14))
         out["role"] = (cb, keys)
+    if cls in CONVEYOR_CLS and "id" in d:
+        # jen u existujícího zařízení (panel parametrů), formulář nového zařízení zůstává krátký
+        cv = d.get("conveyor") or {}
+        box = ttk.Frame(parent)
+        box.pack(side="left", fill="x")
+        ttk.Label(box, text=_("pásový dopravník (rozměry pro konstrukci)")).grid(row=0, column=0, columnspan=6, sticky="w")
+        for i, (key, label, unit) in enumerate(CONVEYOR_FIELDS):
+            r, c = divmod(i, 3)
+            ttk.Label(box, text=f"{_(label)} [{unit}]").grid(row=r + 1, column=2 * c, sticky="w")
+            var = tk.StringVar(value="" if cv.get(key) is None else f"{cv[key]:g}")
+            ttk.Entry(box, textvariable=var, width=8).grid(row=r + 1, column=2 * c + 1, sticky="w", padx=(6, 14))
+            out["cv:" + key] = var
     return out
 
 
@@ -145,7 +165,7 @@ def read_params(vars_: dict) -> dict:
     kontroluje jádro (``deviceParamsProblem``) — stejně jako web."""
     res: dict = {}
     for key, v in vars_.items():
-        if key in ("_app", "_ax") or key.startswith("ax"):   # servoosa: složí se níže do ``axis``
+        if key in ("_app", "_ax") or key.startswith("ax") or key.startswith("cv:"):   # osa / dopravník: složí se níže
             continue
         if key == "unit":
             res["unit"] = v.get().strip() or "mm"
@@ -183,14 +203,22 @@ def read_params(vars_: dict) -> dict:
         ax["positions"] = r["positions"]
         ax["drive"] = vars_["axdrive"].get().strip() or None
         res["axis"] = ax
+    if any(k.startswith("cv:") for k in vars_):
+        cvd: dict = {}
+        for key, _label, _unit in CONVEYOR_FIELDS:
+            try:
+                cvd[key] = _opt_num(vars_["cv:" + key].get(), "cv:" + key)   # None = nezadáno (pole se odebere)
+            except ValueError as exc:
+                raise ValueError(_("Neplatné číslo v poli „{field}“.", field=exc)) from exc
+        res["conveyor"] = cvd
     return res
 
 
 def params_unchanged(d: dict, params: dict) -> bool:
     """Parametry z polí jsou stejné jako v zařízení (opuštění pole beze změny nic neukládá)."""
     for key, v in params.items():
-        if key == "axis":
-            ax = d.get("axis") or {}
+        if key in ("axis", "conveyor"):
+            ax = d.get(key) or {}
             if any(ax.get(k) != val for k, val in v.items()):     # None = pole chybí (výchozí)
                 return False
         elif d.get(key) != v:

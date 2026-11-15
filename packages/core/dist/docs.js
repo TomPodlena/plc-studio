@@ -16,6 +16,9 @@ import { libraryDocHeader } from "./library.js";
 import { projectMetaMd, mdMultiline } from "./project_meta.js";
 import { oopInProject, oopProgram, oopClassSvg, OOP_CLASS_SVG } from "./codegen_oop.js";
 import { svgBlock, sheetSVG, sheetDXF } from "./drawing.js";
+import { powerSheets } from "./power_sheet.js";
+import { pneuSheets } from "./pneu_sheet.js";
+import { cableListCsv, CABLE_LIST_FILE } from "./cable_list.js";
 import { conceptMd } from "./concept.js";
 import { simulate, simBlockers, docVerifyMd, stepWatchdog, stepTitle, stepCondText, T_VFD_SPEED, T_POS_ACK, T_POS_MOVE, T_PROP_SETTLE, T_AXIS_POWER } from "./sim.js";
 import { svgFlow, svgTiming, svgMachine } from "./flow.js";
@@ -625,6 +628,15 @@ export function allProjectFiles(prj) {
         out.push({ group: gSch, name: base + ".svg", save: pre + base + ".svg", body: sheetSVG(prj, m, i + 1, i + 1, mods.length), kind: "svg" });
         out.push({ group: gSch, name: base + ".dxf", save: pre + base + ".dxf", body: sheetDXF(prj, m, i + 1, i + 1, mods.length), kind: "dxf", prev: sheetSVG(prj, m, i + 1, i + 1, mods.length) });
     });
+    for (const ps of powerSheets(prj)) {
+        out.push({ group: gSch, name: ps.base + ".svg", save: "00_" + ps.base + ".svg", body: ps.svg, kind: "svg" });
+        out.push({ group: gSch, name: ps.base + ".dxf", save: "00_" + ps.base + ".dxf", body: ps.dxf, kind: "dxf", prev: ps.svg });
+    }
+    for (const ps of pneuSheets(prj)) {
+        out.push({ group: gSch, name: ps.base + ".svg", save: "00_" + ps.base + ".svg", body: ps.svg, kind: "svg" });
+        out.push({ group: gSch, name: ps.base + ".dxf", save: "00_" + ps.base + ".dxf", body: ps.dxf, kind: "dxf", prev: ps.svg });
+    }
+    out.push({ group: gDocs, name: CABLE_LIST_FILE, save: CABLE_LIST_FILE, body: cableListCsv(prj), kind: "text", dir: "dokumentace" });
     for (const f of out)
         if (f.group === gSch)
             f.dir = "vykresy";

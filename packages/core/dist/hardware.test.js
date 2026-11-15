@@ -4,8 +4,8 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { syncIO, modules, validateProject, addrFor, nativeAddr, ensureGuids, PLAT } from "./model.js";
-import { hwLayout, hwAddr, hwAssign, hwPlatform, HW_VER, HW_DIRS, lxSpecOf } from "./hardware.js";
+import { syncIO, modules, validateProject, addrFor, nativeAddr, ensureGuids, PLAT, blankProject, newProject, NEW_PROJECT_IO_RESERVE_PCT } from "./model.js";
+import { hwLayout, hwAddr, hwAssign, hwPlatform, HW_VER, HW_DIRS, lxSpecOf, hwFreeChannels, ioReserveOf, ioReserveFor, ioReserveText } from "./hardware.js";
 import { buildBom } from "./bom.js";
 import { svorkyCSV, docIOcsv } from "./docs.js";
 import { sheetSVG, svgBlock } from "./drawing.js";
@@ -15,6 +15,7 @@ import { genFor } from "./codegen.js";
 import { lxIoMap } from "./logix.js";
 import { sampleSmall, sampleComplex } from "./samples.js";
 import { sampleNames, loadSampleFile } from "./exp_util.test.js";
+import { normalizeProject } from "./project_norm.js";
 const PLATS = Object.keys(PLAT);
 const clone = (p) => JSON.parse(JSON.stringify(p));
 /** Projekt s platformou hardwaru `plat` (kusovník), adresy přidělené. */
@@ -198,6 +199,96 @@ test("ostatní platformy: vestavěné I/O a čísla podle výrobce", () => {
     assert.equal(R.stations[0].modules.length, 8, "L306ER: 8 lokálních modulů");
     const rem = R.stations[1].modules[0].channels[0];
     assert.match(lxSpecOf(rem), /^RIO1:1:[IO]\.(Pt|Ch)00\.Data$/);
+});
+test("rezerva I/O: výchozí beze změny, rezerva přidá kartu / větší CPU, nesplnitelná = varování", () => {
+    const small = loadSampleFile("01_pasovy_dopravnik_vyhazovac.plcstudio.json");
+    small.devices.push({ id: 900, name: "S99", cls: "DI", desc: "", opt: {}, unit: "", rmin: 0, rmax: 100 });
+    syncIO(small);
+    const sig = (L) => L.modules.map(m => m.key + ":" + (m.opt?.orderCode || "")).join(" ");
+    const L0 = hwLayout(small, "siemens");
+    assert.equal(sig(L0), "S0.1:6ES7212-1AG50-0XB0 S0.B:6ES7212-1AG50-0XB0", "bez rezervy: 1212C, DI 8/8");
+    assert.deepEqual(hwFreeChannels(L0).DI, { used: 8, cap: 8, free: 0 });
+    const info = validateProject(small).filter(i => / DI$/.test(i.where));
+    assert.equal(info.length, 1);
+    assert.equal(info[0].level, "info", "plně obsazený směr bez nastavené rezervy = jen informace");
+    /* prázdná / nulová rezerva = beze změny (golden) */
+    for (const r of [{}, { pct: 0, DI: 0 }]) {
+        const p = clone(small);
+        p.bom = { ...(p.bom || {}), ioReserve: r };
+        assert.equal(sig(hwLayout(p, "siemens")), sig(L0));
+        assert.equal(ioReserveOf(p), undefined);
+    }
+    assert.deepEqual(ioReserveOf({ ...small, bom: { ioReserve: { pct: 300, DI: -1, DO: 2.2 } } }), { pct: 100, DO: 3 });
+    /* rezerva DI 2: SM 1221 G2 ve slotu 2, stávající adresy beze změny */
+    const before = small.io.map(e => hwAddr(small, "siemens", e)).join();
+    const p = clone(small);
+    p.bom = { ...(p.bom || {}), ioReserve: { DI: 2 } };
+    const L = hwLayout(p, "siemens");
+    assert.equal(L.cpu.opt?.orderCode, "6ES7212-1AG50-0XB0");
+    assert.ok(L.modules.some(m => m.slot === 2 && m.opt?.orderCode === "6ES7221-1BH50-0XB0"));
+    assert.equal(p.io.map(e => hwAddr(p, "siemens", e)).join(), before, "připnuté adresy zůstanou");
+    assert.ok(hwFreeChannels(L).DI.free >= 2);
+    assert.deepEqual(validateProject(p).filter(i => / DI$/.test(i.where)), []);
+    assert.equal(ioReserveFor({ pct: 50 }, "DI", 8), 4);
+    assert.equal(ioReserveFor({ pct: 50, DI: 6 }, "DI", 8), 6, "platí větší z obou");
+    assert.equal(ioReserveFor({ pct: 50 }, "AI", 0), 0, "procento jen u použitého směru");
+    assert.match(ioReserveText({ pct: 20, DI: 2 }), /20 %.*DI ≥ 2/);
+    /* zvolené CPU (1214C) + rezerva: bez karty */
+    const q = clone(p);
+    q.bom.lines = { "-A1:plc_cpu": { brand: "Siemens · 6ES7214-1AH50-0XB0" } };
+    assert.equal(sig(hwLayout(q, "siemens")), "S0.1:6ES7214-1AH50-0XB0 S0.B:6ES7214-1AH50-0XB0");
+    /* nesplnitelná rezerva (FX5 bez vzdálených I/O): varování, ne chyba; signály mají kanál */
+    const fx = clone(small);
+    fx.platforms = ["mitsubishi"];
+    fx.bom = { plat: "mitsubishi", ioReserve: { DI: 400 } };
+    syncIO(fx);
+    const Lfx = hwLayout(fx, "mitsubishi");
+    assert.equal(Lfx.overflow.length, 0);
+    const w = validateProject(fx).filter(i => /Rezerva I\/O nesplněna/.test(i.msg));
+    assert.equal(w.length, 1);
+    assert.equal(w[0].level, "warn");
+    assert.deepEqual(validateProject(fx).filter(i => i.level === "error"), []);
+});
+test("rezerva I/O nikdy nepřidá vzdálenou stanici; nový projekt má výchozí rezervu 20 %, ostatní bez rezervy", () => {
+    const small = loadSampleFile("01_pasovy_dopravnik_vyhazovac.plcstudio.json");
+    small.devices.push({ id: 900, name: "S99", cls: "DI", desc: "", opt: {}, unit: "", rmin: 0, rmax: 100 });
+    syncIO(small);
+    /* zvolené 1212C (8 DI + 6 karet × 16 = 104 DI) a rezerva 120 DI: bez ET 200SP, varování s větším CPU */
+    const p = clone(small);
+    p.bom = { ...(p.bom || {}), lines: { "-A1:plc_cpu": { brand: "Siemens · 6ES7212-1AG50-0XB0" } }, ioReserve: { DI: 120 } };
+    const L = hwLayout(p, "siemens");
+    assert.equal(L.stations.length, 1, "rezerva nepřidá vzdálenou stanici");
+    assert.equal(L.modules.filter(m => m.kind === "io" && !m.builtin).length, 0, "plán jako bez rezervy");
+    const w = validateProject(p).filter(i => /Rezerva I\/O nesplněna/.test(i.msg));
+    assert.equal(w.length, 1);
+    assert.equal(w[0].level, "warn");
+    assert.match(w[0].msg, /6ES7214-1AH50-0XB0/, "návrh většího CPU téže řady");
+    /* automatické CPU: rezerva se vejde lokálně do 1214C → 1214C s kartami, bez vzdálené stanice */
+    const q = clone(small);
+    q.bom = { ioReserve: { DI: 120 } };
+    const Lq = hwLayout(q, "siemens");
+    assert.equal(Lq.cpu.opt?.orderCode, "6ES7214-1AH50-0XB0");
+    assert.equal(Lq.stations.length, 1);
+    assert.ok(hwFreeChannels(Lq).DI.free >= 120);
+    /* nesplnitelná ani lokálně: sestava bez rezervy, žádná ET 200SP */
+    const r = clone(small);
+    r.bom = { ioReserve: { DI: 300 } };
+    const Lr = hwLayout(r, "siemens");
+    assert.equal(Lr.stations.length, 1);
+    assert.equal(Lr.cpu.opt?.orderCode, "6ES7212-1AG50-0XB0");
+    assert.match(validateProject(r).find(i => /Rezerva I\/O nesplněna/.test(i.msg)).msg, /žádné/);
+    /* skutečné signály dál smějí do vzdálené stanice (vzor 10), rezerva tam karty přidat smí, stanici ne */
+    const big = loadSampleFile("10_vyrobni_hala_linka_rozdelovacu.plcstudio.json");
+    const nb = hwLayout(big, "siemens").stations.length;
+    const big2 = clone(big);
+    big2.bom = { ...(big2.bom || {}), ioReserve: { pct: 20 } };
+    assert.ok(hwLayout(big2, "siemens").stations.length <= nb);
+    /* výchozí rezerva jen u nového projektu */
+    assert.deepEqual(newProject().bom, { ioReserve: { pct: NEW_PROJECT_IO_RESERVE_PCT } });
+    assert.equal(NEW_PROJECT_IO_RESERVE_PCT, 20);
+    assert.equal(blankProject().bom, undefined, "blankProject (normalizace, vzory, import) bez rezervy");
+    assert.equal(normalizeProject({ meta: { name: "x" }, devices: [], io: [] }).bom, undefined, "načtený projekt se nemigruje");
+    assert.ok(sampleNames().every(n => !loadSampleFile(n).bom?.ioReserve), "vzory bez rezervy");
 });
 test("validateProject: projekt se do platformy nevejde → chyba", () => {
     const p = sampleSmall();

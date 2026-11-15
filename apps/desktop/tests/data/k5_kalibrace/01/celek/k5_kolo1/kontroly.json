@@ -1,0 +1,1345 @@
+{
+ "tool": "pro3d_tools",
+ "version": 1,
+ "model": "C:\\Users\\uzivatel\\AppData\\Roaming\\PLCStudio\\pro3d\\01_pasovy_dopravnik_vyhazovac\\celek\\Celek.FCStd",
+ "model_name": "Celek.FCStd",
+ "sha256": "5a5b4a2d3dd754a9b6367ad6008d29430db391f8bed8ed26107459e3a3699f1d",
+ "created": "2026-10-24T16:34:43",
+ "checks": {
+  "kolize": {
+   "chyby": [],
+   "varovani": [],
+   "info": [
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 251.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1387.5,
+      71.0,
+      872.5
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pohon pásu −M1 (zástupný) + podpěra/Šroub M8×30 příruba M1 → dopravník/Sroub"
+     ],
+     "common": 251.08
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 251.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1492.5,
+      71.0,
+      872.5
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pohon pásu −M1 (zástupný) + podpěra/Šroub M8×30 příruba M1 → dopravník001/Sroub"
+     ],
+     "common": 251.08
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 251.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1130.0,
+      71.0,
+      868.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Vyhazovač −Y1 (válec, konzola, tlačník)/Šroub M8×30 konzola → zadní bočnice/Sroub"
+     ],
+     "common": 251.08
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 251.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1170.0,
+      71.0,
+      868.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Vyhazovač −Y1 (válec, konzola, tlačník)/Šroub M8×30 konzola → zadní bočnice001/Sroub"
+     ],
+     "common": 251.08
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 112.3 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1110.0,
+      -73.5,
+      845.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M6×16 příruba skluzu → přední bočnice/Sroub"
+     ],
+     "common": 112.31
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 112.3 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1200.0,
+      -73.5,
+      845.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M6×16 příruba skluzu → přední bočnice001/Sroub"
+     ],
+     "common": 112.31
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 75.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      500.0,
+      -73.5,
+      838.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×16 lem přední vany → přední bočnice/Sroub"
+     ],
+     "common": 75.15
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 75.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      900.0,
+      -73.5,
+      838.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×16 lem přední vany → přední bočnice001/Sroub"
+     ],
+     "common": 75.15
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 75.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1250.0,
+      -73.5,
+      838.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×16 lem přední vany → přední bočnice002/Sroub"
+     ],
+     "common": 75.15
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 75.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1345.0,
+      -73.5,
+      838.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×16 lem přední vany → přední bočnice003/Sroub"
+     ],
+     "common": 75.15
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 75.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      300.0,
+      73.5,
+      838.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×16 lem vany → zadní bočnice/Sroub"
+     ],
+     "common": 75.15
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 75.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      650.0,
+      73.5,
+      838.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×16 lem vany → zadní bočnice001/Sroub"
+     ],
+     "common": 75.15
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 75.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1260.0,
+      73.5,
+      838.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×16 lem vany → zadní bočnice002/Sroub"
+     ],
+     "common": 75.15
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 75.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1340.0,
+      73.5,
+      838.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×16 lem vany → zadní bočnice003/Sroub"
+     ],
+     "common": 75.15
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 69.4 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1420.0,
+      -74.0,
+      850.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×16 kryt výstupu → přední bočnice/Sroub"
+     ],
+     "common": 69.37
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 69.4 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1480.0,
+      -74.0,
+      850.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×16 kryt výstupu → přední bočnice001/Sroub"
+     ],
+     "common": 69.37
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 57.8 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      5.0,
+      -30.0,
+      850.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×50 kryt bubnu → konec dopravníku/Sroub"
+     ],
+     "common": 57.81
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 57.8 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      5.0,
+      30.0,
+      850.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Kryty a skluz (z rámu; zadní a přední vana s prostupy)/Šroub M5×50 kryt bubnu → konec dopravníku001/Sroub"
+     ],
+     "common": 57.81
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 164.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1224.0,
+      -66.0,
+      876.5
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Snímač −S3 s držákem a odrazkou/Šroub M6×25 držák S3 → přední bočnice/Sroub"
+     ],
+     "common": 164.15
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 164.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1256.0,
+      -66.0,
+      876.5
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Snímač −S3 s držákem a odrazkou/Šroub M6×25 držák S3 → přední bočnice001/Sroub"
+     ],
+     "common": 164.15
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 69.4 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1189.0,
+      60.0,
+      877.3
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Snímač −S3 s držákem a odrazkou/Šroub M5×16 odrazka → zadní bočnice/Sroub"
+     ],
+     "common": 69.37
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 69.4 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      1203.0,
+      60.0,
+      877.3
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Snímač −S3 s držákem a odrazkou/Šroub M5×16 odrazka → zadní bočnice001/Sroub"
+     ],
+     "common": 69.37
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 190.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      140.0,
+      -69.0,
+      850.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pult obsluhy — skříňka + −S1, −S0R, −H1/Šroub M6×25 skříňka → přední bočnice/Sroub"
+     ],
+     "common": 190.07
+    },
+    {
+     "kod": "kolize",
+     "text": "Pásový dopravník 1500×100 (zástupný, mimo kusovník) × Sroub: průnik 190.1 mm³ (dil × sroub, souosá díra)",
+     "poloha": [
+      185.0,
+      -69.0,
+      850.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pásový dopravník (nákupní celek, zástupný)/Pásový dopravník 1500×100 (zástupný, mimo kusovník)",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pult obsluhy — skříňka + −S1, −S0R, −H1/Šroub M6×25 skříňka → přední bočnice001/Sroub"
+     ],
+     "common": 190.07
+    },
+    {
+     "kod": "kolize",
+     "text": "Noha přední — profil 104040 — 810 mm × Sroub: průnik 210.5 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      200.0,
+      -60.0,
+      805.5
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Noha přední — profil 104040 — 810 mm",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Šroub M8×80 stojan → dopravník/Sroub"
+     ],
+     "common": 210.46
+    },
+    {
+     "kod": "kolize",
+     "text": "Noha přední — profil 104040 — 810 mm × Patka stojanu: průnik 116.1 mm³ (profil × patka, souosá díra)",
+     "poloha": [
+      200.0,
+      -60.0,
+      18.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Noha přední — profil 104040 — 810 mm",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Patka stojanu"
+     ],
+     "common": 116.11
+    },
+    {
+     "kod": "kolize",
+     "text": "Noha zadní — profil 104040 — 810 mm × Sroub: průnik 210.5 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      200.0,
+      60.0,
+      805.5
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Noha zadní — profil 104040 — 810 mm",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Šroub M8×80 stojan → dopravník001/Sroub"
+     ],
+     "common": 210.46
+    },
+    {
+     "kod": "kolize",
+     "text": "Noha zadní — profil 104040 — 810 mm × Patka stojanu001: průnik 116.1 mm³ (profil × patka, souosá díra)",
+     "poloha": [
+      200.0,
+      60.0,
+      18.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Noha zadní — profil 104040 — 810 mm",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Patka stojanu001"
+     ],
+     "common": 116.11
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka stojanu — profil 104040 — 80 mm × Sroub: průnik 210.5 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      200.0,
+      -25.5,
+      300.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Příčka stojanu — profil 104040 — 80 mm",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Šroub ISO4762 M8x60/Sroub"
+     ],
+     "common": 210.46
+    },
+    {
+     "kod": "kolize",
+     "text": "Příčka stojanu — profil 104040 — 80 mm × Sroub: průnik 210.5 mm³ (profil × sroub, souosá díra)",
+     "poloha": [
+      200.0,
+      25.5,
+      300.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Příčka stojanu — profil 104040 — 80 mm",
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Stojany dopravníku/Stojan dopravníku (portál 2× noha + příčka)/Šroub ISO4762 M8x001/Sroub"
+     ],
+     "common": 210.46
+    }
+   ],
+   "data": {
+    "kalibrace": {
+     "common": 4000.0,
+     "ocekavano": 4000.0,
+     "mrizka": 64,
+     "ok": true
+    },
+    "dvojic_s_obalkou": 530,
+    "povolenych": 108,
+    "dotyku": 422,
+    "teles": 289,
+    "polohy": [
+     {
+      "poloha": "pístnice vysunuta",
+      "dilu": 1,
+      "dvojic": 2,
+      "chyb": 0
+     },
+     {
+      "poloha": "tlačník vysunut o zdvih 100",
+      "dilu": 1,
+      "dvojic": 1,
+      "chyb": 0
+     },
+     {
+      "poloha": "víko otevřené 105°",
+      "dilu": 7,
+      "dvojic": 14,
+      "chyb": 0
+     },
+     {
+      "poloha": "dveře otevřené 95° (závěs vlevo při pohledu od dveří)",
+      "dilu": 3,
+      "dvojic": 2,
+      "chyb": 0
+     }
+    ]
+   },
+   "secs": 106.2
+  },
+  "souvislost": {
+   "chyby": [],
+   "varovani": [
+    {
+     "kod": "bez-spoje",
+     "text": "Podpěra pohonu M1 — profil 104040 — 745 mm: dotýká se jen dílů bez spojovacího prvku (2 dotyků) — ověřit uchycení",
+     "poloha": [
+      1440.0,
+      240.0,
+      382.5
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pohon pásu −M1 (zástupný) + podpěra/Podpěra pohonu M1 — profil 104040 — 745 mm"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Přepravka 400×300×220 (zástupná): dotýká se jen dílů bez spojovacího prvku (4 dotyků) — ověřit uchycení",
+     "poloha": [
+      1150.0,
+      -826.0,
+      210.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Přepravka (zástupná, mimo kusovník)/Přepravka 400×300×220 (zástupná)"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Telo: dotýká se jen dílů bez spojovacího prvku (10 dotyků) — ověřit uchycení",
+     "poloha": [
+      1150.0,
+      201.0,
+      925.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Vyhazovač −Y1 (válec, konzola, tlačník)/-Y1 Pneumatický válec DSBC-32-100 (dle dokumentace)/Telo"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Nakruzek_predni: dotýká se jen dílů bez spojovacího prvku (2 dotyků) — ověřit uchycení",
+     "poloha": [
+      1150.0,
+      102.0,
+      925.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Vyhazovač −Y1 (válec, konzola, tlačník)/-Y1 Pneumatický válec DSBC-32-100 (dle dokumentace)/Nakruzek_predni"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Nakruzek_zadni: dotýká se jen dílů bez spojovacího prvku (1 dotyků) — ověřit uchycení",
+     "poloha": [
+      1150.0,
+      300.0,
+      925.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Vyhazovač −Y1 (válec, konzola, tlačník)/-Y1 Pneumatický válec DSBC-32-100 (dle dokumentace)/Nakruzek_zadni"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Pistnice001: dotýká se jen dílů bez spojovacího prvku (3 dotyků) — ověřit uchycení",
+     "poloha": [
+      1150.0,
+      80.0,
+      925.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Vyhazovač −Y1 (válec, konzola, tlačník)/-Y1 Pneumatický válec DSBC-32-100 (dle dokumentace)/Pistnice/Pistnice001"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Tlačná deska vyhazovače 40×40×12 (kapsa Ø12 pro pístnici): dotýká se jen dílů bez spojovacího prvku (1 dotyků) — ověřit uchycení",
+     "poloha": [
+      1150.0,
+      58.0,
+      925.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Vyhazovač −Y1 (válec, konzola, tlačník)/Tlačná deska vyhazovače 40×40×12 (kapsa Ø12 pro pístnici)"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "-Y1 Snímač polohy válce 1 (zástupný): dotýká se jen dílů bez spojovacího prvku (2 dotyků) — ověřit uchycení",
+     "poloha": [
+      1150.0,
+      120.5,
+      951.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Vyhazovač −Y1 (válec, konzola, tlačník)/-Y1 Snímač polohy válce 1 (zástupný)"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "-Y1 Snímač polohy válce 2 (zástupný): dotýká se jen dílů bez spojovacího prvku (2 dotyků) — ověřit uchycení",
+     "poloha": [
+      1150.0,
+      281.5,
+      951.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Vyhazovač −Y1 (válec, konzola, tlačník)/-Y1 Snímač polohy válce 2 (zástupný)"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Ovladac: dotýká se jen dílů bez spojovacího prvku (2 dotyků) — ověřit uchycení",
+     "poloha": [
+      162.5,
+      -188.2,
+      1005.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pult obsluhy — skříňka + −S1, −S0R, −H1/-S1 Tlačítko nouzového zastavení (dle dokumentace)/Ovladac"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Teleso_za_panelem: dotýká se jen dílů bez spojovacího prvku (2 dotyků) — ověřit uchycení",
+     "poloha": [
+      162.5,
+      -140.7,
+      1005.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pult obsluhy — skříňka + −S1, −S0R, −H1/-S1 Tlačítko nouzového zastavení (dle dokumentace)/Teleso_za_panelem"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Ovladac: dotýká se jen dílů bez spojovacího prvku (1 dotyků) — ověřit uchycení",
+     "poloha": [
+      162.5,
+      -170.5,
+      945.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pult obsluhy — skříňka + −S1, −S0R, −H1/-S0R Ovládací tlačítko (dle dokumentace)/Ovladac"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Teleso_za_panelem: dotýká se jen dílů bez spojovacího prvku (2 dotyků) — ověřit uchycení",
+     "poloha": [
+      162.5,
+      -140.2,
+      945.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pult obsluhy — skříňka + −S1, −S0R, −H1/-S0R Ovládací tlačítko (dle dokumentace)/Teleso_za_panelem"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Ovladac: dotýká se jen dílů bez spojovacího prvku (1 dotyků) — ověřit uchycení",
+     "poloha": [
+      162.5,
+      -170.9,
+      885.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pult obsluhy — skříňka + −S1, −S0R, −H1/-H1 Signálka (dle dokumentace)/Ovladac"
+     ]
+    },
+    {
+     "kod": "bez-spoje",
+     "text": "Teleso_za_panelem: dotýká se jen dílů bez spojovacího prvku (2 dotyků) — ověřit uchycení",
+     "poloha": [
+      162.5,
+      -140.2,
+      885.0
+     ],
+     "objekty": [
+      "Celek stroje — Pásový dopravník s vyhazovačem/Polní prvky a rám (PLM sestava Polní prvky)/Moduly (rám a kryty, pohony, pneumatika, kabely, žlaby) — odkaz na moduly/Moduly.FCStd/Rám a kryty (odkazy na ram/Ram.FCStd — beze změny)/Pult obsluhy — skříňka + −S1, −S0R, −H1/-H1 Signálka (dle dokumentace)/Teleso_za_panelem"
+     ]
+    }
+   ],
+   "info": [],
+   "data": {
+    "teles": 288,
+    "komponent": 1,
+    "ve_vzduchu": 0,
+    "bez_spoje": 44,
+    "volnych_cel": 0,
+    "podlaha_z": 0.0,
+    "na_podlaze": 14
+   },
+   "secs": 7.9
+  },
+  "otvory": {
+   "chyby": [],
+   "varovani": [],
+   "info": [
+    {
+     "kod": "otvory-oblast",
+     "text": "mřížka 5.0 mm: oblast oříznuta na zóny ± 1000 mm"
+    },
+    {
+     "kod": "otvory-oblast",
+     "text": "mřížka 4.0 mm: oblast oříznuta na zóny ± 1000 mm"
+    },
+    {
+     "kod": "otvory-oblast",
+     "text": "mřížka 3.0 mm: oblast oříznuta na zóny ± 200 mm (místní — jen malé otvory)"
+    },
+    {
+     "kod": "otvor",
+     "text": "e ≈ 76 mm → Sr ≥ 850 mm, změřeno ≥ 878 mm (změřeno v modelu, čtverec 76 × 27 mm; mřížka ukazuje užší místo e ≈ 8 mm u [136.0, -48.0, 906.0] — ověřit měřením, mřížka 4 mm; vstup [132.0, -48.0, 906.0])",
+     "poloha": [
+      252.0,
+      -48.0,
+      906.0
+     ],
+     "e": 76.0,
+     "sr": 878.0,
+     "sr_pozad": 850.0
+    },
+    {
+     "kod": "otvor",
+     "text": "e ≈ 6 mm → Sr ≥ 80 mm, změřeno ≥ 192 mm (odhad z mřížky, mřížka 3 mm; vstup [931.5, -14.5, 896.5])",
+     "poloha": [
+      934.5,
+      -14.5,
+      896.5
+     ],
+     "e": 6.0,
+     "sr": 192.2,
+     "sr_pozad": 80.0
+    }
+   ],
+   "data": {
+    "mrizky": [
+     {
+      "vox": 5.0,
+      "grid": [
+       285,
+       288,
+       286
+      ],
+      "cropped": true,
+      "reach": 1000.0,
+      "lokalni": null,
+      "secs": 237.9,
+      "skipped": null,
+      "cest": 4
+     },
+     {
+      "vox": 4.0,
+      "grid": [
+       356,
+       359,
+       356
+      ],
+      "cropped": true,
+      "reach": 1000.0,
+      "lokalni": null,
+      "secs": 472.2,
+      "skipped": null,
+      "cest": 4
+     },
+     {
+      "vox": 3.0,
+      "grid": [
+       207,
+       172,
+       149
+      ],
+      "cropped": true,
+      "reach": 200.0,
+      "lokalni": true,
+      "secs": 311.3,
+      "skipped": null,
+      "cest": 4
+     }
+    ],
+    "zony": [
+     {
+      "label": "Zona_Tlacnik — dráha tlačníku (zdvih 100)",
+      "bb": [
+       1130.0,
+       1170.0,
+       -48.0,
+       64.0,
+       905.0,
+       945.0
+      ]
+     },
+     {
+      "label": "Zona_Vtah_vystup — vtahovací místo výstupního bubnu (ODHAD Ø80)",
+      "bb": [
+       1440.0,
+       1480.0,
+       -50.0,
+       50.0,
+       900.0,
+       902.0
+      ]
+     }
+    ],
+    "cesty": [
+     {
+      "vox": 4.0,
+      "e": 8.0,
+      "sr_primka": 992.0,
+      "sr_draha": 996.0,
+      "nejuzsi": [
+       136.0,
+       -48.0,
+       906.0
+      ],
+      "vstup": [
+       132.0,
+       -48.0,
+       906.0
+      ],
+      "draha": [
+       [
+        132.0,
+        -48.0,
+        906.0
+       ],
+       [
+        172.0,
+        -48.0,
+        906.0
+       ],
+       [
+        212.0,
+        -48.0,
+        906.0
+       ],
+       [
+        252.0,
+        -48.0,
+        906.0
+       ],
+       [
+        292.0,
+        -48.0,
+        906.0
+       ],
+       [
+        332.0,
+        -48.0,
+        906.0
+       ],
+       [
+        372.0,
+        -48.0,
+        906.0
+       ],
+       [
+        412.0,
+        -48.0,
+        906.0
+       ],
+       [
+        452.0,
+        -48.0,
+        906.0
+       ],
+       [
+        492.0,
+        -48.0,
+        906.0
+       ],
+       [
+        532.0,
+        -48.0,
+        906.0
+       ],
+       [
+        572.0,
+        -48.0,
+        906.0
+       ],
+       [
+        612.0,
+        -48.0,
+        906.0
+       ],
+       [
+        652.0,
+        -48.0,
+        906.0
+       ],
+       [
+        692.0,
+        -48.0,
+        906.0
+       ],
+       [
+        732.0,
+        -48.0,
+        906.0
+       ],
+       [
+        772.0,
+        -48.0,
+        906.0
+       ],
+       [
+        812.0,
+        -48.0,
+        906.0
+       ],
+       [
+        852.0,
+        -48.0,
+        906.0
+       ],
+       [
+        892.0,
+        -48.0,
+        906.0
+       ],
+       [
+        932.0,
+        -48.0,
+        906.0
+       ],
+       [
+        972.0,
+        -48.0,
+        906.0
+       ],
+       [
+        1012.0,
+        -48.0,
+        906.0
+       ],
+       [
+        1052.0,
+        -48.0,
+        906.0
+       ],
+       [
+        1092.0,
+        -48.0,
+        906.0
+       ],
+       [
+        1132.0,
+        -48.0,
+        906.0
+       ]
+      ],
+      "delka_vox": 251,
+      "delka_mer": 26.8,
+      "tvar": "ctverec",
+      "e_mer": 76.0,
+      "sr_mer": 878.0,
+      "sr_draha_mer": 880.0,
+      "bod_mer": [
+       252.0,
+       -48.0,
+       906.0
+      ],
+      "posudek": {
+       "uroven": "ok",
+       "sr_pozad": 850.0,
+       "text": "e ≈ 76 mm → Sr ≥ 850 mm, změřeno ≥ 878 mm"
+      }
+     },
+     {
+      "vox": 3.0,
+      "e": 6.0,
+      "sr_primka": 192.2,
+      "sr_draha": 510.0,
+      "nejuzsi": [
+       934.5,
+       -14.5,
+       896.5
+      ],
+      "vstup": [
+       931.5,
+       -14.5,
+       896.5
+      ],
+      "draha": [
+       [
+        931.5,
+        -14.5,
+        896.5
+       ],
+       [
+        949.5,
+        -14.5,
+        896.5
+       ],
+       [
+        967.5,
+        -14.5,
+        896.5
+       ],
+       [
+        985.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1003.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1021.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1039.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1057.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1075.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1093.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1111.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1129.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1147.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1165.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1183.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1201.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1219.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1237.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1255.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1273.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1291.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1309.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1327.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1345.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1363.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1381.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1399.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1417.5,
+        -14.5,
+        896.5
+       ],
+       [
+        1435.5,
+        -14.5,
+        896.5
+       ]
+      ],
+      "delka_vox": 172,
+      "posudek": {
+       "uroven": "ok",
+       "sr_pozad": 80.0,
+       "text": "e ≈ 6 mm → Sr ≥ 80 mm, změřeno ≥ 192 mm"
+      }
+     }
+    ],
+    "zdroj_tabulky": "ČSN EN ISO 13857:2019 tab. 4 (osoby ≥ 14 let) — přetisk Troax „Safety Guide — ISO 13857“ ref. 202005-1655-EN; převzato ze skillu ramy-a-kryty references/bezpecne-vzdalenosti.md kap. 2.4"
+   },
+   "secs": 1076.4
+  },
+  "kusovnik": {
+   "chyby": [],
+   "varovani": [],
+   "info": [
+    {
+     "kod": "kusovnik-sestava",
+     "text": "asm:cabinet: sestava (Rozvaděč +1 (skříň, přístroje, dveře) — odkaz na rozvadec/Rozvadec.FCStd, dveře k −Y)"
+    },
+    {
+     "kod": "kusovnik-sestava",
+     "text": "asm:field: sestava (Polní prvky a rám (PLM sestava Polní prvky))"
+    },
+    {
+     "kod": "kusovnik-sestava",
+     "text": "asm:project: sestava (Celek stroje — Pásový dopravník s vyhazovačem)"
+    },
+    {
+     "kod": "kusovnik-sestava",
+     "text": "asm:station:0: sestava (PLC stanice 0)"
+    }
+   ],
+   "data": {
+    "radku_manifestu": 24,
+    "dilu_s_id": 43,
+    "umisteni_v_modelu": [
+     "cabinet",
+     "field"
+    ],
+    "radky": [
+     [
+      "+1:cabinet",
+      1,
+      1
+     ],
+     [
+      "-A1:plc_cpu",
+      1,
+      1
+     ],
+     [
+      "-F1:mcb",
+      2,
+      2
+     ],
+     [
+      "-H1:pilot_light",
+      1,
+      1
+     ],
+     [
+      "-K0:safety_relay",
+      2,
+      2
+     ],
+     [
+      "-K1:contactor",
+      1,
+      1
+     ],
+     [
+      "-KS1:contactor_mirror",
+      1,
+      1
+     ],
+     [
+      "-KS2:contactor_mirror",
+      1,
+      1
+     ],
+     [
+      "-M1:gearmotor",
+      1,
+      1
+     ],
+     [
+      "-P1:plc_hmi",
+      1,
+      1
+     ],
+     [
+      "-Q0:main_switch",
+      1,
+      1
+     ],
+     [
+      "-Q1:motor_protection",
+      1,
+      1
+     ],
+     [
+      "-S0R:pushbutton",
+      1,
+      1
+     ],
+     [
+      "-S1:estop_button",
+      1,
+      1
+     ],
+     [
+      "-S2:safety_switch",
+      1,
+      1
+     ],
+     [
+      "-S3:sensor_optical",
+      1,
+      1
+     ],
+     [
+      "-T1:power_supply_24v",
+      1,
+      1
+     ],
+     [
+      "-W1xx:cable_sensor",
+      5,
+      5
+     ],
+     [
+      "-X1:terminal_block",
+      7,
+      7
+     ],
+     [
+      "-X2:terminal_block",
+      3,
+      3
+     ],
+     [
+      "-Y1:cylinder",
+      1,
+      1
+     ],
+     [
+      "-Y1:cylinder_switch",
+      2,
+      2
+     ],
+     [
+      "-Y1:valve_solenoid",
+      1,
+      1
+     ],
+     [
+      "-YS1:safety_valve",
+      1,
+      1
+     ]
+    ],
+    "manifest": "C:\\Users\\uzivatel\\AppData\\Roaming\\PLCStudio\\pro3d\\01_pasovy_dopravnik_vyhazovac\\PLCdesk_CAD.json"
+   }
+  },
+  "stav": {
+   "chyby": [],
+   "varovani": [],
+   "info": [],
+   "data": {
+    "objektu": 33,
+    "zastupnych": 0,
+    "oranzovych_bez_vlastnosti": 0,
+    "dle_dokumentace": 4,
+    "zlutych_bez_vlastnosti": 0,
+    "barev": 21
+   },
+   "secs": 0.0
+  },
+  "step": {
+   "chyby": [],
+   "varovani": [],
+   "info": [],
+   "data": {
+    "soubor": "C:\\Users\\uzivatel\\AppData\\Roaming\\PLCStudio\\pro3d\\01_pasovy_dopravnik_vyhazovac\\celek\\k5_kolo1\\.kontroly\\Celek_kontrola.step",
+    "teles_model": 290,
+    "teles_step": 290,
+    "objem_model": 81650793.4,
+    "objem_step": 81650790.3,
+    "neplatnych": 0,
+    "velikost_B": 5322800
+   },
+   "secs": 4.2
+  }
+ },
+ "freecad": {
+  "ok": true,
+  "secs": 1196.3,
+  "pruchod": {
+   "listu": 293,
+   "realnych": 289,
+   "zon": 2,
+   "dilu_s_id": 43,
+   "preskoceno": {
+    "zdroje": 0,
+    "pomocne": 2,
+    "prazdne": 1,
+    "chyby_tvaru": []
+   },
+   "obalka": [
+    -804.0,
+    1540.0,
+    -1030.0,
+    380.0,
+    0.0,
+    1400.0
+   ],
+   "typy": {
+    "sroub": 94,
+    "matice": 37,
+    "profil": 22,
+    "patka": 14,
+    "kryt": 8,
+    "kabel": 6,
+    "hadice": 3,
+    "prislusenstvi": 34,
+    "rozhrani": 1,
+    "dil": 70
+   }
+  },
+  "error": null
+ },
+ "souhrn": {
+  "chyby": 0,
+  "varovani": 15,
+  "selhalo": [],
+  "stav": "OK"
+ }
+}

@@ -1,5 +1,5 @@
 /* PLCdesk — aplikační shell: stav, navigace, render, jazyk. */
-import { blankProject, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule, escHtml as esc, syncIO, isVerified, helpForStep } from "../../../packages/core/dist/index.js";
+import { blankProject, newProject, PLAT, LANGS, tr, N_, setLang, getLang, registerSafetyModule, registerHmiModule, escHtml as esc, syncIO, isVerified, helpForStep } from "../../../packages/core/dist/index.js";
 import { get as workerGet, peek as workerPeek, forget as workerForget, workerActive, pendingCard } from "./worker_client.js";
 import { makeSteps } from "./steps.js";
 import { makeImportWizard } from "./import_wizard.js";
@@ -79,7 +79,7 @@ function load() {
     /* poškozený stav: začni znovu, ale původní text neztrať — první uložení by ho přepsalo.
        Záloha pod vlastním klíčem (jen jedna, nejnovější); bez místa aspoň do konzole. */
     console.warn("load: poškozený uložený stav, záloha v " + LS_KEY + ".corrupt", e);
-    S.prj = blankProject(); S.ai = { turns: [], last: null, draft: "" }; S.step = 0;
+    S.prj = newProject(); S.ai = { turns: [], last: null, draft: "" }; S.step = 0;
     let kept = false;
     try { localStorage.setItem(LS_KEY + ".corrupt", s); kept = true; } catch { console.warn("load: zálohu nelze uložit", s.slice(0, 2000)); }
     corrupt = { text: s, kept };
@@ -385,7 +385,7 @@ await guard("license", () => initLicense({ project: () => S.prj, onChange: () =>
 await guard("projectDir", () => initProjectDir(), 1500);   // plné / vadné úložiště: IndexedDB se nemusí ozvat — start nečeká déle
 let firstVisit = false;
 if (!load()) {   // první návštěva: prázdný projekt (žádná ukázka) s navrženým číslem projektu
-  S.prj = blankProject();
+  S.prj = newProject();   // nový projekt = výchozí rezerva I/O 20 % (model.ts newProject)
   const num = await guard("number", () => suggestNumberAsync(), 1500);     // ze složek kořene, bez přístupu z historie prohlížeče
   if (num) S.prj.meta.number = num;
   firstVisit = !corrupt;

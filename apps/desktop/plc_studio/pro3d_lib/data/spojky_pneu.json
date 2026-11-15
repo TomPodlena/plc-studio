@@ -1,0 +1,34 @@
+{
+ "_popis": "Spojka V1 pneumatická — doplněk k data/pripojky.json (převzato beze změny ze skillu spojka-pneumaticka, 2026-11-03): hadice (kopie hodnot skillu kabelaz-a-hadice data/media.json — ať knihovna nezávisí na domovské složce; při rozdílu platí media.json) a OBÁLKY zástupných modelů šroubení / GRLA / tlumičů. Každá hodnota obálky, kterou zdroj nemá, je ODHAD (příznak). mm.",
+ "hadice": {
+  "_zdroj": "~/.claude/skills/kabelaz-a-hadice/data/media.json (klíče festo_PUN_*), zdroj tam: Festo datový list 'Plastic tubing PUN, PUN-DUO' 2025/11 https://docs.rs-online.com/b05e/A700000015050216.pdf ('Flow-relevant bending radius', 'Min. bending radius')",
+  "4":  {"kod": "festo_PUN_4x0.75", "nazev": "Festo PUN-4x0,75", "D": 4,  "d": 2.6, "R_min": 8,  "R_prutok": 17},
+  "6":  {"kod": "festo_PUN_6x1",    "nazev": "Festo PUN-6x1",    "D": 6,  "d": 4.0, "R_min": 16, "R_prutok": 26.5},
+  "8":  {"kod": "festo_PUN_8x1.25", "nazev": "Festo PUN-8x1,25", "D": 8,  "d": 5.7, "R_min": 24, "R_prutok": 37},
+  "10": {"kod": "festo_PUN_10x1.5", "nazev": "Festo PUN-10x1,5", "D": 10, "d": 7.0, "R_min": 28, "R_prutok": 54},
+  "12": {"kod": "festo_PUN_12x2",   "nazev": "Festo PUN-12x2",   "D": 12, "d": 8.0, "R_min": 33, "R_prutok": 62}
+ },
+ "vedeni": {
+  "rovny_usek_x_D": {"hodnota": 2, "odhad": true, "_pozn": "rovný úsek hadice za ústím šroubení před prvním ohybem (spojka-pneumaticka references/vedeni.md: rovný úsek u šroubení — násobek ODHAD)"},
+  "polomer": {"hodnota": "R_prutok", "_pozn": "pevné uložení u modulu: poloměr ≥ průtokově přípustný (spojka-pneumaticka SKILL.md Rychlá volba 5)"},
+  "konec_x_D": {"hodnota": 3, "odhad": true, "_pozn": "krátký rovný úsek za obloukem = začátek trasy (trasu dál dělá router P4)"}
+ },
+ "prostor": {
+  "nasunuti_mm": {"hodnota": 20.0, "odhad": true, "_pozn": "volná dráha hadice v ose ústí šroubení (zasunutí / vytažení hadice, stisk uvolňovacího kroužku) — ODHAD"},
+  "prsty_mm": {"hodnota": 8.0, "odhad": true, "_pozn": "radiální prostor kolem hadice u ústí pro prsty na uvolňovacím kroužku — ODHAD"}
+ },
+ "obalky": {
+  "_pozn": "Zástupná obálka šroubení: závit pod dosedem (délka 'zavit'), šestihran SW výšky 'hex_h', nad ním pouzdro Ø 'pouzdro_D' do ústí soketu 'soket'. QS-G1/8-6: závit 4,2 a ústí 16,4 změřeno ve STEP (festo-pneumatics); ostatní ODHAD: soket = zasun − 0,6 (poměr G1/8-6), hex_h = 0,45 × SW, pouzdro = hadice + 6.",
+  "QS-G1/8-6":  {"zavit": 4.2, "soket": 16.4, "hex_h": 6.0, "pouzdro_D": 12.0, "odhad": ["hex_h", "pouzdro_D"]},
+  "QS-G1/8-8":  {"zavit": 4.2, "soket": 17.6, "hex_h": 6.3, "pouzdro_D": 14.0, "odhad": ["soket", "hex_h", "pouzdro_D"]},
+  "QS-G1/4-8":  {"zavit": 5.5, "soket": 17.6, "hex_h": 7.6, "pouzdro_D": 14.0, "odhad": ["zavit", "soket", "hex_h", "pouzdro_D"]},
+  "QS-G1/4-10": {"zavit": 5.5, "soket": 20.1, "hex_h": 7.6, "pouzdro_D": 16.0, "odhad": ["zavit", "soket", "hex_h", "pouzdro_D"]},
+  "QS-G3/8-10": {"zavit": 6.0, "soket": 20.1, "hex_h": 8.5, "pouzdro_D": 16.0, "odhad": ["zavit", "soket", "hex_h", "pouzdro_D"]},
+  "QS-G3/8-12": {"zavit": 6.0, "soket": 22.7, "hex_h": 9.4, "pouzdro_D": 18.0, "odhad": ["zavit", "soket", "hex_h", "pouzdro_D"]},
+  "QSM-M5-4":   {"zavit": 3.0, "soket": 10.9, "hex_h": 3.6, "pouzdro_D": 8.0,  "odhad": ["zavit", "soket", "hex_h", "pouzdro_D"]},
+  "GRLA-1/8-QS-6-RS-D": {"zavit": 4.2, "teleso_D": 14.0, "teleso_h": 26.0, "vez_D": 12.0, "odhad": ["zavit", "teleso_D", "teleso_h", "vez_D"],
+                         "_pozn": "rameno_dosedu 13,45 (osa věže nad dosedem) a vez_od_osy_zavitu 24,6 (ústí soketu věže od osy závitu) jsou v pripojky.json grla_festo (změřeno ve STEP); závit 4,2 jako QS-G1/8 (ODHAD)"},
+  "U-1/8":  {"zavit": 4.2, "D": 11.7, "L": 18.0, "odhad": ["zavit", "D", "L"], "_pozn": "pripojky.json tlumice_festo: obálka ve 3D Ø ≈ 1,2 × d závitu, délka ODHAD"},
+  "UO-1/8": {"zavit": 4.2, "D": 11.7, "L": 22.0, "odhad": ["zavit", "D", "L"]}
+ }
+}

@@ -128,7 +128,7 @@ const SRC = [
             { problem: N_("„Vyber aspoň jednu platformu (krok 3).“"), fix: N_("Bez vybrané platformy se nevygeneruje žádný kód — vyber aspoň jednu dlaždici.") },
             { problem: N_("„Platforma … servoosu nepodporuje“"), fix: N_("Odeber platformu, nebo nahraď servoosu polohovacím pohonem se záznamy (přes I/O).") },
         ],
-        see: ["overeni-platforem", "generovat", "kusovnik"],
+        see: ["overeni-platforem", "plc-nahrani", "generovat", "kusovnik"],
         keywords: N_("platforma, Siemens, Rockwell, CODESYS, Beckhoff, TwinCAT, Mitsubishi, Omron, Schneider, WAGO, Unitronics, OOP, styl kódu, IDE"),
     },
     {
@@ -146,6 +146,7 @@ const SRC = [
             N_("Přejmenování zařízení přejmenuje i jeho výchozí tagy; ručně změněné tagy zůstanou."),
             N_("Smazání zařízení se nejdřív zeptá a ukáže, které kroky programu zařízení používají."),
             N_("Meze analogového vstupu (min / max) se hlídají v programu i v simulaci — mez mimo měřicí rozsah je chyba."),
+            N_("Motor nebo měnič, který pohání pásový dopravník, může mít v parametrech **pásový dopravník**: délku osovou L a šířku pásu b [mm], rychlost [m/s], hmotnost zboží na pásu [kg] a výšku pásu nad podlahou [mm]. Údaje jdou jen do exportu pro CAD (3D) — kód PLC ani dokumentaci nemění."),
             N_("**Import stávajícího zařízení…** dole v kroku převezme stroj z exportů PLC a dalších podkladů."),
             desk(N_("V desktopu se po výběru řádku ukáže panel zařízení s jeho vstupy a výstupy a odkazy do I/O, schématu a programu.")),
         ],
@@ -156,7 +157,7 @@ const SRC = [
             { problem: N_("Kolize jména s rezervovaným slovem"), fix: N_("Jména, která si program deklaruje sám (MAIN, instM1…), a klíčová slova jazyků PLC nejdou použít — zvol jiné označení.") },
         ],
         see: ["io", "program", "import", "knihovna"],
-        keywords: N_("zařízení, motor, ventil, válec, snímač, analog, měnič, pohon, servoosa, osa, třída, označení, meze, žádaná, rampa, maják"),
+        keywords: N_("zařízení, motor, ventil, válec, snímač, analog, měnič, pohon, servoosa, osa, třída, označení, meze, žádaná, rampa, maják, dopravník, pás"),
     },
     {
         id: "io", group: "step", step: 4, title: N_("I/O"),
@@ -189,12 +190,16 @@ const SRC = [
             N_("Projdi **Blokové schéma systému**: zdroje signálů → moduly PLC → akční členy."),
             N_("Otevři **Elektrické zapojení I/O** — jeden list na modul; stáhni / ulož SVG nebo DXF pro EPLAN, AutoCAD či LibreCAD."),
             N_("Zkontroluj **Svorkovnici** (svorka, vodič, tag) a stáhni ji jako CSV."),
+            N_("Má-li projekt rozváděče v kusovníku, přibude **Pneumatické schéma** (ISO 1219-1: úprava vzduchu, lišta, rozváděče, válce, snímače polohy; rozváděč se kreslí jako 5/2 monostabilní jen tehdy, když to nese řádek kusovníku, jinak je na listu „doplní projektant“) — návrh k ověření konstruktérem pneumatiky. Mezi dokumenty je i **kabelový seznam** (jeden řádek na signál, svorka a číslo vodiče jako ve svorkovnici; délku a průřez doplní projektant)."),
+            N_("Dole najdeš **Silové schéma** (přívod, hlavní vypínač, vývody motorů, měničů a servoměničů) a **Rozvod napájení 24 V DC** (zdroj, větve PLC a modulů, ventily, značka větve E-stopu). Označení jsou z kusovníku; proudy, průřezy a nastavení jističů zadání neobsahuje, proto je na listu „doplní projektant“ — je to návrh k ověření elektroprojektantem (EN 60204-1)."),
         ],
         tips: [
             N_("Čísla vodičů odpovídají svorkovnici: X1:1 = -W101, X2:3 = -W203."),
+            N_("Pneumatické schéma má vlastní kartu (web) / záložku (desktop), jen když projekt má rozváděče. Na silovém i pneumatickém schématu je u zařízení odkaz na svorku a vodič řízení (např. X2:3, -W203) ze svorkovnice; kde signál v sestavě není, se odkaz nekreslí."),
             N_("Moduly ve schématu jsou ze sestavy hardwaru — stejné jako v kusovníku."),
             web(N_("Na webu klik na zařízení nebo signál ve schématu otevře pod ním úpravu popisu, tagu, adresy a komentáře.")),
             desk(N_("V desktopu jsou schémata klikací: klik na zařízení ukáže panel s jeho signály a kroky programu, odkazy vedou do I/O, zapojení a programu.")),
+            desk(N_("Jen v desktopu: má-li kusovník rozvaděč, přibude záložka **Rozložení rozvaděče** — 2D výkres montážní desky (lišty, žlaby, přístroje s označením), dveří a dna s vývodkami v měřítku. Kreslí jen hodnoty z výpočtu rozvaděče (rozměry přístrojů označené hvězdičkou jsou ODHAD); návrh k ověření elektroprojektantem. Web tento výpočet nemá.")),
             desk(N_("Jen v desktopu: **Funkční diagram cyklu** ukazuje krok za krokem akce, podmínky přechodu a časy běžného cyklu.")),
             N_("DXF ve tarifu Free není k dispozici (tarif Pro)."),
         ],
@@ -273,16 +278,23 @@ const SRC = [
         summary: N_("Komponenty k poptávce s označením podle IEC 81346: PLC a moduly ze sestavy hardwaru, ke každému zařízení jeho díly (jistič motoru, stykač, rozváděč, snímače…) a rozvaděč. Značky, typy, objednací kódy a dodavatelé z katalogu."),
         steps: [
             N_("Zvol **Platformu řízení** — určí CPU a moduly sestavy hardwaru."),
+            N_("**Rezerva I/O** (volitelně): procento obsazených kanálů nebo minimum volných kanálů DI / DO / AI / AO. PLCdesk pak zvolí CPU a karty tak, aby rezerva zbyla (jen v lokálním racku — kvůli rezervě nepřidá vzdálenou stanici); vedle vidíš volné kanály sestavy. Nový projekt začíná s rezervou 20 %; dřívější projekty, příklady a import stávajícího stroje jsou bez rezervy. Prázdné = bez rezervy."),
             N_("U řádku nebo celé kategorie vyber výrobce a typ z katalogu, případně zadej vlastní."),
             N_("Uprav množství, objednací kód a dodavatele; množství 0 řádek vyřadí z CSV a dokumentace."),
             N_("Stáhni / ulož CSV pro Excel nebo zkopíruj tabulku."),
-            N_("**Export pro CAD (FreeCAD)** uloží PLCdesk_CAD.json: všechny díly kusovníku s označením, objednacím kódem a umístěním (rozvaděč / stroj, DIN lišta / montážní deska / rack PLC), sestavu PLC v pořadí slotů, svorkovnice a vazby (jistič → stykač → motor, rozváděč → válec, snímač → válec, výstup PLC → akční člen). Geometrii nenese — podklad pro stavbu rozvaděče a polních prvků v CADu; v projektové složce leží v 09_Exporty/CAD."),
+            N_("**Export pro CAD (FreeCAD)** uloží PLCdesk_CAD.json: všechny díly kusovníku s označením, objednacím kódem, umístěním (rozvaděč / stroj, DIN lišta / montážní deska / rack PLC) a trvalým GUID, bezpečnostní díly, sestavu PLC v pořadí slotů, svorkovnice a vazby (jistič → stykač → motor, rozváděč → válec, snímač → válec, výstup PLC → akční člen), poslední revizi se stavem schválení a zadání pro 3D koncept (popis, takt, koncept, zařízení s parametry, kroky sekvence, E-stop, blokování a bezpečnostní funkce). I/O se doplní ze zařízení samy. Geometrii nenese — podklad pro stavbu rozvaděče a polních prvků v CADu; v projektové složce leží v 09_Exporty/CAD."),
             N_("**Načíst zpětnou vazbu z CAD…** načte PLCdesk_CAD_feedback.json z kontroly 3D modelu: neshody (malá skříň, nesedí množství, nejednoznačný typ…) s naměřenou a požadovanou hodnotou a návrhem změny řádku. U každé položky zvol **Přijmout návrh**, alternativu, nebo **Odmítnout**; **Použít rozhodnutí** změní jen tvé volby kusovníku a zapíše historii (kdo, kdy, co) do kusovníku a 09_kusovnik.md. Pak **exportuj znovu pro CAD**."),
         ],
         tips: [
             N_("Neshody nalezené ve 3D se neopravují v CADu — PLCdesk je zdroj pravdy kusovníku; nic se nezmění bez tvého rozhodnutí."),
             N_("U malé skříně nabídne PLCdesk nejmenší větší skříň z katalogu podle rozměrů (vnější rozměr se zdrojem; užitný ověř v CAD)."),
+            N_("U dílu s ukončenou výrobou nebo dílu, který nelze objednat (stav u výrobce se zdrojem), nabídne PLCdesk nástupce z CAD a jiné položky katalogu téže kategorie — vhodnost náhrady posuď sám."),
+            N_("U položky **málo kanálů I/O PLC** (např. obsazeno 8 z 8 DI) PLCdesk přepočítá stav podle své sestavy a nabídne rezervu I/O (přidá kartu) nebo větší CPU téže řady — každý návrh je předem ověřený, že rezerva zbude. Po přijetí exportuj znovu pro CAD: manifest ponese novou kartu nebo CPU."),
+            N_("Změna bezpečnostního dílu v kusovníku (E-stop, spínač krytu, bezpečnostní relé…) je v revizi bezpečnostní změna, ne kosmetická."),
             N_("Svorky v kusovníku = svorkovnice výkresů X1…Xn (jedna svorka na kanál); svorky napájení a rezervu doplní projektant."),
+            N_("Výstup zámku krytu (vazba „zámek krytů“ nebo zámek v popisu) dostane v kusovníku **blokovací zařízení se zámkem** (jištění krytu podle EN ISO 14119, např. Schmersal AZM201) — návrh, ověř v posouzení rizik. Blokovací vstup „dveře zavřeny a zamčeny“ je kontakt téhož přístroje a samostatný spínač nedostane."),
+            N_("Díly zařízení se volí i podle popisu: signál z / do jiného stroje (EUROMAP, „signál z lisu“, robot) = konektor rozhraní a vazební relé, ne snímač ani válec; vakuum / přísavky = ejektor, přísavky a spínač podtlaku; chapadlo = paralelní chapadlo (zdvih chapadla zůstává válec). Jiný díl zvol u řádku."),
+            N_("Výstupy majáku tvoří **jednu signální věž** -PF1 s patrem na každý výstup (shora červená, žlutá, modrá, zelená, bílá; barva z popisu, jinak z role výstupu — odhad je v poznámce). Víc věží jen když to popis zařízení říká („věž A“, „věž B“). Volič / přepínač režimů má vlastní řádek voliče, ne tlačítka."),
             N_("Objednací kódy jsou jen ověřené (se zdrojem); ceny katalog neuvádí."),
             N_("Bezpečnostní prvky jsou v kusovníku jen jako hardware s výhradou „návrh k revizi“."),
             N_("**Obnovit výchozí volby** zahodí tvé volby značek a řádků."),
@@ -290,11 +302,49 @@ const SRC = [
         ],
         issues: [
             { problem: N_("„… nevejde se“ (sestava hardwaru)"), fix: N_("Signály se nevejdou do CPU a dostupných modulů platformy — zvol větší CPU v kusovníku, nebo jinou platformu.") },
+            { problem: N_("„Kanály DI jsou obsazené všechny …“ / „Rezerva I/O nesplněna …“"), fix: N_("Plně obsazený směr je jen informace — pro rozšíření nastav Rezervu I/O. Nesplněná rezerva: do sestavy se víc modulů nevejde — zvol větší CPU, jinou platformu nebo menší rezervu.") },
             { problem: N_("„zastaralé — export pro CAD se od kontroly změnil“"), fix: N_("Kusovník se po exportu změnil; návrhy jdou použít, ale posuď je pečlivě. Po použití exportuj znovu pro CAD a nech 3D zkontrolovat znovu.") },
             { problem: N_("„neplatné — v kusovníku chybí …“"), fix: N_("Zpětná vazba odkazuje na řádek, který kusovník nemá (jiný projekt nebo starý export) — oprav ji v CAD a exportuj znovu.") },
         ],
         see: ["nabidka", "platformy", "io"],
-        keywords: N_("kusovník, BOM, komponenty, objednací kód, dodavatel, výrobce, CSV, Excel, poptávka, CPU, moduly"),
+        keywords: N_("kusovník, BOM, komponenty, objednací kód, dodavatel, výrobce, CSV, Excel, poptávka, CPU, moduly, rezerva I/O, volné kanály"),
+    },
+    {
+        id: "pro3d", group: "topic", only: "desktop", preview: true, title: N_("3D agent (PRO)"),
+        summary: N_("Náhled funkce PLCdesk PRO: krok za Kusovníkem, ve kterém AI agenti (Claude Code) automatickým postupem postaví a zkontrolují 3D model stroje ve FreeCADu — vstupy z PLCdesk, koncept, stavba po částech. Krok se ukáže jen se zapnutým náhledem PRO; licence PRO zatím není."),
+        steps: [
+            N_("Zapni náhled: v settings.json ve složce stavu aplikace nastav **pro_preview: true** (nebo proměnnou prostředí PLCDESK_PRO=1) a aplikaci spusť znovu. V liště kroků přibude za Kusovníkem **3D agent (PRO)**."),
+            N_("**Složka 3D stroje**: výchozí je 02_Vykresy/3D v projektové složce; **Vybrat…** zvolí jinou (pamatuje se pro projekt). Krok ukáže verdikt poslední kontroly KONTROLA_K5_*.md, začátek STAV*.md, modely FCStd a náhledy posledních snímků PNG (klik = otevřít)."),
+            N_("Pruh fází ukazuje stav postupu: **① Vstupy z PLCdesk** (bez AI: manifest PLCdesk_CAD.json, kopie projektu, funkční rozbor ROZBOR.md, kusovník KUSOVNIK.csv, program hardwarové platformy s emulací PROGRAM.md, STAV.md) → **② Koncept** → **③ Stavba** (rozvaděč, rám a kryty, moduly, celek a PLM). U každé fáze je stav čeká / běží / kontrola K5, kolo n / schváleno / neschváleno / zastaveno."),
+            N_("Každou část postaví stavitel a hned ji zkontroluje jiná role (Kontrolor K5, model nemění) do KONTROLA_K5_(část)_kolo(N).md; při VRÁCENO ji stavitel opraví a K5 kontroluje znovu, nejvýš 3 kola (rám a kryty 5). Neschválený koncept postup zastaví; neschválená část stavby se zapíše a postup pokračuje další částí."),
+            N_("**Přísná kontrola K5**: kontrolor postupuje podle skillu stroj-kontrolor — pevný kontrolní seznam s důkazem u každé položky a minimum vlastních měření a snímků. **Brána K5** v PLCdesk protokol SCHVÁLENO sama přepíše na VRÁCENO, když seznam není úplný, chybí minimum, snímek je prázdný, neposoudil skutečný počet dílů bez spoje nebo se po schválení změnil model jiné části; brána jen vrací, nikdy neschvaluje."),
+            N_("**Model AI podle role**: pro Koncept, Stavitele a Kontrolora K5 vybereš model (známé modely jako u AI návrháře, nebo vlastní ID); výchozí je Opus 5.5 pro koncept a Sonnet 5.5 pro stavbu a kontrolu. Volba se pamatuje pro projekt, limit kol agenta je v pipeline.json (maxTurns). Skutečnou cenu a model každého běhu zapíše PREHLED.md."),
+            N_("**Spustit celý postup** naváže od posledního hotového kroku (pipeline.json ve složce stroje); **Spustit od fáze…** spustí zvolený krok a všechny další znovu. Před spuštěním se aplikace zeptá, zda spotřebovat kredity tvého tarifu Claude. **Zastavit** ukončí jen proces agenta spuštěný z PLCdesk."),
+            N_("**Pokyny fází**: u každé části rozbalíš výchozí pokyn (šablonu — můžeš ji upravit, uloží se pro projekt; Obnovit výchozí pokyn ji vrátí) a pole **Doplňující pokyn**, které se přidá na konec."),
+            N_("Na konci vznikne **PREHLED.md** (fáze, kola, verdikty, cena a tokeny, předpoklady označené ODHAD, sepsaná zpětná vazba, snímky) a logy běhů v podsložce logy. **Otevřít ve FreeCADu** otevře vybraný model ve vlastní instanci (slot plcdesk-pro), **Načíst zpětnou vazbu z CAD…** je totéž okno jako v Kusovníku."),
+            N_("**Modely ke stažení**: karta ukáže díly, které nemají model dle dokumentace, s výrobcem, objednacím kódem, přesným názvem souboru a stavem (staženo / chybí / v knihovně / zástupný); totéž je v STAHNOUT.md a klikací STAHNOUT.html ve složce stroje (vznikají ve fázi Vstupy). **Otevřít** otevře stránku produktu nebo hledání výrobce v prohlížeči — model stáhneš sám (STEP AP214) a uložíš do models/manual pod názvem ze seznamu, nebo ho necháš ve Stažených souborech. **Načíst stažené** soubor pozná (název, jinak objednací kód nebo typ v názvu či v hlavičce STEP — návrh potvrdíš), ověří ho ve FreeCADu, zaeviduje do models/index.json a zástupný díl v modelu stroje nahradí odkazem na model výrobce."),
+            N_("V **STAHNOUT.html** má každý díl tlačítka ke stažení: stránka produktu výrobce, stránka CAD dat (Siemens CAx Download Manager, Rittal PARTcommunity) a náhradní hledání TraceParts a 3Dfindit. Objednací kód a přesný název souboru zkopíruješ tlačítkem **kopírovat**, odkaz nahoře otevře složku models/manual. Odkazy označené hvězdičkou nejdou ověřit automaticky — když nevedou přímo na díl, vlož kód do hledání portálu."),
+        ],
+        tips: [
+            N_("Agent dostává pravidla práce (vlastní instance FreeCADu, App::Part a App::Link s vypočteným umístěním, zástupné díly oranžově, povolené kolize jen šroub × díra a matice × drážka, nic ve vzduchu, otvory krytů podle ISO 13857 měřením, prohlédnout snímky, PLCdesk = zdroj pravdy kusovníku, bezpečnost jen ke schválení)."),
+            N_("Kontroly modelu počítá kód (pro3d_tools): kolize, souvislost s podlahou, otvory krytů podle ISO 13857 (voxely a měření e a Sr), kusovník × manifest, zástupné díly a STEP → kontroly.json a KONTROLY.md. Stavitel je spouští před odevzdáním, kontrolor nezávisle; SCHVÁLENO s chybou kontrol postup sám zneplatní."),
+            N_("**Normalizované díly kódem** (pro3d_parts): před stavbou vzniknou ve složce dily modely dílů kusovníku, jejichž rozměry jsou v tabulkách se zdrojem (válce ISO 15552 a ISO 6432, přístroje na lištu a PLC Siemens, tlačítka 22 mm, HMI, snímače ifm a SICK, signální věž, svorky WAGO, šrouby, matice, podložky, lišta TS35, vývodky). Stavitel je musí vložit jako odkaz; zástupnou oranžovou obálku staví jen pro zbytek. Pokrytí ukáže PREHLED.md a dily/DILY.md."),
+            N_("**Rozvaděč kódem** (pro3d_cabinet): před stavitelem rozvaděče vznikne model rozvadec/Rozvadec.FCStd přímo z manifestu — skříň (z manifestu, a když se výbava nevejde, nejmenší vyhovující z katalogu), lišty TS35 s rezervou místa 20 %, žlaby rozdělené na silové a signálové s uzemněnými přepážkami, mezery výrobců, přístroje jako odkazy, šrouby, panty, vývodky, PE a N přípojnice, přístroje na dveřích s výřezy a upevněním podle dokumentace a svazky ke dveřím s volným úsekem u pantu na otevření 95° — a ROZVADEC.md s tepelnou bilancí ze ztrát doložených datovými listy (když nevyhovuje, i s filtračním ventilátorem). Stavitel model jen kontroluje a doplňuje kabeláž uvnitř žlabů a popisky; když generátor selže, staví rozvaděč sám."),
+            N_("**Moduly kódem** (pro3d_modules): před stavitelem modulů vznikne moduly/Moduly.FCStd z manifestu, konceptu a schváleného rámu — válce s patkami nebo upevněné čelem, snímače polohy, snímače v držácích s podélnými otvory, zařízení s úchytkami, nosné konstrukce převzaté z konceptu, šroubení a škrticí ventily, hadice a kabely s poloměry ohybu a délkami podle výrobců (vše se šrouby, nic ve vzduchu) — a MODULY.md s tím, co kód nepostavil, s požadavky na rám (díry, průchody) a se zpětnou vazbou; stavitel doplní jen nepostavené."),
+            N_("**Barvy v modelu**: **žlutá** = díl dle dokumentace z generátorů (vkládá se odkazem, nepřebarvuje se), **oranžová** = zástupný díl, ostatní barvy = model výrobce nebo vlastní konstrukce. Barvy dílů ze složky dily uloží krátce spuštěná GUI instance FreeCADu; kontrola stav hlídá, že barva odpovídá stavu dílu."),
+            N_("V automatickém běhu nikdo neodpovídá na otázky: chybějící údaje agent doplní jako označený ODHAD a vypíše je v přehledu. Zpětnou vazbu pro kusovník jen sepíše — použít ji rozhodneš ty v kroku Kusovník."),
+            N_("Zaškrtávátko **TEST: bezpečnostní prvky považovat za schválené** slouží jen ke zkoušce postupu — výstupy pak nesou „TEST – schválení předpokládáno“."),
+            N_("Agent má zúžená oprávnění: jen nástroje souborů, skilly a příkazy powershell / python / node, zápis jen do složky stroje, bez webu a serverů MCP. Volitelný limit ceny (USD) platí pro každý běh agenta."),
+            N_("PLCdesk modely nikdy nestahuje sám: podmínky 3Dfindit / CADENAS, TraceParts i portálů výrobců automatické stahování nedovolují. Do firemní knihovny modelů (model_library ve složce stavu aplikace) jdou jen modely výrobců, jejichž podmínky interní opakované použití dovolují (Siemens, Phoenix Contact); ostatní patří jen k projektu. Co je v knihovně, karta nabídne tlačítkem **Převzít z knihovny**."),
+            N_("Dávka bez okna: python -m plc_studio.pro_pipeline --sample projekt.plcstudio.json --out složka [--no-ai] připraví vstupy (a s AI spustí celý postup) z příkazové řádky."),
+        ],
+        issues: [
+            { problem: N_("„Claude Code nenalezen“"), fix: N_("Nainstaluj Claude Code a přihlas se (claude.exe v PATH nebo v %USERPROFILE%/.local/bin), nebo nastav cestu proměnnou PLCDESK_CLAUDE.") },
+            { problem: N_("„FreeCAD 1.1 nenalezen“"), fix: N_("Nainstaluj FreeCAD 1.1 (výchozí cesta v Programs) a spouštěč vlastní instance run_fc.ps1; bez něj tlačítko Otevřít ve FreeCADu nefunguje, agent může běžet.") },
+            { problem: N_("„Koncept neschválen — postup zastaven“"), fix: N_("Přečti poslední KONTROLA_K5_koncept_kolo(N).md, doplň pokyn konceptu (Doplňující pokyn) nebo údaje v projektu a spusť od fáze Koncept.") },
+        ],
+        see: ["kusovnik"],
+        keywords: N_("PRO, 3D, agent, AI, Claude Code, FreeCAD, model, stavitel, kontrola K5, koncept, snímky, postup, fáze, kolo, přehled, ODHAD, TEST, stažení, STEP, model výrobce, STAHNOUT, knihovna modelů"),
     },
     {
         id: "nabidka", group: "step", step: 9, title: N_("Nabídka"),
@@ -424,8 +474,280 @@ const SRC = [
             N_("Balík obsahuje vzorové výstupy, návod a šablonu protokolu bez osobních údajů."),
             N_("Za ověřený import a zaslaný protokol dostaneš licenci Pro zdarma."),
         ],
-        see: ["platformy", "generovat", "zpetna-vazba"],
+        see: ["platformy", "generovat", "plc-nahrani", "zpetna-vazba"],
         keywords: N_("ověřeno, beta, IDE, štítek, balík k ověření, protokol, TIA Portal, Studio 5000, GX Works3, Sysmac"),
+    },
+    /* Platformy PLC: řady, verze IDE a nahrání programu (rešerše dokumentace výrobců 2026-11-03; zdroj u každé kapitoly) */
+    {
+        id: "plc-nahrani", group: "topic", title: N_("Platformy PLC: řady, verze a nahrání programu"),
+        summary: N_("Pod každou platformou je víc řad řídicích systémů a verzí vývojového prostředí (IDE). PLCdesk vygeneruje zdrojové soubory a README s postupem importu; **do PLC program nahraje až IDE výrobce**. Kapitoly platforem shrnují řady, vazbu verzí a postup nahrání podle dokumentace výrobců."),
+        steps: [
+            N_("V kroku **Generovat** ulož výstup platformy a otevři **README** — říká, které soubory a jak se importují do IDE."),
+            N_("Ověř, že řada CPU patří k tomu, na co PLCdesk generuje, a že verze IDE odpovídá firmwaru CPU (kapitola platformy)."),
+            N_("V IDE importuj, přelož a doplň konfiguraci hardwaru (CPU, moduly, síť, adresy)."),
+            N_("Připoj PC k PLC (nejčastěji Ethernet ve stejné podsíti, případně USB), vyhledej zařízení a spusť nahrání (Download / Write to PLC / Login)."),
+            N_("Rozhodni mezi plným nahráním se zastavením a online změnou za běhu a zkontroluj, co se stane s hodnotami proměnných (retain / persistent / inicializace)."),
+            N_("Přepni PLC do RUN, ověř funkci a pokračuj krokem **Oživení**."),
+        ],
+        tips: [
+            N_("Online změna (bez zastavení programu) jde jen u části změn — změna úloh, hardwaru nebo datových typů obvykle vyžaduje plné nahrání."),
+            N_("Plné nahrání může přepsat aktuální hodnoty proměnných hodnotami z projektu — na běžícím stroji si je před nahráním zazálohuj."),
+            N_("Jak je výstup platformy ověřený (ověřeno v IDE / jazyk ověřen / beta), říká štítek v kroku Platformy a začátek README."),
+            N_("Údaje v kapitolách platforem jsou z dokumentace výrobců (zdroje na konci každé kapitoly, stav k listopadu 2026). Verze se mění — rozhoduje aktuální manuál k tvému CPU."),
+        ],
+        issues: [
+            { problem: N_("Nahraje PLCdesk program přímo do PLC?"), fix: N_("Ne. PLCdesk připraví zdrojové soubory; import, konfiguraci hardwaru, nahrání a spuštění dělá člověk v IDE výrobce.") },
+            { problem: N_("IDE zařízení nenajde"), fix: N_("PC a PLC musí být ve stejné podsíti (ruční IP na síťové kartě PC, ne DHCP); zkontroluj kabel a firewall, u CODESYS běžící Gateway, u TwinCATu ADS route.") },
+            { problem: N_("Verze firmwaru a projektu nesedí"), fix: N_("Aktualizuj firmware CPU nástrojem výrobce, nebo v projektu nastav verzi odpovídající CPU — postup je v kapitole platformy.") },
+        ],
+        see: ["plc-siemens", "plc-rockwell", "plc-beckhoff", "plc-codesys", "plc-schneider", "plc-mitsubishi", "plc-omron", "plc-unitronics", "plc-wago", "plc-delta", "overeni-platforem", "generovat"],
+        keywords: N_("nahrát, nahrání, download, firmware, verze, řada CPU, IDE, online změna, RUN, STOP, připojení, IP adresa"),
+    },
+    {
+        id: "plc-siemens", group: "topic", title: N_("Siemens SIMATIC: řady, TIA Portal a nahrání"),
+        summary: N_("PLCdesk generuje SCL pro **S7-1200 (i G2) a S7-1500** v TIA Portalu (katalog: CPU 1212C / 1214C G2, vzdálené I/O ET 200SP). Starší S7-300 / S7-400 jsou mimo."),
+        steps: [
+            N_("Importuj výstup podle README platformy a přelož hardware i software."),
+            N_("Pravým tlačítkem na stanici zvol **Download to device**. Při prvním nahrání se otevře **Extended download to device**: vyber rozhraní PG/PC, **Start search** a zařízení, jehož IP adresa odpovídá konfiguraci; pak **Load**."),
+            N_("V okně **Load preview** projdi hlášení a navržené akce (např. zastavení CPU); tlačítko Load se zpřístupní, až je vše vyřešené."),
+            N_("**Load results** ukáže výsledek, **Finish** přepne CPU do RUN."),
+        ],
+        tips: [
+            N_("STOP CPU je nutný jen při nahrání konfigurace zařízení nebo změně textových seznamů; samotné bloky STOP nevyžadují."),
+            N_("S7-1200 G2 podporuje TIA Portal od verze V20, starší verze ne. Manuál G2 uvádí firmware V1.0 a V4.1; která verze firmwaru vyžaduje TIA Portal V21, výrobce v manuálu neuvádí (nedoloženo)."),
+            N_("Úrovně ochrany S7-1200 / S7-1500 (CPU → Properties → **Protection & Security**): Full access (u F-CPU i incl. fail-safe), Read access (čtení, upload, HMI, diagnostika, RUN/STOP — bez nahrání bloků a konfigurace a bez aktualizace firmwaru), HMI access a No access; každá úroveň má heslo, které rozlišuje velikost písmen."),
+            N_("S7-1200 G2 místo úrovní používá uživatele a role (UMAC) s právy Full / Read / HMI access; přeložit a nahrát konfiguraci jde, jen když aspoň jeden uživatel má Full access. Staré úrovně zapne volba „Use legacy access control via access levels“."),
+            N_("Úroveň ochrany S7-1500 nenahrazuje ochranu know-how: bloky na paměťové kartě chráněné nejsou."),
+            N_("Firmware S7-1200: projekt pro starší CPU V4.x jde nahrát do CPU V4.x s vyšším firmwarem (funkce zůstanou omezené na starší verzi); do CPU s nižším firmwarem, než má projekt, nahrát nejde."),
+            N_("S7-1500: optimalizované datové bloky s paměťovou rezervou dovolí nahrát nové proměnné bez reinicializace; změna jména, typu nebo remanence proměnné reinicializuje celý blok."),
+            N_("Projekt TIA Portalu V20 otevře jen V20 a novější (není zpětně kompatibilní). Starší projekt se upgraduje otevřením v novější verzi (od V13 SP1 přímo, starší nejdřív ve V13 SP1)."),
+            N_("Paměťová karta S7-1200: **transfer card** zkopíruje program do CPU bez STEP 7, **program card** slouží jako externí paměť programu. Kartu nelze formátovat ve Windows a karty s projekty klasické S7-1200 se nesmí vkládat do G2."),
+            N_("S7-300: konec výroby od 1. 10. 2023, od 1. 10. 2025 jen jako náhradní díl."),
+            N_("Zdroje: Siemens FAQ 42637263 (https://www.ad.siemens.com.cn/download/documentdetail_4332.html), TIA Portal V20 (https://press.siemens.com/global/en/pressrelease/tia-portal-version-20-enabling-peak-performance-and-efficiency), paměť S7-1500 (https://support.industry.siemens.com/cs/attachments/59193101/s71500_structure_and_use_of_the_PLC_memory_function_manual_en-US_en-US.pdf), S7-300 (https://www.siemens.com/nl/nl/products/automation/topic-areas/industry-actueel/productnieuws/s7-300.html)."),
+            N_("Zdroje: S7-1200 System Manual V4.6, kap. 3.2, 5.5, 6, 7.6 (https://cache.industry.siemens.com/dl/files/829/109814829/att_1120874/v1/s71200_system_manual_en-US_en-US.pdf), S7-1200 G2 System Manual V4.1, kap. 5.7, 6.3 (https://cache.industry.siemens.com/dl/files/791/109997791/att_1350879/v2/S71200_G2_system_manual_en-US_en-US.pdf), S7-1500 System Manual 12/2014, kap. 8.2 (https://cache.industry.siemens.com/dl/files/792/59191792/att_856649/v1/s71500_et200mp_system_manual_en-US_en-US.pdf), TIA Portal V20 — kompatibilita projektů (https://docs.tia.siemens.cloud/r/de-de/v20/projekte-bearbeiten/kompatibilitat-von-projekten/kompatibilitat-zwischen-tia-portal-versionen?contentId=KLtsk_znOUcZv3utZUmncw)."),
+        ],
+        issues: [
+            { problem: N_("Extended download nenajde CPU"), fix: N_("Zvol správné rozhraní PG/PC a Start search; PC musí být ve stejné podsíti a IP adresa v konfiguraci musí odpovídat CPU.") },
+            { problem: N_("Tlačítko Load nejde stisknout"), fix: N_("V Load preview vyřeš všechny řádky (např. potvrď zastavení CPU, je-li nutné).") },
+            { problem: N_("Do S7-1200 nahrávaného z TIA V12 a novější nejde nahrát z V11"), fix: N_("CPU nejdřív vrať do továrního nastavení (z TIA Portalu nebo paměťovou kartou).") },
+            { problem: N_("Nahrání odmítnuto kvůli verzi firmwaru"), fix: N_("CPU má nižší firmware, než je nastavený v projektu — v konfiguraci zařízení nastav verzi firmwaru skutečného CPU, nebo CPU aktualizuj.") },
+            { problem: N_("Zapomenuté heslo S7-1200"), fix: N_("Prázdná transfer card vymaže CPU se ztraceným heslem; program se pak nahraje znovu.") },
+        ],
+        see: ["plc-nahrani", "overeni-platforem", "generovat"],
+        keywords: N_("Siemens, SIMATIC, TIA Portal, STEP 7, S7-1200, G2, S7-1500, ET 200SP, S7-300, download, Load preview, Extended download, firmware, ochrana, heslo, access level, paměťová karta"),
+    },
+    {
+        id: "plc-rockwell", group: "topic", title: N_("Rockwell Logix: řady, Studio 5000 a nahrání"),
+        summary: N_("PLCdesk generuje L5X / ST pro **CompactLogix 5380 (5069)** a řadiče Logix ve Studio 5000 Logix Designer. Hlavní (major) revize firmwaru řadiče musí být stejná jako revize projektu."),
+        steps: [
+            N_("Importuj L5X podle README platformy a v projektu nastav revizi shodnou s firmwarem řadiče."),
+            N_("Řadič dej do režimu Program nebo Remote Program (klíč v poloze REM = Remote Program)."),
+            N_("**Communications → Who Active** (komunikační software RSLinx Classic nebo FactoryTalk Linx), vyber řadič, **Set Project Path** (cesta se uloží do projektu) a **Download**."),
+            N_("Drobné změny logiky za běhu: **Logic → Online Edits** (Accept / Test / Assemble program edits)."),
+        ],
+        tips: [
+            N_("Firmware 38.xxx potřebuje Logix Designer v38. Nový řadič se dodává s firmwarem 1.xxx a před použitím se aktualizuje (ControlFLASH / ControlFLASH Plus nebo při downloadu)."),
+            N_("Download přepíše hodnoty tagů v řadiči hodnotami z projektu; řadiče 5380 / 5480 / 5580 od verze 32 umí **Data Preserve Download**, který tomu zabrání."),
+            N_("Projekt jde uložit do nevolatilní paměti (SD karta, Store); obraz se načte jen při shodné revizi firmwaru."),
+            N_("Přepínač režimu (ControlLogix 5580): z RUN do REM = Remote Run, z PROG do REM = Remote Program; v REM přepíná režim Logix Designer (i Remote Test, jen odtud). Výrobce doporučuje za provozu nechat přepínač v RUN a klíč vytáhnout. U CompactLogix 5380 jsme přepínač z manuálu nedoložili."),
+            N_("Nastavení ovladače EtherNet/IP v RSLinx Classic a nové menu verze 38 jsme z dokumentace Rockwell nedoložili."),
+            N_("RSLogix 5000 se od verze 21 jmenuje Studio 5000 Logix Designer. SLC 500 / MicroLogix (RSLogix 500) a Micro800 (Connected Components Workbench) jsou mimo PLCdesk."),
+            N_("Zdroje: ControlLogix 5580 User Manual 1756-UM543 — přepínač režimu (https://www.rockwellautomation.com/en-us/docs/technical/logix5000/_online/1756-um543/controllogix-5580-and-guardlogix-5580-controllers-/create-a-controller-project/use-the-keyswitch-to-change-the-operation-mode.html), ControlLogix 5590 1756-UM900 — změna režimu z Logix Designeru (https://www.rockwellautomation.com/en-au/docs/technical/logix5000/_online/1756-um900/controllogix-5590-controller-user-manual-ditamap/create-a-controller-project/use-the-logix-designer-application-to-change-the-o.html)."),
+            N_("Zdroje: release notes Logix Designer v37 (https://compatibility.rockwellautomation.com/GeneratedReleaseNote.aspx?v1=64786) a v32 (https://compatibility.rockwellautomation.com/GeneratedReleaseNote.aspx?v1=58309), nápověda Logix Designer — Download (https://www.rockwellautomation.com/en-us/docs/studio-5000-logix-designer/37-00/contents-ditamap/quick-start-steps/download.html)."),
+        ],
+        issues: [
+            { problem: N_("Při připojení hlášení o nesouladu revize"), fix: N_("Dialog Connecting to Controller nabídne **Update Firmware** řadiče, nebo změň revizi projektu podle firmwaru.") },
+            { problem: N_("Download nejde, řadič je v RUN"), fix: N_("Přepni řadič do Program / Remote Program.") },
+        ],
+        see: ["plc-nahrani", "overeni-platforem", "generovat"],
+        keywords: N_("Rockwell, Allen-Bradley, Studio 5000, Logix Designer, RSLogix 5000, CompactLogix, ControlLogix, 5380, L5X, Who Active, ControlFLASH, revize, download"),
+    },
+    {
+        id: "plc-beckhoff", group: "topic", title: N_("Beckhoff TwinCAT 3: řady, verze a nahrání"),
+        summary: N_("PLCdesk generuje ST pro **TwinCAT 3** na embedded PC CX a průmyslových PC (katalog: CX7000, CX8100, C6015 / C6017). TwinCAT 2 je mimo."),
+        steps: [
+            N_("Vytvoř projekt TwinCAT 3 v XAE a vlož výstup podle README platformy."),
+            N_("**SYSTEM → Choose Target → Search → Broadcast Search** (jen ve stejné podsíti, jinak zadej IP) a **Add Route** s přihlašovacími údaji cíle."),
+            N_("**Activate Configuration** přenese konfiguraci na cíl; bez licence nabídne 7denní zkušební licenci a pak přepnutí do Run."),
+            N_("PLC → **Login**: plné nahrání nebo **Online Change**; nakonec boot projekt (Autostart), aby program naběhl i po restartu."),
+        ],
+        tips: [
+            N_("TwinCAT 3.1 build 4026 se instaluje přes TwinCAT Package Manager (účet myBeckhoff); z 4024 se na 4026 přechází migrací. CX7000 potřebuje build 4024.12 a vyšší, CX9020 nejvýš 4024."),
+            N_("XAE (vývoj) je zdarma; runtime na cíli potřebuje placené licence podle výkonnostní třídy, 7denní zkušební licenci lze v XAE vytvořit opakovaně."),
+            N_("Plné nahrání reinicializuje všechny proměnné kromě PERSISTENT; Online Change nahraje jen změny bez zastavení, ale ne po Clean, změně úloh, EXTENDS / IMPLEMENTS nebo typu proměnné."),
+            N_("Zdroje: Beckhoff Infosys — ADS route (https://infosys.beckhoff.com/content/1033/tc3_system/5211773067.html), Online Change (https://infosys.beckhoff.com/content/1033/tc3_plc_intro/2528041355.html), download (https://infosys.beckhoff.com/content/1033/tc3_plc_intro/2528058507.html), instalace 4026 (https://infosys.beckhoff.com/content/1033/tc3_installation/15698617995.html)."),
+        ],
+        issues: [
+            { problem: N_("Broadcast Search cíl nenajde"), fix: N_("Povol ve firewallu TCP 48898 (ADS), UDP 48899 (Broadcast Search) a TCP 8016 (Secure ADS), nebo zadej IP adresu ručně.") },
+            { problem: N_("Runtime na vývojovém PC nejde spustit"), fix: N_("Když na PC běží Hyper-V (i VBS), funguje jen XAE; na test použij Usermode Runtime (od 4026.21, bez EtherCAT) nebo skutečný cíl.") },
+        ],
+        see: ["plc-nahrani", "plc-codesys", "overeni-platforem", "generovat"],
+        keywords: N_("Beckhoff, TwinCAT, XAE, CX7000, CX8100, ADS, route, Activate Configuration, Online Change, boot projekt, 4024, 4026, Package Manager"),
+    },
+    {
+        id: "plc-codesys", group: "topic", title: N_("CODESYS V3.5: verze, zařízení a nahrání"),
+        summary: N_("Kód pro CODESYS a jeho profily (WAGO, Delta, Turck, Festo, ABB, Rexroth, Inovance, Weidmüller, Eaton, Lenze, Berghof, Hitachi) je stejný ST / PLCopen XML; liší se IDE výrobce, popis zařízení a firmware runtime."),
+        steps: [
+            N_("Importuj PLCopen_Import.xml nebo soubory ST podle README platformy (včetně volání MAIN v úloze MainTask)."),
+            N_("V **Communication Settings** zvol Gateway, **Scan Network** a nastav aktivní cestu k zařízení."),
+            N_("**Online → Login**: u změněné aplikace vyber Login with Online Change, Login with download, nebo přihlášení beze změny."),
+            N_("Vytvoř **boot aplikaci** (při downloadu podle nastavení, nebo explicitně), aby program naběhl po restartu, a aplikaci spusť."),
+        ],
+        tips: [
+            N_("Verze kompilátoru je nezávislá na verzi IDE (Project Environment); instalace obsahuje kompilátory zpět do 3.5.17.0."),
+            N_("Starší popis zařízení s novějším runtime se při Login přijme, novější popis se starším runtime ne — popis zařízení drž ve verzi firmwaru (Update Device / Project Environment)."),
+            N_("Hodnoty proměnných: Online Change zachová vše; Reset Warm jen RETAIN a PERSISTENT; Reset Cold a Download jen PERSISTENT; Reset Origin nic."),
+            N_("Bez platné licence běží runtime CODESYS jen 2 hodiny."),
+            N_("Od CODESYS Control SL 3.5 SP17 je správa uživatelů zařízení ve výchozím stavu vynucená: při prvním Login aplikace vyzve k jejímu zapnutí a založíš uživatele ve skupině Administrator. Zapnout ji jde z IDE aspoň V3.5 SP16; vypnutí (Change Runtime Security Policy) otevře řadič komukoli v síti."),
+            N_("Zdroje: CODESYS Online Help — správa uživatelů na PLC (https://content.helpme-codesys.com/en/Security/_sec_user_management_plc.html)."),
+            N_("Profily dalších výrobců mají vlastní IDE a balík zařízení — název a verzi CODESYS uvádí README platformy."),
+            N_("Zdroje: CODESYS Online Help — Online Change (https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_cmd_online_change.html), persistence dat (https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_f_setting_data_persistence.html), kompatibilita (https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_rtsl_compatibility.html), verze kompilátoru (https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_changing_compiler_version.html)."),
+        ],
+        issues: [
+            { problem: N_("Scan Network zařízení nenajde"), fix: N_("Výchozí komunikace je UDP — PC a zařízení musí být ve stejné podsíti se stejnou maskou; Gateway musí běžet, zkus vypnout filtr podle Target ID.") },
+            { problem: N_("Nabízí se jen download, ne online změna"), fix: N_("Online změna nejde po změně úloh, voleb kompilace, EXTENDS / IMPLEMENTS, typu proměnné, stromu zařízení (i Update Device) nebo po Clean All — nahraj plně a počítej s inicializací proměnných.") },
+            { problem: N_("Chybí popis zařízení"), fix: N_("Použij Download Missing Device Description, jinak ho získej od výrobce (balík zařízení).") },
+        ],
+        see: ["plc-nahrani", "plc-wago", "plc-delta", "plc-schneider", "overeni-platforem", "generovat"],
+        keywords: N_("CODESYS, V3.5, Gateway, Scan Network, Login, Online Change, boot aplikace, popis zařízení, device description, kompilátor, RETAIN, PERSISTENT, Turck, Festo, ABB, Rexroth, Eaton, Lenze"),
+    },
+    {
+        id: "plc-wago", group: "topic", title: N_("WAGO PFC a CC100: firmware, IDE a nahrání"),
+        summary: N_("PLCdesk generuje kód CODESYS V3.5 pro **PFC100 / PFC200 s I/O 750** (katalog i CC100). Rozhoduje firmware: do FW22 se programuje v e!COCKPIT, od FW23 v CODESYS V3.5 s balíkem zařízení WAGO."),
+        steps: [
+            N_("Zjisti firmware řadiče a podle něj zvol e!COCKPIT (do FW22) nebo CODESYS V3.5 (od FW23)."),
+            N_("Importuj výstup podle README platformy (GVL_IO bez AT — kanály se přiřazují v I/O mapování)."),
+            N_("Připoj se jako v CODESYS: Scan Network, výběr zařízení, Login, download a boot aplikace."),
+        ],
+        tips: [
+            N_("Převod z e!COCKPIT: projekt nejdřív v e!COCKPIT 1.11 / FW22 / kompilátor 3.5.17, zařízení pak na FW23; z FW22 nejde v CODESYS aktualizovat rovnou na FW24; licence doplňků z e!COCKPIT nejdou použít znovu."),
+            N_("V e!COCKPIT má projekt jednu verzi kompilátoru a ta odpovídá jen jedné verzi firmwaru — smíšené verze firmwaru v jednom projektu nejdou."),
+            N_("Zdroje: WAGO — migrace e!COCKPIT (https://techdocs.wago.com/Software/eCOCKPIT_Migration/en-US/2061129739.html), verze kompilátoru (https://techdocs.wago.com/Software/eCOCKPIT/en-US/272929291.html), release notes PFC200 FW 26 (https://downloadcenter.wago.com/api/uploads/2023_11_09_Release_Notes_750_8x1x_62e7f35523.pdf)."),
+        ],
+        issues: [
+            { problem: N_("Firmware a IDE nesedí"), fix: N_("Aktualizuj firmware, nebo použij IDE odpovídající firmwaru (e!COCKPIT do FW22, CODESYS V3.5 od FW23).") },
+            { problem: N_("Chyby připojení a online změny"), fix: N_("Platí stejná pravidla jako v kapitole CODESYS V3.5.") },
+        ],
+        see: ["plc-nahrani", "plc-codesys", "overeni-platforem", "generovat"],
+        keywords: N_("WAGO, PFC200, PFC100, CC100, 750, e!COCKPIT, firmware, FW22, FW23, CODESYS V3.5, migrace"),
+    },
+    {
+        id: "plc-delta", group: "topic", title: N_("Delta AX: DIADesigner-AX a nahrání"),
+        summary: N_("PLCdesk generuje kód CODESYS V3.5 pro **AX-3 / AX-5 / AX-8** (katalog: AX-308E s moduly AS). Programuje se v DIADesigner-AX, do kterého Delta integrovala CODESYS."),
+        steps: [
+            N_("Importuj výstup podle README platformy (adresy jsou výrazně označené jako neověřené)."),
+            N_("Instalace DIADesigner-AX založí **CODESYS Gateway V3** (ikona na liště, startuje s Windows); stav ukazuje karta **Communication Settings** v okně zařízení (zelená = běží)."),
+            N_("**Scan Network** → vyber CPU → OK (nebo zadej IP adresu či jméno zařízení), pak **Login** a stažení programu potvrď (postup z manuálu AX-8)."),
+            N_("Další postup (boot aplikace, start) vychází z CODESYS — viz kapitola CODESYS V3.5."),
+        ],
+        tips: [
+            N_("AX-308E je první AX-3 na CODESYS a používá I/O řady AS; AX-8 je řada na bázi PC."),
+            N_("Volba **Apply IP settings while download** zapíše při stažení do CPU IP adresu z projektu (AX-8, porty GLAN1 / GLAN2)."),
+            N_("Výchozí IP adresu AX-3, postup boot aplikace a verzi CODESYS pod DIADesigner-AX jsme nedoložili (manuály AX-3 a DIADesigner-AX nebyly dostupné; AX-8 má v příkladu manuálu 192.168.1.10) — řiď se manuálem svého CPU."),
+            N_("Zdroje: AX-8 Series Operation Manual, kap. 3.2, 4, 7 (https://baa.vn/document/ax-8-series-delta-bo-dieu-khien-chuyen-dong-12786-catalog.pdf)."),
+            N_("Zdroje: Delta — AX-308E (https://www.delta-emea.com/en-gb/news/30754), DIADesigner-AX (https://diastudio.deltaww.com/home/Specification?Type=5), katalog AX-8 (https://www.deltaww.com/IA/downloadcenter/catalogue/3.Control/AX-8/DELTA_IA-IPC_AX-8_C_EN_20210916.pdf)."),
+        ],
+        see: ["plc-nahrani", "plc-codesys", "overeni-platforem", "generovat"],
+        keywords: N_("Delta, AX-3, AX-5, AX-8, AX-308E, DIADesigner-AX, DIAStudio, CODESYS, moduly AS"),
+    },
+    {
+        id: "plc-schneider", group: "topic", title: N_("Schneider Modicon: řady, Machine Expert a nahrání"),
+        summary: N_("PLCdesk generuje ST pro **Modicon M241 / M251 / M262** v EcoStruxure Machine Expert (na bázi CODESYS). M221 se programuje v Machine Expert – Basic (podle FAQ k verzi 1.6 bez ST) a je mimo."),
+        steps: [
+            N_("Importuj výstup podle README platformy (POU + GVL nebo PLCopen XML)."),
+            N_("Připoj se a přihlas (Login) jako v CODESYS; víc aplikací najednou nahraje **Online → Multiple Download**."),
+            N_("Boot aplikaci nabídne běžný download; u Multiple Download ji vytvoř přes **Online → Create boot application** (online jen ve STOP)."),
+        ],
+        tips: [
+            N_("Firmware M241 / M251 aktualizuje Controller Assistant (po Ethernetu / USB, nebo na SD kartu FAT32 a vypnout / zapnout); M262 ze SD karty skriptem."),
+            N_("Při downloadu se proměnné RETAIN inicializují, PERSISTENT RETAIN zůstanou."),
+            N_("Vypršení hesla je v Machine Expert 2.3 a 2.5 ve výchozím stavu zapnuté, od 2.6 vypnuté."),
+            N_("Zdroje: Schneider FAQ FA272065 (https://www.se.com/us/en/faqs/FA272065/), Multiple Download (https://product-help.schneider-electric.com/Machine%20Expert/V2.1/en/SoMMenu/SoMMenu/D-SE-0083995.html), RETAIN M251 (https://product-help.schneider-electric.com/Machine%20Expert/V2.1/en/m251prg/m251prg/D-SE-0008846.html), FAQ000282281 (https://www.se.com/us/en/faqs/FAQ000282281/)."),
+        ],
+        issues: [
+            { problem: N_("Multiple Download aplikaci přeskočil"), fix: N_("Aplikace s vnucenými (forced) proměnnými se přeskočí — vnucení zruš.") },
+            { problem: N_("M221: „Operation unsuccessful“ při downloadu aplikace s heslem"), fix: N_("V Commissioning zapni „Reset memories“ (SoMachine Basic V1.5 SP1, FAQ FA328638).") },
+        ],
+        see: ["plc-nahrani", "plc-codesys", "overeni-platforem", "generovat"],
+        keywords: N_("Schneider, Modicon, M241, M251, M262, M221, Machine Expert, SoMachine, Controller Assistant, Multiple Download, boot aplikace, firmware"),
+    },
+    {
+        id: "plc-mitsubishi", group: "topic", title: N_("Mitsubishi MELSEC: řady, GX Works3 a nahrání"),
+        summary: N_("PLCdesk generuje ST, globální návěští a IEC 61131-10 XML pro **iQ-F (FX5U / FX5UC / FX5UJ)** a iQ-R v GX Works3. FX3, Q a L (GX Works2) jsou mimo; iQ-F jde programovat jen v GX Works3."),
+        steps: [
+            N_("Importuj výstup podle README platformy a přelož (Convert)."),
+            N_("Na PC nastav ruční IP ve stejné podsíti jako CPU (výchozí FX5: 192.168.3.250 / 255.255.255.0)."),
+            N_("**Online → Current Connection Destination**: v okně Specify Connection Destination zvol **CPU Module Direct Coupled Setting** (přímé spojení Ethernetem, výběr síťové karty PC). FX5U / FX5UC přes USB připojit nejde."),
+            N_("**Online → Write to PLC** (okno Online Data Operation): na záložce Write vyber data (např. **Parameter + Program**, globální návěští), případně Detail, a **Execute**."),
+            N_("Přepínač RUN/STOP/RESET dej do RUN, nebo použij **Online → Remote Operation** (RUN / STOP / PAUSE / RESET)."),
+        ],
+        tips: [
+            N_("Převod programu za běhu dělá GX Works3 jako online změnu automaticky (vypnutí: Tools → Options → Conversion → Online Program Change); LD a ST jdou měnit online od první verze firmwaru."),
+            N_("Část funkcí závisí na firmwaru CPU (např. online změna SFC od FX5U / FX5UC FW 1.290) — porovnej s manuálem."),
+            N_("Rozsah latch (retain): CPU Parameter → Device/Memory Setting → Device/Label Memory Area Setting."),
+            N_("Boot ze SD karty: Memory Card Parameters → Boot Settings, zapsat na kartu, pak vypnout / zapnout nebo reset CPU."),
+            N_("Ochrana: security key, block password, remote password a file password."),
+            N_("Remote Operation funguje jen s přepínačem na CPU v RUN; RESET vyžaduje povolený remote reset v CPU Parameter → Operation Related Setting a CPU zastavené dálkově."),
+            N_("Za běhu jde jen online změna programu; FX5 nepodporuje File batch online change, ostatní soubory se zapisují ve STOP / PAUSE."),
+            N_("Firmware FX5U / FX5UC / FX5UJ nejde aktualizovat z GX Works3 — jen SD kartou; FX5S umí obojí."),
+            N_("Zdroje: GX Works3 Operating Manual SH-081215ENG-AV, kap. 12.1–12.2, 13.1, 13.4, 18.2 (https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/sh081215eng/sh081215engav.pdf), aktualizace firmwaru FAQ 39325 (https://fa-faq.mitsubishielectric.com/faq/show/39325)."),
+            N_("Zdroje: Mitsubishi FA FAQ 22292 (https://fa-faq.mitsubishielectric.com/faq/show/22292), připojení Ethernetem 22319 (https://fa-faq.mitsubishielectric.com/faq/show/22319), online změna 44876 (https://fa-faq.mitsubishielectric.com/faq/show/44876), latch 22329 (https://fa-faq.mitsubishielectric.com/faq/show/22329), boot ze SD 44348 (https://fa-faq.mitsubishielectric.com/faq/show/44348)."),
+        ],
+        issues: [
+            { problem: N_("GX Works3 se k CPU nepřipojí"), fix: N_("PC má IP z DHCP nebo z jiné podsítě, případně spojení blokuje antivir — nastav ruční IP ve stejné podsíti.") },
+            { problem: N_("FX5 nejde otevřít v GX Works2"), fix: N_("Řada iQ-F se programuje jen v GX Works3.") },
+            { problem: N_("Program se do CPU nezapíše"), fix: N_("Systémové a CPU parametry v projektu se neshodují s CPU — zapiš je spolu s programem (Parameter + Program).") },
+            { problem: N_("Spojení blokuje firewall"), fix: N_("Ve firewallu Windows povol GXW3.exe; u FX5 musí mít PC stejnou síťovou část IP adresy jako CPU.") },
+        ],
+        see: ["plc-nahrani", "overeni-platforem", "generovat"],
+        keywords: N_("Mitsubishi, MELSEC, GX Works3, GX Works2, iQ-F, FX5U, FX5UJ, iQ-R, Write to PLC, Specify Connection Destination, Remote Operation, latch, SD karta, firmware"),
+    },
+    {
+        id: "plc-omron", group: "topic", title: N_("OMRON Sysmac: řady, Sysmac Studio a nahrání"),
+        summary: N_("PLCdesk generuje ST a tabulku proměnných pro **NJ / NX** (katalog: NX1P2, NX102) v Sysmac Studiu. Řady CS1 / CJ / CP se programují v CX-Programmer (CX-One) a jsou mimo."),
+        steps: [
+            N_("Importuj výstup podle README platformy; v projektu zvol model a verzi jednotky CPU."),
+            N_("Připoj se k řadiči (např. přímo USB) a přejdi online."),
+            N_("**Synchronizace** porovná projekt s daty v řadiči a přenese je zvoleným směrem (do řadiče)."),
+            N_("Režim přepni **Controller → Mode → RUN Mode / PROGRAM Mode** a potvrď; při změně režimu se smažou hodnoty I/O kromě proměnných s atributem Retain."),
+        ],
+        tips: [
+            N_("Retain proměnné se při přenosu ve výchozím stavu zachovají (smazat je jde volbou v okně synchronizace), ostatní proměnné se smažou. Proměnná označená jako Retain až po přenosu se při něm vynuluje."),
+            N_("Záloha a obnova na SD kartu: DIP přepínač 3 + tlačítko 3 s, proměnná _Card1BkupCmd nebo Tools → Backup; záloha neuloží část konfigurace EtherCAT a polohy enkodérů."),
+            N_("Sysmac Studio má 30denní zkušební verzi, trvale potřebuje licenci."),
+            N_("Verze řadiče v projektu musí být rovna verzi CPU nebo nižší (projekt 1.01 jde do CPU 1.02, ne do 1.00). Mění se přes **Change Device**; nastavení funkcí, které nová verze nemá, se ztratí. Verze je na štítku na boku CPU."),
+            N_("**Online editace** (Project → Online Edit → Start / Transfer): logika LD a ST, přidání lokálních (VAR) a globálních proměnných, volání POU, předvolby časovačů; mazat proměnné ani měnit jejich jméno, typ, AT nebo Retain nejde. Data v řadiči musí být shodná s projektem a během přenosu nevypínej napájení."),
+            N_("**Controller → Clear All Memory** (jen v PROGRAM) smaže program, nastavení řadiče včetně zabezpečení, všechny proměnné i offset absolutního enkodéru — offset předem zazálohuj."),
+            N_("Zdroje: Sysmac Studio Operation Manual W504-E1-48, kap. 3-3, 7-2-5, 7-2-6, 8-6-1 (https://assets.omron.com/m/5588b79554a8fdfe/original/Sysmac-Studio-Operation-Manual.pdf)."),
+            N_("Zdroje: Omron — retain při přenosu (https://omron.helpjuice.com/machine-automation-controllers/how-to-retain-variables-in-nxnj-series-during-transfer), záloha na SD (https://automation-knowledge-base.omron.eu/support/solutions/articles/103000314503-controller-backup-and-restore-procedure), Sysmac Studio Operation Manual W504 (https://assets.omron.com/m/5588b79554a8fdfe/original/Sysmac-Studio-Operation-Manual.pdf)."),
+        ],
+        issues: [
+            { problem: N_("Přenos nejde kvůli verzi jednotky"), fix: N_("V projektu změň zařízení na verzi jednotky odpovídající CPU, nebo použij CPU s vyšší verzí jednotky.") },
+        ],
+        see: ["plc-nahrani", "overeni-platforem", "generovat"],
+        keywords: N_("Omron, Sysmac Studio, NJ, NX, NX1P2, NX102, synchronizace, přenos, verze jednotky, unit version, retain, SD karta, online editace, Clear All Memory, režim RUN, CX-Programmer"),
+    },
+    {
+        id: "plc-unitronics", group: "topic", title: N_("Unitronics UniStream: UniLogic a nahrání"),
+        summary: N_("PLCdesk generuje plochý ST a seznam tagů pro **UniStream** v UniLogic (katalog: US5 / US7 / US10 / USC). Vision a Samba (VisiLogic) a starší řady jsou mimo — pro ně je výstup jen předloha."),
+        steps: [
+            N_("Importuj tagy a ST podle README platformy."),
+            N_("Připoj se Ethernetem (IP podle UniApps → Network) nebo mini-USB (modely B3 USB nemají)."),
+            N_("Stáhni projekt: **Full Download** (jen rozdíly), Logic only (Ctrl+D), Media only nebo Download all; varianta „with Upload“ uloží i projekt pro pozdější vyčtení."),
+        ],
+        tips: [
+            N_("UniLogic při stažení kontroluje, zda firmware v PLC sedí k verzi UniLogic; firmware se aktualizuje ve Firmware Manageru na kartě PLC (downgrade jen přes Remote Upgrade nebo USB)."),
+            N_("Po změně typu, adresy nebo retain tagu je nutný restart PLC."),
+            N_("Retain a Power-up hodnota se vylučují; retain mají jen globální tagy."),
+            N_("Hesla (projekt, Upload, UniApps, VNC) se nahrávají s projektem."),
+            N_("Zdroje: nápověda UniLogic — Downloading/Uploading (https://www.unitronicsplc.com/Download/SoftwareHelp/!UniLogicWebhelp2024/Getting_Started_With_UniLogic/Downloading_Uploading_a_project.htm), Firmware (https://www.unitronicsplc.com/Download/SoftwareHelp/!UniLogicWebhelp2024/Getting_Started_With_UniLogic/Firmware.htm), Tags (https://www.unitronicsplc.com/Download/SoftwareHelp/!UniLogicWebhelp2024/Tags/Tags_(Operands).htm)."),
+        ],
+        issues: [
+            { problem: N_("„HMI Version Mismatch“ po stažení"), fix: N_("Firmware PLC nesedí k verzi UniLogic — aktualizuj ho ve Firmware Manageru.") },
+            { problem: N_("Projekt nejde z PLC vyčíst"), fix: N_("Projekt se stáhl bez varianty „with Upload“ — stáhni ho znovu s ní.") },
+        ],
+        see: ["plc-nahrani", "overeni-platforem", "generovat"],
+        keywords: N_("Unitronics, UniStream, UniLogic, US5, USC, VisiLogic, Vision, Full Download, firmware, Firmware Manager, UniApps"),
     },
     {
         id: "import", group: "topic", title: N_("Import stávajícího zařízení"),
@@ -572,7 +894,7 @@ const SRC = [
             { problem: N_("Jak přenesu projekt mezi webem a desktopem?"), fix: N_("Ulož projekt (.plcstudio.json) a otevři ho v druhé aplikaci — formát je stejný.") },
             { problem: N_("Aplikace je pomalá u velkého stroje"), fix: N_("Ověření simulací a dokumentace se počítají na pozadí s průběhem a tlačítkem Zrušit; první výpočet trvá déle, další se berou z mezipaměti.") },
         ],
-        see: ["start", "overeni", "licence", "zpetna-vazba"],
+        see: ["start", "overeni", "plc-nahrani", "licence", "zpetna-vazba"],
         keywords: N_("otázky, FAQ, časté dotazy, problém, proč, jak"),
     },
 ];
@@ -584,6 +906,7 @@ export function helpForStep(step) {
     return typeof step === "number" && HELP_STEP_IDS[step] ? HELP_STEP_IDS[step] : "start";
 }
 const keep = (only, client) => !only || !client || only === client;
+const shown = (s, client, preview = false) => keep(s.only, client) && (!s.preview || preview);
 const asText = (x) => (typeof x === "string" ? { text: x } : x);
 function build(s, client) {
     const t = (x) => (x.only ? { text: tr(x.text), only: x.only } : { text: tr(x.text) });
@@ -592,7 +915,7 @@ function build(s, client) {
         steps: (s.steps || []).map(asText).filter(x => keep(x.only, client)).map(t),
         tips: (s.tips || []).map(asText).filter(x => keep(x.only, client)).map(t),
         issues: (s.issues || []).filter(x => keep(x.only, client)).map(x => ({ problem: tr(x.problem), fix: tr(x.fix), ...(x.only ? { only: x.only } : {}) })),
-        see: (s.see || []).filter(id => { const o = SRC.find(c => c.id === id); return !!o && keep(o.only, client); }),
+        see: (s.see || []).filter(id => { const o = SRC.find(c => c.id === id); return !!o && shown(o, client); }),
         keywords: tr(s.keywords).split(/[,，、]/).map(k => k.trim()).filter(Boolean),
     };
     if (s.step !== undefined)
@@ -601,14 +924,15 @@ function build(s, client) {
         ch.only = s.only;
     return ch;
 }
-/** Všechny kapitoly v jazyce `lang` (výchozí = nastavený); `client` vynechá položky jiného klienta. */
-export function helpChapters(lang, client) {
-    return withLang(lang ?? getLang(), () => SRC.filter(s => keep(s.only, client)).map(s => build(s, client)));
+/** Všechny kapitoly v jazyce `lang` (výchozí = nastavený); `client` vynechá položky jiného klienta,
+ *  `preview` přidá kapitoly náhledu (PLCdesk PRO — jen desktop se zapnutým náhledem). */
+export function helpChapters(lang, client, preview = false) {
+    return withLang(lang ?? getLang(), () => SRC.filter(s => shown(s, client, preview)).map(s => build(s, client)));
 }
 /** Jedna kapitola (nebo null). */
-export function helpChapter(id, lang, client) {
+export function helpChapter(id, lang, client, preview = false) {
     const s = SRC.find(c => c.id === id);
-    if (!s || !keep(s.only, client))
+    if (!s || !shown(s, client, preview))
         return null;
     return withLang(lang ?? getLang(), () => build(s, client));
 }
@@ -681,12 +1005,12 @@ const strip = (s) => s.replace(/\*\*/g, "");
  * v kapitole (AND). Váha: nadpis 10, klíčová slova 6, shrnutí 3, ostatní text 1 (na slovo).
  * Hledá v jazyce `lang`; mimo češtinu i v českých klíčových slovech (nižší váha).
  */
-export function searchHelp(query, lang, client, limit = 20) {
+export function searchHelp(query, lang, client, limit = 20, preview = false) {
     const words = helpFold(query).split(/[\s,;]+/).map(w => w.trim()).filter(w => w.length >= 2 || /[^\x00-\x7f]/.test(w));
     if (!words.length)
         return [];
     const l = lang ?? getLang();
-    const chapters = helpChapters(l, client);
+    const chapters = helpChapters(l, client, preview);
     const csKw = l === "cs" ? null : new Map(SRC.map(s => [s.id, helpFold(s.keywords)]));
     const hits = [];
     for (const ch of chapters) {
@@ -750,5 +1074,5 @@ export function helpVideoUrl(lang) {
     const l = lang ?? getLang();
     return licenseSiteUrl("video", l) + "?v=" + (HELP_VIDEO_LANGS.includes(l) ? l : "en");
 }
-/** Id všech kapitol (pro web a testy). */
-export const HELP_IDS = SRC.map(s => s.id);
+/** Id všech kapitol (pro web a testy; bez kapitol náhledu — ty web nemá). */
+export const HELP_IDS = SRC.filter(s => !s.preview).map(s => s.id);
