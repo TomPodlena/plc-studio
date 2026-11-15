@@ -199,3 +199,130 @@ def plan_rozvod(spec: dict, obst: list, fixed: list, krok: float = 9.0) -> list 
             if all(math.dist(a, b) >= mn - 1e-6 for a, b in list(zip(out, out[1:]))[1:-1]) and not kolize_s(out, r + 1.0, obs):
                 return out
     return None
+
+
+def rozestup(vals: list, mezery: list, lo: float, hi: float) -> list:
+    """Rozloží polohy ``vals`` podél osy tak, aby sousedé (v pořadí podle polohy) měli odstup ≥ (mezery[i] + mezery[j]) / 2 + 3;
+    pořadí se zachová, výsledek leží v ⟨lo, hi⟩ (nevejde-li se, vrací nejtěsnější možné rozložení od ``lo``)."""
+    idx = sorted(range(len(vals)), key=lambda i: vals[i])
+    out = [min(max(v, lo), hi) for v in vals]
+    for a, b in zip(idx, idx[1:]):
+        out[b] = max(out[b], out[a] + (mezery[a] + mezery[b]) / 2 + 3.0)
+    if idx and out[idx[-1]] > hi:
+        out[idx[-1]] = hi
+        for a, b in zip(reversed(idx[:-1]), reversed(idx[1:])):
+            out[a] = min(out[a], out[b] - (mezery[a] + mezery[b]) / 2 - 3.0)
+    return out
+
+
+def _seg_dist2(a, b, c, d):
+    """Nejmenší vzdálenost dvou úseček v půdoryse (0 při křížení)."""
+    def _o(p, q, r):
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+    if _o(a, b, c) * _o(a, b, d) < 0 and _o(c, d, a) * _o(c, d, b) < 0:
+        return 0.0
+    return min(_d2seg(c, a, b), _d2seg(d, a, b), _d2seg(a, c, d), _d2seg(b, c, d))
+
+
+def hladiny_pod_skrini(items: list, z_pod: float, mezera: float = 1.0) -> list:
+    """Výšky vodorovných úseků kabelů pod skříní (V1 → V2 ze svodu žlabu k vývodce). ``items`` = [{v1, v2, r}], nejvyšší hladina
+    = ``z_pod`` (ohyb do vývodky s rezervou), další o rozteč 2r + 2 + ``mezera`` níž. Pořadí: kabel k, jehož vodorovný úsek vede
+    nad svodem (V1) nebo nad vývodkou (V2) kabelu j, musí být níž než j (svislice j pak jeho hladinou neprojde). Cyklus nebo
+    nevyřešitelné pořadí → zbylé kabely podle pořadí vstupu (volající výsledek zkontroluje kontrolou kolizí)."""
+    n = len(items)
+    if n <= 1:
+        return [z_pod] * n
+    nxt = {i: set() for i in range(n)}                    # i → j: i musí být níž než j
+    for k in range(n):
+        a, b = items[k]["v1"], items[k]["v2"]
+        for j in range(n):
+            if j == k:
+                continue
+            lim = items[k]["r"] + items[j]["r"] + mezera + 1.0
+            for pt in (items[j]["v1"], items[j]["v2"]):
+                if _d2seg(pt, a, b) < lim and all(math.dist(pt[:2], q[:2]) >= lim for q in (a, b)):
+                    nxt[k].add(j)
+    pitch = 2 * max(it["r"] for it in items) + 2.0 + mezera
+
+    def _hloubky():
+        """Délka nejdelšího řetězu „musí být výš“ nad kabelem (zpětné hrany cyklů se přeskočí)."""
+        dep, stav = {}, {}
+
+        def _d(i):
+            stav[i] = 1
+            best = 0
+            for j in sorted(nxt[i]):
+                if stav.get(j) == 1:
+                    continue
+                if j not in dep:
+                    _d(j)
+                best = max(best, dep[j] + 1)
+            dep[i] = best
+            stav[i] = 2
+        for i in range(n):
+            if i not in dep:
+                _d(i)
+        return dep
+    # vodorovné úseky, které se v půdoryse kříží a nemají pořadí: nižší je ten, kdo má shodnou hloubku a nižší číslo (cyklus nevznikne)
+    for k in range(n):
+        for j in range(k + 1, n):
+            if j in nxt[k] or k in nxt[j]:
+                continue
+            lim = items[k]["r"] + items[j]["r"] + mezera + 1.0
+            a, b, c, d = items[k]["v1"], items[k]["v2"], items[j]["v1"], items[j]["v2"]
+            if _seg_dist2(a, b, c, d) < lim:
+                dp = _hloubky()
+                if dp[k] > dp[j]:
+                    nxt[k].add(j)
+                elif dp[j] > dp[k]:
+                    nxt[j].add(k)
+                else:
+                    nxt[k].add(j)
+    dep = _hloubky()
+    return [z_pod - dep[i] * pitch for i in range(n)]
+
+
+def plan_kabel(s: dict, obst: list, cizi: list, mezera: float = 1.0, urovni: int = 14) -> list | None:
+    """Pevná dráha jednoho kabelu E2 (stejný princip jako hadice: vlastní hladina, pravoúhlé tvary, bez routeru).
+
+    ``s`` = {p1 (první bod za koncovkou), A (vstup k žlabu, dál vede pevný úsek), n (normála žlabu, ven), r, R}; ``obst`` = kvádry
+    překážek (rám, díly, zóny pohybu válců, desky); ``cizi`` = kvádry už položených kabelů a pevných částí jiných kabelů (už nafouklé
+    o jejich poloměr). Dráha p1 → hladina nad vstupem (osa normály žlabu) → po dvou zbývajících osách → na A; hladiny se zkoušejí
+    od nejbližší po vzdálenější (rozteč 2r + 2 + ``mezera``), takže každý další kabel má vlastní hladinu a kabely se nekříží z
+    konstrukce (kontrola proti ``cizi``). Úsek mezi ohyby ≥ 2R + 1. Vrací [p1, …, A] nebo None (volající použije router)."""
+    p1, A, r, R = list(s["p1"]), list(s["A"]), s["r"], s["R"]
+    n = s["n"]
+    ka = max(range(3), key=lambda k: abs(n[k]))
+    sg = 1.0 if n[ka] >= 0 else -1.0
+    oth = [k for k in range(3) if k != ka]
+    mn = 2 * R + 1.0
+    pitch = 2 * r + 2.0 + mezera
+    obs = _obs_pro(list(obst), {"p1": p1, "p2": A, "r": r, "R": R})
+    hs = []
+    for i in range(urovni):
+        for h in (A[ka] + sg * (i * pitch), p1[ka] + sg * (i * pitch), p1[ka] - sg * (i * pitch)):
+            if sg * (h - A[ka]) >= -1e-6 and all(abs(h - q) > 1e-6 for q in hs):     # hladina neleží uvnitř žlabu (pod vstupem)
+                hs.append(h)
+    cands = []
+    for h in hs:
+        for a, b in ((oth[0], oth[1]), (oth[1], oth[0])):
+            q1 = list(p1)
+            q1[ka] = h
+            q2 = list(q1)
+            q2[a] = A[a]
+            q3 = list(q2)
+            q3[b] = A[b]
+            P = _clean([p1, q1, q2, q3, A])
+            if not P or len(P) < 2 or any(math.dist(u, v) < mn - 1e-6 for u, v in zip(P, P[1:])):
+                continue
+            cands.append((sum(math.dist(u, v) for u, v in zip(P, P[1:])) + 40.0 * abs(h - A[ka]) / pitch, P))
+    cands.sort(key=lambda c: c[0])
+    for _c, P in cands:
+        bxs = [_box(u, v, r + 1.0) for u, v in zip(P, P[1:])]
+        if any(_prekryv(b, o) for b in bxs for o in obs):
+            continue
+        if any(_prekryv(_box(u, v, r), o) for u, v in zip(P, P[1:]) for o in cizi):
+            continue
+        return [list(map(float, q)) for q in P]
+    LAST["fail"] = "kabel: tvar"
+    return None

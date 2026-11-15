@@ -34,6 +34,7 @@ if __package__ in (None, ""):
     __package__ = "plc_studio.pro3d_lib"
 
 from . import modul_ostrov, modul_ram, spojky_mech  # noqa: E402
+from . import svazek_drah as sdr  # noqa: E402
 from .modul_ram import _lib, add, cols, cross, r3  # noqa: E402
 
 GEN = "pro3d_lib/modul_vedeni"
@@ -183,7 +184,7 @@ def _kolize_kabelu(boxes, cizi, tol=0.5):
     return any(all(a[k] < b[k + 3] - tol and a[k + 3] > b[k] + tol for k in range(3)) for a in boxes for b in cizi)
 
 
-def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_pod: float, plates=None) -> dict:
+def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_pod: float, plates=None, odsaz: float = 0.0) -> dict:
     """Trasy kabelů ``kabely`` = [{id, od, start, smer, medium, D?, skupina, partId}] přes ``zlab`` do vývodek ``vyvodky``
     (E1 ``vstupy_kabelu``: bod = konec šestihranu pod dnem, osa +z). ``obst`` = kvádry překážek, ``nosne`` = nosné lišty
     (E1 ``nosna_lista``), ``z_pod`` = výška vodorovného úseku pod skříní (E1 ``pod_skrini.z_kabelu_max``)."""
@@ -204,9 +205,12 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
     Rs = [float(tr.pozadovany_polomer(media[c["medium"]], "pevne", D)["min"] or 6 * D) for c, D in zip(ks, Ds)]
     def _mk(gls):
         det = []
-        for c, D, R, (yl, wl), g in zip(ks, Ds, Rs, lanes, gls):
-            s_out = min(max(zlab.s_of(g["bod"]), 2 * R + 5), zlab.L - 2 * R - 5)
-            s_in = min(max(zlab.s_of(c["start"]), 5.0), zlab.L - 5.0)
+        # svod za žlabem (výstup do vývodky) i vstup do žlabu mají vlastní polohu podél žlabu — jinak by se svody kabelů v různých
+        # pruzích překrývaly (společná zarážka u konce žlabu); pořadí = pořadí vývodek / vstupů (bez křížení)
+        Rm = max(Rs) if Rs else 0.0
+        souts = sdr.rozestup([zlab.s_of(g["bod"]) for g in gls], Ds, 2 * Rm + 5, zlab.L - 2 * Rm - 5)
+        sins = sdr.rozestup([zlab.s_of(c["start"]) for c in ks], Ds, 5.0, zlab.L - 5.0)
+        for c, D, R, (yl, wl), g, s_out, s_in in zip(ks, Ds, Rs, lanes, gls, souts, sins):
             if abs(s_in - s_out) < 2 * R + 5:
                 s_in = s_out - (2 * R + 5) if s_out - (2 * R + 5) >= 5.0 else s_out + 2 * R + 5
             off = zlab.z["h"] - yl + 2 * R + 10.0               # výstup / vstup otvorem kolmo na dno o 2 R + 10 za otvor
@@ -246,6 +250,11 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
             if cc < best[0]:
                 best = (cc, dd)
         det = best[1]
+    # 0) vodorovné úseky pod skříní: každý kabel vlastní hladina (svazek_drah.hladiny_pod_skrini), pořadí podle překřížení
+    lv = sdr.hladiny_pod_skrini([{"v1": x["pevne"][3], "v2": x["pevne"][4], "r": x["D"] / 2} for x in det], z_pod - odsaz)
+    for x, z_ in zip(det, lv):
+        x["pevne"][3] = [x["pevne"][3][0], x["pevne"][3][1], z_]
+        x["pevne"][4] = [x["pevne"][4][0], x["pevne"][4][1], z_]
     # 1) pevné části tras (ve žlabu a pod skříní)
     fixed_boxes = []
     for x in det:
@@ -275,8 +284,15 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
         def _hit(b):
             return rt.point_in(p1, rt.inflate(b, D / 2 + 4)) or rt.point_in(x["A"], rt.inflate(b, D / 2 + 4))
         r_ = None
+        # 0) pevná dráha jako u hadic (svazek_drah.plan_kabel): vlastní hladina nad vstupem do žlabu, pravoúhlé tvary, bez křížení
+        #    s dříve položenými kabely a s překážkami (vč. zón zdvihu válců); router jen záložně (kabel bez pevné dráhy)
+        pk = sdr.plan_kabel({"p1": p1, "A": x["A"], "n": zlab.n, "r": D / 2, "R": R},
+                            [b for b in obst + zlab.walls() + [list(pl) for pl in plates or []] if not _hit(b)], others + done_boxes)
+        if pk:
+            r_ = {"body": pk, "pruchody": []}
+            res["pevna_draha"] = res.get("pevna_draha", 0) + 1
         # nejdřív cizí kabely vždy jako překážka; nenajde-li se trasa, vyřadit překážky obsahující začátek / vstup do žlabu
-        for strikt in (True, False):
+        for strikt in (True, False) if r_ is None else ():
             ob = [b for b in obst + zlab.walls() if not _hit(b)]
             ob += (others + done_boxes) if strikt else [b for b in others + done_boxes if not _hit(b)]
             for krok in (20.0, 40.0):                          # limit uzlů na jemné mřížce → hrubší mřížka
@@ -347,7 +363,7 @@ def trasy(kabely: list, zlab: Zlab, vyvodky: list, obst: list, nosne: list, z_po
 
 
 # --- modul E2 ----------------------------------------------------------------------------------------------------------------
-def modul(kabely: list, zlab: Zlab, e1_roz: dict, obst: list, ident: str = "E2", nazev: str = "", plates=None) -> dict:
+def modul(kabely: list, zlab: Zlab, e1_roz: dict, obst: list, ident: str = "E2", nazev: str = "", plates=None, odsaz: float = 0.0) -> dict:
     """Modul E2: žlab + šrouby, úchytky, kabely; smlouva E2. ``e1_roz`` = smlouva E1 (vývodky, nosná lišta, výška pod skříní)."""
     nos = [e1_roz["nosna_lista"]] if e1_roz.get("nosna_lista") else []
     z_pod = (e1_roz.get("pod_skrini") or {}).get("z_kabelu_max")
@@ -358,7 +374,7 @@ def modul(kabely: list, zlab: Zlab, e1_roz: dict, obst: list, ident: str = "E2",
     z_kab = (nos_z[0] + UCHYT["rozmer"][2] + D0 / 2 + DOTYK) if nos_z else z_pod
     if z_kab > z_pod + 1e-6:
         raise ValueError(f"E2: kabel nad nosnou lištou (z {z_kab:.1f}) je výš než dovoluje ohyb do vývodky (z {z_pod:.1f})")
-    tr = trasy(kabely, zlab, e1_roz["vstupy_kabelu"], obst, nos, z_kab, plates=plates)
+    tr = trasy(kabely, zlab, e1_roz["vstupy_kabelu"], obst, nos, z_kab, plates=plates, odsaz=odsaz)
     dily, inst = [], []
     sp = spec_zlabu(zlab.typ, zlab.L, zlab.holes)
     dily.append(sp)
@@ -546,7 +562,11 @@ def _dva_zlaby(exc, kab, p, u0, u1, zl, e1, obst, plates):
         return []
     try:
         ea = modul(sil, zl_a, e1["rozhrani"], obst + e1["boxes"], plates=plates)
-        eb = modul(sig, zl_b, e1["rozhrani"], obst + e1["boxes"] + [zl_a.box()], ident="E3", nazev="E3 — druhý kabelový žlab", plates=plates)
+        pouzite = {(round(t["body"][-1][0], 1), round(t["body"][-1][1], 1)) for t in ea["rozhrani"]["trasy"]}   # vývodka = 1 kabel: E3 ve zbylých
+        roz_b = dict(e1["rozhrani"], vstupy_kabelu=[g for g in e1["rozhrani"]["vstupy_kabelu"]
+                                                    if (round(g["bod"][0], 1), round(g["bod"][1], 1)) not in pouzite])
+        eb = modul(sig, zl_b, roz_b, obst + e1["boxes"] + [zl_a.box()], ident="E3", nazev="E3 — druhý kabelový žlab", plates=plates,
+                    odsaz=max(0.0, (e1["rozhrani"].get("pod_skrini") or {}).get("z_kabelu_max", 0.0) - min(t["body"][-3][2] for t in ea["rozhrani"]["trasy"]) + 12.0))
     except ValueError:
         return []
     return [("E2", ea), ("E3", eb)]

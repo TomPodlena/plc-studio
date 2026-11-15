@@ -104,6 +104,19 @@ def _body_box(body):
     return _u([_prim_box(p) for p in body.get("add") or []])
 
 
+def _zony_zdvihu(mods):
+    """Obálky zón zdvihu válců (``Konstrukce_Zona = zdvih``: vysunutá pístnice) globálně — kabel jimi nesmí vést."""
+    out = []
+    for m in mods:
+        pl = m.get("placement") or {"pos": [0, 0, 0], "rot": I3}
+        for t in m.get("telesa") or []:
+            if (t.get("props") or {}).get("Konstrukce_Zona") == "zdvih":
+                b = _body_box(t["body"])
+                if b:
+                    out.append(_tb(pl["rot"], pl["pos"], b))
+    return out
+
+
 def _module_boxes(m, typy_skip=("zona", "pomocny")):
     """Obálky těles modulu (globálně, s ``placement``) — překážky routeru; zóny a pomocné prostory zvlášť."""
     pl = m.get("placement") or {"pos": [0, 0, 0], "rot": I3}
@@ -1166,7 +1179,7 @@ def plan_celku(man: dict, *, s_hadicemi=True, s_kabely=True, model="Celek", layo
     if layout_path and s_kabely:                       # rozvaděč z pro3d_cabinet: konzola E1 + žlab a kabely E2 místo odhadu
         from . import modul_vedeni
         nep[:] = [n for n in nep if n.get("id") != "E1"]
-        obst_k = obst + [x for h in hoses for x in _router().segments_boxes(h["body"], h["r"] + 2)]
+        obst_k = obst + [x for h in hoses for x in _router().segments_boxes(h["body"], h["r"] + 2)] + _zony_zdvihu(list(d.moduly_ext) + list(p1_mods))
         from . import modul_stojan_rozvadece as e1m
         e1m.dopln_vyvodky(layout_path, [st[4] for st in cable_starts(man, d, pas, o3)])
         sk_ = e1m.nacti_skrin(layout_path)
